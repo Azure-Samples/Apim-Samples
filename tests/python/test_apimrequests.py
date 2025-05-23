@@ -119,6 +119,6 @@ def test_multi_get_error(mock_print_info, mock_print_message, mock_session, apim
     mock_sess.request.side_effect = requests.exceptions.RequestException("fail")
     mock_session.return_value = mock_sess
     with patch.object(apim, "_print_response_code"):
-        # Should raise inside the loop, but function should still close session and return what it has
+        # Should raise inside the loop and propagate the exception, ensuring the session is closed
         with pytest.raises(requests.exceptions.RequestException):
             apim.multiGet(default_path, runs=1, printResponse=True)
