@@ -45,3 +45,9 @@ jobs:
         with:
           name: junit-results-${{ matrix.python-version }}
           path: tests/python/junit-${{ matrix.python-version }}.xml
+
+      - name: Publish Unit Test Results to PR
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: tests/python/junit-*.xml
