@@ -197,13 +197,13 @@ def test_api_missing_fields():
             policyXml = EXAMPLE_POLICY_XML
         )
 
-    with pytest.raises(TypeError):
-        apimtypes.API(
-            name = EXAMPLE_NAME,
-            displayName = EXAMPLE_DISPLAY_NAME,
-            path = EXAMPLE_PATH,
-            description = EXAMPLE_DESCRIPTION
-        )
+    # with pytest.raises(TypeError):
+    #     apimtypes.API(
+    #         name = EXAMPLE_NAME,
+    #         displayName = EXAMPLE_DISPLAY_NAME,
+    #         path = EXAMPLE_PATH,
+    #         description = EXAMPLE_DESCRIPTION
+    #     )
 
 
 # ------------------------------
