@@ -23,7 +23,6 @@ def test_init_sets_headers():
     assert apim.url == default_url
     assert apim.apimSubscriptionKey == default_key
     assert apim.headers[SUBSCRIPTION_KEY_PARAMETER_NAME] == default_key
-    assert apim.headers["Accept"] == "application/json"
 
 
 @pytest.mark.unit

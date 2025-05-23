@@ -4,6 +4,7 @@ Unit tests for apimtypes.py.
 import pytest
 from shared.python import apimtypes
 
+
 # ------------------------------
 #    CONSTANTS
 # ------------------------------
@@ -14,10 +15,10 @@ EXAMPLE_PATH = "/test"
 EXAMPLE_DESCRIPTION = "A test API."
 EXAMPLE_POLICY_XML = "<policies />"
 
-# ------------------------------
-#    PUBLIC METHODS
-# ------------------------------
 
+# ------------------------------
+#    TEST METHODS
+# ------------------------------
 
 @pytest.mark.unit
 def test_api_creation():
@@ -144,8 +145,6 @@ def test_api_missing_fields():
         )
 
 
-
-
 # ------------------------------
 #    ENUMS
 # ------------------------------
@@ -186,6 +185,7 @@ def test_infrastructure_enum():
     assert apimtypes.INFRASTRUCTURE.AFD_APIM_PE == "afd-apim-pe"
     with pytest.raises(ValueError):
         apimtypes.INFRASTRUCTURE("bad")
+
 
 # ------------------------------
 #    OPERATION CLASSES

@@ -2,6 +2,8 @@ import os
 import builtins
 import pytest
 from unittest.mock import patch, MagicMock, mock_open
+from shared.python import utils
+from apimtypes import INFRASTRUCTURE
 
 # ------------------------------
 #    is_string_json
@@ -20,15 +22,13 @@ from unittest.mock import patch, MagicMock, mock_open
     ]
 )
 def test_is_string_json(input_str, expected):
-    from shared.python.utils import is_string_json
-    assert is_string_json(input_str) is expected
+    assert utils.is_string_json(input_str) is expected
 
 # ------------------------------
 #    get_account_info
 # ------------------------------
 
 def test_get_account_info_success(monkeypatch):
-    from shared.python import utils
     mock_json = {
         'user': {'name': 'testuser'},
         'tenantId': 'tenant',
@@ -40,7 +40,6 @@ def test_get_account_info_success(monkeypatch):
     assert result == ('testuser', 'tenant', 'subid')
 
 def test_get_account_info_failure(monkeypatch):
-    from shared.python import utils
     mock_output = MagicMock(success=False, json_data=None)
     monkeypatch.setattr(utils, 'run', lambda *a, **kw: mock_output)
     with pytest.raises(Exception):
@@ -51,12 +50,10 @@ def test_get_account_info_failure(monkeypatch):
 # ------------------------------
 
 def test_get_deployment_name(monkeypatch):
-    from shared.python import utils
     monkeypatch.setattr(os, 'getcwd', lambda: '/foo/bar/baz')
     assert utils.get_deployment_name() == 'baz'
 
 def test_get_deployment_name_error(monkeypatch):
-    from shared.python import utils
     monkeypatch.setattr(os, 'getcwd', lambda: '')
     with pytest.raises(RuntimeError):
         utils.get_deployment_name()
@@ -66,8 +63,6 @@ def test_get_deployment_name_error(monkeypatch):
 # ------------------------------
 
 def test_get_frontdoor_url_success(monkeypatch):
-    from shared.python import utils
-    from apimtypes import INFRASTRUCTURE
     mock_profile = [{"name": "afd1"}]
     mock_endpoints = [{"hostName": "foo.azurefd.net"}]
     def run_side_effect(cmd, *a, **kw):
@@ -81,8 +76,6 @@ def test_get_frontdoor_url_success(monkeypatch):
     assert url == 'https://foo.azurefd.net'
 
 def test_get_frontdoor_url_none(monkeypatch):
-    from shared.python import utils
-    from apimtypes import INFRASTRUCTURE
     monkeypatch.setattr(utils, 'run', lambda *a, **kw: MagicMock(success=False, json_data=None))
     url = utils.get_frontdoor_url(INFRASTRUCTURE.AFD_APIM_PE, 'rg')
     assert url is None
@@ -92,7 +85,6 @@ def test_get_frontdoor_url_none(monkeypatch):
 # ------------------------------
 
 def test_get_infra_rg_name(monkeypatch):
-    from shared.python import utils
     class DummyInfra:
         value = 'foo'
     monkeypatch.setattr(utils, 'validate_infrastructure', lambda x: x)
@@ -100,7 +92,6 @@ def test_get_infra_rg_name(monkeypatch):
     assert utils.get_infra_rg_name(DummyInfra, 2) == 'apim-infra-foo-2'
 
 def test_get_rg_name():
-    from shared.python import utils
     assert utils.get_rg_name('foo') == 'apim-sample-foo'
     assert utils.get_rg_name('foo', 3) == 'apim-sample-foo-3'
 
@@ -109,14 +100,12 @@ def test_get_rg_name():
 # ------------------------------
 
 def test_run_success(monkeypatch):
-    from shared.python import utils
     monkeypatch.setattr('subprocess.check_output', lambda *a, **kw: b'{"a": 1}')
     out = utils.run('echo', print_command_to_run=False)
     assert out.success is True
     assert out.json_data == {"a": 1}
 
 def test_run_failure(monkeypatch):
-    from shared.python import utils
     class DummyErr(Exception):
         output = b'fail'
     def fail(*a, **kw):
@@ -131,14 +120,12 @@ def test_run_failure(monkeypatch):
 # ------------------------------
 
 def test_does_resource_group_exist(monkeypatch):
-    from shared.python import utils
     monkeypatch.setattr(utils, 'run', lambda *a, **kw: MagicMock(success=True))
     assert utils.does_resource_group_exist('foo') is True
     monkeypatch.setattr(utils, 'run', lambda *a, **kw: MagicMock(success=False))
     assert utils.does_resource_group_exist('foo') is False
 
 def test_create_resource_group(monkeypatch):
-    from shared.python import utils
     called = {}
     monkeypatch.setattr(utils, 'does_resource_group_exist', lambda rg: False)
     monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: called.setdefault('info', True))
@@ -151,7 +138,6 @@ def test_create_resource_group(monkeypatch):
 # ------------------------------
 
 def test_policy_xml_replacement(monkeypatch):
-    from shared.python import utils
     m = mock_open(read_data='<xml>foo</xml>')
     monkeypatch.setattr(builtins, 'open', m)
     assert utils.policy_xml_replacement('dummy.xml') == '<xml>foo</xml>'
@@ -161,8 +147,6 @@ def test_policy_xml_replacement(monkeypatch):
 # ------------------------------
 
 def test_cleanup_resources_smoke(monkeypatch):
-    from shared.python import utils
-    from apimtypes import INFRASTRUCTURE
     monkeypatch.setattr(utils, 'run', lambda *a, **kw: MagicMock(success=True, json_data={}))
     monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(utils, 'print_error', lambda *a, **kw: None)
@@ -170,7 +154,20 @@ def test_cleanup_resources_smoke(monkeypatch):
     monkeypatch.setattr(utils, 'print_ok', lambda *a, **kw: None)
     monkeypatch.setattr(utils, 'print_warning', lambda *a, **kw: None)
     monkeypatch.setattr(utils, 'print_val', lambda *a, **kw: None)
-    utils.cleanup_resources(INFRASTRUCTURE.SIMPLE_APIM, 'rg')
+    # Direct private method call for legacy test (should still work)
+    utils._cleanup_resources(INFRASTRUCTURE.SIMPLE_APIM.value, 'rg')
+
+def test_cleanup_infra_deployment_single(monkeypatch):
+    monkeypatch.setattr(utils, '_cleanup_resources', lambda deployment_name, rg_name: None)
+    utils.cleanup_infra_deployment(INFRASTRUCTURE.SIMPLE_APIM, None)
+    utils.cleanup_infra_deployment(INFRASTRUCTURE.SIMPLE_APIM, 1)
+    utils.cleanup_infra_deployment(INFRASTRUCTURE.SIMPLE_APIM, [1, 2])
+
+def test_cleanup_deployment_single(monkeypatch):
+    monkeypatch.setattr(utils, '_cleanup_resources', lambda deployment_name, rg_name: None)
+    utils.cleanup_deployment('foo', None)
+    utils.cleanup_deployment('foo', 1)
+    utils.cleanup_deployment('foo', [1, 2])
 
 # ------------------------------
 #    EXTRACT_JSON EDGE CASES
@@ -211,23 +208,19 @@ def test_cleanup_resources_smoke(monkeypatch):
 )
 def test_extract_json_edge_cases(input_val, expected):
     """Test extract_json with a wide range of edge cases and malformed input."""
-    from shared.python.utils import extract_json
-    result = extract_json(input_val)
+    result = utils.extract_json(input_val)
     assert result == expected
 
 def test_extract_json_large_object():
     """Test extract_json with a large JSON object."""
-    from shared.python.utils import extract_json
     large_obj = {"a": list(range(1000)), "b": {"c": "x" * 1000}}
     import json
     s = json.dumps(large_obj)
-    assert extract_json(s) == large_obj
+    assert utils.extract_json(s) == large_obj
 
 def test_extract_json_multiple_json_types():
     """Test extract_json returns the first valid JSON (object or array) in the string."""
-    from shared.python.utils import extract_json
     s = '[1,2,3]{"a": 1}'
-    assert extract_json(s) == [1, 2, 3]
+    assert utils.extract_json(s) == [1, 2, 3]
     s2 = '{"a": 1}[1,2,3]'
-    assert extract_json(s2) == {"a": 1}
-
+    assert utils.extract_json(s2) == {"a": 1}

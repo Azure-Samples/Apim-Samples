@@ -262,14 +262,13 @@ def policy_xml_replacement(policy_xml_filepath: str) -> str:
     # Convert the XML to JSON format
     return policy_template_xml
 
-# Cleans up resources associated with a deployment in a resource group
-def cleanup_resources(deployment: str | INFRASTRUCTURE, rg_name: str ) -> None:
+def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
     """
     Clean up resources associated with a deployment in a resource group.
     Deletes and purges Cognitive Services, API Management, and Key Vault resources, then deletes the resource group itself.
 
     Args:
-        deployment (str | INFRASTRUCTURE): The deployment name or enum value.
+        deployment_name (str): The deployment name (string).
         rg_name (str): The resource group name.
 
     Returns:
@@ -278,8 +277,7 @@ def cleanup_resources(deployment: str | INFRASTRUCTURE, rg_name: str ) -> None:
     Raises:
         Exception: If an error occurs during cleanup.
     """
-
-    if not deployment:
+    if not deployment_name:
         print_error("Missing deployment name parameter.")
         return
 
@@ -288,11 +286,6 @@ def cleanup_resources(deployment: str | INFRASTRUCTURE, rg_name: str ) -> None:
         return
 
     try:
-        if hasattr(deployment, 'value'):
-            deployment_name = deployment.value
-        else:
-            deployment_name = deployment
-
         print_info(f"🧹 Cleaning up resource group '{rg_name}'...")
 
         # Show the deployment details
@@ -335,6 +328,55 @@ def cleanup_resources(deployment: str | INFRASTRUCTURE, rg_name: str ) -> None:
     except Exception as e:
         print(f"An error occurred during cleanup: {e}")
         traceback.print_exc()
+
+
+# ------------------------------
+#    PUBLIC METHODS
+# ------------------------------
+
+def cleanup_infra_deployment(deployment: INFRASTRUCTURE, indexes: int | list[int] | None = None) -> None:
+    """
+    Clean up infrastructure deployments by deployment enum and index/indexes.
+    Obtains the infra resource group name for each index and calls the private cleanup method.
+
+    Args:
+        deployment (INFRASTRUCTURE): The infrastructure deployment enum value.
+        indexes (int | list[int] | None): A single index, a list of indexes, or None for no index.
+    """
+    validate_infrastructure(deployment)
+
+    if indexes is None:
+        indexes_list = [None]
+    elif isinstance(indexes, (list, tuple)):
+        indexes_list = list(indexes)
+    else:
+        indexes_list = [indexes]
+
+    for idx in indexes_list:
+        print_info(f"Cleaning up resources for {deployment} - {idx}", True)
+        rg_name = get_infra_rg_name(deployment, idx)
+        _cleanup_resources(deployment.value, rg_name)
+
+def cleanup_deployment(deployment: str, indexes: int | list[int] | None = None) -> None:
+    """
+    Clean up sample deployments by deployment name and index/indexes.
+    Obtains the resource group name for each index and calls the private cleanup method.
+
+    Args:
+        deployment (str): The deployment name (string).
+        indexes (int | list[int] | None): A single index, a list of indexes, or None for no index.
+    """
+    if not isinstance(deployment, str):
+        raise ValueError("deployment must be a string")
+    if indexes is None:
+        indexes_list = [None]
+    elif isinstance(indexes, (list, tuple)):
+        indexes_list = list(indexes)
+    else:
+        indexes_list = [indexes]
+    for idx in indexes_list:
+        rg_name = get_rg_name(deployment, idx)
+        _cleanup_resources(deployment, rg_name)
 
 def extract_json(text: str) -> any:
     """
