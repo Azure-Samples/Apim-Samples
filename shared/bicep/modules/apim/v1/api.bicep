@@ -72,7 +72,7 @@ resource apimApi 'Microsoft.ApiManagement/service/apis@2024-06-01-preview' = {
 
 // Create APIM tag resources for each tag in api.tags (array or object)
 // Only support array of strings for tags (APIM tags)
-var tagList = empty(api.tags) ? [] : api.tags
+var tagList = contains(api, 'tags') && !empty(api.tags) ? api.tags : []
 
 resource apimTags 'Microsoft.ApiManagement/service/tags@2024-06-01-preview' = [for tag in tagList: {
   name: tag
