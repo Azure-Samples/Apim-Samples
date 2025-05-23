@@ -145,6 +145,13 @@ class APIOperation:
     # ------------------------------
 
     def __init__(self, name: str, displayName: str, urlTemplate: str, method: HTTP_VERB, description: str, policyXml: str):
+        # Validate that method is a valid HTTP_VERB
+        if not isinstance(method, HTTP_VERB):
+            try:
+                method = HTTP_VERB(method)
+            except Exception:
+                raise ValueError(f"Invalid HTTP_VERB: {method}")
+
         self.name = name
         self.displayName = displayName
         self.method = method

@@ -142,3 +142,100 @@ def test_api_missing_fields():
             path = EXAMPLE_PATH,
             description = EXAMPLE_DESCRIPTION
         )
+
+
+
+
+# ------------------------------
+#    ENUMS
+# ------------------------------
+
+def test_apimnetworkmode_enum():
+    assert apimtypes.APIMNetworkMode.PUBLIC == "Public"
+    assert apimtypes.APIMNetworkMode.EXTERNAL_VNET == "External"
+    assert apimtypes.APIMNetworkMode.INTERNAL_VNET == "Internal"
+    assert apimtypes.APIMNetworkMode.NONE == "None"
+    with pytest.raises(ValueError):
+        apimtypes.APIMNetworkMode("invalid")
+
+def test_apim_sku_enum():
+    assert apimtypes.APIM_SKU.DEVELOPER == "Developer"
+    assert apimtypes.APIM_SKU.BASIC == "Basic"
+    assert apimtypes.APIM_SKU.STANDARD == "Standard"
+    assert apimtypes.APIM_SKU.PREMIUM == "Premium"
+    assert apimtypes.APIM_SKU.BASICV2 == "Basicv2"
+    assert apimtypes.APIM_SKU.STANDARDV2 == "Standardv2"
+    assert apimtypes.APIM_SKU.PREMIUMV2 == "Premiumv2"
+    with pytest.raises(ValueError):
+        apimtypes.APIM_SKU("invalid")
+
+def test_http_verb_enum():
+    assert apimtypes.HTTP_VERB.GET == "GET"
+    assert apimtypes.HTTP_VERB.POST == "POST"
+    assert apimtypes.HTTP_VERB.PUT == "PUT"
+    assert apimtypes.HTTP_VERB.DELETE == "DELETE"
+    assert apimtypes.HTTP_VERB.PATCH == "PATCH"
+    assert apimtypes.HTTP_VERB.OPTIONS == "OPTIONS"
+    assert apimtypes.HTTP_VERB.HEAD == "HEAD"
+    with pytest.raises(ValueError):
+        apimtypes.HTTP_VERB("FOO")
+
+def test_infrastructure_enum():
+    assert apimtypes.INFRASTRUCTURE.SIMPLE_APIM == "simple-apim"
+    assert apimtypes.INFRASTRUCTURE.APIM_ACA == "apim-aca"
+    assert apimtypes.INFRASTRUCTURE.AFD_APIM_PE == "afd-apim-pe"
+    with pytest.raises(ValueError):
+        apimtypes.INFRASTRUCTURE("bad")
+
+# ------------------------------
+#    OPERATION CLASSES
+# ------------------------------
+
+def test_apioperation_to_dict():
+    op = apimtypes.APIOperation(
+        name="op1",
+        displayName="Operation 1",
+        urlTemplate="/foo",
+        method=apimtypes.HTTP_VERB.GET,
+        description="desc",
+        policyXml="<xml/>"
+    )
+    d = op.to_dict()
+    assert d["name"] == "op1"
+    assert d["displayName"] == "Operation 1"
+    assert d["urlTemplate"] == "/foo"
+    assert d["method"] == apimtypes.HTTP_VERB.GET
+    assert d["description"] == "desc"
+    assert d["policyXml"] == "<xml/>"
+
+def test_get_apioperation():
+    op = apimtypes.GET_APIOperation(description="desc", policyXml="<xml/>")
+    assert op.name == "GET"
+    assert op.method == apimtypes.HTTP_VERB.GET
+    assert op.urlTemplate == "/"
+    assert op.description == "desc"
+    assert op.policyXml == "<xml/>"
+    d = op.to_dict()
+    assert d["method"] == apimtypes.HTTP_VERB.GET
+
+def test_post_apioperation():
+    op = apimtypes.POST_APIOperation(description="desc", policyXml="<xml/>")
+    assert op.name == "POST"
+    assert op.method == apimtypes.HTTP_VERB.POST
+    assert op.urlTemplate == "/"
+    assert op.description == "desc"
+    assert op.policyXml == "<xml/>"
+    d = op.to_dict()
+    assert d["method"] == apimtypes.HTTP_VERB.POST
+
+def test_apioperation_invalid_method():
+    # Negative: method must be a valid HTTP_VERB
+    with pytest.raises(ValueError):
+        apimtypes.APIOperation(
+            name="bad",
+            displayName="Bad",
+            urlTemplate="/bad",
+            method="INVALID",
+            description="desc",
+            policyXml="<xml/>"
+        )
