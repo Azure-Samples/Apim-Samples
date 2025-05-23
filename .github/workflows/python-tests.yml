@@ -30,12 +30,18 @@ jobs:
         run: |
           pip install pytest pytest-cov
 
-      - name: Run pytest with coverage
+      - name: Run pytest with coverage and generate JUnit XML
         run: |
-          PYTHONPATH=$(pwd) COVERAGE_FILE=tests/python/.coverage-${{ matrix.python-version }} pytest --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov-${{ matrix.python-version }} tests/python/
+          PYTHONPATH=$(pwd) COVERAGE_FILE=tests/python/.coverage-${{ matrix.python-version }} pytest --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov-${{ matrix.python-version }} --junitxml=tests/python/junit-${{ matrix.python-version }}.xml tests/python/
 
       - name: Upload coverage HTML report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-html-${{ matrix.python-version }}
           path: tests/python/htmlcov-${{ matrix.python-version }}/
+
+      - name: Upload JUnit test results
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-results-${{ matrix.python-version }}
+          path: tests/python/junit-${{ matrix.python-version }}.xml
