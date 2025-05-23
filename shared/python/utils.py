@@ -338,31 +338,32 @@ def cleanup_resources(deployment: str | INFRASTRUCTURE, rg_name: str ) -> None:
 
 def extract_json(text: str) -> any:
     """
-    Extract the first valid JSON object or array from a string and return it as a JSON string.
-    Uses json.JSONDecoder().raw_decode to robustly parse the first JSON object or array found in the string. The JSON object may be buried in the string and have preceding or trailing regular text.
+    Extract the first valid JSON object or array from a string and return it as a Python object.
+
+    This function searches the input string for the first occurrence of a JSON object or array (delimited by '{' or '['),
+    and attempts to decode it using json.JSONDecoder().raw_decode. If the input is already valid JSON, it is returned as a Python object.
+    If no valid JSON is found, None is returned.
 
     Args:
-        text (str): The string to search for JSON.
+        text (str): The string to search for a JSON object or array.
 
     Returns:
-        str | None: The extracted JSON as a string, or None if not found.
+        Any | None: The extracted JSON as a Python object (dict or list), or None if not found or not valid.
     """
 
     if not isinstance(text, str):
         return None
-    
-    # If the string is already JSON, return it.
-    if is_string_json(text):
-        return text
 
-    print(text)
+    # If the string is already valid JSON, parse and return it as a Python object.
+    if is_string_json(text):
+        return json.loads(text)
 
     decoder = json.JSONDecoder()
 
     for start in range(len(text)):
         if text[start] in ('{', '['):
             try:
-                obj, end = decoder.raw_decode(text[start:])
+                obj, _ = decoder.raw_decode(text[start:])
                 return obj
             except Exception:
                 continue
