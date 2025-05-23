@@ -25,3 +25,10 @@ labs-in-progress/
 
 # Exclude sensitive or generated files
 .env
+
+# Coverage reports
+tests/python/htmlcov/
+
+# Coverage config and data
+tests/python/.coverage
+tests/python/.coveragerc

@@ -3,3 +3,4 @@
 requests
 setuptools
 pytest
+pytest-cov
