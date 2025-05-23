@@ -1,32 +1,144 @@
-# pylint: disable=C0114,C0115,C0116,W0212,W0621
-
-# Execute with "pytest -v" in the root directory
-
-# https://docs.pytest.org/en/8.2.x/
-
 """
-Unit tests for apimtypes.py
+Unit tests for apimtypes.py.
 """
-import pytest, sys, os, unittest
+import pytest
+from shared.python import apimtypes
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+# ------------------------------
+#    CONSTANTS
+# ------------------------------
 
-##########################################################################################################################################################
+EXAMPLE_NAME = "test-api"
+EXAMPLE_DISPLAY_NAME = "Test API"
+EXAMPLE_PATH = "/test"
+EXAMPLE_DESCRIPTION = "A test API."
+EXAMPLE_POLICY_XML = "<policies />"
 
-# Utility Functions
+# ------------------------------
+#    PUBLIC METHODS
+# ------------------------------
 
-# Test Fixtures
+def test_api_creation():
+    """
+    Test creation of API object and its attributes.
+    """
+    api = apimtypes.API(
+        name = EXAMPLE_NAME,
+        displayName = EXAMPLE_DISPLAY_NAME,
+        path = EXAMPLE_PATH,
+        description = EXAMPLE_DESCRIPTION,
+        policyXml = EXAMPLE_POLICY_XML,
+        operations = None
+    )
 
-##########################################################################################################################################################
+    assert api.name == EXAMPLE_NAME
+    assert api.displayName == EXAMPLE_DISPLAY_NAME
+    assert api.path == EXAMPLE_PATH
+    assert api.description == EXAMPLE_DESCRIPTION
+    assert api.policyXml == EXAMPLE_POLICY_XML
+    assert api.operations == []
 
-# Tests
+def test_api_repr():
+    """
+    Test __repr__ method of API.
+    """
+    api = apimtypes.API(
+        name = EXAMPLE_NAME,
+        displayName = EXAMPLE_DISPLAY_NAME,
+        path = EXAMPLE_PATH,
+        description = EXAMPLE_DESCRIPTION,
+        policyXml = EXAMPLE_POLICY_XML,
+        operations = None
+    )
+    result = repr(api)
+    assert "API" in result
+    assert EXAMPLE_NAME in result
+    assert EXAMPLE_DISPLAY_NAME in result
 
-class TestApimTypes(unittest.TestCase):
-    @pytest.mark.apimtypes
+def test_api_equality():
+    """
+    Test equality comparison for API objects.
+    """
+    api1 = apimtypes.API(
+        name = EXAMPLE_NAME,
+        displayName = EXAMPLE_DISPLAY_NAME,
+        path = EXAMPLE_PATH,
+        description = EXAMPLE_DESCRIPTION,
+        policyXml = EXAMPLE_POLICY_XML,
+        operations = None
+    )
+    api2 = apimtypes.API(
+        name = EXAMPLE_NAME,
+        displayName = EXAMPLE_DISPLAY_NAME,
+        path = EXAMPLE_PATH,
+        description = EXAMPLE_DESCRIPTION,
+        policyXml = EXAMPLE_POLICY_XML,
+        operations = None
+    )
+    assert api1 == api2
 
-    def test_sample(self) -> None:
-        """Sample test - replace with real tests."""
-        self.assertTrue(True)
+def test_api_inequality():
+    """
+    Test inequality for API objects with different attributes.
+    """
+    api1 = apimtypes.API(
+        name = EXAMPLE_NAME,
+        displayName = EXAMPLE_DISPLAY_NAME,
+        path = EXAMPLE_PATH,
+        description = EXAMPLE_DESCRIPTION,
+        policyXml = EXAMPLE_POLICY_XML,
+        operations = None
+    )
+    api2 = apimtypes.API(
+        name = "other-api",
+        displayName = EXAMPLE_DISPLAY_NAME,
+        path = EXAMPLE_PATH,
+        description = EXAMPLE_DESCRIPTION,
+        policyXml = EXAMPLE_POLICY_XML,
+        operations = None
+    )
+    assert api1 != api2
 
-if __name__ == "__main__":
-    unittest.main()
+def test_api_missing_fields():
+    """
+    Test that missing required fields raise TypeError.
+    """
+    with pytest.raises(TypeError):
+        apimtypes.API(
+            displayName = EXAMPLE_DISPLAY_NAME,
+            path = EXAMPLE_PATH,
+            description = EXAMPLE_DESCRIPTION,
+            policyXml = EXAMPLE_POLICY_XML
+        )
+
+    with pytest.raises(TypeError):
+        apimtypes.API(
+            name = EXAMPLE_NAME,
+            path = EXAMPLE_PATH,
+            description = EXAMPLE_DESCRIPTION,
+            policyXml = EXAMPLE_POLICY_XML
+        )
+
+    with pytest.raises(TypeError):
+        apimtypes.API(
+            name = EXAMPLE_NAME,
+            displayName = EXAMPLE_DISPLAY_NAME,
+            description = EXAMPLE_DESCRIPTION,
+            policyXml = EXAMPLE_POLICY_XML
+        )
+
+    with pytest.raises(TypeError):
+        apimtypes.API(
+            name = EXAMPLE_NAME,
+            displayName = EXAMPLE_DISPLAY_NAME,
+            path = EXAMPLE_PATH,
+            policyXml = EXAMPLE_POLICY_XML
+        )
+
+    with pytest.raises(TypeError):
+        apimtypes.API(
+            name = EXAMPLE_NAME,
+            displayName = EXAMPLE_DISPLAY_NAME,
+            path = EXAMPLE_PATH,
+            description = EXAMPLE_DESCRIPTION
+        )
