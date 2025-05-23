@@ -1,5 +1,7 @@
 # Azure API Management Samples
 
+[![Python Tests](https://github.com/Azure-Samples/Apim-Samples/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/Azure-Samples/Apim-Samples/actions/workflows/python-tests.yml)
+
 This repository provides a playground to safely experiment with and learn Azure API Management (APIM) policies in various architectures. 
 
 ## Objectives
