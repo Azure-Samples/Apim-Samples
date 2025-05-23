@@ -87,11 +87,54 @@ The repo uses the bicep linter and has rules defined in `bicepconfig.json`. See 
 
 We welcome contributions! Please consider forking the repo and creating issues and pull requests to share your samples. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details. Thank you! 
 
-### Testing
 
-Python modules and files in the `shared` folder are supported with tests in the `python-tests` folder. They can be invoked manually via `pytest -v` but are also run upon push to GitHub origin. The `pytest.ini` file in the root sets up the test structure.
+### Testing & Code Coverage
 
-Additional information can be found [here](# https://docs.pytest.org/en/8.2.x/).
+Python modules in `shared/python` are covered by comprehensive unit tests located in `tests/python`. All tests use [pytest](https://docs.pytest.org/) and leverage modern pytest features, including custom markers for unit and HTTP tests.
+
+
+#### Running Tests Locally
+
+- **PowerShell (Windows):**
+  - Run all tests with coverage: `./tests/python/run_coverage.ps1`
+- **Shell (Linux/macOS):**
+  - Run all tests with coverage: `./tests/python/run_coverage.sh`
+
+Both scripts:
+- Run all tests in `tests/python` using pytest
+- Generate a code coverage report (HTML output in `tests/python/htmlcov`)
+- Store the raw coverage data in `tests/python/.coverage`
+
+You can also run tests manually:
+```powershell
+pytest -v --cov=shared/python --cov-report=html:tests/python/htmlcov --cov-report=term tests/python
+```
+
+#### Viewing Coverage Reports
+
+After running tests, open `tests/python/htmlcov/index.html` in your browser to view detailed coverage information.
+
+#### Pytest Markers
+
+- `@pytest.mark.unit` — marks a unit test
+- `@pytest.mark.http` — marks a test involving HTTP/mocking
+
+Markers are registered in `pytest.ini` to avoid warnings.
+
+#### Continuous Integration (CI)
+
+On every push or pull request, GitHub Actions will:
+- Install dependencies
+- Run all Python tests in `tests/python` with coverage
+- Store the `.coverage` file in `tests/python`
+- Upload the HTML coverage report as a workflow artifact for download
+
+#### Additional Notes
+
+- The `.gitignore` is configured to exclude coverage output and artifacts.
+- All test and coverage features work both locally and in CI.
+
+For more details on pytest usage, see the [pytest documentation](https://docs.pytest.org/en/8.2.x/).
 
 ---
 

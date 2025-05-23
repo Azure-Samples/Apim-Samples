@@ -8,15 +8,19 @@ from shared.python import utils
 #    PUBLIC METHODS
 # ------------------------------
 
-def test_is_string_json_valid():
-    """Test is_string_json with valid JSON strings."""
-    assert utils.is_string_json('{"a": 1}') is True
-    assert utils.is_string_json('[1, 2, 3]') is True
 
-def test_is_string_json_invalid():
-    """Test is_string_json with invalid JSON strings."""
-    assert utils.is_string_json('not json') is False
-    assert utils.is_string_json('{"a": 1') is False
+@pytest.mark.parametrize(
+    "input_str,expected",
+    [
+        ('{"a": 1}', True),
+        ('[1, 2, 3]', True),
+        ('not json', False),
+        ('{"a": 1', False),
+    ]
+)
+def test_is_string_json(input_str, expected):
+    """Test is_string_json with valid and invalid JSON strings."""
+    assert utils.is_string_json(input_str) is expected
 
 def test_extract_json_object():
     """Test extract_json extracts JSON object from string."""

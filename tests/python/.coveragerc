@@ -1,0 +1,11 @@
+[run]
+branch = True
+source = 
+    shared/python
+omit = 
+    */__init__.py
+    */__pycache__/*
+
+[report]
+show_missing = True
+skip_covered = True

@@ -18,10 +18,10 @@ EXAMPLE_POLICY_XML = "<policies />"
 #    PUBLIC METHODS
 # ------------------------------
 
+
+@pytest.mark.unit
 def test_api_creation():
-    """
-    Test creation of API object and its attributes.
-    """
+    """Test creation of API object and its attributes."""
     api = apimtypes.API(
         name = EXAMPLE_NAME,
         displayName = EXAMPLE_DISPLAY_NAME,
@@ -38,10 +38,10 @@ def test_api_creation():
     assert api.policyXml == EXAMPLE_POLICY_XML
     assert api.operations == []
 
+
+@pytest.mark.unit
 def test_api_repr():
-    """
-    Test __repr__ method of API.
-    """
+    """Test __repr__ method of API."""
     api = apimtypes.API(
         name = EXAMPLE_NAME,
         displayName = EXAMPLE_DISPLAY_NAME,
@@ -55,9 +55,9 @@ def test_api_repr():
     assert EXAMPLE_NAME in result
     assert EXAMPLE_DISPLAY_NAME in result
 
+@pytest.mark.unit
 def test_api_equality():
-    """
-    Test equality comparison for API objects.
+    """Test equality comparison for API objects.
     """
     api1 = apimtypes.API(
         name = EXAMPLE_NAME,

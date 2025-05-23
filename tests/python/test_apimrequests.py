@@ -15,20 +15,27 @@ default_data = {"foo": "bar"}
 def apim():
     return ApimRequests(default_url, default_key)
 
+
+@pytest.mark.unit
 def test_init_sets_headers():
+    """Test that headers are set correctly when subscription key is provided."""
     apim = ApimRequests(default_url, default_key)
     assert apim.url == default_url
     assert apim.apimSubscriptionKey == default_key
     assert apim.headers[SUBSCRIPTION_KEY_PARAMETER_NAME] == default_key
     assert apim.headers["Accept"] == "application/json"
 
+
+@pytest.mark.unit
 def test_init_no_key():
+    """Test that headers are set correctly when no subscription key is provided."""
     apim = ApimRequests(default_url)
     assert apim.url == default_url
     assert apim.apimSubscriptionKey is None
     assert "Ocp-Apim-Subscription-Key" not in apim.headers
     assert apim.headers["Accept"] == "application/json"
 
+@pytest.mark.http
 @patch("shared.python.apimrequests.requests.request")
 @patch("shared.python.apimrequests.utils.print_message")
 @patch("shared.python.apimrequests.utils.print_info")
@@ -48,6 +55,7 @@ def test_single_get_success(mock_print_error, mock_print_info, mock_print_messag
         mock_print_response.assert_called_once_with(mock_response)
         mock_print_error.assert_not_called()
 
+@pytest.mark.http
 @patch("shared.python.apimrequests.requests.request")
 @patch("shared.python.apimrequests.utils.print_message")
 @patch("shared.python.apimrequests.utils.print_info")
@@ -58,6 +66,7 @@ def test_single_get_error(mock_print_error, mock_print_info, mock_print_message,
     assert result is None
     mock_print_error.assert_called_once()
 
+@pytest.mark.http
 @patch("shared.python.apimrequests.requests.request")
 @patch("shared.python.apimrequests.utils.print_message")
 @patch("shared.python.apimrequests.utils.print_info")
@@ -77,6 +86,7 @@ def test_single_post_success(mock_print_error, mock_print_info, mock_print_messa
         mock_print_response.assert_called_once_with(mock_response)
         mock_print_error.assert_not_called()
 
+@pytest.mark.http
 @patch("shared.python.apimrequests.requests.Session")
 @patch("shared.python.apimrequests.utils.print_message")
 @patch("shared.python.apimrequests.utils.print_info")
@@ -100,6 +110,7 @@ def test_multi_get_success(mock_print_info, mock_print_message, mock_session, ap
         assert mock_sess.request.call_count == 2
         mock_print_code.assert_called()
 
+@pytest.mark.http
 @patch("shared.python.apimrequests.requests.Session")
 @patch("shared.python.apimrequests.utils.print_message")
 @patch("shared.python.apimrequests.utils.print_info")
