@@ -26,7 +26,8 @@ labs-in-progress/
 # Exclude sensitive or generated files
 .env
 
-
 # Coverage data and reports
 .coverage
 tests/python/htmlcov/
+
+shared/bicep/modules/**/*.json

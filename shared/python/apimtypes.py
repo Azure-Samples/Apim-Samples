@@ -25,6 +25,29 @@ SLEEP_TIME_BETWEEN_REQUESTS_MS  = 50
 
 
 # ------------------------------
+#    PRIVATE METHODS
+# ------------------------------
+
+# Placing this here privately as putting it into the utils module would constitude a circular import
+def _read_policy_xml(policy_xml_filepath: str) -> str:
+    """
+    Read and return the contents of a policy XML file.
+
+    Args:
+        policy_xml_filepath (str): Path to the policy XML file.
+
+    Returns:
+        str: Contents of the policy XML file.
+    """
+
+    # Read the specified policy XML file
+    with open(policy_xml_filepath, 'r') as policy_xml_file:
+        policy_template_xml = policy_xml_file.read()
+
+    return policy_template_xml
+
+
+# ------------------------------
 #    CLASSES
 # ------------------------------
 
@@ -100,12 +123,12 @@ class API:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, displayName: str, path: str, description: str, policyXml: Optional[str], operations: Optional[List['APIOperation']] = None, tags: Optional[List[str]] = None):
+    def __init__(self, name: str, displayName: str, path: str, description: str, policyXml: Optional[str] = None, operations: Optional[List['APIOperation']] = None, tags: Optional[List[str]] = None):
         self.name = name
         self.displayName = displayName
         self.path = path
         self.description = description
-        self.policyXml = policyXml if policyXml is not None else None
+        self.policyXml = policyXml if policyXml is not None else _read_policy_xml(DEFAULT_XML_POLICY_PATH)
         self.operations = operations if operations is not None else []
         self.tags = tags if tags is not None else []
 
@@ -150,7 +173,7 @@ class APIOperation:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, displayName: str, urlTemplate: str, method: HTTP_VERB, description: str, policyXml: str):
+    def __init__(self, name: str, displayName: str, urlTemplate: str, method: HTTP_VERB, description: str, policyXml: Optional[str] = None):
         # Validate that method is a valid HTTP_VERB
         if not isinstance(method, HTTP_VERB):
             try:
@@ -163,7 +186,7 @@ class APIOperation:
         self.method = method
         self.urlTemplate = urlTemplate
         self.description = description
-        self.policyXml = policyXml
+        self.policyXml = policyXml if policyXml is not None else _read_policy_xml(DEFAULT_XML_POLICY_PATH)
 
 
     # ------------------------------
@@ -192,7 +215,7 @@ class GET_APIOperation(APIOperation):
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, description: str, policyXml: str):
+    def __init__(self, description: str, policyXml: Optional[str] = None):
         super().__init__('GET', 'GET', '/', HTTP_VERB.GET, description, policyXml)
 
 
@@ -207,5 +230,5 @@ class POST_APIOperation(APIOperation):
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, description: str, policyXml: str):
+    def __init__(self, description: str, policyXml: Optional[str] = None):
         super().__init__('POST', 'POST', '/', HTTP_VERB.POST, description, policyXml)
