@@ -5,3 +5,6 @@ disable =
     C0115,  # Missing class docstring
     C0116,  # Missing function or method docstring
     W0212,  # Access to a protected member _ of a client class
+    R0903,  # Too few public methods
+    R0913,  # Too many arguments
+    W0621,  # Redefining name from outer scope
