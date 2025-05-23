@@ -159,9 +159,9 @@ def test_cleanup_resources_smoke(monkeypatch):
 
 def test_cleanup_infra_deployment_single(monkeypatch):
     monkeypatch.setattr(utils, '_cleanup_resources', lambda deployment_name, rg_name: None)
-    utils.cleanup_infra_deployment(INFRASTRUCTURE.SIMPLE_APIM, None)
-    utils.cleanup_infra_deployment(INFRASTRUCTURE.SIMPLE_APIM, 1)
-    utils.cleanup_infra_deployment(INFRASTRUCTURE.SIMPLE_APIM, [1, 2])
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, None)
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, 1)
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2])
 
 def test_cleanup_deployment_single(monkeypatch):
     monkeypatch.setattr(utils, '_cleanup_resources', lambda deployment_name, rg_name: None)

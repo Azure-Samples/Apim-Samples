@@ -334,7 +334,7 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
 #    PUBLIC METHODS
 # ------------------------------
 
-def cleanup_infra_deployment(deployment: INFRASTRUCTURE, indexes: int | list[int] | None = None) -> None:
+def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[int] | None = None) -> None:
     """
     Clean up infrastructure deployments by deployment enum and index/indexes.
     Obtains the infra resource group name for each index and calls the private cleanup method.
