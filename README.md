@@ -92,7 +92,6 @@ We welcome contributions! Please consider forking the repo and creating issues a
 
 Python modules in `shared/python` are covered by comprehensive unit tests located in `tests/python`. All tests use [pytest](https://docs.pytest.org/) and leverage modern pytest features, including custom markers for unit and HTTP tests.
 
-
 #### Running Tests Locally
 
 - **PowerShell (Windows):**
@@ -105,8 +104,8 @@ Both scripts:
 - Generate a code coverage report (HTML output in `tests/python/htmlcov`)
 - Store the raw coverage data in `tests/python/.coverage`
 
-You can also run tests manually:
-```powershell
+You can also run tests manually and see details in the console:
+```sh
 pytest -v --cov=shared/python --cov-report=html:tests/python/htmlcov --cov-report=term tests/python
 ```
 
