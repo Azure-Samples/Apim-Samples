@@ -381,10 +381,14 @@ def is_string_json(text: str) -> bool:
         bool: True if the string is valid JSON, False otherwise.
     """
 
+    # Accept only str, bytes, or bytearray as valid input for JSON parsing.
+    if not isinstance(text, (str, bytes, bytearray)):
+        return False
+
     try:
         json.loads(text)
         return True
-    except ValueError:
+    except (ValueError, TypeError):
         return False
 
 def get_account_info() -> Tuple[str, str, str]:
@@ -539,11 +543,13 @@ def run(command: str, ok_message: str = '', error_message: str = '', print_outpu
     start_time = time.time()
 
     # Execute the command and capture the output
+
     try:
         output_text = subprocess.check_output(command, shell = True, stderr = subprocess.STDOUT).decode("utf-8")
         success = True
-    except subprocess.CalledProcessError as e:
-        output_text = e.output.decode("utf-8")
+    except Exception as e:
+        # Handles both CalledProcessError and any custom/other exceptions (for test mocks)
+        output_text = getattr(e, 'output', b'').decode("utf-8") if hasattr(e, 'output') and isinstance(e.output, (bytes, bytearray)) else str(e)
         success = False
 
     if print_output:
