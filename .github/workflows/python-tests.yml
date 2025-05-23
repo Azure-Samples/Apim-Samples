@@ -32,7 +32,7 @@ jobs:
 
       - name: Run pytest with coverage
         run: |
-          COVERAGE_FILE=tests/python/.coverage pytest --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov tests/python/
+          PYTHONPATH=$(pwd) COVERAGE_FILE=tests/python/.coverage pytest --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov tests/python/
 
       - name: Upload coverage HTML report
         uses: actions/upload-artifact@v4
