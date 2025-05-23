@@ -38,6 +38,53 @@ def test_api_creation():
     assert api.description == EXAMPLE_DESCRIPTION
     assert api.policyXml == EXAMPLE_POLICY_XML
     assert api.operations == []
+    assert api.tags == []
+
+@pytest.mark.unit
+def test_api_creation_with_tags():
+    """Test creation of API object with tags."""
+    tags = ["tag1", "tag2"]
+    api = apimtypes.API(
+        name = EXAMPLE_NAME,
+        displayName = EXAMPLE_DISPLAY_NAME,
+        path = EXAMPLE_PATH,
+        description = EXAMPLE_DESCRIPTION,
+        policyXml = EXAMPLE_POLICY_XML,
+        operations = None,
+        tags = tags
+    )
+    assert api.tags == tags
+
+@pytest.mark.unit
+def test_api_to_dict_includes_tags():
+    """Test that to_dict includes tags when present."""
+    tags = ["foo", "bar"]
+    api = apimtypes.API(
+        name = EXAMPLE_NAME,
+        displayName = EXAMPLE_DISPLAY_NAME,
+        path = EXAMPLE_PATH,
+        description = EXAMPLE_DESCRIPTION,
+        policyXml = EXAMPLE_POLICY_XML,
+        operations = None,
+        tags = tags
+    )
+    d = api.to_dict()
+    assert "tags" in d
+    assert d["tags"] == tags
+
+@pytest.mark.unit
+def test_api_to_dict_omits_tags_when_empty():
+    """Test that to_dict omits tags when not set or empty."""
+    api = apimtypes.API(
+        name = EXAMPLE_NAME,
+        displayName = EXAMPLE_DISPLAY_NAME,
+        path = EXAMPLE_PATH,
+        description = EXAMPLE_DESCRIPTION,
+        policyXml = EXAMPLE_POLICY_XML,
+        operations = None
+    )
+    d = api.to_dict()
+    assert "tags" not in d or d["tags"] == []
 
 
 @pytest.mark.unit
@@ -66,7 +113,8 @@ def test_api_equality():
         path = EXAMPLE_PATH,
         description = EXAMPLE_DESCRIPTION,
         policyXml = EXAMPLE_POLICY_XML,
-        operations = None
+        operations = None,
+        tags = ["a", "b"]
     )
     api2 = apimtypes.API(
         name = EXAMPLE_NAME,
@@ -74,9 +122,22 @@ def test_api_equality():
         path = EXAMPLE_PATH,
         description = EXAMPLE_DESCRIPTION,
         policyXml = EXAMPLE_POLICY_XML,
-        operations = None
+        operations = None,
+        tags = ["a", "b"]
     )
     assert api1 == api2
+
+    # Different tags should not be equal
+    api3 = apimtypes.API(
+        name = EXAMPLE_NAME,
+        displayName = EXAMPLE_DISPLAY_NAME,
+        path = EXAMPLE_PATH,
+        description = EXAMPLE_DESCRIPTION,
+        policyXml = EXAMPLE_POLICY_XML,
+        operations = None,
+        tags = ["x"]
+    )
+    assert api1 != api3
 
 def test_api_inequality():
     """

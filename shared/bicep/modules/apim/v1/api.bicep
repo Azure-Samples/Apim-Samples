@@ -70,6 +70,23 @@ resource apimApi 'Microsoft.ApiManagement/service/apis@2024-06-01-preview' = {
   }
 }
 
+// Create APIM tag resources for each tag in api.tags (array or object)
+// Only support array of strings for tags (APIM tags)
+var tagList = empty(api.tags) ? [] : api.tags
+
+resource apimTags 'Microsoft.ApiManagement/service/tags@2024-06-01-preview' = [for tag in tagList: {
+  name: tag
+  parent: apimService
+  properties: {
+    displayName: tag
+  }
+}]
+
+resource apimApiTags 'Microsoft.ApiManagement/service/apis/tags@2024-06-01-preview' = [for tag in tagList: {
+  name: tag
+  parent: apimApi
+}]
+
 // https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/apis/policies
 resource apiPolicy 'Microsoft.ApiManagement/service/apis/policies@2024-06-01-preview' = if (!empty(api.policyXml)) {
   name: 'policy'

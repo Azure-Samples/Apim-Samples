@@ -15,6 +15,7 @@ from typing import List, Optional
 SHARED_XML_POLICY_BASE_PATH         = '../../shared/apim-policies'
 DEFAULT_XML_POLICY_PATH             = f'{SHARED_XML_POLICY_BASE_PATH}/default.xml'
 HELLO_WORLD_XML_POLICY_PATH         = f'{SHARED_XML_POLICY_BASE_PATH}/hello-world.xml'
+REQUEST_HEADERS_XML_POLICY_PATH     = f'{SHARED_XML_POLICY_BASE_PATH}/request-headers.xml'
 ACA_BACKEND_1_XML_POLICY_PATH       = f'{SHARED_XML_POLICY_BASE_PATH}/aca-backend-1.xml'
 ACA_BACKEND_2_XML_POLICY_PATH       = f'{SHARED_XML_POLICY_BASE_PATH}/aca-backend-2.xml'
 ACA_BACKEND_POOL_XML_POLICY_PATH    = f'{SHARED_XML_POLICY_BASE_PATH}/aca-backend-pool.xml'
@@ -92,19 +93,21 @@ class API:
     description: str
     policyXml: Optional[str] = None
     operations: Optional[List['APIOperation']] = None
+    tags: Optional[List[str]] = None
 
 
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, displayName: str, path: str, description: str, policyXml: Optional[str], operations: Optional[List['APIOperation']] = None):
+    def __init__(self, name: str, displayName: str, path: str, description: str, policyXml: Optional[str], operations: Optional[List['APIOperation']] = None, tags: Optional[List[str]] = None):
         self.name = name
         self.displayName = displayName
         self.path = path
         self.description = description
         self.policyXml = policyXml if policyXml is not None else None
         self.operations = operations if operations is not None else []
+        self.tags = tags if tags is not None else []
 
 
     # ------------------------------
@@ -122,6 +125,9 @@ class API:
 
         if self.policyXml is not None:
             api_dict["policyXml"] = self.policyXml
+
+        if self.tags:
+            api_dict["tags"] = self.tags
 
         return api_dict
 
