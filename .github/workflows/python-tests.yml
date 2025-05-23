@@ -35,9 +35,12 @@ jobs:
         run: |
           pip install pytest pytest-cov
 
+      # Run tests with continue-on-error so that coverage and PR comments are always published.
+      # The final step will explicitly fail the job if any test failed, ensuring PRs cannot be merged with failing tests.
       - name: Run pytest with coverage and generate JUnit XML
         run: |
           PYTHONPATH=$(pwd) COVERAGE_FILE=tests/python/.coverage-${{ matrix.python-version }} pytest --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov-${{ matrix.python-version }} --junitxml=tests/python/junit-${{ matrix.python-version }}.xml tests/python/
+        continue-on-error: true
 
       - name: Upload coverage HTML report
         uses: actions/upload-artifact@v4
@@ -57,3 +60,13 @@ jobs:
         with:
           files: tests/python/junit-${{ matrix.python-version }}.xml
           comment_title: Python ${{ matrix.python-version }} Test Results
+
+      # Explicitly fail the job if any test failed (so PRs cannot be merged with failing tests).
+      # This runs after all reporting steps, meaning coverage and PR comments are always published.
+      - name: Fail if tests failed
+        if: always()
+        run: |
+          if grep -q 'failures="[1-9]' tests/python/junit-${{ matrix.python-version }}.xml; then
+            echo "::error ::Unit tests failed. See above for details."
+            exit 1
+          fi
