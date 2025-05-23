@@ -363,7 +363,7 @@ def extract_json(text: str) -> any:
         if text[start] in ('{', '['):
             try:
                 obj, end = decoder.raw_decode(text[start:])
-                return json.loads(obj)
+                return obj
             except Exception:
                 continue
 
