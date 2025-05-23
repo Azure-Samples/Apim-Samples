@@ -55,4 +55,5 @@ jobs:
         if: always()
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
-          files: tests/python/junit-*.xml
+          files: tests/python/junit-${{ matrix.python-version }}.xml
+          comment_title: Python ${{ matrix.python-version }} Test Results
