@@ -97,9 +97,9 @@ Python modules in `shared/python` are covered by comprehensive unit tests locate
 #### Running Tests Locally
 
 - **PowerShell (Windows):**
-  - Run all tests with coverage: `./tests/python/run_coverage.ps1`
+  - Run all tests with coverage: `./tests/python/run_tests.ps1`
 - **Shell (Linux/macOS):**
-  - Run all tests with coverage: `./tests/python/run_coverage.sh`
+  - Run all tests with coverage: `./tests/python/run_tests.sh`
 
 Both scripts:
 - Run all tests in `tests/python` using pytest
