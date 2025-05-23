@@ -124,7 +124,6 @@ def test_multi_get_error(mock_print_info, mock_print_message, mock_session, apim
             apim.multiGet(default_path, runs=1, printResponse=True)
 
 
-
 # Sample values for tests
 url = "https://example.com/apim/"
 key = "test-key"

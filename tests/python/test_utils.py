@@ -231,9 +231,3 @@ def test_extract_json_multiple_json_types():
     s2 = '{"a": 1}[1,2,3]'
     assert extract_json(s2) == {"a": 1}
 
-"""
-Unit tests for utils.py.
-"""
-import pytest
-from shared.python import utils
-
