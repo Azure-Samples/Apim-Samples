@@ -79,6 +79,18 @@ The first time you run a Jupyter notebook, you'll be asked to install the Jupyte
 
 Now that infrastructure and sample have been stood up, you can experiment with the policies, make requests against APIM, etc.
 
+### Adding a Sample
+
+Adding a new sample is relatively straight-forward.
+
+1. Create a new feature branch for the new sample.
+1. Copy the `/samples/_TEMPLATE` folder.
+1. Rename the copied folder to a name representative of the sample (e.g. "load-balancing", "authX", etc.)
+1. Change the `create.ipynb` and `main.bicep` files. Look for the brackets (`[ ]`) brackets for specific inputs.
+1. Add any policy.xml files to the same folder if they are specific to this sample. If they are to be reused, place them into the `/shared/apim-policies` folder instead.
+1. Test the sample with all supported infrastructures.
+1. Create a pull request for merge.
+
 ---
 
 ## Development
@@ -88,7 +100,6 @@ As you work with this repo, you will likely want to make your own customizations
 The repo uses the bicep linter and has rules defined in `bicepconfig.json`. See the [bicep linter documentation](https://learn.microsoft.com/azure/azure-resource-manager/bicep/bicep-config-linter) for details.
 
 We welcome contributions! Please consider forking the repo and creating issues and pull requests to share your samples. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details. Thank you! 
-
 
 ### Testing & Code Coverage
 
