@@ -9,9 +9,6 @@ env/
 # Jupyter
 .ipynb_checkpoints/
 
-# VS Code
-.vscode/
-
 # Azure
 .azure/
 
