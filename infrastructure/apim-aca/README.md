@@ -1,4 +1,3 @@
-
 # API Management & Container Apps Infrastructure
 
 This architecture secures API traffic by routing requests through Azure API Management, which is integrated with Azure Container Apps for backend processing. Telemetry is sent to Azure Monitor for observability.

@@ -1,4 +1,3 @@
-
 # Front Door & API Management & Container Apps Infrastructure
 
 Secure architecture that takes all traffic off the public Internet once Azure Front Door is traversed. This is due to Front Door's use of a private link to Azure API Management.

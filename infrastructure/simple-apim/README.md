@@ -1,4 +1,3 @@
-
 # Simple API Management Infrastructure
 
 This architecture provides a basic API gateway using Azure API Management, suitable for simple scenarios where secure API exposure and basic observability are required.
