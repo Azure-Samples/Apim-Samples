@@ -1,0 +1,21 @@
+{
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/shared/python"
+    ],
+    "python.analysis.completeFunctionParens": true,
+    "python.analysis.autoIndent": true,
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportDuplicateImport": "warning",
+        "reportUndefinedVariable": "information",
+        "reportUnusedVariable": "information"
+    },
+    "python.envFile": "${workspaceFolder}/.env",
+    "plantuml.render": "Local",
+    "plantuml.exportFormat": "svg",
+    "terminal.integrated.env.windows": {
+        "PATH": "${env:PATH}"
+    },
+    "plantuml.java": "C:\\Program Files\\OpenJDK\\jdk-22.0.2\\bin\\java.exe",
+    "plantuml.diagramsRoot": "diagrams/src",
+    "plantuml.exportOutDir": "diagrams/out"
+}
