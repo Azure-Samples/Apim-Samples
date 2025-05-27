@@ -76,7 +76,6 @@ class ApimRequests:
                 merged_headers.update(headers)
 
             response = requests.request(method.value, url, headers = merged_headers, json = data)
-            response.raise_for_status()
             
             content_type = response.headers.get('Content-Type')
 
@@ -96,7 +95,7 @@ class ApimRequests:
             utils.print_error(f"Error making request: {e}")
             return None
         
-    def _multiRequest(self, method: HTTP_VERB, path: str, runs: int, headers: list[any] = None, data: any = None, msg: str | None = None, printResponse: bool = True) -> list[dict[str, Any]]:
+    def _multiRequest(self, method: HTTP_VERB, path: str, runs: int, headers: list[any] = None, data: any = None, msg: str | None = None, printResponse: bool = True, sleepMs: int | None = None) -> list[dict[str, Any]]:
         """
         Make multiple requests to the Azure API Management service.
 
@@ -107,6 +106,7 @@ class ApimRequests:
             headers: Additional headers to include in the request.
             data: Data to include in the request body.
             printResponse: Whether to print the returned output.
+            sleepMs: Optional sleep time between requests in milliseconds (0 to not sleep).
 
         Returns:
             List of response dicts for each run.
@@ -132,7 +132,6 @@ class ApimRequests:
                 response_time = time.time() - start_time
                 utils.print_info(f"⌚ {response_time:.2f} seconds")
 
-                response.raise_for_status()
                 self._print_response_code(response)
 
                 content_type = response.headers.get('Content-Type')
@@ -149,7 +148,11 @@ class ApimRequests:
                     "response_time": response_time
                 })
 
-                time.sleep(SLEEP_TIME_BETWEEN_REQUESTS_MS / 1000)
+                if sleepMs is not None:
+                    if sleepMs > 0:
+                        time.sleep(sleepMs / 1000) 
+                else:
+                    time.sleep(SLEEP_TIME_BETWEEN_REQUESTS_MS / 1000)   # default sleep time
         finally:
             session.close()
 
@@ -222,7 +225,7 @@ class ApimRequests:
 
         return self._request(method = HTTP_VERB.POST, path = path, headers = headers, data = data, msg = msg, printResponse = printResponse)
     
-    def multiGet(self, path: str, runs: int, headers = None, data = None, msg: str | None = None, printResponse = True) -> list[dict[str, Any]]:
+    def multiGet(self, path: str, runs: int, headers = None, data = None, msg: str | None = None, printResponse = True, sleepMs: int | None = None) -> list[dict[str, Any]]:
         """
         Make multiple GET requests to the Azure API Management service.
 
@@ -232,9 +235,10 @@ class ApimRequests:
             headers: Additional headers to include in the request.
             data: Data to include in the request body.
             printResponse: Whether to print the returned output.
+            sleepMs: Optional sleep time between requests in milliseconds (0 to not sleep).
 
         Returns:
             List of response dicts for each run.
         """
 
-        return self._multiRequest(method = HTTP_VERB.GET, path = path, runs = runs, headers = headers, data = data, msg = msg, printResponse = printResponse)
+        return self._multiRequest(method = HTTP_VERB.GET, path = path, runs = runs, headers = headers, data = data, msg = msg, printResponse = printResponse, sleepMs = sleepMs)

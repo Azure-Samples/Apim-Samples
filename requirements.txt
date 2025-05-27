@@ -2,5 +2,7 @@
 
 requests
 setuptools
+pandas
+matplotlib
 pytest
 pytest-cov

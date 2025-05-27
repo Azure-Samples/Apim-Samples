@@ -1,10 +1,10 @@
 <!--
-    This policy sample calls an existing Azure Container Apps backend with a prioritized set of backends.
+    This policy sample calls an existing Azure Container Apps backend with a weighted set of backends (50/50).
 -->
 <policies>
     <inbound>
         <base />
-        <set-backend-service backend-id="aca-backend-pool-web-api-429-prioritized" />
+        <set-backend-service backend-id="aca-backend-pool-web-api-429-weighted-80-20" />
     </inbound>
     <backend>
         <!--Apply load-balancing and retry mechanisms -->
