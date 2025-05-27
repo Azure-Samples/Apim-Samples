@@ -7,8 +7,8 @@
 //    PARAMETERS
 // ------------------------------
 
-@description('The Azure region in which the Azure Container Apps environment resides (e.g., eastus2).')
-param location string
+@description('The Azure region in which the Azure Container Apps environment resides (e.g., eastus2). Defaults to the resource group location')
+param location string = resourceGroup().location
 
 @description('The unique subdomain of the ACA environment (used for the wildcard A record).')
 param acaEnvironmentRandomSubdomain string

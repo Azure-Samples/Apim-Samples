@@ -12,23 +12,26 @@ param apimName string = 'apim-${resourceSuffix}'
 param appInsightsName string = 'appi-${resourceSuffix}'
 param apis array = []
 
+// [ADD RELEVANT PARAMETERS HERE]
 
 // ------------------
 //    RESOURCES
 // ------------------
 
 // https://learn.microsoft.com/azure/templates/microsoft.insights/components
-resource appInsightsModule 'Microsoft.Insights/components@2020-02-02' existing = {
+resource appInsights 'Microsoft.Insights/components@2020-02-02' existing = {
   name: appInsightsName
 }
 
-var appInsightsId = appInsightsModule.id
-var appInsightsInstrumentationKey = appInsightsModule.properties.InstrumentationKey
+var appInsightsId = appInsights.id
+var appInsightsInstrumentationKey = appInsights.properties.InstrumentationKey
 
 // https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service
 resource apimService 'Microsoft.ApiManagement/service@2024-06-01-preview' existing = {
   name: apimName
 }
+
+// [ADD RELEVANT BICEP MODULES HERE]
 
 // APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(length(apis) > 0) {
@@ -50,3 +53,4 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
 output apimServiceId string = apimService.id
 output apimServiceName string = apimService.name
 output apimResourceGatewayURL string = apimService.properties.gatewayUrl
+// [ADD RELEVANT OUTPUTS HERE]

@@ -1,6 +1,7 @@
 import os
 import builtins
 import pytest
+from io import StringIO
 from unittest.mock import patch, MagicMock, mock_open
 from shared.python import utils
 from apimtypes import INFRASTRUCTURE
@@ -133,6 +134,33 @@ def test_create_resource_group(monkeypatch):
     utils.create_resource_group('foo', 'bar')
     assert called['info'] and called['run']
 
+# ------------------------------
+#    read_policy_xml
+# ------------------------------
+
+def test_read_policy_xml_success(monkeypatch):
+    """Test reading a valid XML file returns its contents."""
+    xml_content = '<policies><inbound><base /></inbound></policies>'
+    m = mock_open(read_data=xml_content)
+    monkeypatch.setattr(builtins, 'open', m)
+    result = utils.read_policy_xml('dummy.xml')
+    assert result == xml_content
+
+def test_read_policy_xml_file_not_found(monkeypatch):
+    """Test reading a missing XML file raises FileNotFoundError."""
+    def raise_fnf(*args, **kwargs):
+        raise FileNotFoundError('File not found')
+    monkeypatch.setattr(builtins, 'open', raise_fnf)
+    with pytest.raises(FileNotFoundError):
+        utils.read_policy_xml('missing.xml')
+
+def test_read_policy_xml_empty_file(monkeypatch):
+    """Test reading an empty XML file returns an empty string."""
+    m = mock_open(read_data='')
+    monkeypatch.setattr(builtins, 'open', m)
+    result = utils.read_policy_xml('empty.xml')
+    assert result == ''
+    
 # ------------------------------
 #    policy_xml_replacement
 # ------------------------------

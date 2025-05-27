@@ -136,7 +136,6 @@ module acaEnvModule '../../shared/bicep/modules/aca/v1/environment.bicep' = if (
   name: 'acaEnvModule'
   params: {
     name: 'cae-${resourceSuffix}'
-    location: location
     logAnalyticsWorkspaceCustomerId: lawModule.outputs.customerId
     logAnalyticsWorkspaceSharedKey: lawModule.outputs.clientSecret
     subnetResourceId: acaSubnetResourceId
@@ -148,24 +147,16 @@ module acaModule1 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (u
   name: 'acaModule-1'
   params: {
     name: 'ca-${resourceSuffix}-mockwebapi-1'
-    location: location
     containerImage: IMG_MOCK_WEB_API
     environmentId: acaEnvModule.outputs.environmentId
-    cpu: '0.5'
-    memory: '1.0Gi'
-    ingressPort: 8080
   }
 }
 module acaModule2 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (useACA) {
   name: 'acaModule-2'
   params: {
     name: 'ca-${resourceSuffix}-mockwebapi-2'
-    location: location
     containerImage: IMG_MOCK_WEB_API
     environmentId: acaEnvModule.outputs.environmentId
-    cpu: '0.5'
-    memory: '1.0Gi'
-    ingressPort: 8080
   }
 }
 
@@ -267,7 +258,6 @@ module apimDnsPrivateLinkModule '../../shared/bicep/modules/dns/v1/dns-private-l
 module acaDnsPrivateZoneModule '../../shared/bicep/modules/dns/v1/aca-dns-private-zone.bicep' = if (useACA && !empty(acaSubnetResourceId)) {
   name: 'acaDnsPrivateZoneModule'
   params: {
-    location: location
     acaEnvironmentRandomSubdomain: acaEnvModule.outputs.environmentRandomSubdomain
     acaEnvironmentStaticIp: acaEnvModule.outputs.environmentStaticIp
     vnetId: vnetModule.outputs.vnetId
@@ -278,7 +268,6 @@ module acaDnsPrivateZoneModule '../../shared/bicep/modules/dns/v1/aca-dns-privat
 module afdModule '../../shared/bicep/modules/afd/v1/afd.bicep' = {
   name: 'afdModule'
   params: {
-    location: 'global'
     resourceSuffix: resourceSuffix
     afdName: afdEndpointName
     fdeName: afdEndpointName

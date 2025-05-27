@@ -262,6 +262,23 @@ def policy_xml_replacement(policy_xml_filepath: str) -> str:
     # Convert the XML to JSON format
     return policy_template_xml
 
+def read_policy_xml(policy_xml_filepath: str) -> str:
+    """
+    Read and return the contents of a policy XML file.
+
+    Args:
+        policy_xml_filepath (str): Path to the policy XML file.
+
+    Returns:
+        str: Contents of the policy XML file.
+    """
+
+    # Read the specified policy XML file
+    with open(policy_xml_filepath, 'r') as policy_xml_file:
+        policy_template_xml = policy_xml_file.read()
+
+    return policy_template_xml
+
 def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
     """
     Clean up resources associated with a deployment in a resource group.

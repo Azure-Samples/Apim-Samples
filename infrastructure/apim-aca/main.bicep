@@ -9,7 +9,6 @@ param location string = resourceGroup().location
 param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id)
 
 param apimName string = 'apim-${resourceSuffix}'
-
 param apimSku string
 param apis array = []
 
@@ -59,26 +58,17 @@ module acaModule1 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = {
   name: 'acaModule-1'
   params: {
     name: 'ca-${resourceSuffix}-mockwebapi-1'
-    location: location
     containerImage: IMG_MOCK_WEB_API
     environmentId: acaEnvModule.outputs.environmentId
-    cpu: '0.5'
-    memory: '1.0Gi'
-    ingressPort: 8080
-    ingressExternal: true
   }
 }
+
 module acaModule2 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = {
   name: 'acaModule-2'
   params: {
     name: 'ca-${resourceSuffix}-mockwebapi-2'
-    location: location
     containerImage: IMG_MOCK_WEB_API
     environmentId: acaEnvModule.outputs.environmentId
-    cpu: '0.5'
-    memory: '1.0Gi'
-    ingressPort: 8080
-    ingressExternal: true
   }
 }
 

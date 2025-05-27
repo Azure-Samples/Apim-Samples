@@ -28,7 +28,7 @@ SLEEP_TIME_BETWEEN_REQUESTS_MS  = 50
 #    PRIVATE METHODS
 # ------------------------------
 
-# Placing this here privately as putting it into the utils module would constitude a circular import
+# Placing this here privately as putting it into the utils module would constitute a circular import
 def _read_policy_xml(policy_xml_filepath: str) -> str:
     """
     Read and return the contents of a policy XML file.
