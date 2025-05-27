@@ -1,0 +1,102 @@
+name: "Bug report"
+description: "Create a report to help us improve."
+title: "[Bug] <enter brief description>"
+labels: [triage]
+assignees: [simonkurtz-MSFT]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **If you suspect you may have found a security vulnerability, please do not report it publicly. Instead, [please report it privately](https://github.com/Azure-Samples/Apim-Samples/security/advisories/new).**
+
+  - type: textarea
+    id: bug
+    attributes:
+      label: "Describe the bug"
+      description: "A clear and concise description of what the bug is."
+      placeholder: "Please describe the bug."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "To Reproduce"
+      description: "Steps to reproduce the behavior."
+      placeholder: "1. Go to '...'
+        1. Click on '...'
+        1. Scroll down to '...'
+        1. See error"
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected behavior"
+      description: "A clear and concise description of what you expected to happen."
+      placeholder: "Please describe what you expected to happen."
+    validations:
+      required: true
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: "Screenshots"
+      description: "If applicable, add screenshots to help explain your problem."
+      placeholder: "Please paste or drag screenshots here."
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: cpu
+    attributes:
+      label: "CPU Architecture"
+      description: "Select your CPU architecture (select one only). If 'Other', please specify."
+      options:
+        - label: "x86"
+          required: false
+        - label: "x64"
+          required: false
+        - label: "ARM64"
+          required: false
+        - label: "Other (please specify below)"
+          required: false
+    validations:
+      required: false
+
+  - type: input
+    id: cpu_other
+    attributes:
+      label: "Other CPU Architecture"
+      description: "If you selected 'Other' above, please specify your CPU architecture."
+      placeholder: "e.g. RISC-V, PowerPC, etc."
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: os
+    attributes:
+      label: "Operating System"
+      description: "Select your operating system (select one only). If 'Other', please specify."
+      options:
+        - label: "Windows"
+          required: false
+        - label: "Linux"
+          required: false
+        - label: "macOS"
+          required: false
+        - label: "Other (please specify below)"
+          required: false
+    validations:
+      required: false
+
+  - type: input
+    id: os_other
+    attributes:
+      label: "Other Operating System"
+      description: "If you selected 'Other' above, please specify your OS."
+      placeholder: "e.g. FreeBSD, Solaris, etc."
+    validations:
+      required: false

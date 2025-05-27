@@ -1,0 +1,42 @@
+name: "Feature Request"
+description: "Suggest a new feature or improvement."
+title: "[Feature] <enter brief description>"
+labels: [triage, feature-request]
+assignees: [simonkurtz-MSFT]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Feature Request
+
+        Please fill out the form below to help us understand your request.
+
+  - type: textarea
+    id: feature
+    attributes:
+      label: "Describe the feature"
+      description: "What feature are you proposing?"
+      placeholder: "Please describe the feature you are proposing."
+    validations:
+      required: true
+
+  - type: textarea
+    id: improvement
+    attributes:
+      label: "Improvement to Project"
+      description: "How will it improve this project?"
+      placeholder: "Please describe how this feature will improve the project."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: collaborate
+    attributes:
+      label: "Are you able to collaborate and/or submit a pull request?"
+      description: "Select one."
+      options:
+        - "Yes"
+        - "No"
+    validations:
+      required: true
