@@ -1,0 +1,18 @@
+<!--
+    This policy sample calls an existing Azure Container Apps backend with a weighted set of backends (50/50).
+-->
+<policies>
+    <inbound>
+        <base />
+        <set-backend-service backend-id="aca-backend-pool-web-api-429-weighted" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
