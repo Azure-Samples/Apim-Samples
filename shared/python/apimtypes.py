@@ -2,7 +2,7 @@
 Types and constants for Azure API Management automation and deployment.
 """
 
-from enum import Enum
+from enum import StrEnum
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -51,7 +51,7 @@ def _read_policy_xml(policy_xml_filepath: str) -> str:
 #    CLASSES
 # ------------------------------
 
-class APIMNetworkMode(str, Enum):
+class APIMNetworkMode(StrEnum):
     """
     Networking configuration modes for Azure API Management (APIM).
     """
@@ -62,7 +62,7 @@ class APIMNetworkMode(str, Enum):
     NONE          = "None"      # No explicit network configuration (legacy or default)
 
 
-class APIM_SKU(str, Enum):
+class APIM_SKU(StrEnum):
     """
     APIM SKU types.
     """
@@ -76,7 +76,7 @@ class APIM_SKU(str, Enum):
     PREMIUMV2  = "Premiumv2"
 
 
-class HTTP_VERB(str, Enum):
+class HTTP_VERB(StrEnum):
     """
     HTTP verbs that can be used for API operations.
     """
@@ -90,7 +90,7 @@ class HTTP_VERB(str, Enum):
     HEAD    = "HEAD"
 
 
-class INFRASTRUCTURE(str, Enum):
+class INFRASTRUCTURE(StrEnum):
     """
     Infrastructure types for APIM automation scenarios.
     """
