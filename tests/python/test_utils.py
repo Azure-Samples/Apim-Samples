@@ -259,7 +259,7 @@ def test_extract_json_multiple_json_types():
 # ------------------------------
 
 def test_validate_infrastructure_supported():
-    # Should return True for supported infra
+    # Should return None for supported infra
     assert utils.validate_infrastructure(INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]) is None
 
 def test_validate_infrastructure_unsupported():

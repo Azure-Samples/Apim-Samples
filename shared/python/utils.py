@@ -630,7 +630,7 @@ def run(command: str, ok_message: str = '', error_message: str = '', print_outpu
 validate_http_verb      = lambda val: HTTP_VERB(val)
 validate_sku            = lambda val: APIM_SKU(val)
 
-def validate_infrastructure(infra: INFRASTRUCTURE, supported_infras: list[INFRASTRUCTURE]) -> bool:
+def validate_infrastructure(infra: INFRASTRUCTURE, supported_infras: list[INFRASTRUCTURE]) -> None:
     """
     Validate that the provided infrastructure is a supported infrastructure.
 
