@@ -230,12 +230,6 @@ print_ok        = lambda msg, output = '', duration = '', blank_above = True    
 print_warning   = lambda msg, output = '', duration = ''                        : _print_log(msg, '⚠️ ', BOLD_Y, output, duration, True)
 print_val       = lambda name, value, val_below = False                         : _print_log(f"{name:<25}:{'\n' if val_below else ' '}{value}", '👉🏽 ', BOLD_B)
 
-# Validation functions will raise ValueError if the value is not valid
-
-validate_http_verb      = lambda val: HTTP_VERB(val)
-validate_infrastructure = lambda val: INFRASTRUCTURE(val)
-validate_sku            = lambda val: APIM_SKU(val)
-
 def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: str | INFRASTRUCTURE, bicep_parameters: dict, bicep_parameters_file: str = 'params.json') -> Output:
     """
     Create a Bicep deployment in a resource group, writing parameters to a file and running the deployment.
@@ -355,7 +349,6 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
         deployment (INFRASTRUCTURE): The infrastructure deployment enum value.
         indexes (int | list[int] | None): A single index, a list of indexes, or None for no index.
     """
-    validate_infrastructure(deployment)
 
     if indexes is None:
         indexes_list = [None]
@@ -540,8 +533,6 @@ def get_infra_rg_name(deployment_name: INFRASTRUCTURE, index: int | None = None)
         str: The generated resource group name.
     """
 
-    validate_infrastructure(deployment_name)
-
     rg_name = f"apim-infra-{deployment_name.value}"
 
     if index is not None:
@@ -633,3 +624,23 @@ def run(command: str, ok_message: str = '', error_message: str = '', print_outpu
             print_message(ok_message if success else error_message, output_text if not success or print_output else "", f"[{int(minutes)}m:{int(seconds)}s]")
 
     return Output(success, output_text)
+
+# Validation functions will raise ValueError if the value is not valid
+
+validate_http_verb      = lambda val: HTTP_VERB(val)
+validate_sku            = lambda val: APIM_SKU(val)
+
+def validate_infrastructure(infra: INFRASTRUCTURE, supported_infras: list[INFRASTRUCTURE]) -> bool:
+    """
+    Validate that the provided infrastructure is a supported infrastructure.
+
+    Args:
+        infra (INFRASTRUCTURE): The infrastructure deployment enum value.
+        supported_infras (list[INFRASTRUCTURE]): List of supported infrastructures.
+
+    Raises:
+        ValueError: If the infrastructure is not supported.
+    """
+
+    if infra not in supported_infras:
+        raise ValueError(f"Unsupported infrastructure: {infra}. Supported infrastructures are: {', '.join([i.value for i in supported_infras])}")

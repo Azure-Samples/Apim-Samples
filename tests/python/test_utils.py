@@ -1,6 +1,7 @@
+import pytest
+from apimtypes import INFRASTRUCTURE
 import os
 import builtins
-import pytest
 from io import StringIO
 from unittest.mock import patch, MagicMock, mock_open
 from shared.python import utils
@@ -252,3 +253,22 @@ def test_extract_json_multiple_json_types():
     assert utils.extract_json(s) == [1, 2, 3]
     s2 = '{"a": 1}[1,2,3]'
     assert utils.extract_json(s2) == {"a": 1}
+
+# ------------------------------
+#    validate_infrastructure
+# ------------------------------
+
+def test_validate_infrastructure_supported():
+    # Should return True for supported infra
+    assert utils.validate_infrastructure(INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]) is None
+
+def test_validate_infrastructure_unsupported():
+    # Should raise ValueError for unsupported infra
+    with pytest.raises(ValueError) as exc:
+        utils.validate_infrastructure(INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.APIM_ACA])
+    assert "Unsupported infrastructure" in str(exc.value)
+
+def test_validate_infrastructure_multiple_supported():
+    # Should return True if infra is in the supported list
+    supported = [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA]
+    assert utils.validate_infrastructure(INFRASTRUCTURE.APIM_ACA, supported) is None
