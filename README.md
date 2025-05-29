@@ -49,6 +49,7 @@ The first time you run a Jupyter notebook, you'll be asked to install the Jupyte
 |:-----------------|:----------------------------------------------------------------------------|:-------------------------------------------|
 | [General](./samples/general/create.ipynb) | Basic demo of APIM sample setup and policy usage. | All infrastructures |
 | [Load Balancing](./samples/load-balancing/create.ipynb) | Priority and weighted load balancing across backends. | apim-aca, afd-apim (with ACA) |
+| [AuthX](./samples/authx/create.ipynb) | Authentication and role-based authorization in a mock HR API. | All infrastructures |
 
 ### Running a Sample
 
