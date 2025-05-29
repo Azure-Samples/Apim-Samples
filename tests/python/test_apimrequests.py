@@ -192,3 +192,18 @@ def test_print_response_code_edge():
     with patch("shared.python.apimrequests.utils.print_val") as mock_print_val:
         apim._print_response_code(DummyResponse())
         mock_print_val.assert_called_with("Response status", "302")
+
+# ------------------------------
+#    HEADERS PROPERTY
+# ------------------------------
+
+def test_headers_property_allows_external_modification():
+    apim = ApimRequests(default_url, default_key)
+    apim.headers["X-Test"] = "value"
+    assert apim.headers["X-Test"] == "value"
+
+def test_headers_property_is_dict_reference():
+    apim = ApimRequests(default_url, default_key)
+    h = apim.headers
+    h["X-Ref"] = "ref"
+    assert apim.headers["X-Ref"] == "ref"

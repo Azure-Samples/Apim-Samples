@@ -272,3 +272,12 @@ def test_validate_infrastructure_multiple_supported():
     # Should return True if infra is in the supported list
     supported = [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA]
     assert utils.validate_infrastructure(INFRASTRUCTURE.APIM_ACA, supported) is None
+
+# ------------------------------
+#    generate_signing_key
+# ------------------------------
+
+def test_generate_signing_key():
+    s, b64 = utils.generate_signing_key()
+    assert isinstance(s, str)
+    assert isinstance(b64, str)
