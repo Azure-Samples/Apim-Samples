@@ -36,13 +36,32 @@ class ApimRequests:
 
         self.url = url
         self.apimSubscriptionKey = apimSubscriptionKey
-        self.headers = {}
+        self._headers: dict[str, str] = {}
 
         if self.apimSubscriptionKey:
-            self.headers[SUBSCRIPTION_KEY_PARAMETER_NAME] = self.apimSubscriptionKey
+            self._headers[SUBSCRIPTION_KEY_PARAMETER_NAME] = self.apimSubscriptionKey
 
-        self.headers['Accept'] = 'application/json'
+        self._headers['Accept'] = 'application/json'
 
+    @property
+    def headers(self) -> dict[str, str]:
+        """
+        Get the HTTP headers used for requests.
+
+        Returns:
+            dict[str, str]: The headers dictionary.
+        """
+        return self._headers
+
+    @headers.setter
+    def headers(self, value: dict[str, str]) -> None:
+        """
+        Set the HTTP headers used for requests.
+
+        Args:
+            value: The new headers dictionary.
+        """
+        self._headers = value
 
     # ------------------------------
     #    PRIVATE METHODS

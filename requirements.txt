@@ -4,5 +4,6 @@ requests
 setuptools
 pandas
 matplotlib
+pyjwt
 pytest
 pytest-cov

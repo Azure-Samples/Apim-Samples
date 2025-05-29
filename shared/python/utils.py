@@ -9,6 +9,9 @@ import subprocess
 import textwrap
 import time
 import traceback
+import string
+import secrets
+import base64
 
 from typing import Any, Tuple
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE
@@ -596,12 +599,12 @@ def run(command: str, ok_message: str = '', error_message: str = '', print_outpu
         # Handles both CalledProcessError and any custom/other exceptions (for test mocks)
         output_text = getattr(e, 'output', b'').decode("utf-8") if hasattr(e, 'output') and isinstance(e.output, (bytes, bytearray)) else str(e)
         success = False
+        traceback.print_exc()
 
     if print_output:
         print(f"Command output:\n{output_text}")
 
     minutes, seconds = divmod(time.time() - start_time, 60)
-
 
     # Only print failures, warnings, or errors if print_output is True
     if print_output:
@@ -644,3 +647,29 @@ def validate_infrastructure(infra: INFRASTRUCTURE, supported_infras: list[INFRAS
 
     if infra not in supported_infras:
         raise ValueError(f"Unsupported infrastructure: {infra}. Supported infrastructures are: {', '.join([i.value for i in supported_infras])}")
+    
+def generate_signing_key() -> tuple[str, str]:
+    """
+    Generate a random signing key string of length 32–100 using [A-Za-z0-9], and return:
+
+    1. The generated ASCII string.
+    2. The base64-encoded string of the ASCII bytes.
+
+    Returns:
+        tuple[str, str]:
+            - random_string (str): The generated random ASCII string.
+            - b64 (str): The base64-encoded string of the ASCII bytes.
+    """
+
+    # 1) Generate a random length string based on [A-Za-z0-9]
+    length = secrets.choice(range(32, 101))
+    alphabet = string.ascii_letters + string.digits
+    random_string = ''.join(secrets.choice(alphabet) for _ in range(length))
+
+    # 2) Convert the string to an ASCII byte array
+    string_in_bytes = random_string.encode('ascii')
+
+    # 3) Base64-encode the ASCII byte array
+    b64 = base64.b64encode(string_in_bytes).decode('utf-8')
+
+    return random_string, b64

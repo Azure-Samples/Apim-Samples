@@ -1,5 +1,5 @@
 /**
- * @module apim-v1
+ * @module api-v1
  * @description This module defines the API resources using Bicep.
  * It includes configurations for creating and managing APIs, products, and policies.
  */

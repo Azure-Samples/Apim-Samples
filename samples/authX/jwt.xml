@@ -1,0 +1,26 @@
+<!--
+    This policy authenticates the caller based on their JSON Web Token. It is not calling an Identity Provider as this is a mock policy.
+-->
+<policies>
+    <inbound>
+        <base />
+        <validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized">
+            <issuer-signing-keys>
+                <key>{jwt_signing_key}</key>
+            </issuer-signing-keys>
+        </validate-jwt>
+        <return-response>
+            <set-status code="200" reason="OK" />
+            <set-body>jwt-test</set-body>
+        </return-response>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
