@@ -228,7 +228,7 @@ class ApimRequests:
 
         return self._request(method = HTTP_VERB.GET, path = path, headers = headers, msg = msg, printResponse = printResponse)
 
-    def singlePost(self, path: str, *, headers = None, data = None, msg: str | None = None, printResponse) -> Any:
+    def singlePost(self, path: str, *, headers = None, data = None, msg: str | None = None, printResponse = True) -> Any:
         """
         Make a POST request to the Azure API Management service.
 

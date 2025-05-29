@@ -1,0 +1,31 @@
+<!--
+    This policy authenticates gets mock information about employees. The payload is not relevant for this sample. We are only interested in the authX aspects.
+-->
+<policies>
+    <inbound>
+        <base />
+        <choose>
+            <!-- HR Administrators and HR Associates can both obtain employee information -->
+            <when condition="@(((Jwt)context.Variables[&quot;jwt&quot;]).Claims[&quot;roles&quot;].Contains(&quot;{hr_administrator_role_id}&quot;) || ((Jwt)context.Variables[&quot;jwt&quot;]).Claims[&quot;roles&quot;].Contains(&quot;{hr_associate_role_id}&quot;))">
+                <return-response>
+                    <set-status code="200" reason="OK" />
+                    <set-body>Returning a mock employee</set-body>
+                </return-response>
+            </when>
+            <otherwise>
+                <return-response>
+                    <set-status code="403" reason="Forbidden" />
+                </return-response>
+            </otherwise>
+        </choose>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

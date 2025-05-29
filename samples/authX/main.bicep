@@ -8,8 +8,7 @@ param location string = resourceGroup().location
 @description('The unique suffix to append. Defaults to a unique string based on subscription and resource group IDs.')
 param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id)
 
-param jwtSigningKeyName string
-param jwtSigningKeyValue string 
+param namedValues array = []
 param apimName string = 'apim-${resourceSuffix}'
 param appInsightsName string = 'appi-${resourceSuffix}'
 param apis array = []
@@ -34,16 +33,15 @@ resource apimService 'Microsoft.ApiManagement/service@2024-06-01-preview' existi
 }
 
 // APIM Named Values
-// https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/namedvalues
-module jwtSigningKeyNamedValue '../../shared/bicep/modules/apim/v1/named-value.bicep' = {
-  name: 'jwtSigningKeyNamedValue'
+module namedValue '../../shared/bicep/modules/apim/v1/named-value.bicep' = [for nv in namedValues: if (length(namedValues) > 0) {
+  name: nv.name
   params: {
     apimName: apimName
-    namedValueName: jwtSigningKeyName
-    namedValueValue: jwtSigningKeyValue
-    namedValueIsSecret: true
+    namedValueName: nv.name
+    namedValueValue: nv.value
+    namedValueIsSecret: nv.isSecret
   }
-}
+}]
 
 // APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(length(apis) > 0) {
@@ -55,7 +53,7 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
     api: api
   }
   dependsOn: [
-    jwtSigningKeyNamedValue   // the named value must be created before the APIs that use it 
+    namedValue               // ensure all named values are created before APIs
   ]
 }]
 

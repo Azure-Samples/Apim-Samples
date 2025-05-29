@@ -1,0 +1,31 @@
+<!--
+    This policy mocks the creation of a new employee. The payload is not relevant for this sample. We are only interested in the authX aspects.
+-->
+<policies>
+    <inbound>
+        <base />
+        <choose>
+            <!-- Only HR Administrators can create employees -->
+            <when condition="@(((Jwt)context.Variables[&quot;jwt&quot;]).Claims[&quot;roles&quot;].Contains(&quot;{hr_administrator_role_id}&quot;))">
+                <return-response>
+                    <set-status code="200" reason="OK" />
+                    <set-body>A mock employee has been created.</set-body>
+                </return-response>
+            </when>
+            <otherwise>
+                <return-response>
+                    <set-status code="403" reason="Forbidden" />
+                </return-response>
+            </otherwise>
+        </choose>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

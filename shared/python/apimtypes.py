@@ -23,6 +23,11 @@ ACA_BACKEND_POOL_XML_POLICY_PATH    = f'{SHARED_XML_POLICY_BASE_PATH}/aca-backen
 SUBSCRIPTION_KEY_PARAMETER_NAME = 'api_key'
 SLEEP_TIME_BETWEEN_REQUESTS_MS  = 50
 
+# Mock role IDs for testing purposes
+HR_MEMBER_ROLE_ID          = "316790bc-fbd3-4a14-8867-d1388ffbc195"
+HR_ASSOCIATE_ROLE_ID       = "d3c1b0f2-4a5e-4c8b-9f6d-7c8e1f2a3b4c"
+HR_ADMINISTRATOR_ROLE_ID   = "a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6"
+
 
 # ------------------------------
 #    PRIVATE METHODS
@@ -232,3 +237,37 @@ class POST_APIOperation(APIOperation):
 
     def __init__(self, description: str, policyXml: Optional[str] = None):
         super().__init__('POST', 'POST', '/', HTTP_VERB.POST, description, policyXml)
+
+
+@dataclass
+class NamedValue:
+    """
+    Represents a named value within API Management.
+    """
+
+    name: str
+    value: str
+    isSecret: bool = False
+
+    # ------------------------------
+    #    CONSTRUCTOR
+    # ------------------------------
+
+    def __init__(self, name: str, value: str, isSecret: bool = False):
+        self.name = name
+        self.value = value
+        self.isSecret = isSecret
+
+
+    # ------------------------------
+    #    PUBLIC METHODS
+    # ------------------------------
+
+    def to_dict(self) -> dict:
+        nv_dict = {
+            "name": self.name,
+            "value": self.value,
+            "isSecret": self.isSecret
+        }
+
+        return nv_dict
