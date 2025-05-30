@@ -27,6 +27,7 @@ def get_project_root() -> Path:
     Returns:
         Path: Absolute path to project root directory
     """
+
     # Start from script's parent directory (since we're in setup/ folder)
     # Path(__file__).resolve() gives absolute path, .parent.parent goes up two levels
     start_path = Path(__file__).resolve().parent.parent
@@ -58,6 +59,7 @@ def setup_python_path() -> None:
     - Converts to string only when needed for sys.path compatibility
     - Uses sys.path.insert(0, ...) to prioritize our modules
     """
+
     project_root = get_project_root()
     # Use pathlib's / operator for cross-platform path joining
     shared_python_path = project_root / 'shared' / 'python'
@@ -83,6 +85,7 @@ def generate_env_file() -> None:
     - pathlib handles path separators automatically (\\ on Windows, / on Unix)
     - Works with VS Code's python.envFile setting
     """
+    
     project_root = get_project_root()
     shared_python_path = project_root / 'shared' / 'python'
     
