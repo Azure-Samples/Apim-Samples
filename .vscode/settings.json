@@ -18,5 +18,6 @@
     },
     "plantuml.java": "C:\\Program Files\\OpenJDK\\jdk-22.0.2\\bin\\java.exe",
     "plantuml.diagramsRoot": "diagrams/src",
-    "plantuml.exportOutDir": "diagrams/out"
+    "plantuml.exportOutDir": "diagrams/out",
+    "python.defaultInterpreterPath": "./venv/bin/python"
 }
