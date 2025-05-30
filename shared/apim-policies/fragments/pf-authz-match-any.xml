@@ -1,0 +1,28 @@
+<!--
+    - Expected context variables:
+      - "jwt": The parsed JWT token which should already be set by the pf-authx fragment.
+      - "authz_roles": A csv of allowed role GUIDs to check against. Any match will grant access.
+      
+    - This fragment only blocks access (returns 403) when no roles match. If roles match, processing
+continues normally.
+-->
+<fragment>
+    <choose>
+        <!-- Check if NONE of the allowed role GUIDs match the roles in the JWT -->
+        <when condition="@{
+            var jwt = (Jwt)context.Variables[" jwt"];
+            var allowedRoleGuids = context.Variables.GetValueOrDefault<string>(" authz_roles", "").ToString().Split(',');
+            var jwtRoles = jwt.Claims.GetValueOrDefault("
+            roles", new string[0]);
+            
+            // Check if NO allowed role GUID matches any role in the JWT
+            return !allowedRoleGuids.Any(allowedRole => jwtRoles.Contains(allowedRole.Trim()));
+        }">
+            <return-response>
+                <set-status code="403" reason="Forbidden" />
+                <set-body>Access denied - no matching roles found</set-body>
+            </return-response>
+        </when>
+        <!-- If roles match, continue processing (no action needed) -->
+    </choose>
+</fragment>

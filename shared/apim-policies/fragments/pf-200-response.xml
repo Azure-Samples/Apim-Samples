@@ -1,0 +1,8 @@
+<fragment>
+    <return-response>
+        <set-status code="200" reason="OK" />
+        <set-body>@{
+            return "Successful " + context.Request.Method;
+            }</set-body>
+    </return-response>
+</fragment>
