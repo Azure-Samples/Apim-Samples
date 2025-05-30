@@ -6,7 +6,7 @@ This repository provides a playground to safely experiment with and learn Azure 
 
 _If you are interested in APIM & Azure OpenAI integrations, please check out the excellent [AI Gateway](https://github.com/Azure-Samples/AI-Gateway) GitHub repository._
 
-## Objectives
+## 🎯 Objectives
 
 1. Educate you on common APIM architectures we see across industries and customers.
 1. Empower you to safely experiment with APIM policies.
@@ -16,9 +16,9 @@ _Try it out, learn from it, apply it in your setups._
 
 ---
 
-## Getting Started
+## 🚀 Getting Started
 
-### Prerequisites
+### 📋 Prerequisites
 
 These prerequisites apply broadly across all infrastructure and samples. If there are specific deviations, expect them to be noted there.
 
@@ -29,7 +29,7 @@ These prerequisites apply broadly across all infrastructure and samples. If ther
 - [An Azure Subscription](https://azure.microsoft.com/free/) with Owner or Contributor+UserAccessAdministrator permissions. Execute [shared/jupyter/verify-az-account.ipynb](shared/jupyter/verify-az-account.ipynb) to verify.
 - [Sign in to Azure with Azure CLI](https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively)
 
-### Initialization
+### 🛠️ Initialization
 
 Run through the following steps to create a Python virtual environment before doing anything else:
 
@@ -44,7 +44,7 @@ Run through the following steps to create a Python virtual environment before do
 
 The first time you run a Jupyter notebook, you'll be asked to install the Jupyter kernel package (ipykernel).
 
-### List of Samples
+### 📁 List of Samples
 
 | Sample Name | Description | Supported Infrastructure(s) |
 |:-----------------|:----------------------------------------------------------------------------|:-------------------------------------------|
@@ -52,7 +52,7 @@ The first time you run a Jupyter notebook, you'll be asked to install the Jupyte
 | [Load Balancing](./samples/load-balancing/create.ipynb) | Priority and weighted load balancing across backends. | apim-aca, afd-apim (with ACA) |
 | [AuthX](./samples/authx/create.ipynb) | Authentication and role-based authorization in a mock HR API. | All infrastructures |
 
-### Running a Sample
+### ▶️ Running a Sample
 
 1. Locate the specific sample's `create.ipynb` file and adjust the parameters under the `User-defined Parameters` header as you see fit.
 1. Ensure that the specified infrastructure already exists in your subscription. If not, proceed to the desired infrastructure folder and execute its `create.ipynb` file. Wait until this completes before continuing.
@@ -62,9 +62,9 @@ Now that infrastructure and sample have been stood up, you can experiment with t
 
 ---
 
-## Repo Structure
+## 📂 Repo Structure
 
-### High-level 
+### 🦅 High-level
 
 - All _samples_ can be found in the `samples` folder. Samples showcase functionality and provide a baseline for your experimentation.
 - All _infrastructures_ can be found in the `infrastructure` folder. They provide the architectural underpinnings.
@@ -74,14 +74,14 @@ Now that infrastructure and sample have been stood up, you can experiment with t
   - Reusable _APIM policies_ are found in the `apim-policies` folder. 
   - Reusable Jupyter notebooks are found in the `jupyter` folder.
 
-### Sample Setup
+### ⚙️ Sample Setup
 
 - Each sample uses an architecture infrastructure. This keeps the samples free of almost all setup.
 - Each infrastructure and sample features a `create.ipynb` for creation (and running) of the sample setup and a `main.bicep` file for IaC configuration.
 - Each infrastructure contains a `clean-up.ipynb` file to tear down everything in the infrastructure and its resource group. This reduces your Azure cost.
 - Samples (and infrastructures) may contain additional files specific to their use cases.
 
-### Infrastructure Architectures
+### 🏛️ Infrastructure Architectures
 
 We provide several common architectural approaches to integrating APIM into your Azure ecosystem. While these are high-fidelity setups, they are not production-ready. Please refer to the [Azure API Management landing zone accelerator](https://learn.microsoft.com/azure/cloud-adoption-framework/scenarios/app-platform/api-management/landing-zone-accelerator) for up-to-date production setups.
 
@@ -96,7 +96,7 @@ We provide several common architectural approaches to integrating APIM into your
 
 ---
 
-## Development
+## 🛠️ Development
 
 As you work with this repo, you will likely want to make your own customizations. There's little you need to know to be successful.
 
@@ -104,7 +104,7 @@ The repo uses the bicep linter and has rules defined in `bicepconfig.json`. See 
 
 **We welcome contributions!** Please consider forking the repo and creating issues and pull requests to share your samples. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details. Thank you! 
 
-### Adding a Sample
+### ➕ Adding a Sample
 
 Adding a new sample is relatively straight-forward.
 
@@ -116,11 +116,11 @@ Adding a new sample is relatively straight-forward.
 1. Test the sample with all supported infrastructures.
 1. Create a pull request for merge.
 
-### Testing & Code Coverage
+### 🧪 Testing & Code Coverage
 
 Python modules in `shared/python` are covered by comprehensive unit tests located in `tests/python`. All tests use [pytest](https://docs.pytest.org/) and leverage modern pytest features, including custom markers for unit and HTTP tests.
 
-#### Running Tests Locally
+#### 🚀 Running Tests Locally
 
 - **PowerShell (Windows):**
   - Run all tests with coverage: `./tests/python/run_tests.ps1`
@@ -137,18 +137,18 @@ You can also run tests manually and see details in the console:
 pytest -v --cov=shared/python --cov-report=html:tests/python/htmlcov --cov-report=term tests/python
 ```
 
-#### Viewing Coverage Reports
+#### 📊 Viewing Coverage Reports
 
 After running tests, open `tests/python/htmlcov/index.html` in your browser to view detailed coverage information.
 
-#### Pytest Markers
+#### 🏷️ Pytest Markers
 
 - `@pytest.mark.unit` — marks a unit test
 - `@pytest.mark.http` — marks a test involving HTTP/mocking
 
 Markers are registered in `pytest.ini` to avoid warnings.
 
-#### Continuous Integration (CI)
+#### ⚡ Continuous Integration (CI)
 
 On every push or pull request, GitHub Actions will:
 - Install dependencies
@@ -156,7 +156,7 @@ On every push or pull request, GitHub Actions will:
 - Store the `.coverage` file in `tests/python`
 - Upload the HTML coverage report as a workflow artifact for download
 
-#### Additional Notes
+#### 📝 Additional Notes
 
 - The `.gitignore` is configured to exclude coverage output and artifacts.
 - All test and coverage features work both locally and in CI.
@@ -165,13 +165,13 @@ For more details on pytest usage, see the [pytest documentation](https://docs.py
 
 ---
 
-## Supporting Resources
+## 📚 Supporting Resources
 
 The APIM team maintains an [APIM policy snippets repo](https://github.com/Azure/api-management-policy-snippets) with use cases we have seen. They are not immediately executable samples and require integrations such as in this repo.
 
 ---
 
-## Acknowledgements
+## 🙏 Acknowledgements
 
 This project has its roots in work done by [Alex Vieira](https://github.com/vieiraae) on the excellent Azure API Management [AI Gateway](https://github.com/Azure-Samples/AI-Gateway) GitHub repository. Much of the structure is similar and its reuse resulted in significant time savings. Thank you, Alex!
 

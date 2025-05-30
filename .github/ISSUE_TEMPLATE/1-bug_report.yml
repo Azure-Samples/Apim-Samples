@@ -3,7 +3,7 @@
 name: "Bug report"
 description: "Create a bug report to help us improve."
 title: "[Bug]: <title>"
-labels: ["triage"]
+labels: ["bug"]
 type: "Bug"
 assignees: 
   - simonkurtz-MSFT

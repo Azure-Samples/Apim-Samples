@@ -3,7 +3,7 @@
 name: "Sample Scenario"
 description: "Suggest a new API Management Sample Scenario."
 title: "[Scenario]: <title>"
-labels: ["triage", "scenario"]
+labels: ["scenario"]
 type: "Feature"
 assignees:
   - simonkurtz-MSFT
