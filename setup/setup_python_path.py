@@ -76,12 +76,11 @@ def setup_python_path() -> None:
 def generate_env_file() -> None:
     """
     Generate .env file with cross-platform absolute paths for VS Code integration.
-    
-    Creates a .env file that VS Code's Python extension reads to configure
+      Creates a .env file that VS Code's Python extension reads to configure
     the Python environment. Cross-platform features:
     - Uses absolute paths (no relative path issues)
     - Explicit UTF-8 encoding (consistent across platforms)
-    - pathlib handles path separators automatically (\ on Windows, / on Unix)
+    - pathlib handles path separators automatically (\\ on Windows, / on Unix)
     - Works with VS Code's python.envFile setting
     """
     project_root = get_project_root()
@@ -101,9 +100,10 @@ PYTHONPATH={shared_python_path}
     with open(env_file_path, 'w', encoding='utf-8') as f:
         f.write(env_content)
     
-    print(f"Generated .env file: {env_file_path}")
-    print(f"PROJECT_ROOT: {project_root}")
-    print(f"PYTHONPATH: {shared_python_path}")
+    print()
+    print(f"Generated .env file : {env_file_path}")
+    print(f"PROJECT_ROOT        : {project_root}")
+    print(f"PYTHONPATH          : {shared_python_path}\n")
 
 
 # Script entry point - handles command-line arguments
