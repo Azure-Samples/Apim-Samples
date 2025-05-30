@@ -1,0 +1,25 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Setup Python Environment",
+            "type": "shell",
+            "command": "${config:python.pythonPath}",
+            "args": [
+                "setup/setup_python_path.py",
+                "--generate-env"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "detail": "Configure PYTHONPATH for cross-platform compatibility"
+        }
+    ]
+}

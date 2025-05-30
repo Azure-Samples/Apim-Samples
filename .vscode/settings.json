@@ -10,6 +10,7 @@
         "reportUnusedVariable": "information"
     },
     "python.envFile": "${workspaceFolder}/.env",
+    "python.terminal.activateEnvironment": true,
     "plantuml.render": "Local",
     "plantuml.exportFormat": "svg",
     "terminal.integrated.env.windows": {
