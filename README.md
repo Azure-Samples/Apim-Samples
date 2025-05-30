@@ -38,9 +38,9 @@ Run through the following steps to create a Python virtual environment before do
 1. Select _Python: Create Environment_.
 1. Select _Venv_ as we want a local virtual environment.
 1. Select the desired, installed Python version.
-1. Check _requirements.txt_ to install the Python dependencies we need for this repo, then press _OK_. The install may take a few minutes. You can check on progress in the _OUTPUT_ window.
+1. Check _requirements.txt_ to install the Python dependencies we need for this repo, then press _OK_. The install may take a few minutes. You can check on progress in the _OUTPUT_ window (select `Python`).
 1. Verify the virtual environment is set up. You should see a new _.venv_ directory with a _pyveng.cfg_ file and the Python version you selected earlier.
-1. Setup project environment: Run `python setup/setup_python_path.py --generate-env` to configure the Python path.
+1. Set up the project environment by running `python setup/setup_python_path.py --generate-env` to configure the Python path.
   a. If for some reason the `python` command is not found, please try adding your virtual environment's `bin` or `Scripts` directory to your system's PATH variable.  An example command to do this for a virtual environment named `venv` would be to run `source .venv/bin/activate`
 
 The first time you run a Jupyter notebook, you'll be asked to install the Jupyter kernel package (ipykernel).
