@@ -1,0 +1,39 @@
+
+name: Label Non-Admin Issues
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  label-if-not-admin:
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Check if the issue creator has admin access to the repository
+      - name: Check if issue creator has admin access to the repo
+        id: check_permission
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const username = context.payload.issue.user.login;
+            const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              username
+            });
+
+            console.log(`User ${username} has permission: ${permission.permission}`);
+            core.setOutput("is_admin", permission.permission === "admin");
+
+      # Step 2: Add 'triage' label if the issue creator is not an admin
+      - name: Add triage label if not admin
+        if: steps.check_permission.outputs.is_admin != 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['triage']
+            });

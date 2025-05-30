@@ -3,7 +3,6 @@
 name: "Task"
 description: "Create a general task that does not fit other categories."
 title: "[Task]: <title>"
-labels: ["triage"]
 type: "Task"
 assignees:
   - simonkurtz-MSFT

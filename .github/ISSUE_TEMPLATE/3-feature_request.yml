@@ -3,7 +3,6 @@
 name: "Feature Request"
 description: "Suggest a new feature or improvement."
 title: "[Feature]: <title>"
-labels: ["triage"]
 type: "Feature"
 assignees:
   - simonkurtz-MSFT
