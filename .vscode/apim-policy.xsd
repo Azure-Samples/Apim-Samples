@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    targetNamespace="http://schemas.microsoft.com/apimanagement/policy"
+    xmlns:tns="http://schemas.microsoft.com/apimanagement/policy"
+    elementFormDefault="qualified">
+
+    <!-- Root elements -->
+    <xs:element name="policies" type="tns:PoliciesType" />
+    <xs:element name="inbound" type="tns:PolicySectionType" />
+    <xs:element name="outbound" type="tns:PolicySectionType" />
+    <xs:element name="backend" type="tns:PolicySectionType" />
+    <xs:element name="on-error" type="tns:PolicySectionType" />
+
+    <!-- Complex types -->
+    <xs:complexType name="PoliciesType">
+        <xs:sequence>
+            <xs:element name="inbound" type="tns:PolicySectionType" minOccurs="0" />
+            <xs:element name="backend" type="tns:PolicySectionType" minOccurs="0" />
+            <xs:element name="outbound" type="tns:PolicySectionType" minOccurs="0" />
+            <xs:element name="on-error" type="tns:PolicySectionType" minOccurs="0" />
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="PolicySectionType">
+        <xs:choice minOccurs="0" maxOccurs="unbounded">
+            <!-- Base policy -->
+            <xs:element name="base" />
+
+            <!-- Authentication policies -->
+            <xs:element name="authentication-basic" type="tns:AuthenticationBasicType" />
+            <xs:element name="authentication-certificate" type="tns:AuthenticationCertificateType" />
+            <xs:element name="authentication-managed-identity"
+                type="tns:AuthenticationManagedIdentityType" />
+            <xs:element name="validate-jwt" type="tns:ValidateJwtType" />
+
+            <!-- Access restriction policies -->
+            <xs:element name="cors" type="tns:CorsType" />
+            <xs:element name="ip-filter" type="tns:IpFilterType" />
+            <xs:element name="rate-limit" type="tns:RateLimitType" />
+            <xs:element name="rate-limit-by-key" type="tns:RateLimitByKeyType" />
+            <xs:element name="quota" type="tns:QuotaType" />
+            <xs:element name="quota-by-key" type="tns:QuotaByKeyType" />
+            <xs:element name="restrict-caller-ips" type="tns:RestrictCallerIpsType" />
+
+            <!-- Transformation policies -->
+            <xs:element name="set-header" type="tns:SetHeaderType" />
+            <xs:element name="set-query-parameter" type="tns:SetQueryParameterType" />
+            <xs:element name="set-variable" type="tns:SetVariableType" />
+            <xs:element name="set-body" type="tns:SetBodyType" />
+            <xs:element name="set-method" type="tns:SetMethodType" />
+            <xs:element name="set-status" type="tns:SetStatusType" />
+            <xs:element name="rewrite-uri" type="tns:RewriteUriType" />
+            <xs:element name="find-and-replace" type="tns:FindAndReplaceType" />
+            <xs:element name="json-to-xml" type="tns:JsonToXmlType" />
+            <xs:element name="xml-to-json" type="tns:XmlToJsonType" />
+
+            <!-- Control flow -->
+            <xs:element name="choose" type="tns:ChooseType" />
+            <xs:element name="when" type="tns:WhenType" />
+            <xs:element name="otherwise" type="tns:OtherwiseType" />
+            <xs:element name="return-response" type="tns:ReturnResponseType" />
+            <xs:element name="forward-request" type="tns:ForwardRequestType" />
+            <xs:element name="send-request" type="tns:SendRequestType" />
+            <xs:element name="send-one-way-request" type="tns:SendOneWayRequestType" />
+
+            <!-- Caching -->
+            <xs:element name="cache-lookup" type="tns:CacheLookupType" />
+            <xs:element name="cache-store" type="tns:CacheStoreType" />
+            <xs:element name="cache-lookup-value" type="tns:CacheLookupValueType" />
+            <xs:element name="cache-store-value" type="tns:CacheStoreValueType" />
+            <xs:element name="cache-remove-value" type="tns:CacheRemoveValueType" />
+
+            <!-- Logging and tracing -->
+            <xs:element name="log-to-eventhub" type="tns:LogToEventhubType" />
+            <xs:element name="trace" type="tns:TraceType" />
+
+            <!-- Mock and testing -->
+            <xs:element name="mock-response" type="tns:MockResponseType" />
+
+            <!-- Policy fragments -->
+            <xs:element name="include-fragment" type="tns:IncludeFragmentType" />
+        </xs:choice>
+    </xs:complexType>
+
+    <!-- Authentication types -->
+    <xs:complexType name="AuthenticationBasicType">
+        <xs:attribute name="username" type="xs:string" use="required" />
+        <xs:attribute name="password" type="xs:string" use="required" />
+    </xs:complexType>
+
+    <xs:complexType name="AuthenticationCertificateType">
+        <xs:attribute name="thumbprint" type="xs:string" use="required" />
+        <xs:attribute name="certificate-id" type="xs:string" />
+    </xs:complexType>
+
+    <xs:complexType name="AuthenticationManagedIdentityType">
+        <xs:attribute name="resource" type="xs:string" use="required" />
+        <xs:attribute name="client-id" type="xs:string" />
+        <xs:attribute name="output-token-variable-name" type="xs:string" />
+    </xs:complexType>
+
+    <xs:complexType name="ValidateJwtType">
+        <xs:sequence>
+            <xs:element name="openid-config" minOccurs="0">
+                <xs:complexType>
+                    <xs:attribute name="url" type="xs:string" use="required" />
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="issuer-signing-keys" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="key" maxOccurs="unbounded">
+                            <xs:complexType mixed="true">
+                                <xs:attribute name="n" type="xs:string" />
+                                <xs:attribute name="e" type="xs:string" />
+                            </xs:complexType>
+                        </xs:element>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="audiences" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="audience" type="xs:string" maxOccurs="unbounded" />
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="issuers" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="issuer" type="xs:string" maxOccurs="unbounded" />
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="required-claims" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="claim" maxOccurs="unbounded">
+                            <xs:complexType>
+                                <xs:sequence>
+                                    <xs:element name="value" type="xs:string" maxOccurs="unbounded" />
+                                </xs:sequence>
+                                <xs:attribute name="name" type="xs:string" use="required" />
+                                <xs:attribute name="match" type="tns:MatchType" default="all" />
+                                <xs:attribute name="separator" type="xs:string" default="," />
+                            </xs:complexType>
+                        </xs:element>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:sequence>
+        <xs:attribute name="header-name" type="xs:string" default="Authorization" />
+        <xs:attribute name="failed-validation-httpcode" type="xs:int" default="401" />
+        <xs:attribute name="failed-validation-error-message" type="xs:string" />
+        <xs:attribute name="require-expiration-time" type="xs:boolean" default="true" />
+        <xs:attribute name="require-scheme" type="xs:string" default="Bearer" />
+        <xs:attribute name="require-signed-tokens" type="xs:boolean" default="true" />
+        <xs:attribute name="clock-skew" type="xs:int" default="0" />
+        <xs:attribute name="output-token-variable-name" type="xs:string" />
+    </xs:complexType>
+
+    <!-- Variable management -->
+    <xs:complexType name="SetVariableType">
+        <xs:complexContent>
+            <xs:extension base="tns:PolicyExpressionType">
+                <xs:attribute name="name" type="xs:string" use="required" />
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <!-- Header management -->
+    <xs:complexType name="SetHeaderType">
+        <xs:complexContent>
+            <xs:extension base="tns:PolicyExpressionType">
+                <xs:attribute name="name" type="xs:string" use="required" />
+                <xs:attribute name="exists-action" type="tns:ExistsActionType" default="override" />
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <!-- Response management -->
+    <xs:complexType name="ReturnResponseType">
+        <xs:sequence>
+            <xs:element name="set-status" type="tns:SetStatusType" minOccurs="0" />
+            <xs:element name="set-header" type="tns:SetHeaderType" minOccurs="0"
+                maxOccurs="unbounded" />
+            <xs:element name="set-body" type="tns:SetBodyType" minOccurs="0" />
+        </xs:sequence>
+        <xs:attribute name="response-variable-name" type="xs:string" />
+    </xs:complexType>
+
+    <xs:complexType name="SetStatusType">
+        <xs:attribute name="code" type="xs:int" use="required" />
+        <xs:attribute name="reason" type="xs:string" />
+    </xs:complexType>
+
+    <xs:complexType name="SetBodyType">
+        <xs:complexContent>
+            <xs:extension base="tns:PolicyExpressionType">
+                <xs:attribute name="template" type="tns:TemplateType" default="none" />
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <!-- Control flow -->
+    <xs:complexType name="ChooseType">
+        <xs:sequence>
+            <xs:element name="when" type="tns:WhenType" maxOccurs="unbounded" />
+            <xs:element name="otherwise" type="tns:OtherwiseType" minOccurs="0" />
+        </xs:sequence>
+    </xs:complexType>
+
+    <xs:complexType name="WhenType">
+        <xs:complexContent>
+            <xs:extension base="tns:PolicySectionType">
+                <xs:attribute name="condition" type="xs:string" use="required" />
+            </xs:extension>
+        </xs:complexContent>
+    </xs:complexType>
+
+    <xs:complexType name="OtherwiseType">
+        <xs:complexContent>
+            <xs:extension base="tns:PolicySectionType" />
+        </xs:complexContent>
+    </xs:complexType>
+
+    <!-- Policy fragments -->
+    <xs:complexType name="IncludeFragmentType">
+        <xs:attribute name="fragment-id" type="xs:string" use="required" />
+    </xs:complexType>
+
+    <!-- Base types -->
+    <xs:complexType name="PolicyExpressionType" mixed="true">
+        <xs:attribute name="value" type="xs:string" />
+    </xs:complexType>
+
+    <!-- CORS type -->
+    <xs:complexType name="CorsType">
+        <xs:sequence>
+            <xs:element name="allowed-origins" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="origin" type="xs:string" maxOccurs="unbounded" />
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="allowed-methods" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="method" type="xs:string" maxOccurs="unbounded" />
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="allowed-headers" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="header" type="xs:string" maxOccurs="unbounded" />
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="expose-headers" minOccurs="0">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="header" type="xs:string" maxOccurs="unbounded" />
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:sequence>
+        <xs:attribute name="allow-credentials" type="xs:boolean" default="false" />
+        <xs:attribute name="preflight-result-max-age" type="xs:int" />
+    </xs:complexType>
+
+    <!-- Other placeholder types -->
+    <xs:complexType name="IpFilterType" />
+    <xs:complexType name="RateLimitType" />
+    <xs:complexType name="RateLimitByKeyType" />
+    <xs:complexType name="QuotaType" />
+    <xs:complexType name="QuotaByKeyType" />
+    <xs:complexType name="RestrictCallerIpsType" />
+    <xs:complexType name="SetQueryParameterType" />
+    <xs:complexType name="SetMethodType" />
+    <xs:complexType name="RewriteUriType" />
+    <xs:complexType name="FindAndReplaceType" />
+    <xs:complexType name="JsonToXmlType" />
+    <xs:complexType name="XmlToJsonType" />
+    <xs:complexType name="ForwardRequestType" />
+    <xs:complexType name="SendRequestType" />
+    <xs:complexType name="SendOneWayRequestType" />
+    <xs:complexType name="CacheLookupType" />
+    <xs:complexType name="CacheStoreType" />
+    <xs:complexType name="CacheLookupValueType" />
+    <xs:complexType name="CacheStoreValueType" />
+    <xs:complexType name="CacheRemoveValueType" />
+    <xs:complexType name="LogToEventhubType" />
+    <xs:complexType name="TraceType" />
+    <xs:complexType name="MockResponseType" />
+
+    <!-- Enums -->
+    <xs:simpleType name="ExistsActionType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="override" />
+            <xs:enumeration value="skip" />
+            <xs:enumeration value="append" />
+            <xs:enumeration value="delete" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="MatchType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="all" />
+            <xs:enumeration value="any" />
+        </xs:restriction>
+    </xs:simpleType>
+
+    <xs:simpleType name="TemplateType">
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="none" />
+            <xs:enumeration value="liquid" />
+        </xs:restriction>
+    </xs:simpleType>
+
+</xs:schema>
