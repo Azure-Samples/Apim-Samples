@@ -1,23 +1,25 @@
 {
-    "python.analysis.extraPaths": [
-        "${workspaceFolder}/shared/python"
-    ],
-    "python.analysis.completeFunctionParens": true,
+    "plantuml.diagramsRoot": "diagrams/src",
+    "plantuml.exportFormat": "svg",
+    "plantuml.exportOutDir": "diagrams/out",
+    "plantuml.java": "C:\\Program Files\\OpenJDK\\jdk-22.0.2\\bin\\java.exe",
+    "plantuml.render": "Local",
     "python.analysis.autoIndent": true,
+    "python.analysis.completeFunctionParens": true,
     "python.analysis.diagnosticSeverityOverrides": {
         "reportDuplicateImport": "warning",
         "reportUndefinedVariable": "information",
         "reportUnusedVariable": "information"
     },
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/shared/python"
+    ],
+    "python.defaultInterpreterPath": "./venv/bin/python",
     "python.envFile": "${workspaceFolder}/.env",
-    "plantuml.render": "Local",
-    "plantuml.exportFormat": "svg",
+    "python.terminal.activateEnvironment": true,
     "terminal.integrated.env.windows": {
         "PATH": "${env:PATH}"
     },
-    "plantuml.java": "C:\\Program Files\\OpenJDK\\jdk-22.0.2\\bin\\java.exe",
-    "plantuml.diagramsRoot": "diagrams/src",
-    "plantuml.exportOutDir": "diagrams/out",
     
     // XML and APIM Policy Configuration - Disable strict validation for APIM policies
     "xml.validation.enabled": false,
