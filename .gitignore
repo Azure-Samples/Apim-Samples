@@ -20,9 +20,8 @@ labs-in-progress/
 # Misc
 *.log
 
-# Exclude sensitive or generated files (except for root .env for Python)
+# Exclude sensitive or generated files
 .env
-!/.env
 
 # Coverage data and reports
 .coverage
