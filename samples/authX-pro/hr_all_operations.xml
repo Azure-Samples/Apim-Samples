@@ -1,0 +1,18 @@
+<!--
+    This policy authenticates the caller based on their JSON Web Token. It is not calling an Identity Provider as this is a mock policy.
+-->
+<policies>
+    <inbound>
+        <base />
+        <include-fragment fragment-id="AuthX-HR-Member" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

@@ -1,0 +1,22 @@
+<!--
+    This policy authenticates gets mock information about employees. The payload is not relevant for
+this sample. We are only interested in the authX aspects.
+-->
+<policies>
+    <inbound>
+        <base />
+        <!-- The caller must be an HR Administrator OR an HR Associate to be authorized.-->
+        <set-variable name="authz_roles" value="{{HRAdministratorRoleId}},{{HRAssociateRoleId}}" />
+        <include-fragment fragment-id="AuthZ-Match-Any" />
+        <include-fragment fragment-id="Http-Response-200" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

@@ -45,8 +45,8 @@ def _read_policy_xml(policy_xml_filepath: str) -> str:
         str: Contents of the policy XML file.
     """
 
-    # Read the specified policy XML file
-    with open(policy_xml_filepath, 'r') as policy_xml_file:
+    # Read the specified policy XML file with explicit UTF-8 encoding
+    with open(policy_xml_filepath, 'r', encoding = 'utf-8') as policy_xml_file:
         policy_template_xml = policy_xml_file.read()
 
     return policy_template_xml
@@ -271,3 +271,36 @@ class NamedValue:
         }
 
         return nv_dict
+    
+@dataclass
+class PolicyFragment:
+    """
+    Represents a policy fragment within API Management.
+    """
+
+    name: str
+    policyXml: str
+    description: str
+
+    # ------------------------------
+    #    CONSTRUCTOR
+    # ------------------------------
+
+    def __init__(self, name: str, policyXml: str, description: str = ''):
+        self.name = name
+        self.policyXml = policyXml
+        self.description = description
+
+
+    # ------------------------------
+    #    PUBLIC METHODS
+    # ------------------------------
+
+    def to_dict(self) -> dict:
+        pf_dict = {
+            "name": self.name,
+            "policyXml": self.policyXml,
+            "description": self.description 
+        }
+
+        return pf_dict    
