@@ -149,11 +149,24 @@ resource apiDiagnostics 'Microsoft.ApiManagement/service/apis/diagnostics@2024-0
     }  }
 }
 
+// Product associations are handled directly in this module with proper dependency management // to prevent race conditions while keeping the architecture simple
+// Reference existing products for association (with explicit dependency timing)
+resource apimProducts 'Microsoft.ApiManagement/service/products@2024-06-01-preview' existing = [for productName in productNames: {
+  name: productName
+  parent: apimService
+}]
+
+// Create product-API associations with proper dependency management
 // https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/products/apis
-resource apiProductAssociation 'Microsoft.ApiManagement/service/products/apis@2024-05-01' = [for productName in productNames: {
-  name: '${apimName}/${productName}/${api.name}'
+resource apiProductAssociation 'Microsoft.ApiManagement/service/products/apis@2024-06-01-preview' = [for (productName, index) in productNames: {
+  name: apimApi.name
+  parent: apimProducts[index]
   dependsOn: [
-    apimApi
+    apimProducts[index]        // Ensure the specific product exists and is ready
+    apiPolicy                  // Ensure API policy is applied if present
+    apiOperation               // Ensure all operations are created
+    apiOperationPolicy         // Ensure all operation policies are applied
+    apiDiagnostics             // Ensure diagnostics are configured if present
   ]
 }]
 
@@ -174,10 +187,10 @@ output apiDisplayName string = apimApi.properties.displayName
 @description('The path of the created API.')
 output apiPath string = apimApi.properties.path
 
-// @description('Array of product names this API is associated with.')
-// output associatedProducts string[] = productNames
+@description('Array of product names this API is associated with.')
+output associatedProducts array = productNames
 
-// @description('Number of products this API is associated with.')
-// output productAssociationCount int = length(productNames)
+@description('Number of products this API is associated with.')
+output productAssociationCount int = length(productNames)
 
 //output subscriptionPrimaryKey string = apimSubscription.listSecrets().primaryKey

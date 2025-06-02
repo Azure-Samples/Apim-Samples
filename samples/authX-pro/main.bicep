@@ -78,7 +78,8 @@ module productHr '../../shared/bicep/modules/apim/v1/product.bicep' = [for produ
   ]
 }]
 
-// APIM APIs
+// APIM APIs (deployed after products are ready to avoid race conditions)
+@batchSize(1)  // Deploy APIs sequentially to avoid race conditions
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: {
   name: 'api-${api.name}'
   params:{
@@ -90,7 +91,8 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   }
   dependsOn: [
     namedValue              // ensure all named values are created before APIs
-    productHr               // ensure products are created before APIs that reference them
+    policyFragment          // ensure all policy fragments are created before APIs
+    productHr               // ensure all products are fully created before APIs
   ]
 }]
 
