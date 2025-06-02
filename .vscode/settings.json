@@ -20,23 +20,24 @@
     "terminal.integrated.env.windows": {
         "PATH": "${env:PATH}"
     },
-    
-    // XML and APIM Policy Configuration - Disable strict validation for APIM policies
+      // XML and APIM Policy Configuration - Conservative formatting to preserve policy expressions
     "xml.validation.enabled": false,
     "xml.validation.namespaces.enabled": "never",
     "xml.validation.schema.enabled": "never",
     "xml.validation.disallowDocTypeDecl": false,
     "xml.validation.resolveExternalEntities": false,
-    "xml.format.enabled": true,
+    "xml.format.enabled": false,
     "xml.format.emptyElements": "ignore",
     "xml.format.enforceQuoteStyle": "preferred",
-    "xml.format.preserveEmptyContent": false,
+    "xml.format.preserveEmptyContent": true,
     "xml.format.preserveSpace": [
         "xsl:text",
         "xsl:comment",
         "xsl:processing-instruction",
         "literal",
-        "xsl:preserve-space"
+        "xsl:preserve-space",
+        "fragment",
+        "condition"
     ],
     "xml.format.splitAttributes": "preserve",
     "xml.format.joinCDATALines": false,
@@ -64,8 +65,7 @@
     // APIM specific settings - let the APIM extension handle validation
     "azureApiManagement.policies.validateSyntax": true,
     "azureApiManagement.policies.showCodeLens": true,
-    
-    // Language mode overrides for APIM policy files
+      // Language mode overrides for APIM policy files - DISABLE FORMATTING TO PRESERVE POLICY EXPRESSIONS
     "[xml]": {
         "editor.quickSuggestions": {
             "other": true,
@@ -75,6 +75,8 @@
         "editor.autoClosingBrackets": "always",
         "editor.autoClosingQuotes": "always",
         "editor.suggest.insertMode": "replace",
-        "editor.formatOnSave": true
+        "editor.formatOnSave": false,
+        "editor.formatOnPaste": false,
+        "editor.formatOnType": false
     }
 }
