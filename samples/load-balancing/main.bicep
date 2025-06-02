@@ -196,7 +196,7 @@ module backendPoolModule4 '../../shared/bicep/modules/apim/v1/backend-pool.bicep
 
 // APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [
-  for api in apis: if (length(apis) > 0) {
+  for api in apis: if (!empty(apis)) {
     name: '${api.name}-${resourceSuffix}'
     params: {
       apimName: apimName
