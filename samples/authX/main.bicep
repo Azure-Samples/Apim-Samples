@@ -34,7 +34,7 @@ resource apimService 'Microsoft.ApiManagement/service@2024-06-01-preview' existi
 
 // APIM Named Values
 module namedValue '../../shared/bicep/modules/apim/v1/named-value.bicep' = [for nv in namedValues: if (!empty(namedValues)) {
-  name: nv.name
+  name: 'nv-${nv.name}'
   params: {
     apimName: apimName
     namedValueName: nv.name
@@ -45,7 +45,7 @@ module namedValue '../../shared/bicep/modules/apim/v1/named-value.bicep' = [for 
 
 // APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(!empty(apis)) {
-  name: '${api.name}-${resourceSuffix}'
+  name: 'api-${api.name}'
   params: {
     apimName: apimName
     appInsightsInstrumentationKey: appInsightsInstrumentationKey

@@ -32,7 +32,7 @@ resource apimService 'Microsoft.ApiManagement/service@2024-06-01-preview' existi
 
 // APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(!empty(apis)) {
-  name: '${api.name}-${resourceSuffix}'
+  name: 'api-${api.name}'
   params: {
     apimName: apimName
     appInsightsInstrumentationKey: appInsightsInstrumentationKey
