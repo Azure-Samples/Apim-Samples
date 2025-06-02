@@ -61,7 +61,7 @@ module policyFragment '../../shared/bicep/modules/apim/v1/policy-fragment.bicep'
 
 // APIM Products
 module productHr '../../shared/bicep/modules/apim/v1/product.bicep' = [for product in products: {
-  name: 'product-${product.name}' //-${resourceSuffix}'
+  name: 'product-${product.name}'
   params: {
     apimName: apimName
     productName: product.name
@@ -80,7 +80,7 @@ module productHr '../../shared/bicep/modules/apim/v1/product.bicep' = [for produ
 
 // APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: {
-  name: 'api-${api.name}' //-${resourceSuffix}'
+  name: 'api-${api.name}'
   params:{
     apimName: apimName
     appInsightsInstrumentationKey: appInsightsInstrumentationKey
