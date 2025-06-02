@@ -28,3 +28,4 @@ labs-in-progress/
 tests/python/htmlcov/
 
 shared/bicep/modules/**/*.json
+main.json
