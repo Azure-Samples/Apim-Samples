@@ -4,7 +4,6 @@
 <policies>
     <inbound>
         <base />
-        <include-fragment fragment-id="AuthX-HR-Member" />
     </inbound>
     <backend>
         <base />

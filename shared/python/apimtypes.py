@@ -122,13 +122,12 @@ class API:
     policyXml: Optional[str] = None
     operations: Optional[List['APIOperation']] = None
     tags: Optional[List[str]] = None
-
-
+    productNames: Optional[List[str]] = None
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, displayName: str, path: str, description: str, policyXml: Optional[str] = None, operations: Optional[List['APIOperation']] = None, tags: Optional[List[str]] = None):
+    def __init__(self, name: str, displayName: str, path: str, description: str, policyXml: Optional[str] = None, operations: Optional[List['APIOperation']] = None, tags: Optional[List[str]] = None, productNames: Optional[List[str]] = None):
         self.name = name
         self.displayName = displayName
         self.path = path
@@ -136,8 +135,7 @@ class API:
         self.policyXml = policyXml if policyXml is not None else _read_policy_xml(DEFAULT_XML_POLICY_PATH)
         self.operations = operations if operations is not None else []
         self.tags = tags if tags is not None else []
-
-
+        self.productNames = productNames if productNames is not None else []
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
@@ -156,6 +154,9 @@ class API:
 
         if self.tags:
             api_dict["tags"] = self.tags
+
+        if self.productNames:
+            api_dict["productNames"] = self.productNames
 
         return api_dict
 
@@ -303,4 +304,73 @@ class PolicyFragment:
             "description": self.description 
         }
 
-        return pf_dict    
+        return pf_dict
+
+
+@dataclass
+class Product:
+    """
+    Represents a Product definition within API Management.
+    Products in APIM are logical groupings of APIs with associated policies,
+    terms of use, and rate limits. They are used to manage API access control.
+    """
+    
+    name: str
+    displayName: str
+    description: str
+    state: str = 'published'  # 'published' or 'notPublished'
+    subscriptionRequired: bool = True
+    approvalRequired: bool = False
+    policyXml: Optional[str] = None
+    
+    # ------------------------------
+    #    CONSTRUCTOR
+    # ------------------------------
+    
+    def __init__(self, name: str, displayName: str, description: str, state: str = 'published', subscriptionRequired: bool = True, approvalRequired: bool = False, policyXml: Optional[str] = None):
+        self.name = name
+        self.displayName = displayName
+        self.description = description
+        self.state = state
+        self.subscriptionRequired = subscriptionRequired
+        self.approvalRequired = approvalRequired
+        # Only try to read default policy if policyXml is None and we're not in a test environment
+        if policyXml is None:
+            try:
+                self.policyXml = _read_policy_xml(DEFAULT_XML_POLICY_PATH)
+            except FileNotFoundError:
+                # Fallback to a simple default policy for testing or when file is not found
+                self.policyXml = """<policies>
+    <inbound>
+        <base />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>"""
+        else:
+            self.policyXml = policyXml
+    # ------------------------------
+    #    PUBLIC METHODS
+    # ------------------------------
+
+    def to_dict(self) -> dict:
+        product_dict = {
+            "name": self.name,
+            "displayName": self.displayName,
+            "description": self.description,
+            "state": self.state,
+            "subscriptionRequired": self.subscriptionRequired,
+            "approvalRequired": self.approvalRequired
+        }
+
+        if self.policyXml is not None:
+            product_dict["policyXml"] = self.policyXml
+
+        return product_dict

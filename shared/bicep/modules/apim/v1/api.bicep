@@ -24,6 +24,9 @@ param appInsightsInstrumentationKey string = ''
 @description('The resource ID for Application Insights')
 param appInsightsId string = ''
 
+@description('Array of product names to associate this API with. If empty, no product associations will be created.')
+param productNames array = []
+
 param api object = {}
 
 
@@ -85,17 +88,17 @@ resource apimApiTags 'Microsoft.ApiManagement/service/apis/tags@2024-06-01-previ
 }]
 
 // https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/apis/policies
-resource apiPolicy 'Microsoft.ApiManagement/service/apis/policies@2024-06-01-preview' = if (!empty(api.policyXml)) {
+resource apiPolicy 'Microsoft.ApiManagement/service/apis/policies@2024-06-01-preview' = if (contains(api, 'policyXml') && !empty(api.policyXml)) {
   name: 'policy'
   parent: apimApi
   properties: {
-    format: 'rawxml'
+    format: 'rawxml'    // only use 'rawxml' for policies as it's what APIM expects and means we don't need to escape XML characters
     value: api.policyXml
   }
 }
 
 // https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/apis/operations
-resource apiOperation 'Microsoft.ApiManagement/service/apis/operations@2024-06-01-preview' = [for (op, i) in api.operations: if(length(api.operations) > 0) {
+resource apiOperation 'Microsoft.ApiManagement/service/apis/operations@2024-06-01-preview' = [for (op, i) in api.operations: {
   name: '${api.name}-${op.name}-${i}-${resourceSuffix}'
   parent: apimApi
   properties: {
@@ -106,9 +109,9 @@ resource apiOperation 'Microsoft.ApiManagement/service/apis/operations@2024-06-0
   }
 }]
 
-// Attach policy XML to each operation
+// Attach policy XML to each operation (only if policy XML exists)
 // https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/apis/operations/policies
-resource apiOperationPolicy 'Microsoft.ApiManagement/service/apis/operations/policies@2024-06-01-preview' = [for (op, i) in api.operations: if(length(api.operations) > 0) {
+resource apiOperationPolicy 'Microsoft.ApiManagement/service/apis/operations/policies@2024-06-01-preview' = [for (op, i) in api.operations: if (contains(op, 'policyXml') && !empty(op.policyXml)) {
   name: 'policy'
   parent: apiOperation[i] // Associate with the correct apiOperation resource
   dependsOn: [
@@ -143,13 +146,38 @@ resource apiDiagnostics 'Microsoft.ApiManagement/service/apis/diagnostics@2024-0
     backend: {
       request: logSettings
       response: logSettings
-    }
-  }
+    }  }
 }
+
+// https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/products/apis
+resource apiProductAssociation 'Microsoft.ApiManagement/service/products/apis@2024-05-01' = [for productName in productNames: {
+  name: '${apimName}/${productName}/${api.name}'
+  dependsOn: [
+    apimApi
+  ]
+}]
 
 
 // ------------------------------
 //    OUTPUTS
 // ------------------------------
+
+@description('The resource ID of the created API.')
+output apiResourceId string = apimApi.id
+
+@description('The name of the created API.')
+output apiName string = apimApi.name
+
+@description('The display name of the created API.')
+output apiDisplayName string = apimApi.properties.displayName
+
+@description('The path of the created API.')
+output apiPath string = apimApi.properties.path
+
+// @description('Array of product names this API is associated with.')
+// output associatedProducts string[] = productNames
+
+// @description('Number of products this API is associated with.')
+// output productAssociationCount int = length(productNames)
 
 //output subscriptionPrimaryKey string = apimSubscription.listSecrets().primaryKey

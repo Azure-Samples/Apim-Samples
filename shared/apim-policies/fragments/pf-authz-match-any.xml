@@ -10,10 +10,9 @@ continues normally.
     <choose>
         <!-- Check if NONE of the allowed role GUIDs match the roles in the JWT -->
         <when condition="@{
-            var jwt = (Jwt)context.Variables[" jwt"];
-            var allowedRoleGuids = context.Variables.GetValueOrDefault<string>(" authz_roles", "").ToString().Split(',');
-            var jwtRoles = jwt.Claims.GetValueOrDefault("
-            roles", new string[0]);
+            var jwt = (Jwt)context.Variables["jwt"];
+            var allowedRoleGuids = context.Variables.GetValueOrDefault<string>("authz_roles", "").ToString().Split(',');
+            var jwtRoles = jwt.Claims.GetValueOrDefault("roles", new string[0]);
             
             // Check if NO allowed role GUID matches any role in the JWT
             return !allowedRoleGuids.Any(allowedRole => jwtRoles.Contains(allowedRole.Trim()));

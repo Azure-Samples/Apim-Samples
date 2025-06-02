@@ -1,6 +1,5 @@
 <!--
-    This policy authenticates gets mock information about employees. The payload is not relevant for
-this sample. We are only interested in the authX aspects.
+    This policy authenticates gets mock information about employees. The payload is not relevant for this sample. We are only interested in the authX aspects.
 -->
 <policies>
     <inbound>

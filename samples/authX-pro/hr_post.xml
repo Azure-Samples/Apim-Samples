@@ -1,6 +1,5 @@
 <!--
-    This policy mocks the creation of a new employee. The payload is not relevant for this sample. We
-are only interested in the authX aspects.
+    This policy mocks the creation of a new employee. The payload is not relevant for this sample. We are only interested in the authX aspects.
 -->
 <policies>
     <inbound>

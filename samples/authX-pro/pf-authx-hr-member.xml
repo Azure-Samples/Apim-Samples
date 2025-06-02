@@ -1,3 +1,6 @@
+<!-- 
+    Policy fragment to authenticate the caller via their JSON Web Token and require authorization as an HR Member.
+-->
 <fragment>
     <validate-jwt header-name="Authorization" failed-validation-httpcode="401"
         failed-validation-error-message="Unauthorized" output-token-variable-name="jwt">
@@ -6,7 +9,7 @@
         </issuer-signing-keys>
         <required-claims>
             <claim name="roles" match="all">
-                <value>{hr_member_role_id}</value>
+                <value>{hr_member_role_id}</value>  <!-- HR Member Role ID -->
             </claim>
         </required-claims>
     </validate-jwt>
