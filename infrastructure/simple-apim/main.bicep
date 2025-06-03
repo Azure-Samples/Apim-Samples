@@ -49,7 +49,7 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
 
 // 4. APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(length(apis) > 0) {
-  name: '${api.name}-${resourceSuffix}'
+  name: 'api-${api.name}'
   params: {
     apimName: apimName
     appInsightsInstrumentationKey: appInsightsInstrumentationKey
