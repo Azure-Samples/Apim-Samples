@@ -1,0 +1,26 @@
+<!--
+    - Expected context variables:
+      - "jwt": The parsed JWT token which should already be set by the pf-authx fragment.
+      - "authz_roles": A csv of required role GUIDs to check against. All roles must be present.
+      
+    - This fragment blocks access (returns 403) when not ALL required roles are present. If all roles are present, processing continues normally.
+-->
+<fragment>
+    <choose>
+        <!-- Check if ALL required role GUIDs are present in the JWT -->
+        <when condition="@{
+            var jwt = (Jwt)context.Variables["jwt"];
+            var requiredRoleGuids = context.Variables.GetValueOrDefault<string>("authz_roles", "").ToString().Split(',');
+            var jwtRoles = jwt.Claims.GetValueOrDefault("roles", new string[0]);
+            
+            // Check if ALL required role GUIDs are present in the JWT
+            return !requiredRoleGuids.All(requiredRole => jwtRoles.Contains(requiredRole.Trim()));
+        }">
+            <return-response>
+                <set-status code="403" reason="Forbidden" />
+                <set-body>Access denied - not all required roles found</set-body>
+            </return-response>
+        </when>
+        <!-- If all roles are present, continue processing (no action needed) -->
+    </choose>
+</fragment>

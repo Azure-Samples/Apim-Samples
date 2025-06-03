@@ -3,8 +3,7 @@
       - "jwt": The parsed JWT token which should already be set by the pf-authx fragment.
       - "authz_roles": A csv of allowed role GUIDs to check against. Any match will grant access.
       
-    - This fragment only blocks access (returns 403) when no roles match. If roles match, processing
-continues normally.
+    - This fragment only blocks access (returns 403) when no roles match. If roles match, processing continues normally.
 -->
 <fragment>
     <choose>
