@@ -4,7 +4,7 @@
 <policies>
     <inbound>
         <base />
-        <set-backend-service backend-id="aca-backend-1" />
+        <set-backend-service backend-id="{backend_id}" />
     </inbound>
     <backend>
         <base />

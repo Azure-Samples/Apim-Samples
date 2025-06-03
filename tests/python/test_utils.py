@@ -2,9 +2,8 @@ import pytest
 from apimtypes import INFRASTRUCTURE
 import os
 import builtins
-from io import StringIO
-from unittest.mock import patch, MagicMock, mock_open
-from shared.python import utils
+from unittest.mock import MagicMock, mock_open
+import utils
 from apimtypes import INFRASTRUCTURE
 
 # ------------------------------

@@ -1,8 +1,9 @@
 """
 Unit tests for apimtypes.py.
 """
+
 import pytest
-from shared.python import apimtypes
+import apimtypes
 
 
 # ------------------------------
@@ -278,14 +279,6 @@ def test_api_missing_fields():
             path = EXAMPLE_PATH,
             policyXml = EXAMPLE_POLICY_XML
         )
-
-    # with pytest.raises(TypeError):
-    #     apimtypes.API(
-    #         name = EXAMPLE_NAME,
-    #         displayName = EXAMPLE_DISPLAY_NAME,
-    #         path = EXAMPLE_PATH,
-    #         description = EXAMPLE_DESCRIPTION
-    #     )
 
 
 # ------------------------------

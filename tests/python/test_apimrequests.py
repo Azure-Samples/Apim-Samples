@@ -1,8 +1,8 @@
 import pytest
 import requests
 from unittest.mock import patch, MagicMock
-from shared.python.apimrequests import ApimRequests
-from shared.python.apimtypes import HTTP_VERB, SUBSCRIPTION_KEY_PARAMETER_NAME
+from apimrequests import ApimRequests
+from apimtypes import SUBSCRIPTION_KEY_PARAMETER_NAME
 
 # Sample values for tests
 default_url = "https://example.com/apim/"
@@ -35,10 +35,10 @@ def test_init_no_key():
     assert apim.headers["Accept"] == "application/json"
 
 @pytest.mark.http
-@patch("shared.python.apimrequests.requests.request")
-@patch("shared.python.apimrequests.utils.print_message")
-@patch("shared.python.apimrequests.utils.print_info")
-@patch("shared.python.apimrequests.utils.print_error")
+@patch("apimrequests.requests.request")
+@patch("apimrequests.utils.print_message")
+@patch("apimrequests.utils.print_info")
+@patch("apimrequests.utils.print_error")
 def test_single_get_success(mock_print_error, mock_print_info, mock_print_message, mock_request, apim):
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -55,10 +55,10 @@ def test_single_get_success(mock_print_error, mock_print_info, mock_print_messag
         mock_print_error.assert_not_called()
 
 @pytest.mark.http
-@patch("shared.python.apimrequests.requests.request")
-@patch("shared.python.apimrequests.utils.print_message")
-@patch("shared.python.apimrequests.utils.print_info")
-@patch("shared.python.apimrequests.utils.print_error")
+@patch("apimrequests.requests.request")
+@patch("apimrequests.utils.print_message")
+@patch("apimrequests.utils.print_info")
+@patch("apimrequests.utils.print_error")
 def test_single_get_error(mock_print_error, mock_print_info, mock_print_message, mock_request, apim):
     mock_request.side_effect = requests.exceptions.RequestException("fail")
     result = apim.singleGet(default_path, printResponse=True)
@@ -66,10 +66,10 @@ def test_single_get_error(mock_print_error, mock_print_info, mock_print_message,
     mock_print_error.assert_called_once()
 
 @pytest.mark.http
-@patch("shared.python.apimrequests.requests.request")
-@patch("shared.python.apimrequests.utils.print_message")
-@patch("shared.python.apimrequests.utils.print_info")
-@patch("shared.python.apimrequests.utils.print_error")
+@patch("apimrequests.requests.request")
+@patch("apimrequests.utils.print_message")
+@patch("apimrequests.utils.print_info")
+@patch("apimrequests.utils.print_error")
 def test_single_post_success(mock_print_error, mock_print_info, mock_print_message, mock_request, apim):
     mock_response = MagicMock()
     mock_response.status_code = 201
@@ -86,9 +86,9 @@ def test_single_post_success(mock_print_error, mock_print_info, mock_print_messa
         mock_print_error.assert_not_called()
 
 @pytest.mark.http
-@patch("shared.python.apimrequests.requests.Session")
-@patch("shared.python.apimrequests.utils.print_message")
-@patch("shared.python.apimrequests.utils.print_info")
+@patch("apimrequests.requests.Session")
+@patch("apimrequests.utils.print_message")
+@patch("apimrequests.utils.print_info")
 def test_multi_get_success(mock_print_info, mock_print_message, mock_session, apim):
     mock_sess = MagicMock()
     mock_response = MagicMock()
@@ -110,9 +110,9 @@ def test_multi_get_success(mock_print_info, mock_print_message, mock_session, ap
         mock_print_code.assert_called()
 
 @pytest.mark.http
-@patch("shared.python.apimrequests.requests.Session")
-@patch("shared.python.apimrequests.utils.print_message")
-@patch("shared.python.apimrequests.utils.print_info")
+@patch("apimrequests.requests.Session")
+@patch("apimrequests.utils.print_message")
+@patch("apimrequests.utils.print_info")
 def test_multi_get_error(mock_print_info, mock_print_message, mock_session, apim):
     mock_sess = MagicMock()
     mock_sess.request.side_effect = requests.exceptions.RequestException("fail")
@@ -134,8 +134,8 @@ def make_apim():
 @pytest.mark.http
 def test_single_post_error():
     apim = make_apim()
-    with patch("shared.python.apimrequests.requests.request") as mock_request, \
-         patch("shared.python.apimrequests.utils.print_error") as mock_print_error:
+    with patch("apimrequests.requests.request") as mock_request, \
+         patch("apimrequests.utils.print_error") as mock_print_error:
         import requests
         mock_request.side_effect = requests.RequestException("fail")
         result = apim.singlePost(path, data={"foo": "bar"}, printResponse=True)
@@ -145,7 +145,7 @@ def test_single_post_error():
 @pytest.mark.http
 def test_multi_get_non_json():
     apim = make_apim()
-    with patch("shared.python.apimrequests.requests.Session") as mock_session:
+    with patch("apimrequests.requests.Session") as mock_session:
         mock_sess = MagicMock()
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -161,7 +161,7 @@ def test_multi_get_non_json():
 @pytest.mark.http
 def test_request_header_merging():
     apim = make_apim()
-    with patch("shared.python.apimrequests.requests.request") as mock_request:
+    with patch("apimrequests.requests.request") as mock_request:
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.headers = {"Content-Type": "application/json"}
@@ -189,7 +189,7 @@ def test_print_response_code_edge():
     class DummyResponse:
         status_code = 302
         reason = "Found"
-    with patch("shared.python.apimrequests.utils.print_val") as mock_print_val:
+    with patch("apimrequests.utils.print_val") as mock_print_val:
         apim._print_response_code(DummyResponse())
         mock_print_val.assert_called_with("Response status", "302")
 
