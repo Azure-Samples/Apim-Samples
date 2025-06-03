@@ -15,8 +15,8 @@ Azure Symbols are on [GitHub](https://github.com/plantuml-stdlib/Azure-PlantUML/
    "plantuml.render": "Local",
    "plantuml.exportFormat": "svg",
    "plantuml.java": "C:\\Program Files\\OpenJDK\\jdk-22.0.2\\bin\\java.exe",
-   "plantuml.diagramsRoot": "diagrams/src",
-   "plantuml.exportOutDir": "diagrams/out"
+   "plantuml.diagramsRoot": "assets/diagrams/src",
+   "plantuml.exportOutDir": "assets/diagrams/out"
    ```
 
 2. **Viewing Diagrams**:
