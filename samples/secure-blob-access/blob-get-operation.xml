@@ -1,0 +1,79 @@
+<!--
+    Operation-level policy for the secure valet key pattern with JWT authentication and authorization.
+    Validates JWT token with Blob Reader role before generating a secure URL for blob access.
+-->
+<policies>
+    <inbound>
+        <base />        
+        
+        <!-- Extract blob name from the URL path -->
+        <set-variable name="blob-name" value="@(context.Request.MatchedParameters["blob-name"])" />
+        
+        <!-- Validate blob name parameter -->
+        <choose>
+            <when condition="@(string.IsNullOrEmpty((string)context.Variables["blob-name"]))">
+                <return-response>
+                    <set-status code="400" reason="Bad Request" />
+                    <set-body>Blob name is required</set-body>
+                </return-response>
+            </when>
+        </choose>          
+                
+        <!-- Authenticate and authorize the caller -->
+        <include-fragment fragment-id="AuthX-HR-Member" />
+
+        <!-- Authorize the caller (requires HR Member role) -->
+        <set-variable name="authz_roles" value="{hr_member_role_id}" />
+        <include-fragment fragment-id="AuthZ-Match-Any" />       
+        
+        <!-- Check if blob exists using managed identity -->
+        <send-request mode="new" response-variable-name="blob-check-response" timeout="10" ignore-error="false">
+            <set-url>https://{storage_account_name}.blob.core.windows.net/{container_name}/@(context.Variables["blob-name"])</set-url>
+            <set-method>HEAD</set-method>
+            <authentication-managed-identity resource="https://storage.azure.com/" />
+        </send-request>
+
+        <!-- Verify blob exists -->
+        <choose>
+            <when condition="@(((IResponse)context.Variables["blob-check-response"]).StatusCode != 200)">
+                <return-response>
+                    <set-status code="404" reason="Not Found" />
+                    <set-body>Blob not found or access denied</set-body>
+                </return-response>
+            </when>
+        </choose>
+
+        <!-- Generate managed identity token for storage access -->
+        <authentication-managed-identity resource="https://storage.azure.com/" output-token-variable-name="storage-access-token" />
+
+        <!-- Prepare the secure URL and token information -->
+        <set-variable name="blob-url" value="@("https://{storage_account_name}.blob.core.windows.net/{container_name}/" + context.Variables["blob-name"])" />
+        <set-variable name="token-expiry" value="@(DateTime.UtcNow.AddMinutes(10).ToString("yyyy-MM-ddTHH:mm:ssZ"))" />        
+
+        <!-- Return the valet key (secure URL with access token) -->
+        <return-response>
+            <set-status code="200" reason="OK" />
+            <set-body>@{
+                var accessToken = (string)context.Variables["storage-access-token"];
+                    
+                return new JObject(
+                    new JProperty("blob_name", context.Variables["blob-name"]),
+                    new JProperty("secure_url", context.Variables["blob-url"]),
+                    new JProperty("authorization_header", "Bearer " + accessToken),
+                    new JProperty("expires_at", context.Variables["token-expiry"]),
+                    new JProperty("access_method", "Use the secure_url with the authorization_header in your HTTP client"),
+                    new JProperty("note", "This valet key provides temporary access to the blob. Token expires in 5 minutes.")
+                ).ToString();
+            }</set-body>      
+        </return-response>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

@@ -323,6 +323,31 @@ def read_policy_xml(policy_xml_filepath: str) -> str:
 
     return policy_template_xml
 
+def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str, str]) -> str:
+    """
+    Read and return the contents of a policy XML file, then modifies it by replacing placeholders with provided values.
+
+    Args:
+        policy_xml_filepath (str): Path to the policy XML file.
+
+    Returns:
+        str: Contents of the policy XML file.
+    """
+
+    policy_template_xml = read_policy_xml(policy_xml_filepath)
+
+    if replacements is not None and isinstance(replacements, dict):
+        # Replace placeholders in the policy XML with provided values
+        for placeholder, value in replacements.items():
+            placeholder = '{' + placeholder + '}'
+
+            if placeholder in policy_template_xml:
+                policy_template_xml = policy_template_xml.replace(placeholder, value)
+            else:
+                print_warning(f"Placeholder '{placeholder}' not found in the policy XML file.")
+
+    return policy_template_xml
+
 def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[int] | None = None) -> None:
     """
     Clean up infrastructure deployments by deployment enum and index/indexes.
@@ -581,6 +606,7 @@ def run(command: str, ok_message: str = '', error_message: str = '', print_outpu
         success = False
         
         if print_errors:
+            print_error(f"Command failed with error: {output_text}", duration = f"[{int((time.time() - start_time) // 60)}m:{int((time.time() - start_time) % 60)}s]")
             traceback.print_exc()
 
     if print_output:

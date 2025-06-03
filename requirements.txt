@@ -7,3 +7,5 @@ matplotlib
 pyjwt
 pytest
 pytest-cov
+azure.storage.blob
+azure.identity
