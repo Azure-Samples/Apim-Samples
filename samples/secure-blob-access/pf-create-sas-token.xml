@@ -37,7 +37,7 @@
         var rscl = "";
         var rsct = "";
 
-        var stringToSign = $"{(string)context.Variables["permissions"]}\n" +
+        return $"{(string)context.Variables["permissions"]}\n" +
             $"{start}\n" +
             $"{(string)context.Variables["expiry"]}\n" +
             $"{(string)context.Variables["canonicalizedResource"]}\n" +
@@ -53,8 +53,6 @@
             $"{rsce}\n" +
             $"{rscl}\n" +
             $"{rsct}";
-
-        return stringToSign;
     }" />
 
     <!-- Generate signature using HMAC-SHA256 following Azure Storage Service SAS specification -->
@@ -81,14 +79,12 @@
         <when condition="@((string)context.Variables["signature"] != "SIGNATURE_GENERATION_FAILED")">                
             <!-- Construct the SAS token -->
             <set-variable name="sasToken" value="@{
-                var sasToken = $"sp={(string)context.Variables["permissions"]}" +
+                return $"sp={(string)context.Variables["permissions"]}" +
                     $"&se={(string)context.Variables["expiry"]}" +
                     $"&spr={(string)context.Variables["signedProtocol"]}" +
                     $"&sv={(string)context.Variables["signedVersion"]}" +
                     $"&sr={(string)context.Variables["signedResource"]}" +
                     $"&sig={System.Net.WebUtility.UrlEncode((string)context.Variables["signature"])}";
-
-                return sasToken;
             }" />
         </when>
         <otherwise>

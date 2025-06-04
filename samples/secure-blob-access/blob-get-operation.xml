@@ -22,10 +22,9 @@
         <set-variable name="storageAccountKey" value="{{storage-account-key}}" />
         <set-variable name="storageAccount" value="{{storage-account-name}}" />
         <set-variable name="containerName" value="samples" />
-        <set-variable name="blobName" value="@((string)context.Variables["blobName"])" />
+        <set-variable name="blobUrl" value="@($"https://{(string)context.Variables["storageAccount"]}.blob.core.windows.net/{(string)context.Variables["containerName"]}/{(string)context.Variables["blobName"]}")" />
         
         <!-- 3) Check if the blob exists using APIM's managed identity. Return 404 - Not Found if it does not exist. -->
-        <set-variable name="blobUrl" value="@($"https://{(string)context.Variables["storageAccount"]}.blob.core.windows.net/{(string)context.Variables["containerName"]}/{(string)context.Variables["blobName"]}")" />
         
         <include-fragment fragment-id="Check-Blob-Existence-via-Managed-Identity" />
         
@@ -45,7 +44,7 @@
         <include-fragment fragment-id="Create-Sas-Token" />
         
         <!-- Construct the full blob URL with SAS token -->
-        <set-variable name="blobUrlWithSas" value="@($"https://{(string)context.Variables["storageAccount"]}.blob.core.windows.net/{(string)context.Variables["containerName"]}/{(string)context.Variables["blobName"]}?{(string)context.Variables["sasToken"]}")" />
+        <set-variable name="blobUrlWithSasToken" value="@($"{(string)context.Variables["blobUrl"]}?{(string)context.Variables["sasToken"]}")" />
 
         <!-- 5) Return the SAS token response with additional, useful information. -->
         <return-response>
@@ -61,7 +60,7 @@
                     container_name = (string)context.Variables["containerName"],
                     blob_name = (string)context.Variables["blobName"],
                     blob_url = (string)context.Variables["blobUrl"],
-                    sas_url = (string)context.Variables["blobUrlWithSas"],
+                    sas_url = (string)context.Variables["blobUrlWithSasToken"],
                     permissions = (string)context.Variables["permissions"],
                     timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
                     expire_at = (string)context.Variables["expiry"]
