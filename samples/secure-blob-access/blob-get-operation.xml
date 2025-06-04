@@ -54,16 +54,20 @@ BREAKTHROUGH DISCOVERY: After extensive research and testing, it's confirmed tha
         
         <!-- Check if blob exists using managed identity -->
         <set-variable name="blob-url" value="@($"https://{(string)context.Variables["storageAccount"]}.blob.core.windows.net/{(string)context.Variables["containerName"]}/{(string)context.Variables["blobName"]}")" />
-        
         <send-request mode="new" response-variable-name="blob-check-response" timeout="10" ignore-error="false">
             <set-url>@((string)context.Variables["blob-url"])</set-url>
             <set-method>HEAD</set-method>
+            <!-- The x-ms-version header must be sent or a 403 will be returned. -->
+            <set-header name="x-ms-version" exists-action="override">
+                <value>2021-08-06</value>
+            </set-header>
             <authentication-managed-identity resource="https://storage.azure.com/" />
         </send-request>
 
         <!-- Verify blob exists -->
         <choose>
-            <when condition="@(((IResponse)context.Variables["blob-check-response"]).StatusCode != 200)">                <return-response>
+            <when condition="@(((IResponse)context.Variables["blob-check-response"]).StatusCode != 200)">
+                <return-response>
                     <set-status code="404" reason="Not Found" />
                     <set-header name="Content-Type">
                         <value>application/json</value>
