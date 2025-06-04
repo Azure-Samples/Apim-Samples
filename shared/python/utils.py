@@ -14,7 +14,7 @@ import string
 import secrets
 import base64
 
-from typing import Any, Tuple
+from typing import Any, Dict, Optional, Tuple
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE
 
 
@@ -239,6 +239,38 @@ print_success   = lambda msg, output = '', duration = '', blank_above = False   
 print_warning   = lambda msg, output = '', duration = ''                        : _print_log(msg, '⚠️ ', BOLD_Y, output, duration, True)
 print_val       = lambda name, value, val_below = False                         : _print_log(f"{name:<25}:{'\n' if val_below else ' '}{value}", '👉🏽 ', BOLD_B)
 print_header    = lambda msg                                                    : _print_log(f"\n{'=' * len(msg)}\n{msg}\n{'=' * len(msg)}", '', BOLD_G, blank_above=True, blank_below=True)
+
+
+def get_azure_role_guid(role_name: str) -> Optional[str]:
+    """
+    Load the Azure roles JSON file and return the GUID for the specified role name.
+    
+    Args:
+        role_name (str): The name of the Azure role (e.g., 'StorageBlobDataReader').
+        
+    Returns:
+        Optional[str]: The GUID of the role if found, None if not found or file cannot be loaded.
+    """
+    try:
+        # Get the directory of the current script to build the path to azure-roles.json
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        roles_file_path = os.path.join(current_dir, '..', 'azure-roles.json')
+        
+        # Normalize the path for cross-platform compatibility
+        roles_file_path = os.path.normpath(roles_file_path)
+        
+        # Load the JSON file
+        with open(roles_file_path, 'r', encoding='utf-8') as file:
+            roles_data: Dict[str, str] = json.load(file)
+        
+        # Return the GUID for the specified role name
+        return roles_data.get(role_name)
+        
+    except (FileNotFoundError, json.JSONDecodeError, OSError) as e:
+        print_error(f"Failed to load Azure roles from {roles_file_path}: {str(e)}")
+        
+        return None
+
 
 def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: str | INFRASTRUCTURE, bicep_parameters: dict, bicep_parameters_file: str = 'params.json') -> Output:
     """
@@ -707,7 +739,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
     print_info(f"🔍 Checking if APIM '{apim_name}' has Storage Blob Data Reader permissions on '{storage_account_name}' in resource group '{resource_group_name}'...")
     
     # Storage Blob Data Reader role definition ID
-    blob_reader_role_id = "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
+    blob_reader_role_id = get_azure_role_guid('StorageBlobDataReader')
     
     # Get APIM's managed identity principal ID
     print_info("Getting APIM managed identity...")
