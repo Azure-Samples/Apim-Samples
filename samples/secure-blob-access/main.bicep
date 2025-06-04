@@ -92,6 +92,17 @@ resource storageAccountNamedValue 'Microsoft.ApiManagement/service/namedValues@2
   }
 }
 
+// Add storage account key as APIM named value (for demo purposes - use Key Vault in production)
+resource storageAccountKeyNamedValue 'Microsoft.ApiManagement/service/namedValues@2024-06-01-preview' = {
+  parent: apimService
+  name: 'storage-account-key'
+  properties: {
+    displayName: 'storage-account-key'
+    value: storageAccount.listKeys().keys[0].value
+    secret: true
+  }
+}
+
 // APIM Named Values
 module namedValueModule '../../shared/bicep/modules/apim/v1/named-value.bicep' = [for nv in namedValues: {
   name: 'nv-${nv.name}'
@@ -132,6 +143,8 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
     namedValueModule              // ensure all named values are created before APIs
     policyFragmentModule          // ensure all policy fragments are created before APIs
     storageAccountNamedValue
+    storageAccountKeyNamedValue
+    apimStorageBlobDataReaderRole // ensure role assignment is complete before APIs
   ]
 }]
 
@@ -161,4 +174,4 @@ output storageAccountId string = storageAccount.id
 output blobContainerName string = containerName
 output storageAccountEndpoint string = storageAccount.properties.primaryEndpoints.blob
 output uploadedFiles array = uploadSampleFilesModule.outputs.uploadedFiles
-output uploadStatus string = uploadSampleFilesModule.outputs.deploymentScriptOutput
+//output uploadStatus string = uploadSampleFilesModule.outputs.deploymentScriptOutput

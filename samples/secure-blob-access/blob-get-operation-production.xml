@@ -37,16 +37,16 @@ BREAKTHROUGH DISCOVERY: After extensive research and testing, it's confirmed tha
         
         <!-- Validate blob name parameter -->
         <choose>
-            <when condition="@(string.IsNullOrEmpty((string)context.Variables["blob-name"]))">                <return-response>
+            <when condition="@(string.IsNullOrEmpty((string)context.Variables["blob-name"]))">
+                <return-response>
                     <set-status code="400" reason="Bad Request" />
-                    <set-header name="Content-Type">
-                        <value>application/json</value>
-                    </set-header>
+                    <set-header name="Content-Type" value="application/json" />
                     <set-body>{"error": "Blob name is required"}</set-body>
                 </return-response>
             </when>
         </choose>
-          <!-- Set up storage account details -->
+        
+        <!-- Set up storage account details -->
         <set-variable name="storageAccount" value="{{storage-account-name}}" />
         <set-variable name="storageAccountKey" value="{{storage-account-key}}" />
         <set-variable name="containerName" value="samples" />
@@ -63,11 +63,10 @@ BREAKTHROUGH DISCOVERY: After extensive research and testing, it's confirmed tha
 
         <!-- Verify blob exists -->
         <choose>
-            <when condition="@(((IResponse)context.Variables["blob-check-response"]).StatusCode != 200)">                <return-response>
+            <when condition="@(((IResponse)context.Variables["blob-check-response"]).StatusCode != 200)">
+                <return-response>
                     <set-status code="404" reason="Not Found" />
-                    <set-header name="Content-Type">
-                        <value>application/json</value>
-                    </set-header>
+                    <set-header name="Content-Type" value="application/json" />
                     <set-body>{"error": "Blob not found or access denied"}</set-body>
                 </return-response>
             </when>
@@ -115,7 +114,9 @@ BREAKTHROUGH DISCOVERY: After extensive research and testing, it's confirmed tha
                    $"{(string)context.Variables["rsce"]}\n" +
                    $"{(string)context.Variables["rscl"]}\n" +
                    $"{(string)context.Variables["rsct"]}";
-        }" />        <!-- Generate signature using HMAC-SHA256 - PRODUCTION READY! -->
+        }" />
+        
+        <!-- Generate signature using HMAC-SHA256 - PRODUCTION READY! -->
         <set-variable name="signature" value="@{
             try {
                 var key = Convert.FromBase64String((string)context.Variables["storageAccountKey"]);
@@ -129,21 +130,9 @@ BREAKTHROUGH DISCOVERY: After extensive research and testing, it's confirmed tha
             catch (Exception ex)
             {
                 context.Trace("SAS signature generation failed: " + ex.Message);
-                return "SIGNATURE_GENERATION_FAILED";
+                throw new InvalidOperationException("Failed to generate SAS signature: " + ex.Message);
             }
         }" />
-        
-        <!-- Validate signature generation -->
-        <choose>
-            <when condition="@((string)context.Variables["signature"] == "SIGNATURE_GENERATION_FAILED")">                <return-response>
-                    <set-status code="500" reason="Internal Server Error" />
-                    <set-header name="Content-Type">
-                        <value>application/json</value>
-                    </set-header>
-                    <set-body>{"error": "Failed to generate SAS signature"}</set-body>
-                </return-response>
-            </when>
-        </choose>
         
         <!-- Construct the SAS token -->
         <set-variable name="sasToken" value="@{
@@ -159,12 +148,11 @@ BREAKTHROUGH DISCOVERY: After extensive research and testing, it's confirmed tha
         <set-variable name="blobUrlWithSas" value="@{
             return $"https://{(string)context.Variables["storageAccount"]}.blob.core.windows.net/{(string)context.Variables["containerName"]}/{(string)context.Variables["blobName"]}?{(string)context.Variables["sasToken"]}";
         }" />
-          <!-- Return the SAS token response -->
+        
+        <!-- Return the SAS token response -->
         <return-response>
             <set-status code="200" reason="OK" />
-            <set-header name="Content-Type">
-                <value>application/json</value>
-            </set-header>
+            <set-header name="Content-Type" value="application/json" />
             <set-body>@{
                 var response = new {
                     pattern = "valet_key",

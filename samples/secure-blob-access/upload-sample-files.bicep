@@ -11,26 +11,21 @@ param containerName string
 param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id)
 
 
+
 // ------------------------------
 //    VARIABLES
 // ------------------------------
 
-var sampleTextContent = '''Hello from Azure Blob Storage!
-
-This is a sample text file that was created as part of the Infrastructure as Code (IaC) deployment.
-
-The valet key pattern allows secure access to this file through API Management without:
-- Exposing storage account keys
-- Requiring the API to stream large files
-- Compromising security
-
-This file demonstrates how APIM can generate time-limited, secure URLs for direct blob access.
-
-Created on: ${utcNow()}
-'''
-
-var deploymentScriptName = 'upload-sample-files-${resourceSuffix}'
 var managedIdentityName = 'mi-upload-files-${resourceSuffix}'
+
+
+// ------------------------------
+//    CONSTANTS
+// ------------------------------
+
+var helloWorldBase64 = base64('Hello World!')
+
+var blobName = 'hello.txt'
 
 
 // ------------------------------
@@ -60,11 +55,22 @@ resource uploadIdentityBlobContributorRole 'Microsoft.Authorization/roleAssignme
   }
 }
 
+// https://learn.microsoft.com/azure/templates/microsoft.storage/storageaccounts/blobservices/containers
+resource blobContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+  name: '${storageAccount.name}/default/${containerName}'
+  properties: {
+    publicAccess: 'None'
+  }
+  dependsOn: [
+    storageAccount
+  ]
+}
+
 // https://learn.microsoft.com/azure/templates/microsoft.resources/deploymentscripts
-resource uploadFilesScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
-  name: deploymentScriptName
+resource uploadHelloWorldScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
+  name: 'upload-hello-world-${resourceSuffix}'
   location: location
-  kind: 'AzurePowerShell'
+  kind: 'AzureCLI'
   identity: {
     type: 'UserAssigned'
     userAssignedIdentities: {
@@ -72,10 +78,20 @@ resource uploadFilesScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = 
     }
   }
   properties: {
-    azPowerShellVersion: '11.0'
-    timeout: 'PT10M'
-    retentionInterval: 'PT1H'
-    environmentVariables: [      {
+    azCliVersion: '2.50.0'
+    scriptContent: '''
+      echo "Hello World!" > hello.txt
+      az storage blob upload \
+        --account-name $STORAGE_ACCOUNT_NAME \
+        --container-name $CONTAINER_NAME \
+        --name $BLOB_NAME \
+        --file hello.txt \
+        --auth-mode login \
+        --overwrite
+      echo "Successfully uploaded $BLOB_NAME to $CONTAINER_NAME"
+    '''
+    environmentVariables: [
+      {
         name: 'STORAGE_ACCOUNT_NAME'
         value: storageAccountName
       }
@@ -84,43 +100,15 @@ resource uploadFilesScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = 
         value: containerName
       }
       {
-        name: 'SAMPLE_TEXT_CONTENT'
-        value: sampleTextContent
+        name: 'BLOB_NAME'
+        value: blobName
       }
     ]
-    scriptContent: '''
-      # Install required module
-      Install-Module -Name Az.Storage -Force -AllowClobber
-
-      # Get storage context using managed identity
-      $ctx = New-AzStorageContext -StorageAccountName $env:STORAGE_ACCOUNT_NAME -UseConnectedAccount
-
-      # Create sample.txt file
-      $textBlob = @{
-        File = 'sample.txt'
-        Container = $env:CONTAINER_NAME
-        Context = $ctx
-        StandardBlobTier = 'Hot'
-        Force = $true
-      }
-
-      # Write content to a temporary file and upload
-      $tempFile = New-TemporaryFile
-      $env:SAMPLE_TEXT_CONTENT | Out-File -FilePath $tempFile.FullName -Encoding utf8
-      Set-AzStorageBlobContent @textBlob -File $tempFile.FullName
-      Remove-Item $tempFile.FullName
-
-      Write-Output "Successfully uploaded sample file:"
-      Write-Output "- sample.txt ($(([Text.Encoding]::UTF8.GetBytes($env:SAMPLE_TEXT_CONTENT)).Length) bytes)"
-
-      # List uploaded files for verification
-      $blobs = Get-AzStorageBlob -Container $env:CONTAINER_NAME -Context $ctx
-      Write-Output "Files in container '$env:CONTAINER_NAME':"
-      $blobs | ForEach-Object { Write-Output "- $($_.Name) ($($_.Length) bytes)" }
-    '''
+    retentionInterval: 'PT1H'
   }
   dependsOn: [
     uploadIdentityBlobContributorRole
+    blobContainer
   ]
 }
 
@@ -129,8 +117,7 @@ resource uploadFilesScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = 
 //    OUTPUTS
 // ------------------------------
 
-output deploymentScriptOutput string = uploadFilesScript.properties.outputs.text
-output managedIdentityId string = uploadManagedIdentity.id
+
 output uploadedFiles array = [
-  'sample.txt'
+  blobName
 ]

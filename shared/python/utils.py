@@ -230,8 +230,10 @@ print_error     = lambda msg, output = '', duration = ''                        
 print_info      = lambda msg, blank_above = False                               : _print_log(msg, '👉🏽 ', BOLD_B, blank_above = blank_above)
 print_message   = lambda msg, output = '', duration = '', blank_above = False   : _print_log(msg, '👉🏽 ', BOLD_G, output, duration, True, blank_above)
 print_ok        = lambda msg, output = '', duration = '', blank_above = True    : _print_log(msg, '✅ ', BOLD_G, output, duration, True, blank_above)
+print_success   = lambda msg, output = '', duration = '', blank_above = False   : _print_log(msg, '✅ ', BOLD_G, output, duration, True, blank_above)
 print_warning   = lambda msg, output = '', duration = ''                        : _print_log(msg, '⚠️ ', BOLD_Y, output, duration, True)
 print_val       = lambda name, value, val_below = False                         : _print_log(f"{name:<25}:{'\n' if val_below else ' '}{value}", '👉🏽 ', BOLD_B)
+print_header    = lambda msg                                                    : _print_log(f"\n{'=' * len(msg)}\n{msg}\n{'=' * len(msg)}", '', BOLD_G, blank_above=True, blank_below=True)
 
 def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: str | INFRASTRUCTURE, bicep_parameters: dict, bicep_parameters_file: str = 'params.json') -> Output:
     """
@@ -681,3 +683,137 @@ def generate_signing_key() -> tuple[str, str]:
     b64 = base64.b64encode(string_in_bytes).decode('utf-8')
 
     return random_string, b64
+
+def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resource_group_name: str, max_wait_minutes: int = 10) -> bool:
+    """
+    Check if APIM's managed identity has Storage Blob Data Reader permissions on the storage account.
+    Waits for role assignments to propagate across Azure AD, which can take several minutes.
+    
+    Args:
+        apim_name (str): The name of the API Management service.
+        storage_account_name (str): The name of the storage account.
+        resource_group_name (str): The name of the resource group.
+        max_wait_minutes (int, optional): Maximum time to wait for permissions to propagate. Defaults to 10.
+    
+    Returns:
+        bool: True if APIM has the required permissions, False otherwise.
+    """
+    
+    print_info(f"🔍 Checking if APIM '{apim_name}' has Storage Blob Data Reader permissions on '{storage_account_name}' in resource group '{resource_group_name}'...")
+    
+    # Storage Blob Data Reader role definition ID
+    blob_reader_role_id = "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
+    
+    # Get APIM's managed identity principal ID
+    print_info("Getting APIM managed identity...")
+    apim_identity_output = run(
+        f"az apim show --name {apim_name} --resource-group {resource_group_name} --query identity.principalId -o tsv",
+        error_message="Failed to get APIM managed identity",
+        print_command_to_run=True
+    )
+    
+    if not apim_identity_output.success or not apim_identity_output.text.strip():
+        print_error("Could not retrieve APIM managed identity principal ID")
+        return False
+    
+    principal_id = apim_identity_output.text.strip()
+    print_info(f"APIM managed identity principal ID: {principal_id}")
+    
+    # Get storage account resource ID
+    # Suppress deprecated warning output by redirecting stderr to /dev/null (2>$null)
+    storage_account_output = run(
+        f"az storage account show --name {storage_account_name} --resource-group {resource_group_name} --query id -o tsv 2>$null",
+        error_message="Failed to get storage account resource ID",
+        print_command_to_run=True
+    )
+    
+    if not storage_account_output.success or not storage_account_output.text.strip():
+        print_error("Could not retrieve storage account resource ID")
+        return False
+    
+    storage_account_id = storage_account_output.text.strip()
+    
+    # Check for role assignment with retry logic for propagation
+    max_wait_seconds = max_wait_minutes * 60
+    wait_interval = 30  # Check every 30 seconds
+    elapsed_time = 0
+    
+    print_info(f"Checking role assignment (will wait up to {max_wait_minutes} minutes for propagation)...")
+    
+    while elapsed_time < max_wait_seconds:
+        # Check if role assignment exists
+        role_assignment_output = run(
+            f"az role assignment list --assignee {principal_id} --scope {storage_account_id} --role {blob_reader_role_id} --query '[0].id' -o tsv",
+            error_message="Failed to check role assignment",
+            print_command_to_run=True,
+            print_errors=False
+        )
+        
+        if role_assignment_output.success and role_assignment_output.text.strip():
+            print_success(f"✅ Role assignment found! APIM managed identity has Storage Blob Data Reader permissions.")
+            
+            # Additional check: try to test blob access using the managed identity
+            print_info("Testing actual blob access...")
+            test_access_output = run(
+                f"az storage blob list --account-name {storage_account_name} --container-name samples --auth-mode login --only-show-errors --query '[0].name' -o tsv 2>/dev/null || echo 'access-test-failed'",
+                error_message="",
+                print_command_to_run=True,
+                print_errors=False
+            )
+            
+            if test_access_output.success and test_access_output.text.strip() != "access-test-failed":
+                print_success("✅ Blob access test successful!")
+                return True
+            else:
+                print_warning("⚠️ Role assignment exists but blob access test failed. Permissions may still be propagating...")
+        
+        if elapsed_time == 0:
+            print_info(f"Role assignment not found yet. Waiting for Azure AD propagation...")
+        else:
+            print_info(f"Still waiting... ({elapsed_time // 60}m {elapsed_time % 60}s elapsed)")
+        
+        if elapsed_time + wait_interval >= max_wait_seconds:
+            break
+            
+        time.sleep(wait_interval)
+        elapsed_time += wait_interval
+    
+    print_error(f"❌ Timeout: Role assignment not found after {max_wait_minutes} minutes.")
+    print_info("This is likely due to Azure AD propagation delays. You can:")
+    print_info("1. Wait a few more minutes and try again")
+    print_info("2. Manually verify the role assignment in the Azure portal")
+    print_info("3. Check the deployment logs for any errors")
+    
+    return False
+
+
+def wait_for_apim_blob_permissions(apim_name: str, storage_account_name: str, resource_group_name: str, max_wait_minutes: int = 15) -> bool:
+    """
+    Wait for APIM's managed identity to have Storage Blob Data Reader permissions on the storage account.
+    This is a user-friendly wrapper that provides clear feedback during the wait process.
+    
+    Args:
+        apim_name (str): The name of the API Management service.
+        storage_account_name (str): The name of the storage account.
+        resource_group_name (str): The name of the resource group.
+        max_wait_minutes (int, optional): Maximum time to wait for permissions. Defaults to 15.
+    
+    Returns:
+        bool: True if permissions are available, False if timeout or error occurred.
+    """
+    
+    print_header("🔐 PERMISSION CHECK")
+    print_info("Azure role assignments can take several minutes to propagate across Azure AD.")
+    print_info("This check will verify that APIM can access the blob storage before proceeding with tests.")
+    print("")
+    
+    success = check_apim_blob_permissions(apim_name, storage_account_name, resource_group_name, max_wait_minutes)
+    
+    if success:
+        print_success("🎉 Permission check passed! Ready to proceed with secure blob access tests.")
+    else:
+        print_error("❌ Permission check failed. Please check the deployment and try again later.")
+        print_info("Tip: You can also run the verify-permissions.ps1 script to manually check role assignments.")
+    
+    print("")
+    return success
