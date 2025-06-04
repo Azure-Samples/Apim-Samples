@@ -793,7 +793,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
         )
         
         if role_assignment_output.success and role_assignment_output.text.strip():
-            print_success(f"✅ Role assignment found! APIM managed identity has Storage Blob Data Reader permissions.")
+            print_success(f"Role assignment found! APIM managed identity has Storage Blob Data Reader permissions.")
             
             # Additional check: try to test blob access using the managed identity
             print_info("Testing actual blob access...")
@@ -805,10 +805,10 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
             )
             
             if test_access_output.success and test_access_output.text.strip() != "access-test-failed":
-                print_success("✅ Blob access test successful!")
+                print_success("Blob access test successful!")
                 return True
             else:
-                print_warning("⚠️ Role assignment exists but blob access test failed. Permissions may still be propagating...")
+                print_warning("Role assignment exists but blob access test failed. Permissions may still be propagating...")
         
         if elapsed_time == 0:
             print_info(f"Role assignment not found yet. Waiting for Azure AD propagation...")
@@ -821,7 +821,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
         time.sleep(wait_interval)
         elapsed_time += wait_interval
     
-    print_error(f"❌ Timeout: Role assignment not found after {max_wait_minutes} minutes.")
+    print_error(f"Timeout: Role assignment not found after {max_wait_minutes} minutes.")
     print_info("This is likely due to Azure AD propagation delays. You can:")
     print_info("1. Wait a few more minutes and try again")
     print_info("2. Manually verify the role assignment in the Azure portal")
@@ -845,18 +845,16 @@ def wait_for_apim_blob_permissions(apim_name: str, storage_account_name: str, re
         bool: True if permissions are available, False if timeout or error occurred.
     """
     
-    print_header("🔐 PERMISSION CHECK")
-    print_info("Azure role assignments can take several minutes to propagate across Azure AD.")
-    print_info("This check will verify that APIM can access the blob storage before proceeding with tests.")
-    print("")
+    print_info("Azure role assignments can take several minutes to propagate across Azure AD. This check will verify that APIM can access the blob storage before proceeding with tests.\n")
     
     success = check_apim_blob_permissions(apim_name, storage_account_name, resource_group_name, max_wait_minutes)
     
     if success:
-        print_success("🎉 Permission check passed! Ready to proceed with secure blob access tests.")
+        print_success("Permission check passed! Ready to proceed with secure blob access tests.")
     else:
-        print_error("❌ Permission check failed. Please check the deployment and try again later.")
+        print_error("Permission check failed. Please check the deployment and try again later.")
         print_info("Tip: You can also run the verify-permissions.ps1 script to manually check role assignments.")
     
     print("")
+
     return success
