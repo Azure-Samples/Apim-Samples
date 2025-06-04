@@ -1,0 +1,29 @@
+<!-- 
+    This policy fragment checks whether a blob exists for the specified blob-url. It uses the current managed identity of the service where the policy is executed. 
+    A HEAD request is used to ensure the resource is checked but not downloaded. Since the response is lightweight, a 10 second timeout is set.
+    If the blob exists, the status code will be 200, and the variable `blobExists` will be set to true; otherwise, it will be set to false.
+
+    The policy fragment is not (yet) sanitized for general use and is closely tied to the sample scenario. Input and output variables need to be more clearly defined and checked for general use.
+
+    Input:
+        blobUrl: string
+
+    Output:
+        blobExists: boolean
+ -->
+
+<fragment>
+    <send-request mode="new" response-variable-name="blobCheckResponse" timeout="10" ignore-error="false">
+        <set-url>@((string)context.Variables["blobUrl"])</set-url>
+        <set-method>HEAD</set-method>
+        <!-- The x-ms-version header MUST be sent or a 403 will be returned. -->
+        <!-- https://learn.microsoft.com/en-us/rest/api/storageservices/versioning-for-the-azure-storage-services#specifying-service-versions-in-requests -->
+        <set-header name="x-ms-version" exists-action="override">
+            <value>2025-05-05</value>
+        </set-header>
+        <authentication-managed-identity resource="https://storage.azure.com/" />
+    </send-request>
+
+    <!-- Verify blob exists -->
+    <set-variable name="blobExists" value="@(((IResponse)context.Variables["blobCheckResponse"]).StatusCode == 200)" />
+</fragment>

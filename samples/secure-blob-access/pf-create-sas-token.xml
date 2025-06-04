@@ -1,0 +1,98 @@
+<!-- 
+    This code generates a Shared Access Signature (SAS) token for Azure Blob Storage. The policy fragment is not (yet) sanitized for general
+    use and is closely tied to the sample scenario. Input and output variables need to be more clearly defined and checked for general use.
+
+    Permissions: r
+    Lifetime (in minutes): 10
+    StorageAccount
+    ContainerName
+    BlobName
+    StorageAccountKey
+ -->
+
+<fragment>
+    <set-variable name="permissions" value="r" />
+    <set-variable name="expiry" value="@(DateTime.UtcNow.AddMinutes(10).ToString("yyyy-MM-ddTHH:mm:ssZ"))" />
+    <set-variable name="signedProtocol" value="https" />
+    <set-variable name="signedVersion" value="2020-12-06" />
+    <set-variable name="signedResource" value="b" />
+
+    <!-- Construct canonicalized resource -->
+    <set-variable name="canonicalizedResource" value="@{
+        return $"/blob/{(string)context.Variables["storageAccount"]}/{(string)context.Variables["containerName"]}/{(string)context.Variables["blobName"]}";
+    }" />
+    
+    <set-variable name="stringToSign" value="@{
+        var start = "";
+        var signedIdentifier = "";
+        var signedIP = "";
+        var signedProtocol = "https";
+        var signedVersion = "2020-12-06";
+        var signedResource = "b";
+        var signedSnapshotTime = "";
+        var signedEncryptionScope = "";
+        var rscc = "";
+        var rscd = "";
+        var rsce = "";
+        var rscl = "";
+        var rsct = "";
+
+        var stringToSign = $"{(string)context.Variables["permissions"]}\n" +
+            $"{start}\n" +
+            $"{(string)context.Variables["expiry"]}\n" +
+            $"{(string)context.Variables["canonicalizedResource"]}\n" +
+            $"{signedIdentifier}\n" +
+            $"{signedIP}\n" +
+            $"{(string)context.Variables["signedProtocol"]}\n" +
+            $"{(string)context.Variables["signedVersion"]}\n" +
+            $"{(string)context.Variables["signedResource"]}\n" +
+            $"{signedSnapshotTime}\n" +
+            $"{signedEncryptionScope}\n" +
+            $"{rscc}\n" +
+            $"{rscd}\n" +
+            $"{rsce}\n" +
+            $"{rscl}\n" +
+            $"{rsct}";
+
+        return stringToSign;
+    }" />
+
+    <!-- Generate signature using HMAC-SHA256 following Azure Storage Service SAS specification -->
+    <set-variable name="signature" value="@{
+        try {
+            var stringToSign = (string)context.Variables["stringToSign"];
+            var key = Convert.FromBase64String((string)context.Variables["storageAccountKey"]);
+
+            using (var hmac = new System.Security.Cryptography.HMACSHA256(key))
+            {
+                var hash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(stringToSign));
+                return Convert.ToBase64String(hash);
+            }
+        }
+        catch (Exception ex)
+        {
+            context.Trace("SAS signature generation failed: " + ex.Message);
+            return "SIGNATURE_GENERATION_FAILED";
+        }
+    }" />
+
+    <!-- Validate signature generation -->
+    <choose>
+        <when condition="@((string)context.Variables["signature"] != "SIGNATURE_GENERATION_FAILED")">                
+            <!-- Construct the SAS token -->
+            <set-variable name="sasToken" value="@{
+                var sasToken = $"sp={(string)context.Variables["permissions"]}" +
+                    $"&se={(string)context.Variables["expiry"]}" +
+                    $"&spr={(string)context.Variables["signedProtocol"]}" +
+                    $"&sv={(string)context.Variables["signedVersion"]}" +
+                    $"&sr={(string)context.Variables["signedResource"]}" +
+                    $"&sig={System.Net.WebUtility.UrlEncode((string)context.Variables["signature"])}";
+
+                return sasToken;
+            }" />
+        </when>
+        <otherwise>
+            <set-variable name="sasToken" value="" />
+        </otherwise>
+    </choose>
+</fragment>
