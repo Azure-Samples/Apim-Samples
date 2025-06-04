@@ -188,7 +188,7 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
         print(f"An error occurred during cleanup: {e}")
         traceback.print_exc()
 
-def _print_log(message: str, prefix: str = '', color: str = '', output: str = '', duration: str = '', show_time: bool = False, blank_above: bool = False, blank_below: bool = False) -> None:
+def _print_log(message: str, prefix: str = '', color: str = '', output: str = '', duration: str = '', show_time: bool = False, blank_above: bool = False, blank_below: bool = False, wrap_lines: bool = False) -> None:
     """
     Print a formatted log message with optional prefix, color, output, duration, and time.
     Handles blank lines above and below the message for readability.
@@ -202,6 +202,7 @@ def _print_log(message: str, prefix: str = '', color: str = '', output: str = ''
         show_time (bool, optional): Whether to show the current time.
         blank_above (bool, optional): Whether to print a blank line above.
         blank_below (bool, optional): Whether to print a blank line below.
+        wrap_lines (bool, optional): Whether to wrap lines to fit console width.
     """
     time_str    = f" ⌚ {datetime.datetime.now().time()}" if show_time else ""
     output_str  = f" {output}" if output else ""
@@ -215,8 +216,11 @@ def _print_log(message: str, prefix: str = '', color: str = '', output: str = ''
     lines = full_message.splitlines(keepends = False)
 
     for line in lines:
-        wrapped = textwrap.fill(line, width = CONSOLE_WIDTH)
-        print(wrapped)
+        if (wrap_lines):
+            wrapped = textwrap.fill(line, width = CONSOLE_WIDTH)
+            print(wrapped)
+        else:
+            print(line)
 
     if blank_below:
         print()
