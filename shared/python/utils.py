@@ -5,6 +5,7 @@ Module providing utility functions.
 import datetime
 import json
 import os
+import re
 import subprocess
 import textwrap
 import time
@@ -717,21 +718,27 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
         return False
     
     principal_id = apim_identity_output.text.strip()
-    print_info(f"APIM managed identity principal ID: {principal_id}")
-    
-    # Get storage account resource ID
-    # Suppress deprecated warning output by redirecting stderr to /dev/null (2>$null)
+    print_info(f"APIM managed identity principal ID: {principal_id}")    # Get storage account resource ID
+    # Remove suppression flags to get raw output, then extract resource ID with regex
     storage_account_output = run(
-        f"az storage account show --name {storage_account_name} --resource-group {resource_group_name} --query id -o tsv 2>$null",
+        f"az storage account show --name {storage_account_name} --resource-group {resource_group_name} --query id -o tsv",
         error_message="Failed to get storage account resource ID",
         print_command_to_run=True
     )
     
-    if not storage_account_output.success or not storage_account_output.text.strip():
+    if not storage_account_output.success:
         print_error("Could not retrieve storage account resource ID")
         return False
     
-    storage_account_id = storage_account_output.text.strip()
+    # Extract resource ID using regex pattern, ignoring any warning text
+    resource_id_pattern = r'/subscriptions/[a-f0-9-]+/resourceGroups/[^/]+/providers/Microsoft\.Storage/storageAccounts/[^/\s]+'
+    match = re.search(resource_id_pattern, storage_account_output.text)
+    
+    if not match:
+        print_error("Could not parse storage account resource ID from output")
+        return False
+    
+    storage_account_id = match.group(0)
     
     # Check for role assignment with retry logic for propagation
     max_wait_seconds = max_wait_minutes * 60
