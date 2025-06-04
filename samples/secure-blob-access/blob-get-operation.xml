@@ -58,8 +58,9 @@ BREAKTHROUGH DISCOVERY: After extensive research and testing, it's confirmed tha
             <set-url>@((string)context.Variables["blob-url"])</set-url>
             <set-method>HEAD</set-method>
             <!-- The x-ms-version header must be sent or a 403 will be returned. -->
+            <!-- https://learn.microsoft.com/en-us/rest/api/storageservices/versioning-for-the-azure-storage-services#specifying-service-versions-in-requests -->
             <set-header name="x-ms-version" exists-action="override">
-                <value>2021-08-06</value>
+                <value>2025-05-05</value>
             </set-header>
             <authentication-managed-identity resource="https://storage.azure.com/" />
         </send-request>
