@@ -1,31 +1,30 @@
+// ------------------------------
+//    PARAMETERS
+// ------------------------------
+
 @description('Location to be used for resources. Defaults to the resource group location')
 param location string = resourceGroup().location
+
+@description('The unique suffix to append. Defaults to a unique string based on subscription and resource group IDs.')
+param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id)
 
 @description('Storage account name where files will be uploaded')
 param storageAccountName string
 
 @description('Container name where files will be uploaded')
+@minLength(3)
+@maxLength(63)
 param containerName string
 
-@description('The unique suffix to append. Defaults to a unique string based on subscription and resource group IDs.')
-param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id)
-
+param blobName string
 
 
 // ------------------------------
 //    VARIABLES
 // ------------------------------
 
-var managedIdentityName = 'mi-upload-files-${resourceSuffix}'
-
-
-// ------------------------------
-//    CONSTANTS
-// ------------------------------
-
-var helloWorldBase64 = base64('Hello World!')
-
-var blobName = 'hello.txt'
+var managedIdentityName = 'id-upload-files-${resourceSuffix}'
+var azureRoles = loadJsonContent('../../shared/azure-roles.json')
 
 
 // ------------------------------
@@ -33,13 +32,13 @@ var blobName = 'hello.txt'
 // ------------------------------
 
 // https://learn.microsoft.com/azure/templates/microsoft.managedidentity/userassignedidentities
-resource uploadManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+resource uploadManagedIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2024-11-30' = {
   name: managedIdentityName
   location: location
 }
 
 // https://learn.microsoft.com/azure/templates/microsoft.storage/storageaccounts
-resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
+resource storageAccount 'Microsoft.Storage/storageAccounts@2024-01-01' existing = {
   name: storageAccountName
 }
 
@@ -49,14 +48,14 @@ resource uploadIdentityBlobContributorRole 'Microsoft.Authorization/roleAssignme
   name: guid(storageAccount.id, uploadManagedIdentity.id, 'Storage Blob Data Contributor')
   scope: storageAccount
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe') // Storage Blob Data Contributor
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', azureRoles.StorageBlobDataContributor)
     principalId: uploadManagedIdentity.properties.principalId
     principalType: 'ServicePrincipal'
   }
 }
 
 // https://learn.microsoft.com/azure/templates/microsoft.storage/storageaccounts/blobservices/containers
-resource blobContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-01-01' = {
+resource blobContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2024-01-01' = {
   name: '${storageAccount.name}/default/${containerName}'
   properties: {
     publicAccess: 'None'
@@ -67,8 +66,8 @@ resource blobContainer 'Microsoft.Storage/storageAccounts/blobServices/container
 }
 
 // https://learn.microsoft.com/azure/templates/microsoft.resources/deploymentscripts
-resource uploadHelloWorldScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
-  name: 'upload-hello-world-${resourceSuffix}'
+resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
+  name: 'deployment-script-${resourceSuffix}'
   location: location
   kind: 'AzureCLI'
   identity: {
@@ -80,12 +79,12 @@ resource uploadHelloWorldScript 'Microsoft.Resources/deploymentScripts@2023-08-0
   properties: {
     azCliVersion: '2.50.0'
     scriptContent: '''
-      echo "Hello World!" > hello.txt
+      echo "This is an HR document." > file.txt
       az storage blob upload \
         --account-name $STORAGE_ACCOUNT_NAME \
         --container-name $CONTAINER_NAME \
         --name $BLOB_NAME \
-        --file hello.txt \
+        --file file.txt \
         --auth-mode login \
         --overwrite
       echo "Successfully uploaded $BLOB_NAME to $CONTAINER_NAME"
@@ -116,7 +115,6 @@ resource uploadHelloWorldScript 'Microsoft.Resources/deploymentScripts@2023-08-0
 // ------------------------------
 //    OUTPUTS
 // ------------------------------
-
 
 output uploadedFiles array = [
   blobName

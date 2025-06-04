@@ -14,12 +14,8 @@ param storageAccountName string = 'st${take(replace(resourceSuffix, '-', ''), 18
 param apis array = []
 param namedValues array = []
 param policyFragments array = []
+param containerName string
 
-// ------------------------------
-//    VARIABLES
-// ------------------------------
-
-var containerName = 'samples'
 
 // ------------------------------
 //    RESOURCES
@@ -56,18 +52,33 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
 }
 
 // https://learn.microsoft.com/azure/templates/microsoft.storage/storageaccounts/blobservices
-resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2024-01-01' = {
   parent: storageAccount
   name: 'default'
 }
 
 // https://learn.microsoft.com/azure/templates/microsoft.storage/storageaccounts/blobservices/containers
-resource blobContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = {
+resource blobContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2024-01-01' = {
   parent: blobService
   name: containerName
   properties: {
     publicAccess: 'None'
   }
+}
+
+// Upload sample files to blob storage using deployment script
+module uploadSampleFilesModule 'upload-sample-files.bicep' = {
+  name: 'upload-sample-files'
+  params: {
+    location: location
+    resourceSuffix: resourceSuffix
+    storageAccountName: storageAccount.name
+    containerName: containerName
+    blobName: 'hr.txt'
+  }
+  dependsOn: [
+    blobContainer
+  ]
 }
 
 // https://learn.microsoft.com/azure/templates/microsoft.authorization/roleassignments
@@ -148,19 +159,6 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   ]
 }]
 
-// Upload sample files to blob storage using deployment script
-module uploadSampleFilesModule 'upload-sample-files.bicep' = {
-  name: 'upload-sample-files'
-  params: {
-    location: location
-    resourceSuffix: resourceSuffix
-    storageAccountName: storageAccount.name
-    containerName: containerName
-  }
-  dependsOn: [
-    blobContainer
-  ]
-}
 
 // ------------------------------
 //    OUTPUTS
@@ -174,4 +172,3 @@ output storageAccountId string = storageAccount.id
 output blobContainerName string = containerName
 output storageAccountEndpoint string = storageAccount.properties.primaryEndpoints.blob
 output uploadedFiles array = uploadSampleFilesModule.outputs.uploadedFiles
-//output uploadStatus string = uploadSampleFilesModule.outputs.deploymentScriptOutput

@@ -21,7 +21,7 @@
         <!-- 2) Set up storage account details. -->
         <set-variable name="storageAccountKey" value="{{storage-account-key}}" />
         <set-variable name="storageAccount" value="{{storage-account-name}}" />
-        <set-variable name="containerName" value="samples" />
+        <set-variable name="containerName" value="{container_name}" />
         <set-variable name="blobUrl" value="@($"https://{(string)context.Variables["storageAccount"]}.blob.core.windows.net/{(string)context.Variables["containerName"]}/{(string)context.Variables["blobName"]}")" />
         
         <!-- 3) Check if the blob exists using APIM's managed identity. Return 404 - Not Found if it does not exist. -->
