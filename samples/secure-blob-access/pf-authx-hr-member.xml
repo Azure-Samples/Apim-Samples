@@ -1,5 +1,7 @@
 <!-- 
     Policy fragment to authenticate the caller via their JSON Web Token and require authorization as an HR Member.
+    
+    TODO: This should move to a shared policy fragment in the future.
 -->
 <fragment>
     <validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized. Valid JWT token required with HR Member role." output-token-variable-name="jwt">
