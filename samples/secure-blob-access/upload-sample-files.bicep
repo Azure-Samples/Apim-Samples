@@ -77,7 +77,7 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
     }
   }
   properties: {
-    azCliVersion: '2.50.0'
+    azCliVersion: '2.71.0'
     scriptContent: '''
       echo "This is an HR document." > file.txt
       az storage blob upload \
