@@ -1,0 +1,86 @@
+
+<policies>
+    <inbound>
+        <base />
+        
+        <!-- 1) AuthX Check -->
+        <!-- The caller must be authenticated and must be an HR Member to be authorized. -->
+        <!-- Typically, authN would be done higher up, but this serves the sample a bit better to be here in the operation. -->
+        <include-fragment fragment-id="AuthX-HR-Member" />
+
+        <!-- 2) Extract the blob name from the URL path and ensure its existence. Return 400 - Bad Request if the parameter is not found. -->
+        <set-variable name="blobName" value="@(context.Request.MatchedParameters["blob-name"])" />
+        
+        <choose>
+            <when condition="@(string.IsNullOrEmpty((string)context.Variables["blobName"]))">                
+                <return-response>
+                    <set-status code="400" reason="Bad Request" />
+                    <set-header name="Content-Type">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"error": "Blob name is required."}</set-body>
+                </return-response>
+            </when>
+        </choose>
+
+        <!-- 3) Set up storage account details. -->
+        <set-variable name="storageAccountKey" value="{{storage-account-key}}" />
+        <set-variable name="storageAccount" value="{{storage-account-name}}" />
+        <set-variable name="containerName" value="{container_name}" />
+        <set-variable name="blobUrl" value="@($"https://{(string)context.Variables["storageAccount"]}.blob.core.windows.net/{(string)context.Variables["containerName"]}/{(string)context.Variables["blobName"]}")" />
+        
+        <!-- 4) Check if the blob exists using APIM's managed identity. Return 404 - Not Found if it does not exist. -->
+        <include-fragment fragment-id="Check-Blob-Existence-via-Managed-Identity" />
+        
+        <choose>
+            <when condition="@(!(bool)context.Variables["blobExists"])">
+                <return-response>
+                    <set-status code="404" reason="Not Found" />
+                    <set-header name="Content-Type">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"error": "Blob not found or access denied."}</set-body>
+                </return-response>
+            </when>
+        </choose>
+        
+        <!-- 5) Create the SAS token for direct access to the blob. This will allow the caller to bypass APIM for the download. -->
+        <include-fragment fragment-id="Create-Sas-Token" />
+        
+        <!-- Construct the full blob URL with SAS token -->
+        <set-variable name="blobUrlWithSasToken" value="@($"{(string)context.Variables["blobUrl"]}?{(string)context.Variables["sasToken"]}")" />
+
+        <!-- 6) Return the SAS token response with additional, useful information. -->
+        <return-response>
+            <set-status code="200" reason="OK" />
+            <set-header name="Content-Type">
+                <value>application/json</value>
+            </set-header>
+            <set-body>@{
+                var response = new {
+                    pattern = "valet key",
+                    access_method = "SAS Token",
+                    storage_account = (string)context.Variables["storageAccount"],
+                    container_name = (string)context.Variables["containerName"],
+                    blob_name = (string)context.Variables["blobName"],
+                    blob_url = (string)context.Variables["blobUrl"],
+                    sas_url = (string)context.Variables["blobUrlWithSasToken"],
+                    permissions = (string)context.Variables["permissions"],
+                    timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                    expire_at = (string)context.Variables["expiry"]
+                };
+                
+                return Newtonsoft.Json.JsonConvert.SerializeObject(response, Newtonsoft.Json.Formatting.Indented);
+            }</set-body>
+        </return-response>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

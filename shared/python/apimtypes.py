@@ -4,7 +4,7 @@ Types and constants for Azure API Management automation and deployment.
 
 from enum import StrEnum
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 
 # ------------------------------
@@ -145,25 +145,17 @@ class API:
     # ------------------------------
 
     def to_dict(self) -> dict:
-        api_dict = {
+        return {
             "name": self.name,
             "displayName": self.displayName,
             "path": self.path,
             "description": self.description,
             "operations": [op.to_dict() for op in self.operations] if self.operations else [],
-            "subscriptionRequired": self.subscriptionRequired
+            "subscriptionRequired": self.subscriptionRequired,
+            "policyXml": self.policyXml,
+            "tags": self.tags,
+            "productNames": self.productNames
         }
-
-        if self.policyXml is not None:
-            api_dict["policyXml"] = self.policyXml
-
-        if self.tags:
-            api_dict["tags"] = self.tags
-
-        if self.productNames:
-            api_dict["productNames"] = self.productNames
-
-        return api_dict
 
 
 @dataclass
@@ -178,17 +170,16 @@ class APIOperation:
     method: HTTP_VERB
     description: str
     policyXml: str
-
-
+    templateParameters: Optional[List[Dict[str, Any]]] = None
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, displayName: str, urlTemplate: str, method: HTTP_VERB, description: str, policyXml: Optional[str] = None):
+    def __init__(self, name: str, displayName: str, urlTemplate: str, method: HTTP_VERB, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[Dict[str, Any]]] = None):
         # Validate that method is a valid HTTP_VERB
         if not isinstance(method, HTTP_VERB):
             try:
-                method = HTTP_VERB(method)
+                method = HTTP_VERB(method).value
             except Exception:
                 raise ValueError(f"Invalid HTTP_VERB: {method}")
 
@@ -198,12 +189,12 @@ class APIOperation:
         self.urlTemplate = urlTemplate
         self.description = description
         self.policyXml = policyXml if policyXml is not None else _read_policy_xml(DEFAULT_XML_POLICY_PATH)
-
-
+        self.templateParameters = templateParameters if templateParameters is not None else []    
+        
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
-
+    
     def to_dict(self) -> dict:
         return {
             "name": self.name,
@@ -212,6 +203,7 @@ class APIOperation:
             "description": self.description,
             "method": self.method,
             "policyXml": self.policyXml,
+            "templateParameters": self.templateParameters
         }
 
 
@@ -220,14 +212,25 @@ class GET_APIOperation(APIOperation):
     """
     Represents a simple GET operation within a parent API.
     """
-
-
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, description: str, policyXml: Optional[str] = None):
-        super().__init__('GET', 'GET', '/', HTTP_VERB.GET, description, policyXml)
+    def __init__(self, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[Dict[str, Any]]] = None):
+        super().__init__('GET', 'GET', '/', HTTP_VERB.GET, description, policyXml, templateParameters)
+
+
+@dataclass
+class GET_APIOperation2(APIOperation):
+    """
+    Represents a GET operation within a parent API.
+    """
+    # ------------------------------
+    #    CONSTRUCTOR
+    # ------------------------------
+
+    def __init__(self, name: str, displayName: str, urlTemplate: str, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[Dict[str, Any]]] = None):
+        super().__init__(name, displayName, urlTemplate, HTTP_VERB.GET, description, policyXml, templateParameters)
 
 
 @dataclass
@@ -235,14 +238,12 @@ class POST_APIOperation(APIOperation):
     """
     Represents a simple POST operation within a parent API.
     """
-
-
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
-
-    def __init__(self, description: str, policyXml: Optional[str] = None):
-        super().__init__('POST', 'POST', '/', HTTP_VERB.POST, description, policyXml)
+    
+    def __init__(self, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[Dict[str, Any]]] = None):
+        super().__init__('POST', 'POST', '/', HTTP_VERB.POST, description, policyXml, templateParameters)
 
 
 @dataclass

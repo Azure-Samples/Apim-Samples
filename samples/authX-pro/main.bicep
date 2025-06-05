@@ -35,7 +35,7 @@ resource apimService 'Microsoft.ApiManagement/service@2024-06-01-preview' existi
 }
 
 // APIM Named Values
-module namedValue '../../shared/bicep/modules/apim/v1/named-value.bicep' = [for nv in namedValues: {
+module namedValueModule '../../shared/bicep/modules/apim/v1/named-value.bicep' = [for nv in namedValues: {
   name: 'nv-${nv.name}'
   params:{
     apimName: apimName
@@ -46,7 +46,7 @@ module namedValue '../../shared/bicep/modules/apim/v1/named-value.bicep' = [for 
 }]
 
 // APIM Policy Fragments
-module policyFragment '../../shared/bicep/modules/apim/v1/policy-fragment.bicep' = [for pf in policyFragments: {
+module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.bicep' = [for pf in policyFragments: {
   name: 'pf-${pf.name}'
   params:{
     apimName: apimName
@@ -55,12 +55,12 @@ module policyFragment '../../shared/bicep/modules/apim/v1/policy-fragment.bicep'
     policyFragmentValue: pf.policyXml
   }
   dependsOn: [
-    namedValue
+    namedValueModule
   ]
 }]
 
 // APIM Products
-module productHr '../../shared/bicep/modules/apim/v1/product.bicep' = [for product in products: {
+module productModule '../../shared/bicep/modules/apim/v1/product.bicep' = [for product in products: {
   name: 'product-${product.name}'
   params: {
     apimName: apimName
@@ -73,8 +73,8 @@ module productHr '../../shared/bicep/modules/apim/v1/product.bicep' = [for produ
     policyXml: product.policyXml
   }
   dependsOn: [
-    namedValue
-    policyFragment
+    namedValueModule
+    policyFragmentModule
   ]
 }]
 
@@ -90,9 +90,9 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
     productNames: api.productNames ?? []
   }
   dependsOn: [
-    namedValue              // ensure all named values are created before APIs
-    policyFragment          // ensure all policy fragments are created before APIs
-    productHr               // ensure all products are fully created before APIs
+    namedValueModule              // ensure all named values are created before APIs
+    policyFragmentModule          // ensure all policy fragments are created before APIs
+    productModule              // ensure all products are fully created before APIs
   ]
 }]
 

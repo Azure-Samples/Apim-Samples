@@ -49,7 +49,7 @@ resource acaEnvironment 'Microsoft.App/managedEnvironments@2025-01-01' = {
       }
     }
     // There is an issues with cutting off public network access. 2025-02-02-preview does not work:
-    // https://learn.microsoft.com/en-us/azure/templates/microsoft.app/change-log/managedenvironments#2025-02-02-preview
+    // https://learn.microsoft.com/azure/templates/microsoft.app/change-log/managedenvironments#2025-02-02-preview
     // Hard-code cutting off public access as we are using a VNet. 
     //publicNetworkAccess: 'Disabled'
     vnetConfiguration: !empty(subnetResourceId) ? {

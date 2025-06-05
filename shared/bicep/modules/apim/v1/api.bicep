@@ -106,6 +106,7 @@ resource apiOperation 'Microsoft.ApiManagement/service/apis/operations@2024-06-0
     method: op.method
     urlTemplate: op.urlTemplate
     description: op.description
+    templateParameters: op.?templateParameters ?? []
   }
 }]
 

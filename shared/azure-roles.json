@@ -1,0 +1,5 @@
+{
+    "__source": "https://learn.microsoft.com/azure/role-based-access-control/built-in-roles",
+    "StorageBlobDataContributor": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+    "StorageBlobDataReader": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
+}

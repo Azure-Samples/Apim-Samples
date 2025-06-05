@@ -5,6 +5,7 @@ Module providing utility functions.
 import datetime
 import json
 import os
+import re
 import subprocess
 import textwrap
 import time
@@ -13,7 +14,7 @@ import string
 import secrets
 import base64
 
-from typing import Any, Tuple
+from typing import Any, Dict, Optional, Tuple
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE
 
 
@@ -187,7 +188,7 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
         print(f"An error occurred during cleanup: {e}")
         traceback.print_exc()
 
-def _print_log(message: str, prefix: str = '', color: str = '', output: str = '', duration: str = '', show_time: bool = False, blank_above: bool = False, blank_below: bool = False) -> None:
+def _print_log(message: str, prefix: str = '', color: str = '', output: str = '', duration: str = '', show_time: bool = False, blank_above: bool = False, blank_below: bool = False, wrap_lines: bool = False) -> None:
     """
     Print a formatted log message with optional prefix, color, output, duration, and time.
     Handles blank lines above and below the message for readability.
@@ -201,6 +202,7 @@ def _print_log(message: str, prefix: str = '', color: str = '', output: str = ''
         show_time (bool, optional): Whether to show the current time.
         blank_above (bool, optional): Whether to print a blank line above.
         blank_below (bool, optional): Whether to print a blank line below.
+        wrap_lines (bool, optional): Whether to wrap lines to fit console width.
     """
     time_str    = f" ⌚ {datetime.datetime.now().time()}" if show_time else ""
     output_str  = f" {output}" if output else ""
@@ -214,8 +216,11 @@ def _print_log(message: str, prefix: str = '', color: str = '', output: str = ''
     lines = full_message.splitlines(keepends = False)
 
     for line in lines:
-        wrapped = textwrap.fill(line, width = CONSOLE_WIDTH)
-        print(wrapped)
+        if (wrap_lines):
+            wrapped = textwrap.fill(line, width = CONSOLE_WIDTH)
+            print(wrapped)
+        else:
+            print(line)
 
     if blank_below:
         print()
@@ -228,10 +233,44 @@ def _print_log(message: str, prefix: str = '', color: str = '', output: str = ''
 print_command   = lambda cmd = ''                                               : _print_log(cmd, '⚙️ ', BOLD_B)
 print_error     = lambda msg, output = '', duration = ''                        : _print_log(msg, '⛔ ', BOLD_R, output, duration, True)
 print_info      = lambda msg, blank_above = False                               : _print_log(msg, '👉🏽 ', BOLD_B, blank_above = blank_above)
-print_message   = lambda msg, output = '', duration = '', blank_above = False   : _print_log(msg, '👉🏽 ', BOLD_G, output, duration, True, blank_above)
+print_message   = lambda msg, output = '', duration = '', blank_above = False   : _print_log(msg, 'ℹ️ ', BOLD_G, output, duration, True, blank_above)
 print_ok        = lambda msg, output = '', duration = '', blank_above = True    : _print_log(msg, '✅ ', BOLD_G, output, duration, True, blank_above)
+print_success   = lambda msg, output = '', duration = '', blank_above = False   : _print_log(msg, '✅ ', BOLD_G, output, duration, True, blank_above)
 print_warning   = lambda msg, output = '', duration = ''                        : _print_log(msg, '⚠️ ', BOLD_Y, output, duration, True)
 print_val       = lambda name, value, val_below = False                         : _print_log(f"{name:<25}:{'\n' if val_below else ' '}{value}", '👉🏽 ', BOLD_B)
+print_header    = lambda msg                                                    : _print_log(f"\n{'=' * len(msg)}\n{msg}\n{'=' * len(msg)}", '', BOLD_G, blank_above=True, blank_below=True)
+
+
+def get_azure_role_guid(role_name: str) -> Optional[str]:
+    """
+    Load the Azure roles JSON file and return the GUID for the specified role name.
+    
+    Args:
+        role_name (str): The name of the Azure role (e.g., 'StorageBlobDataReader').
+        
+    Returns:
+        Optional[str]: The GUID of the role if found, None if not found or file cannot be loaded.
+    """
+    try:
+        # Get the directory of the current script to build the path to azure-roles.json
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        roles_file_path = os.path.join(current_dir, '..', 'azure-roles.json')
+        
+        # Normalize the path for cross-platform compatibility
+        roles_file_path = os.path.normpath(roles_file_path)
+        
+        # Load the JSON file
+        with open(roles_file_path, 'r', encoding='utf-8') as file:
+            roles_data: Dict[str, str] = json.load(file)
+        
+        # Return the GUID for the specified role name
+        return roles_data.get(role_name)
+        
+    except (FileNotFoundError, json.JSONDecodeError, OSError) as e:
+        print_error(f"Failed to load Azure roles from {roles_file_path}: {str(e)}")
+        
+        return None
+
 
 def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: str | INFRASTRUCTURE, bicep_parameters: dict, bicep_parameters_file: str = 'params.json') -> Output:
     """
@@ -320,6 +359,31 @@ def read_policy_xml(policy_xml_filepath: str) -> str:
     # Read the specified policy XML file
     with open(policy_xml_filepath, 'r') as policy_xml_file:
         policy_template_xml = policy_xml_file.read()
+
+    return policy_template_xml
+
+def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str, str]) -> str:
+    """
+    Read and return the contents of a policy XML file, then modifies it by replacing placeholders with provided values.
+
+    Args:
+        policy_xml_filepath (str): Path to the policy XML file.
+
+    Returns:
+        str: Contents of the policy XML file.
+    """
+
+    policy_template_xml = read_policy_xml(policy_xml_filepath)
+
+    if replacements is not None and isinstance(replacements, dict):
+        # Replace placeholders in the policy XML with provided values
+        for placeholder, value in replacements.items():
+            placeholder = '{' + placeholder + '}'
+
+            if placeholder in policy_template_xml:
+                policy_template_xml = policy_template_xml.replace(placeholder, value)
+            else:
+                print_warning(f"Placeholder '{placeholder}' not found in the policy XML file.")
 
     return policy_template_xml
 
@@ -581,6 +645,7 @@ def run(command: str, ok_message: str = '', error_message: str = '', print_outpu
         success = False
         
         if print_errors:
+            print_error(f"Command failed with error: {output_text}", duration = f"[{int((time.time() - start_time) // 60)}m:{int((time.time() - start_time) % 60)}s]")
             traceback.print_exc()
 
     if print_output:
@@ -655,3 +720,141 @@ def generate_signing_key() -> tuple[str, str]:
     b64 = base64.b64encode(string_in_bytes).decode('utf-8')
 
     return random_string, b64
+
+def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resource_group_name: str, max_wait_minutes: int = 10) -> bool:
+    """
+    Check if APIM's managed identity has Storage Blob Data Reader permissions on the storage account.
+    Waits for role assignments to propagate across Azure AD, which can take several minutes.
+    
+    Args:
+        apim_name (str): The name of the API Management service.
+        storage_account_name (str): The name of the storage account.
+        resource_group_name (str): The name of the resource group.
+        max_wait_minutes (int, optional): Maximum time to wait for permissions to propagate. Defaults to 10.
+    
+    Returns:
+        bool: True if APIM has the required permissions, False otherwise.
+    """
+    
+    print_info(f"🔍 Checking if APIM '{apim_name}' has Storage Blob Data Reader permissions on '{storage_account_name}' in resource group '{resource_group_name}'...")
+    
+    # Storage Blob Data Reader role definition ID
+    blob_reader_role_id = get_azure_role_guid('StorageBlobDataReader')
+    
+    # Get APIM's managed identity principal ID
+    print_info("Getting APIM managed identity...")
+    apim_identity_output = run(
+        f"az apim show --name {apim_name} --resource-group {resource_group_name} --query identity.principalId -o tsv",
+        error_message="Failed to get APIM managed identity",
+        print_command_to_run=True
+    )
+    
+    if not apim_identity_output.success or not apim_identity_output.text.strip():
+        print_error("Could not retrieve APIM managed identity principal ID")
+        return False
+    
+    principal_id = apim_identity_output.text.strip()
+    print_info(f"APIM managed identity principal ID: {principal_id}")    # Get storage account resource ID
+    # Remove suppression flags to get raw output, then extract resource ID with regex
+    storage_account_output = run(
+        f"az storage account show --name {storage_account_name} --resource-group {resource_group_name} --query id -o tsv",
+        error_message="Failed to get storage account resource ID",
+        print_command_to_run=True
+    )
+    
+    if not storage_account_output.success:
+        print_error("Could not retrieve storage account resource ID")
+        return False
+    
+    # Extract resource ID using regex pattern, ignoring any warning text
+    resource_id_pattern = r'/subscriptions/[a-f0-9-]+/resourceGroups/[^/]+/providers/Microsoft\.Storage/storageAccounts/[^/\s]+'
+    match = re.search(resource_id_pattern, storage_account_output.text)
+    
+    if not match:
+        print_error("Could not parse storage account resource ID from output")
+        return False
+    
+    storage_account_id = match.group(0)
+    
+    # Check for role assignment with retry logic for propagation
+    max_wait_seconds = max_wait_minutes * 60
+    wait_interval = 30  # Check every 30 seconds
+    elapsed_time = 0
+    
+    print_info(f"Checking role assignment (will wait up to {max_wait_minutes} minute(s) for propagation)...")
+    
+    while elapsed_time < max_wait_seconds:
+        # Check if role assignment exists
+        role_assignment_output = run(
+            f"az role assignment list --assignee {principal_id} --scope {storage_account_id} --role {blob_reader_role_id} --query '[0].id' -o tsv",
+            error_message="Failed to check role assignment",
+            print_command_to_run=True,
+            print_errors=False
+        )
+        
+        if role_assignment_output.success and role_assignment_output.text.strip():
+            print_success(f"Role assignment found! APIM managed identity has Storage Blob Data Reader permissions.")
+            
+            # Additional check: try to test blob access using the managed identity
+            print_info("Testing actual blob access...")
+            test_access_output = run(
+                f"az storage blob list --account-name {storage_account_name} --container-name samples --auth-mode login --only-show-errors --query '[0].name' -o tsv 2>/dev/null || echo 'access-test-failed'",
+                error_message="",
+                print_command_to_run=True,
+                print_errors=False
+            )
+            
+            if test_access_output.success and test_access_output.text.strip() != "access-test-failed":
+                print_success("Blob access test successful!")
+                return True
+            else:
+                print_warning("Role assignment exists but blob access test failed. Permissions may still be propagating...")
+        
+        if elapsed_time == 0:
+            print_info(f"Role assignment not found yet. Waiting for Azure AD propagation...")
+        else:
+            print_info(f"Still waiting... ({elapsed_time // 60}m {elapsed_time % 60}s elapsed)")
+        
+        if elapsed_time + wait_interval >= max_wait_seconds:
+            break
+            
+        time.sleep(wait_interval)
+        elapsed_time += wait_interval
+    
+    print_error(f"Timeout: Role assignment not found after {max_wait_minutes} minutes.")
+    print_info("This is likely due to Azure AD propagation delays. You can:")
+    print_info("1. Wait a few more minutes and try again")
+    print_info("2. Manually verify the role assignment in the Azure portal")
+    print_info("3. Check the deployment logs for any errors")
+    
+    return False
+
+
+def wait_for_apim_blob_permissions(apim_name: str, storage_account_name: str, resource_group_name: str, max_wait_minutes: int = 15) -> bool:
+    """
+    Wait for APIM's managed identity to have Storage Blob Data Reader permissions on the storage account.
+    This is a user-friendly wrapper that provides clear feedback during the wait process.
+    
+    Args:
+        apim_name (str): The name of the API Management service.
+        storage_account_name (str): The name of the storage account.
+        resource_group_name (str): The name of the resource group.
+        max_wait_minutes (int, optional): Maximum time to wait for permissions. Defaults to 15.
+    
+    Returns:
+        bool: True if permissions are available, False if timeout or error occurred.
+    """
+    
+    print_info("Azure role assignments can take several minutes to propagate across Azure AD. This check will verify that APIM can access the blob storage before proceeding with tests.\n")
+    
+    success = check_apim_blob_permissions(apim_name, storage_account_name, resource_group_name, max_wait_minutes)
+    
+    if success:
+        print_success("Permission check passed! Ready to proceed with secure blob access tests.")
+    else:
+        print_error("Permission check failed. Please check the deployment and try again later.")
+        print_info("Tip: You can also run the verify-permissions.ps1 script to manually check role assignments.")
+    
+    print("")
+
+    return success

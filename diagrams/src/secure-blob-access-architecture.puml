@@ -1,0 +1,49 @@
+@startuml "Secure Blob Access Architecture"
+
+!include ./base.puml
+!includeurl AzurePuml/Storage/AzureBlobStorage.puml
+!includeurl AzurePuml/Identity/AzureManagedIdentity.puml
+
+title Secure Blob Access with JWT Authentication & Valet Key Pattern
+
+' Main components
+actor "Client\n(HR Member)" as client #LightBlue
+AzureAPIManagement(apim, "API Management", "JWT Auth + Valet Key")
+AzureManagedIdentity(mi, "Managed Identity", "APIM Identity")
+AzureBlobStorage(storage, "Blob Storage", "Private Container")
+AzureApplicationInsights(insights, "Application Insights", "Monitoring")
+
+' Authentication flow
+note over client, apim
+  **Authentication Flow**
+  1. Client sends JWT with HR Member role
+  2. APIM validates JWT signature & role claims
+  3. APIM authorizes based on role ID
+end note
+
+' Valet key flow
+note over apim, storage
+  **Valet Key Generation**
+  4. APIM uses managed identity
+  5. Generates time-limited SAS token (5 min)
+  6. Returns secure URL to client
+end note
+
+' Direct access
+note over client, storage
+  **Direct Access**
+  7. Client accesses blob directly
+  8. No bandwidth through APIM
+end note
+
+' Define the relationships
+client --> apim : "1. Request blob access\n(JWT with HR Member role)"
+apim --> apim : "2. Validate JWT &\nauthorize role"
+apim --> mi : "3. Use managed identity"
+mi --> storage : "4. Generate SAS token\n(Storage Blob Data Reader)"
+storage --> apim : "5. Return SAS URL"
+apim --> client : "6. Return secure URL\n(time-limited)"
+client --> storage : "7. Direct blob access\n(using SAS URL)"
+apim --> insights : "Log requests\n& telemetry"
+
+@enduml
