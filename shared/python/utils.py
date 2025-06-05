@@ -14,7 +14,7 @@ import string
 import secrets
 import base64
 
-from typing import Any, Dict, Optional, Tuple
+from typing import Optional, Tuple
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE
 
 
@@ -261,7 +261,7 @@ def get_azure_role_guid(role_name: str) -> Optional[str]:
         
         # Load the JSON file
         with open(roles_file_path, 'r', encoding='utf-8') as file:
-            roles_data: Dict[str, str] = json.load(file)
+            roles_data: dict[str, str] = json.load(file)
         
         # Return the GUID for the specified role name
         return roles_data.get(role_name)

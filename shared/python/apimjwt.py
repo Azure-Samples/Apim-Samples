@@ -4,7 +4,7 @@ Module for creating JSON Web Tokens (JWT) used with API Management requests.
 
 import jwt
 import time
-from typing import Any, Dict
+from typing import Any
 
 
 # ------------------------------

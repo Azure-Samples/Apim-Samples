@@ -4,7 +4,7 @@ Types and constants for Azure API Management automation and deployment.
 
 from enum import StrEnum
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Any
 
 
 # ------------------------------
@@ -175,12 +175,12 @@ class APIOperation:
     method: HTTP_VERB
     description: str
     policyXml: str
-    templateParameters: Optional[List[Dict[str, Any]]] = None
+    templateParameters: Optional[List[dict[str, Any]]] = None
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, displayName: str, urlTemplate: str, method: HTTP_VERB, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[Dict[str, Any]]] = None):
+    def __init__(self, name: str, displayName: str, urlTemplate: str, method: HTTP_VERB, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None):
         # Validate that method is a valid HTTP_VERB
         if not isinstance(method, HTTP_VERB):
             try:
@@ -221,7 +221,7 @@ class GET_APIOperation(APIOperation):
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[Dict[str, Any]]] = None):
+    def __init__(self, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None):
         super().__init__('GET', 'GET', '/', HTTP_VERB.GET, description, policyXml, templateParameters)
 
 
@@ -234,7 +234,7 @@ class GET_APIOperation2(APIOperation):
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, displayName: str, urlTemplate: str, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[Dict[str, Any]]] = None):
+    def __init__(self, name: str, displayName: str, urlTemplate: str, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None):
         super().__init__(name, displayName, urlTemplate, HTTP_VERB.GET, description, policyXml, templateParameters)
 
 
@@ -247,7 +247,7 @@ class POST_APIOperation(APIOperation):
     #    CONSTRUCTOR
     # ------------------------------
     
-    def __init__(self, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[Dict[str, Any]]] = None):
+    def __init__(self, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None):
         super().__init__('POST', 'POST', '/', HTTP_VERB.POST, description, policyXml, templateParameters)
 
 
