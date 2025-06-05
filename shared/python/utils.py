@@ -829,7 +829,6 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
     
     return False
 
-
 def wait_for_apim_blob_permissions(apim_name: str, storage_account_name: str, resource_group_name: str, max_wait_minutes: int = 15) -> bool:
     """
     Wait for APIM's managed identity to have Storage Blob Data Reader permissions on the storage account.
@@ -858,3 +857,19 @@ def wait_for_apim_blob_permissions(apim_name: str, storage_account_name: str, re
     print("")
 
     return success
+
+def test_url_preflight_check(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str) -> str:
+    # Preflight: Check if the infrastructure architecture deployment uses Azure Front Door. If so, assume that APIM is not directly accessible and use the Front Door URL instead.
+
+    print_message('Checking if the infrastructure architecture deployment uses Azure Front Door.', blank_above = True)
+
+    afd_endpoint_url = get_frontdoor_url(deployment, rg_name)
+
+    if afd_endpoint_url:
+        endpoint_url = afd_endpoint_url
+        print_message(f'Using Azure Front Door URL: {afd_endpoint_url}', blank_above = True)
+    else:
+        endpoint_url = apim_gateway_url
+        print_message(f'Using APIM Gateway URL: {apim_gateway_url}', blank_above = True)
+
+    return endpoint_url
