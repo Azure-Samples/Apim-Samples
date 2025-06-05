@@ -56,6 +56,7 @@ class Role:
     Predefined roles and their GUIDs (mocked for testing purposes).
     """
 
+    NONE                = "00000000-0000-0000-0000-000000000000"  # No role assigned
     HR_MEMBER           = "316790bc-fbd3-4a14-8867-d1388ffbc195"
     HR_ASSOCIATE        = "d3c1b0f2-4a5e-4c8b-9f6d-7c8e1f2a3b4c"
     HR_ADMINISTRATOR    = "a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6"
