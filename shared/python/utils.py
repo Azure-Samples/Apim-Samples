@@ -233,7 +233,7 @@ def _print_log(message: str, prefix: str = '', color: str = '', output: str = ''
 print_command   = lambda cmd = ''                                               : _print_log(cmd, '⚙️ ', BOLD_B)
 print_error     = lambda msg, output = '', duration = ''                        : _print_log(msg, '⛔ ', BOLD_R, output, duration, True)
 print_info      = lambda msg, blank_above = False                               : _print_log(msg, '👉🏽 ', BOLD_B, blank_above = blank_above)
-print_message   = lambda msg, output = '', duration = '', blank_above = False   : _print_log(msg, '👉🏽 ', BOLD_G, output, duration, True, blank_above)
+print_message   = lambda msg, output = '', duration = '', blank_above = False   : _print_log(msg, 'ℹ️ ', BOLD_G, output, duration, True, blank_above)
 print_ok        = lambda msg, output = '', duration = '', blank_above = True    : _print_log(msg, '✅ ', BOLD_G, output, duration, True, blank_above)
 print_success   = lambda msg, output = '', duration = '', blank_above = False   : _print_log(msg, '✅ ', BOLD_G, output, duration, True, blank_above)
 print_warning   = lambda msg, output = '', duration = ''                        : _print_log(msg, '⚠️ ', BOLD_Y, output, duration, True)
@@ -781,7 +781,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
     wait_interval = 30  # Check every 30 seconds
     elapsed_time = 0
     
-    print_info(f"Checking role assignment (will wait up to {max_wait_minutes} minutes for propagation)...")
+    print_info(f"Checking role assignment (will wait up to {max_wait_minutes} minute(s) for propagation)...")
     
     while elapsed_time < max_wait_seconds:
         # Check if role assignment exists
