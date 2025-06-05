@@ -14,7 +14,13 @@ param storageAccountName string = 'st${take(replace(resourceSuffix, '-', ''), 18
 param apis array = []
 param namedValues array = []
 param policyFragments array = []
+
+@description('Container name where files will be uploaded')
+@minLength(3)
+@maxLength(63)
 param containerName string
+
+param blobName string
 
 
 // ------------------------------
@@ -74,7 +80,7 @@ module uploadSampleFilesModule 'upload-sample-files.bicep' = {
     resourceSuffix: resourceSuffix
     storageAccountName: storageAccount.name
     containerName: containerName
-    blobName: 'hr.txt'
+    blobName: blobName
   }
   dependsOn: [
     blobContainer
