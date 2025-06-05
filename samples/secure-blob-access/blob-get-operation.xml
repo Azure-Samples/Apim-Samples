@@ -3,7 +3,12 @@
     <inbound>
         <base />
         
-        <!-- 1) Extract the blob name from the URL path and ensure its existence. Return 400 - Bad Request if the parameter is not found.-->
+        <!-- 1) AuthX Check -->
+        <!-- The caller must be authenticated and must be an HR Member to be authorized. -->
+        <!-- Typically, authN would be done higher up, but this serves the sample a bit better to be here in the operation. -->
+        <include-fragment fragment-id="AuthX-HR-Member" />
+
+        <!-- 2) Extract the blob name from the URL path and ensure its existence. Return 400 - Bad Request if the parameter is not found. -->
         <set-variable name="blobName" value="@(context.Request.MatchedParameters["blob-name"])" />
         
         <choose>
@@ -18,14 +23,13 @@
             </when>
         </choose>
 
-        <!-- 2) Set up storage account details. -->
+        <!-- 3) Set up storage account details. -->
         <set-variable name="storageAccountKey" value="{{storage-account-key}}" />
         <set-variable name="storageAccount" value="{{storage-account-name}}" />
         <set-variable name="containerName" value="{container_name}" />
         <set-variable name="blobUrl" value="@($"https://{(string)context.Variables["storageAccount"]}.blob.core.windows.net/{(string)context.Variables["containerName"]}/{(string)context.Variables["blobName"]}")" />
         
-        <!-- 3) Check if the blob exists using APIM's managed identity. Return 404 - Not Found if it does not exist. -->
-        
+        <!-- 4) Check if the blob exists using APIM's managed identity. Return 404 - Not Found if it does not exist. -->
         <include-fragment fragment-id="Check-Blob-Existence-via-Managed-Identity" />
         
         <choose>
@@ -40,13 +44,13 @@
             </when>
         </choose>
         
-        <!-- 4) Create the SAS token for direct access to the blob. This will allow the caller to bypass APIM for the download. -->
+        <!-- 5) Create the SAS token for direct access to the blob. This will allow the caller to bypass APIM for the download. -->
         <include-fragment fragment-id="Create-Sas-Token" />
         
         <!-- Construct the full blob URL with SAS token -->
         <set-variable name="blobUrlWithSasToken" value="@($"{(string)context.Variables["blobUrl"]}?{(string)context.Variables["sasToken"]}")" />
 
-        <!-- 5) Return the SAS token response with additional, useful information. -->
+        <!-- 6) Return the SAS token response with additional, useful information. -->
         <return-response>
             <set-status code="200" reason="OK" />
             <set-header name="Content-Type">
