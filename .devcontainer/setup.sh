@@ -36,6 +36,38 @@ az extension add --name containerapp --only-show-errors 2>/dev/null || true
 az extension add --name front-door --only-show-errors 2>/dev/null || true
 
 # ------------------------------
+#    INTERACTIVE AZURE CONFIGURATION
+# ------------------------------
+
+echo ""
+echo "🔧 Azure CLI Authentication Setup"
+echo "================================="
+echo ""
+echo "To make working with Azure easier, you can configure how Azure CLI authentication works."
+echo "This only needs to be done once during initial setup."
+echo ""
+
+# Check if we're in an interactive terminal
+if [ -t 0 ] && [ -t 1 ]; then
+    echo "Running interactive Azure CLI configuration..."
+    export APIM_SAMPLES_INITIAL_SETUP=true
+    python3 .devcontainer/configure-azure-mount.py
+    unset APIM_SAMPLES_INITIAL_SETUP
+    
+    echo ""
+    echo "⚠️  IMPORTANT: If you chose to mount Azure CLI config, you'll need to:"
+    echo "   1. Exit this container"
+    echo "   2. Rebuild the dev container to apply the mount configuration"
+    echo "   3. The container will restart with your Azure CLI authentication available"
+    echo ""
+else
+    echo "⚠️  Non-interactive environment detected."
+    echo "   You can run the Azure CLI configuration later with:"
+    echo "   python3 .devcontainer/configure-azure-mount.py"
+    echo ""
+fi
+
+# ------------------------------
 #    JUPYTER SETUP
 # ------------------------------
 
@@ -101,9 +133,16 @@ python .devcontainer/verify-setup.py
 
 echo ""
 echo "📋 Next steps:"
-echo "1. Sign in to Azure: az login"
-echo "2. Execute shared/jupyter/verify-az-account.ipynb to verify your Azure setup"
+if [ -f ".devcontainer/devcontainer.json" ] && grep -q '"mounts"' .devcontainer/devcontainer.json; then
+    echo "✅ Azure CLI config mounting detected - your authentication should be available"
+    echo "1. Verify Azure access: az account show"
+    echo "2. Execute shared/jupyter/verify-az-account.ipynb to verify your Azure setup"
+else
+    echo "1. Sign in to Azure: az login"
+    echo "2. Execute shared/jupyter/verify-az-account.ipynb to verify your Azure setup"
+fi
 echo "3. Navigate to any infrastructure folder and run the create.ipynb notebook"
 echo "4. Explore the samples in the samples/ directory"
 echo ""
 echo "💡 Tip: The Python path has been configured to include shared/python modules automatically."
+echo "🔧 To reconfigure Azure CLI authentication, run: python3 .devcontainer/configure-azure-mount.py"

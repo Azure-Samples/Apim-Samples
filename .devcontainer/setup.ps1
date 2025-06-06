@@ -43,6 +43,40 @@ try {
 }
 
 # ------------------------------
+#    INTERACTIVE AZURE CONFIGURATION
+# ------------------------------
+
+Write-Host ""
+Write-Host "🔧 Azure CLI Authentication Setup" -ForegroundColor Cyan
+Write-Host "=================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "To make working with Azure easier, you can configure how Azure CLI authentication works."
+Write-Host "This only needs to be done once during initial setup."
+Write-Host ""
+
+# Check if we have an interactive session
+$isInteractive = [Environment]::UserInteractive -and [Console]::In -and [Console]::Out
+
+if ($isInteractive) {
+    Write-Host "Running interactive Azure CLI configuration..." -ForegroundColor Yellow
+    $env:APIM_SAMPLES_INITIAL_SETUP = "true"
+    python .devcontainer/configure-azure-mount.py
+    Remove-Item env:APIM_SAMPLES_INITIAL_SETUP -ErrorAction SilentlyContinue
+    
+    Write-Host ""
+    Write-Host "⚠️  IMPORTANT: If you chose to mount Azure CLI config, you'll need to:" -ForegroundColor Yellow
+    Write-Host "   1. Exit this container"
+    Write-Host "   2. Rebuild the dev container to apply the mount configuration"
+    Write-Host "   3. The container will restart with your Azure CLI authentication available"
+    Write-Host ""
+} else {
+    Write-Host "⚠️  Non-interactive environment detected." -ForegroundColor Yellow
+    Write-Host "   You can run the Azure CLI configuration later with:"
+    Write-Host "   python .devcontainer/configure-azure-mount.py"
+    Write-Host ""
+}
+
+# ------------------------------
 #    JUPYTER SETUP
 # ------------------------------
 
@@ -122,9 +156,23 @@ python .devcontainer/verify-setup.py
 
 Write-Host ""
 Write-Host "📋 Next steps:" -ForegroundColor Yellow
-Write-Host "1. Sign in to Azure: az login"
-Write-Host "2. Execute shared/jupyter/verify-az-account.ipynb to verify your Azure setup"
+# Check if Azure CLI config mounting is configured
+if (Test-Path ".devcontainer/devcontainer.json") {
+    $devcontainerContent = Get-Content ".devcontainer/devcontainer.json" -Raw
+    if ($devcontainerContent -match '"mounts"') {
+        Write-Host "✅ Azure CLI config mounting detected - your authentication should be available"
+        Write-Host "1. Verify Azure access: az account show"
+        Write-Host "2. Execute shared/jupyter/verify-az-account.ipynb to verify your Azure setup"
+    } else {
+        Write-Host "1. Sign in to Azure: az login"
+        Write-Host "2. Execute shared/jupyter/verify-az-account.ipynb to verify your Azure setup"
+    }
+} else {
+    Write-Host "1. Sign in to Azure: az login"
+    Write-Host "2. Execute shared/jupyter/verify-az-account.ipynb to verify your Azure setup"
+}
 Write-Host "3. Navigate to any infrastructure folder and run the create.ipynb notebook"
 Write-Host "4. Explore the samples in the samples/ directory"
 Write-Host ""
 Write-Host "💡 Tip: The Python path has been configured to include shared/python modules automatically." -ForegroundColor Cyan
+Write-Host "🔧 To reconfigure Azure CLI authentication, run: python .devcontainer/configure-azure-mount.py" -ForegroundColor Cyan

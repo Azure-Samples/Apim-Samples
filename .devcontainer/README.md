@@ -47,22 +47,39 @@ All packages from `requirements.txt` are pre-installed:
 ### Environment Configuration
 - **PYTHONPATH** - Automatically configured to include shared Python modules
 - **Jupyter Kernel** - Custom kernel named "APIM Samples Python"
-- **Azure CLI** - Configured for container-friendly authentication
+- **Azure CLI** - Installed and ready for authentication (requires `az login` inside container)
 - **Port Forwarding** - Common development ports (3000, 5000, 8000, 8080) pre-configured
 
 ## 🔧 Post-Setup Steps
 
-After the container starts, you'll need to:
+The dev container automatically handles most setup during initialization. During the first build, you'll be prompted to configure Azure CLI authentication.
 
-1. **Sign in to Azure**:
-   ```bash
-   az login
-   ```
+### Automated Interactive Setup (During First Build)
+When the container starts for the first time, the setup script will automatically:
+1. **Install all dependencies** (Python packages, Azure CLI extensions)
+2. **Configure Jupyter environment** with custom kernel
+3. **Prompt for Azure CLI configuration**:
+   - Mount local Azure config (preserves login between rebuilds)
+   - Use manual login (run `az login` each time)
+   - Configure manually later
 
-2. **Verify your Azure setup**:
-   Execute `shared/jupyter/verify-az-account.ipynb`
+### Manual Configuration (If Needed Later)
+If you skipped the initial configuration or want to change it:
 
-3. **Start exploring**:
+**Interactive Setup**:
+```bash
+python .devcontainer/configure-azure-mount.py
+```
+
+**Manual Azure Login**:
+```bash
+az login
+```
+
+### Continue with Development
+After setup is complete:
+1. **Verify your Azure setup**: Execute `shared/jupyter/verify-az-account.ipynb`
+2. **Start exploring**:
    - Navigate to any infrastructure folder (`infrastructure/`)
    - Run the `create.ipynb` notebook to set up infrastructure
    - Explore samples in the `samples/` directory
@@ -77,10 +94,41 @@ The dev container is built on:
 
 ## 🔄 Azure CLI Authentication
 
-The container mounts your local `~/.azure` directory to preserve authentication state between container rebuilds. This means:
-- Your Azure login persists across sessions
-- Your Azure CLI configuration is maintained
-- No need to repeatedly authenticate
+### Quick Setup (Recommended)
+
+Run the interactive configuration script to automatically set up Azure CLI authentication for your platform:
+
+**Python (Cross-platform)**:
+```bash
+python .devcontainer/configure-azure-mount.py
+```
+
+**PowerShell (Windows)**:
+```powershell
+.\.devcontainer\configure-azure-mount.ps1
+```
+
+**Bash (Linux/macOS)**:
+```bash
+./.devcontainer/configure-azure-mount.sh
+```
+
+All scripts will:
+- Detect your platform (Windows, macOS, Linux)
+- Let you choose between mounting local config or manual login
+- Automatically configure the devcontainer.json file
+- Provide clear next steps
+
+### Manual Options
+
+**Option 1: Mount Local Azure Config**
+- Preserves authentication between container rebuilds
+- Platform-specific (configured automatically by the setup script)
+
+**Option 2: Manual Login**
+- Run `az login` inside the container after startup
+- Works universally across all platforms
+- Requires re-authentication after container rebuilds
 
 ## 🐛 Troubleshooting
 
@@ -119,7 +167,7 @@ If you need to rebuild the container:
 
 ## 🔒 Security Considerations
 
-- Azure credentials are mounted from your local machine
+- Azure credentials are handled through `az login` inside the container (or optionally mounted)
 - The container runs as a non-root user (`vscode`)
 - All dependencies are installed from official sources
 - Network access is controlled through VS Code's port forwarding

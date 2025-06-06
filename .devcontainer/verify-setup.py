@@ -121,6 +121,9 @@ def check_azure_cli():
         
         return True
         
+    except FileNotFoundError:
+        print("  ❌ Azure CLI not found")
+        return False
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         print("  ❌ Azure CLI not working properly")
         return False
@@ -142,9 +145,11 @@ def main():
     if all(checks):
         print("🎉 All checks passed! Your dev container is ready to use.")
         print("\n📋 Next steps:")
-        print("1. Sign in to Azure: az login")
-        print("2. Execute shared/jupyter/verify-az-account.ipynb")
-        print("3. Explore the samples and infrastructure folders")
+        print("1. Configure Azure CLI: python .devcontainer/configure-azure-mount.py")
+        print("2. Or manually sign in: az login")
+        print("3. Execute shared/jupyter/verify-az-account.ipynb")
+        print("4. If prompted, initialize the kernel according to the `Initialization` steps in the root README.md file")
+        print("5. Explore the samples and infrastructure folders")
         return 0
     else:
         print("❌ Some checks failed. Please review the output above.")

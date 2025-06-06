@@ -88,12 +88,5 @@
     }
   },
   "remoteUser": "vscode",
-  "workspaceFolder": "/workspaces/Apim-Samples",
-  "mounts": [
-    {
-      "source": "${localEnv:USERPROFILE}/.azure",
-      "target": "/home/vscode/.azure",
-      "type": "bind"
-    }
-  ]
+  "workspaceFolder": "/workspaces/Apim-Samples"
 }

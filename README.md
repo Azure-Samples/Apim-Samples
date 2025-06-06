@@ -44,7 +44,27 @@ These prerequisites apply broadly across all infrastructure and samples. If ther
 
 ### 🛠️ Initialization
 
-Run through the following steps to create a Python virtual environment before doing anything else:
+#### Using Dev Container (Recommended)
+
+If you're using the dev container (GitHub Codespaces or VS Code Dev Containers):
+
+1. Open the repository in the dev container environment
+2. Wait for the automatic setup to complete (includes interactive Azure CLI configuration)
+3. If prompted during setup, choose your preferred Azure CLI authentication method:
+   - **Mount local config**: Preserves authentication between container rebuilds
+   - **Manual login**: Requires `az login` after each container startup
+   - **Configure later**: Skip for now, configure manually later
+4. If you chose manual login or skipped, sign in to Azure: `az login`
+5. Verify your Azure setup by executing [shared/jupyter/verify-az-account.ipynb](shared/jupyter/verify-az-account.ipynb)
+
+**Note**: If you need to reconfigure Azure CLI authentication later, run:
+```bash
+python .devcontainer/configure-azure-mount.py
+```
+
+#### Manual Local Setup
+
+If you're setting up locally without the dev container:
 
 1. Open VS Code.
 1. Invoke the _Command Palette_ via the _View_ menu or a shortcut (on Windows: Ctrl + Shift + P, on Mac: CMD + Shift + P).
@@ -55,8 +75,9 @@ Run through the following steps to create a Python virtual environment before do
 1. Verify the virtual environment is set up. You should see a new _.venv_ directory with a _pyveng.cfg_ file and the Python version you selected earlier.
 1. Set up the project environment by running `python setup/setup_python_path.py --generate-env` to configure the Python path.
   a. If for some reason the `python` command is not found, please try adding your virtual environment's `bin` or `Scripts` directory to your system's PATH variable.  An example command to do this for a virtual environment named `venv` would be to run `source .venv/bin/activate`
+1. Install the Jupyter kernel: `python -m ipykernel install --user --name=apim-samples --display-name="APIM Samples Python"`
 
-The first time you run a Jupyter notebook, you'll be asked to install the Jupyter kernel package (ipykernel).
+The first time you run a Jupyter notebook, you may be asked to install the Jupyter kernel package (ipykernel) if not already available.
 
 ### 📁 List of Samples
 
