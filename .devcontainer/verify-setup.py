@@ -144,7 +144,7 @@ def main():
     
     if all(checks):        
         print("🎉 All checks passed! Your dev container is ready to use.")
-        print("\n📋 Next steps:")
+        print("\n📋 Next steps:\n")
         print("1. Configure Azure CLI: python .devcontainer/configure-azure-mount.py")
         print("2. Or manually sign in with tenant-specific login:")
         print("   az login --tenant <your-tenant-id-or-domain>")
@@ -152,14 +152,14 @@ def main():
         print("   az account show  # Verify your context")
         print("3. Execute shared/jupyter/verify-az-account.ipynb")
         print("4. If prompted, initialize the kernel according to the `Initialization` steps in the root README.md file")
-        print("5. Explore the samples and infrastructure folders")
+        print("5. Explore the samples and infrastructure folders\n")
         return 0
     else:
         print("❌ Some checks failed. Please review the output above.")
-        print("\n🔧 Try these troubleshooting steps:")
+        print("\n🔧 Try these troubleshooting steps:\n")
         print("1. Rebuild the container: Dev Containers: Rebuild Container")
         print("2. Manually run: pip install -r requirements.txt")
-        print("3. Check the .devcontainer/README.md for more help")
+        print("3. Check the .devcontainer/README.md for more help\n")
         return 1
 
 

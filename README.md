@@ -18,7 +18,7 @@ _Try it out, learn from it, apply it in your setups._
 
 ## 🚀 Getting Started
 
-### � Quick Start Options
+### Quick Start Options
 
 #### Option 1: GitHub Codespaces / Dev Container (Recommended)
 
@@ -31,7 +31,7 @@ All prerequisites are automatically installed and configured. See [.devcontainer
 
 #### Option 2: Local Setup
 
-### �📋 Prerequisites
+### 📋 Prerequisites
 
 These prerequisites apply broadly across all infrastructure and samples. If there are specific deviations, expect them to be noted there.
 
