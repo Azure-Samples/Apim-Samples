@@ -155,23 +155,22 @@ Write-Host "🔍 Running final verification..." -ForegroundColor Yellow
 python .devcontainer/verify-setup.py
 
 Write-Host ""
-Write-Host "📋 Next steps:" -ForegroundColor Yellow
+Write-Host "📋 Next steps:\n" -ForegroundColor Yellow
 # Check if Azure CLI config mounting is configured
 if (Test-Path ".devcontainer/devcontainer.json") {
     $devcontainerContent = Get-Content ".devcontainer/devcontainer.json" -Raw
+
     if ($devcontainerContent -match '"mounts"') {
         Write-Host "✅ Azure CLI config mounting detected - your authentication should be available"
         Write-Host "1. Verify Azure access: az account show"
         Write-Host "2. If needed, switch tenant: az login --tenant <your-tenant-id-or-domain>"
         Write-Host "3. If needed, set subscription: az account set --subscription <your-subscription-id-or-name>"
-        Write-Host "4. Execute shared/jupyter/verify-az-account.ipynb to verify your Azure setup"
     } else {
         Write-Host "1. Sign in to Azure with your specific tenant:"
         Write-Host "   az login --tenant <your-tenant-id-or-domain>"
         Write-Host "2. Set your target subscription:"
         Write-Host "   az account set --subscription <your-subscription-id-or-name>"
         Write-Host "3. Verify your context: az account show"
-        Write-Host "4. Execute shared/jupyter/verify-az-account.ipynb to verify your Azure setup"
     }
 } else {
     Write-Host "1. Sign in to Azure with your specific tenant:"
@@ -179,10 +178,12 @@ if (Test-Path ".devcontainer/devcontainer.json") {
     Write-Host "2. Set your target subscription:"
     Write-Host "   az account set --subscription <your-subscription-id-or-name>"
     Write-Host "3. Verify your context: az account show"
-    Write-Host "4. Execute shared/jupyter/verify-az-account.ipynb to verify your Azure setup"
 }
-Write-Host "3. Navigate to any infrastructure folder and run the create.ipynb notebook"
-Write-Host "4. Explore the samples in the samples/ directory"
+
+Write-Host "\nFor any of the next steps, you will be asked to create (first-time) or select an environment. Create the virtual environment (.venv) if it does not yet exist. You do not need to reinstall `requirements.txt` as this has already been set up for you.\n"
+Write-Host "4. Open shared/jupyter/verify-az-account.ipynb and execute the notebook to verify your Azure setup"
+Write-Host "5. Navigate to any infrastructure folder and run the create.ipynb notebook"
+Write-Host "6. Explore the samples in the samples/ directory"
 Write-Host ""
 Write-Host "💡 Tip: The Python path has been configured to include shared/python modules automatically." -ForegroundColor Cyan
 Write-Host "🔧 To reconfigure Azure CLI authentication, run: python .devcontainer/configure-azure-mount.py" -ForegroundColor Cyan
