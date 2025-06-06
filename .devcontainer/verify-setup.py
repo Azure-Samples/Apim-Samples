@@ -55,7 +55,7 @@ def check_python_packages():
 
 def check_shared_python_modules():
     """Check if shared Python modules can be imported."""
-    print("📦 Checking shared Python modules...")
+    print("\n📦 Checking shared Python modules...")
     shared_modules = ['utils', 'apimrequests', 'apimtypes', 'authfactory', 'users']
     missing_modules = []
     

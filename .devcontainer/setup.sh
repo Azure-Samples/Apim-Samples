@@ -135,7 +135,7 @@ echo "🔍 Running final verification..."
 python .devcontainer/verify-setup.py
 
 echo ""
-echo "📋 Next steps:"
+echo "📋 Next steps:\n"
 if [ -f ".devcontainer/devcontainer.json" ] && grep -q '"mounts"' .devcontainer/devcontainer.json; then
     echo "✅ Azure CLI config mounting detected - your authentication should be available"
     echo "1. Verify Azure access and ensure correct tenant/subscription: az account show"

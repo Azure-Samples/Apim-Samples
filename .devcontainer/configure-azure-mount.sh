@@ -113,17 +113,16 @@ EOF
 
 echo ""
 echo "🎉 Configuration completed successfully!"
+echo ""
+echo "📋 Next steps:"
+echo ""
 
 case $choice in
     1)
-        echo ""
-        echo "📋 Next steps:"
         echo "1. Rebuild your dev container"
         echo "2. Your local Azure CLI authentication will be available"
         ;;
     2)
-        echo ""
-        echo "📋 Next steps:"
         echo "1. Start/rebuild your dev container"
         echo "2. Sign in with tenant-specific authentication:"
         echo "   az login --tenant <your-tenant-id-or-domain>"
@@ -131,8 +130,6 @@ case $choice in
         echo "   az account show  # Verify your context"
         ;;
     3)
-        echo ""
-        echo "📋 Next steps:"
         echo "1. Edit .devcontainer/devcontainer.json manually if needed"
         echo "2. See the documentation for examples"
         ;;
