@@ -142,7 +142,8 @@ def main():
     
     print("\n" + "="*50)
     
-    if all(checks):        print("🎉 All checks passed! Your dev container is ready to use.")
+    if all(checks):        
+        print("🎉 All checks passed! Your dev container is ready to use.")
         print("\n📋 Next steps:")
         print("1. Configure Azure CLI: python .devcontainer/configure-azure-mount.py")
         print("2. Or manually sign in with tenant-specific login:")
