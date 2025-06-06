@@ -113,11 +113,34 @@ python .devcontainer/configure-azure-mount.py
 ./.devcontainer/configure-azure-mount.sh
 ```
 
-All scripts will:
-- Detect your platform (Windows, macOS, Linux)
-- Let you choose between mounting local config or manual login
-- Automatically configure the devcontainer.json file
-- Provide clear next steps
+### Configuration Options
+
+The setup script provides three choices:
+
+**Option 1: Mount local Azure CLI config**
+- ✅ Preserves login between container rebuilds
+- ✅ Uses your existing `az login` from host machine
+- ✅ Works on Windows (`${localEnv:USERPROFILE}/.azure`) and Unix (`${localEnv:HOME}/.azure`)
+- ✅ Best for: Personal development with stable logins
+
+**Option 2: Use manual login inside container [RECOMMENDED]**
+- ✅ Run `az login` each time container starts
+- ✅ More secure, fresh authentication each session  
+- ✅ Works universally across all platforms and environments
+- ✅ Best for: Shared environments, GitHub Codespaces
+
+**Option 3: Configure manually later**
+- ✅ No changes made to devcontainer.json
+- ✅ You can edit the configuration files yourself
+- ✅ Full control over mount configuration
+
+### Mount Preservation
+
+The configuration script intelligently preserves any existing mounts (like SSH keys, additional volumes) while only managing Azure CLI mounts. This ensures your custom development setup remains intact.
+
+### Non-Interactive Environments
+
+In environments like GitHub Codespaces automation, the script automatically detects non-interactive contexts and safely defaults to Option 2 (manual login) for maximum reliability.
 
 ### Manual Options
 

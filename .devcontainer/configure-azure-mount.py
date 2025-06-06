@@ -47,26 +47,54 @@ def detect_platform() -> str:
 
 def get_user_choice() -> str:
     """Get user's preference for Azure CLI configuration."""
-    print("🔧 Azure CLI Configuration Setup")
-    print("=" * 40)
+    # Add visual separation and emphasis
+    print("\n" + "=" * 60)
+    print("Azure CLI Authentication Setup")
+    print("=" * 60)
     
     detected_platform = detect_platform()
     if detected_platform != "unknown":
         platform_name = "Windows" if detected_platform == "windows" else "macOS/Linux"
-        print(f"Detected platform: {platform_name}")
+        print(f"\nDetected platform: {platform_name}")
     
     print("\nHow would you like to handle Azure CLI authentication?")
-    print("1. Mount local Azure CLI config (preserves login between container rebuilds)")
-    print("2. Use manual login inside container (az login each time)")
-    print("3. Let me configure this manually later")
+    print("\n   1. Mount local Azure CLI config")
+    print("      - Preserves login between container rebuilds")
+    print("      - Uses your existing 'az login' from host machine")
+    print("      - Best for: Personal development with stable logins")
+    print("\n   2. Use manual login inside container [RECOMMENDED]") 
+    print("      - Run 'az login' each time container starts")
+    print("      - More secure, fresh authentication each session")
+    print("      - Best for: Shared environments, GitHub Codespaces")
+    print("\n   3. Let me configure this manually later")
+    print("      - No changes made to devcontainer.json")
+    print("      - You can edit the configuration files yourself")
+    
+    # Check if we're in a non-interactive environment (like GitHub Codespaces automation)
+    if not sys.stdin.isatty() or os.environ.get('CODESPACES') == 'true':
+        print("\nNon-interactive environment detected (GitHub Codespaces).")
+        print("Automatically selecting option 2 (manual login) as the most reliable choice.")
+        print("You can reconfigure later by running this script manually.")
+        return "2"
+    
+    print("\nWaiting for your input...")
     
     while True:
-        choice = input("\nEnter your choice (1-3): ").strip()
-        
-        if choice in ["1", "2", "3"]:
-            return choice
-        
-        print("❌ Invalid choice. Please enter 1, 2, or 3.")
+        try:
+            choice = input("\nEnter your choice (1-3) [default: 2]: ").strip()
+            
+            # Default to option 2 if no input provided
+            if not choice:
+                choice = "2"
+            
+            if choice in ["1", "2", "3"]:
+                return choice
+            
+            print("Invalid choice. Please enter 1, 2, or 3.")
+        except (EOFError, KeyboardInterrupt):
+            # Handle non-interactive scenarios gracefully
+            print("\nInput not available. Defaulting to option 2 (manual login).")
+            return "2"
 
 
 def backup_devcontainer_json() -> bool:
@@ -141,9 +169,25 @@ def configure_azure_mount(choice: str) -> bool:
     if not config:
         return False
     
-    # Remove existing mounts section if present
-    if "mounts" in config:
-        del config["mounts"]
+    # Initialize mounts array if it doesn't exist
+    if "mounts" not in config:
+        config["mounts"] = []
+    
+    # Remove existing Azure CLI mounts (preserve other mounts)
+    existing_mounts = config["mounts"]
+    non_azure_mounts = []
+    
+    for mount in existing_mounts:
+        if isinstance(mount, dict):
+            # Check if this is an Azure CLI mount by looking at the target path
+            target = mount.get("target", "")
+            if not target.endswith("/.azure"):
+                non_azure_mounts.append(mount)
+        else:
+            # Keep non-dict mounts as-is
+            non_azure_mounts.append(mount)
+    
+    config["mounts"] = non_azure_mounts
     
     if choice == "1":  # Mount local Azure CLI config
         detected_platform = detect_platform()
@@ -163,17 +207,17 @@ def configure_azure_mount(choice: str) -> bool:
                     break
                 else:
                     print("❌ Invalid choice. Please enter 1 or 2.")
-        
-        # Add mount configuration
+          # Add mount configuration
         mount_config = MOUNT_CONFIGS[detected_platform]
-        config["mounts"] = [mount_config]
+        config["mounts"].append(mount_config)
         
         platform_name = "Windows" if detected_platform == "windows" else "macOS/Linux"
-        print(f"✅ Configured Azure CLI mounting for {platform_name}")
+        print("✅ Configured Azure CLI mounting for {platform_name}")
         
     elif choice == "2":  # Manual login
         print("✅ Configured for manual Azure CLI login (az login)")
         print("   You'll need to run 'az login' after container startup")
+        print("   (Removed any existing Azure CLI mounts)")
         
     elif choice == "3":  # Manual configuration
         print("✅ No automatic configuration applied")
@@ -191,25 +235,28 @@ def main() -> int:
     # Check if this is being called during initial setup
     is_initial_setup = os.environ.get('APIM_SAMPLES_INITIAL_SETUP', '').lower() == 'true'
     
+    # Visual presentation
+    print("\n" + "=" * 60)
     if is_initial_setup:
-        print("🚀 APIM Samples Dev Container - Initial Azure CLI Setup")
-        print("=" * 55)
+        print("APIM Samples Dev Container - Initial Azure CLI Setup")
         print("This is part of the automated dev container setup process.")
     else:
-        print("🚀 APIM Samples Dev Container Azure CLI Setup")
-        print("=" * 50)
+        print("APIM Samples Dev Container Azure CLI Setup")
+    print("=" * 60)
     
     if not DEVCONTAINER_JSON_PATH.exists():
-        print(f"❌ devcontainer.json not found at: {DEVCONTAINER_JSON_PATH}")
+        print(f"\ndevcontainer.json not found at: {DEVCONTAINER_JSON_PATH}")
         return 1
     
     choice = get_user_choice()
     
     if configure_azure_mount(choice):
-        print("\n🎉 Configuration completed successfully!")
+        print("\n" + "=" * 40)
+        print("Configuration completed successfully!")
+        print("=" * 40)
         
         if choice == "1":
-            print("\n📋 Next steps:")
+            print("\nNext steps:")
             if is_initial_setup:
                 print("1. The setup script will complete automatically")
                 print("2. Exit this container when setup finishes")
@@ -219,7 +266,7 @@ def main() -> int:
                 print("1. Rebuild your dev container")
                 print("2. Your local Azure CLI authentication will be available")
         elif choice == "2":
-            print("\n📋 Next steps:")
+            print("\nNext steps:")
             if is_initial_setup:
                 print("1. The setup script will complete automatically")
                 print("2. Run 'az login' inside the container when setup finishes")
@@ -227,13 +274,13 @@ def main() -> int:
                 print("1. Start/rebuild your dev container")
                 print("2. Run 'az login' inside the container")
         else:
-            print("\n📋 Next steps:")
+            print("\nNext steps:")
             print("1. Edit .devcontainer/devcontainer.json manually if needed")
             print("2. See the commented examples in the file")
         
         return 0
     else:
-        print("\n❌ Configuration failed. Check the error messages above.")
+        print("\nConfiguration failed. Check the error messages above.")
         return 1
 
 

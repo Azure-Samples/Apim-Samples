@@ -3,7 +3,7 @@
   "image": "mcr.microsoft.com/devcontainers/python:1-3.12-bullseye",
   "features": {
     "ghcr.io/devcontainers/features/azure-cli:1": {
-      "version": "latest"
+      "version": "2.72.0"
     },
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": true,
@@ -88,5 +88,6 @@
     }
   },
   "remoteUser": "vscode",
-  "workspaceFolder": "/workspaces/Apim-Samples"
+  "workspaceFolder": "/workspaces/Apim-Samples",
+  "mounts": []
 }
