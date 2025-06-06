@@ -60,10 +60,10 @@ def get_user_choice() -> str:
     print("\nHow would you like to handle Azure CLI authentication?")
     print("\n   1. Mount local Azure CLI config")
     print("      - Preserves login between container rebuilds")
-    print("      - Uses your existing 'az login' from host machine")
+    print("      - Uses your existing tenant-specific 'az login' from host machine")
     print("      - Best for: Personal development with stable logins")
     print("\n   2. Use manual login inside container [RECOMMENDED]") 
-    print("      - Run 'az login' each time container starts")
+    print("      - Run tenant-specific 'az login' each time container starts")
     print("      - More secure, fresh authentication each session")
     print("      - Best for: Shared environments, GitHub Codespaces")
     print("\n   3. Let me configure this manually later")
@@ -215,8 +215,11 @@ def configure_azure_mount(choice: str) -> bool:
         print("✅ Configured Azure CLI mounting for {platform_name}")
         
     elif choice == "2":  # Manual login
-        print("✅ Configured for manual Azure CLI login (az login)")
-        print("   You'll need to run 'az login' after container startup")
+        print("✅ Configured for manual Azure CLI login with tenant/subscription specification")
+        print("   You'll need to run tenant-specific login after container startup:")
+        print("   az login --tenant <your-tenant-id-or-domain>")
+        print("   az account set --subscription <your-subscription-id-or-name>")
+        print("   az account show  # Verify your context")
         print("   (Removed any existing Azure CLI mounts)")
         
     elif choice == "3":  # Manual configuration
@@ -269,10 +272,16 @@ def main() -> int:
             print("\nNext steps:")
             if is_initial_setup:
                 print("1. The setup script will complete automatically")
-                print("2. Run 'az login' inside the container when setup finishes")
+                print("2. Sign in with tenant-specific authentication when setup finishes:")
+                print("   az login --tenant <your-tenant-id-or-domain>")
+                print("   az account set --subscription <your-subscription-id-or-name>")
+                print("   az account show  # Verify your context")
             else:
                 print("1. Start/rebuild your dev container")
-                print("2. Run 'az login' inside the container")
+                print("2. Sign in with tenant-specific authentication inside the container:")
+                print("   az login --tenant <your-tenant-id-or-domain>")
+                print("   az account set --subscription <your-subscription-id-or-name>")
+                print("   az account show  # Verify your context")
         else:
             print("\nNext steps:")
             print("1. Edit .devcontainer/devcontainer.json manually if needed")

@@ -142,11 +142,13 @@ def main():
     
     print("\n" + "="*50)
     
-    if all(checks):
-        print("🎉 All checks passed! Your dev container is ready to use.")
+    if all(checks):        print("🎉 All checks passed! Your dev container is ready to use.")
         print("\n📋 Next steps:")
         print("1. Configure Azure CLI: python .devcontainer/configure-azure-mount.py")
-        print("2. Or manually sign in: az login")
+        print("2. Or manually sign in with tenant-specific login:")
+        print("   az login --tenant <your-tenant-id-or-domain>")
+        print("   az account set --subscription <your-subscription-id-or-name>")
+        print("   az account show  # Verify your context")
         print("3. Execute shared/jupyter/verify-az-account.ipynb")
         print("4. If prompted, initialize the kernel according to the `Initialization` steps in the root README.md file")
         print("5. Explore the samples and infrastructure folders")

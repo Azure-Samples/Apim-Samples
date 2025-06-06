@@ -47,7 +47,7 @@ All packages from `requirements.txt` are pre-installed:
 ### Environment Configuration
 - **PYTHONPATH** - Automatically configured to include shared Python modules
 - **Jupyter Kernel** - Custom kernel named "APIM Samples Python"
-- **Azure CLI** - Installed and ready for authentication (requires `az login` inside container)
+- **Azure CLI** - Installed and ready for authentication (requires tenant-specific `az login` inside container)
 - **Port Forwarding** - Common development ports (3000, 5000, 8000, 8080) pre-configured
 
 ## 🔧 Post-Setup Steps
@@ -60,7 +60,7 @@ When the container starts for the first time, the setup script will automaticall
 2. **Configure Jupyter environment** with custom kernel
 3. **Prompt for Azure CLI configuration**:
    - Mount local Azure config (preserves login between rebuilds)
-   - Use manual login (run `az login` each time)
+   - Use manual login (run tenant-specific `az login` each time)
    - Configure manually later
 
 ### Manual Configuration (If Needed Later)
@@ -73,7 +73,14 @@ python .devcontainer/configure-azure-mount.py
 
 **Manual Azure Login**:
 ```bash
-az login
+# Log in to your specific tenant
+az login --tenant <your-tenant-id-or-domain>
+
+# Set your target subscription
+az account set --subscription <your-subscription-id-or-name>
+
+# Verify your authentication context
+az account show
 ```
 
 ### Continue with Development
@@ -119,15 +126,16 @@ The setup script provides three choices:
 
 **Option 1: Mount local Azure CLI config**
 - ✅ Preserves login between container rebuilds
-- ✅ Uses your existing `az login` from host machine
+- ✅ Uses your existing tenant-specific `az login` from host machine
 - ✅ Works on Windows (`${localEnv:USERPROFILE}/.azure`) and Unix (`${localEnv:HOME}/.azure`)
 - ✅ Best for: Personal development with stable logins
 
 **Option 2: Use manual login inside container [RECOMMENDED]**
-- ✅ Run `az login` each time container starts
+- ✅ Run tenant-specific `az login` each time container starts
 - ✅ More secure, fresh authentication each session  
 - ✅ Works universally across all platforms and environments
 - ✅ Best for: Shared environments, GitHub Codespaces
+- ✅ Ensures you're working with the correct tenant and subscription
 
 **Option 3: Configure manually later**
 - ✅ No changes made to devcontainer.json
@@ -149,7 +157,9 @@ In environments like GitHub Codespaces automation, the script automatically dete
 - Platform-specific (configured automatically by the setup script)
 
 **Option 2: Manual Login**
-- Run `az login` inside the container after startup
+- Log in to your specific tenant: `az login --tenant <your-tenant-id-or-domain>`
+- Set your target subscription: `az account set --subscription <your-subscription-id-or-name>`
+- Verify context: `az account show`
 - Works universally across all platforms
 - Requires re-authentication after container rebuilds
 
@@ -190,7 +200,7 @@ If you need to rebuild the container:
 
 ## 🔒 Security Considerations
 
-- Azure credentials are handled through `az login` inside the container (or optionally mounted)
+- Azure credentials are handled through tenant-specific `az login` inside the container (or optionally mounted)
 - The container runs as a non-root user (`vscode`)
 - All dependencies are installed from official sources
 - Network access is controlled through VS Code's port forwarding

@@ -162,14 +162,24 @@ if (Test-Path ".devcontainer/devcontainer.json") {
     if ($devcontainerContent -match '"mounts"') {
         Write-Host "✅ Azure CLI config mounting detected - your authentication should be available"
         Write-Host "1. Verify Azure access: az account show"
-        Write-Host "2. Execute shared/jupyter/verify-az-account.ipynb to verify your Azure setup"
+        Write-Host "2. If needed, switch tenant: az login --tenant <your-tenant-id-or-domain>"
+        Write-Host "3. If needed, set subscription: az account set --subscription <your-subscription-id-or-name>"
+        Write-Host "4. Execute shared/jupyter/verify-az-account.ipynb to verify your Azure setup"
     } else {
-        Write-Host "1. Sign in to Azure: az login"
-        Write-Host "2. Execute shared/jupyter/verify-az-account.ipynb to verify your Azure setup"
+        Write-Host "1. Sign in to Azure with your specific tenant:"
+        Write-Host "   az login --tenant <your-tenant-id-or-domain>"
+        Write-Host "2. Set your target subscription:"
+        Write-Host "   az account set --subscription <your-subscription-id-or-name>"
+        Write-Host "3. Verify your context: az account show"
+        Write-Host "4. Execute shared/jupyter/verify-az-account.ipynb to verify your Azure setup"
     }
 } else {
-    Write-Host "1. Sign in to Azure: az login"
-    Write-Host "2. Execute shared/jupyter/verify-az-account.ipynb to verify your Azure setup"
+    Write-Host "1. Sign in to Azure with your specific tenant:"
+    Write-Host "   az login --tenant <your-tenant-id-or-domain>"
+    Write-Host "2. Set your target subscription:"
+    Write-Host "   az account set --subscription <your-subscription-id-or-name>"
+    Write-Host "3. Verify your context: az account show"
+    Write-Host "4. Execute shared/jupyter/verify-az-account.ipynb to verify your Azure setup"
 }
 Write-Host "3. Navigate to any infrastructure folder and run the create.ipynb notebook"
 Write-Host "4. Explore the samples in the samples/ directory"

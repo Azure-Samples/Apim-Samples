@@ -13,7 +13,7 @@ Write-Host "Detected platform: $platform" -ForegroundColor Green
 
 Write-Host "`nHow would you like to handle Azure CLI authentication?" -ForegroundColor White
 Write-Host "1. Mount local Azure CLI config (preserves login between container rebuilds)" -ForegroundColor White
-Write-Host "2. Use manual login inside container (az login each time)" -ForegroundColor White
+Write-Host "2. Use manual tenant-specific login inside container (requires explicit tenant/subscription setup each time)" -ForegroundColor White
 Write-Host "3. Let me configure this manually later" -ForegroundColor White
 
 do {
@@ -57,10 +57,12 @@ try {
             }
             $content | Add-Member -MemberType NoteProperty -Name "mounts" -Value @($mount)
             Write-Host "✅ Configured Azure CLI mounting for Windows" -ForegroundColor Green
-        }
-        "2" {
-            Write-Host "✅ Configured for manual Azure CLI login (az login)" -ForegroundColor Green
-            Write-Host "   You'll need to run 'az login' after container startup" -ForegroundColor Yellow
+        }        "2" {
+            Write-Host "✅ Configured for manual Azure CLI login with tenant/subscription specification" -ForegroundColor Green
+            Write-Host "   You'll need to run tenant-specific login after container startup:" -ForegroundColor Yellow
+            Write-Host "   az login --tenant <your-tenant-id-or-domain>" -ForegroundColor Yellow
+            Write-Host "   az account set --subscription <your-subscription-id-or-name>" -ForegroundColor Yellow
+            Write-Host "   az account show  # Verify your context" -ForegroundColor Yellow
         }
         "3" {
             Write-Host "✅ No automatic configuration applied" -ForegroundColor Green
@@ -84,11 +86,13 @@ switch ($choice) {
         Write-Host "`n📋 Next steps:" -ForegroundColor Cyan
         Write-Host "1. Rebuild your dev container" -ForegroundColor White
         Write-Host "2. Your local Azure CLI authentication will be available" -ForegroundColor White
-    }
-    "2" {
+    }    "2" {
         Write-Host "`n📋 Next steps:" -ForegroundColor Cyan
         Write-Host "1. Start/rebuild your dev container" -ForegroundColor White
-        Write-Host "2. Run 'az login' inside the container" -ForegroundColor White
+        Write-Host "2. Sign in with tenant-specific authentication:" -ForegroundColor White
+        Write-Host "   az login --tenant <your-tenant-id-or-domain>" -ForegroundColor White
+        Write-Host "   az account set --subscription <your-subscription-id-or-name>" -ForegroundColor White
+        Write-Host "   az account show  # Verify your context" -ForegroundColor White
     }
     "3" {
         Write-Host "`n📋 Next steps:" -ForegroundColor Cyan

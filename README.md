@@ -40,7 +40,11 @@ These prerequisites apply broadly across all infrastructure and samples. If ther
 - [VS Code](https://code.visualstudio.com/) installed with the [Jupyter notebook extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter) enabled
 - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) installed
 - [An Azure Subscription](https://azure.microsoft.com/free/) with Owner or Contributor+UserAccessAdministrator permissions. Execute [shared/jupyter/verify-az-account.ipynb](shared/jupyter/verify-az-account.ipynb) to verify.
-- [Sign in to Azure with Azure CLI](https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively)
+- **Azure Authentication**: Sign in to Azure with Azure CLI using the specific tenant and subscription you want to work with:
+  - To log in to a specific tenant: `az login --tenant <your-tenant-id-or-domain>`
+  - To set a specific subscription: `az account set --subscription <your-subscription-id-or-name>`
+  - To verify your current context: `az account show`
+  - See the [Azure CLI authentication guide](https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively) for more options
 
 ### 🛠️ Initialization
 
@@ -52,9 +56,12 @@ If you're using the dev container (GitHub Codespaces or VS Code Dev Containers):
 2. Wait for the automatic setup to complete (includes interactive Azure CLI configuration)
 3. If prompted during setup, choose your preferred Azure CLI authentication method:
    - **Mount local config**: Preserves authentication between container rebuilds
-   - **Manual login**: Requires `az login` after each container startup
+   - **Manual login**: Requires tenant-specific `az login` after each container startup
    - **Configure later**: Skip for now, configure manually later
-4. If you chose manual login or skipped, sign in to Azure: `az login`
+4. **Sign in to Azure with correct tenant and subscription**:
+   - If you chose manual login or skipped: `az login --tenant <your-tenant-id-or-domain>`
+   - Set the correct subscription: `az account set --subscription <your-subscription-id-or-name>`
+   - Verify your authentication context: `az account show`
 5. Verify your Azure setup by executing [shared/jupyter/verify-az-account.ipynb](shared/jupyter/verify-az-account.ipynb)
 
 **Note**: If you need to reconfigure Azure CLI authentication later, run:

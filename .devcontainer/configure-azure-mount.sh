@@ -27,7 +27,7 @@ echo "Detected platform: $PLATFORM"
 echo ""
 echo "How would you like to handle Azure CLI authentication?"
 echo "1. Mount local Azure CLI config (preserves login between container rebuilds)"
-echo "2. Use manual login inside container (az login each time)"
+echo "2. Use manual tenant-specific login inside container (requires explicit tenant/subscription setup each time)"
 echo "3. Let me configure this manually later"
 
 while true; do
@@ -91,8 +91,11 @@ try:
         config['mounts'] = [mount_config]
         print("✅ Configured Azure CLI mounting for $PLATFORM")
     elif choice == '2':
-        print("✅ Configured for manual Azure CLI login (az login)")
-        print("   You'll need to run 'az login' after container startup")
+        print("✅ Configured for manual Azure CLI login with tenant/subscription specification")
+        print("   You'll need to run tenant-specific login after container startup:")
+        print("   az login --tenant <your-tenant-id-or-domain>")
+        print("   az account set --subscription <your-subscription-id-or-name>")
+        print("   az account show  # Verify your context")
     else:
         print("✅ No automatic configuration applied")
         print("   You can manually edit .devcontainer/devcontainer.json later")
@@ -122,7 +125,10 @@ case $choice in
         echo ""
         echo "📋 Next steps:"
         echo "1. Start/rebuild your dev container"
-        echo "2. Run 'az login' inside the container"
+        echo "2. Sign in with tenant-specific authentication:"
+        echo "   az login --tenant <your-tenant-id-or-domain>"
+        echo "   az account set --subscription <your-subscription-id-or-name>"
+        echo "   az account show  # Verify your context"
         ;;
     3)
         echo ""

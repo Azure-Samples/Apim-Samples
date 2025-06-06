@@ -10,7 +10,7 @@ This document summarizes the improvements made to the dev container configuratio
 
 ### 2. Cross-Platform Azure CLI Authentication
 - **Issue**: Azure CLI config mounting was Windows-specific and caused container startup failures
-- **Solution**: Commented out automatic mounting; users now sign in with `az login` inside container
+- **Solution**: Commented out automatic mounting; users now sign in with tenant-specific `az login --tenant <your-tenant>` inside container
 - **Benefits**: 
   - Works on Windows, macOS, and Linux
   - No more container startup failures
@@ -68,7 +68,14 @@ This script automatically:
 
 #### Option 2: Manual Login (Universal)
 ```bash
-az login
+# Log in to your specific Azure tenant
+az login --tenant <your-tenant-id-or-domain>
+
+# Set your target subscription
+az account set --subscription <your-subscription-id-or-name>
+
+# Verify your context
+az account show
 ```
 
 #### Option 3: Platform-Specific Mounting (Advanced)
@@ -81,7 +88,7 @@ Configured automatically by the interactive script based on your platform.
 2. **Automatic Installation**: Dependencies install automatically via `postCreateCommand`
 3. **Interactive Configuration**: User is prompted during setup to configure Azure CLI authentication:
    - Option 1: Mount local Azure config (preserves authentication between rebuilds)
-   - Option 2: Use manual login (requires `az login` after each container start)  
+   - Option 2: Use manual tenant-specific login (requires `az login --tenant <your-tenant>` after each container start)  
    - Option 3: Configure manually later
 4. **Intelligent Instructions**: Next steps adapt based on user's choice and setup context
 5. **Ready to Go**: Environment is fully configured for APIM development
@@ -95,8 +102,9 @@ python .devcontainer/configure-azure-mount.py
 ### Verification Process
 1. Start dev container (automated setup runs automatically)
 2. Run: `python .devcontainer/verify-setup.py`
-3. Run: `az login`
-4. Execute: `shared/jupyter/verify-az-account.ipynb`
+3. Run: `az login --tenant <your-tenant-id-or-domain>`
+4. Set subscription: `az account set --subscription <your-subscription-id-or-name>`
+5. Execute: `shared/jupyter/verify-az-account.ipynb`
 
 ### Expected Results
 - All Python packages installed ✅
