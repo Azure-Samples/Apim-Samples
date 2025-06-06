@@ -14,7 +14,7 @@
     "python.analysis.extraPaths": [
         "${workspaceFolder}/shared/python"
     ],
-    "python.defaultInterpreterPath": "./venv/bin/python",
+    "python.defaultInterpreterPath": "./.venv/Scripts/python.exe",
     "python.envFile": "${workspaceFolder}/.env",
     "python.terminal.activateEnvironment": true,
     "terminal.integrated.env.windows": {

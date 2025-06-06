@@ -53,6 +53,28 @@ def check_python_packages():
     return True
 
 
+def check_shared_python_modules():
+    """Check if shared Python modules can be imported."""
+    print("📦 Checking shared Python modules...")
+    shared_modules = ['utils', 'apimrequests', 'apimtypes', 'authfactory', 'users']
+    missing_modules = []
+    
+    for module in shared_modules:
+        try:
+            importlib.import_module(module)
+            print(f"  ✅ {module}")
+        except ImportError as e:
+            missing_modules.append(module)
+            print(f"  ❌ {module} - {e}")
+    
+    if missing_modules:
+        print(f"  ⚠️  Missing shared modules: {', '.join(missing_modules)}")
+        print("  💡 Tip: Run 'python setup/setup_python_path.py --generate-env' to fix the Python path")
+        return False
+    
+    return True
+
+
 def check_commands():
     """Check if required command-line tools are available."""
     print("\n🔧 Checking command-line tools...")
@@ -135,6 +157,7 @@ def main():
     
     checks = [
         check_python_packages(),
+        check_shared_python_modules(),
         check_commands(),
         check_jupyter_kernel(),
         check_azure_cli()

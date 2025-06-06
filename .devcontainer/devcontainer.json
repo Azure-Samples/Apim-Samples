@@ -60,7 +60,7 @@
     }
   },
   "containerEnv": {
-    "PYTHONPATH": "/workspaces/Apim-Samples/shared/python"
+    "PYTHONPATH": "/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples"
   },
   "postCreateCommand": "bash .devcontainer/setup.sh",
   "forwardPorts": [

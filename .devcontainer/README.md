@@ -86,10 +86,29 @@ az account show
 ### Continue with Development
 After setup is complete:
 1. **Verify your Azure setup**: Execute `shared/jupyter/verify-az-account.ipynb`
-2. **Start exploring**:
+2. **Test your environment**: Run `python .devcontainer/verify-setup.py`
+3. **Start exploring**:
    - Navigate to any infrastructure folder (`infrastructure/`)
    - Run the `create.ipynb` notebook to set up infrastructure
    - Explore samples in the `samples/` directory
+
+## 🔧 Troubleshooting
+
+If you encounter import errors or module resolution issues, see:
+- [Import Troubleshooting Guide](.devcontainer/IMPORT-TROUBLESHOOTING.md)
+- [Setup Notes](.devcontainer/SETUP-NOTES.md)
+
+Common quick fixes:
+```bash
+# Fix Python path for local development
+python setup/setup_python_path.py --generate-env
+
+# Verify setup
+python .devcontainer/verify-setup.py
+
+# Rebuild dev container if needed
+Dev Containers: Rebuild Container
+```
 
 ## 🏗️ Architecture
 

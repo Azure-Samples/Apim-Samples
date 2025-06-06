@@ -81,10 +81,31 @@ If you're setting up locally without the dev container:
 1. Check _requirements.txt_ to install the Python dependencies we need for this repo, then press _OK_. The install may take a few minutes. You can check on progress in the _OUTPUT_ window (select `Python`).
 1. Verify the virtual environment is set up. You should see a new _.venv_ directory with a _pyveng.cfg_ file and the Python version you selected earlier.
 1. Set up the project environment by running `python setup/setup_python_path.py --generate-env` to configure the Python path.
-  a. If for some reason the `python` command is not found, please try adding your virtual environment's `bin` or `Scripts` directory to your system's PATH variable.  An example command to do this for a virtual environment named `venv` would be to run `source .venv/bin/activate`
+   a. If for some reason the `python` command is not found, please try adding your virtual environment's `bin` or `Scripts` directory to your system's PATH variable.  An example command to do this for a virtual environment named `venv` would be to run `source .venv/bin/activate`
 1. Install the Jupyter kernel: `python -m ipykernel install --user --name=apim-samples --display-name="APIM Samples Python"`
+1. **Restart VS Code** to ensure all environment settings are loaded properly.
 
 The first time you run a Jupyter notebook, you may be asked to install the Jupyter kernel package (ipykernel) if not already available.
+
+#### 🔧 Troubleshooting Setup Issues
+
+If you encounter import errors (e.g., `ModuleNotFoundError: No module named 'requests'` or cannot import shared modules), try these steps:
+
+1. **Fix Python path configuration**:
+   ```bash
+   python setup/setup_python_path.py --generate-env
+   ```
+
+2. **Verify setup**:
+   ```bash
+   python .devcontainer/verify-setup.py
+   ```
+
+3. **Restart VS Code** after running the above commands.
+
+4. **Check Python interpreter**: Use `Ctrl+Shift+P` → "Python: Select Interpreter" and choose your `.venv` interpreter.
+
+For detailed troubleshooting, see [Import Troubleshooting Guide](.devcontainer/IMPORT-TROUBLESHOOTING.md).
 
 ### 📁 List of Samples
 

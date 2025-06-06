@@ -95,6 +95,9 @@ cat > .vscode/settings.json << 'EOF'
 {
   "python.terminal.activateEnvironment": true,
   "python.defaultInterpreterPath": "/usr/local/bin/python",
+  "python.analysis.extraPaths": [
+    "/workspaces/Apim-Samples/shared/python"
+  ],
   "jupyter.kernels.filter": [
     {
       "path": "/usr/local/bin/python",
