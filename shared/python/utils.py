@@ -34,6 +34,40 @@ CONSOLE_WIDTH = 175
 
 
 # ------------------------------
+#    HELPER FUNCTIONS
+# ------------------------------
+
+def build_infrastructure_tags(infrastructure: str | INFRASTRUCTURE, custom_tags: dict | None = None) -> dict:
+    """
+    Build standard tags for infrastructure resource groups, including required 'infrastructure' and infrastructure name tags.
+    
+    Args:
+        infrastructure (str | INFRASTRUCTURE): The infrastructure type/name.
+        custom_tags (dict, optional): Additional custom tags to include.
+    
+    Returns:
+        dict: Combined tags dictionary with standard and custom tags.
+    """
+    
+    # Convert infrastructure enum to string value if needed
+    if hasattr(infrastructure, 'value'):
+        infra_name = infrastructure.value
+    else:
+        infra_name = str(infrastructure)
+    
+    # Build standard tags
+    standard_tags = {
+        'infrastructure': infra_name
+    }
+    
+    # Add custom tags if provided
+    if custom_tags:
+        standard_tags.update(custom_tags)
+    
+    return standard_tags
+
+
+# ------------------------------
 #    CLASSES
 # ------------------------------
 
@@ -272,7 +306,7 @@ def get_azure_role_guid(role_name: str) -> Optional[str]:
         return None
 
 
-def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: str | INFRASTRUCTURE, bicep_parameters: dict, bicep_parameters_file: str = 'params.json') -> Output:
+def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: str | INFRASTRUCTURE, bicep_parameters: dict, bicep_parameters_file: str = 'params.json', rg_tags: dict | None = None) -> Output:
     """
     Create a Bicep deployment in a resource group, writing parameters to a file and running the deployment.
     Creates the resource group if it does not exist.
@@ -283,13 +317,14 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
         deployment (str | INFRASTRUCTURE): Deployment name or enum value.
         bicep_parameters: Parameters for the Bicep template.
         bicep_parameters_file (str, optional): File to write parameters to.
+        rg_tags (dict, optional): Additional tags to apply to the resource group.
 
     Returns:
         Output: The result of the deployment command.
     """
 
     # Create the resource group if doesn't exist
-    create_resource_group(rg_name, rg_location)
+    create_resource_group(rg_name, rg_location, rg_tags)
 
     if hasattr(deployment, 'value'):
         deployment_name = deployment.value
@@ -311,13 +346,14 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
     return run(f"az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file main.bicep --parameters {bicep_parameters_file} --query \"properties.outputs\"",
         f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.")
 
-def create_resource_group(rg_name: str, resource_group_location: str | None = None) -> None:
+def create_resource_group(rg_name: str, resource_group_location: str | None = None, tags: dict | None = None) -> None:
     """
     Create a resource group in Azure if it does not already exist.
 
     Args:
         rg_name (str): Name of the resource group.
         resource_group_location (str, optional): Azure region for the resource group.
+        tags (dict, optional): Additional tags to apply to the resource group.
 
     Returns:
         None
@@ -326,7 +362,15 @@ def create_resource_group(rg_name: str, resource_group_location: str | None = No
     if not does_resource_group_exist(rg_name):
         print_info(f"Creating the resource group now...")
 
-        run(f"az group create --name {rg_name} --location {resource_group_location} --tags source=apim-sample",
+        # Build the tags string for the Azure CLI command
+        tag_string = "source=apim-sample"
+        if tags:
+            for key, value in tags.items():
+                # Escape values that contain spaces or special characters
+                escaped_value = value.replace('"', '\\"') if isinstance(value, str) else str(value)
+                tag_string += f" {key}=\"{escaped_value}\""
+
+        run(f"az group create --name {rg_name} --location {resource_group_location} --tags {tag_string}",
             f"Resource group '{rg_name}' created",
             f"Failed to create the resource group '{rg_name}'", 
             False, True, False, False)
