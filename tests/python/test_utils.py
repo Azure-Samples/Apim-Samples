@@ -271,3 +271,254 @@ def test_generate_signing_key():
     s, b64 = utils.generate_signing_key()
     assert isinstance(s, str)
     assert isinstance(b64, str)
+
+
+# ------------------------------
+#    build_infrastructure_tags
+# ------------------------------
+
+def test_build_infrastructure_tags_with_enum():
+    """Test build_infrastructure_tags with INFRASTRUCTURE enum."""
+    result = utils.build_infrastructure_tags(INFRASTRUCTURE.SIMPLE_APIM)
+    expected = {'infrastructure': 'simple-apim'}
+    assert result == expected
+
+def test_build_infrastructure_tags_with_string():
+    """Test build_infrastructure_tags with string infrastructure."""
+    result = utils.build_infrastructure_tags("test-infra")
+    expected = {'infrastructure': 'test-infra'}
+    assert result == expected
+
+def test_build_infrastructure_tags_with_custom_tags():
+    """Test build_infrastructure_tags with custom tags."""
+    custom_tags = {'env': 'dev', 'team': 'platform'}
+    result = utils.build_infrastructure_tags(INFRASTRUCTURE.APIM_ACA, custom_tags)
+    expected = {
+        'infrastructure': 'apim-aca',
+        'env': 'dev', 
+        'team': 'platform'
+    }
+    assert result == expected
+
+def test_build_infrastructure_tags_custom_tags_override():
+    """Test that custom tags can override standard tags."""
+    custom_tags = {'infrastructure': 'custom-override'}
+    result = utils.build_infrastructure_tags(INFRASTRUCTURE.AFD_APIM_PE, custom_tags)
+    expected = {'infrastructure': 'custom-override'}
+    assert result == expected
+
+def test_build_infrastructure_tags_empty_custom_tags():
+    """Test build_infrastructure_tags with empty custom tags dict."""
+    result = utils.build_infrastructure_tags(INFRASTRUCTURE.SIMPLE_APIM, {})
+    expected = {'infrastructure': 'simple-apim'}
+    assert result == expected
+
+def test_build_infrastructure_tags_none_custom_tags():
+    """Test build_infrastructure_tags with None custom tags."""
+    result = utils.build_infrastructure_tags(INFRASTRUCTURE.APIM_ACA, None)
+    expected = {'infrastructure': 'apim-aca'}
+    assert result == expected
+
+
+# ------------------------------
+#    create_resource_group
+# ------------------------------
+
+def test_create_resource_group_not_exists_no_tags(monkeypatch):
+    """Test create_resource_group when resource group doesn't exist and no tags provided."""
+    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda x: False)
+    mock_run = MagicMock(return_value=MagicMock(success=True))
+    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(utils, 'print_info', MagicMock())
+    
+    utils.create_resource_group('test-rg', 'eastus')
+    
+    # Verify the correct command was called
+    expected_cmd = 'az group create --name test-rg --location eastus --tags source=apim-sample'
+    mock_run.assert_called_once()
+    actual_cmd = mock_run.call_args[0][0]
+    assert actual_cmd == expected_cmd
+
+def test_create_resource_group_not_exists_with_tags(monkeypatch):
+    """Test create_resource_group when resource group doesn't exist and tags are provided."""
+    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda x: False)
+    mock_run = MagicMock(return_value=MagicMock(success=True))
+    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(utils, 'print_info', MagicMock())
+    
+    tags = {'infrastructure': 'simple-apim', 'env': 'dev'}
+    utils.create_resource_group('test-rg', 'eastus', tags)
+    
+    # Verify the correct command was called with tags
+    mock_run.assert_called_once()
+    actual_cmd = mock_run.call_args[0][0]
+    assert 'source=apim-sample' in actual_cmd
+    assert 'infrastructure="simple-apim"' in actual_cmd
+    assert 'env="dev"' in actual_cmd
+
+def test_create_resource_group_already_exists(monkeypatch):
+    """Test create_resource_group when resource group already exists."""
+    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda x: True)
+    mock_run = MagicMock()
+    monkeypatch.setattr(utils, 'run', mock_run)
+    
+    utils.create_resource_group('existing-rg', 'eastus')
+    
+    # Verify run was not called since RG already exists
+    mock_run.assert_not_called()
+
+def test_create_resource_group_tags_with_special_chars(monkeypatch):
+    """Test create_resource_group with tags containing special characters."""
+    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda x: False)
+    mock_run = MagicMock(return_value=MagicMock(success=True))
+    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(utils, 'print_info', MagicMock())
+    
+    tags = {'description': 'This is a "test" environment', 'owner': 'john@company.com'}
+    utils.create_resource_group('test-rg', 'eastus', tags)
+    
+    mock_run.assert_called_once()
+    actual_cmd = mock_run.call_args[0][0]
+    # Check that quotes are properly escaped
+    assert 'description="This is a \\"test\\" environment"' in actual_cmd
+    assert 'owner="john@company.com"' in actual_cmd
+
+def test_create_resource_group_tags_with_numeric_values(monkeypatch):
+    """Test create_resource_group with tags containing numeric values."""
+    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda x: False)
+    mock_run = MagicMock(return_value=MagicMock(success=True))
+    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(utils, 'print_info', MagicMock())
+    
+    tags = {'cost-center': 12345, 'version': 1.0}
+    utils.create_resource_group('test-rg', 'eastus', tags)
+    
+    mock_run.assert_called_once()
+    actual_cmd = mock_run.call_args[0][0]
+    # Numeric values should be converted to strings
+    assert 'cost-center="12345"' in actual_cmd
+    assert 'version="1.0"' in actual_cmd
+
+
+# ------------------------------
+#    create_bicep_deployment_group
+# ------------------------------
+
+def test_create_bicep_deployment_group_with_enum(monkeypatch):
+    """Test create_bicep_deployment_group with INFRASTRUCTURE enum."""
+    mock_create_rg = MagicMock()
+    monkeypatch.setattr(utils, 'create_resource_group', mock_create_rg)
+    mock_run = MagicMock(return_value=MagicMock(success=True))
+    monkeypatch.setattr(utils, 'run', mock_run)
+    mock_open_func = mock_open()
+    monkeypatch.setattr(builtins, 'open', mock_open_func)
+    monkeypatch.setattr(builtins, 'print', MagicMock())
+    
+    bicep_params = {'param1': {'value': 'test'}}
+    rg_tags = {'infrastructure': 'simple-apim'}
+    
+    result = utils.create_bicep_deployment_group(
+        'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, bicep_params, 'params.json', rg_tags
+    )
+    
+    # Verify create_resource_group was called with correct parameters
+    mock_create_rg.assert_called_once_with('test-rg', 'eastus', rg_tags)
+    
+    # Verify deployment command was called with enum value
+    mock_run.assert_called_once()
+    actual_cmd = mock_run.call_args[0][0]
+    assert 'az deployment group create' in actual_cmd
+    assert '--name simple-apim' in actual_cmd
+    assert '--resource-group test-rg' in actual_cmd
+
+def test_create_bicep_deployment_group_with_string(monkeypatch):
+    """Test create_bicep_deployment_group with string deployment name."""
+    mock_create_rg = MagicMock()
+    monkeypatch.setattr(utils, 'create_resource_group', mock_create_rg)
+    mock_run = MagicMock(return_value=MagicMock(success=True))
+    monkeypatch.setattr(utils, 'run', mock_run)
+    mock_open_func = mock_open()
+    monkeypatch.setattr(builtins, 'open', mock_open_func)
+    monkeypatch.setattr(builtins, 'print', MagicMock())
+    
+    bicep_params = {'param1': {'value': 'test'}}
+    
+    result = utils.create_bicep_deployment_group(
+        'test-rg', 'eastus', 'custom-deployment', bicep_params
+    )
+    
+    # Verify create_resource_group was called without tags
+    mock_create_rg.assert_called_once_with('test-rg', 'eastus', None)
+    
+    # Verify deployment command uses string deployment name
+    mock_run.assert_called_once()
+    actual_cmd = mock_run.call_args[0][0]
+    assert '--name custom-deployment' in actual_cmd
+
+def test_create_bicep_deployment_group_params_file_written(monkeypatch):
+    """Test that bicep parameters are correctly written to file."""
+    mock_create_rg = MagicMock()
+    monkeypatch.setattr(utils, 'create_resource_group', mock_create_rg)
+    mock_run = MagicMock(return_value=MagicMock(success=True))
+    monkeypatch.setattr(utils, 'run', mock_run)
+    mock_open_func = mock_open()
+    monkeypatch.setattr(builtins, 'open', mock_open_func)
+    monkeypatch.setattr(builtins, 'print', MagicMock())
+    
+    bicep_params = {
+        'apiManagementName': {'value': 'test-apim'},
+        'location': {'value': 'eastus'}
+    }
+    
+    utils.create_bicep_deployment_group(
+        'test-rg', 'eastus', INFRASTRUCTURE.APIM_ACA, bicep_params, 'custom-params.json'
+    )
+    
+    # Verify file was opened for writing
+    mock_open_func.assert_called_once_with('custom-params.json', 'w')
+    
+    # Verify the correct JSON structure was written
+    written_content = ''.join(call.args[0] for call in mock_open_func().write.call_args_list)
+    import json
+    written_data = json.loads(written_content)
+    
+    assert written_data['$schema'] == "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#"
+    assert written_data['contentVersion'] == "1.0.0.0"
+    assert written_data['parameters'] == bicep_params
+
+def test_create_bicep_deployment_group_no_tags(monkeypatch):
+    """Test create_bicep_deployment_group without tags."""
+    mock_create_rg = MagicMock()
+    monkeypatch.setattr(utils, 'create_resource_group', mock_create_rg)
+    mock_run = MagicMock(return_value=MagicMock(success=True))
+    monkeypatch.setattr(utils, 'run', mock_run)
+    mock_open_func = mock_open()
+    monkeypatch.setattr(builtins, 'open', mock_open_func)
+    monkeypatch.setattr(builtins, 'print', MagicMock())
+    
+    bicep_params = {'param1': {'value': 'test'}}
+    
+    utils.create_bicep_deployment_group('test-rg', 'eastus', 'test-deployment', bicep_params)
+    
+    # Verify create_resource_group was called with None tags
+    mock_create_rg.assert_called_once_with('test-rg', 'eastus', None)
+
+def test_create_bicep_deployment_group_deployment_failure(monkeypatch):
+    """Test create_bicep_deployment_group when deployment fails."""
+    mock_create_rg = MagicMock()
+    monkeypatch.setattr(utils, 'create_resource_group', mock_create_rg)
+    mock_run = MagicMock(return_value=MagicMock(success=False))
+    monkeypatch.setattr(utils, 'run', mock_run)
+    mock_open_func = mock_open()
+    monkeypatch.setattr(builtins, 'open', mock_open_func)
+    monkeypatch.setattr(builtins, 'print', MagicMock())
+    
+    bicep_params = {'param1': {'value': 'test'}}
+    
+    result = utils.create_bicep_deployment_group('test-rg', 'eastus', 'test-deployment', bicep_params)
+    
+    # Should still create resource group
+    mock_create_rg.assert_called_once()
+    
+    # Result should indicate failure
+    assert result.success is False
