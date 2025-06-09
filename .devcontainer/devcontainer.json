@@ -62,7 +62,8 @@
   "containerEnv": {
     "PYTHONPATH": "/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples"
   },
-  "postCreateCommand": "bash .devcontainer/setup.sh",
+  "onCreateCommand": "bash .devcontainer/setup-prebuild.sh",
+  "postStartCommand": "bash .devcontainer/post-start.sh",
   "forwardPorts": [
     8000,
     8080,

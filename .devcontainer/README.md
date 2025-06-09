@@ -4,13 +4,28 @@ This directory contains the GitHub Dev Container configuration for the APIM Samp
 
 ## 🚀 Quick Start
 
-### Using GitHub Codespaces
+### Using GitHub Codespaces (Recommended)
+
+This repository is optimized for GitHub Codespaces prebuilds, which significantly reduces startup time:
 
 1. Navigate to the repository on GitHub
 2. Click the green "Code" button
 3. Select "Codespaces" tab
 4. Click "Create codespace on main"
-5. Wait for the environment to build and initialize
+5. The prebuild will provide a fast startup experience
+6. Run the interactive Azure CLI configuration when prompted
+
+### Prebuild Optimization
+
+The dev container is configured with the following optimization strategy:
+
+- **`onCreateCommand`**: Runs during prebuild creation, installing packages, dependencies, and setting up the environment
+- **`postStartCommand`**: Runs when starting a codespace from prebuild, handling only interactive configuration and verification
+
+This approach ensures:
+- Fast codespace creation (leverages prebuild)
+- Minimal setup time on codespace start
+- Interactive Azure CLI configuration when needed
 
 ### Using VS Code Dev Containers
 
