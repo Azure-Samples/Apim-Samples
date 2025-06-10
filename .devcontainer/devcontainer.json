@@ -74,6 +74,7 @@
   "containerEnv": {
     "PYTHONPATH": "/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples"
   },
+  "onCreateCommand": "python setup/setup_python_path.py --generate-env",
   "postStartCommand": "bash .devcontainer/post-start-setup.sh",
   "forwardPorts": [
     8000,

@@ -25,14 +25,36 @@ echo ""
 #    ENVIRONMENT SETUP
 # ------------------------------
 
-echo -e "1/8) Setting up Python environment...\n"
+echo -e "1/8) Checking Python environment setup...\n"
+
+# Debug: List all Python installations
+echo "   🔍 Available Python installations:"
+find /usr -name "python*" -type f 2>/dev/null | grep -E "(python|python3)" | head -10 | sed 's/^/      /'
+
+# Debug: Check virtual environment
+echo ""
+echo "   🔍 Virtual environment check:"
+if [ -d "$VENV_PATH" ]; then
+    echo "      ✅ Virtual environment directory exists at $VENV_PATH"
+    ls -la "$VENV_PATH" | head -5 | sed 's/^/         /'
+    if [ -f "$VENV_PATH/bin/python" ]; then
+        echo "      ✅ Python executable found: $($VENV_PATH/bin/python --version)"
+    else
+        echo "      ❌ Python executable not found at $VENV_PATH/bin/python"
+    fi
+else
+    echo "      ❌ Virtual environment directory not found at $VENV_PATH"
+    echo "      📂 Contents of /home/vscode/:"
+    ls -la /home/vscode/ | sed 's/^/         /'
+    exit 1
+fi
 
 # Ensure virtual environment is activated
 if [ -f "$VENV_PATH/bin/activate" ]; then
     source "$VENV_PATH/bin/activate"
-    echo "✅ Virtual environment activated."
+    echo "      ✅ Virtual environment activated."
 else
-    echo "❌ Virtual environment not found at $VENV_PATH."
+    echo "      ❌ Virtual environment activation script not found."
     exit 1
 fi
 
