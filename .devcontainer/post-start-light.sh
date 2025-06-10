@@ -14,10 +14,7 @@ echo ""
 
 echo "🔧 Running minimal post-start configuration..."
 
-# Set up Python path configuration (lightweight)
-if [ -f "setup/setup_python_path.py" ]; then
-    python setup/setup_python_path.py --generate-env || echo "⚠️ Python path setup skipped"
-fi
+
 
 # Configure Azure CLI (quick)
 echo "☁️ Configuring Azure CLI..."
@@ -28,13 +25,9 @@ echo "📥 Checking Azure CLI extensions..."
 az extension add --name containerapp --only-show-errors 2>/dev/null || true
 az extension add --name front-door --only-show-errors 2>/dev/null || true
 
-# Set up Jupyter kernel if needed
-echo "📓 Ensuring Jupyter kernel is available..."
-python -m ipykernel install --user --name=apim-samples --display-name="APIM Samples Python" 2>/dev/null || echo "⚠️ Jupyter kernel already configured"
 
-# Ensure VS Code recognizes the Python interpreter
-echo "🐍 Configuring Python interpreter for VS Code..."
-python .devcontainer/configure-python-interpreter.py
+
+
 
 # Create workspace settings if they don't exist
 echo "🛠️ Ensuring workspace configuration..."
