@@ -1,6 +1,8 @@
+# https://github.com/devcontainers/images/tree/main/src/python
+
 # syntax=docker/dockerfile:1.4
 
-# Build stage for dependencies
+# BUILD stage for dependencies - use MAJOR semantic image (1) with Python 3.12
 FROM mcr.microsoft.com/devcontainers/python:1-3.12-bookworm AS builder
 
 # Set build arguments for flexibility
@@ -21,6 +23,10 @@ USER vscode
 # Create virtual environment with optimized settings
 RUN python3 -m venv $VIRTUAL_ENV --copies
 
+# # Ensure pip is at latest version in virtual environment
+# RUN . $VIRTUAL_ENV/bin/activate && \
+#     python -m pip install --upgrade pip setuptools wheel
+
 # Copy only requirements.txt first for better Docker layer caching
 COPY --chown=vscode:vscode requirements.txt /tmp/requirements.txt
 
@@ -28,13 +34,15 @@ COPY --chown=vscode:vscode requirements.txt /tmp/requirements.txt
 RUN --mount=type=cache,target=/home/vscode/.cache/pip,uid=1000,gid=1000 \
     set -ex && \
     . $VIRTUAL_ENV/bin/activate && \
-    pip install --upgrade pip setuptools wheel && \
     pip install --compile -r /tmp/requirements.txt && \
     pip install --compile pytest pytest-cov coverage ipykernel && \
     python -m ipykernel install --user --name=apim-samples --display-name="APIM Samples Python" && \
-    pip list --format=freeze > /tmp/installed-packages.txt
+    pip list --format=freeze > /tmp/installed-packages.txt && \
+    echo "✅ Pip version: $(pip --version)" > /tmp/pip-version.txt
 
-# Production stage
+###################################################################################################
+
+# PRODUCTION stage - use MAJOR semantic image (1) with Python 3.12
 FROM mcr.microsoft.com/devcontainers/python:1-3.12-bookworm AS production
 
 # Set build arguments for flexibility
@@ -55,16 +63,11 @@ ENV PYTHONUNBUFFERED=1 \
 USER root
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt/lists \
-    apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    wget \
-    jq \
-    tree \
-    git-lfs \
-    vim \
-    nano \
-    htop \
-    && apt-get clean
+    apt-get update && \ 
+    apt-get install -y --no-install-recommends curl wget jq tree git-lfs vim nano htop && \
+    apt-get clean && \
+    # Ensure latest pip is installed
+    python3 -m pip install --upgrade pip setuptools wheel
 
 # Copy the virtual environment from builder stage
 COPY --from=builder --chown=vscode:vscode ${VIRTUAL_ENV_PATH} ${VIRTUAL_ENV_PATH}
@@ -72,11 +75,20 @@ COPY --from=builder --chown=vscode:vscode ${VIRTUAL_ENV_PATH} ${VIRTUAL_ENV_PATH
 # Copy Jupyter kernel config from builder
 COPY --from=builder --chown=vscode:vscode /home/vscode/.local /home/vscode/.local
 
+# Copy pip version info from builder
+COPY --from=builder /tmp/pip-version.txt /tmp/pip-version.txt
+
 # Switch to vscode user for all remaining operations
 USER vscode
 
-# Configure shell environment with optimizations
+# Verify pip installation and display version info
 RUN set -ex && \
+    . $VIRTUAL_ENV/bin/activate && \
+    pip --version && \
+    python -c "import pip; print(f'✅ Pip version: {pip.__version__}')" && \
+    cat /tmp/pip-version.txt && \
+    # Configure shell environment with optimizations
+    set -ex && \
     echo "# Virtual environment auto-activation" >> ~/.bashrc && \
     echo "export VIRTUAL_ENV=${VIRTUAL_ENV}" >> ~/.bashrc && \
     echo "export PATH=\"\${VIRTUAL_ENV}/bin:\$PATH\"" >> ~/.bashrc && \
@@ -84,10 +96,9 @@ RUN set -ex && \
     echo "# Virtual environment auto-activation" >> ~/.zshrc && \
     echo "export VIRTUAL_ENV=${VIRTUAL_ENV}" >> ~/.zshrc && \
     echo "export PATH=\"\${VIRTUAL_ENV}/bin:\$PATH\"" >> ~/.zshrc && \
-    echo "source \${VIRTUAL_ENV}/bin/activate" >> ~/.zshrc
-
-# Create helpful aliases and functions
-RUN set -ex && \
+    echo "source \${VIRTUAL_ENV}/bin/activate" >> ~/.zshrc && \
+    # Create helpful aliases and functions
+    set -ex && \
     echo "# APIM Samples helpful aliases" >> ~/.bashrc && \
     echo "alias ll='ls -alF'" >> ~/.bashrc && \
     echo "alias la='ls -A'" >> ~/.bashrc && \
@@ -101,7 +112,7 @@ WORKDIR /workspaces/Apim-Samples
 
 # Add health check for the virtual environment
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import sys; print(f'Python {sys.version}'); import requests, jwt; print('Core packages OK')" || exit 1
+    CMD python -c "import sys, pip; print(f'Python {sys.version}'); print(f'Pip {pip.__version__}'); import requests, jwt; print('Core packages OK')" || exit 1
 
 # Add labels for better maintainability
 LABEL maintainer="APIM Samples Team" \
