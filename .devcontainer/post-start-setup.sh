@@ -25,19 +25,19 @@ echo ""
 #    ENVIRONMENT SETUP
 # ------------------------------
 
-echo -e "1) Setting up Python environment...\n"
+echo -e "1/8) Setting up Python environment...\n"
 
 # Ensure virtual environment is activated
 if [ -f "$VENV_PATH/bin/activate" ]; then
     source "$VENV_PATH/bin/activate"
-    echo "✅ Virtual environment activated"
+    echo "✅ Virtual environment activated."
 else
-    echo "❌ Virtual environment not found at $VENV_PATH"
+    echo "❌ Virtual environment not found at $VENV_PATH."
     exit 1
 fi
 
 # Generate .env file using the setup script
-echo -e "\n2) Generating .env file...\n"
+echo -e "\n2/8) Generating .env file..."
 
 cd "$WORKSPACE_ROOT"
 python setup/setup_python_path.py --generate-env
@@ -45,8 +45,8 @@ python setup/setup_python_path.py --generate-env
 # Verify .env file was created
 if [ -f "$WORKSPACE_ROOT/.env" ]; then
     echo "✅ .env file created successfully"
-    echo "   Contents:"
-    cat "$WORKSPACE_ROOT/.env" | sed 's/^/   /'
+    # echo "   Contents:"
+    # cat "$WORKSPACE_ROOT/.env" | sed 's/^/   /'
 else
     echo "❌ Failed to create .env file"
 fi
@@ -55,21 +55,22 @@ fi
 #    AZURE CLI SETUP
 # ------------------------------
 
-echo -e "\n3) Configuring Azure CLI...\n"
+echo -e "\n3/8) Configuring Azure CLI...\n"
 
 az config set core.login_experience_v2=off 2>/dev/null || true
 
 # Install Azure CLI extensions if not already present
-echo -e "4) Installing Azure CLI extensions...\n"
-
+echo -e "4/8) Installing Azure CLI extensions...\n"
+echo -e "     1/2) containerapp ..."
 az extension add --name containerapp --only-show-errors 2>/dev/null || true
+echo -e "     2/2) front-door ..."
 az extension add --name front-door --only-show-errors 2>/dev/null || true
 
 # ------------------------------
 #    WORKSPACE CONFIGURATION
 # ------------------------------
 
-echo -e "5) Configuring workspace settings...\n"
+echo -e "\n5/8) Configuring workspace settings...\n"
 
 mkdir -p .vscode
 
@@ -88,23 +89,23 @@ if [ ! -f ".vscode/settings.json" ]; then
   ]
 }
 EOF
-    echo "✅ Created .vscode/settings.json"
+    echo "✅ Created .vscode/settings.json."
 else
-    echo "✅ .vscode/settings.json already exists"
+    echo "✅ .vscode/settings.json already exists."
 fi
 
 # ------------------------------
 #    VERIFICATION
 # ------------------------------
 
-echo -e "\n6) Verifying environment...\n"
+echo -e "\n6/8) Verifying environment...\n"
 
-echo "Python version: $(python --version)"
-echo "Virtual environment: $VIRTUAL_ENV"
-echo "Python location: $(which python)"
-echo "Packages available: $(pip list | wc -l) packages"
+echo "Python version      : $(python --version)"
+echo "Virtual environment : $VIRTUAL_ENV"
+echo "Python location     : $(which python)"
+echo "Packages available  : $(pip list | wc -l) packages"
 
-echo -e "\n7) Testing core packages...\n"
+echo -e "\n7/8) Testing core packages...\n"
 
 python -c "
 import sys
@@ -129,22 +130,24 @@ except ImportError as e:
     print(f'❌ Jupyter packages: {e}')
 "
 
-echo -e "\n8) Azure CLI version: $(az --version | head -1)\n"
+echo -e "\n8/8) Azure CLI version (2.72.0 is expected - do not upgrade)\n"
+echo -e "$(az --version | head -1)\n"
 
 # ------------------------------
 #    COMPLETION
 # ------------------------------
 
+echo -e "\n---------------------------------------------------\n"
 echo "🎉 Environment setup complete!"
 echo ""
 echo "📋 Quick start:"
 echo "  • Single virtual environment at: $VENV_PATH"
-echo "  • All packages are pre-installed and verified"
+echo "  • All packages are pre-installed and verified."
 echo "  • .env file configured with proper PYTHONPATH"
-echo "  • VS Code Python extension configured"
-echo "  • Ready to run notebooks and scripts immediately"
+echo "  • VS Code Python extension configured."
+echo "  • Ready to run notebooks and scripts immediately."
 echo ""
-echo "💡 To verify your Azure setup:"
+echo "💡 NEXT STEPS: To verify your Azure setup:"
 echo "  1. Run      : az login"
 echo "  2. Execute  : shared/jupyter/verify-az-account.ipynb"
-echo ""
+echo -e "\n\n"

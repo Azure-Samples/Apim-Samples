@@ -107,9 +107,8 @@ PYTHONPATH={shared_python_path}
     print(f"Generated .env file : {env_file_path}")
     print(f"PROJECT_ROOT        : {project_root}")
     print(f"PYTHONPATH          : {shared_python_path}\n")
-    print("All done!\n")
-
-
+    
+    
 # Script entry point - handles command-line arguments
 if __name__ == "__main__":
     # Check for --generate-env flag to create .env file for VS Code
