@@ -5,32 +5,25 @@
 # ------------------------------
 
 echo ""
-echo "🚀 APIM Samples environment starting..."
-echo ""
+echo -e "🚀 APIM Samples environment starting...\n"
 
 # ------------------------------
 #    MINIMAL SETUP TASKS
 # ------------------------------
 
-echo "🔧 Running minimal post-start configuration..."
-
-
+echo -e "Running minimal post-start configuration...\n"
 
 # Configure Azure CLI (quick)
-echo "☁️ Configuring Azure CLI..."
+echo -e "1) Configuring Azure CLI...\n"
 az config set core.login_experience_v2=off 2>/dev/null || true
 
 # Install Azure CLI extensions if not already present
-echo "📥 Checking Azure CLI extensions..."
+echo -e "2) Checking Azure CLI extensions...\n"
 az extension add --name containerapp --only-show-errors 2>/dev/null || true
 az extension add --name front-door --only-show-errors 2>/dev/null || true
 
-
-
-
-
 # Create workspace settings if they don't exist
-echo "🛠️ Ensuring workspace configuration..."
+echo "3) Ensuring workspace configuration..."
 mkdir -p .vscode
 
 if [ ! -f ".vscode/settings.json" ]; then
@@ -60,18 +53,18 @@ fi
 # ------------------------------
 
 echo ""
-echo "✅ Verifying environment..."
+echo -e "4) Verifying environment...\n"
 echo "Python version: $(python --version)"
 echo "Virtual environment: $VIRTUAL_ENV"
 echo "Python location: $(which python)"
 echo "Packages available: $(pip list | wc -l) packages"
 
 echo ""
-echo "✅ Quick package verification..."
+echo -e "5) Quick package verification...\n"
 python -c "import requests, jwt, pandas, matplotlib; print('✅ Core packages ready')" || echo "⚠️ Some packages may need attention"
 
 echo ""
-echo "✅ Azure CLI version: $(az --version | head -1)"
+echo -e "6) Azure CLI version: $(az --version | head -1)\n"
 
 echo ""
 echo "🎉 Environment ready for development!"
