@@ -122,7 +122,7 @@ def check_jupyter_kernel():
 
 def check_azure_cli():
     """Check Azure CLI installation and extensions."""
-    print("\n☁️ Checking Azure CLI...")
+    print("\n☁️  Checking Azure CLI...")
     try:
         # Check Azure CLI
         result = subprocess.run(['az', '--version'], 
@@ -166,16 +166,16 @@ def main():
     print("\n" + "="*50)
     
     if all(checks):        
-        print("🎉 All checks passed! Your dev container is ready to use.")
-        print("\n📋 Next steps:\n")
-        print("1. Configure Azure CLI: python .devcontainer/configure-azure-mount.py")
-        print("2. Or manually sign in with tenant-specific login:")
-        print("   az login --tenant <your-tenant-id-or-domain>")
-        print("   az account set --subscription <your-subscription-id-or-name>")
-        print("   az account show  # Verify your context")
-        print("3. Execute shared/jupyter/verify-az-account.ipynb")
-        print("4. If prompted, initialize the kernel according to the `Initialization` steps in the root README.md file")
-        print("5. Explore the samples and infrastructure folders\n")
+        # print("🎉 All checks passed! Your dev container is ready to use.")
+        # print("\n📋 Next steps:\n")
+        # print("1. Configure Azure CLI: python .devcontainer/configure-azure-mount.py")
+        # print("2. Or manually sign in with tenant-specific login:")
+        # print("   az login --tenant <your-tenant-id-or-domain>")
+        # print("   az account set --subscription <your-subscription-id-or-name>")
+        # print("   az account show  # Verify your context")
+        # print("3. Execute shared/jupyter/verify-az-account.ipynb")
+        # print("4. If prompted, initialize the kernel according to the `Initialization` steps in the root README.md file")
+        # print("5. Explore the samples and infrastructure folders\n")
         return 0
     else:
         print("❌ Some checks failed. Please review the output above.")
