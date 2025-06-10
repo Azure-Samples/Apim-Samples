@@ -1,12 +1,12 @@
 {
-  "name": "APIM Samples Development Environment",
+  "name": "APIM Samples",
   "build": {
     "dockerfile": "Dockerfile",
     "context": ".."
   },
   "features": {
     "ghcr.io/devcontainers/features/azure-cli:1": {
-      "version": "latest"
+      "version": "2.72.0"
     },
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": true,
