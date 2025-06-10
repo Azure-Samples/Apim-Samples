@@ -36,7 +36,6 @@ RUN --mount=type=cache,target=/home/vscode/.cache/pip,uid=1000,gid=1000 \
     . $VIRTUAL_ENV/bin/activate && \
     pip install --compile -r /tmp/requirements.txt && \
     pip install --compile pytest pytest-cov coverage ipykernel && \
-    python -m ipykernel install --user --name=apim-samples --display-name="APIM Samples Python" && \
     pip list --format=freeze > /tmp/installed-packages.txt && \
     echo "✅ Pip version: $(pip --version)" > /tmp/pip-version.txt
 
@@ -71,9 +70,6 @@ RUN --mount=type=cache,target=/var/cache/apt \
 
 # Copy the virtual environment from builder stage
 COPY --from=builder --chown=vscode:vscode ${VIRTUAL_ENV_PATH} ${VIRTUAL_ENV_PATH}
-
-# Copy Jupyter kernel config from builder
-COPY --from=builder --chown=vscode:vscode /home/vscode/.local /home/vscode/.local
 
 # Copy pip version info from builder
 COPY --from=builder /tmp/pip-version.txt /tmp/pip-version.txt

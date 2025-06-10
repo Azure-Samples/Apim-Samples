@@ -64,7 +64,6 @@
         "python.testing.pytestPath": "/home/vscode/.venv/bin/pytest",
         "jupyter.askForKernelRestart": false,
         "jupyter.interactiveWindow.textEditor.executeSelection": true,
-        "jupyter.defaultKernel": "apim-samples",
         "jupyter.notebookFileRoot": "${workspaceFolder}",
         "files.associations": {
           "*.bicep": "bicep"
@@ -75,7 +74,7 @@
   "containerEnv": {
     "PYTHONPATH": "/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples"
   },
-  "postStartCommand": "bash .devcontainer/post-start-light.sh",
+  "postStartCommand": "bash .devcontainer/post-start-setup.sh",
   "forwardPorts": [
     8000,
     8080,

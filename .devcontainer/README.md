@@ -50,7 +50,7 @@ This approach ensures:
 - **YAML & JSON** - Configuration file support
 
 ### Python Packages
-All packages from `requirements.txt` are pre-installed:
+All packages from `requirements.txt` are pre-installed in a single virtual environment:
 - `requests` - HTTP library
 - `pandas` - Data manipulation
 - `matplotlib` - Data visualization
@@ -60,33 +60,27 @@ All packages from `requirements.txt` are pre-installed:
 - `jupyter`, `ipykernel`, `notebook` - Jupyter notebook support
 
 ### Environment Configuration
-- **PYTHONPATH** - Automatically configured to include shared Python modules
-- **Jupyter Kernel** - Custom kernel named "APIM Samples Python"
-- **Azure CLI** - Installed and ready for authentication (requires tenant-specific `az login` inside container)
+- **Single Virtual Environment** - Located at `/home/vscode/.venv`
+- **Automatic .env File** - Generated with proper PYTHONPATH configuration
+- **VS Code Integration** - Python interpreter automatically configured
+- **Azure CLI** - Installed and ready for authentication
 - **Port Forwarding** - Common development ports (3000, 5000, 8000, 8080) pre-configured
 
 ## 🔧 Post-Setup Steps
 
-The dev container automatically handles most setup during initialization. During the first build, you'll be prompted to configure Azure CLI authentication.
+The dev container automatically handles all setup during initialization. The environment is ready to use immediately after the container starts.
 
-### Automated Interactive Setup (During First Build)
-When the container starts for the first time, the setup script will automatically:
-1. **Install all dependencies** (Python packages, Azure CLI extensions)
-2. **Configure Jupyter environment** with custom kernel
-3. **Prompt for Azure CLI configuration**:
-   - Mount local Azure config (preserves login between rebuilds)
-   - Use manual login (run tenant-specific `az login` each time)
-   - Configure manually later
+### Automated Setup (Every Container Start)
+When the container starts, the setup script will automatically:
+1. **Activate the virtual environment** (single environment only)
+2. **Generate .env file** with proper PYTHONPATH configuration
+3. **Install Azure CLI extensions** (containerapp, front-door)
+4. **Verify all packages** are correctly installed
+5. **Configure VS Code workspace** settings
 
-### Manual Configuration (If Needed Later)
-If you skipped the initial configuration or want to change it:
+### Manual Azure Login (When Needed)
+To use Azure resources, you'll need to authenticate:
 
-**Interactive Setup**:
-```bash
-python .devcontainer/configure-azure-mount.py
-```
-
-**Manual Azure Login**:
 ```bash
 # Log in to your specific tenant
 az login --tenant <your-tenant-id-or-domain>
