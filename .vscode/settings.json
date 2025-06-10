@@ -14,9 +14,13 @@
     "python.analysis.extraPaths": [
         "${workspaceFolder}/shared/python"
     ],
-    "python.defaultInterpreterPath": "./.venv/Scripts/python.exe",
+    "python.defaultInterpreterPath": "/home/vscode/.venv/bin/python",
+    "python.pythonPath": "/home/vscode/.venv/bin/python",
     "python.envFile": "${workspaceFolder}/.env",
     "python.terminal.activateEnvironment": true,
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    "jupyter.defaultKernel": "apim-samples",
+    "jupyter.askForKernelRestart": false,
     "terminal.integrated.env.windows": {
         "PATH": "${env:PATH}"
     },

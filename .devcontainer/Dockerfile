@@ -1,5 +1,41 @@
-# Use the modern Python dev container with latest Debian
-FROM mcr.microsoft.com/devcontainers/python:1-3.12-bookworm
+# syntax=docker/dockerfile:1.4
+
+# Build stage for dependencies
+FROM mcr.microsoft.com/devcontainers/python:1-3.12-bookworm AS builder
+
+# Set build arguments for flexibility
+ARG VIRTUAL_ENV_PATH=/home/vscode/.venv
+ARG PYTHON_VERSION=3.12
+
+# Set environment variables early for better caching
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    VIRTUAL_ENV=${VIRTUAL_ENV_PATH} \
+    PATH="${VIRTUAL_ENV_PATH}/bin:$PATH"
+
+# Switch to vscode user for build
+USER vscode
+
+# Create virtual environment with optimized settings
+RUN python3 -m venv $VIRTUAL_ENV --copies
+
+# Copy only requirements.txt first for better Docker layer caching
+COPY --chown=vscode:vscode requirements.txt /tmp/requirements.txt
+
+# Install Python packages with mount cache for pip
+RUN --mount=type=cache,target=/home/vscode/.cache/pip,uid=1000,gid=1000 \
+    set -ex && \
+    . $VIRTUAL_ENV/bin/activate && \
+    pip install --upgrade pip setuptools wheel && \
+    pip install --compile -r /tmp/requirements.txt && \
+    pip install --compile pytest pytest-cov coverage ipykernel && \
+    python -m ipykernel install --user --name=apim-samples --display-name="APIM Samples Python" && \
+    pip list --format=freeze > /tmp/installed-packages.txt
+
+# Production stage
+FROM mcr.microsoft.com/devcontainers/python:1-3.12-bookworm AS production
 
 # Set build arguments for flexibility
 ARG VIRTUAL_ENV_PATH=/home/vscode/.venv
@@ -12,36 +48,32 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONPATH=/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples \
     VIRTUAL_ENV=${VIRTUAL_ENV_PATH} \
-    PATH="${VIRTUAL_ENV_PATH}/bin:$PATH"
+    PATH="${VIRTUAL_ENV_PATH}/bin:$PATH" \
+    DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies as root (better caching)
+# Install system dependencies as root with mount cache
 USER root
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN --mount=type=cache,target=/var/cache/apt \
+    --mount=type=cache,target=/var/lib/apt/lists \
+    apt-get update && apt-get install -y --no-install-recommends \
     curl \
     wget \
     jq \
     tree \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    git-lfs \
+    vim \
+    nano \
+    htop \
+    && apt-get clean
 
-# Switch to vscode user for all Python operations
+# Copy the virtual environment from builder stage
+COPY --from=builder --chown=vscode:vscode ${VIRTUAL_ENV_PATH} ${VIRTUAL_ENV_PATH}
+
+# Copy Jupyter kernel config from builder
+COPY --from=builder --chown=vscode:vscode /home/vscode/.local /home/vscode/.local
+
+# Switch to vscode user for all remaining operations
 USER vscode
-
-# Create virtual environment with optimized settings
-RUN python3 -m venv $VIRTUAL_ENV --copies
-
-# Copy only requirements.txt first for better Docker layer caching
-COPY --chown=vscode:vscode requirements.txt /tmp/requirements.txt
-
-# Install Python packages with optimizations
-RUN set -ex && \
-    . $VIRTUAL_ENV/bin/activate && \
-    pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir --compile -r /tmp/requirements.txt && \
-    pip install --no-cache-dir --compile pytest pytest-cov coverage ipykernel && \
-    python -m ipykernel install --user --name=apim-samples --display-name="APIM Samples Python" && \
-    pip list --format=freeze > /tmp/installed-packages.txt && \
-    rm /tmp/requirements.txt
 
 # Configure shell environment with optimizations
 RUN set -ex && \

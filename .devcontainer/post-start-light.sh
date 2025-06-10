@@ -32,6 +32,10 @@ az extension add --name front-door --only-show-errors 2>/dev/null || true
 echo "📓 Ensuring Jupyter kernel is available..."
 python -m ipykernel install --user --name=apim-samples --display-name="APIM Samples Python" 2>/dev/null || echo "⚠️ Jupyter kernel already configured"
 
+# Ensure VS Code recognizes the Python interpreter
+echo "🐍 Configuring Python interpreter for VS Code..."
+python .devcontainer/configure-python-interpreter.py
+
 # Create workspace settings if they don't exist
 echo "🛠️ Ensuring workspace configuration..."
 mkdir -p .vscode
