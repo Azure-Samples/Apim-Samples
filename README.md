@@ -64,11 +64,6 @@ If you're using the dev container (GitHub Codespaces or VS Code Dev Containers):
    - Verify your authentication context: `az account show`
 5. Verify your Azure setup by executing [shared/jupyter/verify-az-account.ipynb](shared/jupyter/verify-az-account.ipynb)
 
-**Note**: If you need to reconfigure Azure CLI authentication later, run:
-```bash
-python .devcontainer/configure-azure-mount.py
-```
-
 #### Manual Local Setup
 
 If you're setting up locally without the dev container:

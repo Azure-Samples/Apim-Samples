@@ -6,6 +6,14 @@
 
 start=$(date +%s.%N)
 
+# Make terminal output more prominent
+clear
+echo "============================================================================"
+echo "                       🚀 APIM SAMPLES CODESPACE SETUP                    "
+echo "============================================================================"
+echo ""
+echo "🔧 This terminal shows the Codespace setup progress."
+echo "📋 Keep this panel open to monitor the environment configuration."
 echo ""
 echo -e "🚀 APIM Samples environment starting...\n"
 
@@ -138,6 +146,25 @@ except ImportError as e:
 end=$(date +%s.%N)
 duration=$(python3 -c "print(f'{float('$end') - float('$start'):.2f}')")
 
-echo -e "\n🎉 Environment ready!"
-printf "⏱️  Total setup time: %s seconds\n" "$duration"
-echo "💡 All requirements are ready to use for virtual environment $VENV_PATH.\n\n"
+echo ""
+echo "============================================================================"
+echo "                          🎉 SETUP COMPLETED!                             "
+echo "============================================================================"
+echo ""
+printf "⏱️ Total setup time: %s seconds\n" "$duration"
+echo "💡 All requirements are ready to use for virtual environment $VENV_PATH"
+echo ""
+echo "🔍 This terminal shows your Codespace setup progress and logs."
+echo "📋 You can minimize this panel or open a new terminal for your work."
+echo ""
+echo "🚀 Your APIM Samples environment is ready to use!"
+echo ""
+echo ""
+echo " NEXT STEPS:"
+echo " -----------"
+echo ""
+echo "   1. Log in via the Azure CLI: az login"
+echo "   2. Start using the infrastructures and samples!"
+echo ""
+echo "============================================================================"
+echo -e "\n\n\n"

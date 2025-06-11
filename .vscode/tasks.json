@@ -2,6 +2,26 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Show Terminal on Startup",
+            "type": "shell",
+            "command": "echo",
+            "args": ["Terminal panel is now visible for Codespace setup progress"],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "new",
+                "showReuseMessage": false,
+                "clear": false
+            },
+            "problemMatcher": [],
+            "detail": "Opens terminal panel automatically during startup",
+            "runOptions": {
+                "runOn": "folderOpen"
+            }
+        },
+        {
             "label": "Setup Python Environment",
             "type": "shell",
             "command": "${config:python.pythonPath}",

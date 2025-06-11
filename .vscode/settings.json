@@ -44,6 +44,19 @@
     "terminal.integrated.env.windows": {
         "PATH": "${env:PATH}"
     },
+    
+    // Auto-show terminal during Codespace startup
+    "terminal.integrated.showExitAlert": false,
+    "terminal.integrated.focusAfterRun": "terminal",
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "workbench.panel.defaultLocation": "bottom",
+    "workbench.startupEditor": "none",
+    "workbench.panel.defaultPanelHeight": 350,
+    "workbench.view.alwaysShowHeaderActions": true,
+    "terminal.integrated.tabs.enabled": true,
+    "terminal.integrated.tabs.location": "left",
+    "workbench.editor.showTabs": "single",
+    
       // XML and APIM Policy Configuration - Conservative formatting to preserve policy expressions
     "xml.validation.enabled": false,
     "xml.validation.namespaces.enabled": "never",

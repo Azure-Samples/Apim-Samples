@@ -91,10 +91,17 @@
         // Auto-show terminal output during codespace startup
         "terminal.integrated.showExitAlert": false,
         "terminal.integrated.focusAfterRun": "terminal",
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.tabs.enabled": true,
         "workbench.panel.defaultLocation": "bottom",
         "workbench.panel.opensMaximized": "preserve",
         "workbench.startupEditor": "none",
-        "workbench.panel.defaultPanelHeight": 300,
+        "workbench.panel.defaultPanelHeight": 400,
+        "workbench.view.alwaysShowHeaderActions": true,
+        // Auto-open terminal panel on startup
+        "workbench.action.terminal.focus": true,
+        "workbench.action.togglePanel": true,
+        "terminal.integrated.defaultLocation": "view",
         // Auto-allow clipboard operations in Codespaces
         "security.workspace.trust.enabled": false,
         "editor.experimental.pasteActions.enabled": true,
@@ -105,10 +112,10 @@
   "containerEnv": {
     "PYTHONPATH": "/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples"
   },
-  // Container lifecycle commands for optimal Codespaces prebuild performance:
-  // 1. onCreateCommand: Runs during prebuild - creates venv
-  // 2. updateContentCommand: Runs when content changes - installs/updates packages
-  // 3. postStartCommand: Runs every startup - verifies and configures
+  // Container lifecycle commands for optimal Codespaces prebuild performance: https://containers.dev/implementors/features/#lifecycle-hooks
+  // 1. onCreateCommand: Runs only once during initial prebuild - creates venv
+  // 2. updateContentCommand: Runs during any prebuild when content changes - installs/updates packages
+  // 3. postStartCommand: Runs on every startup - verifies and configures
   "onCreateCommand": [
     "bash", "-c", 
     "echo '🚀 Creating Python virtual environment in workspace...' && /usr/local/bin/python3.12 -m venv /workspaces/Apim-Samples/.venv --copies && source /workspaces/Apim-Samples/.venv/bin/activate && pip install --upgrade pip setuptools wheel && echo '✅ Virtual environment created'"
@@ -119,7 +126,7 @@
   ],
   "postStartCommand": [
     "bash", "-c", 
-    "echo '🔧 Running post-start setup - terminal will remain visible...' && bash .devcontainer/post-start-setup.sh && echo '✅ Post-start setup completed! Check the terminal output above.'"
+    "echo '� APIM Samples Codespace Starting - Keep this terminal open to see progress!' && echo '============================================================' && bash .devcontainer/post-start-setup.sh && echo '============================================================' && echo '✅ Setup completed! This terminal will remain open for your reference.' && echo '💡 Tip: You can minimize this panel if needed, but the setup logs above show your environment status.' && sleep 2"
   ],
   "forwardPorts": [
     8000,
