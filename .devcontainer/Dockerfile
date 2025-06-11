@@ -36,6 +36,11 @@ RUN --mount=type=cache,target=/var/cache/apt \
 # Switch to vscode user
 USER vscode
 
+# Configure Azure CLI for Codespaces (prebuild optimization)
+RUN az config set core.login_experience_v2=off 2>/dev/null || true && \
+    az extension add --name containerapp --only-show-errors 2>/dev/null || true && \
+    az extension add --name front-door --only-show-errors 2>/dev/null || true
+
 # Configure shell to auto-activate virtual environment
 RUN echo "# Auto-activate APIM Samples virtual environment" >> ~/.bashrc && \
     echo "if [ -f /workspaces/Apim-Samples/.venv/bin/activate ]; then" >> ~/.bashrc && \
