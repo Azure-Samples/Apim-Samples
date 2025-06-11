@@ -70,10 +70,6 @@ fi
 echo -e "\n3/5) Configuring Azure CLI...\n"
 
 az config set core.login_experience_v2=off 2>/dev/null || true
-
-# Install extensions used by infrastructure samples
-# - containerapp: Required for infrastructure/apim-aca and infrastructure/afd-apim
-# - front-door: Required for infrastructure/afd-apim and shared/python/utils.py
 az extension add --name containerapp --only-show-errors 2>/dev/null || true
 az extension add --name front-door --only-show-errors 2>/dev/null || true
 echo "   ✅ Azure CLI configured"
