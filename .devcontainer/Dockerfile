@@ -93,7 +93,9 @@ RUN /usr/local/bin/python3.12 -m venv ${VIRTUAL_ENV_PATH} --copies && \
     which python && \
     # Ensure pip is up to date in virtual environment
     python -m pip install --upgrade pip setuptools wheel && \
-    pip --version# Configure shell environment with optimizations
+    pip --version
+
+# Configure shell environment with optimizations
 RUN echo "# Virtual environment auto-activation" >> ~/.bashrc && \
     echo "export VIRTUAL_ENV=${VIRTUAL_ENV_PATH}" >> ~/.bashrc && \
     echo "export PATH=\"\${VIRTUAL_ENV}/bin:\$PATH\"" >> ~/.bashrc && \
