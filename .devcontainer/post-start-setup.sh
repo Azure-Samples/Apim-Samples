@@ -45,8 +45,7 @@ else
     echo "   💡 Virtual environment should have been created during container setup"
     exit 1
 fi
-    echo "   ❌ Virtual environment not found in workspace or home directory"
-    echo "   🔍 Debug - checking available directories:"
+
 # ------------------------------
 #    GENERATE .ENV FILE
 # ------------------------------
