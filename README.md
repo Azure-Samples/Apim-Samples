@@ -27,7 +27,9 @@ The fastest way to get started is using our pre-configured development environme
 - **GitHub Codespaces**: Click the green "Code" button → "Codespaces" → "Create codespace on main"
 - **VS Code Dev Containers**: Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers), then "Reopen in Container"
 
-All prerequisites are automatically installed and configured. See [.devcontainer/README.md](.devcontainer/README.md) for details.
+All prerequisites are automatically installed and configured. 
+
+📖 **For detailed setup information, troubleshooting, and optimization details, see [Dev Container Documentation](.devcontainer/README.md)**
 
 #### Option 2: Local Setup
 
