@@ -90,7 +90,7 @@ echo -e "\n4/5) Configuring Azure CLI...\n"
 
 # We need to have a device code-based login experience within Codespaces. Redirect error output to /dev/null to avoid cluttering the output and ensure
 # that the script continues (|| true) even if this command fails.
-echo "   Setting Azure CLI login experience to device code...(needed for Codespaces)"
+echo -e "   Setting Azure CLI login experience to device code (needed for Codespaces)...\n"
 az config set core.login_experience_v2=off 2>/dev/null || true
 
 # Install extensions used by infrastructure samples
