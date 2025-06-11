@@ -1,0 +1,31 @@
+{
+    // Workspace configuration for APIM Samples
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "settings": {
+        // Default kernel for all notebooks in this workspace
+        "notebook.defaultKernel": "apim-samples",
+        
+        // Kernel associations to ensure our kernel is preferred
+        "notebook.kernelProviderAssociations": {
+            "**/*.ipynb": [
+                "apim-samples"
+            ]
+        },
+        
+        // Trust our venv kernel
+        "jupyter.kernels.trusted": [
+            "/workspaces/Apim-Samples/.venv/bin/python"
+        ],
+        
+        // Python configuration for the workspace
+        "python.defaultInterpreterPath": "/workspaces/Apim-Samples/.venv/bin/python",
+        "python.pythonPath": "/workspaces/Apim-Samples/.venv/bin/python",
+        "python.terminal.activateEnvironment": true,
+        "python.terminal.activateEnvInCurrentTerminal": true,
+        "python.envFile": "${workspaceFolder}/.env"
+    }
+}

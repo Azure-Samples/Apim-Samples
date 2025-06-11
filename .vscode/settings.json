@@ -22,16 +22,15 @@
     "jupyter.askForKernelRestart": false,
     "jupyter.interactiveWindow.textEditor.executeSelection": true,
     "jupyter.notebookFileRoot": "${workspaceFolder}",
-    "jupyter.kernels.filter": [
-        "/usr/bin/python3",
-        "/bin/python3",
-        "/usr/local/bin/python3",
-        "/opt/python/*/bin/python*",
-        "*/site-packages/*"
-    ],
+    "notebook.defaultKernel": "apim-samples",
     "jupyter.kernels.trusted": [
         "/workspaces/Apim-Samples/.venv/bin/python"
     ],
+    "notebook.kernelProviderAssociations": {
+        "**/*.ipynb": [
+            "apim-samples"
+        ]
+    },
     "terminal.integrated.env.windows": {
         "PATH": "${env:PATH}"
     },

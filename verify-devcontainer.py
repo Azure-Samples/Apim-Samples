@@ -136,8 +136,7 @@ def main():
             f"PYTHONPATH missing: {path}"
         ):
             issues.append(f"PYTHONPATH configuration")
-    
-    # 5. Check Jupyter kernel
+      # 5. Check Jupyter kernel
     print_section("Jupyter Kernel Configuration")
     
     try:
@@ -147,17 +146,28 @@ def main():
         kernels = json.loads(result.stdout)
         
         apim_kernel_found = False
+        apim_kernel_name = None
         for kernel_name, kernel_info in kernels.get('kernelspecs', {}).items():
-            if 'apim-samples' in kernel_name.lower():
+            if 'apim-samples' in kernel_name.lower() or 'apim samples' in kernel_info.get('spec', {}).get('display_name', '').lower():
                 apim_kernel_found = True
+                apim_kernel_name = kernel_name
                 print(f"✅ APIM Samples kernel found: {kernel_name}")
                 print(f"   Display name: {kernel_info.get('spec', {}).get('display_name', 'N/A')}")
+                print(f"   Executable: {kernel_info.get('spec', {}).get('argv', ['N/A'])[0]}")
                 break
         
         if not apim_kernel_found:
             print("❌ APIM Samples Jupyter kernel not found")
             print("   Available kernels:", list(kernels.get('kernelspecs', {}).keys()))
             issues.append("Jupyter kernel registration")
+        else:
+            # Check if the kernel is properly configured
+            kernel_spec = kernels.get('kernelspecs', {}).get(apim_kernel_name, {})
+            kernel_python = kernel_spec.get('spec', {}).get('argv', [''])[0]
+            if '/workspaces/Apim-Samples/.venv' in kernel_python:
+                print(f"✅ Kernel uses venv Python: {kernel_python}")
+            else:
+                print(f"⚠️  Kernel may not use venv Python: {kernel_python}")
             
     except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError) as e:
         print(f"❌ Error checking Jupyter kernels: {e}")

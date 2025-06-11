@@ -106,7 +106,7 @@ if jupyter kernelspec list | grep -q "apim-samples" 2>/dev/null; then
     echo "      APIM Samples Kernel: ✅"
 else
     echo "      APIM Samples Kernel: ❌ (registering...)"
-    python -m ipykernel install --user --name=apim-samples --display-name="APIM Samples Python 3.12" 2>/dev/null || echo "      ⚠️  Failed to register kernel"
+    python -m ipykernel install --user --name=apim-samples --display-name="APIM Samples Python 3.12" 2>/dev/null && echo "      ✅ Kernel registered successfully" || echo "      ⚠️  Failed to register kernel"
 fi
 
 # Test core imports
