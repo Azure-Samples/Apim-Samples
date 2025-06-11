@@ -48,8 +48,8 @@ else
 fi
 
 step1_end=$(date +%s.%N)
-step1_duration=$(echo "$step1_end - $step1_start" | bc -l)
-printf "   ⏱️  Step 1 completed in %.2f seconds\n\n" "$step1_duration"
+step1_duration=$(python3 -c "print(f'{float('$step1_end') - float('$step1_start'):.2f}')")
+printf "   ⏱️  Step 1 completed in %s seconds\n\n" "$step1_duration"
 
 # ------------------------------
 #    GENERATE .ENV FILE
@@ -77,8 +77,8 @@ EOF
 fi
 
 step2_end=$(date +%s.%N)
-step2_duration=$(echo "$step2_end - $step2_start" | bc -l)
-printf "   ⏱️  Step 2 completed in %.2f seconds\n\n" "$step2_duration"
+step2_duration=$(python3 -c "print(f'{float('$step2_end') - float('$step2_start'):.2f}')")
+printf "   ⏱️  Step 2 completed in %s seconds\n\n" "$step2_duration"
 
 # ------------------------------
 #    AZURE CLI SETUP
@@ -97,8 +97,8 @@ az extension add --name front-door --only-show-errors 2>/dev/null || true
 echo "   ✅ Azure CLI configured"
 
 step3_end=$(date +%s.%N)
-step3_duration=$(echo "$step3_end - $step3_start" | bc -l)
-printf "   ⏱️  Step 3 completed in %.2f seconds\n\n" "$step3_duration"
+step3_duration=$(python3 -c "print(f'{float('$step3_end') - float('$step3_start'):.2f}')")
+printf "   ⏱️  Step 3 completed in %s seconds\n\n" "$step3_duration"
 
 # ------------------------------
 #    FINAL VERIFICATION
@@ -133,14 +133,14 @@ except ImportError as e:
 "
 
 step4_end=$(date +%s.%N)
-step4_duration=$(echo "$step4_end - $step4_start" | bc -l)
-printf "   ⏱️  Step 4 completed in %.2f seconds\n\n" "$step4_duration"
+step4_duration=$(python3 -c "print(f'{float('$step4_end') - float('$step4_start'):.2f}')")
+printf "   ⏱️  Step 4 completed in %s seconds\n\n" "$step4_duration"
 
-# Calculate total duration
-total_duration=$(echo "$step1_duration + $step2_duration + $step3_duration + $step4_duration" | bc -l)
+# Calculate total duration using Python
+total_duration=$(python3 -c "print(f'{float('$step1_duration') + float('$step2_duration') + float('$step3_duration') + float('$step4_duration'):.2f}')")
 
 echo "🎉 Environment ready!"
-printf "⏱️  Total setup time: %.2f seconds\n" "$total_duration"
+printf "⏱️  Total setup time: %s seconds\n" "$total_duration"
 echo ""
 echo "💡 The virtual environment is at: $VENV_PATH"
 echo "💡 It should be auto-selected in VS Code"
