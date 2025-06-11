@@ -413,6 +413,10 @@ def test_create_bicep_deployment_group_with_enum(monkeypatch):
     mock_open_func = mock_open()
     monkeypatch.setattr(builtins, 'open', mock_open_func)
     monkeypatch.setattr(builtins, 'print', MagicMock())
+    # Mock os functions for file path operations
+    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
+    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
+    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
     
     bicep_params = {'param1': {'value': 'test'}}
     rg_tags = {'infrastructure': 'simple-apim'}
@@ -440,6 +444,10 @@ def test_create_bicep_deployment_group_with_string(monkeypatch):
     mock_open_func = mock_open()
     monkeypatch.setattr(builtins, 'open', mock_open_func)
     monkeypatch.setattr(builtins, 'print', MagicMock())
+    # Mock os functions for file path operations
+    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
+    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
+    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
     
     bicep_params = {'param1': {'value': 'test'}}
     
@@ -464,6 +472,10 @@ def test_create_bicep_deployment_group_params_file_written(monkeypatch):
     mock_open_func = mock_open()
     monkeypatch.setattr(builtins, 'open', mock_open_func)
     monkeypatch.setattr(builtins, 'print', MagicMock())
+    # Mock os functions for file path operations
+    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
+    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
+    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
     
     bicep_params = {
         'apiManagementName': {'value': 'test-apim'},
@@ -474,8 +486,9 @@ def test_create_bicep_deployment_group_params_file_written(monkeypatch):
         'test-rg', 'eastus', INFRASTRUCTURE.APIM_ACA, bicep_params, 'custom-params.json'
     )
     
-    # Verify file was opened for writing
-    mock_open_func.assert_called_once_with('custom-params.json', 'w')
+    # Verify file was opened for writing with resolved infrastructure path
+    expected_path = os.path.join('/test/dir', 'infrastructure', 'apim-aca', 'custom-params.json')
+    mock_open_func.assert_called_once_with(expected_path, 'w')
     
     # Verify the correct JSON structure was written
     written_content = ''.join(call.args[0] for call in mock_open_func().write.call_args_list)
@@ -495,7 +508,11 @@ def test_create_bicep_deployment_group_no_tags(monkeypatch):
     mock_open_func = mock_open()
     monkeypatch.setattr(builtins, 'open', mock_open_func)
     monkeypatch.setattr(builtins, 'print', MagicMock())
-    
+    # Mock os functions for file path operations
+    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
+    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
+    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
+
     bicep_params = {'param1': {'value': 'test'}}
     
     utils.create_bicep_deployment_group('test-rg', 'eastus', 'test-deployment', bicep_params)
@@ -512,7 +529,11 @@ def test_create_bicep_deployment_group_deployment_failure(monkeypatch):
     mock_open_func = mock_open()
     monkeypatch.setattr(builtins, 'open', mock_open_func)
     monkeypatch.setattr(builtins, 'print', MagicMock())
-    
+    # Mock os functions for file path operations
+    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
+    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
+    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
+
     bicep_params = {'param1': {'value': 'test'}}
     
     result = utils.create_bicep_deployment_group('test-rg', 'eastus', 'test-deployment', bicep_params)
@@ -571,6 +592,12 @@ def test_create_bicep_deployment_group_success(monkeypatch):
     mock_output = MagicMock(success=True, json_data={"id": "deployment-id"})
     monkeypatch.setattr(utils, 'run', lambda *a, **kw: mock_output)
     monkeypatch.setattr(utils, 'does_resource_group_exist', lambda x: True)
+    # Mock os functions for file path operations
+    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
+    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
+    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
+    mock_open_func = mock_open()
+    monkeypatch.setattr(builtins, 'open', mock_open_func)
     
     result = utils.create_bicep_deployment_group(
         "test-rg", "eastus", INFRASTRUCTURE.SIMPLE_APIM, {"param1": "value1"}
@@ -583,6 +610,12 @@ def test_create_bicep_deployment_group_creates_rg(monkeypatch):
     monkeypatch.setattr(utils, 'run', lambda *a, **kw: mock_output)
     monkeypatch.setattr(utils, 'does_resource_group_exist', lambda x: False)
     monkeypatch.setattr(utils, 'create_resource_group', lambda *a, **kw: None)
+    # Mock os functions for file path operations
+    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
+    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
+    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
+    mock_open_func = mock_open()
+    monkeypatch.setattr(builtins, 'open', mock_open_func)
     
     result = utils.create_bicep_deployment_group(
         "test-rg", "eastus", INFRASTRUCTURE.SIMPLE_APIM, {"param1": "value1"}

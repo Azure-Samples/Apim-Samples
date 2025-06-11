@@ -337,13 +337,55 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
         "parameters": bicep_parameters
     }
 
+    # Get the current working directory to ensure files are found in the correct location
+    current_dir = os.getcwd()
+    
+    # Determine the correct infrastructure directory based on the deployment parameter
+    if hasattr(deployment, 'value'):
+        deployment_name = deployment.value
+        infrastructure_dir = deployment.value
+    else:
+        deployment_name = deployment
+        infrastructure_dir = deployment
+    
+    # Check if we're already in the correct infrastructure directory
+    if os.path.basename(current_dir) == infrastructure_dir:
+        # We're already in the right directory
+        bicep_dir = current_dir
+    else:
+        # Look for the infrastructure directory from the current location
+        bicep_dir = os.path.join(current_dir, 'infrastructure', infrastructure_dir)
+        
+        # If that doesn't exist, try going up one level and looking again
+        if not os.path.exists(bicep_dir):
+            parent_dir = os.path.dirname(current_dir)
+            bicep_dir = os.path.join(parent_dir, 'infrastructure', infrastructure_dir)
+        
+        # If still not found, check if we can find the infrastructure directory by searching
+        if not os.path.exists(bicep_dir):
+            # Try to find the project root and construct the path from there
+            # This handles cases where we're in subdirectories or different locations
+            try:
+                from apimtypes import _get_project_root
+                project_root = _get_project_root()
+                bicep_dir = os.path.join(str(project_root), 'infrastructure', infrastructure_dir)
+            except Exception:
+                bicep_dir = os.path.join(current_dir, 'infrastructure', infrastructure_dir)
+    
+    main_bicep_path = os.path.join(bicep_dir, 'main.bicep')
+    params_file_path = os.path.join(bicep_dir, bicep_parameters_file)
+
     # Write the updated bicep parameters to the specified parameters file
-    with open(bicep_parameters_file, 'w') as file:
+    with open(params_file_path, 'w') as file:
         file.write(json.dumps(bicep_parameters_format))
 
     print(f"📝 Updated the policy XML in the bicep parameters file '{bicep_parameters_file}'")
+    
+    # Verify that main.bicep exists in the infrastructure directory
+    if not os.path.exists(main_bicep_path):
+        raise FileNotFoundError(f"main.bicep file not found in expected infrastructure directory: {bicep_dir}")
 
-    return run(f"az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file main.bicep --parameters {bicep_parameters_file} --query \"properties.outputs\"",
+    return run(f"az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file \"{main_bicep_path}\" --parameters \"{params_file_path}\" --query \"properties.outputs\"",
         f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.")
 
 def create_resource_group(rg_name: str, resource_group_location: str | None = None, tags: dict | None = None) -> None:
