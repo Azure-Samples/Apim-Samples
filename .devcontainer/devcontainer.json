@@ -42,7 +42,8 @@
         "GitHub.copilot",
         "GitHub.copilot-chat",
         "redhat.vscode-yaml",
-        "ms-vscode.vscode-json"
+        "ms-vscode.vscode-json",
+        "donjayamanne.vscode-default-python-kernel"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/workspaces/Apim-Samples/.venv/bin/python",
