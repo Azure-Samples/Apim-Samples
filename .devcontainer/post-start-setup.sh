@@ -114,6 +114,15 @@ echo "      Packages: $(pip list | wc -l) installed"
 echo "      .env File: $([ -f .env ] && echo "✅" || echo "❌")"
 echo "      Azure CLI: $(az --version | head -1)"
 
+# Verify Jupyter kernel registration
+echo "      Jupyter Kernels: $(jupyter kernelspec list --json | python -c "import sys, json; data=json.load(sys.stdin); print(len(data['kernelspecs'])) if 'kernelspecs' in data else print('0')" 2>/dev/null || echo "unknown")"
+if jupyter kernelspec list | grep -q "apim-samples" 2>/dev/null; then
+    echo "      APIM Samples Kernel: ✅"
+else
+    echo "      APIM Samples Kernel: ❌ (registering...)"
+    python -m ipykernel install --user --name=apim-samples --display-name="APIM Samples Python 3.12" 2>/dev/null || echo "      ⚠️  Failed to register kernel"
+fi
+
 # Test core imports
 python -c "
 try:

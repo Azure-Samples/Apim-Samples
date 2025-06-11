@@ -20,6 +20,12 @@
     "python.terminal.activateEnvironment": true,
     "python.terminal.activateEnvInCurrentTerminal": true,
     "jupyter.askForKernelRestart": false,
+    "jupyter.interactiveWindow.textEditor.executeSelection": true,
+    "jupyter.notebookFileRoot": "${workspaceFolder}",
+    "jupyter.defaultKernel": "apim-samples",
+    "jupyter.kernels.trusted": [
+        "/workspaces/Apim-Samples/.venv/bin/python"
+    ],
     "terminal.integrated.env.windows": {
         "PATH": "${env:PATH}"
     },
