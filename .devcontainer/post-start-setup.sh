@@ -26,6 +26,7 @@ echo ""
 # ------------------------------
 
 echo -e "1/4) Verifying virtual environment...\n"
+step1_start=$(date +%s.%N)
 
 # Verify virtual environment exists
 if [ -d "$VENV_PATH" ]; then
@@ -46,11 +47,16 @@ else
     exit 1
 fi
 
+step1_end=$(date +%s.%N)
+step1_duration=$(echo "$step1_end - $step1_start" | bc -l)
+printf "   ⏱️  Step 1 completed in %.2f seconds\n\n" "$step1_duration"
+
 # ------------------------------
 #    GENERATE .ENV FILE
 # ------------------------------
 
-echo -e "\n2/4) Verifying .env file...\n"
+echo -e "2/4) Verifying .env file...\n"
+step2_start=$(date +%s.%N)
 
 cd "$WORKSPACE_ROOT"
 if [ -f ".env" ]; then
@@ -70,11 +76,16 @@ EOF
     fi
 fi
 
+step2_end=$(date +%s.%N)
+step2_duration=$(echo "$step2_end - $step2_start" | bc -l)
+printf "   ⏱️  Step 2 completed in %.2f seconds\n\n" "$step2_duration"
+
 # ------------------------------
 #    AZURE CLI SETUP
 # ------------------------------
 
-echo -e "\n3/4) Configuring Azure CLI...\n"
+echo -e "3/4) Configuring Azure CLI...\n"
+step3_start=$(date +%s.%N)
 
 az config set core.login_experience_v2=off 2>/dev/null || true
 
@@ -85,11 +96,16 @@ az extension add --name containerapp --only-show-errors 2>/dev/null || true
 az extension add --name front-door --only-show-errors 2>/dev/null || true
 echo "   ✅ Azure CLI configured"
 
+step3_end=$(date +%s.%N)
+step3_duration=$(echo "$step3_end - $step3_start" | bc -l)
+printf "   ⏱️  Step 3 completed in %.2f seconds\n\n" "$step3_duration"
+
 # ------------------------------
 #    FINAL VERIFICATION
 # ------------------------------
 
-echo -e "\n4/4) Final verification...\n"
+echo -e "4/4) Final verification...\n"
+step4_start=$(date +%s.%N)
 
 echo "   📊 Environment Summary:"
 echo "      Python: $(python --version) at $(which python)"
@@ -107,8 +123,15 @@ except ImportError as e:
     print(f'   ❌ Package issue: {e}')
 "
 
-echo ""
+step4_end=$(date +%s.%N)
+step4_duration=$(echo "$step4_end - $step4_start" | bc -l)
+printf "   ⏱️  Step 4 completed in %.2f seconds\n\n" "$step4_duration"
+
+# Calculate total duration
+total_duration=$(echo "$step1_duration + $step2_duration + $step3_duration + $step4_duration" | bc -l)
+
 echo "🎉 Environment ready!"
+printf "⏱️  Total setup time: %.2f seconds\n" "$total_duration"
 echo ""
 echo "💡 The virtual environment is at: $VENV_PATH"
 echo "💡 It should be auto-selected in VS Code"
