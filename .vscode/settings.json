@@ -22,7 +22,13 @@
     "jupyter.askForKernelRestart": false,
     "jupyter.interactiveWindow.textEditor.executeSelection": true,
     "jupyter.notebookFileRoot": "${workspaceFolder}",
-    "jupyter.defaultKernel": "apim-samples",
+    "jupyter.kernels.filter": [
+        "/usr/bin/python3",
+        "/bin/python3",
+        "/usr/local/bin/python3",
+        "/opt/python/*/bin/python*",
+        "*/site-packages/*"
+    ],
     "jupyter.kernels.trusted": [
         "/workspaces/Apim-Samples/.venv/bin/python"
     ],
