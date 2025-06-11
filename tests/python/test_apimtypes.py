@@ -681,3 +681,134 @@ def test_api_with_all_properties():
 
 
 # ------------------------------
+#    MISSING COVERAGE TESTS FOR APIMTYPES
+# ------------------------------
+
+def test_named_value_creation():
+    """Test NamedValue creation and methods."""
+    nv = apimtypes.NamedValue(
+        name="test-nv",
+        value="test-value",
+        isSecret=True
+    )
+    assert nv.name == "test-nv"
+    assert nv.value == "test-value"
+    assert nv.isSecret is True
+    
+    # Test to_dict method
+    d = nv.to_dict()
+    assert d["name"] == "test-nv"
+    assert d["isSecret"] is True
+
+def test_named_value_defaults():
+    """Test NamedValue default values."""
+    nv = apimtypes.NamedValue(name="test", value="value")
+    assert nv.isSecret is False  # default value
+
+def test_policy_fragment_creation():
+    """Test PolicyFragment creation and methods."""
+    pf = apimtypes.PolicyFragment(
+        name="test-fragment",
+        description="Test fragment",
+        policyXml="<policy/>"
+    )
+    assert pf.name == "test-fragment"
+    assert pf.description == "Test fragment"
+    assert pf.policyXml == "<policy/>"
+    
+    # Test to_dict method
+    d = pf.to_dict()
+    assert d["name"] == "test-fragment"
+    assert d["policyXml"] == "<policy/>"
+
+def test_policy_fragment_defaults():
+    """Test PolicyFragment default values."""
+    pf = apimtypes.PolicyFragment(name="test", policyXml="<policy/>")
+    assert pf.description == ""  # default value
+
+def test_product_defaults():
+    """Test Product default values."""
+    product = apimtypes.Product(name="test", displayName="Test", description="Test description")
+    assert product.state == "published"  # default value
+    assert product.subscriptionRequired is True  # default value
+
+def test_get_apioperation2():
+    """Test GET_APIOperation2 class."""
+    op = apimtypes.GET_APIOperation2(
+        name="test-op",
+        displayName="Test Operation",
+        urlTemplate="/test",
+        description="test",
+        policyXml="<xml/>"
+    )
+    assert op.name == "test-op"
+    assert op.displayName == "Test Operation"
+    assert op.urlTemplate == "/test"
+    assert op.method == apimtypes.HTTP_VERB.GET
+    assert op.description == "test"
+    assert op.policyXml == "<xml/>"
+
+def test_api_operation_equality():
+    """Test APIOperation equality comparison."""
+    op1 = apimtypes.APIOperation(
+        name="test",
+        displayName="Test",
+        urlTemplate="/test",
+        method=apimtypes.HTTP_VERB.GET,
+        description="Test op",
+        policyXml="<xml/>"
+    )
+    op2 = apimtypes.APIOperation(
+        name="test",
+        displayName="Test",
+        urlTemplate="/test",
+        method=apimtypes.HTTP_VERB.GET,
+        description="Test op",
+        policyXml="<xml/>"
+    )
+    op3 = apimtypes.APIOperation(
+        name="different",
+        displayName="Test",
+        urlTemplate="/test",
+        method=apimtypes.HTTP_VERB.GET,
+        description="Test op",
+        policyXml="<xml/>"
+    )
+    
+    assert op1 == op2
+    assert op1 != op3
+
+def test_api_operation_repr():
+    """Test APIOperation __repr__ method."""
+    op = apimtypes.APIOperation(
+        name="test",
+        displayName="Test",
+        urlTemplate="/test",
+        method=apimtypes.HTTP_VERB.GET,
+        description="Test op",
+        policyXml="<xml/>"
+    )
+    result = repr(op)
+    assert "APIOperation" in result
+    assert "test" in result
+
+def test_product_repr():
+    """Test Product __repr__ method."""
+    product = apimtypes.Product(name="test-product", displayName="Test Product", description="Test")
+    result = repr(product)
+    assert "Product" in result
+    assert "test-product" in result
+
+def test_named_value_repr():
+    """Test NamedValue __repr__ method."""
+    nv = apimtypes.NamedValue(name="test-nv", value="value")
+    result = repr(nv)
+    assert "NamedValue" in result
+    assert "test-nv" in result
+
+def test_policy_fragment_repr():
+    """Test PolicyFragment __repr__ method."""
+    pf = apimtypes.PolicyFragment(name="test-fragment", policyXml="<policy/>")
+    result = repr(pf)
+    assert "PolicyFragment" in result
+    assert "test-fragment" in result

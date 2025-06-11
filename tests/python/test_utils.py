@@ -522,3 +522,135 @@ def test_create_bicep_deployment_group_deployment_failure(monkeypatch):
     
     # Result should indicate failure
     assert result.success is False
+
+# ------------------------------
+#    ADDITIONAL COVERAGE TESTS
+# ------------------------------
+
+def test_build_infrastructure_tags_basic():
+    """Test basic infrastructure tags creation."""
+    result = utils.build_infrastructure_tags(INFRASTRUCTURE.SIMPLE_APIM)
+    assert "infrastructure" in result
+    assert result["infrastructure"] == "simple-apim"
+
+def test_build_infrastructure_tags_with_custom():
+    """Test infrastructure tags with custom tags."""
+    custom = {"environment": "test", "owner": "team"}
+    result = utils.build_infrastructure_tags(INFRASTRUCTURE.SIMPLE_APIM, custom)
+    assert result["infrastructure"] == "simple-apim"
+    assert result["environment"] == "test"
+    assert result["owner"] == "team"
+
+def test_get_azure_role_guid_valid_role(monkeypatch):
+    """Test getting valid Azure role GUID."""
+    mock_open_func = mock_open(read_data='{"Contributor": "role-guid-123"}')
+    monkeypatch.setattr(builtins, 'open', mock_open_func)
+    monkeypatch.setattr(os.path, 'exists', lambda x: True)
+    
+    result = utils.get_azure_role_guid("Contributor")
+    assert result == "role-guid-123"
+
+def test_get_azure_role_guid_invalid_role(monkeypatch):
+    """Test getting invalid Azure role GUID."""
+    mock_open_func = mock_open(read_data='{"Contributor": "role-guid-123"}')
+    monkeypatch.setattr(builtins, 'open', mock_open_func)
+    monkeypatch.setattr(os.path, 'exists', lambda x: True)
+    
+    result = utils.get_azure_role_guid("NonExistentRole")
+    assert result is None
+
+def test_get_azure_role_guid_file_not_found(monkeypatch):
+    """Test getting Azure role GUID when file doesn't exist."""
+    monkeypatch.setattr(os.path, 'exists', lambda x: False)
+    
+    result = utils.get_azure_role_guid("Contributor")
+    assert result is None
+
+def test_create_bicep_deployment_group_success(monkeypatch):
+    """Test successful Bicep deployment group creation."""
+    mock_output = MagicMock(success=True, json_data={"id": "deployment-id"})
+    monkeypatch.setattr(utils, 'run', lambda *a, **kw: mock_output)
+    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda x: True)
+    
+    result = utils.create_bicep_deployment_group(
+        "test-rg", "eastus", INFRASTRUCTURE.SIMPLE_APIM, {"param1": "value1"}
+    )
+    assert result.success is True
+
+def test_create_bicep_deployment_group_creates_rg(monkeypatch):
+    """Test Bicep deployment creates resource group if not exists."""
+    mock_output = MagicMock(success=True, json_data={"id": "deployment-id"})
+    monkeypatch.setattr(utils, 'run', lambda *a, **kw: mock_output)
+    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda x: False)
+    monkeypatch.setattr(utils, 'create_resource_group', lambda *a, **kw: None)
+    
+    result = utils.create_bicep_deployment_group(
+        "test-rg", "eastus", INFRASTRUCTURE.SIMPLE_APIM, {"param1": "value1"}
+    )
+    assert result.success is True
+
+def test_create_resource_group_with_tags(monkeypatch):
+    """Test creating resource group with tags."""
+    mock_output = MagicMock(success=True)
+    monkeypatch.setattr(utils, 'run', lambda *a, **kw: mock_output)
+    
+    utils.create_resource_group("test-rg", "eastus", {"env": "test"})
+    # Test passes if no exception is raised
+
+def test_read_and_modify_policy_xml_success(monkeypatch):
+    """Test reading and modifying policy XML."""
+    xml_content = "<policy><backend-url>{OLD_URL}</backend-url></policy>"
+    mock_open_func = mock_open(read_data=xml_content)
+    monkeypatch.setattr(builtins, 'open', mock_open_func)
+    
+    replacements = {"OLD_URL": "https://new-url.com"}
+    result = utils.read_and_modify_policy_xml("test.xml", replacements)
+    assert "https://new-url.com" in result
+    assert "{OLD_URL}" not in result
+
+def test_read_and_modify_policy_xml_no_replacements(monkeypatch):
+    """Test reading policy XML with no replacements."""
+    xml_content = "<policy><backend-url>https://api.com</backend-url></policy>"
+    mock_open_func = mock_open(read_data=xml_content)
+    monkeypatch.setattr(builtins, 'open', mock_open_func)
+    
+    result = utils.read_and_modify_policy_xml("test.xml", {})
+    assert result == xml_content
+
+def test_cleanup_infra_deployments_multiple_indexes(monkeypatch):
+    """Test cleanup of multiple infrastructure deployments."""
+    monkeypatch.setattr(utils, '_cleanup_resources', lambda x, y: None)
+    monkeypatch.setattr(utils, 'get_infra_rg_name', lambda x, y: f"rg-{y}")
+    
+    # Should not raise exception
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2, 3])
+
+def test_cleanup_deployment_string_input(monkeypatch):
+    """Test cleanup deployment with string deployment name."""
+    monkeypatch.setattr(utils, '_cleanup_resources', lambda x, y: None)
+    monkeypatch.setattr(utils, 'get_rg_name', lambda x, y: f"rg-{y}")
+    
+    # Should not raise exception
+    utils.cleanup_deployment("test-deployment", 1)
+
+def test_print_functions_output(capsys):
+    """Test various print utility functions."""
+    utils.print_ok("Success message")
+    utils.print_error("Error message")
+    utils.print_info("Info message")
+    utils.print_val("Label", "Value message")
+    
+    captured = capsys.readouterr()
+    assert "Success message" in captured.out
+    assert "Error message" in captured.out
+    assert "Info message" in captured.out
+    assert "Label" in captured.out
+    assert "Value message" in captured.out
+
+def test_print_functions_with_options(capsys):
+    """Test print functions with formatting options."""
+    utils.print_ok("Test", blank_above=True)
+    utils.print_val("Label", "Test", val_below=True)
+    
+    captured = capsys.readouterr()
+    assert "Test" in captured.out
