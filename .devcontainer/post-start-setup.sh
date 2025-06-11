@@ -25,8 +25,9 @@ echo ""
 #    ENVIRONMENT VERIFICATION
 # ------------------------------
 
-echo -e "1/5) Verifying virtual environment...\n"
+echo -e "1/4) Verifying virtual environment...\n"
 
+# Verify virtual environment exists
 if [ -d "$VENV_PATH" ]; then
     echo "   ✅ Virtual environment found at $VENV_PATH"
     if [ -f "$PYTHON_EXECUTABLE" ]; then
@@ -40,34 +41,41 @@ if [ -d "$VENV_PATH" ]; then
         exit 1
     fi
 else
-    echo "   ❌ Virtual environment not found"
+    echo "   ❌ Virtual environment not found at $VENV_PATH"
+    echo "   💡 Virtual environment should have been created during container setup"
     exit 1
 fi
-
+    echo "   ❌ Virtual environment not found in workspace or home directory"
+    echo "   🔍 Debug - checking available directories:"
 # ------------------------------
 #    GENERATE .ENV FILE
 # ------------------------------
 
-echo -e "\n2/5) Generating .env file...\n"
+echo -e "\n2/4) Verifying .env file...\n"
 
 cd "$WORKSPACE_ROOT"
-if [ -f "setup/setup_python_path.py" ]; then
-    python setup/setup_python_path.py --generate-env
-    echo "   ✅ .env file updated"
+if [ -f ".env" ]; then
+    echo "   ✅ .env file exists"
 else
-    echo "   ⚠️  setup_python_path.py not found, creating basic .env"
-    cat > .env << EOF
+    echo "   ⚠️  .env file missing, generating..."
+    if [ -f "setup/setup_python_path.py" ]; then
+        python setup/setup_python_path.py --generate-env
+        echo "   ✅ .env file generated"
+    else
+        echo "   ⚠️  setup_python_path.py not found, creating basic .env"
+        cat > .env << EOF
 # Auto-generated for APIM Samples dev container
 PROJECT_ROOT=$WORKSPACE_ROOT
 PYTHONPATH=$WORKSPACE_ROOT/shared/python:$WORKSPACE_ROOT
 EOF
+    fi
 fi
 
 # ------------------------------
 #    AZURE CLI SETUP
 # ------------------------------
 
-echo -e "\n3/5) Configuring Azure CLI...\n"
+echo -e "\n3/4) Configuring Azure CLI...\n"
 
 az config set core.login_experience_v2=off 2>/dev/null || true
 
@@ -79,30 +87,10 @@ az extension add --name front-door --only-show-errors 2>/dev/null || true
 echo "   ✅ Azure CLI configured"
 
 # ------------------------------
-#    WORKSPACE SETTINGS
-# ------------------------------
-
-echo -e "\n4/5) Ensuring workspace settings...\n"
-
-mkdir -p .vscode
-if [ ! -f ".vscode/settings.json" ]; then
-    cat > .vscode/settings.json << 'EOF'
-{
-  "python.analysis.extraPaths": [
-    "/workspaces/Apim-Samples/shared/python"
-  ]
-}
-EOF
-    echo "   ✅ Created .vscode/settings.json"
-else
-    echo "   ✅ .vscode/settings.json exists"
-fi
-
-# ------------------------------
 #    FINAL VERIFICATION
 # ------------------------------
 
-echo -e "\n5/5) Final verification...\n"
+echo -e "\n4/4) Final verification...\n"
 
 echo "   📊 Environment Summary:"
 echo "      Python: $(python --version) at $(which python)"

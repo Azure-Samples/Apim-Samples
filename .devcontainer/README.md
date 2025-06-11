@@ -13,19 +13,7 @@ This repository is optimized for GitHub Codespaces prebuilds, which significantl
 3. Select "Codespaces" tab
 4. Click "Create codespace on main"
 5. The prebuild will provide a fast startup experience
-6. Run the interactive Azure CLI configuration when prompted
-
-### Prebuild Optimization
-
-The dev container is configured with the following optimization strategy:
-
-- **`onCreateCommand`**: Runs during prebuild creation, installing packages, dependencies, and setting up the environment
-- **`postStartCommand`**: Runs when starting a codespace from prebuild, handling only interactive configuration and verification
-
-This approach ensures:
-- Fast codespace creation (leverages prebuild)
-- Minimal setup time on codespace start
-- Interactive Azure CLI configuration when needed
+6. Your Python environment will be ready immediately!
 
 ### Using VS Code Dev Containers
 
@@ -33,6 +21,7 @@ This approach ensures:
 2. Open the repository in VS Code
 3. When prompted, click "Reopen in Container" or use Command Palette: "Dev Containers: Reopen in Container"
 4. Wait for the container to build and initialize
+5. Your Python environment will be ready immediately!
 
 ## 📦 What's Included
 
@@ -49,34 +38,55 @@ This approach ensures:
 - **GitHub Copilot** - AI-powered coding assistance (if licensed)
 - **YAML & JSON** - Configuration file support
 
-### Python Packages
-All packages from `requirements.txt` are pre-installed in a single virtual environment:
-- `requests` - HTTP library
-- `pandas` - Data manipulation
-- `matplotlib` - Data visualization
-- `pyjwt` - JWT token handling
-- `pytest` & `pytest-cov` - Testing framework
-- `azure.storage.blob` & `azure.identity` - Azure SDK components
-- `jupyter`, `ipykernel`, `notebook` - Jupyter notebook support
+### Python Environment
+- **Single Virtual Environment** - Located at `/workspaces/Apim-Samples/.venv`
+- **Auto-Selected by VS Code** - No manual environment selection needed
+- **All Dependencies Pre-Installed** - From `requirements.txt` plus development tools:
+  - `requests` - HTTP library
+  - `pandas` - Data manipulation
+  - `matplotlib` - Data visualization
+  - `pyjwt` - JWT token handling
+  - `pytest` & `pytest-cov` - Testing framework
+  - `azure.storage.blob` & `azure.identity` - Azure SDK components
+  - `jupyter`, `ipykernel`, `notebook` - Jupyter notebook support
 
 ### Environment Configuration
-- **Single Virtual Environment** - Located at `/home/vscode/.venv`
 - **Automatic .env File** - Generated with proper PYTHONPATH configuration
 - **VS Code Integration** - Python interpreter automatically configured
-- **Azure CLI** - Installed and ready for authentication
+- **Azure CLI Extensions** - containerapp and front-door extensions pre-installed
 - **Port Forwarding** - Common development ports (3000, 5000, 8000, 8080) pre-configured
 
-## 🔧 Post-Setup Steps
+## 🏗️ How It Works
 
-The dev container automatically handles all setup during initialization. The environment is ready to use immediately after the container starts.
+### Container Setup Process
+This dev container uses GitHub Codespaces best practices for optimal prebuild performance:
 
-### Automated Setup (Every Container Start)
-When the container starts, the setup script will automatically:
-1. **Activate the virtual environment** (single environment only)
-2. **Generate .env file** with proper PYTHONPATH configuration
-3. **Install Azure CLI extensions** (containerapp, front-door)
-4. **Verify all packages** are correctly installed
-5. **Configure VS Code workspace** settings
+1. **Docker Build (prebuild)**: Creates base container with Python 3.12 and system dependencies
+2. **onCreateCommand (prebuild)**: Creates virtual environment in workspace  
+3. **updateContentCommand (prebuild refresh)**: Installs/updates packages from requirements.txt when repository content changes
+4. **postStartCommand (every startup)**: Verifies environment and configures Azure CLI
+
+This three-stage approach ensures:
+- **Prebuild Optimization**: Heavy lifting (environment creation) happens during prebuild
+- **Content Freshness**: Requirements are updated when the repository changes
+- **Fast Startup**: Only verification and Azure CLI setup happen on each startup
+- **Single Environment**: Only one Python environment, located in the workspace
+- **VS Code Ready**: Automatically detected and configured
+
+### Prebuild Benefits
+- **Fast Codespace Creation**: Pre-built environments start in seconds rather than minutes
+- **Always Fresh Dependencies**: `updateContentCommand` ensures packages match current requirements.txt
+- **Reliable Setup**: Each stage handles a specific concern for maximum reliability
+
+### Environment Location
+```
+/workspaces/Apim-Samples/.venv/    ← Your Python virtual environment
+├── bin/python                     ← Python 3.12 executable
+├── lib/python3.12/site-packages/  ← All your packages
+└── ...
+```
+
+## 🔧 Using the Environment
 
 ### Manual Azure Login (When Needed)
 To use Azure resources, you'll need to authenticate:
@@ -92,10 +102,10 @@ az account set --subscription <your-subscription-id-or-name>
 az account show
 ```
 
-### Continue with Development
-After setup is complete:
-1. **Verify your Azure setup**: Execute `shared/jupyter/verify-az-account.ipynb`
-2. **Test your environment**: Run `python .devcontainer/verify-setup.py`
+### Start Developing
+After the container is ready:
+1. **Verify your setup**: All packages should be working immediately
+2. **Check your Azure setup**: Execute `shared/jupyter/verify-az-account.ipynb`
 3. **Start exploring**:
    - Navigate to any infrastructure folder (`infrastructure/`)
    - Run the `create.ipynb` notebook to set up infrastructure
@@ -103,40 +113,101 @@ After setup is complete:
 
 ## 🔧 Troubleshooting
 
-If you encounter import errors or module resolution issues, see:
-- [Import Troubleshooting Guide](.devcontainer/IMPORT-TROUBLESHOOTING.md)
-- [Setup Notes](.devcontainer/SETUP-NOTES.md)
+### Common Issues
 
-Common quick fixes:
+**"Module not found" errors:**
 ```bash
-# Fix Python path for local development
+# Regenerate .env file
 python setup/setup_python_path.py --generate-env
 
-# Verify setup
-python .devcontainer/verify-setup.py
-
-# Rebuild dev container if needed
-Dev Containers: Rebuild Container
+# Verify environment
+python -c "import sys; print(sys.path)"
 ```
 
-## 🏗️ Architecture
+**Wrong Python environment:**
+- The environment should be automatically selected in VS Code
+- Check that VS Code shows `/workspaces/Apim-Samples/.venv/bin/python` in the status bar
+- If not, use Command Palette: "Python: Select Interpreter"
 
-The dev container is built on:
-- **Base Image**: `mcr.microsoft.com/devcontainers/python:1-3.12-bullseye`
-- **Features**: Azure CLI, Common utilities with Zsh/Oh My Zsh
+**Environment issues:**
+```bash
+# Check if virtual environment exists and is activated
+which python
+echo $VIRTUAL_ENV
+
+# Should show:
+# /workspaces/Apim-Samples/.venv/bin/python
+# /workspaces/Apim-Samples/.venv
+```
+
+### Rebuild Container
+If you encounter persistent issues:
+1. Use Command Palette: "Dev Containers: Rebuild Container"
+2. This will recreate the environment from scratch
+
+## 🏗️ Technical Details
+
+### Architecture
+- **Base Image**: `mcr.microsoft.com/devcontainers/python:1-3.12-bookworm`
+- **Features**: Azure CLI, Common utilities with Zsh/Oh My Zsh, Docker-in-Docker
 - **Workspace**: Mounted at `/workspaces/Apim-Samples`
 - **User**: `vscode` with proper permissions
 
-## 🔄 Azure CLI Authentication
-
-### Quick Setup (Recommended)
-
-Run the interactive configuration script to automatically set up Azure CLI authentication for your platform:
-
-**Python (Cross-platform)**:
-```bash
-python .devcontainer/configure-azure-mount.py
+### File Structure
 ```
+.devcontainer/
+├── Dockerfile              ← Container definition
+├── devcontainer.json       ← VS Code configuration
+├── post-start-setup.sh     ← Environment verification script
+└── README.md              ← This file
+
+/workspaces/Apim-Samples/
+├── .venv/                 ← Python virtual environment (auto-created)
+├── .env                   ← Environment variables (auto-generated)
+├── requirements.txt       ← Python dependencies
+└── ... (your code)
+```
+
+### Key Configuration Files
+
+**`.devcontainer/devcontainer.json`**:
+- VS Code extensions and settings
+- Python interpreter path configuration
+- Port forwarding setup
+- Container lifecycle commands
+
+**`.devcontainer/Dockerfile`**:
+- Base Python 3.12 environment
+- System dependencies
+- Shell configuration
+
+**`requirements.txt`**:
+- All Python package dependencies
+- Automatically installed in the virtual environment
+
+### Environment Variables
+The `.env` file is automatically generated with:
+- `PROJECT_ROOT`: Path to workspace root
+- `PYTHONPATH`: Includes shared Python modules
+
+## 🤝 Contributing
+
+When modifying the dev container configuration:
+
+1. **Test your changes**: Rebuild the container and verify all functionality
+2. **Update documentation**: Keep this README current with any changes
+3. **Consider performance**: Changes to Dockerfile affect build time for all users
+4. **Maintain simplicity**: Keep the environment focused and minimal
+
+## 📝 Version History
+
+- **v2.1**: Added `updateContentCommand` for Codespaces prebuild optimization
+- **v2.0**: Simplified single virtual environment approach
+- **v1.x**: Multi-stage build with environment moving (deprecated)
+
+---
+
+*This dev container provides a complete, ready-to-use development environment for Azure API Management samples. No additional setup required!*
 
 **PowerShell (Windows)**:
 ```powershell

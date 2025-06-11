@@ -74,7 +74,18 @@
   "containerEnv": {
     "PYTHONPATH": "/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples"
   },
-  "onCreateCommand": "python setup/setup_python_path.py --generate-env",
+  // Container lifecycle commands for optimal Codespaces prebuild performance:
+  // 1. onCreateCommand: Runs during prebuild - creates venv
+  // 2. updateContentCommand: Runs when content changes - installs/updates packages
+  // 3. postStartCommand: Runs every startup - verifies and configures
+  "onCreateCommand": [
+    "bash", "-c", 
+    "echo '🚀 Creating Python virtual environment in workspace...' && /usr/local/bin/python3.12 -m venv /workspaces/Apim-Samples/.venv --copies && source /workspaces/Apim-Samples/.venv/bin/activate && pip install --upgrade pip setuptools wheel && echo '✅ Virtual environment created'"
+  ],
+  "updateContentCommand": [
+    "bash", "-c",
+    "echo '📦 Installing/updating Python packages from requirements.txt...' && source /workspaces/Apim-Samples/.venv/bin/activate && pip install -r requirements.txt && pip install pytest pytest-cov coverage ipykernel && echo '✅ Python packages installed/updated' && python setup/setup_python_path.py --generate-env && echo '✅ Environment configuration updated'"
+  ],
   "postStartCommand": "bash .devcontainer/post-start-setup.sh",
   "forwardPorts": [
     8000,
