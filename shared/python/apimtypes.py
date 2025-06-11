@@ -2,8 +2,10 @@
 Types and constants for Azure API Management automation and deployment.
 """
 
+import os
 from enum import StrEnum
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Optional, Any
 
 
@@ -11,13 +13,34 @@ from typing import List, Optional, Any
 #    CONSTANTS
 # ------------------------------
 
-# These paths are relative to the infrastructure and samples
-SHARED_XML_POLICY_BASE_PATH         = '../../shared/apim-policies'
-DEFAULT_XML_POLICY_PATH             = f'{SHARED_XML_POLICY_BASE_PATH}/default.xml'
-REQUIRE_PRODUCT_XML_POLICY_PATH     = f'{SHARED_XML_POLICY_BASE_PATH}/require-product.xml'
-HELLO_WORLD_XML_POLICY_PATH         = f'{SHARED_XML_POLICY_BASE_PATH}/hello-world.xml'
-REQUEST_HEADERS_XML_POLICY_PATH     = f'{SHARED_XML_POLICY_BASE_PATH}/request-headers.xml'
-BACKEND_XML_POLICY_PATH             = f'{SHARED_XML_POLICY_BASE_PATH}/backend.xml'
+def _get_project_root() -> Path:
+    """Get the project root directory path."""
+    # Try to get from environment variable first (set by .env file)
+    if 'PROJECT_ROOT' in os.environ:
+        return Path(os.environ['PROJECT_ROOT'])
+    
+    # Fallback: detect project root by walking up from this file
+    current_path = Path(__file__).resolve().parent.parent.parent  # Go up from shared/python/
+    indicators = ['README.md', 'requirements.txt', 'bicepconfig.json']
+    
+    while current_path != current_path.parent:
+        if all((current_path / indicator).exists() for indicator in indicators):
+            return current_path
+        current_path = current_path.parent
+    
+    # Ultimate fallback
+    return Path(__file__).resolve().parent.parent.parent
+
+# Get project root and construct absolute paths to policy files
+_PROJECT_ROOT = _get_project_root()
+_SHARED_XML_POLICY_BASE_PATH = _PROJECT_ROOT / 'shared' / 'apim-policies'
+
+# Policy file paths (now absolute and platform-independent)
+DEFAULT_XML_POLICY_PATH             = str(_SHARED_XML_POLICY_BASE_PATH / 'default.xml')
+REQUIRE_PRODUCT_XML_POLICY_PATH     = str(_SHARED_XML_POLICY_BASE_PATH / 'require-product.xml')
+HELLO_WORLD_XML_POLICY_PATH         = str(_SHARED_XML_POLICY_BASE_PATH / 'hello-world.xml')
+REQUEST_HEADERS_XML_POLICY_PATH     = str(_SHARED_XML_POLICY_BASE_PATH / 'request-headers.xml')
+BACKEND_XML_POLICY_PATH             = str(_SHARED_XML_POLICY_BASE_PATH / 'backend.xml')
 
 SUBSCRIPTION_KEY_PARAMETER_NAME = 'api_key'
 SLEEP_TIME_BETWEEN_REQUESTS_MS  = 50
