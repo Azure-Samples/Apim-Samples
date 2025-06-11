@@ -4,6 +4,8 @@
 #    APIM SAMPLES POST-START SETUP
 # ------------------------------
 
+start=$(date +%s.%N)
+
 echo ""
 echo -e "🚀 APIM Samples environment starting...\n"
 
@@ -11,22 +13,23 @@ echo -e "🚀 APIM Samples environment starting...\n"
 #    CONFIGURATION
 # ------------------------------
 
+echo -e "1/5) Checking configuration...\n"
+
 WORKSPACE_ROOT="/workspaces/Apim-Samples"
 VENV_PATH="$WORKSPACE_ROOT/.venv"
 PYTHON_EXECUTABLE="$VENV_PATH/bin/python"
 
 echo -e "📋 Configuration:\n"
-echo "   Workspace: $WORKSPACE_ROOT"
-echo "   Virtual Environment: $VENV_PATH"
-echo "   Python Executable: $PYTHON_EXECUTABLE"
+echo "   Workspace           : $WORKSPACE_ROOT"
+echo "   Virtual Environment : $VENV_PATH"
+echo "   Python Executable   : $PYTHON_EXECUTABLE"
 echo ""
 
 # ------------------------------
 #    ENVIRONMENT VERIFICATION
 # ------------------------------
 
-echo -e "1/4) Verifying virtual environment...\n"
-step1_start=$(date +%s.%N)
+echo -e "2/5) Verifying virtual environment...\n"
 
 # Verify virtual environment exists
 if [ -d "$VENV_PATH" ]; then
@@ -47,16 +50,11 @@ else
     exit 1
 fi
 
-step1_end=$(date +%s.%N)
-step1_duration=$(python3 -c "print(f'{float('$step1_end') - float('$step1_start'):.2f}')")
-printf "   ⏱️  Step 1 completed in %s seconds\n\n" "$step1_duration"
-
 # ------------------------------
 #    GENERATE .ENV FILE
 # ------------------------------
 
-echo -e "2/4) Verifying .env file...\n"
-step2_start=$(date +%s.%N)
+echo -e "3/5) Verifying .env file...\n"
 
 cd "$WORKSPACE_ROOT"
 if [ -f ".env" ]; then
@@ -76,16 +74,11 @@ EOF
     fi
 fi
 
-step2_end=$(date +%s.%N)
-step2_duration=$(python3 -c "print(f'{float('$step2_end') - float('$step2_start'):.2f}')")
-printf "   ⏱️  Step 2 completed in %s seconds\n\n" "$step2_duration"
-
 # ------------------------------
 #    AZURE CLI SETUP
 # ------------------------------
 
 echo -e "3/4) Configuring Azure CLI...\n"
-step3_start=$(date +%s.%N)
 
 az config set core.login_experience_v2=off 2>/dev/null || true
 
@@ -96,16 +89,9 @@ az extension add --name containerapp --only-show-errors 2>/dev/null || true
 az extension add --name front-door --only-show-errors 2>/dev/null || true
 echo "   ✅ Azure CLI configured"
 
-step3_end=$(date +%s.%N)
-step3_duration=$(python3 -c "print(f'{float('$step3_end') - float('$step3_start'):.2f}')")
-printf "   ⏱️  Step 3 completed in %s seconds\n\n" "$step3_duration"
-
 # ------------------------------
 #    FINAL VERIFICATION
 # ------------------------------
-
-echo -e "4/4) Final verification...\n"
-step4_start=$(date +%s.%N)
 
 echo "   📊 Environment Summary:"
 echo "      Python: $(python --version) at $(which python)"
@@ -132,12 +118,10 @@ except ImportError as e:
     print(f'   ❌ Package issue: {e}')
 "
 
-step4_end=$(date +%s.%N)
-step4_duration=$(python3 -c "print(f'{float('$step4_end') - float('$step4_start'):.2f}')")
-printf "   ⏱️  Step 4 completed in %s seconds\n\n" "$step4_duration"
-
 # Calculate total duration using Python
-total_duration=$(python3 -c "print(f'{float('$step1_duration') + float('$step2_duration') + float('$step3_duration') + float('$step4_duration'):.2f}')")
+end=$(date +%s.%N)
+duration=$(python3 -c "print(f'{float('$end') - float('$start'):.2f}')")
+printf "   ⏱️  Total duration in %s seconds\n\n" "$duration"
 
 echo "🎉 Environment ready!"
 printf "⏱️  Total setup time: %s seconds\n" "$total_duration"
