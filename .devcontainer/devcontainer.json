@@ -126,7 +126,7 @@
   ],
   "postStartCommand": [
     "bash", "-c", 
-    "echo '� APIM Samples Codespace Starting - Keep this terminal open to see progress!' && echo '============================================================' && bash .devcontainer/post-start-setup.sh && echo '============================================================' && echo '✅ Setup completed! This terminal will remain open for your reference.' && echo '💡 Tip: You can minimize this panel if needed, but the setup logs above show your environment status.' && sleep 2"
+    "echo 'APIM Samples Codespace Starting - Keep this terminal open to see progress!' && bash .devcontainer/post-start-setup.sh"
   ],
   "forwardPorts": [
     8000,
