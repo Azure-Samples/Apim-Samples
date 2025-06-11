@@ -4,17 +4,23 @@
         {
             "path": "."
         }
-    ],
-    "settings": {
-        // Default kernel for all notebooks in this workspace
-        "notebook.defaultKernel": "apim-samples",
-        
-        // Kernel associations to ensure our kernel is preferred
-        "notebook.kernelProviderAssociations": {
-            "**/*.ipynb": [
-                "apim-samples"
-            ]
-        },
+    ],    "settings": {
+        // Exclude all Python environments except our venv to ensure auto-selection
+        "jupyter.kernels.excludePythonEnvironments": [
+            "/usr/bin/python3",
+            "/bin/python3",
+            "/usr/local/bin/python3",
+            "/opt/python/*/bin/python*",
+            "*/site-packages/*",
+            "**/miniconda3/**",
+            "**/anaconda3/**",
+            "**/conda/**",
+            "/usr/bin/python",
+            "/bin/python",
+            "**/python3.*",
+            "python3",
+            "python"
+        ],
         
         // Trust our venv kernel
         "jupyter.kernels.trusted": [

@@ -65,15 +65,24 @@
         "jupyter.askForKernelRestart": false,
         "jupyter.interactiveWindow.textEditor.executeSelection": true,
         "jupyter.notebookFileRoot": "${workspaceFolder}",
-        "notebook.defaultKernel": "apim-samples",
+        "jupyter.kernels.excludePythonEnvironments": [
+          "/usr/bin/python3",
+          "/bin/python3",
+          "/usr/local/bin/python3",
+          "/opt/python/*/bin/python*",
+          "*/site-packages/*",
+          "**/miniconda3/**",
+          "**/anaconda3/**",
+          "**/conda/**",
+          "/usr/bin/python",
+          "/bin/python",
+          "**/python3.*",
+          "python3",
+          "python"
+        ],
         "jupyter.kernels.trusted": [
           "/workspaces/Apim-Samples/.venv/bin/python"
         ],
-        "notebook.kernelProviderAssociations": {
-          "**/*.ipynb": [
-            "apim-samples"
-          ]
-        },
         "files.associations": {
           "*.bicep": "bicep"
         }

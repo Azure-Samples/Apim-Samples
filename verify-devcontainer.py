@@ -135,9 +135,25 @@ def main():
             f"PYTHONPATH includes: {path}",
             f"PYTHONPATH missing: {path}"
         ):
-            issues.append(f"PYTHONPATH configuration")
-      # 5. Check Jupyter kernel
+            issues.append(f"PYTHONPATH configuration")    # 5. Check Jupyter kernel and VS Code settings
     print_section("Jupyter Kernel Configuration")
+    
+    # Check VS Code settings for kernel exclusion
+    vscode_settings_path = Path('/workspaces/Apim-Samples/.vscode/settings.json')
+    if vscode_settings_path.exists():
+        try:
+            with open(vscode_settings_path, 'r') as f:
+                # Simple check for the exclusion setting
+                settings_content = f.read()
+                if 'jupyter.kernels.excludePythonEnvironments' in settings_content:
+                    print("✅ VS Code kernel exclusion settings configured")
+                else:
+                    print("⚠️  VS Code kernel exclusion settings not found")
+                    issues.append("VS Code kernel exclusion settings")
+        except Exception as e:
+            print(f"⚠️  Could not read VS Code settings: {e}")
+    else:
+        print("⚠️  VS Code settings file not found")
     
     try:
         # List available kernels

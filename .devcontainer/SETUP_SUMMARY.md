@@ -14,7 +14,7 @@ This document summarizes the changes made to simplify and robustly configure the
 - **Before**: Manual kernel selection required, multiple kernels visible
 - **After**: Only the correct venv kernel is visible and auto-selected
 - **Implementation**: 
-  - Kernel filtering in VS Code settings (`jupyter.kernels.filter`)
+  - Python environment exclusion (`jupyter.kernels.excludePythonEnvironments`)
   - Trusted kernel configuration (`jupyter.kernels.trusted`)
   - Automatic kernel registration during container setup
 
@@ -81,12 +81,20 @@ python -m ipykernel install --user --name=apim-samples --display-name='APIM Samp
 ### VS Code Jupyter Settings
 ```json
 {
-  "jupyter.kernels.filter": [
+  "jupyter.kernels.excludePythonEnvironments": [
     "/usr/bin/python3",
     "/bin/python3", 
     "/usr/local/bin/python3",
     "/opt/python/*/bin/python*",
-    "*/site-packages/*"
+    "*/site-packages/*",
+    "**/miniconda3/**",
+    "**/anaconda3/**",
+    "**/conda/**",
+    "/usr/bin/python",
+    "/bin/python",
+    "**/python3.*",
+    "python3",
+    "python"
   ],
   "jupyter.kernels.trusted": [
     "/workspaces/Apim-Samples/.venv/bin/python"
