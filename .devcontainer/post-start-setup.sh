@@ -13,16 +13,15 @@ echo -e "🚀 APIM Samples environment starting...\n"
 #    CONFIGURATION
 # ------------------------------
 
-echo -e "1/5) Checking configuration...\n"
+echo -e "1/5) Setting environment variables...\n"
 
 WORKSPACE_ROOT="/workspaces/Apim-Samples"
 VENV_PATH="$WORKSPACE_ROOT/.venv"
 PYTHON_EXECUTABLE="$VENV_PATH/bin/python"
 
-echo -e "📋 Configuration:\n"
-echo "   Workspace           : $WORKSPACE_ROOT"
-echo "   Virtual Environment : $VENV_PATH"
-echo "   Python Executable   : $PYTHON_EXECUTABLE"
+echo "   Workspace              : $WORKSPACE_ROOT"
+echo "   Virtual Environment    : $VENV_PATH"
+echo "   Python Executable      : $PYTHON_EXECUTABLE"
 echo ""
 
 # ------------------------------
@@ -39,7 +38,8 @@ if [ -d "$VENV_PATH" ]; then
         # Activate and verify
         source "$VENV_PATH/bin/activate"
         echo "   ✅ Python version: $(python --version)"
-        echo "   ✅ Packages installed: $(pip list | wc -l)"
+        # Commenting out the number of packages installed as this does take some time to run. When the setup was verified, a count of 125 packages was printed.
+        # echo "   ✅ Packages installed: $(pip list | wc -l)"
     else
         echo "   ❌ Python executable not found"
         exit 1
@@ -54,7 +54,7 @@ fi
 #    GENERATE .ENV FILE
 # ------------------------------
 
-echo -e "3/5) Verifying .env file...\n"
+echo -e "\n3/5) Verifying .env file...\n"
 
 cd "$WORKSPACE_ROOT"
 if [ -f ".env" ]; then
@@ -78,27 +78,31 @@ fi
 #    AZURE CLI SETUP
 # ------------------------------
 
-echo -e "3/4) Configuring Azure CLI...\n"
+echo -e "\n4/5) Configuring Azure CLI...\n"
 
 az config set core.login_experience_v2=off 2>/dev/null || true
 
 # Install extensions used by infrastructure samples
 # - containerapp: Required for infrastructure/apim-aca and infrastructure/afd-apim
 # - front-door: Required for infrastructure/afd-apim and shared/python/utils.py
+echo "   Installing containerapp extension..."
 az extension add --name containerapp --only-show-errors 2>/dev/null || true
+echo "   Installing front-door extension..."
 az extension add --name front-door --only-show-errors 2>/dev/null || true
-echo "   ✅ Azure CLI configured"
+echo "   \n✅ Azure CLI configured"
 
 # ------------------------------
 #    FINAL VERIFICATION
 # ------------------------------
 
-echo "   📊 Environment Summary:"
-echo "      Python: $(python --version) at $(which python)"
-echo "      Virtual Environment: $VIRTUAL_ENV"
-echo "      Packages: $(pip list | wc -l) installed"
-echo "      .env File: $([ -f .env ] && echo "✅" || echo "❌")"
-echo "      Azure CLI: $(az --version | head -1)"
+echo -e "\n5/5) Environment Summary\n"
+echo "      Virtual Environment : $VIRTUAL_ENV"
+echo "      Python              : $(python --version) at $(which python)"
+# Commenting out the number of packages installed as this does take some time to run. When the setup was verified, a count of 125 packages was printed.
+# echo "      Packages: $(pip list | wc -l) installed"
+echo "      .env File           : $([ -f .env ] && echo "✅" || echo "❌")"
+echo "      Azure CLI           :"
+echo "$(az --version | head -1)"
 
 # Verify Jupyter kernel registration
 echo "      Jupyter Kernels: $(jupyter kernelspec list --json | python -c "import sys, json; data=json.load(sys.stdin); print(len(data['kernelspecs'])) if 'kernelspecs' in data else print('0')" 2>/dev/null || echo "unknown")"
