@@ -75,6 +75,25 @@
             },
             "problemMatcher": [],
             "detail": "Verify that the development environment is set up correctly"
+        },
+        {
+            "label": "Show Startup Logs",
+            "type": "shell",
+            "command": "bash",
+            "args": [
+                ".devcontainer/post-start-setup.sh"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "new",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "problemMatcher": [],
+            "detail": "Show the startup setup logs and verify environment"
         }
     ],
     "inputs": [

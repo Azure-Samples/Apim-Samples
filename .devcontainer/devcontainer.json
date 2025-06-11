@@ -86,7 +86,14 @@
         ],
         "files.associations": {
           "*.bicep": "bicep"
-        }
+        },
+        // Auto-show terminal output during codespace startup
+        "terminal.integrated.showExitAlert": false,
+        "terminal.integrated.focusAfterRun": "terminal",
+        "workbench.panel.defaultLocation": "bottom",
+        "workbench.panel.opensMaximized": "preserve",
+        "workbench.startupEditor": "none",
+        "workbench.panel.defaultPanelHeight": 300
       }
     }
   },
@@ -105,7 +112,10 @@
     "bash", "-c",
     "echo '📦 Installing/updating Python packages from requirements.txt...' && source /workspaces/Apim-Samples/.venv/bin/activate && pip install -r requirements.txt && pip install pytest pytest-cov coverage ipykernel && echo '✅ Python packages installed/updated' && python setup/setup_python_path.py --generate-env && echo '✅ Environment configuration updated' && echo '🔧 Registering Jupyter kernel...' && python -m ipykernel install --user --name=apim-samples --display-name='APIM Samples Python 3.12' && echo '✅ Jupyter kernel registered'"
   ],
-  "postStartCommand": "bash .devcontainer/post-start-setup.sh",
+  "postStartCommand": [
+    "bash", "-c", 
+    "echo '🔧 Running post-start setup - terminal will remain visible...' && bash .devcontainer/post-start-setup.sh && echo '✅ Post-start setup completed! Check the terminal output above.'"
+  ],
   "forwardPorts": [
     8000,
     8080,
