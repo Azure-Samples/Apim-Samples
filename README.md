@@ -70,6 +70,30 @@ If you're using the dev container (GitHub Codespaces or VS Code Dev Containers):
 
 If you're setting up locally without the dev container:
 
+##### Quick Setup (Recommended)
+
+1. **Create Python Environment**: In VS Code, use Ctrl+Shift+P → "Python: Create Environment" → "Venv" → Select Python version → Check requirements.txt
+2. **Complete Environment Setup**: Run the automated setup script:
+   ```bash
+   python setup/setup_python_path.py --complete-setup
+   ```
+3. **Restart VS Code** to apply all settings
+4. **Sign in to Azure**: `az login --tenant <your-tenant-id>` and `az account set --subscription <your-subscription>`
+
+That's it! Your local environment now matches the dev container experience with:
+- ✅ Standardized "APIM Samples Python 3.12" Jupyter kernel
+- ✅ Automatic notebook kernel selection  
+- ✅ Python path configured for shared modules
+- ✅ VS Code optimized for the project
+
+When you open any `.ipynb` notebook, it will automatically use the correct kernel and all imports will work seamlessly.
+
+**🔍 Verify Setup**: Run `python setup/verify_local_setup.py` to confirm everything is working correctly.
+
+##### Manual Step-by-Step Setup
+
+If you prefer manual setup or the automated script doesn't work:
+
 1. Open VS Code.
 1. Invoke the _Command Palette_ via the _View_ menu or a shortcut (on Windows: Ctrl + Shift + P, on Mac: CMD + Shift + P).
 1. Select _Python: Create Environment_.
@@ -77,9 +101,12 @@ If you're setting up locally without the dev container:
 1. Select the desired, installed Python version.
 1. Check _requirements.txt_ to install the Python dependencies we need for this repo, then press _OK_. The install may take a few minutes. You can check on progress in the _OUTPUT_ window (select `Python`).
 1. Verify the virtual environment is set up. You should see a new _.venv_ directory with a _pyveng.cfg_ file and the Python version you selected earlier.
-1. Set up the project environment by running `python setup/setup_python_path.py --generate-env` to configure the Python path.
-   a. If for some reason the `python` command is not found, please try adding your virtual environment's `bin` or `Scripts` directory to your system's PATH variable.  An example command to do this for a virtual environment named `venv` would be to run `source .venv/bin/activate`
-1. Install the Jupyter kernel: `python -m ipykernel install --user --name=apim-samples --display-name="APIM Samples Python"`
+1. Set up the project environment:
+   ```bash
+   python setup/setup_python_path.py --generate-env
+   python setup/setup_python_path.py --setup-kernel  
+   python setup/setup_python_path.py --setup-vscode
+   ```
 1. **Restart VS Code** to ensure all environment settings are loaded properly.
 
 The first time you run a Jupyter notebook, you may be asked to install the Jupyter kernel package (ipykernel) if not already available.
@@ -95,7 +122,7 @@ If you encounter import errors (e.g., `ModuleNotFoundError: No module named 'req
 
 2. **Verify setup**:
    ```bash
-   python .devcontainer/verify-setup.py
+   python setup/verify_local_setup.py
    ```
 
 3. **Restart VS Code** after running the above commands.
@@ -126,7 +153,7 @@ Now that infrastructure and sample have been stood up, you can experiment with t
 
 ---
 
-## � Troubleshooting
+## Troubleshooting
 
 Encountering issues? Check our comprehensive **[Troubleshooting Guide](TROUBLESHOOTING.md)** which covers:
 
