@@ -52,11 +52,9 @@ fi
 
 # Quick Jupyter kernel check
 if jupyter kernelspec list 2>/dev/null | grep -q "apim-samples"; then
-    echo "   ✅ Jupyter kernel"
+    echo "   ✅ Jupyter kernel (prebuild)"
 else
-    echo "   ⚠️  Jupyter kernel missing (fallback registration...)"
-    python -m ipykernel install --user --name=apim-samples --display-name="APIM Samples Python 3.12" >/dev/null 2>&1
-    echo "   ✅ Jupyter kernel registered"
+    echo "   ⚠️  Jupyter kernel missing - check prebuild logs"
 fi
 
 # Calculate total duration
