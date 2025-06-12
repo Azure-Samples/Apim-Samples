@@ -152,13 +152,14 @@ class API:
     tags: Optional[List[str]] = None
     productNames: Optional[List[str]] = None
     subscriptionRequired: bool = False
+    serviceUrl: Optional[str] = None
 
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
 
     def __init__(self, name: str, displayName: str, path: str, description: str, policyXml: Optional[str] = None, operations: Optional[List['APIOperation']] = None, tags: Optional[List[str]] = None, 
-                 productNames: Optional[List[str]] = None, subscriptionRequired: bool = False):
+                 productNames: Optional[List[str]] = None, subscriptionRequired: bool = False, serviceUrl: Optional[str] = None):
         self.name = name
         self.displayName = displayName
         self.path = path
@@ -167,6 +168,7 @@ class API:
         self.operations = operations if operations is not None else []
         self.tags = tags if tags is not None else []
         self.productNames = productNames if productNames is not None else []
+        self.serviceUrl = serviceUrl
         self.subscriptionRequired = subscriptionRequired
 
     # ------------------------------
@@ -180,6 +182,7 @@ class API:
             "path": self.path,
             "description": self.description,
             "operations": [op.to_dict() for op in self.operations] if self.operations else [],
+            "serviceUrl": self.serviceUrl,
             "subscriptionRequired": self.subscriptionRequired,
             "policyXml": self.policyXml,
             "tags": self.tags,
