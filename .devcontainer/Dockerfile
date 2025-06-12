@@ -41,28 +41,18 @@ RUN az config set core.login_experience_v2=off 2>/dev/null || true && \
     az extension add --name containerapp --only-show-errors 2>/dev/null || true && \
     az extension add --name front-door --only-show-errors 2>/dev/null || true
 
-# Configure shell aliases and helpful commands with conditional venv activation
+# Configure shell aliases and helpful commands (venv handled by devcontainer)
 RUN echo "# APIM Samples helpful aliases" >> ~/.bashrc && \
     echo "alias ll='ls -alF'" >> ~/.bashrc && \
     echo "alias la='ls -A'" >> ~/.bashrc && \
     echo "alias l='ls -CF'" >> ~/.bashrc && \
     echo "alias pytest-cov='python -m pytest --cov=. --cov-report=html'" >> ~/.bashrc && \
-    echo "" >> ~/.bashrc && \
-    echo "# Conditionally auto-activate APIM Samples virtual environment" >> ~/.bashrc && \
-    echo "if [ -z \"\$VIRTUAL_ENV\" ] && [ -f /workspaces/Apim-Samples/.venv/bin/activate ]; then" >> ~/.bashrc && \
-    echo "    source /workspaces/Apim-Samples/.venv/bin/activate" >> ~/.bashrc && \
-    echo "fi" >> ~/.bashrc && \
     echo "" >> ~/.zshrc && \
     echo "# APIM Samples helpful aliases" >> ~/.zshrc && \
     echo "alias ll='ls -alF'" >> ~/.zshrc && \
     echo "alias la='ls -A'" >> ~/.zshrc && \
     echo "alias l='ls -CF'" >> ~/.zshrc && \
-    echo "alias pytest-cov='python -m pytest --cov=. --cov-report=html'" >> ~/.zshrc && \
-    echo "" >> ~/.zshrc && \
-    echo "# Conditionally auto-activate APIM Samples virtual environment" >> ~/.zshrc && \
-    echo "if [ -z \"\$VIRTUAL_ENV\" ] && [ -f /workspaces/Apim-Samples/.venv/bin/activate ]; then" >> ~/.zshrc && \
-    echo "    source /workspaces/Apim-Samples/.venv/bin/activate" >> ~/.zshrc && \
-    echo "fi" >> ~/.zshrc
+    echo "alias pytest-cov='python -m pytest --cov=. --cov-report=html'" >> ~/.zshrc
 
 # Set final working directory
 WORKDIR /workspaces/Apim-Samples
