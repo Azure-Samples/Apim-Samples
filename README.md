@@ -102,7 +102,9 @@ If you encounter import errors (e.g., `ModuleNotFoundError: No module named 'req
 
 4. **Check Python interpreter**: Use `Ctrl+Shift+P` → "Python: Select Interpreter" and choose your `.venv` interpreter.
 
-For detailed troubleshooting, see [Import Troubleshooting Guide](.devcontainer/IMPORT-TROUBLESHOOTING.md).
+For detailed troubleshooting of setup issues, see [Import Troubleshooting Guide](.devcontainer/IMPORT-TROUBLESHOOTING.md).
+
+📘 **For comprehensive troubleshooting including deployment errors, authentication issues, and more, see our main [Troubleshooting Guide](TROUBLESHOOTING.md).**
 
 ### 📁 List of Samples
 
@@ -124,7 +126,21 @@ Now that infrastructure and sample have been stood up, you can experiment with t
 
 ---
 
-## 📂 Repo Structure
+## � Troubleshooting
+
+Encountering issues? Check our comprehensive **[Troubleshooting Guide](TROUBLESHOOTING.md)** which covers:
+
+- **Deployment Errors** - Including the common "content already consumed" error and parameter mismatches
+- **Authentication Issues** - Azure CLI login problems and permission errors  
+- **Notebook & Development Environment Issues** - Module import errors and Python path problems
+- **Azure CLI Issues** - Rate limiting and API version compatibility
+- **Resource Management Issues** - Resource group and APIM service problems
+
+For immediate help with common errors, diagnostic commands, and step-by-step solutions, see **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**.
+
+---
+
+## �📂 Repo Structure
 
 ### 🦅 High-level
 
