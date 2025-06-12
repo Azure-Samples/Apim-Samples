@@ -41,16 +41,8 @@ RUN az config set core.login_experience_v2=off 2>/dev/null || true && \
     az extension add --name containerapp --only-show-errors 2>/dev/null || true && \
     az extension add --name front-door --only-show-errors 2>/dev/null || true
 
-# Configure shell to auto-activate virtual environment
-RUN echo "# Auto-activate APIM Samples virtual environment" >> ~/.bashrc && \
-    echo "if [ -f /workspaces/Apim-Samples/.venv/bin/activate ]; then" >> ~/.bashrc && \
-    echo "    source /workspaces/Apim-Samples/.venv/bin/activate" >> ~/.bashrc && \
-    echo "fi" >> ~/.bashrc && \
-    echo "# Auto-activate APIM Samples virtual environment" >> ~/.zshrc && \
-    echo "if [ -f /workspaces/Apim-Samples/.venv/bin/activate ]; then" >> ~/.zshrc && \
-    echo "    source /workspaces/Apim-Samples/.venv/bin/activate" >> ~/.zshrc && \
-    echo "fi" >> ~/.zshrc && \
-    # Add helpful aliases
+# Configure shell aliases and helpful commands (no auto venv activation)
+RUN echo "# APIM Samples helpful aliases" >> ~/.bashrc && \
     echo "alias ll='ls -alF'" >> ~/.bashrc && \
     echo "alias la='ls -A'" >> ~/.bashrc && \
     echo "alias l='ls -CF'" >> ~/.bashrc && \

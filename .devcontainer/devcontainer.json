@@ -107,7 +107,9 @@
       }
     },
     "containerEnv": {
-      "PYTHONPATH": "/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples"
+      "PATH": "/workspaces/Apim-Samples/.venv/bin:${PATH}",
+      "PYTHONPATH": "/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples",
+      "VIRTUAL_ENV": "/workspaces/Apim-Samples/.venv"
     }
   },
   "onCreateCommand": [
