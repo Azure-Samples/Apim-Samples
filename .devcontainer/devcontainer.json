@@ -125,7 +125,7 @@
   "postStartCommand": [
     "bash",
     "-c",
-    "echo 'APIM Samples Codespace Starting - Keep this terminal open to see progress!' && bash .devcontainer/post-start-setup-2.sh"
+    "echo 'APIM Samples Codespace Starting - Keep this terminal open to see progress!' && bash .devcontainer/post-start-setup.sh"
   ],
   "forwardPorts": [
     8000,
