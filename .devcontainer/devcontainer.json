@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
   "name": "APIM Samples",
   "build": {
     "dockerfile": "Dockerfile",
@@ -107,51 +108,51 @@
     },
     "containerEnv": {
       "PYTHONPATH": "/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples"
+    }
+  },
+  "onCreateCommand": [
+    "bash",
+    "-c",
+    "echo '🚀 Creating Python virtual environment in workspace...' && /usr/local/bin/python3.12 -m venv /workspaces/Apim-Samples/.venv --copies && source /workspaces/Apim-Samples/.venv/bin/activate && pip install --upgrade pip setuptools wheel && echo '✅ Virtual environment created'"
+  ],
+  "updateContentCommand": [
+    "bash",
+    "-c",
+    "echo '📦 Installing/updating Python packages from requirements.txt...' && source /workspaces/Apim-Samples/.venv/bin/activate && pip install -r requirements.txt && pip install pytest pytest-cov coverage ipykernel && echo '✅ Python packages installed/updated' && python setup/setup_python_path.py --generate-env && echo '✅ Environment configuration updated' && echo '🔧 Registering Jupyter kernel...' && python -m ipykernel install --user --name=apim-samples --display-name='APIM Samples Python 3.12' --python=\"$(which python)\" && echo '✅ Jupyter kernel registered' && echo '⚙️ Configuring Azure CLI...' && az config set core.login_experience_v2=off 2>/dev/null || true && az extension add --name containerapp --only-show-errors 2>/dev/null || true && az extension add --name front-door --only-show-errors 2>/dev/null || true && echo '✅ Azure CLI configured for Codespaces'"
+  ],
+  "postStartCommand": [
+    "bash",
+    "-c",
+    "echo 'APIM Samples Codespace Starting - Keep this terminal open to see progress!' && bash .devcontainer/post-start-setup-2.sh"
+  ],
+  "forwardPorts": [
+    8000,
+    8080,
+    5000,
+    3000
+  ],
+  "portsAttributes": {
+    "8000": {
+      "label": "Python Development Server",
+      "onAutoForward": "notify"
     },
-    "onCreateCommand": [
-      "bash",
-      "-c",
-      "echo '🚀 Creating Python virtual environment in workspace...' && /usr/local/bin/python3.12 -m venv /workspaces/Apim-Samples/.venv --copies && source /workspaces/Apim-Samples/.venv/bin/activate && pip install --upgrade pip setuptools wheel && echo '✅ Virtual environment created'"
-    ],
-    "updateContentCommand": [
-      "bash",
-      "-c",
-      "echo '📦 Installing/updating Python packages from requirements.txt...' && source /workspaces/Apim-Samples/.venv/bin/activate && pip install -r requirements.txt && pip install pytest pytest-cov coverage ipykernel && echo '✅ Python packages installed/updated' && python setup/setup_python_path.py --generate-env && echo '✅ Environment configuration updated' && echo '🔧 Registering Jupyter kernel...' && python -m ipykernel install --user --name=apim-samples --display-name='APIM Samples Python 3.12' --python=\"$(which python)\" && echo '✅ Jupyter kernel registered' && echo '⚙️ Configuring Azure CLI...' && az config set core.login_experience_v2=off 2>/dev/null || true && az extension add --name containerapp --only-show-errors 2>/dev/null || true && az extension add --name front-door --only-show-errors 2>/dev/null || true && echo '✅ Azure CLI configured for Codespaces'"
-    ],
-    "postStartCommand": [
-      "bash",
-      "-c",
-      "echo 'APIM Samples Codespace Starting - Keep this terminal open to see progress!' && bash .devcontainer/post-start-setup-2.sh"
-    ],
-    "forwardPorts": [
-      8000,
-      8080,
-      5000,
-      3000
-    ],
-    "portsAttributes": {
-      "8000": {
-        "label": "Python Development Server",
-        "onAutoForward": "notify"
-      },
-      "8080": {
-        "label": "Alternative HTTP Server",
-        "onAutoForward": "notify"
-      },
-      "5000": {
-        "label": "Flask Development Server",
-        "onAutoForward": "notify"
-      },
-      "3000": {
-        "label": "Node.js Development Server",
-        "onAutoForward": "notify"
-      }
+    "8080": {
+      "label": "Alternative HTTP Server",
+      "onAutoForward": "notify"
     },
-    "remoteUser": "vscode",
-    "workspaceFolder": "/workspaces/Apim-Samples",
-    "mounts": [],
-    "runArgs": [
-      "--init"
-    ]
-  }
+    "5000": {
+      "label": "Flask Development Server",
+      "onAutoForward": "notify"
+    },
+    "3000": {
+      "label": "Node.js Development Server",
+      "onAutoForward": "notify"
+    }
+  },
+  "remoteUser": "vscode",
+  "workspaceFolder": "/workspaces/Apim-Samples",
+  "mounts": [],
+  "runArgs": [
+    "--init"
+  ]
 }
