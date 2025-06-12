@@ -12,7 +12,7 @@ echo "==========================================================================
 echo "                    🚀 APIM SAMPLES - INSTANT VERIFICATION                "
 echo "============================================================================"
 echo ""
-echo "⚡ All heavy setup completed during prebuild - verifying environment..."
+echo "⚡ All heavy setup was completed during prebuild - verifying environment..."
 echo ""
 
 # ------------------------------
@@ -22,7 +22,7 @@ echo ""
 WORKSPACE_ROOT="/workspaces/Apim-Samples"
 VENV_PATH="$WORKSPACE_ROOT/.venv"
 
-echo "Environment Status:"
+echo -e "Environment Status:\n"
 
 # Ultra-fast file system checks (no command execution)
 if [ -d "$VENV_PATH" ]; then
@@ -59,18 +59,15 @@ echo "==========================================================================
 echo "                          ⚡ INSTANT VERIFICATION COMPLETE!               "
 echo "============================================================================"
 echo ""
-printf "⏱️ Verification time: %s seconds (prebuild optimizations working!)\n" "$duration"
-echo "🎉 Environment ready - all heavy lifting done during prebuild!"
+printf "⏱️  Verification time: %s seconds (prebuild optimizations working!)\n" "$duration"
 echo ""
-echo "🔍 This terminal shows your quick verification status."
-echo "📋 You can minimize this panel or open a new terminal for your work."
-echo ""
-echo "🚀 Your APIM Samples environment is ready to use!"
-echo ""
-echo " NEXT STEPS:"
+echo "🎉 Your APIM Samples environment is ready to use!"
+echo -e "\n"
+echo " Next Steps:"
 echo " -----------"
 echo ""
 echo "   1. Log in via the Azure CLI: az login"
 echo "   2. Start using the infrastructures and samples!"
 echo ""
 echo "============================================================================"
+echo -e "\n\n"
