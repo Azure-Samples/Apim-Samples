@@ -417,6 +417,87 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
     return run(f"az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file \"{main_bicep_path}\" --parameters \"{params_file_path}\" --query \"properties.outputs\"",
         f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.")
 
+
+def find_project_root() -> str:
+    """
+    Find the project root directory by looking for specific marker files.
+    
+    Returns:
+        str: Path to the project root directory.
+        
+    Raises:
+        FileNotFoundError: If project root cannot be determined.
+    """
+    current_dir = os.getcwd()
+    
+    # Look for marker files that indicate the project root
+    marker_files = ['requirements.txt', 'README.md', 'bicepconfig.json']
+    
+    while current_dir != os.path.dirname(current_dir):  # Stop at filesystem root
+        if any(os.path.exists(os.path.join(current_dir, marker)) for marker in marker_files):
+            # Additional check: verify this looks like our project by checking for samples directory
+            if os.path.exists(os.path.join(current_dir, 'samples')):
+                return current_dir
+        current_dir = os.path.dirname(current_dir)
+    
+    # If we can't find the project root, raise an error
+    raise FileNotFoundError("Could not determine project root directory")
+
+
+def create_bicep_deployment_group_for_sample(sample_name: str, rg_name: str, rg_location: str, bicep_parameters: dict, bicep_parameters_file: str = 'params.json', rg_tags: dict | None = None) -> Output:
+    """
+    Create a Bicep deployment for a sample, handling the working directory change automatically.
+    This function ensures that the params.json file is written to the correct sample directory
+    regardless of the current working directory (e.g., when running from VS Code).
+
+    Args:
+        sample_name (str): Name of the sample (used for deployment name and directory).
+        rg_name (str): Name of the resource group.
+        rg_location (str): Azure region for the resource group.
+        bicep_parameters: Parameters for the Bicep template.
+        bicep_parameters_file (str, optional): File to write parameters to.
+        rg_tags (dict, optional): Additional tags to apply to the resource group.
+
+    Returns:
+        Output: The result of the deployment command.
+    """
+    import os
+    
+    # Get the current working directory
+    original_cwd = os.getcwd()
+    
+    try:
+        # Determine the sample directory path
+        # This handles both cases: running from project root or from sample directory
+        if os.path.basename(original_cwd) == sample_name:
+            # Already in the sample directory
+            sample_dir = original_cwd
+        else:
+            # Assume we're in project root or elsewhere, navigate to sample directory
+            project_root = find_project_root()
+            sample_dir = os.path.join(project_root, 'samples', sample_name)
+        
+        # Verify the sample directory exists and has main.bicep
+        if not os.path.exists(sample_dir):
+            raise FileNotFoundError(f"Sample directory not found: {sample_dir}")
+        
+        main_bicep_path = os.path.join(sample_dir, 'main.bicep')
+        if not os.path.exists(main_bicep_path):
+            raise FileNotFoundError(f"main.bicep not found in sample directory: {sample_dir}")
+        
+        # Change to the sample directory to ensure params.json is written there
+        os.chdir(sample_dir)
+        print(f"📁 Changed working directory to: {sample_dir}")
+        
+        # Call the original deployment function
+        return create_bicep_deployment_group(rg_name, rg_location, sample_name, bicep_parameters, bicep_parameters_file, rg_tags)
+        
+    finally:
+        # Always restore the original working directory
+        os.chdir(original_cwd)
+        print(f"📁 Restored working directory to: {original_cwd}")
+
+
 def create_resource_group(rg_name: str, resource_group_location: str | None = None, tags: dict | None = None) -> None:
     """
     Create a resource group in Azure if it does not already exist.
