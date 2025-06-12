@@ -1,0 +1,26 @@
+<!-- Add policies as children to the <inbound>, <outbound>, <backend>, and <on-error> elements -->
+<policies>
+    <!-- Throttle, authorize, validate, cache, or transform the requests -->
+    <inbound>
+        <base />
+        <set-query-parameter name="subscription-key" exists-action="override">
+            <value>{{azuremaps-subscription-key}}</value>
+        </set-query-parameter>
+        <set-query-parameter name="api-version" exists-action="override">
+            <value>1.0</value>
+        </set-query-parameter>
+        <rewrite-uri template="/search/address/batch/json" copy-unmatched-params="true" />
+    </inbound>
+    <!-- Control if and how the requests are forwarded to services  -->
+    <backend>
+        <base />
+    </backend>
+    <!-- Customize the responses -->
+    <outbound>
+        <base />
+    </outbound>
+    <!-- Handle exceptions and customize error responses  -->
+    <on-error>
+        <base />
+    </on-error>
+</policies>
