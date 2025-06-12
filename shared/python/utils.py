@@ -260,6 +260,59 @@ def _print_log(message: str, prefix: str = '', color: str = '', output: str = ''
         print()
 
 
+def _determine_bicep_directory(infrastructure_dir: str) -> str:
+    """
+    Determine the correct Bicep directory based on the current working directory and infrastructure directory name.
+    
+    This function implements the following logic:
+    1. If current directory contains main.bicep, use current directory (for samples)
+    2. If current directory name matches infrastructure_dir, use current directory (for infrastructure)
+    3. Look for infrastructure/{infrastructure_dir} relative to current directory
+    4. Look for infrastructure/{infrastructure_dir} relative to parent directory
+    5. Try to find project root and construct path from there
+    6. Fall back to current directory + infrastructure/{infrastructure_dir}
+    
+    Args:
+        infrastructure_dir (str): The name of the infrastructure directory to find.
+        
+    Returns:
+        str: The path to the directory containing the main.bicep file.
+    """
+    current_dir = os.getcwd()
+    
+    # First, check if there's a main.bicep file in the current directory (for samples)
+    if os.path.exists(os.path.join(current_dir, 'main.bicep')):
+        return current_dir
+    
+    # Check if we're already in the correct infrastructure directory
+    if os.path.basename(current_dir) == infrastructure_dir:
+        return current_dir
+    
+    # Look for the infrastructure directory from the current location
+    bicep_dir = os.path.join(current_dir, 'infrastructure', infrastructure_dir)
+    if os.path.exists(bicep_dir):
+        return bicep_dir
+    
+    # If that doesn't exist, try going up one level and looking again
+    parent_dir = os.path.dirname(current_dir)
+    bicep_dir = os.path.join(parent_dir, 'infrastructure', infrastructure_dir)
+    if os.path.exists(bicep_dir):
+        return bicep_dir
+    
+    # Try to find the project root and construct the path from there
+    try:
+        from apimtypes import _get_project_root
+        project_root = _get_project_root()
+        bicep_dir = os.path.join(str(project_root), 'infrastructure', infrastructure_dir)
+        if os.path.exists(bicep_dir):
+            return bicep_dir
+    except Exception:
+        pass
+    
+    # Fall back to current directory + infrastructure/{infrastructure_dir}
+    return os.path.join(current_dir, 'infrastructure', infrastructure_dir)
+
+
 # ------------------------------
 #    PUBLIC METHODS
 # ------------------------------
@@ -337,10 +390,7 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
         "parameters": bicep_parameters
     }
 
-    # Get the current working directory to ensure files are found in the correct location
-    current_dir = os.getcwd()
-    
-    # Determine the correct infrastructure directory based on the deployment parameter
+    # Determine the correct deployment name and find the Bicep directory
     if hasattr(deployment, 'value'):
         deployment_name = deployment.value
         infrastructure_dir = deployment.value
@@ -348,29 +398,8 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
         deployment_name = deployment
         infrastructure_dir = deployment
     
-    # Check if we're already in the correct infrastructure directory
-    if os.path.basename(current_dir) == infrastructure_dir:
-        # We're already in the right directory
-        bicep_dir = current_dir
-    else:
-        # Look for the infrastructure directory from the current location
-        bicep_dir = os.path.join(current_dir, 'infrastructure', infrastructure_dir)
-        
-        # If that doesn't exist, try going up one level and looking again
-        if not os.path.exists(bicep_dir):
-            parent_dir = os.path.dirname(current_dir)
-            bicep_dir = os.path.join(parent_dir, 'infrastructure', infrastructure_dir)
-        
-        # If still not found, check if we can find the infrastructure directory by searching
-        if not os.path.exists(bicep_dir):
-            # Try to find the project root and construct the path from there
-            # This handles cases where we're in subdirectories or different locations
-            try:
-                from apimtypes import _get_project_root
-                project_root = _get_project_root()
-                bicep_dir = os.path.join(str(project_root), 'infrastructure', infrastructure_dir)
-            except Exception:
-                bicep_dir = os.path.join(current_dir, 'infrastructure', infrastructure_dir)
+    # Use helper function to determine the correct Bicep directory
+    bicep_dir = _determine_bicep_directory(infrastructure_dir)
     
     main_bicep_path = os.path.join(bicep_dir, 'main.bicep')
     params_file_path = os.path.join(bicep_dir, bicep_parameters_file)
