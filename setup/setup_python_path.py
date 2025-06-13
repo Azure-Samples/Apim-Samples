@@ -150,8 +150,8 @@ def install_jupyter_kernel():
         ], check=True, capture_output=True, text=True)
         
         print(f"✅ Jupyter kernel registered successfully:")
-        print(f"   Name: {kernel_name}")
-        print(f"   Display Name: {display_name}")
+        print(f"   Name         : {kernel_name}")
+        print(f"   Display Name : {display_name}")
         
         return True
         
