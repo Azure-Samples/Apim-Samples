@@ -696,8 +696,14 @@ def test_determine_policy_path_full_path():
 def test_check_apim_blob_permissions_success(monkeypatch):
     """Test check_apim_blob_permissions with successful permissions."""
     def mock_run_success(cmd, **kwargs):
-        if 'az apim api operation' in cmd:
-            return utils.Output(success=True, text='{"statusCode": 200}')
+        if 'az apim show' in cmd and 'identity.principalId' in cmd:
+            return utils.Output(success=True, text='12345678-1234-1234-1234-123456789012')
+        elif 'az storage account show' in cmd and '--query id' in cmd:
+            return utils.Output(success=True, text='/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/test-rg/providers/Microsoft.Storage/storageAccounts/test-storage')
+        elif 'az role assignment list' in cmd:
+            return utils.Output(success=True, text='/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/test-rg/providers/Microsoft.Authorization/roleAssignments/test-assignment')
+        elif 'az storage blob list' in cmd:
+            return utils.Output(success=True, text='test-blob.txt')
         return utils.Output(success=True, text='{}')
 
     monkeypatch.setattr(utils, 'run', mock_run_success)
@@ -789,13 +795,23 @@ def test_get_infra_rg_name_different_types(infra_type, expected_suffix, monkeypa
 
 def test_create_bicep_deployment_group_for_sample_success(monkeypatch):
     """Test create_bicep_deployment_group_for_sample success case."""
+    import os
     mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
     
-    def mock_create_bicep(sample_name, rg_name, location, params, tags=None):
+    def mock_create_bicep(rg_name, rg_location, deployment, bicep_parameters, bicep_parameters_file='params.json', rg_tags=None):
         return mock_output
+    
+    # Mock file system checks
+    def mock_exists(path):
+        return True  # Pretend all paths exist
+    
+    def mock_chdir(path):
+        pass  # Do nothing
     
     monkeypatch.setattr(utils, 'create_bicep_deployment_group', mock_create_bicep)
     monkeypatch.setattr(utils, 'build_infrastructure_tags', lambda x: [])
+    monkeypatch.setattr(os.path, 'exists', mock_exists)
+    monkeypatch.setattr(os, 'chdir', mock_chdir)
     
     result = utils.create_bicep_deployment_group_for_sample('test-sample', 'test-rg', 'eastus', {})
     assert result.success is True
@@ -836,7 +852,7 @@ def test_output_class_functionality():
     output = utils.Output(success=True, text='{"properties": {"outputs": {"test": {"value": "value"}}}}')
     assert output.success is True
     assert output.get('test') == 'value'
-    assert output.get('missing', 'default') == 'default'
+    assert output.get('missing') is None  # Should return None for missing key without label
     
     # Test failed output
     output = utils.Output(success=False, text='error')
@@ -846,14 +862,14 @@ def test_output_class_functionality():
 
 def test_run_command_with_error_suppression(monkeypatch):
     """Test run command with error output suppression."""
-    def mock_subprocess_run(cmd, **kwargs):
-        class MockResult:
-            returncode = 1
-            stdout = "test output"
-            stderr = "test error"
-        return MockResult()
+    def mock_subprocess_check_output(cmd, **kwargs):
+        # Simulate a CalledProcessError with bytes output
+        import subprocess
+        error = subprocess.CalledProcessError(1, cmd)
+        error.output = b"test output"  # Return bytes, as subprocess would
+        raise error
     
-    monkeypatch.setattr('subprocess.run', mock_subprocess_run)
+    monkeypatch.setattr('subprocess.check_output', mock_subprocess_check_output)
     
     output = utils.run("test command", print_errors=False, print_output=False)
     assert output.success is False
@@ -918,7 +934,10 @@ def test_get_azure_role_guid_comprehensive(monkeypatch):
 
 def test_cleanup_functions_comprehensive(monkeypatch):
     """Test cleanup functions with various scenarios."""
-    monkeypatch.setattr(utils, 'run', lambda x, **kw: utils.Output(success=True, text='{}'))
+    def mock_run(command, ok_message='', error_message='', print_output=False, print_command_to_run=True, print_errors=True, print_warnings=True):
+        return utils.Output(success=True, text='{}')
+    
+    monkeypatch.setattr(utils, 'run', mock_run)
     
     # Test _cleanup_resources (private function)
     utils._cleanup_resources('test-deployment', 'test-rg')  # Should not raise
@@ -926,8 +945,9 @@ def test_cleanup_functions_comprehensive(monkeypatch):
     # Test cleanup_deployment 
     utils.cleanup_deployment('test-deployment')  # Should not raise
     
-    # Test cleanup_infra_deployment with string
-    utils.cleanup_infra_deployment('test-deployment')  # Should not raise
+    # Test cleanup_infra_deployments with INFRASTRUCTURE enum (correct function name and parameter type)
+    from shared.python.apimtypes import INFRASTRUCTURE
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM)  # Should not raise
     
     # Test cleanup_deployment with string
     utils.cleanup_deployment('test-deployment')  # Should not raise
