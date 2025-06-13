@@ -2,21 +2,7 @@
 
 This document outlines the compatibility between samples and infrastructure types, providing a comprehensive test matrix to ensure all components work correctly in both local development and Codespaces environments. The format allows for manual check-off during testing sessions.
 
-## Infrastructure Types
-
-The repository currently supports the following infrastructure types:
-
-1. **SIMPLE_APIM** - Simple API Management with no dependencies
-2. **APIM_ACA** - Azure API Management connected to Azure Container Apps
-3. **AFD_APIM_PE** - Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
-
-## Test Matrix
-
-### Printable Test Checklist
-
-Each cell includes checkboxes for both local development and Codespaces/Dev Container environments:
-- Local: Test in local environment
-- Dev Container: Test in Codespaces/Dev Container
+## Printable Test Checklist
 
 | Sample / Infrastructure | SIMPLE_APIM | APIM_ACA | AFD_APIM_PE |
 |-------------------------|------------|----------|------------|
@@ -27,6 +13,14 @@ Each cell includes checkboxes for both local development and Codespaces/Dev Cont
 | **load-balancing** | N/A | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container |
 | **secure-blob-access** | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container |
 | **INFRASTRUCTURE clean-up** | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container |
+
+## Infrastructure Types
+
+The repository currently supports the following infrastructure types:
+
+1. **SIMPLE_APIM** - Simple API Management with no dependencies
+2. **APIM_ACA** - Azure API Management connected to Azure Container Apps
+3. **AFD_APIM_PE** - Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
 
 ## Testing Requirements
 
