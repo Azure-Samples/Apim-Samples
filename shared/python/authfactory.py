@@ -89,9 +89,9 @@ class AuthFactory:
 
         jwt_payload = JwtPayload(subject = user.id, name = user.name, roles = user.roles)
         symmetric_jwt = SymmetricJwtToken(jwt_key, jwt_payload)
-
+        
         return symmetric_jwt.encode()
-
+    
     @staticmethod
     def create_jwt_payload_for_user(user: User) -> Any:
         """
@@ -110,6 +110,6 @@ class AuthFactory:
         return {
             "sub": user.id,
             "name": user.name,
-            "roles": user.role
+            "roles": user.roles
         }
 

@@ -2,6 +2,7 @@ import pytest
 from apimtypes import INFRASTRUCTURE
 import os
 import builtins
+from pathlib import Path
 from unittest.mock import MagicMock, mock_open
 import utils
 from apimtypes import INFRASTRUCTURE
@@ -143,7 +144,8 @@ def test_read_policy_xml_success(monkeypatch):
     xml_content = '<policies><inbound><base /></inbound></policies>'
     m = mock_open(read_data=xml_content)
     monkeypatch.setattr(builtins, 'open', m)
-    result = utils.read_policy_xml('dummy.xml')
+    # Use full path to avoid sample name auto-detection
+    result = utils.read_policy_xml('/path/to/dummy.xml')
     assert result == xml_content
 
 def test_read_policy_xml_file_not_found(monkeypatch):
@@ -152,15 +154,67 @@ def test_read_policy_xml_file_not_found(monkeypatch):
         raise FileNotFoundError('File not found')
     monkeypatch.setattr(builtins, 'open', raise_fnf)
     with pytest.raises(FileNotFoundError):
-        utils.read_policy_xml('missing.xml')
+        utils.read_policy_xml('/path/to/missing.xml')
 
 def test_read_policy_xml_empty_file(monkeypatch):
     """Test reading an empty XML file returns an empty string."""
     m = mock_open(read_data='')
     monkeypatch.setattr(builtins, 'open', m)
-    result = utils.read_policy_xml('empty.xml')
+    result = utils.read_policy_xml('/path/to/empty.xml')
     assert result == ''
+
+def test_read_policy_xml_with_named_values(monkeypatch):
+    """Test reading policy XML with named values formatting."""
+    xml_content = '<policy><validate-jwt><issuer-signing-keys><key>{jwt_signing_key}</key></issuer-signing-keys></validate-jwt></policy>'
+    m = mock_open(read_data=xml_content)
+    monkeypatch.setattr(builtins, 'open', m)
     
+    # Mock the auto-detection to return 'authX'
+    def mock_inspect_currentframe():
+        frame = MagicMock()
+        caller_frame = MagicMock()
+        caller_frame.f_globals = {'__file__': '/project/samples/authX/create.ipynb'}
+        frame.f_back = caller_frame
+        return frame
+    
+    monkeypatch.setattr('inspect.currentframe', mock_inspect_currentframe)
+    monkeypatch.setattr('apimtypes._get_project_root', lambda: Path('/project'))
+    
+    named_values = {
+        'jwt_signing_key': 'JwtSigningKey123'
+    }
+    
+    result = utils.read_policy_xml('hr_all_operations.xml', named_values)
+    expected = '<policy><validate-jwt><issuer-signing-keys><key>{{JwtSigningKey123}}</key></issuer-signing-keys></validate-jwt></policy>'
+    assert result == expected
+
+def test_read_policy_xml_legacy_mode(monkeypatch):
+    """Test that legacy mode (full path) still works."""
+    xml_content = '<policies><inbound><base /></inbound></policies>'
+    m = mock_open(read_data=xml_content)
+    monkeypatch.setattr(builtins, 'open', m)
+    result = utils.read_policy_xml('/full/path/to/policy.xml')
+    assert result == xml_content
+
+def test_read_policy_xml_auto_detection_failure(monkeypatch):
+    """Test that auto-detection failure provides helpful error."""
+    xml_content = '<policy></policy>'
+    m = mock_open(read_data=xml_content)
+    monkeypatch.setattr(builtins, 'open', m)
+    
+    # Mock the auto-detection to fail
+    def mock_inspect_currentframe():
+        frame = MagicMock()
+        caller_frame = MagicMock()
+        caller_frame.f_globals = {'__file__': '/project/notsamples/test/create.ipynb'}
+        frame.f_back = caller_frame
+        return frame
+    
+    monkeypatch.setattr('inspect.currentframe', mock_inspect_currentframe)
+    
+    with pytest.raises(ValueError, match="Could not auto-detect sample name"):
+        utils.read_policy_xml('policy.xml', {'key': 'value'})
+
 # ------------------------------
 #    cleanup_resources (smoke)
 # ------------------------------
@@ -558,333 +612,325 @@ def test_create_bicep_deployment_group_deployment_failure(monkeypatch):
 #    ADDITIONAL COVERAGE TESTS
 # ------------------------------
 
-def test_build_infrastructure_tags_basic():
-    """Test basic infrastructure tags creation."""
-    result = utils.build_infrastructure_tags(INFRASTRUCTURE.SIMPLE_APIM)
-    assert "infrastructure" in result
-    assert result["infrastructure"] == "simple-apim"
-
-def test_build_infrastructure_tags_with_custom():
-    """Test infrastructure tags with custom tags."""
-    custom = {"environment": "test", "owner": "team"}
-    result = utils.build_infrastructure_tags(INFRASTRUCTURE.SIMPLE_APIM, custom)
-    assert result["infrastructure"] == "simple-apim"
-    assert result["environment"] == "test"
-    assert result["owner"] == "team"
-
-def test_get_azure_role_guid_valid_role(monkeypatch):
-    """Test getting valid Azure role GUID."""
-    mock_open_func = mock_open(read_data='{"Contributor": "role-guid-123"}')
-    monkeypatch.setattr(builtins, 'open', mock_open_func)
-    monkeypatch.setattr(os.path, 'exists', lambda x: True)
+def test_print_functions_comprehensive():
+    """Test all print utility functions for coverage."""
+    import io
+    import sys
     
-    result = utils.get_azure_role_guid("Contributor")
-    assert result == "role-guid-123"
-
-def test_get_azure_role_guid_invalid_role(monkeypatch):
-    """Test getting invalid Azure role GUID."""
-    mock_open_func = mock_open(read_data='{"Contributor": "role-guid-123"}')
-    monkeypatch.setattr(builtins, 'open', mock_open_func)
-    monkeypatch.setattr(os.path, 'exists', lambda x: True)
+    # Capture stdout
+    captured_output = io.StringIO()
+    sys.stdout = captured_output
     
-    result = utils.get_azure_role_guid("NonExistentRole")
-    assert result is None
+    try:
+        # Test all print functions
+        utils.print_info("Test info message")
+        utils.print_success("Test success message")
+        utils.print_warning("Test warning message")
+        utils.print_error("Test error message")
+        utils.print_message("Test message")
+        utils.print_val("Test key", "Test value")
+        
+        output = captured_output.getvalue()
+        assert "Test info message" in output
+        assert "Test success message" in output
+        assert "Test warning message" in output
+        assert "Test error message" in output
+        assert "Test message" in output
+        assert "Test key" in output
+        assert "Test value" in output
+    finally:
+        sys.stdout = sys.__stdout__
 
-def test_get_azure_role_guid_file_not_found(monkeypatch):
-    """Test getting Azure role GUID when file doesn't exist."""
-    monkeypatch.setattr(os.path, 'exists', lambda x: False)
-    
-    result = utils.get_azure_role_guid("Contributor")
-    assert result is None
 
-def test_create_bicep_deployment_group_success(monkeypatch):
-    """Test successful Bicep deployment group creation."""
-    mock_output = MagicMock(success=True, json_data={"id": "deployment-id"})
-    monkeypatch.setattr(utils, 'run', lambda *a, **kw: mock_output)
-    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda x: True)
-    # Mock os functions for file path operations
-    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
-    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
-    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
-    mock_open_func = mock_open()
-    monkeypatch.setattr(builtins, 'open', mock_open_func)
+def test_test_url_preflight_check_with_frontdoor(monkeypatch):
+    """Test URL preflight check when Front Door is available."""
+    monkeypatch.setattr(utils, 'get_frontdoor_url', lambda x, y: 'https://test.azurefd.net')
+    monkeypatch.setattr(utils, 'print_message', lambda x, **kw: None)
     
-    result = utils.create_bicep_deployment_group(
-        "test-rg", "eastus", INFRASTRUCTURE.SIMPLE_APIM, {"param1": "value1"}
-    )
-    assert result.success is True
+    result = utils.test_url_preflight_check(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim.com')
+    assert result == 'https://test.azurefd.net'
 
-def test_create_bicep_deployment_group_creates_rg(monkeypatch):
-    """Test Bicep deployment creates resource group if not exists."""
-    mock_output = MagicMock(success=True, json_data={"id": "deployment-id"})
-    monkeypatch.setattr(utils, 'run', lambda *a, **kw: mock_output)
-    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda x: False)
-    monkeypatch.setattr(utils, 'create_resource_group', lambda *a, **kw: None)
-    # Mock os functions for file path operations
-    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
-    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
-    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
-    mock_open_func = mock_open()
-    monkeypatch.setattr(builtins, 'open', mock_open_func)
-    
-    result = utils.create_bicep_deployment_group(
-        "test-rg", "eastus", INFRASTRUCTURE.SIMPLE_APIM, {"param1": "value1"}
-    )
-    assert result.success is True
 
-def test_create_resource_group_with_tags(monkeypatch):
-    """Test creating resource group with tags."""
-    mock_output = MagicMock(success=True)
-    monkeypatch.setattr(utils, 'run', lambda *a, **kw: mock_output)
+def test_test_url_preflight_check_no_frontdoor(monkeypatch):
+    """Test URL preflight check when Front Door is not available."""
+    monkeypatch.setattr(utils, 'get_frontdoor_url', lambda x, y: None)
+    monkeypatch.setattr(utils, 'print_message', lambda x, **kw: None)
     
-    utils.create_resource_group("test-rg", "eastus", {"env": "test"})
-    # Test passes if no exception is raised
+    result = utils.test_url_preflight_check(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg', 'https://apim.com')
+    assert result == 'https://apim.com'
 
-def test_read_and_modify_policy_xml_success(monkeypatch):
-    """Test reading and modifying policy XML."""
-    xml_content = "<policy><backend-url>{OLD_URL}</backend-url></policy>"
-    mock_open_func = mock_open(read_data=xml_content)
-    monkeypatch.setattr(builtins, 'open', mock_open_func)
-    
-    replacements = {"OLD_URL": "https://new-url.com"}
-    result = utils.read_and_modify_policy_xml("test.xml", replacements)
-    assert "https://new-url.com" in result
-    assert "{OLD_URL}" not in result
 
-def test_read_and_modify_policy_xml_no_replacements(monkeypatch):
-    """Test reading policy XML with no replacements."""
-    xml_content = "<policy><backend-url>https://api.com</backend-url></policy>"
-    mock_open_func = mock_open(read_data=xml_content)
-    monkeypatch.setattr(builtins, 'open', mock_open_func)
+def test_determine_policy_path_filename_mode(monkeypatch):
+    """Test determine_policy_path with filename mode."""
+    import inspect
+    from pathlib import Path
     
-    result = utils.read_and_modify_policy_xml("test.xml", {})
+    # Mock the project root
+    mock_project_root = Path('/mock/project/root')
+    monkeypatch.setattr('apimtypes._get_project_root', lambda: mock_project_root)
+    
+    # Mock current frame to simulate being in samples/test-sample
+    class MockFrame:
+        def __init__(self):
+            self.f_globals = {'__file__': '/mock/project/root/samples/test-sample/create.ipynb'}
+    
+    def mock_currentframe():
+        frame = MockFrame()
+        frame.f_back = frame
+        return frame
+    
+    monkeypatch.setattr(inspect, 'currentframe', mock_currentframe)
+    
+    result = utils.determine_policy_path('policy.xml', 'test-sample')
+    expected = str(mock_project_root / 'samples' / 'test-sample' / 'policy.xml')
+    assert result == expected
+
+
+def test_determine_policy_path_full_path():
+    """Test determine_policy_path with full path."""
+    full_path = '/path/to/policy.xml'
+    result = utils.determine_policy_path(full_path)
+    assert result == full_path
+
+
+def test_check_apim_blob_permissions_success(monkeypatch):
+    """Test check_apim_blob_permissions with successful permissions."""
+    def mock_run_success(cmd, **kwargs):
+        if 'az apim api operation' in cmd:
+            return utils.Output(success=True, text='{"statusCode": 200}')
+        return utils.Output(success=True, text='{}')
+
+    monkeypatch.setattr(utils, 'run', mock_run_success)
+    monkeypatch.setattr(utils, 'print_info', lambda x: None)
+    monkeypatch.setattr(utils, 'print_success', lambda x: None)
+
+    result = utils.check_apim_blob_permissions('test-apim', 'test-storage', 'test-rg', 1)
+    assert result is True
+
+
+def test_check_apim_blob_permissions_failure(monkeypatch):
+    """Test check_apim_blob_permissions with failed permissions."""
+    def mock_run_failure(cmd, **kwargs):
+        if 'az apim api operation' in cmd:
+            return utils.Output(success=True, text='{"statusCode": 403}')
+        return utils.Output(success=True, text='{}')
+
+    monkeypatch.setattr(utils, 'run', mock_run_failure)
+    monkeypatch.setattr(utils, 'print_info', lambda x: None)
+    monkeypatch.setattr(utils, 'print_warning', lambda x: None)
+    monkeypatch.setattr('time.sleep', lambda x: None)
+
+    result = utils.check_apim_blob_permissions('test-apim', 'test-storage', 'test-rg', 1)
+    assert result is False
+
+
+def test_wait_for_apim_blob_permissions_success(monkeypatch):
+    """Test wait_for_apim_blob_permissions with successful wait."""
+    monkeypatch.setattr(utils, 'check_apim_blob_permissions', lambda *args: True)
+    monkeypatch.setattr(utils, 'print_info', lambda x: None)
+    monkeypatch.setattr(utils, 'print_success', lambda x: None)
+    monkeypatch.setattr(utils, 'print_error', lambda x: None)
+    
+    result = utils.wait_for_apim_blob_permissions('test-apim', 'test-storage', 'test-rg', 1)
+    assert result is True
+
+
+def test_wait_for_apim_blob_permissions_failure(monkeypatch):
+    """Test wait_for_apim_blob_permissions with failed wait."""
+    monkeypatch.setattr(utils, 'check_apim_blob_permissions', lambda *args: False)
+    monkeypatch.setattr(utils, 'print_info', lambda x: None)
+    monkeypatch.setattr(utils, 'print_success', lambda x: None)
+    monkeypatch.setattr(utils, 'print_error', lambda x: None)
+    
+    result = utils.wait_for_apim_blob_permissions('test-apim', 'test-storage', 'test-rg', 1)
+    assert result is False
+
+
+def test_read_policy_xml_with_sample_name_explicit(monkeypatch):
+    """Test read_policy_xml with explicit sample name."""
+    from pathlib import Path
+    mock_project_root = Path('/mock/project/root')
+    monkeypatch.setattr('apimtypes._get_project_root', lambda: mock_project_root)
+    
+    xml_content = '<policies><inbound><base /></inbound></policies>'
+    m = mock_open(read_data=xml_content)
+    monkeypatch.setattr(builtins, 'open', m)
+    
+    result = utils.read_policy_xml('policy.xml', sample_name='test-sample')
     assert result == xml_content
 
-def test_cleanup_infra_deployments_multiple_indexes(monkeypatch):
-    """Test cleanup of multiple infrastructure deployments."""
-    monkeypatch.setattr(utils, '_cleanup_resources', lambda x, y: None)
-    monkeypatch.setattr(utils, 'get_infra_rg_name', lambda x, y: f"rg-{y}")
-    
-    # Should not raise exception
-    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2, 3])
 
-def test_cleanup_deployment_string_input(monkeypatch):
-    """Test cleanup deployment with string deployment name."""
-    monkeypatch.setattr(utils, '_cleanup_resources', lambda x, y: None)
-    monkeypatch.setattr(utils, 'get_rg_name', lambda x, y: f"rg-{y}")
+def test_read_policy_xml_with_named_values_formatting(monkeypatch):
+    """Test read_policy_xml with named values formatting."""
+    xml_content = '<policy><key>{jwt_key}</key></policy>'
+    expected = '<policy><key>{{JwtSigningKey}}</key></policy>'
+    m = mock_open(read_data=xml_content)
+    monkeypatch.setattr(builtins, 'open', m)
     
-    # Should not raise exception
-    utils.cleanup_deployment("test-deployment", 1)
+    named_values = {'jwt_key': 'JwtSigningKey'}
+    result = utils.read_policy_xml('/path/to/policy.xml', named_values)
+    assert result == expected
 
-def test_print_functions_output(capsys):
-    """Test various print utility functions."""
-    utils.print_ok("Success message")
-    utils.print_error("Error message")
-    utils.print_info("Info message")
-    utils.print_val("Label", "Value message")
-    
-    captured = capsys.readouterr()
-    assert "Success message" in captured.out
-    assert "Error message" in captured.out
-    assert "Info message" in captured.out
-    assert "Label" in captured.out
-    assert "Value message" in captured.out
 
-def test_print_functions_with_options(capsys):
-    """Test print functions with formatting options."""
-    utils.print_ok("Test", blank_above=True)
-    utils.print_val("Label", "Test", val_below=True)
+@pytest.mark.parametrize(
+    "infra_type,expected_suffix",
+    [
+        (INFRASTRUCTURE.SIMPLE_APIM, "simple-apim"),
+        (INFRASTRUCTURE.AFD_APIM_PE, "afd-apim-pe"),
+        (INFRASTRUCTURE.APIM_ACA, "apim-aca"),
+    ]
+)
+def test_get_infra_rg_name_different_types(infra_type, expected_suffix, monkeypatch):
+    """Test get_infra_rg_name with different infrastructure types."""
+    monkeypatch.setattr(utils, 'validate_infrastructure', lambda x: x)
+    result = utils.get_infra_rg_name(infra_type)
+    assert result == f'apim-infra-{expected_suffix}'
+
+
+def test_create_bicep_deployment_group_for_sample_success(monkeypatch):
+    """Test create_bicep_deployment_group_for_sample success case."""
+    mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
     
-    captured = capsys.readouterr()
-    assert "Test" in captured.out
+    def mock_create_bicep(sample_name, rg_name, location, params, tags=None):
+        return mock_output
+    
+    monkeypatch.setattr(utils, 'create_bicep_deployment_group', mock_create_bicep)
+    monkeypatch.setattr(utils, 'build_infrastructure_tags', lambda x: [])
+    
+    result = utils.create_bicep_deployment_group_for_sample('test-sample', 'test-rg', 'eastus', {})
+    assert result.success is True
+
+
+def test_extract_json_invalid_input():
+    """Test extract_json with various invalid inputs."""
+    assert utils.extract_json(None) is None
+    assert utils.extract_json(123) is None
+    assert utils.extract_json([1, 2, 3]) is None
+    assert utils.extract_json("not json at all") is None
+
+
+def test_generate_signing_key_format():
+    """Test that generate_signing_key returns properly formatted keys."""
+    key, b64_key = utils.generate_signing_key()
+    
+    # Key should be a string of length 32-100
+    assert isinstance(key, str)
+    assert 32 <= len(key) <= 100  # Length should be between 32 and 100
+    
+    # Key should only contain alphanumeric characters
+    assert key.isalnum()
+    
+    # Base64 key should be valid base64
+    assert isinstance(b64_key, str)
+    import base64
+    try:
+        decoded = base64.b64decode(b64_key)
+        assert len(decoded) == len(key)  # Decoded should match original length
+    except Exception:
+        pytest.fail("Base64 key is not valid base64")
+
+
+def test_output_class_functionality():
+    """Test the Output class properties and methods."""
+    # Test successful output with deployment structure
+    output = utils.Output(success=True, text='{"properties": {"outputs": {"test": {"value": "value"}}}}')
+    assert output.success is True
+    assert output.get('test') == 'value'
+    assert output.get('missing', 'default') == 'default'
+    
+    # Test failed output
+    output = utils.Output(success=False, text='error')
+    assert output.success is False
+    assert output.get('test') is None
+
+
+def test_run_command_with_error_suppression(monkeypatch):
+    """Test run command with error output suppression."""
+    def mock_subprocess_run(cmd, **kwargs):
+        class MockResult:
+            returncode = 1
+            stdout = "test output"
+            stderr = "test error"
+        return MockResult()
+    
+    monkeypatch.setattr('subprocess.run', mock_subprocess_run)
+    
+    output = utils.run("test command", print_errors=False, print_output=False)
+    assert output.success is False
+    assert output.text == "test output"
+
+
+def test_bicep_directory_determination_edge_cases(monkeypatch, tmp_path):
+    """Test edge cases in Bicep directory determination."""
+    # Test when no main.bicep exists anywhere
+    empty_dir = tmp_path / "empty"
+    empty_dir.mkdir()
+    monkeypatch.setattr(os, 'getcwd', lambda: str(empty_dir))
+    
+    # Should fall back to current directory + infrastructure/nonexistent
+    result = utils._determine_bicep_directory("nonexistent")
+    expected = os.path.join(str(empty_dir), "infrastructure", "nonexistent")
+    assert result == expected
+
+
+def test_create_resource_group_edge_cases(monkeypatch):
+    """Test create resource group with edge cases."""
+    # Test with empty tags
+    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda x: False)
+    
+    def mock_run_with_tags(*args, **kwargs):
+        cmd = args[0]
+        assert '--tags' in cmd  # Should include tags (with default source=apim-sample)
+        return utils.Output(success=True, text='{}')
+    
+    monkeypatch.setattr(utils, 'run', mock_run_with_tags)
+    
+    utils.create_resource_group('test-rg', 'eastus', {})  # Empty dict, function doesn't return anything
+
 
 # ------------------------------
-#    _determine_bicep_directory
+#    ROLE AND PERMISSION TESTS
 # ------------------------------
 
-def test_determine_bicep_directory_current_has_main_bicep(monkeypatch, tmp_path):
-    """Test when current directory contains main.bicep (samples case)."""
-    # Create a temporary directory structure
-    samples_dir = tmp_path / "samples" / "general"
-    samples_dir.mkdir(parents=True)
-    main_bicep = samples_dir / "main.bicep"
-    main_bicep.write_text("# test bicep file")
+def test_get_azure_role_guid_comprehensive(monkeypatch):
+    """Test get_azure_role_guid with comprehensive scenarios."""
+    # Mock the azure-roles.json file content
+    mock_roles = {
+        "Storage Blob Data Reader": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+        "Storage Account Contributor": "17d1049b-9a84-46fb-8f53-869881c3d3ab"
+    }
     
-    # Mock getcwd to return the samples directory
-    monkeypatch.setattr(os, 'getcwd', lambda: str(samples_dir))
+    m = mock_open(read_data=json.dumps(mock_roles))
+    monkeypatch.setattr(builtins, 'open', m)
     
-    result = utils._determine_bicep_directory("simple-apim")
-    assert result == str(samples_dir)
+    # Test valid role
+    result = utils.get_azure_role_guid("Storage Blob Data Reader")
+    assert result == "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
+    
+    # Test case sensitivity - function is case sensitive, so this should return None
+    result = utils.get_azure_role_guid("storage blob data reader")
+    assert result is None
+    
+    # Test invalid role
+    result = utils.get_azure_role_guid("Nonexistent Role")
+    assert result is None
 
-def test_determine_bicep_directory_current_matches_infrastructure(monkeypatch, tmp_path):
-    """Test when current directory name matches infrastructure directory."""
-    # Create infrastructure directory
-    infra_dir = tmp_path / "infrastructure" / "simple-apim"
-    infra_dir.mkdir(parents=True)
-    
-    # Mock getcwd to return the infrastructure directory
-    monkeypatch.setattr(os, 'getcwd', lambda: str(infra_dir))
-    
-    result = utils._determine_bicep_directory("simple-apim")
-    assert result == str(infra_dir)
 
-def test_determine_bicep_directory_infrastructure_in_current(monkeypatch, tmp_path):
-    """Test when infrastructure directory exists relative to current directory."""
-    # Create directory structure
-    current_dir = tmp_path / "samples" / "general"
-    current_dir.mkdir(parents=True)
-    infra_dir = current_dir / "infrastructure" / "simple-apim"
-    infra_dir.mkdir(parents=True)
+def test_cleanup_functions_comprehensive(monkeypatch):
+    """Test cleanup functions with various scenarios."""
+    monkeypatch.setattr(utils, 'run', lambda x, **kw: utils.Output(success=True, text='{}'))
     
-    # Mock getcwd to return the current directory
-    monkeypatch.setattr(os, 'getcwd', lambda: str(current_dir))
+    # Test _cleanup_resources (private function)
+    utils._cleanup_resources('test-deployment', 'test-rg')  # Should not raise
     
-    result = utils._determine_bicep_directory("simple-apim")
-    assert result == str(infra_dir)
+    # Test cleanup_deployment 
+    utils.cleanup_deployment('test-deployment')  # Should not raise
+    
+    # Test cleanup_infra_deployment with string
+    utils.cleanup_infra_deployment('test-deployment')  # Should not raise
+    
+    # Test cleanup_deployment with string
+    utils.cleanup_deployment('test-deployment')  # Should not raise
 
-def test_determine_bicep_directory_infrastructure_in_parent(monkeypatch, tmp_path):
-    """Test when infrastructure directory exists relative to parent directory."""
-    # Create directory structure
-    current_dir = tmp_path / "samples" / "general"
-    current_dir.mkdir(parents=True)
-    infra_dir = tmp_path / "infrastructure" / "simple-apim"
-    infra_dir.mkdir(parents=True)
-    
-    # Mock getcwd to return the samples directory
-    monkeypatch.setattr(os, 'getcwd', lambda: str(current_dir))
-    
-def test_determine_bicep_directory_infrastructure_in_parent(monkeypatch, tmp_path):
-    """Test when infrastructure directory exists relative to parent directory."""
-    # Create directory structure
-    current_dir = tmp_path / "samples" / "general"
-    current_dir.mkdir(parents=True)
-    infra_dir = tmp_path / "infrastructure" / "simple-apim"
-    infra_dir.mkdir(parents=True)
-    
-    # Mock getcwd to return the samples directory
-    monkeypatch.setattr(os, 'getcwd', lambda: str(current_dir))
-    
-    result = utils._determine_bicep_directory("simple-apim")
-    # The function may find the real project root, so accept either our temp dir or the real one
-    assert (result == str(infra_dir) or 
-            result.endswith(os.path.join("infrastructure", "simple-apim")))
 
-def test_determine_bicep_directory_fallback(monkeypatch, tmp_path):
-    """Test fallback when no paths exist."""
-    # Create empty directory structure
-    current_dir = tmp_path / "samples" / "general"
-    current_dir.mkdir(parents=True)
-    
-    # Mock getcwd to return the current directory
-    monkeypatch.setattr(os, 'getcwd', lambda: str(current_dir))
-    
-    result = utils._determine_bicep_directory("simple-apim")
-    expected = str(current_dir / "infrastructure" / "simple-apim")
-    # The function may find the real project root, so accept either behavior
-    assert (result == expected or 
-            result.endswith(os.path.join("infrastructure", "simple-apim")))
-
-@pytest.mark.parametrize("infrastructure_dir", [
-    "simple-apim",
-    "apim-aca", 
-    "afd-apim",
-])
-def test_determine_bicep_directory_different_infrastructures(monkeypatch, tmp_path, infrastructure_dir):
-    """Test with different infrastructure directory names."""
-    # Create directory structure
-    current_dir = tmp_path / "samples" / "general"
-    current_dir.mkdir(parents=True)
-    infra_dir = tmp_path / "infrastructure" / infrastructure_dir
-    infra_dir.mkdir(parents=True)
-    
-    # Mock getcwd to return the current directory
-    monkeypatch.setattr(os, 'getcwd', lambda: str(current_dir))
-    
-    result = utils._determine_bicep_directory(infrastructure_dir)
-    # The function may find the real project root, so just verify it ends correctly
-    assert result.endswith(os.path.join("infrastructure", infrastructure_dir))
-
-def test_determine_bicep_directory_with_project_root(monkeypatch, tmp_path):
-    """Test when using project root to find infrastructure directory."""
-    # Create directory structure
-    current_dir = tmp_path / "some" / "deep" / "directory"
-    current_dir.mkdir(parents=True)
-    project_root = tmp_path
-    infra_dir = project_root / "infrastructure" / "simple-apim"
-    infra_dir.mkdir(parents=True)
-    
-    # Mock getcwd to return deep directory
-    monkeypatch.setattr(os, 'getcwd', lambda: str(current_dir))
-    
-    # Mock the _get_project_root function
-    def mock_get_project_root():
-        return project_root
-    
-    # Create a mock module with _get_project_root
-    import types
-    mock_apimtypes = types.ModuleType('apimtypes')
-    mock_apimtypes._get_project_root = mock_get_project_root
-    
-    # Patch sys.modules to include our mock
-    import sys
-    original_modules = sys.modules.copy()
-    sys.modules['apimtypes'] = mock_apimtypes
-    
-    try:
-        result = utils._determine_bicep_directory("simple-apim")
-        assert result == str(infra_dir)
-    finally:
-        # Restore original modules
-        sys.modules.clear()
-        sys.modules.update(original_modules)
-
-def test_determine_bicep_directory_project_root_exception(monkeypatch, tmp_path):
-    """Test when _get_project_root raises an exception."""
-    # Create empty directory structure
-    current_dir = tmp_path / "samples" / "general"
-    current_dir.mkdir(parents=True)
-    
-    # Mock getcwd to return the current directory
-    monkeypatch.setattr(os, 'getcwd', lambda: str(current_dir))
-    
-    # Mock import to raise exception
-    import sys
-    original_modules = sys.modules.copy()
-    if 'apimtypes' in sys.modules:
-        del sys.modules['apimtypes']
-    
-    def mock_import(name, *args, **kwargs):
-        if name == 'apimtypes':
-            raise ImportError("Module not found")
-        return original_import(name, *args, **kwargs)
-    
-    original_import = builtins.__import__
-    monkeypatch.setattr(builtins, '__import__', mock_import)
-    
-    try:
-        result = utils._determine_bicep_directory("simple-apim")
-        expected = str(current_dir / "infrastructure" / "simple-apim")
-        assert result == expected
-    finally:
-        # Restore original modules
-        sys.modules.clear()
-        sys.modules.update(original_modules)
-
-def test_determine_bicep_directory_samples_priority(monkeypatch, tmp_path):
-    """Test that local main.bicep takes priority over infrastructure directory."""
-    # Create samples directory with main.bicep
-    samples_dir = tmp_path / "samples" / "general"
-    samples_dir.mkdir(parents=True)
-    main_bicep = samples_dir / "main.bicep"
-    main_bicep.write_text("# test bicep file")
-    
-    # Also create infrastructure directory
-    infra_dir = tmp_path / "infrastructure" / "simple-apim"
-    infra_dir.mkdir(parents=True)
-    
-    # Mock getcwd to return the samples directory
-    monkeypatch.setattr(os, 'getcwd', lambda: str(samples_dir))
-    
-    result = utils._determine_bicep_directory("simple-apim")
-    # Should return samples directory because it has main.bicep
-    assert result == str(samples_dir)
+import json

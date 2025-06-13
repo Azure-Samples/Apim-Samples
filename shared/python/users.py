@@ -41,6 +41,12 @@ class User:
         self.name = name
         self.roles = roles if roles is not None else []
 
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the User.
+        """
+        return f"User(id='{self.id}', name='{self.name}', roles={self.roles})"
+
 # Predefined users
 Users: List[User] = [
     User('4ea76b2c-6cea-4b8f-b81e-b242ae10c040', UserName.DYLAN_WILLIAMS),

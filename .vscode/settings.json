@@ -50,7 +50,6 @@
     "workbench.view.alwaysShowHeaderActions": true,
     "terminal.integrated.tabs.enabled": true,
     "terminal.integrated.tabs.location": "left",
-    "workbench.editor.showTabs": "single",
     "xml.validation.enabled": false,
     "xml.validation.namespaces.enabled": "never",
     "xml.validation.schema.enabled": "never",
