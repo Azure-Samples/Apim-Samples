@@ -15,22 +15,23 @@ The repository currently supports the following infrastructure types:
 ### Printable Test Checklist
 
 Each cell includes checkboxes for both local development and Codespaces/Dev Container environments:
-- [ ] Local: Test in local environment
-- [ ] Dev Container: Test in Codespaces/Dev Container
+- Local: Test in local environment
+- Dev Container: Test in Codespaces/Dev Container
 
-| Sample | SIMPLE_APIM | APIM_ACA | AFD_APIM_PE |
-|--------|------------|----------|------------|
-| **authX** | - [ ] Local<br>- [ ] Dev Container | - [ ] Local<br>- [ ] Dev Container | - [ ] Local<br>- [ ] Dev Container |
-| **authX-pro** | - [ ] Local<br>- [ ] Dev Container | - [ ] Local<br>- [ ] Dev Container | - [ ] Local<br>- [ ] Dev Container |
-| **general** | - [ ] Local<br>- [ ] Dev Container | - [ ] Local<br>- [ ] Dev Container | - [ ] Local<br>- [ ] Dev Container |
-| **load-balancing** | N/A | - [ ] Local<br>- [ ] Dev Container | - [ ] Local<br>- [ ] Dev Container |
-| **secure-blob-access** | - [ ] Local<br>- [ ] Dev Container | - [ ] Local<br>- [ ] Dev Container | - [ ] Local<br>- [ ] Dev Container |
+| Sample / Infrastructure | SIMPLE_APIM | APIM_ACA | AFD_APIM_PE |
+|-------------------------|------------|----------|------------|
+| **INFRASTRUCTURE** | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container |
+| **authX** | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container |
+| **authX-pro** | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container |
+| **general** | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container |
+| **load-balancing** | N/A | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container |
+| **secure-blob-access** | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container |
 | **_TEMPLATE** | N/A | N/A | N/A |
 
 ### Digital Compatibility Reference
 
-| Sample | SIMPLE_APIM | APIM_ACA | AFD_APIM_PE | 
-|--------|------------|----------|------------|
+| Sample / Infrastructure | SIMPLE_APIM | APIM_ACA | AFD_APIM_PE | 
+|-------------------------|------------|----------|------------|
 | authX | ✅ | ✅ | ✅ |
 | authX-pro | ✅ | ✅ | ✅ |
 | general | ✅ | ✅ | ✅ |
