@@ -31,6 +31,9 @@ python setup/setup_python_path.py --setup-kernel
 python setup/setup_python_path.py --setup-vscode
 
 # Basic PYTHONPATH setup for current session
+python setup/setup_python_path.py --run-only
+
+# Show help and available options
 python setup/setup_python_path.py
 ```
 

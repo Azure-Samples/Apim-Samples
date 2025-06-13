@@ -311,6 +311,74 @@ def setup_complete_environment():
         print("\n⚠️  Setup completed with some issues. Check error messages above.")
 
 
+def show_help():
+    """
+    Display comprehensive help information about the script's functionality and available options.
+    """
+    print("\n" + "="*80)
+    print("                      APIM Samples Python Environment Setup")
+    print("="*80)
+    
+    print("\nThis script configures the Python environment for APIM Samples development.")
+    print("It handles PYTHONPATH setup, Jupyter kernel registration, and VS Code integration.")
+    
+    print("\nUSAGE:")
+    print("  python setup/setup_python_path.py [OPTION]")
+    
+    print("\nOPTIONS:")
+    print("  (no options)        Show this help information")
+    print("  --run-only          Only modify current session's PYTHONPATH (basic setup)")
+    print("  --generate-env      Generate .env file for VS Code and terminal integration")
+    print("  --setup-kernel      Register the APIM Samples Jupyter kernel")
+    print("  --setup-vscode      Configure VS Code settings for optimal workflow")
+    print("  --complete-setup    Perform complete environment setup (recommended)")
+    
+    print("\nDETAILS:")
+    print("  --run-only:")
+    print("    • Modifies the current Python session's sys.path")
+    print("    • Adds shared/python directory to PYTHONPATH")
+    print("    • Changes are temporary (only for current session)")
+    print("    • Use this for quick testing in the current terminal")
+    
+    print("\n  --generate-env:")
+    print("    • Creates a .env file at project root")
+    print("    • Sets PROJECT_ROOT and PYTHONPATH variables")
+    print("    • Used by VS Code and can be sourced in shells")
+    print("    • Ensures consistent paths across platforms")
+    
+    print("\n  --setup-kernel:")
+    print("    • Registers a standardized Jupyter kernel named 'apim-samples'")
+    print("    • Display name will be 'APIM Samples Python 3.12'")
+    print("    • Ensures consistent notebook experience")
+    print("    • Installs ipykernel if not already available")
+    
+    print("\n  --setup-vscode:")
+    print("    • Creates/updates .vscode/settings.json")
+    print("    • Configures Python interpreter, Jupyter settings")
+    print("    • Sets default kernel for notebooks")
+    print("    • Preserves existing VS Code settings")
+    
+    print("\n  --complete-setup:")
+    print("    • Performs all of the above steps")
+    print("    • Recommended for new development environments")
+    print("    • Recreates dev container experience locally")
+    
+    print("\nEXAMPLES:")
+    print("  # Show this help information:")
+    print("  python setup/setup_python_path.py")
+    print("\n  # Perform complete setup (recommended for new users):")
+    print("  python setup/setup_python_path.py --complete-setup")
+    print("\n  # Only generate the .env file:")
+    print("  python setup/setup_python_path.py --generate-env")
+    
+    print("\nNOTES:")
+    print("  • Running this script without options now displays this help screen")
+    print("  • For basic PYTHONPATH setup, use the --run-only option")
+    print("  • The --complete-setup option is recommended for new environments")
+    print("  • Changes to .vscode/settings.json require restarting VS Code")
+    print("="*80)
+
+
 # Script entry point - handles command-line arguments
 if __name__ == "__main__":
     # Parse command-line arguments for different setup modes
@@ -329,13 +397,12 @@ if __name__ == "__main__":
         elif command == "--complete-setup":
             # Full setup: everything needed for local development
             setup_complete_environment()
+        elif command == "--run-only":
+            # Only modify current session's PYTHONPATH
+            setup_python_path()
         else:
-            print("Usage:")
-            print("  python setup_python_path.py                 # Basic PYTHONPATH setup")
-            print("  python setup_python_path.py --generate-env  # Generate .env file")
-            print("  python setup_python_path.py --setup-kernel  # Register Jupyter kernel")
-            print("  python setup_python_path.py --setup-vscode  # Configure VS Code settings")
-            print("  python setup_python_path.py --complete-setup # Complete environment setup")
+            # Show help for unrecognized options
+            show_help()
     else:
-        # Default behavior: modify current session's PYTHONPATH
-        setup_python_path()
+        # Default behavior: show help instead of modifying PYTHONPATH
+        show_help()

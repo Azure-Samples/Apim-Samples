@@ -77,6 +77,10 @@ If you're setting up locally without the dev container:
    ```bash
    python setup/setup_python_path.py --complete-setup
    ```
+   For help and available options, run without arguments:
+   ```bash
+   python setup/setup_python_path.py
+   ```
 3. **Restart VS Code** to apply all settings
 4. **Sign in to Azure**: `az login --tenant <your-tenant-id>` and `az account set --subscription <your-subscription>`
 
