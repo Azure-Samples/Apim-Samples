@@ -24,7 +24,23 @@
     "jupyter.notebookFileRoot": "${workspaceFolder}",
     "jupyter.defaultKernel": "apim-samples",
     "jupyter.kernels.excludePythonEnvironments": [
-        "apim-samples"
+        "**/anaconda3/**",
+        "**/conda/**",
+        "**/miniconda3/**",
+        "**/python3.*",
+        "*/site-packages/*",
+        "/bin/python",
+        "/bin/python3",
+        "/opt/python/*/bin/python*",
+        "/usr/bin/python",
+        "/usr/bin/python3",
+        "/usr/local/bin/python",
+        "/usr/local/bin/python3",
+        "python",
+        "python3",
+        "**/.venv/**/python*",
+        "**/Scripts/python*",
+        "**/bin/python*"
     ],
     "jupyter.kernels.trusted": [
         "./.venv/Scripts/python.exe"
@@ -100,5 +116,11 @@
         "editor.formatOnSave": false,
         "editor.formatOnPaste": false,
         "editor.formatOnType": false
-    }
+    },
+    "jupyter.kernels.filter": [
+        {
+            "path": "apim-samples",
+            "type": "pythonEnvironment"
+        }
+    ]
 }
