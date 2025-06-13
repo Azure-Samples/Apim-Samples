@@ -26,18 +26,7 @@ Each cell includes checkboxes for both local development and Codespaces/Dev Cont
 | **general** | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container |
 | **load-balancing** | N/A | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container |
 | **secure-blob-access** | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container |
-| **_TEMPLATE** | N/A | N/A | N/A |
-
-### Digital Compatibility Reference
-
-| Sample / Infrastructure | SIMPLE_APIM | APIM_ACA | AFD_APIM_PE | 
-|-------------------------|------------|----------|------------|
-| authX | ✅ | ✅ | ✅ |
-| authX-pro | ✅ | ✅ | ✅ |
-| general | ✅ | ✅ | ✅ |
-| load-balancing | N/A | ✅ | ✅ |
-| secure-blob-access | ✅ | ✅ | ✅ |
-| _TEMPLATE | N/A | N/A | N/A |
+| **INFRASTRUCTURE clean-up** | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] Dev Container |
 
 ## Testing Requirements
 
