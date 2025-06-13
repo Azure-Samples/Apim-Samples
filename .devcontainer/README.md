@@ -16,7 +16,7 @@ This directory contains the optimized dev container configuration for the Azure 
 
 The dev container uses a **three-stage optimization approach** to minimize startup time:
 
-1. **Build Stage** (Dockerfile): Base system setup and Azure CLI configuration
+1. **Build Stage** (Dockerfile): Base system setup, Azure CLI configuration, and VS Code extension pre-installation
 2. **Prebuild Stage** (devcontainer.json): Heavy installations and environment setup
 3. **Runtime Stage** (post-start-setup.sh): Fast verification and user guidance
 
@@ -87,6 +87,7 @@ This approach ensures that time-consuming operations happen during container pre
 - ✅ Azure CLI extension installation
 - ✅ Jupyter kernel registration
 - ✅ Environment file generation
+- ✅ VS Code extension installation
 
 ### What Stays in Runtime
 - ✅ Environment verification
@@ -99,6 +100,30 @@ This approach ensures that time-consuming operations happen during container pre
 - **Better UX**: Users see verification instead of installation progress
 - **Reliability**: Fallback mechanisms ensure robustness
 - **Transparency**: Clear status reporting throughout
+
+## 🔌 Pre-installed VS Code Extensions
+
+To further optimize the startup experience, several VS Code extensions are pre-installed in the container image rather than being installed at container startup:
+
+| Extension ID | Description |
+|-------------|-------------|
+| ms-python.python | Python language support |
+| ms-python.debugpy | Python debugging |
+| ms-toolsai.jupyter | Jupyter notebook support |
+| ms-toolsai.jupyter-keymap | Jupyter keyboard shortcuts |
+| ms-toolsai.jupyter-renderers | Jupyter output renderers |
+| ms-toolsai.vscode-jupyter-cell-tags | Jupyter cell tags |
+| ms-toolsai.vscode-jupyter-slideshow | Jupyter slideshow |
+| ms-azuretools.vscode-bicep | Bicep language support |
+| ms-vscode.azurecli | Azure CLI support |
+| ms-azure-devops.azure-pipelines | Azure Pipelines support |
+| redhat.vscode-yaml | YAML language support |
+| ms-vscode.vscode-json | JSON language support |
+| donjayamanne.vscode-default-python-kernel | Default Python kernel |
+
+A few extensions like GitHub Copilot and Copilot Chat are still installed at container startup because they require authentication or have licensing considerations.
+
+This pre-installation happens in the Dockerfile and significantly reduces container startup time as VS Code doesn't need to download and install these extensions.
 
 ## 🔧 Jupyter Kernel Configuration
 
