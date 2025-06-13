@@ -33,27 +33,8 @@ RUN --mount=type=cache,target=/var/cache/apt \
     # Ensure latest pip is installed for Python 3.12
     /usr/local/bin/python3.12 -m pip install --upgrade pip setuptools wheel
 
-# Pre-install VS Code extensions
-ARG USERNAME=vscode
-RUN mkdir -p /home/$USERNAME/.vscode-server/extensions && \
-    chown -R $USERNAME:$USERNAME /home/$USERNAME/.vscode-server
-    
-USER $USERNAME
-# Install commonly used VS Code extensions to improve startup time
-RUN umask 0002 && \
-    code-server --install-extension ms-python.python && \
-    code-server --install-extension ms-python.debugpy && \
-    code-server --install-extension ms-toolsai.jupyter && \
-    code-server --install-extension ms-toolsai.jupyter-keymap && \
-    code-server --install-extension ms-toolsai.jupyter-renderers && \
-    code-server --install-extension ms-toolsai.vscode-jupyter-cell-tags && \
-    code-server --install-extension ms-toolsai.vscode-jupyter-slideshow && \
-    code-server --install-extension ms-azuretools.vscode-bicep && \
-    code-server --install-extension ms-vscode.azurecli && \
-    code-server --install-extension ms-azure-devops.azure-pipelines && \
-    code-server --install-extension redhat.vscode-yaml && \
-    code-server --install-extension ms-vscode.vscode-json && \
-    code-server --install-extension donjayamanne.vscode-default-python-kernel
+# Switch to vscode user
+USER vscode
 
 # Configure Azure CLI for Codespaces (prebuild optimization)
 RUN az config set core.login_experience_v2=off 2>/dev/null || true && \
