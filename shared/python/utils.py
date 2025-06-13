@@ -626,7 +626,6 @@ def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str
         project_root = _get_project_root()
         policy_xml_filepath = str(project_root / 'samples' / sample_name / policy_xml_filepath_or_filename)
 
-    print(f"📄 Using policy XML path    : {policy_xml_filepath}")
     return policy_xml_filepath
 
 def read_policy_xml(policy_xml_filepath_or_filename: str, named_values: dict[str, str] = None, sample_name: str = None) -> str:
