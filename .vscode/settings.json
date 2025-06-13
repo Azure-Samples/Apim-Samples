@@ -14,15 +14,14 @@
     "python.analysis.extraPaths": [
         "${workspaceFolder}/shared/python"
     ],
-    "python.defaultInterpreterPath": "./.venv/Scripts/python.exe",
-    "python.pythonPath": "./.venv/Scripts/python.exe",
+    "python.defaultInterpreterPath": "/workspaces/Apim-Samples/.venv/bin/python",
+    "python.pythonPath": "/workspaces/Apim-Samples/.venv/bin/python",
     "python.envFile": "${workspaceFolder}/.env",
     "python.terminal.activateEnvironment": true,
     "python.terminal.activateEnvInCurrentTerminal": true,
     "jupyter.askForKernelRestart": false,
     "jupyter.interactiveWindow.textEditor.executeSelection": true,
     "jupyter.notebookFileRoot": "${workspaceFolder}",
-    "jupyter.defaultKernel": "apim-samples",
     "jupyter.kernels.excludePythonEnvironments": [
         "**/anaconda3/**",
         "**/conda/**",
@@ -37,35 +36,24 @@
         "/usr/local/bin/python",
         "/usr/local/bin/python3",
         "python",
-        "python3",
-        "**/.venv/**/python*",
-        "**/Scripts/python*",
-        "**/bin/python*"
+        "python3"
     ],
     "jupyter.kernels.trusted": [
-        "./.venv/Scripts/python.exe"
+        "/workspaces/Apim-Samples/.venv/bin/python"
     ],
-    "jupyter.preferredKernelIdForNotebook": {
-        "*.ipynb": "apim-samples"
-    },
-    "jupyter.kernels.changeKernelIdForNotebookEnabled": false,
-    "jupyter.kernels.showKernelSourceInNotebookTitle": false,
-    "jupyter.experimental.debugging": false,
-    "jupyter.allowKernelDownloads": false,
-    "notebook.defaultLanguage": "python",
-    "notebook.kernelPickerType": "mru",
     "terminal.integrated.env.windows": {
         "PATH": "${env:PATH}"
     },
     "terminal.integrated.showExitAlert": false,
     "terminal.integrated.focusAfterRun": "terminal",
-    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "terminal.integrated.defaultProfile.linux": "bash",
     "workbench.panel.defaultLocation": "bottom",
     "workbench.startupEditor": "none",
     "workbench.panel.defaultPanelHeight": 350,
     "workbench.view.alwaysShowHeaderActions": true,
     "terminal.integrated.tabs.enabled": true,
     "terminal.integrated.tabs.location": "left",
+    "workbench.editor.showTabs": "single",
     "xml.validation.enabled": false,
     "xml.validation.namespaces.enabled": "never",
     "xml.validation.schema.enabled": "never",
@@ -116,11 +104,5 @@
         "editor.formatOnSave": false,
         "editor.formatOnPaste": false,
         "editor.formatOnType": false
-    },
-    "jupyter.kernels.filter": [
-        {
-            "path": "apim-samples",
-            "type": "pythonEnvironment"
-        }
-    ]
+    }
 }
