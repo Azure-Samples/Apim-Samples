@@ -171,7 +171,7 @@ For immediate help with common errors, diagnostic commands, and step-by-step sol
 
 ---
 
-## �📂 Repo Structure
+## 📂 Repo Structure
 
 ### 🦅 High-level
 
