@@ -84,7 +84,7 @@ class ApimTesting:
             print('🔍 Detailed Error Analysis:')
             print('─' * 50)
             for i, error in enumerate(self.errors, 1):
-                print(f'   {i:>2}. {error}')
+                print(f'{i:>2}.\n{error}')
         else:
             print('✅ No errors encountered - Everything looks great!')
         
