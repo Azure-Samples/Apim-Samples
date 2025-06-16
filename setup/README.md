@@ -14,6 +14,7 @@ This will:
 - Generate `.env` file for Python path configuration
 - Register the standardized "APIM Samples Python 3.12" Jupyter kernel
 - Configure VS Code settings for automatic kernel selection
+- Enforce kernel consistency to prevent auto-changes
 - Set up optimal workspace configuration
 
 ## Individual Commands
@@ -30,6 +31,9 @@ python setup/setup_python_path.py --setup-kernel
 # Configure VS Code settings only
 python setup/setup_python_path.py --setup-vscode
 
+# Force kernel consistency (fix kernel switching issues)
+python setup/setup_python_path.py --force-kernel
+
 # Basic PYTHONPATH setup for current session
 python setup/setup_python_path.py --run-only
 
@@ -42,20 +46,38 @@ python setup/setup_python_path.py
 After setup, verify everything is working correctly:
 
 ```shell
-python setup/verify_local_setup.py
+python setup/verify_setup.py
 ```
 
 This checks:
 - Virtual environment activation
 - Required package installation
 - Shared module imports
-- Jupyter kernel registration
+- Jupyter kernel registration with correct name/display name
 - VS Code settings configuration
 - Environment file setup
+- Kernel consistency enforcement
+
+## Kernel Consistency
+
+To ensure notebooks always use the correct kernel ("APIM Samples Python 3.12" instead of ".venv" or "python3"):
+
+1. **Run the complete setup**: `python setup/setup_python_path.py --complete-setup`
+2. **Restart VS Code** completely
+3. **Verify with**: `python setup/verify_setup.py`
+
+If you still see incorrect kernel names, run:
+```shell
+python setup/setup_python_path.py --force-kernel
+```
 
 ## Troubleshooting
 
-If the `python` command is not found, add your virtual environment to your system's PATH:
+### Kernel Issues
+- **Problem**: Notebooks show ".venv" or "python3" instead of "APIM Samples Python 3.12"
+- **Solution**: Run `--force-kernel` and restart VS Code
+
+### Python Command Issues
 
 ```shell
 source .venv/bin/activate  # Linux/macOS

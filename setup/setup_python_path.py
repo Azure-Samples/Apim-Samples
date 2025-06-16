@@ -270,6 +270,120 @@ def create_vscode_settings():
     return True
 
 
+def validate_kernel_setup():
+    """
+    Validate that the APIM Samples kernel is properly registered and accessible.
+    
+    Returns:
+        bool: True if kernel is properly configured, False otherwise
+    """
+    
+    try:
+        # Check if ipykernel is available
+        result = subprocess.run([sys.executable, '-m', 'jupyter', 'kernelspec', 'list'], 
+                              check=True, capture_output=True, text=True)
+        
+        # Check if our kernel is in the list
+        if 'apim-samples' in result.stdout:
+            print("✅ APIM Samples kernel found in kernelspec list")
+            return True
+        else:
+            print("❌ APIM Samples kernel not found in kernelspec list")
+            return False
+            
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Failed to check kernel list: {e}")
+        return False
+    except FileNotFoundError:
+        print("❌ Jupyter not found - please ensure Jupyter is installed")
+        return False
+
+
+def force_kernel_consistency():
+    """
+    Enforce kernel consistency by removing conflicting kernels and ensuring
+    only the APIM Samples kernel is used for notebooks.
+    """
+    
+    print("🔧 Enforcing kernel consistency...")
+    
+    # First, ensure our kernel is registered
+    if not validate_kernel_setup():
+        print("⚠️ Kernel not found, attempting to register...")
+        if not install_jupyter_kernel():
+            print("❌ Failed to register kernel - manual intervention required")
+            return False
+    
+    # Update VS Code settings with strict kernel enforcement
+    project_root = get_project_root()
+    vscode_dir = project_root / '.vscode'
+    settings_file = vscode_dir / 'settings.json'
+    
+    # Enhanced kernel settings that prevent VS Code from changing kernels
+    strict_kernel_settings = {
+        "jupyter.defaultKernel": "apim-samples",
+        "jupyter.kernels.changeKernelIdForNotebookEnabled": False,
+        "jupyter.kernels.filter": [
+            {
+                "path": "apim-samples", 
+                "type": "pythonEnvironment"
+            }
+        ],
+        "jupyter.preferredKernelIdForNotebook": {
+            "*.ipynb": "apim-samples"
+        },
+        "jupyter.kernels.trusted": [
+            "./.venv/Scripts/python.exe" if os.name == 'nt' else "./.venv/bin/python"
+        ],
+        # Prevent VS Code from auto-detecting other Python environments
+        "jupyter.kernels.excludePythonEnvironments": [
+            "**/anaconda3/**",
+            "**/conda/**", 
+            "**/miniconda3/**",
+            "**/python3.*",
+            "*/site-packages/*",
+            "/bin/python",
+            "/bin/python3",
+            "/opt/python/*/bin/python*",
+            "/usr/bin/python",
+            "/usr/bin/python3", 
+            "/usr/local/bin/python",
+            "/usr/local/bin/python3",
+            "python",
+            "python3",
+            "**/.venv/**/python*",
+            "**/Scripts/python*",
+            "**/bin/python*"
+        ]
+    }
+    
+    try:
+        import json
+        
+        # Read existing settings or create new ones
+        existing_settings = {}
+        if settings_file.exists():
+            try:
+                with open(settings_file, 'r', encoding='utf-8') as f:
+                    existing_settings = json.load(f)
+            except json.JSONDecodeError:
+                print("⚠️ Existing settings.json has issues, creating new one")
+        
+        # Merge settings, with our strict kernel settings taking priority
+        existing_settings.update(strict_kernel_settings)
+        
+        # Write updated settings
+        with open(settings_file, 'w', encoding='utf-8') as f:
+            json.dump(existing_settings, f, indent=4)
+        
+        print("✅ Strict kernel enforcement settings applied")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Failed to update VS Code settings: {e}")
+        return False
+
+
 def setup_complete_environment():
     """
     Complete setup: generate .env file, register kernel, and configure VS Code.
@@ -288,9 +402,13 @@ def setup_complete_environment():
     print("2. Registering standardized Jupyter kernel...")
     kernel_success = install_jupyter_kernel()
     
-    # Step 3: Configure VS Code settings
+    # Step 3: Configure VS Code settings with strict kernel enforcement
     print("\n3. Configuring VS Code workspace settings...")
     vscode_success = create_vscode_settings()
+    
+    # Step 4: Enforce kernel consistency
+    print("\n4. Enforcing kernel consistency for future reliability...")
+    consistency_success = force_kernel_consistency()
     
     # Summary
     print("\n" + "="*50)
@@ -298,15 +416,18 @@ def setup_complete_environment():
     print(f"   ✅ Python path configuration: Complete")
     print(f"   {'✅' if kernel_success else '❌'} Jupyter kernel registration: {'Complete' if kernel_success else 'Failed'}")
     print(f"   {'✅' if vscode_success else '❌'} VS Code settings: {'Complete' if vscode_success else 'Failed'}")
+    print(f"   {'✅' if consistency_success else '❌'} Kernel consistency enforcement: {'Complete' if consistency_success else 'Failed'}")
     
-    if kernel_success and vscode_success:
+    if kernel_success and vscode_success and consistency_success:
         print("\n🎉 Setup complete! Your local environment now matches the dev container experience.")
         print("   • Notebooks will automatically use the 'APIM Samples Python 3.12' kernel")
         print("   • Python modules from shared/ directory are available")
         print("   • VS Code is configured for optimal workflow")
+        print("   • Kernel selection is locked to prevent auto-changes")
         print("\n💡 Next steps:")
         print("   1. Restart VS Code to apply all settings")
         print("   2. Open any notebook - it should automatically use the correct kernel")
+        print("   3. The kernel should remain consistent across all notebooks")
     else:
         print("\n⚠️  Setup completed with some issues. Check error messages above.")
 
@@ -394,6 +515,9 @@ if __name__ == "__main__":
         elif command == "--setup-vscode":
             # Just configure VS Code settings
             create_vscode_settings()
+        elif command == "--force-kernel":
+            # Force kernel consistency and prevent changes
+            force_kernel_consistency()
         elif command == "--complete-setup":
             # Full setup: everything needed for local development
             setup_complete_environment()
