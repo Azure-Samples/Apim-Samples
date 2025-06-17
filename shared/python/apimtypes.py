@@ -2,22 +2,45 @@
 Types and constants for Azure API Management automation and deployment.
 """
 
+import os
 from enum import StrEnum
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List, Optional, Any
 
 
 # ------------------------------
-#    CONSTANTS
+#    PRIVATE METHODS
 # ------------------------------
 
-# These paths are relative to the infrastructure and samples
-SHARED_XML_POLICY_BASE_PATH         = '../../shared/apim-policies'
-DEFAULT_XML_POLICY_PATH             = f'{SHARED_XML_POLICY_BASE_PATH}/default.xml'
-REQUIRE_PRODUCT_XML_POLICY_PATH     = f'{SHARED_XML_POLICY_BASE_PATH}/require-product.xml'
-HELLO_WORLD_XML_POLICY_PATH         = f'{SHARED_XML_POLICY_BASE_PATH}/hello-world.xml'
-REQUEST_HEADERS_XML_POLICY_PATH     = f'{SHARED_XML_POLICY_BASE_PATH}/request-headers.xml'
-BACKEND_XML_POLICY_PATH             = f'{SHARED_XML_POLICY_BASE_PATH}/backend.xml'
+def _get_project_root() -> Path:
+    """Get the project root directory path."""
+    # Try to get from environment variable first (set by .env file)
+    if 'PROJECT_ROOT' in os.environ:
+        return Path(os.environ['PROJECT_ROOT'])
+    
+    # Fallback: detect project root by walking up from this file
+    current_path = Path(__file__).resolve().parent.parent.parent  # Go up from shared/python/
+    indicators = ['README.md', 'requirements.txt', 'bicepconfig.json']
+    
+    while current_path != current_path.parent:
+        if all((current_path / indicator).exists() for indicator in indicators):
+            return current_path
+        current_path = current_path.parent
+    
+    # Ultimate fallback
+    return Path(__file__).resolve().parent.parent.parent
+
+# Get project root and construct absolute paths to policy files
+_PROJECT_ROOT = _get_project_root()
+_SHARED_XML_POLICY_BASE_PATH = _PROJECT_ROOT / 'shared' / 'apim-policies'
+
+# Policy file paths (now absolute and platform-independent)
+DEFAULT_XML_POLICY_PATH             = str(_SHARED_XML_POLICY_BASE_PATH / 'default.xml')
+REQUIRE_PRODUCT_XML_POLICY_PATH     = str(_SHARED_XML_POLICY_BASE_PATH / 'require-product.xml')
+HELLO_WORLD_XML_POLICY_PATH         = str(_SHARED_XML_POLICY_BASE_PATH / 'hello-world.xml')
+REQUEST_HEADERS_XML_POLICY_PATH     = str(_SHARED_XML_POLICY_BASE_PATH / 'request-headers.xml')
+BACKEND_XML_POLICY_PATH             = str(_SHARED_XML_POLICY_BASE_PATH / 'backend.xml')
 
 SUBSCRIPTION_KEY_PARAMETER_NAME = 'api_key'
 SLEEP_TIME_BETWEEN_REQUESTS_MS  = 50
@@ -184,7 +207,7 @@ class APIOperation:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, displayName: str, urlTemplate: str, method: HTTP_VERB, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None):
+    def __init__(self, name: str, displayName: str, urlTemplate: str, method: HTTP_VERB, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None) -> None:
         # Validate that method is a valid HTTP_VERB
         if not isinstance(method, HTTP_VERB):
             try:
@@ -221,6 +244,7 @@ class GET_APIOperation(APIOperation):
     """
     Represents a simple GET operation within a parent API.
     """
+
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
@@ -234,11 +258,12 @@ class GET_APIOperation2(APIOperation):
     """
     Represents a GET operation within a parent API.
     """
+
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, displayName: str, urlTemplate: str, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None):
+    def __init__(self, name: str, displayName: str, urlTemplate: str, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None) -> None:
         super().__init__(name, displayName, urlTemplate, HTTP_VERB.GET, description, policyXml, templateParameters)
 
 
@@ -247,11 +272,12 @@ class POST_APIOperation(APIOperation):
     """
     Represents a simple POST operation within a parent API.
     """
+
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
     
-    def __init__(self, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None):
+    def __init__(self, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None) -> None:
         super().__init__('POST', 'POST', '/', HTTP_VERB.POST, description, policyXml, templateParameters)
 
 
@@ -269,7 +295,7 @@ class NamedValue:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, value: str, isSecret: bool = False):
+    def __init__(self, name: str, value: str, isSecret: bool = False) -> None:
         self.name = name
         self.value = value
         self.isSecret = isSecret
@@ -287,6 +313,7 @@ class NamedValue:
         }
 
         return nv_dict
+
     
 @dataclass
 class PolicyFragment:
@@ -302,7 +329,7 @@ class PolicyFragment:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, policyXml: str, description: str = ''):
+    def __init__(self, name: str, policyXml: str, description: str = '') -> None:
         self.name = name
         self.policyXml = policyXml
         self.description = description
@@ -342,7 +369,7 @@ class Product:
     #    CONSTRUCTOR
     # ------------------------------
     
-    def __init__(self, name: str, displayName: str, description: str, state: str = 'published', subscriptionRequired: bool = True, approvalRequired: bool = False, policyXml: Optional[str] = None):
+    def __init__(self, name: str, displayName: str, description: str, state: str = 'published', subscriptionRequired: bool = True, approvalRequired: bool = False, policyXml: Optional[str] = None) -> None:
         self.name = name
         self.displayName = displayName
         self.description = description
@@ -371,6 +398,7 @@ class Product:
 </policies>"""
         else:
             self.policyXml = policyXml
+
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------

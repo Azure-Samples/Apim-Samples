@@ -12,3 +12,4 @@ azure.identity
 jupyter
 ipykernel
 notebook
+python-dotenv

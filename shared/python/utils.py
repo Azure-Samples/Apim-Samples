@@ -13,6 +13,8 @@ import traceback
 import string
 import secrets
 import base64
+import inspect
+from pathlib import Path
 
 from typing import Optional, Tuple
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE
@@ -31,6 +33,40 @@ BOLD_G  = "\x1b[1;32m"   # green
 BOLD_Y  = "\x1b[1;33m"   # yellow
 
 CONSOLE_WIDTH = 175
+
+
+# ------------------------------
+#    HELPER FUNCTIONS
+# ------------------------------
+
+def build_infrastructure_tags(infrastructure: str | INFRASTRUCTURE, custom_tags: dict | None = None) -> dict:
+    """
+    Build standard tags for infrastructure resource groups, including required 'infrastructure' and infrastructure name tags.
+    
+    Args:
+        infrastructure (str | INFRASTRUCTURE): The infrastructure type/name.
+        custom_tags (dict, optional): Additional custom tags to include.
+    
+    Returns:
+        dict: Combined tags dictionary with standard and custom tags.
+    """
+    
+    # Convert infrastructure enum to string value if needed
+    if hasattr(infrastructure, 'value'):
+        infra_name = infrastructure.value
+    else:
+        infra_name = str(infrastructure)
+    
+    # Build standard tags
+    standard_tags = {
+        'infrastructure': infra_name
+    }
+    
+    # Add custom tags if provided
+    if custom_tags:
+        standard_tags.update(custom_tags)
+    
+    return standard_tags
 
 
 # ------------------------------
@@ -226,6 +262,59 @@ def _print_log(message: str, prefix: str = '', color: str = '', output: str = ''
         print()
 
 
+def _determine_bicep_directory(infrastructure_dir: str) -> str:
+    """
+    Determine the correct Bicep directory based on the current working directory and infrastructure directory name.
+    
+    This function implements the following logic:
+    1. If current directory contains main.bicep, use current directory (for samples)
+    2. If current directory name matches infrastructure_dir, use current directory (for infrastructure)
+    3. Look for infrastructure/{infrastructure_dir} relative to current directory
+    4. Look for infrastructure/{infrastructure_dir} relative to parent directory
+    5. Try to find project root and construct path from there
+    6. Fall back to current directory + infrastructure/{infrastructure_dir}
+    
+    Args:
+        infrastructure_dir (str): The name of the infrastructure directory to find.
+        
+    Returns:
+        str: The path to the directory containing the main.bicep file.
+    """
+    current_dir = os.getcwd()
+    
+    # First, check if there's a main.bicep file in the current directory (for samples)
+    if os.path.exists(os.path.join(current_dir, 'main.bicep')):
+        return current_dir
+    
+    # Check if we're already in the correct infrastructure directory
+    if os.path.basename(current_dir) == infrastructure_dir:
+        return current_dir
+    
+    # Look for the infrastructure directory from the current location
+    bicep_dir = os.path.join(current_dir, 'infrastructure', infrastructure_dir)
+    if os.path.exists(bicep_dir):
+        return bicep_dir
+    
+    # If that doesn't exist, try going up one level and looking again
+    parent_dir = os.path.dirname(current_dir)
+    bicep_dir = os.path.join(parent_dir, 'infrastructure', infrastructure_dir)
+    if os.path.exists(bicep_dir):
+        return bicep_dir
+    
+    # Try to find the project root and construct the path from there
+    try:
+        from apimtypes import _get_project_root
+        project_root = _get_project_root()
+        bicep_dir = os.path.join(str(project_root), 'infrastructure', infrastructure_dir)
+        if os.path.exists(bicep_dir):
+            return bicep_dir
+    except Exception:
+        pass
+    
+    # Fall back to current directory + infrastructure/{infrastructure_dir}
+    return os.path.join(current_dir, 'infrastructure', infrastructure_dir)
+
+
 # ------------------------------
 #    PUBLIC METHODS
 # ------------------------------
@@ -272,7 +361,7 @@ def get_azure_role_guid(role_name: str) -> Optional[str]:
         return None
 
 
-def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: str | INFRASTRUCTURE, bicep_parameters: dict, bicep_parameters_file: str = 'params.json') -> Output:
+def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: str | INFRASTRUCTURE, bicep_parameters: dict, bicep_parameters_file: str = 'params.json', rg_tags: dict | None = None) -> Output:
     """
     Create a Bicep deployment in a resource group, writing parameters to a file and running the deployment.
     Creates the resource group if it does not exist.
@@ -283,13 +372,14 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
         deployment (str | INFRASTRUCTURE): Deployment name or enum value.
         bicep_parameters: Parameters for the Bicep template.
         bicep_parameters_file (str, optional): File to write parameters to.
+        rg_tags (dict, optional): Additional tags to apply to the resource group.
 
     Returns:
         Output: The result of the deployment command.
     """
 
     # Create the resource group if doesn't exist
-    create_resource_group(rg_name, rg_location)
+    create_resource_group(rg_name, rg_location, rg_tags)
 
     if hasattr(deployment, 'value'):
         deployment_name = deployment.value
@@ -302,22 +392,123 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
         "parameters": bicep_parameters
     }
 
+    # Determine the correct deployment name and find the Bicep directory
+    if hasattr(deployment, 'value'):
+        deployment_name = deployment.value
+        infrastructure_dir = deployment.value
+    else:
+        deployment_name = deployment
+        infrastructure_dir = deployment
+    
+    # Use helper function to determine the correct Bicep directory
+    bicep_dir = _determine_bicep_directory(infrastructure_dir)
+    
+    main_bicep_path = os.path.join(bicep_dir, 'main.bicep')
+    params_file_path = os.path.join(bicep_dir, bicep_parameters_file)
+
     # Write the updated bicep parameters to the specified parameters file
-    with open(bicep_parameters_file, 'w') as file:
+    with open(params_file_path, 'w') as file:
         file.write(json.dumps(bicep_parameters_format))
 
     print(f"📝 Updated the policy XML in the bicep parameters file '{bicep_parameters_file}'")
+    
+    # Verify that main.bicep exists in the infrastructure directory
+    if not os.path.exists(main_bicep_path):
+        raise FileNotFoundError(f"main.bicep file not found in expected infrastructure directory: {bicep_dir}")
 
-    return run(f"az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file main.bicep --parameters {bicep_parameters_file} --query \"properties.outputs\"",
+    return run(f"az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file \"{main_bicep_path}\" --parameters \"{params_file_path}\" --query \"properties.outputs\"",
         f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.")
 
-def create_resource_group(rg_name: str, resource_group_location: str | None = None) -> None:
+
+# TODO: Reconcile this with apimtypes.py _get_project_root
+def find_project_root() -> str:
+    """
+    Find the project root directory by looking for specific marker files.
+    
+    Returns:
+        str: Path to the project root directory.
+        
+    Raises:
+        FileNotFoundError: If project root cannot be determined.
+    """
+    current_dir = os.getcwd()
+    
+    # Look for marker files that indicate the project root
+    marker_files = ['requirements.txt', 'README.md', 'bicepconfig.json']
+    
+    while current_dir != os.path.dirname(current_dir):  # Stop at filesystem root
+        if any(os.path.exists(os.path.join(current_dir, marker)) for marker in marker_files):
+            # Additional check: verify this looks like our project by checking for samples directory
+            if os.path.exists(os.path.join(current_dir, 'samples')):
+                return current_dir
+        current_dir = os.path.dirname(current_dir)
+    
+    # If we can't find the project root, raise an error
+    raise FileNotFoundError("Could not determine project root directory")
+
+
+def create_bicep_deployment_group_for_sample(sample_name: str, rg_name: str, rg_location: str, bicep_parameters: dict, bicep_parameters_file: str = 'params.json', rg_tags: dict | None = None) -> Output:
+    """
+    Create a Bicep deployment for a sample, handling the working directory change automatically.
+    This function ensures that the params.json file is written to the correct sample directory
+    regardless of the current working directory (e.g., when running from VS Code).
+
+    Args:
+        sample_name (str): Name of the sample (used for deployment name and directory).
+        rg_name (str): Name of the resource group.
+        rg_location (str): Azure region for the resource group.
+        bicep_parameters: Parameters for the Bicep template.
+        bicep_parameters_file (str, optional): File to write parameters to.
+        rg_tags (dict, optional): Additional tags to apply to the resource group.
+
+    Returns:
+        Output: The result of the deployment command.
+    """
+    import os
+    
+    # Get the current working directory
+    original_cwd = os.getcwd()
+    
+    try:
+        # Determine the sample directory path
+        # This handles both cases: running from project root or from sample directory
+        if os.path.basename(original_cwd) == sample_name:
+            # Already in the sample directory
+            sample_dir = original_cwd
+        else:
+            # Assume we're in project root or elsewhere, navigate to sample directory
+            project_root = find_project_root()
+            sample_dir = os.path.join(project_root, 'samples', sample_name)
+        
+        # Verify the sample directory exists and has main.bicep
+        if not os.path.exists(sample_dir):
+            raise FileNotFoundError(f"Sample directory not found: {sample_dir}")
+        
+        main_bicep_path = os.path.join(sample_dir, 'main.bicep')
+        if not os.path.exists(main_bicep_path):
+            raise FileNotFoundError(f"main.bicep not found in sample directory: {sample_dir}")
+        
+        # Change to the sample directory to ensure params.json is written there
+        os.chdir(sample_dir)
+        print(f"📁 Changed working directory to: {sample_dir}")
+        
+        # Call the original deployment function
+        return create_bicep_deployment_group(rg_name, rg_location, sample_name, bicep_parameters, bicep_parameters_file, rg_tags)
+        
+    finally:
+        # Always restore the original working directory
+        os.chdir(original_cwd)
+        print(f"📁 Restored working directory to: {original_cwd}")
+
+
+def create_resource_group(rg_name: str, resource_group_location: str | None = None, tags: dict | None = None) -> None:
     """
     Create a resource group in Azure if it does not already exist.
 
     Args:
         rg_name (str): Name of the resource group.
         resource_group_location (str, optional): Azure region for the resource group.
+        tags (dict, optional): Additional tags to apply to the resource group.
 
     Returns:
         None
@@ -326,7 +517,15 @@ def create_resource_group(rg_name: str, resource_group_location: str | None = No
     if not does_resource_group_exist(rg_name):
         print_info(f"Creating the resource group now...")
 
-        run(f"az group create --name {rg_name} --location {resource_group_location} --tags source=apim-sample",
+        # Build the tags string for the Azure CLI command
+        tag_string = "source=apim-sample"
+        if tags:
+            for key, value in tags.items():
+                # Escape values that contain spaces or special characters
+                escaped_value = value.replace('"', '\\"') if isinstance(value, str) else str(value)
+                tag_string += f" {key}=\"{escaped_value}\""
+
+        run(f"az group create --name {rg_name} --location {resource_group_location} --tags {tag_string}",
             f"Resource group '{rg_name}' created",
             f"Failed to create the resource group '{rg_name}'", 
             False, True, False, False)
@@ -345,24 +544,7 @@ def does_resource_group_exist(rg_name: str) -> bool:
     output = run(f"az group show --name {rg_name}", print_output = False, print_errors = False)
     return output.success
 
-def read_policy_xml(policy_xml_filepath: str) -> str:
-    """
-    Read and return the contents of a policy XML file.
-
-    Args:
-        policy_xml_filepath (str): Path to the policy XML file.
-
-    Returns:
-        str: Contents of the policy XML file.
-    """
-
-    # Read the specified policy XML file
-    with open(policy_xml_filepath, 'r') as policy_xml_file:
-        policy_template_xml = policy_xml_file.read()
-
-    return policy_template_xml
-
-def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str, str]) -> str:
+def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str, str], sample_name: str = None) -> str:
     """
     Read and return the contents of a policy XML file, then modifies it by replacing placeholders with provided values.
 
@@ -373,7 +555,12 @@ def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str,
         str: Contents of the policy XML file.
     """
 
-    policy_template_xml = read_policy_xml(policy_xml_filepath)
+    policy_xml_filepath = determine_policy_path(policy_xml_filepath, sample_name)
+    print(f"📄 Reading policy XML from  : {policy_xml_filepath}")
+
+    # Read the specified policy XML file
+    with open(policy_xml_filepath, 'r', encoding='utf-8') as policy_xml_file:
+        policy_template_xml = policy_xml_file.read()
 
     if replacements is not None and isinstance(replacements, dict):
         # Replace placeholders in the policy XML with provided values
@@ -386,6 +573,107 @@ def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str,
                 print_warning(f"Placeholder '{placeholder}' not found in the policy XML file.")
 
     return policy_template_xml
+
+def determine_shared_policy_path(policy_xml_filename: str) -> str:
+    return str(Path(find_project_root()) / 'shared' / 'apim-policies' / 'fragments' / policy_xml_filename)
+
+def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str = None) -> str:
+    # Determine if this is a full path or just a filename
+    path_obj = Path(policy_xml_filepath_or_filename)
+    
+    # Legacy mode check: if named_values is None, always treat as legacy (backwards compatibility)
+    # OR if it looks like a path (contains separators or is absolute)
+    if (path_obj.is_absolute() or 
+        '/' in policy_xml_filepath_or_filename or 
+        '\\' in policy_xml_filepath_or_filename):
+        # Legacy mode: treat as full path
+        policy_xml_filepath = policy_xml_filepath_or_filename
+    else:
+        # Smart mode: auto-detect sample directory
+        if sample_name is None:
+            try:
+                # Get the current frame's filename (the notebook or script calling this function)
+                frame = inspect.currentframe()
+                caller_frame = frame.f_back
+                
+                # Try to get the filename from the caller's frame
+                if hasattr(caller_frame, 'f_globals') and '__file__' in caller_frame.f_globals:
+                    caller_file = caller_frame.f_globals['__file__']
+                    caller_path = Path(caller_file).resolve()
+                else:
+                    # Fallback for Jupyter notebooks: use current working directory
+                    caller_path = Path(os.getcwd()).resolve()
+                
+                # Walk up the directory tree to find the samples directory structure
+                current_path = caller_path.parent if caller_path.is_file() else caller_path
+                
+                # Look for samples directory in the path
+                path_parts = current_path.parts
+                if 'samples' in path_parts:
+                    samples_index = path_parts.index('samples')
+                    if samples_index + 1 < len(path_parts):
+                        sample_name = path_parts[samples_index + 1]
+                    else:
+                        raise ValueError("Could not detect sample name from path")
+                else:
+                    raise ValueError("Not running from within a samples directory")
+                    
+            except Exception as e:
+                raise ValueError(f"Could not auto-detect sample name. Please provide sample_name parameter explicitly. Error: {e}")
+        
+        # Construct the full path
+        from apimtypes import _get_project_root
+        project_root = _get_project_root()
+        policy_xml_filepath = str(project_root / 'samples' / sample_name / policy_xml_filepath_or_filename)
+
+    return policy_xml_filepath
+
+def read_policy_xml(policy_xml_filepath_or_filename: str, named_values: dict[str, str] = None, sample_name: str = None) -> str:
+    """
+    Read and return the contents of a policy XML file, with optional named value formatting.
+    
+    Can work in two modes:
+    1. Legacy mode: Pass a full file path (backwards compatible)
+    2. Smart mode: Pass just a filename and auto-detect sample directory
+    
+    Args:
+        policy_xml_filepath_or_filename (str): Full path to policy XML file OR just filename for auto-detection.
+        named_values (dict[str, str], optional): Dictionary of named values to format in the policy XML.
+        sample_name (str, optional): Override the auto-detected sample name if needed.
+
+    Returns:
+        str: Contents of the policy XML file with optional named values formatted.
+
+    Examples:
+        # Legacy usage - full path
+        policy_xml = read_policy_xml('/path/to/policy.xml')
+        
+        # Smart usage - auto-detects sample directory
+        policy_xml = read_policy_xml('hr_all_operations.xml', {
+            'jwt_signing_key': jwt_key_name,
+            'hr_member_role_id': 'HRMemberRoleId'
+        })
+    """
+    
+    policy_xml_filepath = determine_policy_path(policy_xml_filepath_or_filename, sample_name)
+    print(f"📄 Reading policy XML from  : {policy_xml_filepath}")
+
+    # Read the specified policy XML file
+    with open(policy_xml_filepath, 'r', encoding='utf-8') as policy_xml_file:
+        policy_template_xml = policy_xml_file.read()
+
+    # Apply named values formatting if provided
+    if named_values is not None and isinstance(named_values, dict):
+        # Format the policy XML with named values (double braces for APIM named value syntax)
+        formatted_replacements = {}
+        for placeholder, named_value in named_values.items():
+            formatted_replacements[placeholder] = '{{' + named_value + '}}'
+        
+        # Apply the replacements
+        policy_template_xml = policy_template_xml.format(**formatted_replacements)
+
+    return policy_template_xml
+
 
 def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[int] | None = None) -> None:
     """

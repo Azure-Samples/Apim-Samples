@@ -1,0 +1,12 @@
+{
+    "recommendations": [
+        "ms-python.python",
+        "ms-python.debugpy",
+        "ms-toolsai.jupyter",
+        "ms-azuretools.vscode-bicep",
+        "ms-vscode.azurecli",
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "donjayamanne.vscode-default-python-kernel"
+    ]
+}

@@ -12,7 +12,10 @@ param apimName string = 'apim-${resourceSuffix}'
 
 param apimSku string
 param apis array = []
+param policyFragments array = []
 
+@description('Reveals the backend API information. Defaults to true. *** WARNING: This will expose backend API information to the caller - For learning & testing only! ***')
+param revealBackendApiInfo bool = true
 
 // ------------------
 //    RESOURCES
@@ -44,10 +47,25 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
     apimSku: apimSku
     appInsightsInstrumentationKey: appInsightsInstrumentationKey
     appInsightsId: appInsightsId
+    globalPolicyXml: revealBackendApiInfo ? loadTextContent('../../shared/apim-policies/all-apis-reveal-backend.xml') : loadTextContent('../../shared/apim-policies/all-apis.xml')
   }
 }
 
-// 4. APIM APIs
+// 4. APIM Policy Fragments
+module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.bicep' = [for pf in policyFragments: {
+  name: 'pf-${pf.name}'
+  params:{
+    apimName: apimName
+    policyFragmentName: pf.name
+    policyFragmentDescription: pf.description
+    policyFragmentValue: pf.policyXml
+  }
+  dependsOn: [
+    apimModule
+  ]
+}]
+
+// 5. APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(length(apis) > 0) {
   name: 'api-${api.name}'
   params: {
