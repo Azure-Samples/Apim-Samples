@@ -13,6 +13,9 @@ param apimSku string
 param apis array = []
 param policyFragments array = []
 
+@description('Reveals the backend API information. Defaults to true. *** WARNING: This will expose backend API information to the caller - For learning & testing only! ***')
+param revealBackendApiInfo bool = true
+
 
 // ------------------
 //    "CONSTANTS"
@@ -80,6 +83,7 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
     apimSku: apimSku
     appInsightsInstrumentationKey: appInsightsInstrumentationKey
     appInsightsId: appInsightsId
+    globalPolicyXml: revealBackendApiInfo ? loadTextContent('../../shared/apim-policies/all-apis-reveal-backend.xml') : loadTextContent('../../shared/apim-policies/all-apis.xml')
   }
 }
 

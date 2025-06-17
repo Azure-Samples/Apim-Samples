@@ -32,6 +32,9 @@ param policyFragments array = []
 @description('Set to true to make APIM publicly accessible. If false, APIM will be deployed into a VNet subnet for egress only.')
 param apimPublicAccess bool = true
 
+@description('Reveals the backend API information. Defaults to true. *** WARNING: This will expose backend API information to the caller - For learning & testing only! ***')
+param revealBackendApiInfo bool = true
+
 // Front Door
 param afdEndpointName string = 'afd-${resourceSuffix}'
 
@@ -170,6 +173,7 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
     appInsightsId: appInsightsId
     apimSubnetResourceId: apimSubnetResourceId
     publicAccess: apimPublicAccess
+    globalPolicyXml: revealBackendApiInfo ? loadTextContent('../../shared/apim-policies/all-apis-reveal-backend.xml') : loadTextContent('../../shared/apim-policies/all-apis.xml')
   }
   dependsOn: [
     vnetModule
