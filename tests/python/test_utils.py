@@ -475,7 +475,7 @@ def test_create_bicep_deployment_group_with_enum(monkeypatch):
     bicep_params = {'param1': {'value': 'test'}}
     rg_tags = {'infrastructure': 'simple-apim'}
     
-    result = utils.create_bicep_deployment_group(
+    _result = utils.create_bicep_deployment_group(
         'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, bicep_params, 'params.json', rg_tags
     )
     
@@ -505,7 +505,7 @@ def test_create_bicep_deployment_group_with_string(monkeypatch):
     
     bicep_params = {'param1': {'value': 'test'}}
     
-    result = utils.create_bicep_deployment_group(
+    _result = utils.create_bicep_deployment_group(
         'test-rg', 'eastus', 'custom-deployment', bicep_params
     )
     
