@@ -18,7 +18,16 @@ class JwtPayload:
     https://datatracker.ietf.org/doc/html/rfc7519
     """
 
+    # ------------------------------
+    #    CONSTANTS
+    # ------------------------------
+
     DEFAULT_LIFETIME_SECONDS = 3600 * 24  # Default lifetime of 24 hours
+
+
+    # ------------------------------
+    #    CONSTRUCTOR
+    # ------------------------------
 
     def __init__(self, subject: str, name: str, issued_at: int | None = None, expires: int | None = None, roles: dict[str] | None = None) -> None:
         self.sub = subject
@@ -27,11 +36,15 @@ class JwtPayload:
         self.exp = expires if expires is not None else self.iat + self.DEFAULT_LIFETIME_SECONDS
         self.roles = roles if roles is not None else []
 
+
+    # ------------------------------
+    #    PUBLIC METHODS
+    # ------------------------------
+
     def to_dict(self) -> dict[str, Any]:
         """
         Convert the payload to a dictionary for encoding.
         """
-
         pl: dict[str, Any] = {
             "sub": self.sub,
             "name": self.name,
@@ -44,12 +57,17 @@ class JwtPayload:
 
         return pl
 
+
 class SymmetricJwtToken:
     """
     Represents a JSON Web Token using a symmetric signing algorithm (HS256) for APIM testing.
     This is a simple implementation for demonstration purposes as it uses a shared secret key
     for the token creation and verification. This is not production-ready code.
     """
+
+    # ------------------------------
+    #    CONSTRUCTOR
+    # ------------------------------
 
     def __init__(self, key: str, payload: JwtPayload) -> None:
         """
@@ -62,6 +80,11 @@ class SymmetricJwtToken:
         self.key = key
         self.payload = payload
 
+
+    # ------------------------------
+    #    PUBLIC METHODS
+    # ------------------------------
+
     def encode(self) -> str:
         """
         Encode the JWT token using the provided key and payload.
@@ -73,11 +96,16 @@ class SymmetricJwtToken:
             The key parameter used for signing must be a regular ASCII string, NOT a base64-encoded string. If you have a base64-encoded key, decode it to its ASCII form before using it here. Passing a base64-encoded string directly will result in signature validation errors in APIM or other JWT consumers.
         """
         return jwt.encode(self.payload.to_dict(), self.key, algorithm = "HS256")
+
     
 class AuthFactory:
     """
     Factory class for creating authentication tokens or objects.
     """
+
+    # ------------------------------
+    #    PUBLIC METHODS
+    # ------------------------------
 
     @staticmethod
     def create_symmetric_jwt_token_for_user(user: User, jwt_key: str) -> str:

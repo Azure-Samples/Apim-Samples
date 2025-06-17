@@ -10,7 +10,7 @@ from typing import List, Optional, Any
 
 
 # ------------------------------
-#    CONSTANTS
+#    PRIVATE METHODS
 # ------------------------------
 
 def _get_project_root() -> Path:
@@ -204,7 +204,7 @@ class APIOperation:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, displayName: str, urlTemplate: str, method: HTTP_VERB, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None):
+    def __init__(self, name: str, displayName: str, urlTemplate: str, method: HTTP_VERB, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None) -> None:
         # Validate that method is a valid HTTP_VERB
         if not isinstance(method, HTTP_VERB):
             try:
@@ -241,6 +241,7 @@ class GET_APIOperation(APIOperation):
     """
     Represents a simple GET operation within a parent API.
     """
+
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
@@ -254,11 +255,12 @@ class GET_APIOperation2(APIOperation):
     """
     Represents a GET operation within a parent API.
     """
+
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, displayName: str, urlTemplate: str, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None):
+    def __init__(self, name: str, displayName: str, urlTemplate: str, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None) -> None:
         super().__init__(name, displayName, urlTemplate, HTTP_VERB.GET, description, policyXml, templateParameters)
 
 
@@ -267,11 +269,12 @@ class POST_APIOperation(APIOperation):
     """
     Represents a simple POST operation within a parent API.
     """
+
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
     
-    def __init__(self, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None):
+    def __init__(self, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None) -> None:
         super().__init__('POST', 'POST', '/', HTTP_VERB.POST, description, policyXml, templateParameters)
 
 
@@ -289,7 +292,7 @@ class NamedValue:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, value: str, isSecret: bool = False):
+    def __init__(self, name: str, value: str, isSecret: bool = False) -> None:
         self.name = name
         self.value = value
         self.isSecret = isSecret
@@ -307,6 +310,7 @@ class NamedValue:
         }
 
         return nv_dict
+
     
 @dataclass
 class PolicyFragment:
@@ -322,7 +326,7 @@ class PolicyFragment:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, policyXml: str, description: str = ''):
+    def __init__(self, name: str, policyXml: str, description: str = '') -> None:
         self.name = name
         self.policyXml = policyXml
         self.description = description
@@ -362,7 +366,7 @@ class Product:
     #    CONSTRUCTOR
     # ------------------------------
     
-    def __init__(self, name: str, displayName: str, description: str, state: str = 'published', subscriptionRequired: bool = True, approvalRequired: bool = False, policyXml: Optional[str] = None):
+    def __init__(self, name: str, displayName: str, description: str, state: str = 'published', subscriptionRequired: bool = True, approvalRequired: bool = False, policyXml: Optional[str] = None) -> None:
         self.name = name
         self.displayName = displayName
         self.description = description
@@ -391,6 +395,7 @@ class Product:
 </policies>"""
         else:
             self.policyXml = policyXml
+
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------

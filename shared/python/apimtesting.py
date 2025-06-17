@@ -1,14 +1,38 @@
 """
-Rudimentary test "framework" to offload validations from the Jupyter notebooks. 
+Rudimentary test framework to offload validations from the Jupyter notebooks. 
 """
 
+
+# ------------------------------
+#    CLASSES
+# ------------------------------
+
 class ApimTesting:
-    def __init__(self, test_suite_name: str = 'APIM Tests'):
+    """
+    A simple test framework for validating APIM deployments and configurations.
+    """
+
+    # ------------------------------
+    #    CONSTRUCTOR
+    # ------------------------------
+
+    def __init__(self, test_suite_name: str = 'APIM Tests') -> None:
+        """
+        Initialize the ApimTesting instance.
+
+        Args:
+            test_suite_name (str, optional): The name of the test suite. Defaults to 'APIM Tests'.
+        """
         self.test_suite_name = test_suite_name
         self.tests_passed = 0
         self.tests_failed = 0
         self.total_tests = 0
         self.errors = []
+
+        
+    # ------------------------------
+    #    PUBLIC METHODS
+    # ------------------------------
     
     def verify(self, value: any, expected: any) -> bool:
         """
@@ -19,22 +43,23 @@ class ApimTesting:
             expected: The expected value to match
             
         Returns:
-            True, if the assertion passes; otherwise, false.
+            bool: True, if the assertion passes; otherwise, False.
         """
-
         try:
             self.total_tests += 1
             assert value == expected, f'Value [{value}] does not match expected [{expected}]'
             self.tests_passed += 1
             print(f"✅ Test {self.total_tests}: PASS")
+
             return True
         except AssertionError as e:
             self.tests_failed += 1
             self.errors.append(f'{str(e)}')
             print(f"❌ Test {self.total_tests}: FAIL - {str(e)}")
+
             return False
         
-    def print_summary(self):
+    def print_summary(self) -> None:
         """
         Print a summary of the test results with visual flair and comprehensive details.
         

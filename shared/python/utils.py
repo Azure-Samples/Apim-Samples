@@ -558,11 +558,9 @@ def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str,
     policy_xml_filepath = determine_policy_path(policy_xml_filepath, sample_name)
     print(f"📄 Reading policy XML from  : {policy_xml_filepath}")
 
-        # Read the specified policy XML file
+    # Read the specified policy XML file
     with open(policy_xml_filepath, 'r', encoding='utf-8') as policy_xml_file:
         policy_template_xml = policy_xml_file.read()
-
-    #policy_template_xml = read_policy_xml(policy_xml_filepath)
 
     if replacements is not None and isinstance(replacements, dict):
         # Replace placeholders in the policy XML with provided values
@@ -675,80 +673,7 @@ def read_policy_xml(policy_xml_filepath_or_filename: str, named_values: dict[str
         policy_template_xml = policy_template_xml.format(**formatted_replacements)
 
     return policy_template_xml
-    """
-    Read a policy XML file from the current sample directory and format it with named values.
-    Automatically detects the sample name from the executing notebook's location.
 
-    Args:
-        policy_filename (str): The name of the policy XML file (e.g., 'hr_all_operations.xml').
-        named_values (dict[str, str]): Dictionary of named values to format in the policy XML.
-        sample_name (str, optional): Override the auto-detected sample name if needed.
-
-    Returns:
-        str: Contents of the policy XML file with named values formatted.
-
-    Example:
-        # Auto-detects sample name from notebook location
-        policy_xml = read_sample_policy_xml_auto('hr_all_operations.xml', {
-            'jwt_signing_key': jwt_key_name,
-            'hr_member_role_id': 'HRMemberRoleId'
-        })
-    """
-    import inspect
-    import os
-    from pathlib import Path
-    from apimtypes import _get_project_root
-    
-    # If sample_name is not provided, try to auto-detect it
-    if sample_name is None:
-        try:
-            # Get the current frame's filename (the notebook or script calling this function)
-            frame = inspect.currentframe()
-            caller_frame = frame.f_back
-            
-            # Try to get the filename from the caller's frame
-            if hasattr(caller_frame, 'f_globals') and '__file__' in caller_frame.f_globals:
-                caller_file = caller_frame.f_globals['__file__']
-            else:
-                # Fallback: try to get from current working directory
-                caller_file = os.getcwd()
-            
-            # Convert to Path and find the sample directory
-            caller_path = Path(caller_file).resolve()
-            
-            # Walk up the directory tree to find the samples directory structure
-            current_path = caller_path.parent if caller_path.is_file() else caller_path
-            
-            # Look for samples directory in the path
-            path_parts = current_path.parts
-            if 'samples' in path_parts:
-                samples_index = path_parts.index('samples')
-                if samples_index + 1 < len(path_parts):
-                    sample_name = path_parts[samples_index + 1]
-                else:
-                    raise ValueError("Could not detect sample name from path")
-            else:
-                raise ValueError("Not running from within a samples directory")
-                
-        except Exception as e:
-            raise ValueError(f"Could not auto-detect sample name. Please provide sample_name parameter explicitly. Error: {e}")
-    
-    # Get the project root and construct the path to the policy file
-    project_root = _get_project_root()
-    policy_file_path = project_root / 'samples' / sample_name / policy_filename
-    
-    # Read the policy XML file
-    policy_xml = read_policy_xml(str(policy_file_path))
-    
-    # Format the policy XML with named values (double braces for APIM named value syntax)
-    formatted_replacements = {}
-    for placeholder, named_value in named_values.items():
-        formatted_replacements[placeholder] = '{{' + named_value + '}}'
-    
-    # Apply the replacements
-    policy_xml = policy_xml.format(**formatted_replacements)
-    
-    return policy_xml
 
 def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[int] | None = None) -> None:
     """
