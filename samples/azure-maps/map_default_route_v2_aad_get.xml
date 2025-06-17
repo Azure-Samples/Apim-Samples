@@ -1,20 +1,73 @@
+<!-- Add policies as children to the <inbound>, <outbound>, <backend>, and <on-error> elements -->
 <policies>
     <!-- Throttle, authorize, validate, cache, or transform the requests -->
     <inbound>
         <base />
-        <authentication-managed-identity resource="https://atlas.microsoft.com/" output-token-variable-name="managed-id-access-token" ignore-error="false" />
+        <!-- Check if SAS token is cached -->
+        <cache-lookup-value key="azure-maps-sas-token" variable-name="cached-sas-token" />
+        <choose>
+            <when condition="@(context.Variables.ContainsKey("cached-sas-token"))">
+                <!-- Use cached SAS token -->
+                <set-variable name="sas-token" value="@((string)context.Variables["cached-sas-token"])" />
+            </when>
+            <otherwise>
+                <!-- Get managed identity token to authenticate SAS token request -->
+                <authentication-managed-identity resource="https://management.azure.com/" output-token-variable-name="managed-id-access-token" ignore-error="false" />
+                <!-- Get new SAS token from Azure Maps -->
+                <send-request mode="new" response-variable-name="sas-response" timeout="20" ignore-error="false">
+                    <set-url>https://management.azure.com/subscriptions/{{subscription-id}}/resourceGroups/{{resource-group-name}}/providers/Microsoft.Maps/accounts/{{azure-maps-resource-name}}/listSas?api-version={{azure-maps-arm-api-version}}</set-url>
+                    <set-method>POST</set-method>
+                    <set-header name="Authorization" exists-action="override">
+                        <value>@("Bearer " + (string)context.Variables["managed-id-access-token"])</value>
+                    </set-header>
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>@{
+                        return new JObject(
+                            new JProperty("signingKey", "primaryKey"),
+                            new JProperty("principalId", "{{user-assigned-identity-object-id}}"),
+                            new JProperty("maxRatePerSecond", 500),
+                            new JProperty("start", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")),
+                            new JProperty("expiry", DateTime.UtcNow.AddMinutes(60).ToString("yyyy-MM-ddTHH:mm:ssZ")),
+                            new JProperty("regions", new JArray("eastus"))
+                        ).ToString();
+                    }</set-body>
+                </send-request>
+                <choose>
+                    <!-- Check if the SAS token request was successful -->
+                    <when condition="@(((IResponse)context.Variables["sas-response"]).StatusCode >= 200 && ((IResponse)context.Variables["sas-response"]).StatusCode < 300)">
+                        <!-- Extract SAS token from successful response -->
+                        <set-variable name="sas-token" value="@(((IResponse)context.Variables["sas-response"]).Body.As<JObject>()["accountSasToken"].ToString())" />
+                        <!-- Cache the SAS token for its lifetime (60 minutes) -->
+                        <cache-store-value key="azure-maps-sas-token" value="@((string)context.Variables["sas-token"])" duration="3600" />
+                    </when>
+                    <otherwise>
+                        <!-- Log error and return error response -->
+                        <set-variable name="error-message" value="@("Failed to retrieve SAS token. Status: " + ((IResponse)context.Variables["sas-response"]).StatusCode.ToString() + ", Body: " + ((IResponse)context.Variables["sas-response"]).Body.As<string>())" />
+                        <return-response>
+                            <set-status code="500" reason="Internal Server Error" />
+                            <set-header name="Content-Type" exists-action="override">
+                                <value>application/json</value>
+                            </set-header>
+                            <set-body>@{
+                                return new JObject(
+                                    new JProperty("error", "SAS token generation failed"),
+                                    new JProperty("details", (string)context.Variables["error-message"])
+                                ).ToString();
+                            }</set-body>
+                        </return-response>
+                    </otherwise>
+                </choose>
+            </otherwise>
+        </choose>
+        <!-- Use SAS token for authentication -->
         <set-header name="Authorization" exists-action="override">
-            <value>@("Bearer " + (string)context.Variables["managed-id-access-token"])</value>
-        </set-header>
-        <set-header name="x-ms-client-id" exists-action="override">
-            <value>{{azure-maps-client-id}}</value>
+            <value>@("jwt-sas " + (string)context.Variables["sas-token"])</value>
         </set-header>
         <set-query-parameter name="api-version" exists-action="override">
             <value>2025-01-01</value>
         </set-query-parameter>
-        <trace source="Post SDK" severity="verbose">
-            <message>@((string)context.Request.OriginalUrl.Path)</message>
-        </trace>
         <rewrite-uri template="@(context.Request.OriginalUrl.Path.Substring("/map/default".Length))" copy-unmatched-params="true" />
     </inbound>
     <!-- Control if and how the requests are forwarded to services  -->
