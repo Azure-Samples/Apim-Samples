@@ -946,7 +946,7 @@ def test_cleanup_functions_comprehensive(monkeypatch):
     utils.cleanup_deployment('test-deployment')  # Should not raise
     
     # Test cleanup_infra_deployments with INFRASTRUCTURE enum (correct function name and parameter type)
-    from shared.python.apimtypes import INFRASTRUCTURE
+    from apimtypes import INFRASTRUCTURE
     utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM)  # Should not raise
     
     # Test cleanup_deployment with string
