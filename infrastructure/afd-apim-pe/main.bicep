@@ -27,6 +27,7 @@ param acaSubnetPrefix string = '10.0.2.0/23'
 param apimName string = 'apim-${resourceSuffix}'
 param apimSku string
 param apis array = []
+param policyFragments array = []
 
 @description('Set to true to make APIM publicly accessible. If false, APIM will be deployed into a VNet subnet for egress only.')
 param apimPublicAccess bool = true
@@ -175,7 +176,21 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
   ]
 }
 
-// 7. APIM Backends for ACA
+// 7. APIM Policy Fragments
+module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.bicep' = [for pf in policyFragments: {
+  name: 'pf-${pf.name}'
+  params:{
+    apimName: apimName
+    policyFragmentName: pf.name
+    policyFragmentDescription: pf.description
+    policyFragmentValue: pf.policyXml
+  }
+  dependsOn: [
+    apimModule
+  ]
+}]
+
+// 8. APIM Backends for ACA
 module backendModule1 '../../shared/bicep/modules/apim/v1/backend.bicep' = if (useACA) {
   name: 'aca-backend-1'
   params: {
@@ -224,7 +239,7 @@ module backendPoolModule '../../shared/bicep/modules/apim/v1/backend-pool.bicep'
   ]
 }
 
-// 8. APIM APIs
+// 9. APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(length(apis) > 0) {
   name: 'api-${api.name}'
   params: {
@@ -241,7 +256,7 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   ]
 }]
 
-// 9. APIM Private DNS Zone, VNet Link, and (optional) DNS Zone Group
+// 10. APIM Private DNS Zone, VNet Link, and (optional) DNS Zone Group
 module apimDnsPrivateLinkModule '../../shared/bicep/modules/dns/v1/dns-private-link.bicep' = {
   name: 'apimDnsPrivateLinkModule'
   params: {
@@ -254,7 +269,7 @@ module apimDnsPrivateLinkModule '../../shared/bicep/modules/dns/v1/dns-private-l
   }
 }
 
-// 10. ACA Private DNS Zone (regional, e.g., eastus2.azurecontainerapps.io), VNet Link, and wildcard A record via shared module
+// 11. ACA Private DNS Zone (regional, e.g., eastus2.azurecontainerapps.io), VNet Link, and wildcard A record via shared module
 module acaDnsPrivateZoneModule '../../shared/bicep/modules/dns/v1/aca-dns-private-zone.bicep' = if (useACA && !empty(acaSubnetResourceId)) {
   name: 'acaDnsPrivateZoneModule'
   params: {
@@ -264,7 +279,7 @@ module acaDnsPrivateZoneModule '../../shared/bicep/modules/dns/v1/aca-dns-privat
   }
 }
 
-// 11. Front Door
+// 12. Front Door
 module afdModule '../../shared/bicep/modules/afd/v1/afd.bicep' = {
   name: 'afdModule'
   params: {

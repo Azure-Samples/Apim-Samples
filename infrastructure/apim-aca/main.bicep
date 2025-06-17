@@ -11,6 +11,7 @@ param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id
 param apimName string = 'apim-${resourceSuffix}'
 param apimSku string
 param apis array = []
+param policyFragments array = []
 
 
 // ------------------
@@ -82,7 +83,21 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
   }
 }
 
-// 6. APIM Backends for ACA
+// 6. APIM Policy Fragments
+module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.bicep' = [for pf in policyFragments: {
+  name: 'pf-${pf.name}'
+  params:{
+    apimName: apimName
+    policyFragmentName: pf.name
+    policyFragmentDescription: pf.description
+    policyFragmentValue: pf.policyXml
+  }
+  dependsOn: [
+    apimModule
+  ]
+}]
+
+// 7. APIM Backends for ACA
 module backendModule1 '../../shared/bicep/modules/apim/v1/backend.bicep' = {
   name: 'aca-backend-1'
   params: {

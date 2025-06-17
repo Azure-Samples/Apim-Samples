@@ -13,6 +13,8 @@ import traceback
 import string
 import secrets
 import base64
+import inspect
+from pathlib import Path
 
 from typing import Optional, Tuple
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE
@@ -418,6 +420,7 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
         f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.")
 
 
+# TODO: Reconcile this with apimtypes.py _get_project_root
 def find_project_root() -> str:
     """
     Find the project root directory by looking for specific marker files.
@@ -573,11 +576,10 @@ def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str,
 
     return policy_template_xml
 
+def determine_shared_policy_path(policy_xml_filename: str) -> str:
+    return str(Path(find_project_root()) / 'shared' / 'apim-policies' / 'fragments' / policy_xml_filename)
+
 def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str = None) -> str:
-    import inspect
-    import os
-    from pathlib import Path
-    
     # Determine if this is a full path or just a filename
     path_obj = Path(policy_xml_filepath_or_filename)
     
