@@ -17,8 +17,6 @@ param appInsightsName string = 'appi-${resourceSuffix}'
 param userAssignedIdentityName string = 'uami-maps-${resourceSuffix}'
 param apis array = []
 
-// [ADD RELEVANT PARAMETERS HERE]
-
 // ------------------
 //    RESOURCES
 // ------------------
