@@ -1,0 +1,18 @@
+<!--
+    This policy retrieves artist information from Spotify.
+-->
+<policies>
+    <inbound>
+        <base />
+        <rewrite-uri template="/artists/{id}" copy-unmatched-params="false" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

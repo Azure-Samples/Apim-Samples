@@ -1,0 +1,57 @@
+<!--
+    Spotify API All Operations
+    
+    This policy uses APIM Credential Manager to handle OAuth authentication with the Spotify REST API.
+    The credential manager automatically handles token acquisition and refresh.
+-->
+<policies>
+    <inbound>
+        <base />
+        <validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized" output-token-variable-name="jwt">
+            <issuer-signing-keys>
+                <key>{jwt_signing_key}</key>
+            </issuer-signing-keys>
+            <required-claims>
+                <claim name="roles" match="all">
+                    <value>{marketing_member_role_id}</value>
+                </claim>
+            </required-claims>
+        </validate-jwt>
+
+        <!-- Get OAuth token using Credential Manager -->
+        <get-authorization-context provider-id="spotify" authorization-id="spotify-auth" context-variable-name="auth-context" identity-type="managed" ignore-error="false" />
+        
+        <!-- Set Authorization header with OAuth token -->
+        <set-header name="Authorization" exists-action="override">
+            <value>@("Bearer " + ((Authorization)context.Variables.GetValueOrDefault("auth-context"))?.AccessToken)</value>
+        </set-header>
+        
+        <!-- Set backend service to Spotify API -->
+        <set-backend-service base-url="https://api.spotify.com/v1" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <!-- Remove Authorization header from response for security -->
+        <set-header name="Authorization" exists-action="delete" />
+    </outbound>
+    <on-error>
+        <base />
+        <!-- Handle OAuth authorization errors -->
+        <choose>
+            <when condition="@(context.LastError.Source == "get-authorization-context")">
+                <set-status code="401" reason="OAuth Authorization Failed" />
+                <set-body>@{
+                    return new JObject(
+                        new JProperty("error", "oauth_authorization_failed"),
+                        new JProperty("error_description", "Failed to acquire OAuth token from Spotify"),
+                        new JProperty("timestamp", DateTime.UtcNow),
+                        new JProperty("requestId", context.RequestId)
+                    ).ToString();
+                }</set-body>
+            </when>
+        </choose>
+    </on-error>
+</policies>
