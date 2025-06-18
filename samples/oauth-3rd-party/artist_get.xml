@@ -1,0 +1,19 @@
+<!--
+    This policy retrieves artist information from Spotify.
+-->
+<policies>
+    <inbound>
+        <base />
+        <!-- Initially hard-code Whitney Houston's artist ID -->
+        <rewrite-uri template="/artists/6XpaIBNiVzIetEPCWDvAFP" copy-unmatched-params="false" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
