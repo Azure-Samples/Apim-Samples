@@ -147,6 +147,14 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
     appInsightsId: appInsightsId
     api: api
   }
+  dependsOn: [
+    mapsSubscriptionKeyNamedValue
+    mapsClientIdNamedValue
+    userAssignedIdentityObjectIdNamedValue
+    subscriptionIdNamedValue
+    resourceGroupNamedValue
+    azureMapsResourceNamedValue
+  ]
 }]
 
 // Grant APIM managed identity access to Azure Maps, here are the RBAC roles you might need: https://learn.microsoft.com/en-us/azure/azure-maps/azure-maps-authentication#picking-a-role-definition
