@@ -15,7 +15,36 @@ param apis array = []
 param products array = []
 param policyFragments array = []
 
-// [ADD RELEVANT PARAMETERS HERE]
+// OAuth Parameters
+@description('The OAuth client ID for Spotify API')
+param clientId string
+
+@description('The OAuth client secret for Spotify API')
+@secure()
+param clientSecret string
+
+@description('The OAuth flow type to use')
+@allowed([
+  'client_credentials'
+  'authorization_code'
+  'authorization_code_pkce'
+  'refresh_token'
+])
+param oauthFlowType string = 'authorization_code_pkce'
+
+@description('PKCE code challenge method when using PKCE flow')
+@allowed([
+  'plain'
+  'S256'
+  ''
+])
+param pkceCodeChallengeMethod string = 'S256'
+
+@description('Whether to create the Authorization Provider for Credential Manager')
+param createAuthorizationProvider bool = true
+
+@description('Whether to create the Authorization connection (requires manual consent)')
+param createAuthorization bool = false
 
 // ------------------
 //    RESOURCES
@@ -45,6 +74,49 @@ module namedValueModule '../../shared/bicep/modules/apim/v1/named-value.bicep' =
   }
 }]
 
+// https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/authorizationproviders
+resource spotifyAuthorizationProvider 'Microsoft.ApiManagement/service/authorizationProviders@2024-06-01-preview' = {
+  name: 'spotify'
+  parent: apimService
+  properties: {
+    displayName: 'spotify'
+    identityProvider: 'oauth2pkce'
+    oauth2: {
+      redirectUrl: 'https://authorization-manager.consent.azure-apim.net/redirect/apim/${apimName}'
+      grantTypes: {
+        authorizationCode: {
+          clientId: clientId
+          clientSecret: clientSecret
+          scopes: 'user-read-recently-played'
+          authorizationUrl: 'https://accounts.spotify.com/authorize'
+          refreshUrl: 'https://accounts.spotify.com/api/token'
+          tokenUrl: 'https://accounts.spotify.com/api/token'
+        }
+      }
+    }
+  }
+}
+
+// https://learn.microsoft.com/en-us/azure/templates/microsoft.apimanagement/service/authorizationproviders/authorizations
+resource spotifyAuthorization 'Microsoft.ApiManagement/service/authorizationProviders/authorizations@2024-06-01-preview' = {
+  parent: spotifyAuthorizationProvider
+  name: 'spotify-auth'
+  properties: {
+    authorizationType: 'OAuth2'
+    oauth2grantType: 'AuthorizationCode'
+  }
+}
+
+// https://learn.microsoft.com/en-us/azure/templates/microsoft.apimanagement/service/authorizationproviders/authorizations/accesspolicies
+resource spotifyAccessPolicies 'Microsoft.ApiManagement/service/authorizationProviders/authorizations/accessPolicies@2024-06-01-preview' = {
+  parent: spotifyAuthorization
+  name: 'spotify-auth-access-policies'
+  properties: {
+    objectId: apimService.identity.principalId  // APIM managed identity principal ID
+    tenantId: tenant().tenantId
+  }
+}
+
 // APIM Policy Fragments
 module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.bicep' = [for pf in policyFragments: {
   name: 'pf-${pf.name}'
@@ -56,25 +128,6 @@ module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.
   }
   dependsOn: [
     namedValueModule
-  ]
-}]
-
-// APIM Products
-module productModule '../../shared/bicep/modules/apim/v1/product.bicep' = [for product in products: {
-  name: 'product-${product.name}'
-  params: {
-    apimName: apimName
-    productName: product.name
-    productDisplayName: product.displayName
-    productDescription: product.description
-    productState: product.state
-    subscriptionRequired: product.subscriptionRequired
-    approvalRequired: product.approvalRequired
-    policyXml: product.policyXml
-  }
-  dependsOn: [
-    namedValueModule
-    policyFragmentModule
   ]
 }]
 
@@ -92,11 +145,8 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   dependsOn: [
     namedValueModule              // ensure all named values are created before APIs
     policyFragmentModule          // ensure all policy fragments are created before APIs
-    productModule              // ensure all products are fully created before APIs
   ]
 }]
-
-// [ADD RELEVANT BICEP MODULES HERE]
 
 // ------------------
 //    MARK: OUTPUTS
@@ -105,4 +155,3 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
 output apimServiceId string = apimService.id
 output apimServiceName string = apimService.name
 output apimResourceGatewayURL string = apimService.properties.gatewayUrl
-// [ADD RELEVANT OUTPUTS HERE]

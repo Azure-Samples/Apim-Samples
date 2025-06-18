@@ -1,29 +1,46 @@
 <!--
-    - Policies are applied in the order they appear.
-    - Position <base/> inside a section to inherit policies from the outer scope.
-    - Comments within policies are not preserved.
+    Spotify API All Operations
+    
+    This policy uses APIM Credential Manager to handle OAuth authentication with the Spotify REST API.
+    The credential manager automatically handles token acquisition and refresh.
 -->
-<!-- Add policies as children to the <inbound>, <outbound>, <backend>, and <on-error> elements -->
 <policies>
-    <!-- Throttle, authorize, validate, cache, or transform the requests -->
     <inbound>
         <base />
-        <get-authorization-context provider-id="spotify" authorization-id="spotify" context-variable-name="auth-context" identity-type="managed" identity="JWT bearer token" ignore-error="false" />
+        <!-- Get OAuth token using Credential Manager -->
+        <get-authorization-context provider-id="spotify" authorization-id="spotify-auth" context-variable-name="auth-context" identity-type="managed" ignore-error="false" />
+        
+        <!-- Set Authorization header with OAuth token -->
         <set-header name="Authorization" exists-action="override">
             <value>@("Bearer " + ((Authorization)context.Variables.GetValueOrDefault("auth-context"))?.AccessToken)</value>
         </set-header>
+        
+        <!-- Set backend service to Spotify API -->
         <set-backend-service base-url="https://api.spotify.com/v1" />
     </inbound>
-    <!-- Control if and how the requests are forwarded to services  -->
     <backend>
         <base />
     </backend>
-    <!-- Customize the responses -->
     <outbound>
         <base />
+        <!-- Remove Authorization header from response for security -->
+        <set-header name="Authorization" exists-action="delete" />
     </outbound>
-    <!-- Handle exceptions and customize error responses  -->
     <on-error>
         <base />
+        <!-- Handle OAuth authorization errors -->
+        <choose>
+            <when condition="@(context.LastError.Source == "get-authorization-context")">
+                <set-status code="401" reason="OAuth Authorization Failed" />
+                <set-body>@{
+                    return new JObject(
+                        new JProperty("error", "oauth_authorization_failed"),
+                        new JProperty("error_description", "Failed to acquire OAuth token from Spotify"),
+                        new JProperty("timestamp", DateTime.UtcNow),
+                        new JProperty("requestId", context.RequestId)
+                    ).ToString();
+                }</set-body>
+            </when>
+        </choose>
     </on-error>
 </policies>

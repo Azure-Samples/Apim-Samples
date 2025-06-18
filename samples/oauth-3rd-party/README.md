@@ -35,7 +35,7 @@ The API hierarchy is as follows:
 
 ## Prerequisites
 
-Unfortunately, this sample requires a bit of pre-work in order to create a high-fidelity setup:
+This sample requires a little bit of manual pre-work in order to create a high-fidelity setup:
 
 1. A Spotify Account
 1. A Spotify Application
@@ -56,7 +56,7 @@ In order for API Management to gain access to Spotify's API, we need to create a
     - **Redirect URIs**: _https://localhost:8080/callback_
         We will update this placeholder once we have the APIM URL.
     - **Which API/SDKs are you planning to use?** _Web API_
-1. Once the app has been created, note the _Client ID_ and _Client secret_. We will need them for the Credential Manager setup.
+1. Once the app has been created, **note the _Client ID_ and _Client secret_**. We will need them for the Credential Manager setup. You will need to configure them in step 1 in the `create` Jupyter notebook.
 
 ## Acknowledgement
 

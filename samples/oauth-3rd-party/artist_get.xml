@@ -4,8 +4,7 @@
 <policies>
     <inbound>
         <base />
-        <!-- Initially hard-code Whitney Houston's artist ID -->
-        <rewrite-uri template="/artists/6XpaIBNiVzIetEPCWDvAFP" copy-unmatched-params="false" />
+        <rewrite-uri template="/artists/{id}" copy-unmatched-params="false" />
     </inbound>
     <backend>
         <base />
