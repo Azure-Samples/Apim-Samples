@@ -146,6 +146,7 @@ For detailed troubleshooting of setup issues, see [Import Troubleshooting Guide]
 | [General](./samples/general/README.md)                          | Basic demo of APIM sample setup and policy usage.                                                                   | All infrastructures           |
 | [Load Balancing](./samples/load-balancing/README.md)            | Priority and weighted load balancing across backends.                                                               | apim-aca, afd-apim (with ACA) |
 | [Secure Blob Access](./samples/secure-blob-access/README.md)    | Secure blob access via the [valet key pattern](https://learn.microsoft.com/azure/architecture/patterns/valet-key).  | All infrastructures           |
+| [Azure Maps](./samples/azure-maps/README.md)                    | Proxying calls to Azure Maps with APIM policies.                                                                    | All infrastructures           |
 
 ### ▶️ Running a Sample
 

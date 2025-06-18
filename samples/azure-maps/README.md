@@ -22,7 +22,11 @@ This sample demonstrates how to use APIM to proxy requests to the Azure Maps ser
 This lab sets up:
 
 - An Azure Maps resource in Azure
-- APIM managed identity with Storage Blob Data Reader permissions
+- APIM managed identity with the following roles:
+  - **Azure Maps Search and Render Data Reader:** Grants the ability to call the apis and render the maps
+  - **Azure Maps Contributor:** Grants the ability to create the SAS Token from the APIM policy
+- A User Assigned Managed Identity (UAMI) that is used as the principal id to emulate when creating the SAS Token for Azure Maps. It has the following roles asigned:
+  - **Azure Maps Search and Render Data Reader:** Grants the ability to call the apis and render the maps
 - An API that demonstrates proxying requests to Azure Maps specific to APIs (geocode, search, etc.)
   - Also in that api there will be an operation that demonstrates a generic path to Azure Maps
 
