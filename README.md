@@ -18,7 +18,7 @@ _Try it out, learn from it, apply it in your setups._
 
 ## 🚀 Getting Started
 
-### � Quick Start Options
+### Quick Start Options
 
 #### Option 1: GitHub Codespaces / Dev Container (Recommended)
 
@@ -27,11 +27,13 @@ The fastest way to get started is using our pre-configured development environme
 - **GitHub Codespaces**: Click the green "Code" button → "Codespaces" → "Create codespace on main"
 - **VS Code Dev Containers**: Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers), then "Reopen in Container"
 
-All prerequisites are automatically installed and configured. See [.devcontainer/README.md](.devcontainer/README.md) for details.
+All prerequisites are automatically installed and configured. 
+
+📖 **For detailed setup information, troubleshooting, and optimization details, see [Dev Container Documentation](.devcontainer/README.md)**
 
 #### Option 2: Local Setup
 
-### �📋 Prerequisites
+### 📋 Prerequisites
 
 These prerequisites apply broadly across all infrastructure and samples. If there are specific deviations, expect them to be noted there.
 
@@ -40,11 +42,61 @@ These prerequisites apply broadly across all infrastructure and samples. If ther
 - [VS Code](https://code.visualstudio.com/) installed with the [Jupyter notebook extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter) enabled
 - [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) installed
 - [An Azure Subscription](https://azure.microsoft.com/free/) with Owner or Contributor+UserAccessAdministrator permissions. Execute [shared/jupyter/verify-az-account.ipynb](shared/jupyter/verify-az-account.ipynb) to verify.
-- [Sign in to Azure with Azure CLI](https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively)
+- **Azure Authentication**: Sign in to Azure with Azure CLI using the specific tenant and subscription you want to work with:
+  - To log in to a specific tenant: `az login --tenant <your-tenant-id-or-domain>`
+  - To set a specific subscription: `az account set --subscription <your-subscription-id-or-name>`
+  - To verify your current context: `az account show`
+  - See the [Azure CLI authentication guide](https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively) for more options
 
 ### 🛠️ Initialization
 
-Run through the following steps to create a Python virtual environment before doing anything else:
+#### Using Dev Container (Recommended)
+
+If you're using the dev container (GitHub Codespaces or VS Code Dev Containers):
+
+1. Open the repository in the dev container environment
+2. Wait for the automatic setup to complete (includes interactive Azure CLI configuration)
+3. If prompted during setup, choose your preferred Azure CLI authentication method:
+   - **Mount local config**: Preserves authentication between container rebuilds
+   - **Manual login**: Requires tenant-specific `az login` after each container startup
+   - **Configure later**: Skip for now, configure manually later
+4. **Sign in to Azure with correct tenant and subscription**:
+   - If you chose manual login or skipped: `az login --tenant <your-tenant-id-or-domain>`
+   - Set the correct subscription: `az account set --subscription <your-subscription-id-or-name>`
+   - Verify your authentication context: `az account show`
+5. Verify your Azure setup by executing [shared/jupyter/verify-az-account.ipynb](shared/jupyter/verify-az-account.ipynb)
+
+#### Manual Local Setup
+
+If you're setting up locally without the dev container:
+
+##### Quick Setup (Recommended)
+
+1. **Create Python Environment**: In VS Code, use Ctrl+Shift+P → "Python: Create Environment" → "Venv" → Select Python version → Check requirements.txt
+2. **Complete Environment Setup**: Run the automated setup script:
+   ```bash
+   python setup/setup_python_path.py --complete-setup
+   ```
+   For help and available options, run without arguments:
+   ```bash
+   python setup/setup_python_path.py
+   ```
+3. **Restart VS Code** to apply all settings
+4. **Sign in to Azure**: `az login --tenant <your-tenant-id>` and `az account set --subscription <your-subscription>`
+
+That's it! Your local environment now matches the dev container experience with:
+- ✅ Standardized "APIM Samples Python 3.12" Jupyter kernel
+- ✅ Automatic notebook kernel selection  
+- ✅ Python path configured for shared modules
+- ✅ VS Code optimized for the project
+
+When you open any `.ipynb` notebook, it will automatically use the correct kernel and all imports will work seamlessly.
+
+**🔍 Verify Setup**: Run `python setup/verify_local_setup.py` to confirm everything is working correctly.
+
+##### Manual Step-by-Step Setup
+
+If you prefer manual setup or the automated script doesn't work:
 
 1. Open VS Code.
 1. Invoke the _Command Palette_ via the _View_ menu or a shortcut (on Windows: Ctrl + Shift + P, on Mac: CMD + Shift + P).
@@ -53,17 +105,44 @@ Run through the following steps to create a Python virtual environment before do
 1. Select the desired, installed Python version.
 1. Check _requirements.txt_ to install the Python dependencies we need for this repo, then press _OK_. The install may take a few minutes. You can check on progress in the _OUTPUT_ window (select `Python`).
 1. Verify the virtual environment is set up. You should see a new _.venv_ directory with a _pyveng.cfg_ file and the Python version you selected earlier.
-1. Set up the project environment by running `python setup/setup_python_path.py --generate-env` to configure the Python path.
-  a. If for some reason the `python` command is not found, please try adding your virtual environment's `bin` or `Scripts` directory to your system's PATH variable.  An example command to do this for a virtual environment named `venv` would be to run `source .venv/bin/activate`
+1. Set up the project environment:
+   ```bash
+   python setup/setup_python_path.py --generate-env
+   python setup/setup_python_path.py --setup-kernel  
+   python setup/setup_python_path.py --setup-vscode
+   ```
+1. **Restart VS Code** to ensure all environment settings are loaded properly.
 
-The first time you run a Jupyter notebook, you'll be asked to install the Jupyter kernel package (ipykernel).
+The first time you run a Jupyter notebook, you may be asked to install the Jupyter kernel package (ipykernel) if not already available.
+
+#### 🔧 Troubleshooting Setup Issues
+
+If you encounter import errors (e.g., `ModuleNotFoundError: No module named 'requests'` or cannot import shared modules), try these steps:
+
+1. **Fix Python path configuration**:
+   ```bash
+   python setup/setup_python_path.py --generate-env
+   ```
+
+2. **Verify setup**:
+   ```bash
+   python setup/verify_local_setup.py
+   ```
+
+3. **Restart VS Code** after running the above commands.
+
+4. **Check Python interpreter**: Use `Ctrl+Shift+P` → "Python: Select Interpreter" and choose your `.venv` interpreter.
+
+For detailed troubleshooting of setup issues, see [Import Troubleshooting Guide](.devcontainer/IMPORT-TROUBLESHOOTING.md).
+
+📘 **For comprehensive troubleshooting including deployment errors, authentication issues, and more, see our main [Troubleshooting Guide](TROUBLESHOOTING.md).**
 
 ### 📁 List of Samples
 
 | Sample Name                                                     | Description                                                                                                         | Supported Infrastructure(s)   |
 |:----------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------|:------------------------------|
-| [AuthX](./samples/authx/README.md)                              | Authentication and role-based authorization in a mock HR API.                                                       | All infrastructures           |
-| [AuthX Pro](./samples/authx-pro/README.md)                      | Authentication and role-based authorization in a mock product with multiple APIs and policy fragments.              | All infrastructures           |
+| [AuthX](./samples/authX/README.md)                              | Authentication and role-based authorization in a mock HR API.                                                       | All infrastructures           |
+| [AuthX Pro](./samples/authX-pro/README.md)                      | Authentication and role-based authorization in a mock product with multiple APIs and policy fragments.              | All infrastructures           |
 | [General](./samples/general/README.md)                          | Basic demo of APIM sample setup and policy usage.                                                                   | All infrastructures           |
 | [Load Balancing](./samples/load-balancing/README.md)            | Priority and weighted load balancing across backends.                                                               | apim-aca, afd-apim (with ACA) |
 | [Secure Blob Access](./samples/secure-blob-access/README.md)    | Secure blob access via the [valet key pattern](https://learn.microsoft.com/azure/architecture/patterns/valet-key).  | All infrastructures           |
@@ -76,6 +155,20 @@ The first time you run a Jupyter notebook, you'll be asked to install the Jupyte
 1. Execute the sample's `create.ipynb` file.
 
 Now that infrastructure and sample have been stood up, you can experiment with the policies, make requests against APIM, etc.
+
+---
+
+## Troubleshooting
+
+Encountering issues? Check our comprehensive **[Troubleshooting Guide](TROUBLESHOOTING.md)** which covers:
+
+- **Deployment Errors** - Including the common "content already consumed" error and parameter mismatches
+- **Authentication Issues** - Azure CLI login problems and permission errors  
+- **Notebook & Development Environment Issues** - Module import errors and Python path problems
+- **Azure CLI Issues** - Rate limiting and API version compatibility
+- **Resource Management Issues** - Resource group and APIM service problems
+
+For immediate help with common errors, diagnostic commands, and step-by-step solutions, see **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**.
 
 ---
 

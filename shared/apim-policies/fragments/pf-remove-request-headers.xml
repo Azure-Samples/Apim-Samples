@@ -1,0 +1,11 @@
+<!--
+    - This fragment removes incoming request headers prior to calling a backend or external service.
+-->
+<fragment>
+    <!-- Remove APIM API keys to not inadvertently leak them. -->
+    <set-header name="api-key" exists-action="delete" />
+    <set-header name="ocp-apim-subscription-key" exists-action="delete" />
+
+    <!-- The Do Not Track (DNT) header is deprecated: https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/DNT -->
+    <set-header name="DNT" exists-action="delete" />
+</fragment>

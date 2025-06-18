@@ -17,15 +17,20 @@ class UserName(StrEnum):
     Predefined user names for testing purposes.
     """
 
-    DYLAN_WILLIAMS      = "Dylan Williams"
-    ELIZABETH_MOORE     = "Elizabeth Moore"
-    MARIO_ROGERS        = "Mario Rogers"
-    ELLIS_TURNER        = "Ellis Turner"
+    DYLAN_WILLIAMS = "Dylan Williams"
+    ELIZABETH_MOORE = "Elizabeth Moore"
+    MARIO_ROGERS = "Mario Rogers"
+    ELLIS_TURNER = "Ellis Turner"
+
 
 class User:
     """
     Represents a user and their roles.
     """
+
+    # ------------------------------
+    #    CONSTRUCTOR
+    # ------------------------------
 
     def __init__(self, id: str, name: str, roles: list[str] = None) -> None:
         """
@@ -41,6 +46,22 @@ class User:
         self.name = name
         self.roles = roles if roles is not None else []
 
+
+    # ------------------------------
+    #    PUBLIC METHODS
+    # ------------------------------
+
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the User.
+        """
+        return f"User(id='{self.id}', name='{self.name}', roles={self.roles})"
+
+
+# ------------------------------
+#    CONSTANTS
+# ------------------------------
+
 # Predefined users
 Users: List[User] = [
     User('4ea76b2c-6cea-4b8f-b81e-b242ae10c040', UserName.DYLAN_WILLIAMS),
@@ -53,6 +74,10 @@ class UserHelper:
     """
     Static helper class for user-related operations.
     """
+
+    # ------------------------------
+    #    PUBLIC METHODS
+    # ------------------------------
 
     @staticmethod
     def get_user(username: "str | UserName") -> "User | None":
@@ -67,6 +92,7 @@ class UserHelper:
         """
 
         name = username.value if hasattr(username, "value") else username
+
         return next((user for user in Users if user.name == name), None)
 
     @staticmethod

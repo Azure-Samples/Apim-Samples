@@ -207,3 +207,107 @@ def test_headers_property_is_dict_reference():
     h = apim.headers
     h["X-Ref"] = "ref"
     assert apim.headers["X-Ref"] == "ref"
+
+# ------------------------------
+#    ADDITIONAL COVERAGE TESTS FOR APIMREQUESTS
+# ------------------------------
+
+@pytest.mark.unit
+@patch("apimrequests.requests.request")
+def test_request_with_custom_headers(mock_request, apim):
+    """Test request with custom headers merged with default headers."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"result": "ok"}
+    mock_response.raise_for_status.return_value = None
+    mock_request.return_value = mock_response
+    
+    custom_headers = {"Custom": "value"}
+    result = apim.singleGet(default_path, headers=custom_headers)
+    
+    # Verify custom headers were merged with default headers
+    call_kwargs = mock_request.call_args[1]
+    assert "Custom" in call_kwargs["headers"]
+    assert SUBSCRIPTION_KEY_PARAMETER_NAME in call_kwargs["headers"]
+
+@pytest.mark.unit
+@patch("apimrequests.requests.request")
+def test_request_timeout_error(mock_request, apim):
+    """Test request with timeout error."""
+    mock_request.side_effect = requests.exceptions.Timeout()
+    
+    result = apim.singleGet(default_path)
+    
+    assert result is None
+
+@pytest.mark.unit
+@patch("apimrequests.requests.request")
+def test_request_connection_error(mock_request, apim):
+    """Test request with connection error."""
+    mock_request.side_effect = requests.exceptions.ConnectionError()
+    
+    result = apim.singleGet(default_path)
+    
+    assert result is None
+
+@pytest.mark.unit
+@patch("apimrequests.requests.request")
+def test_request_http_error(mock_request, apim):
+    """Test request with HTTP error response."""
+    mock_response = MagicMock()
+    mock_response.status_code = 404
+    mock_response.reason = "Not Found"
+    mock_response.headers = {"Content-Type": "text/plain"}
+    mock_response.text = "Resource not found"
+    mock_request.return_value = mock_response
+
+    result = apim.singleGet(default_path)
+
+    # The method returns the response body even for error status codes
+    assert result == "Resource not found"
+
+@pytest.mark.unit
+@patch("apimrequests.requests.request")
+def test_request_non_json_response(mock_request, apim):
+    """Test request with non-JSON response."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {"Content-Type": "text/plain"}
+    mock_response.json.side_effect = ValueError("Not JSON")
+    mock_response.text = "Plain text response"
+    mock_request.return_value = mock_response
+
+    result = apim.singleGet(default_path)
+
+    # Should return text response when JSON parsing fails
+    assert result == "Plain text response"
+
+@pytest.mark.unit
+@patch("apimrequests.requests.request")
+def test_request_with_data(mock_request, apim):
+    """Test POST request with data."""
+    mock_response = MagicMock()
+    mock_response.status_code = 201
+    mock_response.headers = {"Content-Type": "application/json"}
+    mock_response.json.return_value = {"created": True}
+    mock_response.text = '{"created": true}'
+    mock_request.return_value = mock_response
+
+    data = {"name": "test", "value": "data"}
+    result = apim.singlePost(default_path, data=data)
+
+    # Verify data was passed correctly
+    call_kwargs = mock_request.call_args[1]
+    assert call_kwargs["json"] == data
+    # The method returns JSON-formatted string for application/json content
+    assert result == '{\n    "created": true\n}'
+
+@pytest.mark.unit
+def test_apim_requests_without_subscription_key():
+    """Test ApimRequests initialization without subscription key."""
+    apim = ApimRequests(default_url)
+    
+    assert apim.url == default_url
+    assert apim.apimSubscriptionKey is None
+    assert SUBSCRIPTION_KEY_PARAMETER_NAME not in apim.headers
+    assert apim.headers["Accept"] == "application/json"

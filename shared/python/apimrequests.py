@@ -25,7 +25,7 @@ class ApimRequests:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, url: str, apimSubscriptionKey: str | None = None):
+    def __init__(self, url: str, apimSubscriptionKey: str | None = None) -> None:
         """
         Initialize the ApimRequests object.
 
@@ -42,6 +42,10 @@ class ApimRequests:
             self._headers[SUBSCRIPTION_KEY_PARAMETER_NAME] = self.apimSubscriptionKey
 
         self._headers['Accept'] = 'application/json'
+
+    # ------------------------------
+    #    PROPERTIES
+    # ------------------------------
 
     @property
     def headers(self) -> dict[str, str]:
@@ -177,7 +181,7 @@ class ApimRequests:
 
         return api_runs
 
-    def _print_response(self, response):
+    def _print_response(self, response) -> None:
         """
         Print the response headers and body with appropriate formatting.
         """
@@ -194,7 +198,7 @@ class ApimRequests:
         else:
             utils.print_val("Response body", response.text, True)
 
-    def _print_response_code(self, response):
+    def _print_response_code(self, response) -> None:
         """
         Print the response status code with color formatting.
         """
@@ -250,7 +254,7 @@ class ApimRequests:
     #    PUBLIC METHODS
     # ------------------------------
 
-    def singleGet(self, path: str, headers = None, msg: str | None = None, printResponse = True) -> Any:
+    def singleGet(self, path: str, headers = None, msg: str | None = None, printResponse: bool = True) -> Any:
         """
         Make a GET request to the Azure API Management service.
 
@@ -265,7 +269,7 @@ class ApimRequests:
 
         return self._request(method = HTTP_VERB.GET, path = path, headers = headers, msg = msg, printResponse = printResponse)
 
-    def singlePost(self, path: str, *, headers = None, data = None, msg: str | None = None, printResponse = True) -> Any:
+    def singlePost(self, path: str, *, headers = None, data = None, msg: str | None = None, printResponse: bool = True) -> Any:
         """
         Make a POST request to the Azure API Management service.
 
@@ -281,7 +285,7 @@ class ApimRequests:
 
         return self._request(method = HTTP_VERB.POST, path = path, headers = headers, data = data, msg = msg, printResponse = printResponse)
     
-    def multiGet(self, path: str, runs: int, headers = None, data = None, msg: str | None = None, printResponse = True, sleepMs: int | None = None) -> list[dict[str, Any]]:
+    def multiGet(self, path: str, runs: int, headers = None, data = None, msg: str | None = None, printResponse: bool = True, sleepMs: int | None = None) -> list[dict[str, Any]]:
         """
         Make multiple GET requests to the Azure API Management service.
 

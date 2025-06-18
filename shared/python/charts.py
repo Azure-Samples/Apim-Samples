@@ -22,27 +22,44 @@ class BarChart(object):
     Class for creating bar charts with colored bars based on backend indexes.
     """
 
-    def __init__(self, title: str, x_label: str, y_label: str, api_results: list[dict], fig_text: str = None):
+    # ------------------------------
+    #    CONSTRUCTOR
+    # ------------------------------
+
+    def __init__(self, title: str, x_label: str, y_label: str, api_results: list[dict], fig_text: str = None) -> None:
         """
         Initialize the BarChart with API results.
 
         Args:
+            title (str): The title of the chart.
+            x_label (str): The label for the x-axis.
+            y_label (str): The label for the y-axis.
             api_results (list[dict]): List of API result dictionaries.
+            fig_text (str, optional): Additional figure text to display. Defaults to None.
         """
-        
         self.title = title
         self.x_label = x_label
         self.y_label = y_label
         self.api_results = api_results
         self.fig_text = fig_text
 
-    def plot(self):
+
+    # ------------------------------
+    #    PUBLIC METHODS
+    # ------------------------------
+
+    def plot(self) -> None:
         """
         Plot the bar chart based on the provided API results.
         """
         self._plot_barchart(self.api_results)
 
-    def _plot_barchart(self, api_results: list[dict]):
+
+    # ------------------------------
+    #    PRIVATE METHODS
+    # ------------------------------
+
+    def _plot_barchart(self, api_results: list[dict]) -> None:
         """
         Internal method to plot the bar chart.
 

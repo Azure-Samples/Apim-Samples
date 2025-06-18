@@ -1,0 +1,36 @@
+# Exclude files that don't need to be in the Docker build context
+**/.git
+**/.gitignore
+**/node_modules
+**/.vscode
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache
+**/coverage
+**/.coverage
+**/htmlcov
+**/.env
+**/.env.local
+**/.env.*.local
+**/dist
+**/build
+**/*.egg-info
+**/.devcontainer/.prebuild-complete
+**/.devcontainer/*.md
+**/README.md
+**/LICENSE
+**/CONTRIBUTING.md
+**/.editorconfig
+**/.gitattributes
+**/Dockerfile*
+**/.dockerignore
+**/docker-compose*
+**/.DS_Store
+**/Thumbs.db
+
+# Keep essential files for the build
+!requirements.txt
+!setup/setup_python_path.py
+!shared/python/**
