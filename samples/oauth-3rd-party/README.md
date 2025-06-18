@@ -48,15 +48,19 @@ This sample requires a little bit of manual pre-work in order to create a high-f
 
 In order for API Management to gain access to Spotify's API, we need to create an application that represents API Management. 
 
-1. Open the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard) and review and accept the _Spotify Developer Terms of Service_.
-1. Proceed with verifying your email address.
+1. Open or log into the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
+1. Review and accept the _Spotify Developer Terms of Service_, if required.
+1. Proceed with verifying your email address, if required.
+1. If the Dashboard does not open immediately, select it from the menu after clicking on your profile name (top-right corner).
 1. [Create the app](https://developer.spotify.com/dashboard/create):
     - **App Name**: _APIM_
     - **App Description**: _API Management_
-    - **Redirect URIs**: _https://localhost:8080/callback_
+    - **Redirect URIs**: https://localhost:8080/callback
         We will update this placeholder once we have the APIM URL.
     - **Which API/SDKs are you planning to use?** _Web API_
-1. Once the app has been created, **note the _Client ID_ and _Client secret_**. We will need them for the Credential Manager setup. You will need to configure them in step 1 in the `create` Jupyter notebook.
+1. Once the app has been created, **note the _Client ID_ and _Client secret_**. We will need them for the Credential Manager setup.
+1. Leave the Dashboard page open in your browser, as we will need to replaec the Redirect URI shortly.
+1. Proceed to the [create](./create.ipynb) Jupyter notebook and follow directions there.
 
 ## Acknowledgement
 
