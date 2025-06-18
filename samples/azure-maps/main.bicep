@@ -168,7 +168,7 @@ resource mapsDataReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@2
   }
 }
 
-// Grant APIM managed identity 'Auzre Maps Contributor' role to Azure Maps, this allows the creation of SAS tokens
+// Grant APIM managed identity 'Azure Maps Contributor' role to Azure Maps, this allows the creation of SAS tokens
 resource mapsContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(mapsAccount.id, apimService.id, 'dba33070-676a-4fb0-87fa-064dc56ff7fb')
   scope: mapsAccount
