@@ -1161,3 +1161,69 @@ def test_url_preflight_check(deployment: INFRASTRUCTURE, rg_name: str, apim_gate
         print_message(f'Using APIM Gateway URL: {apim_gateway_url}', blank_above = True)
 
     return endpoint_url
+
+def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, current_jwt_key_name: str) -> bool:
+    """
+    Clean up old JWT signing keys from APIM named values, keeping only the current key.
+    
+    Args:
+        apim_name (str): Name of the APIM service
+        resource_group_name (str): Name of the resource group containing APIM
+        current_jwt_key_name (str): Name of the current JWT key to preserve
+        
+    Returns:
+        bool: True if cleanup was successful, False otherwise
+    """
+    
+    try:
+        print_message('🧹 Cleaning up old JWT signing keys...', blank_above = True)
+        
+        # Get all named values that start with 'JwtSigningKey'
+        print_info(f"Getting all JWT signing key named values from APIM '{apim_name}'...")
+        
+        output = run(
+            f'az apim nv list --service-name "{apim_name}" --resource-group "{resource_group_name}" --query "[?contains(name, \'JwtSigningKey\')].name" -o tsv',
+            "Retrieved JWT signing keys",
+            "Failed to retrieve JWT signing keys"
+        )
+        
+        if not output.success:
+            print_error("Failed to retrieve JWT signing keys from APIM")
+            return False
+            
+        if not output.text.strip():
+            print_info("No JWT signing keys found. Nothing to clean up.")
+            return True
+            
+        # Parse the list of JWT keys
+        jwt_keys = [key.strip() for key in output.text.strip().split('\n') if key.strip()]
+        
+        print_info(f"Found {len(jwt_keys)} JWT signing keys:")
+        for key in jwt_keys:
+            print(f"  • {key}")
+        
+        # Process each JWT key
+        deleted_count = 0
+        kept_count = 0
+        
+        for jwt_key in jwt_keys:
+            if jwt_key == current_jwt_key_name:
+                kept_count += 1
+            else:
+                delete_output = run(
+                    f'az apim nv delete --service-name "{apim_name}" --resource-group "{resource_group_name}" --named-value-id "{jwt_key}" --yes',
+                    f"Deleted old JWT key: {jwt_key}",
+                    f"Failed to delete JWT key: {jwt_key}",
+                    print_errors = False
+                )
+                
+                if delete_output.success:
+                    deleted_count += 1
+        
+        # Summary
+        print_success(f"JWT signing key cleanup completed. Deleted {deleted_count} old keys, kept {kept_count}'.", blank_above = True)
+        return True
+        
+    except Exception as e:
+        print_error(f"Error during JWT key cleanup: {str(e)}")
+        return False
