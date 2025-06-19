@@ -5,7 +5,7 @@
 @description('Location to be used for resources. Defaults to the resource group location')
 param location string = resourceGroup().location
 
-param mapsLocation string = 'eastus' // Azure Maps is only available in certain regions, adjust as needed
+param mapsLocation string = 'eastus' // Azure Maps is only available in certain regions: https://learn.microsoft.com/en-us/azure/azure-maps/creator-geographic-scope#geographic-and-regional-mapping
 
 @description('The unique suffix to append. Defaults to a unique string based on subscription and resource group IDs.')
 param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id)
@@ -16,6 +16,12 @@ param apimName string = 'apim-${resourceSuffix}'
 param appInsightsName string = 'appi-${resourceSuffix}'
 param userAssignedIdentityName string = 'uami-maps-${resourceSuffix}'
 param apis array = []
+
+// ------------------------------
+//    VARIABLES
+// ------------------------------
+
+var azureRoles = loadJsonContent('../../shared/azure-roles.json')
 
 // ------------------
 //    RESOURCES
@@ -155,12 +161,12 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   ]
 }]
 
-// Grant APIM managed identity access to Azure Maps, here are the RBAC roles you might need: https://learn.microsoft.com/en-us/azure/azure-maps/azure-maps-authentication#picking-a-role-definition
+// Grant APIM managed identity Azure Maps Seaarch and Render Data Reader role to Azure Maps
 resource mapsDataReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(mapsAccount.id, apimService.id, '6be48352-4f82-47c9-ad5e-0acacefdb005')
+  name: guid(mapsAccount.id, apimService.id, 'Azure Maps Search and Render Data Reader')
   scope: mapsAccount
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '6be48352-4f82-47c9-ad5e-0acacefdb005')
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', azureRoles.AzureMapsSearchAndRenderDataReader)
     principalId: apimService.identity.principalId
     principalType: 'ServicePrincipal'
   }
@@ -168,22 +174,22 @@ resource mapsDataReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@2
 
 // Grant APIM managed identity 'Azure Maps Contributor' role to Azure Maps, this allows the creation of SAS tokens
 resource mapsContributorRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(mapsAccount.id, apimService.id, 'dba33070-676a-4fb0-87fa-064dc56ff7fb')
+  name: guid(mapsAccount.id, apimService.id, 'Azure Maps Contributor')
   scope: mapsAccount
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'dba33070-676a-4fb0-87fa-064dc56ff7fb')
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', azureRoles.AzureMapsContributor)
     principalId: apimService.identity.principalId
     principalType: 'ServicePrincipal'
   }
 }
 
 
-// Grant user-assigned managed identity Azure Maps Data Reader role
+// Grant user-assigned managed identity Azure Maps Search and Render Data Reader role
 resource userAssignedIdentityMapsDataReaderRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(mapsAccount.id, userAssignedIdentity.id, '6be48352-4f82-47c9-ad5e-0acacefdb005')
+  name: guid(mapsAccount.id, userAssignedIdentity.id, 'Azure Maps Search and Render Data Reader')
   scope: mapsAccount
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '6be48352-4f82-47c9-ad5e-0acacefdb005')
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', azureRoles.AzureMapsSearchAndRenderDataReader)
     principalId: userAssignedIdentity.properties.principalId
     principalType: 'ServicePrincipal'
   }
