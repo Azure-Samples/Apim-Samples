@@ -2,6 +2,7 @@
 Rudimentary test framework to offload validations from the Jupyter notebooks. 
 """
 
+from apimtypes import INFRASTRUCTURE
 
 # ------------------------------
 #    CLASSES
@@ -16,14 +17,18 @@ class ApimTesting:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, test_suite_name: str = 'APIM Tests') -> None:
+    def __init__(self, test_suite_name: str = 'APIM Tests', sample_name: str = None, deployment: INFRASTRUCTURE = None) -> None:
         """
         Initialize the ApimTesting instance.
 
         Args:
             test_suite_name (str, optional): The name of the test suite. Defaults to 'APIM Tests'.
+            sample_name (str, optional): The name of the sample being tested. Defaults to None.
+            deployment (str, optional): The deployment name (INFRASTRUCTURE)
         """
         self.test_suite_name = test_suite_name
+        self.sample_name = sample_name
+        self.deployment = deployment
         self.tests_passed = 0
         self.tests_failed = 0
         self.total_tests = 0
@@ -75,7 +80,7 @@ class ApimTesting:
         # Create padded title
         title = f"🧪 {self.test_suite_name} - Test Results Summary 🧪"
         title_padding = max(0, (border_width - len(title)) // 2)
-        
+
         # Start the fancy display
         print('\n')  # Blank lines for spacing
         print(border_line)
@@ -83,6 +88,9 @@ class ApimTesting:
         print(border_line)
         print()
         
+        print(f' Sample Name : {self.sample_name if self.sample_name else "N/A"}')
+        print(f' Deployment  : {self.deployment.name if self.deployment else "N/A"}\n')
+
         # Test statistics with visual indicators
         print(f'📊 Test Execution Statistics:')
         print(f'    • Total Tests  : {self.total_tests:>5}')
@@ -109,9 +117,7 @@ class ApimTesting:
             print('🔍 Detailed Error Analysis:')
             print('─' * 50)
             for i, error in enumerate(self.errors, 1):
-                print(f'{i:>2}.\n{error}')
-        else:
-            print('✅ No errors encountered - Everything looks great!')
+                print(f'{i:>2}. {error}\n')
         
         print()
         print(border_line)

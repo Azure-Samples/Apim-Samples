@@ -921,7 +921,7 @@ def get_frontdoor_url(deployment_name: INFRASTRUCTURE, rg_name: str) -> str | No
     if afd_endpoint_url:
         print_ok(f"Front Door Endpoint URL: {afd_endpoint_url}", blank_above = False)
     else:
-        print_error("No Front Door endpoint URL found. Please check the deployment and ensure that Azure Front Door is configured correctly.")
+        print_warning("No Front Door endpoint URL found.")
 
     return afd_endpoint_url
 
@@ -1288,7 +1288,7 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
                     deleted_count += 1
         
         # Summary
-        print_success(f"JWT signing key cleanup completed. Deleted {deleted_count} old keys, kept {kept_count}'.", blank_above = True)
+        print_success(f"JWT signing key cleanup completed. Deleted {deleted_count} old key(s), kept {kept_count}'.", blank_above = True)
         return True
         
     except Exception as e:
