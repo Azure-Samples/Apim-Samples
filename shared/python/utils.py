@@ -153,6 +153,75 @@ class Output(object):
             return None
 
 
+class NotebookHelper:
+    def __init__(self, sample_folder: str, rg_name: str, rg_location: str, deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE], use_jwt: bool = False):
+        """
+        Initialize the NotebookHelper with a name and resource group.
+        
+        Args:
+            sample_folder (str): The name of the sample folder.
+            rg_name (str): The name of the resource group associated with the notebook.
+            rg_location (str): The Azure region for deployment.
+        """
+
+        self.sample_folder = sample_folder
+        self.rg_name = rg_name
+        self.rg_location = rg_location
+        self.deployment = deployment
+        self.supported_infrastructures = supported_infrastructures
+        self.use_jwt = use_jwt
+
+        validate_infrastructure(deployment, supported_infrastructures)
+
+        if use_jwt:
+            self._create_jwt()
+
+    def _create_jwt(self) -> None:
+        # Set up the signing key for the JWT policy
+        self.jwt_key_name = f'JwtSigningKey-{self.sample_folder}-{int(time.time())}'
+        self.jwt_key_value, self.jwt_key_value_bytes_b64 = generate_signing_key()
+        print_val('JWT key value', self.jwt_key_value)                    # this value is used to create the signed JWT token for requests to APIM
+        print_val('JWT key value (base64)', self.jwt_key_value_bytes_b64) # this value is used in the APIM validate-jwt policy's issuer-signing-key attribute  
+
+    def _clean_up_jwt(self, apim_name: str) -> None:
+        # 5) Clean up old JWT signing keys after successful deployment
+        if not cleanup_old_jwt_signing_keys(apim_name, self.rg_name, self.jwt_key_name):
+            print_warning('JWT key cleanup failed, but deployment was successful. Old keys may need manual cleanup.')
+
+    def deploy_bicep(self, bicep_parameters: dict) -> Output:
+        """
+        Deploy a Bicep template for the sample.
+        
+        Args:
+            bicep_parameters (dict): Parameters for the Bicep template.
+            
+        Returns:
+            Object: The deployment's output object
+        """
+
+        # Infrastructure must be in place before samples can be layered on top
+        if not does_resource_group_exist(self.rg_name):
+            print_error(f'The specified infrastructure resource group and its resources must exist first. Please check that the user-defined parameters above are correctly referencing an existing infrastructure. If it does not yet exist, run the desired infrastructure in the /infra/ folder first.')
+            raise SystemExit(1)
+
+        # Execute the deployment using the utility function that handles working directory management
+        output = create_bicep_deployment_group_for_sample(self.sample_folder, self.rg_name, self.rg_location, bicep_parameters)
+
+        # Print a deployment summary, if successful; otherwise, exit with an error
+        if output.success:
+            if self.use_jwt:
+                apim_name = output.get('apimServiceName')
+                self._clean_up_jwt(apim_name)
+                    
+            print_success("Deployment succeeded", blank_above = True)
+        else:
+            raise SystemExit('Deployment failed')
+
+        return output
+
+
+
+
 # ------------------------------
 #    PRIVATE METHODS
 # ------------------------------
