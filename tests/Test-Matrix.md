@@ -13,6 +13,7 @@ This document outlines the compatibility between samples and infrastructure type
 | **load-balancing**          | N/A                                                              | [&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;] Dev Container |
 | **secure-blob-access**      | [&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;] Dev Container |
 | **oauth-3rd-party**         | [&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;] Dev Container |
+| **azure-maps**              | [&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;] Dev Container |
 | **INFRASTRUCTURE clean-up** | [&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;] Dev Container | [&nbsp;&nbsp;&nbsp;] Local<br>[&nbsp;&nbsp;&nbsp;] Dev Container |
 
 ## Infrastructure Types
