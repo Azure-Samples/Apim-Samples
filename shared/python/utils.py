@@ -153,6 +153,75 @@ class Output(object):
             return None
 
 
+class NotebookHelper:
+    def __init__(self, sample_folder: str, rg_name: str, rg_location: str, deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE], use_jwt: bool = False):
+        """
+        Initialize the NotebookHelper with a name and resource group.
+        
+        Args:
+            sample_folder (str): The name of the sample folder.
+            rg_name (str): The name of the resource group associated with the notebook.
+            rg_location (str): The Azure region for deployment.
+        """
+
+        self.sample_folder = sample_folder
+        self.rg_name = rg_name
+        self.rg_location = rg_location
+        self.deployment = deployment
+        self.supported_infrastructures = supported_infrastructures
+        self.use_jwt = use_jwt
+
+        validate_infrastructure(deployment, supported_infrastructures)
+
+        if use_jwt:
+            self._create_jwt()
+
+    def _create_jwt(self) -> None:
+        # Set up the signing key for the JWT policy
+        self.jwt_key_name = f'JwtSigningKey-{self.sample_folder}-{int(time.time())}'
+        self.jwt_key_value, self.jwt_key_value_bytes_b64 = generate_signing_key()
+        print_val('JWT key value', self.jwt_key_value)                    # this value is used to create the signed JWT token for requests to APIM
+        print_val('JWT key value (base64)', self.jwt_key_value_bytes_b64) # this value is used in the APIM validate-jwt policy's issuer-signing-key attribute  
+
+    def _clean_up_jwt(self, apim_name: str) -> None:
+        # 5) Clean up old JWT signing keys after successful deployment
+        if not cleanup_old_jwt_signing_keys(apim_name, self.rg_name, self.jwt_key_name):
+            print_warning('JWT key cleanup failed, but deployment was successful. Old keys may need manual cleanup.')
+
+    def deploy_bicep(self, bicep_parameters: dict) -> Output:
+        """
+        Deploy a Bicep template for the sample.
+        
+        Args:
+            bicep_parameters (dict): Parameters for the Bicep template.
+            
+        Returns:
+            Object: The deployment's output object
+        """
+
+        # Infrastructure must be in place before samples can be layered on top
+        if not does_resource_group_exist(self.rg_name):
+            print_error(f'The specified infrastructure resource group and its resources must exist first. Please check that the user-defined parameters above are correctly referencing an existing infrastructure. If it does not yet exist, run the desired infrastructure in the /infra/ folder first.')
+            raise SystemExit(1)
+
+        # Execute the deployment using the utility function that handles working directory management
+        output = create_bicep_deployment_group_for_sample(self.sample_folder, self.rg_name, self.rg_location, bicep_parameters)
+
+        # Print a deployment summary, if successful; otherwise, exit with an error
+        if output.success:
+            if self.use_jwt:
+                apim_name = output.get('apimServiceName')
+                self._clean_up_jwt(apim_name)
+                    
+            print_success("Deployment succeeded", blank_above = True)
+        else:
+            raise SystemExit('Deployment failed')
+
+        return output
+
+
+
+
 # ------------------------------
 #    PRIVATE METHODS
 # ------------------------------
@@ -852,7 +921,7 @@ def get_frontdoor_url(deployment_name: INFRASTRUCTURE, rg_name: str) -> str | No
     if afd_endpoint_url:
         print_ok(f"Front Door Endpoint URL: {afd_endpoint_url}", blank_above = False)
     else:
-        print_error("No Front Door endpoint URL found. Please check the deployment and ensure that Azure Front Door is configured correctly.")
+        print_warning("No Front Door endpoint URL found.")
 
     return afd_endpoint_url
 
@@ -1161,3 +1230,67 @@ def test_url_preflight_check(deployment: INFRASTRUCTURE, rg_name: str, apim_gate
         print_message(f'Using APIM Gateway URL: {apim_gateway_url}', blank_above = True)
 
     return endpoint_url
+
+def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, current_jwt_key_name: str) -> bool:
+    """
+    Clean up old JWT signing keys from APIM named values, keeping only the current key.
+    
+    Args:
+        apim_name (str): Name of the APIM service
+        resource_group_name (str): Name of the resource group containing APIM
+        current_jwt_key_name (str): Name of the current JWT key to preserve
+        
+    Returns:
+        bool: True if cleanup was successful, False otherwise
+    """
+    
+    try:
+        print_message('🧹 Cleaning up old JWT signing keys...', blank_above = True)
+        
+        # Get all named values that start with 'JwtSigningKey'
+        print_info(f"Getting all JWT signing key named values from APIM '{apim_name}'...")
+        
+        output = run(
+            f'az apim nv list --service-name "{apim_name}" --resource-group "{resource_group_name}" --query "[?contains(name, \'JwtSigningKey\')].name" -o tsv',
+            "Retrieved JWT signing keys",
+            "Failed to retrieve JWT signing keys"
+        )
+        
+        if not output.success:
+            print_error("Failed to retrieve JWT signing keys from APIM")
+            return False
+            
+        if not output.text.strip():
+            print_info("No JWT signing keys found. Nothing to clean up.")
+            return True
+            
+        # Parse the list of JWT keys
+        jwt_keys = [key.strip() for key in output.text.strip().split('\n') if key.strip()]
+        
+        print_info(f"Found {len(jwt_keys)} JWT signing keys.")
+        
+        # Process each JWT key
+        deleted_count = 0
+        kept_count = 0
+        
+        for jwt_key in jwt_keys:
+            if jwt_key == current_jwt_key_name:
+                kept_count += 1
+            else:
+                delete_output = run(
+                    f'az apim nv delete --service-name "{apim_name}" --resource-group "{resource_group_name}" --named-value-id "{jwt_key}" --yes',
+                    f"Deleted old JWT key: {jwt_key}",
+                    f"Failed to delete JWT key: {jwt_key}",
+                    print_errors = False
+                )
+                
+                if delete_output.success:
+                    deleted_count += 1
+        
+        # Summary
+        print_success(f"JWT signing key cleanup completed. Deleted {deleted_count} old key(s), kept {kept_count}'.", blank_above = True)
+        return True
+        
+    except Exception as e:
+        print_error(f"Error during JWT key cleanup: {str(e)}")
+        return False
