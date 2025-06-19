@@ -1198,9 +1198,7 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
         # Parse the list of JWT keys
         jwt_keys = [key.strip() for key in output.text.strip().split('\n') if key.strip()]
         
-        print_info(f"Found {len(jwt_keys)} JWT signing keys:")
-        for key in jwt_keys:
-            print(f"  • {key}")
+        print_info(f"Found {len(jwt_keys)} JWT signing keys.")
         
         # Process each JWT key
         deleted_count = 0
