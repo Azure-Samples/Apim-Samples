@@ -37,7 +37,6 @@ _SHARED_XML_POLICY_BASE_PATH = _PROJECT_ROOT / 'shared' / 'apim-policies'
 
 # Policy file paths (now absolute and platform-independent)
 DEFAULT_XML_POLICY_PATH             = str(_SHARED_XML_POLICY_BASE_PATH / 'default.xml')
-REQUIRE_PRODUCT_XML_POLICY_PATH     = str(_SHARED_XML_POLICY_BASE_PATH / 'require-product.xml')
 HELLO_WORLD_XML_POLICY_PATH         = str(_SHARED_XML_POLICY_BASE_PATH / 'hello-world.xml')
 REQUEST_HEADERS_XML_POLICY_PATH     = str(_SHARED_XML_POLICY_BASE_PATH / 'request-headers.xml')
 BACKEND_XML_POLICY_PATH             = str(_SHARED_XML_POLICY_BASE_PATH / 'backend.xml')
