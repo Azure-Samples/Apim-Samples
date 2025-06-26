@@ -1,0 +1,24 @@
+<!--
+    - Expected context variables:
+      - "products": A csv of product names to check against. Any match will allow the policy to continue processing.
+      
+    - This fragment only blocks access (returns 403) when no products match. If any product matches, processing continues normally.
+-->
+<fragment>
+    <choose>
+        <!-- Check if NONE of the allowed products match the context product name -->
+        <when condition="@{
+            var allowedProducts = context.Variables.GetValueOrDefault<string>("products", "").ToString().Split(',');
+            var contextProduct = context.Product != null ? context.Product.Name.ToLower().Trim() : string.Empty;
+        
+            // Check if NO allowed product matches the product names in the context
+            return !allowedProducts.Any(product => contextProduct.Contains(product.Trim().ToLower()));
+        }">
+            <return-response>
+                <set-status code="403" reason="Forbidden" />
+                <set-body>Access denied - no matching product found</set-body>
+            </return-response>
+        </when>
+        <!-- If products match, continue processing (no action needed) -->
+    </choose>
+</fragment>
