@@ -17,7 +17,7 @@ import base64
 import inspect
 from pathlib import Path
 
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE
 
 
@@ -153,7 +153,7 @@ class Output(object):
 
             return None
 
-    def getJson(self, key: str, label: str = '', secure: bool = False) -> any:
+    def getJson(self, key: str, label: str = '', secure: bool = False) -> Any:
         """
         Retrieve a deployment output property by key and return it as a JSON object.
         This method is independent from get() and retrieves the raw deployment output value.
@@ -164,7 +164,7 @@ class Output(object):
             secure (bool, optional): If True, masks the value in logs.
 
         Returns:
-            any: The value as a JSON object (dict, list, etc.), or the original value if not JSON, or None if not found.
+            Any: The value as a JSON object (dict, list, etc.), or the original value if not JSON, or None if not found.
         """
 
         try:
@@ -855,7 +855,7 @@ def cleanup_deployment(deployment: str, indexes: int | list[int] | None = None) 
         rg_name = get_rg_name(deployment, idx)
         _cleanup_resources(deployment, rg_name)
 
-def extract_json(text: str) -> any:
+def extract_json(text: str) -> Any:
     """
     Extract the first valid JSON object or array from a string and return it as a Python object.
 
