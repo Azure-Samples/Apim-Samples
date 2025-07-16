@@ -2,7 +2,7 @@
 Factory for creating authentication tokens or objects for Azure API Management samples.
 """
 
-from typing import Any, Optional
+from typing import Any
 from users import User
 import jwt
 import time

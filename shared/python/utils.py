@@ -2,6 +2,7 @@
 Module providing utility functions.
 """
 
+import ast
 import datetime
 import json
 import os
@@ -16,7 +17,7 @@ import base64
 import inspect
 from pathlib import Path
 
-from typing import Optional, Tuple
+from typing import Any, Optional, Tuple
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE
 
 
@@ -152,6 +153,74 @@ class Output(object):
 
             return None
 
+    def getJson(self, key: str, label: str = '', secure: bool = False) -> Any:
+        """
+        Retrieve a deployment output property by key and return it as a JSON object.
+        This method is independent from get() and retrieves the raw deployment output value.
+
+        Args:
+            key (str): The output key to retrieve.
+            label (str, optional): Optional label for logging.
+            secure (bool, optional): If True, masks the value in logs.
+
+        Returns:
+            Any: The value as a JSON object (dict, list, etc.), or the original value if not JSON, or None if not found.
+        """
+
+        try:
+            if not isinstance(self.json_data, dict):
+                raise KeyError("json_data is not a dict")
+
+            if 'properties' in self.json_data:
+                properties = self.json_data.get('properties')
+                if not isinstance(properties, dict):
+                    raise KeyError("'properties' is not a dict in deployment result")
+
+                outputs = properties.get('outputs')
+                if not isinstance(outputs, dict):
+                    raise KeyError("'outputs' is missing or not a dict in deployment result")
+
+                output_entry = outputs.get(key)
+                if not isinstance(output_entry, dict) or 'value' not in output_entry:
+                    raise KeyError(f"Output key '{key}' not found in deployment outputs")
+
+                deployment_output = output_entry['value']
+            elif key in self.json_data:
+                deployment_output = self.json_data[key]['value']
+
+            if label:
+                if secure and isinstance(deployment_output, str) and len(deployment_output) >= 4:
+                    print_val(label, f"****{deployment_output[-4:]}")
+                else:
+                    print_val(label, deployment_output)
+
+            # If the result is a string, try to parse it as JSON
+            if isinstance(deployment_output, str):
+                # First try JSON parsing (handles double quotes)
+                try:
+                    return json.loads(deployment_output)
+                except json.JSONDecodeError:
+                    pass
+
+                # If JSON fails, try Python literal evaluation (handles single quotes)
+                try:
+                    return ast.literal_eval(deployment_output)
+                except (ValueError, SyntaxError) as e:
+                    print_error(f"Failed to parse deployment output as Python literal. Error: {e}")
+                    pass
+
+            # Return the original result if it's not a string or can't be parsed
+            return deployment_output
+
+        except Exception as e:
+            error = f"Failed to retrieve output property: '{key}'\nError: {e}"
+            print_error(error)
+
+            if label:
+                raise Exception(error)
+
+            return None
+
 
 class NotebookHelper:
     def __init__(self, sample_folder: str, rg_name: str, rg_location: str, deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE], use_jwt: bool = False):
@@ -218,7 +287,6 @@ class NotebookHelper:
             raise SystemExit('Deployment failed')
 
         return output
-
 
 
 
@@ -787,7 +855,7 @@ def cleanup_deployment(deployment: str, indexes: int | list[int] | None = None) 
         rg_name = get_rg_name(deployment, idx)
         _cleanup_resources(deployment, rg_name)
 
-def extract_json(text: str) -> any:
+def extract_json(text: str) -> Any:
     """
     Extract the first valid JSON object or array from a string and return it as a Python object.
 
@@ -836,11 +904,21 @@ def is_string_json(text: str) -> bool:
     if not isinstance(text, (str, bytes, bytearray)):
         return False
 
+    # First try JSON parsing (handles double quotes)
     try:
         json.loads(text)
         return True
-    except (ValueError, TypeError):
-        return False
+    except json.JSONDecodeError:
+        pass
+
+    # If JSON fails, try Python literal evaluation (handles single quotes)
+    try:
+        ast.literal_eval(text)
+        return True
+    except (ValueError, SyntaxError):
+        pass
+
+    return False
 
 def get_account_info() -> Tuple[str, str, str]:
     """

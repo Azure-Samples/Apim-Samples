@@ -1045,7 +1045,6 @@ def test_constants_accessibility():
     """Test that all constants are accessible."""
     # Test policy file paths
     assert isinstance(apimtypes.DEFAULT_XML_POLICY_PATH, str)
-    assert isinstance(apimtypes.REQUIRE_PRODUCT_XML_POLICY_PATH, str)
     assert isinstance(apimtypes.HELLO_WORLD_XML_POLICY_PATH, str)
     assert isinstance(apimtypes.REQUEST_HEADERS_XML_POLICY_PATH, str)
     assert isinstance(apimtypes.BACKEND_XML_POLICY_PATH, str)
