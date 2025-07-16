@@ -205,8 +205,8 @@ class Output(object):
                 # If JSON fails, try Python literal evaluation (handles single quotes)
                 try:
                     return ast.literal_eval(deployment_output)
-                except (ValueError, SyntaxError) as e:
-                    print_error(e)
+                except (ValueError, SyntaxError):
+                    print_error("Failed to parse deployment output as Python literal.")
                     pass
 
             # Return the original result if it's not a string or can't be parsed
@@ -908,7 +908,7 @@ def is_string_json(text: str) -> bool:
     try:
         json.loads(text)
         return True
-    except:
+    except (ValueError, SyntaxError):
         pass
 
     # If JSON fails, try Python literal evaluation (handles single quotes)
