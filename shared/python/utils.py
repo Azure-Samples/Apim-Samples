@@ -908,7 +908,7 @@ def is_string_json(text: str) -> bool:
     try:
         json.loads(text)
         return True
-    except (ValueError, SyntaxError):
+    except json.JSONDecodeError:
         pass
 
     # If JSON fails, try Python literal evaluation (handles single quotes)
