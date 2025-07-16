@@ -4,10 +4,9 @@
 <policies>
     <inbound>
         <base />
-        <!-- TODO: Enable this with a proper subscription key tied to the product, then add tests. -->
         <!-- The caller must be using an HR product to call this API.-->
-        <!-- <set-variable name="products" value="hr" />
-        <include-fragment fragment-id="Product-Match-Any" /> -->
+        <set-variable name="products" value="hr" />
+        <include-fragment fragment-id="Product-Match-Any" />
     </inbound>
     <backend>
         <base />
