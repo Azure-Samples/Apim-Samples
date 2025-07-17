@@ -117,6 +117,7 @@ output productOutputs array = [for i in range(0, length(products)): {
   policyResourceId: productModule[i].outputs.policyResourceId
   hasPolicyAttached: productModule[i].outputs.hasPolicyAttached
   subscriptionResourceId: productModule[i].outputs.subscriptionResourceId
+  subscriptionName: productModule[i].outputs.subscriptionName
   subscriptionPrimaryKey: productModule[i].outputs.subscriptionPrimaryKey
   subscriptionSecondaryKey: productModule[i].outputs.subscriptionSecondaryKey
 }]
