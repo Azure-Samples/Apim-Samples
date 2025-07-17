@@ -1372,3 +1372,32 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
     except Exception as e:
         print_error(f"Error during JWT key cleanup: {str(e)}")
         return False
+    
+def get_json(input: str) -> Any:
+    """
+    Safely parse a JSON string or file content into a Python object.
+    
+    Args:
+        input (str): The JSON string or file content to parse.
+        
+    Returns:
+        Any: The parsed JSON object, or None if parsing fails.
+    """
+    
+    # If the result is a string, try to parse it as JSON
+    if isinstance(input, str):
+        # First try JSON parsing (handles double quotes)
+        try:
+            return json.loads(input)
+        except json.JSONDecodeError:
+            pass
+
+        # If JSON fails, try Python literal evaluation (handles single quotes)
+        try:
+            return ast.literal_eval(input)
+        except (ValueError, SyntaxError) as e:
+            print_error(f"Failed to parse deployment output as Python literal. Error: {e}")
+            pass
+
+    # Return the original result if it's not a string or can't be parsed
+    return input

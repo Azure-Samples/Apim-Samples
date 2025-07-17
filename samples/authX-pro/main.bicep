@@ -108,15 +108,16 @@ output apimResourceGatewayURL string = apimService.properties.gatewayUrl
 
 // Product outputs
 output productOutputs array = [for i in range(0, length(products)): {
-  productResourceId: productModule[i].outputs.productResourceId
-  productName: productModule[i].outputs.productName
-  productDisplayName: productModule[i].outputs.productDisplayName
-  productState: productModule[i].outputs.productState
+  resourceId: productModule[i].outputs.productResourceId
+  name: productModule[i].outputs.productName
+  displayName: productModule[i].outputs.productDisplayName
+  state: productModule[i].outputs.productState
   subscriptionRequired: productModule[i].outputs.subscriptionRequired
   approvalRequired: productModule[i].outputs.approvalRequired
   policyResourceId: productModule[i].outputs.policyResourceId
   hasPolicyAttached: productModule[i].outputs.hasPolicyAttached
   subscriptionResourceId: productModule[i].outputs.subscriptionResourceId
+  subscriptionName: productModule[i].outputs.subscriptionName
   subscriptionPrimaryKey: productModule[i].outputs.subscriptionPrimaryKey
   subscriptionSecondaryKey: productModule[i].outputs.subscriptionSecondaryKey
 }]

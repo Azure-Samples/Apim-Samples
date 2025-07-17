@@ -39,6 +39,8 @@ var logSettings = {
   body: { bytes: 8192 }
 }
 
+var apiSubsriptionRequired = api.?subscriptionRequired ?? false
+
 
 // ------------------------------
 //    RESOURCES
@@ -66,7 +68,7 @@ resource apimApi 'Microsoft.ApiManagement/service/apis@2024-06-01-preview' = {
       header: 'api-key'
       query: 'api-key'
     }
-    subscriptionRequired: api.?subscriptionRequired ?? false
+    subscriptionRequired: apiSubsriptionRequired
     type: 'http'
   }
 }
@@ -96,6 +98,21 @@ resource apiPolicy 'Microsoft.ApiManagement/service/apis/policies@2024-06-01-pre
     format: 'rawxml'    // only use 'rawxml' for policies as it's what APIM expects and means we don't need to escape XML characters
     value: api.policyXml
   }
+}
+
+// https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/subscriptions
+resource apiSubscription 'Microsoft.ApiManagement/service/subscriptions@2024-05-01' = if (apiSubsriptionRequired) {
+  name: 'api-${toLower(api.name)}'
+  parent: apimService
+  properties: {
+    allowTracing: true
+    displayName: 'Subscription for ${api.displayName} API'
+    scope: '/apis/${api.name}'
+    state: 'active'
+  }
+  dependsOn: [
+    apimApi
+  ]
 }
 
 // https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/apis/operations
@@ -195,4 +212,14 @@ output associatedProducts array = productNames
 @description('Number of products this API is associated with.')
 output productAssociationCount int = length(productNames)
 
-//output subscriptionPrimaryKey string = apimSubscription.listSecrets().primaryKey
+@description('The resource ID of the product subscription, if created.')
+output subscriptionResourceId string = apiSubsriptionRequired ? apiSubscription.id : ''
+
+@description('The name of the product subscription, if created.')
+output subscriptionName string = apiSubsriptionRequired ? apiSubscription.name : ''
+
+@description('The primary key of the product subscription, if created.')
+output subscriptionPrimaryKey string = apiSubsriptionRequired ? listSecrets('${apimService.id}/subscriptions/api-${api.name}', '2024-05-01').primaryKey : ''
+
+@description('The secondary key of the product subscription, if created.')
+output subscriptionSecondaryKey string = apiSubsriptionRequired ? listSecrets('${apimService.id}/subscriptions/api-${api.name}', '2024-05-01').secondaryKey : ''
