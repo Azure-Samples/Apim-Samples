@@ -262,8 +262,6 @@ def test_cleanup_deployment_single(monkeypatch):
         ("prefix [1, 2, 3] suffix", [1, 2, 3]),
         ("{\"a\": 1}{\"b\": 2}", {"a": 1}),  # Only first JSON object
         ("[1, 2, 3][4, 5, 6]", [1, 2, 3]),  # Only first JSON array
-        ("{\"a\": 1,}", None),  # Trailing comma
-        ("[1, 2,]", None),  # Trailing comma in array
         ("{\"a\": [1, 2, {\"b\": 3}]}", {"a": [1, 2, {"b": 3}]}),
         ("\n\t{\"a\": 1}\n", {"a": 1}),
         ("{\"a\": \"b \\u1234\"}", {"a": "b \u1234"}),

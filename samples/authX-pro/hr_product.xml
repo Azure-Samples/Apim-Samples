@@ -11,7 +11,8 @@
             </issuer-signing-keys>
             <required-claims>
                 <claim name="roles" match="all">
-                    <value>{hr_member_role_id}</value>  <!-- HR Member Role ID -->
+                    <!-- HR Member Role ID -->
+                    <value>{hr_member_role_id}</value>
                 </claim>
             </required-claims>
         </validate-jwt>
