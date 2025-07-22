@@ -1311,19 +1311,36 @@ def test_url_preflight_check(deployment: INFRASTRUCTURE, rg_name: str, apim_gate
 
 def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, current_jwt_key_name: str) -> bool:
     """
-    Clean up old JWT signing keys from APIM named values, keeping only the current key.
+    Clean up old JWT signing keys from APIM named values for the same sample folder, keeping only the current key.
+    Uses regex matching to identify keys that belong to the same sample folder by extracting the sample folder
+    name from the current key and matching against the pattern 'JwtSigningKey-{sample_folder}-{timestamp}'.
     
     Args:
         apim_name (str): Name of the APIM service
         resource_group_name (str): Name of the resource group containing APIM
-        current_jwt_key_name (str): Name of the current JWT key to preserve
+        current_jwt_key_name (str): Name of the current JWT key to preserve (format: JwtSigningKey-{sample_folder}-{timestamp})
         
     Returns:
         bool: True if cleanup was successful, False otherwise
     """
     
     try:
-        print_message('🧹 Cleaning up old JWT signing keys...', blank_above = True)
+        import re
+        
+        print(current_jwt_key_name)
+        print_message('🧹 Cleaning up old JWT signing keys for the same sample folder...', blank_above = True)
+        
+        # Extract sample folder name from current JWT key using regex
+        # Pattern: JwtSigningKey-{sample_folder}-{timestamp}
+        current_key_pattern = r'^JwtSigningKey-(.+)-\d+$'
+        current_key_match = re.match(current_key_pattern, current_jwt_key_name)
+        
+        if not current_key_match:
+            print_error(f"Current JWT key name '{current_jwt_key_name}' does not match expected pattern 'JwtSigningKey-{{sample_folder}}-{{timestamp}}'")
+            return False
+        
+        sample_folder = current_key_match.group(1)
+        print_info(f"Identified sample folder: '{sample_folder}'")
         
         # Get all named values that start with 'JwtSigningKey'
         print_info(f"Getting all JWT signing key named values from APIM '{apim_name}'...")
@@ -1345,16 +1362,24 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
         # Parse the list of JWT keys
         jwt_keys = [key.strip() for key in output.text.strip().split('\n') if key.strip()]
         
-        print_info(f"Found {len(jwt_keys)} JWT signing keys.")
+        # print_info(f"Found {len(jwt_keys)} total JWT signing keys.")
         
-        # Process each JWT key
+        # Filter keys that belong to the same sample folder using regex
+        sample_key_pattern = rf'^JwtSigningKey-{re.escape(sample_folder)}-\d+$'
+        sample_folder_keys = [key for key in jwt_keys if re.match(sample_key_pattern, key)]
+        
+        print_info(f"Found {len(sample_folder_keys)} JWT signing keys for sample folder '{sample_folder}'.")
+        
+        # Process each JWT key for this sample folder
         deleted_count = 0
         kept_count = 0
         
-        for jwt_key in jwt_keys:
+        for jwt_key in sample_folder_keys:
             if jwt_key == current_jwt_key_name:
+                print_info(f"Keeping current JWT key: {jwt_key}")
                 kept_count += 1
             else:
+                print_info(f"Deleting old JWT key: {jwt_key}")
                 delete_output = run(
                     f'az apim nv delete --service-name "{apim_name}" --resource-group "{resource_group_name}" --named-value-id "{jwt_key}" --yes',
                     f"Deleted old JWT key: {jwt_key}",
@@ -1366,7 +1391,7 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
                     deleted_count += 1
         
         # Summary
-        print_success(f"JWT signing key cleanup completed. Deleted {deleted_count} old key(s), kept {kept_count}'.", blank_above = True)
+        print_success(f"JWT signing key cleanup completed for sample '{sample_folder}'. Deleted {deleted_count} old key(s), kept {kept_count}.", blank_above = True)
         return True
         
     except Exception as e:
