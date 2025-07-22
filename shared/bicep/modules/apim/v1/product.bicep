@@ -130,7 +130,7 @@ output subscriptionResourceId string = subscriptionRequired ? productSubscriptio
 output subscriptionName string = subscriptionRequired ? productSubscription.name : ''
 
 @description('The primary key of the product subscription, if created.')
-output subscriptionPrimaryKey string = subscriptionRequired ? listSecrets('${apimService.id}/subscriptions/product-${productName}', '2024-05-01').primaryKey : ''
+output subscriptionPrimaryKey string = subscriptionRequired ? listSecrets('${apimService.id}/subscriptions/product-${toLower(productName)}', '2024-05-01').primaryKey : ''
 
 @description('The secondary key of the product subscription, if created.')
-output subscriptionSecondaryKey string = subscriptionRequired ? listSecrets('${apimService.id}/subscriptions/product-${productName}', '2024-05-01').secondaryKey : ''
+output subscriptionSecondaryKey string = subscriptionRequired ? listSecrets('${apimService.id}/subscriptions/product-${toLower(productName)}', '2024-05-01').secondaryKey : ''
