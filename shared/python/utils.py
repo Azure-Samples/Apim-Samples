@@ -1327,7 +1327,6 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
     try:
         import re
         
-        print(current_jwt_key_name)
         print_message('🧹 Cleaning up old JWT signing keys for the same sample folder...', blank_above = True)
         
         # Extract sample folder name from current JWT key using regex
