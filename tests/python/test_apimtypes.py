@@ -534,7 +534,7 @@ def test_product_repr():
 
 @pytest.mark.unit
 def test_api_subscription_required_default():
-    """Test that API object has subscriptionRequired defaulting to False."""
+    """Test that API object has subscriptionRequired defaulting to True."""
     api = apimtypes.API(
         name = EXAMPLE_NAME,
         displayName = EXAMPLE_DISPLAY_NAME,
@@ -543,7 +543,7 @@ def test_api_subscription_required_default():
         policyXml = EXAMPLE_POLICY_XML,
         operations = None
     )
-    assert api.subscriptionRequired == False
+    assert api.subscriptionRequired == True
 
 @pytest.mark.unit
 def test_api_subscription_required_explicit_false():
