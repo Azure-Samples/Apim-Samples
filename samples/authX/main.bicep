@@ -70,12 +70,13 @@ output apimResourceGatewayURL string = apimService.properties.gatewayUrl
 // API outouts
 output apiOutputs array = [for i in range(0, length(apis)): {
   name: apis[i].name
-  resourceId: apisModule[i].outputs.apiResourceId
-  displayName: apisModule[i].outputs.apiDisplayName
-  productAssociationCount: apisModule[i].outputs.productAssociationCount
-  subscriptionResourceId: apisModule[i].outputs.subscriptionResourceId
-  subscriptionName: apisModule[i].outputs.subscriptionName
-  subscriptionPrimaryKey: apisModule[i].outputs.subscriptionPrimaryKey
-  subscriptionSecondaryKey: apisModule[i].outputs.subscriptionSecondaryKey
+  resourceId: apisModule[i].?outputs.?apiResourceId ?? ''
+  displayName: apisModule[i].?outputs.?apiDisplayName ?? ''
+  productAssociationCount: apisModule[i].?outputs.?productAssociationCount ?? 0
+  subscriptionResourceId: apisModule[i].?outputs.?subscriptionResourceId ?? ''
+  subscriptionName: apisModule[i].?outputs.?subscriptionName ?? ''
+  subscriptionPrimaryKey: apisModule[i].?outputs.?subscriptionPrimaryKey ?? ''
+  subscriptionSecondaryKey: apisModule[i].?outputs.?subscriptionSecondaryKey ?? ''
 }]
+
 // [ADD RELEVANT OUTPUTS HERE]

@@ -104,16 +104,20 @@ class ApimTesting:
             print('✨ Congratulations! Your APIM deployment is working flawlessly! ✨')
         elif self.total_tests == 0:
             print('⚠️  OVERALL RESULT: NO TESTS EXECUTED')
-            print('🤔 Consider adding some tests to validate your deployment')
+            print('🤔 Consider adding some tests to validate your deployment.')
         else:
             print('❌ OVERALL RESULT: SOME TESTS FAILED')
-            print('🛠️  Your APIM deployment needs attention')
-            print(f'💡 {self.tests_failed} issue(s) require investigation')
+            print('🛠️ Your APIM deployment needs attention')
+            print(f'💡 {self.tests_failed} issue(s) require investigation.')
         
         print()
         
+        test_completion_msg = '🎯 Test execution completed successfully! 🎯'
+
         # Detailed error reporting with style
         if self.errors and len(self.errors) > 0:
+            test_completion_msg = f'Text execution completed with {len(self.errors)} error(s)!'
+
             print('🔍 Detailed Error Analysis:')
             print('─' * 50)
             for i, error in enumerate(self.errors, 1):
@@ -121,6 +125,6 @@ class ApimTesting:
         
         print()
         print(border_line)
-        print(f'{'🎯 Test execution completed successfully! 🎯':^{border_width}}')
+        print(f'{test_completion_msg:^{border_width}}')
         print(border_line)
         print()  # Final spacing

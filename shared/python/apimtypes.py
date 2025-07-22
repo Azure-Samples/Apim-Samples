@@ -151,7 +151,7 @@ class API:
     operations: Optional[List['APIOperation']] = None
     tags: Optional[List[str]] = None
     productNames: Optional[List[str]] = None
-    subscriptionRequired: bool = False
+    subscriptionRequired: bool = True
     serviceUrl: Optional[str] = None
 
     # ------------------------------
@@ -159,7 +159,7 @@ class API:
     # ------------------------------
 
     def __init__(self, name: str, displayName: str, path: str, description: str, policyXml: Optional[str] = None, operations: Optional[List['APIOperation']] = None, tags: Optional[List[str]] = None, 
-                 productNames: Optional[List[str]] = None, subscriptionRequired: bool = False, serviceUrl: Optional[str] = None):
+                 productNames: Optional[List[str]] = None, subscriptionRequired: bool = True, serviceUrl: Optional[str] = None):
         self.name = name
         self.displayName = displayName
         self.path = path

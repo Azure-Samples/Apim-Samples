@@ -311,5 +311,16 @@ output apimResourceGatewayURL string = apimModule.outputs.gatewayUrl
 output fdeHostName string = afdModule.outputs.fdeHostName
 output fdeSecureUrl string = afdModule.outputs.fdeSecureUrl
 
-#disable-next-line outputs-should-not-contain-secrets
-//output apimSubscription1Key string = apimModule.outputs.[0].listSecrets().primaryKey
+// API outouts
+output apiOutputs array = [for i in range(0, length(apis)): {
+  name: apis[i].name
+  resourceId: apisModule[i].?outputs.?apiResourceId ?? ''
+  displayName: apisModule[i].?outputs.?apiDisplayName ?? ''
+  productAssociationCount: apisModule[i].?outputs.?productAssociationCount ?? 0
+  subscriptionResourceId: apisModule[i].?outputs.?subscriptionResourceId ?? ''
+  subscriptionName: apisModule[i].?outputs.?subscriptionName ?? ''
+  subscriptionPrimaryKey: apisModule[i].?outputs.?subscriptionPrimaryKey ?? ''
+  subscriptionSecondaryKey: apisModule[i].?outputs.?subscriptionSecondaryKey ?? ''
+}]
+
+// [ADD RELEVANT OUTPUTS HERE]
