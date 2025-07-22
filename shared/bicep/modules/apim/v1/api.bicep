@@ -39,7 +39,7 @@ var logSettings = {
   body: { bytes: 8192 }
 }
 
-var apiSubscriptionRequired = api.?subscriptionRequired ?? false
+var apiSubscriptionRequired = api.?subscriptionRequired ?? true
 
 
 // ------------------------------
