@@ -116,7 +116,7 @@ class ApimTesting:
 
         # Detailed error reporting with style
         if self.errors and len(self.errors) > 0:
-            test_completion_msg = f'Text execution completed with {len(self.errors)} error(s)!'
+            test_completion_msg = f'Test execution completed with {len(self.errors)} error(s)!'
 
             print('🔍 Detailed Error Analysis:')
             print('─' * 50)
