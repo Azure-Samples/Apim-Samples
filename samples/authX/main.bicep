@@ -67,7 +67,7 @@ output apimServiceId string = apimService.id
 output apimServiceName string = apimService.name
 output apimResourceGatewayURL string = apimService.properties.gatewayUrl
 
-// API outouts
+// API outputs
 output apiOutputs array = [for i in range(0, length(apis)): {
   name: apis[i].name
   resourceId: apisModule[i].?outputs.?apiResourceId ?? ''

@@ -182,7 +182,7 @@ output apimResourceGatewayURL string = apimModule.outputs.gatewayUrl
 output acaUrl1 string = 'https://${acaModule1.outputs.containerAppFqdn}'
 output acaUrl2 string = 'https://${acaModule2.outputs.containerAppFqdn}'
 
-// API outouts
+// API outputs
 output apiOutputs array = [for i in range(0, length(apis)): {
   name: apis[i].name
   resourceId: apisModule[i].?outputs.?apiResourceId ?? ''

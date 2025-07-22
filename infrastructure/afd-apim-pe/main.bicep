@@ -311,7 +311,7 @@ output apimResourceGatewayURL string = apimModule.outputs.gatewayUrl
 output fdeHostName string = afdModule.outputs.fdeHostName
 output fdeSecureUrl string = afdModule.outputs.fdeSecureUrl
 
-// API outouts
+// API outputs
 output apiOutputs array = [for i in range(0, length(apis)): {
   name: apis[i].name
   resourceId: apisModule[i].?outputs.?apiResourceId ?? ''
