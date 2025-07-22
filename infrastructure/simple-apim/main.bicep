@@ -91,5 +91,16 @@ output apimServiceId string = apimModule.outputs.id
 output apimServiceName string = apimModule.outputs.name
 output apimResourceGatewayURL string = apimModule.outputs.gatewayUrl
 
-#disable-next-line outputs-should-not-contain-secrets
-//output apimSubscription1Key string = apimModule.outputs.[0].listSecrets().primaryKey
+// API outputs
+output apiOutputs array = [for i in range(0, length(apis)): {
+  name: apis[i].name
+  resourceId: apisModule[i].?outputs.?apiResourceId ?? ''
+  displayName: apisModule[i].?outputs.?apiDisplayName ?? ''
+  productAssociationCount: apisModule[i].?outputs.?productAssociationCount ?? 0
+  subscriptionResourceId: apisModule[i].?outputs.?subscriptionResourceId ?? ''
+  subscriptionName: apisModule[i].?outputs.?subscriptionName ?? ''
+  subscriptionPrimaryKey: apisModule[i].?outputs.?subscriptionPrimaryKey ?? ''
+  subscriptionSecondaryKey: apisModule[i].?outputs.?subscriptionSecondaryKey ?? ''
+}]
+
+// [ADD RELEVANT OUTPUTS HERE]
