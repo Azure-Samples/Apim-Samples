@@ -288,7 +288,7 @@ class NotebookHelper:
         for i, (infra, index) in enumerate(available_options, 1):
             index_str = f' (index: {index})' if index is not None else ''
             rg_name = get_infra_rg_name(infra, index)
-            print(f'  {i}. {infra.value}{index_str} - Resource Group: {rg_name}')
+            print(f'     {i}. {infra.value}{index_str} - Resource Group: {rg_name}')
         
         print('')
         
@@ -1129,8 +1129,6 @@ def get_infra_rg_name(deployment_name: INFRASTRUCTURE, index: int | None = None)
 
     if index is not None:
         rg_name = f"{rg_name}-{str(index)}"
-
-    print_val("Resource group name", rg_name)
 
     return rg_name
 
