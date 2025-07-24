@@ -102,7 +102,7 @@ class Output(object):
 
         self.is_json = self.json_data is not None
 
-    def get(self, key: str, label: str = '', secure: bool = False) -> str | None:
+    def get(self, key: str, label: str = '', secure: bool = False, suppress_logging: bool = False) -> str | None:
         """
         Retrieve a deployment output property by key, with optional label and secure masking.
 
@@ -136,7 +136,7 @@ class Output(object):
             elif key in self.json_data:
                 deployment_output = self.json_data[key]['value']
 
-            if label:
+            if not suppress_logging and label:
                 if secure and isinstance(deployment_output, str) and len(deployment_output) >= 4:
                     print_val(label, f"****{deployment_output[-4:]}")
                 else:
@@ -153,7 +153,7 @@ class Output(object):
 
             return None
 
-    def getJson(self, key: str, label: str = '', secure: bool = False) -> Any:
+    def getJson(self, key: str, label: str = '', secure: bool = False, suppress_logging: bool = False) -> Any:
         """
         Retrieve a deployment output property by key and return it as a JSON object.
         This method is independent from get() and retrieves the raw deployment output value.
@@ -188,7 +188,7 @@ class Output(object):
             elif key in self.json_data:
                 deployment_output = self.json_data[key]['value']
 
-            if label:
+            if not suppress_logging and label:
                 if secure and isinstance(deployment_output, str) and len(deployment_output) >= 4:
                     print_val(label, f"****{deployment_output[-4:]}")
                 else:
@@ -221,6 +221,156 @@ class Output(object):
 
             return None
 
+class InfrastructureNotebookHelper:
+    """
+    Helper class for managing infrastructure notebooks.
+    Provides methods to execute infrastructure creation notebooks and handle outputs.
+    """
+
+    def __init__(self, rg_location: str, deployment: INFRASTRUCTURE, index: int, apim_sku: APIM_SKU):
+        self.rg_location = rg_location
+        self.deployment = deployment
+        self.index = index
+        self.apim_sku = apim_sku
+
+    def create_infrastructure(self) -> bool:
+        import sys 
+
+        if not does_infrastructure_exist(self.deployment, self.index):
+            # Build the command to call the infrastructure creation script
+            cmd_args = [
+                sys.executable, 
+                os.path.join(find_project_root(), 'infrastructure', 'simple-apim', 'create_infrastructure.py'),
+                '--location', self.rg_location,
+                '--sku', str(self.apim_sku),
+                '--index', str(self.index)
+            ]
+
+            # Execute the infrastructure creation script with real-time output streaming and UTF-8 encoding to handle Unicode characters properly
+            process = subprocess.Popen(cmd_args, stdout = subprocess.PIPE, stderr = subprocess.STDOUT, text = True, 
+                                    bufsize = 1, universal_newlines = True, encoding = 'utf-8', errors = 'replace')
+
+            try:
+                # Stream output in real-time
+                for line in process.stdout:
+                    print(line.rstrip())
+            except Exception as e:
+                print(f"Error reading subprocess output: {e}")
+                
+            # Wait for process to complete
+            process.wait()
+
+            return process.returncode == 0
+        
+
+    # def _create_infrastructure(self, infrastructure: INFRASTRUCTURE, index: int | None) -> bool:
+    #     """
+    #     Create new infrastructure by executing the infrastructure creation notebook.
+        
+    #     Args:
+    #         infrastructure (INFRASTRUCTURE): The infrastructure type to create.
+    #         index (int | None): The index for the infrastructure.
+            
+    #     Returns:
+    #         bool: True if creation was successful, False otherwise.
+    #     """
+    #     import os
+    #     import tempfile
+    #     import json
+        
+    #     try:
+    #         # Find the project root and infrastructure directory
+    #         project_root = find_project_root()
+    #         infra_dir = os.path.join(project_root, 'infrastructure', infrastructure.value)
+            
+    #         if not os.path.exists(infra_dir):
+    #             print_error(f'Infrastructure directory not found: {infra_dir}')
+    #             return False
+            
+    #         # Check if the infrastructure has a create.ipynb file
+    #         create_notebook_path = os.path.join(infra_dir, 'create.ipynb')
+    #         if not os.path.exists(create_notebook_path):
+    #             print_error(f'Infrastructure creation notebook not found: {create_notebook_path}')
+    #             return False
+            
+    #         print_info(f'Executing infrastructure creation notebook: {create_notebook_path}')
+            
+    #         # Execute the infrastructure creation notebook
+    #         success = self._execute_infrastructure_notebook(infra_dir, infrastructure, index)
+            
+    #         if success:
+    #             print_success('Infrastructure creation completed successfully.')
+    #             return True
+    #         else:
+    #             print_error('Infrastructure creation failed.')
+    #             return False
+                
+    #     except Exception as e:
+    #         print_error(f'Error creating infrastructure: {str(e)}')
+    #         return False
+
+    # def _execute_infrastructure_notebook(self, infra_dir: str, infrastructure: INFRASTRUCTURE, index: int | None) -> bool:
+    #     """
+    #     Execute the infrastructure creation using the dedicated Python module.
+        
+    #     Args:
+    #         infra_dir (str): Path to the infrastructure directory.
+    #         infrastructure (INFRASTRUCTURE): The infrastructure type.
+    #         index (int | None): The index for the infrastructure.
+            
+    #     Returns:
+    #         bool: True if execution was successful, False otherwise.
+    #     """
+    #     import os
+    #     import subprocess
+    #     import sys
+        
+    #     try:
+    #         # Check if the infrastructure has a dedicated creation script
+    #         create_script_path = os.path.join(infra_dir, 'create_infrastructure.py')
+            
+    #         if os.path.exists(create_script_path):
+    #             # Use the dedicated creation script
+    #             print_info(f'Using dedicated infrastructure creation script: {create_script_path}')
+                
+    #             # Build the command arguments
+    #             cmd_args = [sys.executable, create_script_path, '--location', self.rg_location]
+                
+    #             if index is not None:
+    #                 cmd_args.extend(['--index', str(index)])
+                
+    #             print_info(f'Command: {" ".join(cmd_args)}')
+                
+    #             # Execute the script
+    #             print_info('Executing infrastructure creation script...')
+    #             result = subprocess.run(cmd_args, 
+    #                                   capture_output=True, 
+    #                                   text=True, 
+    #                                   timeout=1800,  # 30 minute timeout
+    #                                   cwd=infra_dir)
+                
+    #             # Print the output
+    #             if result.stdout:
+    #                 print(result.stdout)
+    #             if result.stderr:
+    #                 print_error("Script stderr output:")
+    #                 print(result.stderr)
+                
+    #             if result.returncode != 0:
+    #                 print_error(f"Script failed with return code: {result.returncode}")
+                
+    #             return result.returncode == 0
+                
+    #         else:
+    #             # Fallback to the original approach
+    #             print_warning(f'No dedicated creation script found at {create_script_path}')
+    #             print_info('Falling back to programmatic infrastructure creation...')
+                
+    #             return self._execute_infrastructure_fallback(infra_dir, infrastructure, index)
+                    
+    #     except Exception as e:
+    #         print_error(f'Error executing infrastructure creation: {str(e)}')
+    #         return False
 
 class NotebookHelper:
     def __init__(self, sample_folder: str, rg_name: str, rg_location: str, deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE], use_jwt: bool = False):
@@ -252,6 +402,256 @@ class NotebookHelper:
         print_val('JWT key value', self.jwt_key_value)                    # this value is used to create the signed JWT token for requests to APIM
         print_val('JWT key value (base64)', self.jwt_key_value_bytes_b64) # this value is used in the APIM validate-jwt policy's issuer-signing-key attribute  
 
+    def _get_current_index(self) -> int | None:
+        """
+        Extract the index from the current resource group name.
+        
+        Returns:
+            int | None: The index if it exists, None otherwise.
+        """
+        prefix = f'apim-infra-{self.deployment.value}'
+        
+        if self.rg_name == prefix:
+            return None
+        elif self.rg_name.startswith(prefix + '-'):
+            try:
+                index_str = self.rg_name[len(prefix + '-'):]
+                return int(index_str)
+            except ValueError:
+                return None
+        return None
+
+    # def _create_infrastructure(self, infrastructure: INFRASTRUCTURE, index: int | None) -> bool:
+    #     """
+    #     Create new infrastructure by executing the infrastructure creation notebook.
+        
+    #     Args:
+    #         infrastructure (INFRASTRUCTURE): The infrastructure type to create.
+    #         index (int | None): The index for the infrastructure.
+            
+    #     Returns:
+    #         bool: True if creation was successful, False otherwise.
+    #     """
+    #     import os
+    #     import tempfile
+    #     import json
+        
+    #     try:
+    #         # Find the project root and infrastructure directory
+    #         project_root = find_project_root()
+    #         infra_dir = os.path.join(project_root, 'infrastructure', infrastructure.value)
+            
+    #         if not os.path.exists(infra_dir):
+    #             print_error(f'Infrastructure directory not found: {infra_dir}')
+    #             return False
+            
+    #         # Check if the infrastructure has a create.ipynb file
+    #         create_notebook_path = os.path.join(infra_dir, 'create.ipynb')
+    #         if not os.path.exists(create_notebook_path):
+    #             print_error(f'Infrastructure creation notebook not found: {create_notebook_path}')
+    #             return False
+            
+    #         print_info(f'Executing infrastructure creation notebook: {create_notebook_path}')
+            
+    #         # Execute the infrastructure creation notebook
+    #         success = self._execute_infrastructure_notebook(infra_dir, infrastructure, index)
+            
+    #         if success:
+    #             print_success('Infrastructure creation completed successfully.')
+    #             return True
+    #         else:
+    #             print_error('Infrastructure creation failed.')
+    #             return False
+                
+    #     except Exception as e:
+    #         print_error(f'Error creating infrastructure: {str(e)}')
+    #         return False
+
+    # def _execute_infrastructure_notebook(self, infra_dir: str, infrastructure: INFRASTRUCTURE, index: int | None) -> bool:
+    #     """
+    #     Execute the infrastructure creation using the dedicated Python module.
+        
+    #     Args:
+    #         infra_dir (str): Path to the infrastructure directory.
+    #         infrastructure (INFRASTRUCTURE): The infrastructure type.
+    #         index (int | None): The index for the infrastructure.
+            
+    #     Returns:
+    #         bool: True if execution was successful, False otherwise.
+    #     """
+    #     import os
+    #     import subprocess
+    #     import sys
+        
+    #     try:
+    #         # Check if the infrastructure has a dedicated creation script
+    #         create_script_path = os.path.join(infra_dir, 'create_infrastructure.py')
+            
+    #         if os.path.exists(create_script_path):
+    #             # Use the dedicated creation script
+    #             print_info(f'Using dedicated infrastructure creation script: {create_script_path}')
+                
+    #             # Build the command arguments
+    #             cmd_args = [sys.executable, create_script_path, '--location', self.rg_location]
+                
+    #             if index is not None:
+    #                 cmd_args.extend(['--index', str(index)])
+                
+    #             print_info(f'Command: {" ".join(cmd_args)}')
+                
+    #             # Execute the script
+    #             print_info('Executing infrastructure creation script...')
+    #             result = subprocess.run(cmd_args, 
+    #                                   capture_output=True, 
+    #                                   text=True, 
+    #                                   timeout=1800,  # 30 minute timeout
+    #                                   cwd=infra_dir)
+                
+    #             # Print the output
+    #             if result.stdout:
+    #                 print(result.stdout)
+    #             if result.stderr:
+    #                 print_error("Script stderr output:")
+    #                 print(result.stderr)
+                
+    #             if result.returncode != 0:
+    #                 print_error(f"Script failed with return code: {result.returncode}")
+                
+    #             return result.returncode == 0
+                
+    #         else:
+    #             # Fallback to the original approach
+    #             print_warning(f'No dedicated creation script found at {create_script_path}')
+    #             print_info('Falling back to programmatic infrastructure creation...')
+                
+    #             return self._execute_infrastructure_fallback(infra_dir, infrastructure, index)
+                    
+    #     except Exception as e:
+    #         print_error(f'Error executing infrastructure creation: {str(e)}')
+    #         return False
+
+#     def _execute_infrastructure_fallback(self, infra_dir: str, infrastructure: INFRASTRUCTURE, index: int | None) -> bool:
+#         """
+#         Fallback method using the original temporary script approach.
+#         """
+#         import os
+#         import json
+#         import subprocess
+#         import sys
+        
+#         try:
+#             # Change to the infrastructure directory
+#             original_cwd = os.getcwd()
+#             os.chdir(infra_dir)
+            
+#             # Create a temporary Python script that mimics the notebook execution
+#             index_value = str(index) if index is not None else "None"
+#             script_content = f'''import sys
+# import os
+# import json
+
+# # Add the shared python path
+# project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# shared_python_path = os.path.join(project_root, 'shared', 'python')
+# sys.path.append(shared_python_path)
+
+# import utils
+# from apimtypes import *
+
+# # Infrastructure creation parameters
+# rg_location = "{self.rg_location}"
+# index = {index_value}
+# deployment = INFRASTRUCTURE.{infrastructure.name}
+
+# try:
+#     # Create the infrastructure
+#     print("Starting infrastructure creation...")
+
+#     # Build resource group name and tags
+#     rg_name = utils.get_infra_rg_name(deployment, index)
+#     rg_tags = utils.build_infrastructure_tags(deployment)
+
+#     print(f"Creating infrastructure: {{deployment.value}}")
+#     print(f"Resource group: {{rg_name}}")
+#     print(f"Location: {{rg_location}}")
+
+#     # Check if params.json exists and use default parameters
+#     params_file = "params.json"
+#     if os.path.exists(params_file):
+#         print(f"Loading parameters from {{params_file}}")
+#         with open(params_file, 'r') as f:
+#             params_data = json.load(f)
+        
+#         # Extract the parameters
+#         bicep_parameters = {{}}
+#         if "parameters" in params_data:
+#             for key, value in params_data["parameters"].items():
+#                 bicep_parameters[key] = {{"value": value["value"]}}
+#         else:
+#             # Fallback to direct parameters structure
+#             bicep_parameters = params_data
+#     else:
+#         print("No params.json found, using minimal default parameters")
+#         # Use minimal default parameters for infrastructure creation
+#         bicep_parameters = {{}}
+
+#     # Execute the deployment
+#     print("Executing Bicep deployment...")
+#     output = utils.create_bicep_deployment_group(rg_name, rg_location, deployment, bicep_parameters, rg_tags=rg_tags)
+
+#     if output.success:
+#         print("Infrastructure creation completed successfully!")
+#         sys.exit(0)
+#     else:
+#         print("Infrastructure creation failed!")
+#         print(f"Error output: {{output.text if hasattr(output, 'text') else 'No error details available'}}")
+#         sys.exit(1)
+        
+# except Exception as e:
+#     print(f"Error during infrastructure creation: {{str(e)}}")
+#     import traceback
+#     traceback.print_exc()
+#     sys.exit(1)
+# '''
+            
+#             # Write the script to a temporary file
+#             script_path = os.path.join(infra_dir, 'temp_create_infrastructure.py')
+#             with open(script_path, 'w') as f:
+#                 f.write(script_content)
+            
+#             try:
+#                 # Execute the script
+#                 print_info('Executing infrastructure creation script...')
+                
+#                 result = subprocess.run([sys.executable, script_path], 
+#                                       capture_output=True, 
+#                                       text=True, 
+#                                       timeout=1800)  # 30 minute timeout
+                
+#                 # Print the output
+#                 if result.stdout:
+#                     print(result.stdout)
+#                 if result.stderr:
+#                     print_error("Script stderr output:")
+#                     print(result.stderr)
+                
+#                 if result.returncode != 0:
+#                     print_error(f"Script failed with return code: {result.returncode}")
+                
+#                 return result.returncode == 0
+                
+#             finally:
+#                 # Clean up the temporary script
+#                 if os.path.exists(script_path):
+#                     os.remove(script_path)
+                    
+#         except Exception as e:
+#             print_error(f'Error executing infrastructure fallback: {str(e)}')
+#             return False
+#         finally:
+#             # Restore the original working directory
+#             os.chdir(original_cwd)
+
     def _clean_up_jwt(self, apim_name: str) -> None:
         # 5) Clean up old JWT signing keys after successful deployment
         if not cleanup_old_jwt_signing_keys(apim_name, self.rg_name, self.jwt_key_name):
@@ -259,7 +659,7 @@ class NotebookHelper:
 
     def _query_and_select_infrastructure(self) -> tuple[INFRASTRUCTURE | None, int | None]:
         """
-        Query for available infrastructures and allow user to select one.
+        Query for available infrastructures and allow user to select one or create new infrastructure.
         
         Returns:
             tuple: (selected_infrastructure, selected_index) or (None, None) if no valid option
@@ -274,40 +674,78 @@ class NotebookHelper:
             infra_options = self._find_infrastructure_instances(infra)
             available_options.extend(infra_options)
         
-        if not available_options:
-            print_warning('No supported infrastructures found.')
-            return None, None
+        # Check if the desired infrastructure/index combination exists
+        desired_rg_name = get_infra_rg_name(self.deployment, self._get_current_index())
+        desired_exists = any(
+            get_infra_rg_name(infra, idx) == desired_rg_name 
+            for infra, idx in available_options
+        )
         
-        # Sort by infrastructure type, then by index
+        if desired_exists:
+            # Scenario 1: Desired infrastructure exists, use it directly
+            print_success(f'Found desired infrastructure: {self.deployment.value} with resource group {desired_rg_name}')
+            return self.deployment, self._get_current_index()
+        
+        # Sort available options by infrastructure type, then by index
         available_options.sort(key = lambda x: (x[0].value, x[1] if x[1] is not None else 0))
         
-        print_info(f'Found {len(available_options)} available infrastructure(s):')
-        print('')
+        # Prepare display options
+        display_options = []
+        option_counter = 1
         
-        # Display options to user
-        for i, (infra, index) in enumerate(available_options, 1):
-            index_str = f' (index: {index})' if index is not None else ''
-            rg_name = get_infra_rg_name(infra, index)
-            print(f'     {i}. {infra.value}{index_str} - Resource Group: {rg_name}')
+        # Add existing infrastructure options
+        if available_options:
+            print_info(f'Found {len(available_options)} existing infrastructure(s). You can select an existing or create a new one.')
+            print('')
+            
+            for infra, index in available_options:
+                index_str = f' (index: {index})' if index is not None else ''
+                rg_name = get_infra_rg_name(infra, index)
+                print(f'     {option_counter}. {infra.value}{index_str} - Resource Group: {rg_name}')
+                display_options.append(('existing', infra, index))
+                option_counter += 1
+        else:
+            print_warning('No existing supported infrastructures found.')
+        
+        # Add option to create the desired infrastructure
+        desired_index_str = f' (index: {self._get_current_index()})' if self._get_current_index() is not None else ''
+        print(f'     {option_counter}. 🚀 Create new infrastructure: {self.deployment.value}{desired_index_str} - Resource Group: {desired_rg_name}')
+        display_options.append(('create_new', self.deployment, self._get_current_index()))
         
         print('')
         
         # Get user selection
         while True:
             try:
-                choice = input(f'Select infrastructure (1-{len(available_options)}) or press Enter to exit: ').strip()
+                if available_options:
+                    choice = input(f'Select infrastructure (1-{len(display_options)}) or press Enter to exit: ').strip()
+                else:
+                    choice = input(f'Create new infrastructure ({len(display_options)}) or press Enter to exit: ').strip()
                 
                 if not choice:
                     print_warning('No infrastructure selected. Exiting.')
                     return None, None
                 
                 choice_idx = int(choice) - 1
-                if 0 <= choice_idx < len(available_options):
-                    selected_infra, selected_index = available_options[choice_idx]
-                    print_success(f'Selected: {selected_infra.value}{" (index: " + str(selected_index) + ")" if selected_index is not None else ""}')
-                    return selected_infra, selected_index
+                if 0 <= choice_idx < len(display_options):
+                    option_type, selected_infra, selected_index = display_options[choice_idx]
+                    
+                    if option_type == 'existing':
+                        print_success(f'Selected existing: {selected_infra.value}{" (index: " + str(selected_index) + ")" if selected_index is not None else ""}')
+                        return selected_infra, selected_index
+                    elif option_type == 'create_new':
+                        print_info(f'Creating new infrastructure: {selected_infra.value}{" (index: " + str(selected_index) + ")" if selected_index is not None else ""}')
+                        
+                        # Execute the infrastructure creation
+                        success = self._create_infrastructure(selected_infra, selected_index)
+                        if success:
+                            print_success(f'Successfully created infrastructure: {selected_infra.value}{" (index: " + str(selected_index) + ")" if selected_index is not None else ""}')
+                            return selected_infra, selected_index
+                        else:
+                            print_error('Failed to create infrastructure.')
+                            return None, None
                 else:
-                    print_error(f'Invalid choice. Please enter a number between 1 and {len(available_options)}.')
+                    print_error(f'Invalid choice. Please enter a number between 1 and {len(display_options)}.')
                     
             except ValueError:
                 print_error('Invalid input. Please enter a number.')
@@ -777,6 +1215,32 @@ def create_resource_group(rg_name: str, resource_group_location: str | None = No
             f"Failed to create the resource group '{rg_name}'", 
             False, True, False, False)
 
+def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int) -> bool:
+    """
+    Check if a specific infrastructure exists by querying the resource group.
+
+    Args:
+        infrastructure (INFRASTRUCTURE): The infrastructure type to check.
+        index (int): index for multi-instance infrastructures.
+
+    Returns:
+        bool: True if the infrastructure exists, False otherwise.
+    """
+    
+    print(f"🔍 Checking if infrastructure already exists...")
+
+    rg_name = get_infra_rg_name(infrastructure, index)
+
+    if does_resource_group_exist(rg_name):
+        print(f"✅ Infrastructure already exists!\n")
+        print("ℹ️  To redeploy, either:")
+        print("     1. Use a different index number, or")
+        print("     2. Delete the existing resource group first using the clean-up notebook")
+        return True
+    else:
+        print("   Infrastructure does not yet exist.")    
+        return False
+
 def does_resource_group_exist(rg_name: str) -> bool:
     """
     Check if a resource group exists in Azure.
@@ -803,7 +1267,7 @@ def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str,
     """
 
     policy_xml_filepath = determine_policy_path(policy_xml_filepath, sample_name)
-    print(f"📄 Reading policy XML from  : {policy_xml_filepath}")
+    # print(f"📄 Reading policy XML from : {policy_xml_filepath}")  # debug
 
     # Read the specified policy XML file
     with open(policy_xml_filepath, 'r', encoding='utf-8') as policy_xml_file:
@@ -903,7 +1367,7 @@ def read_policy_xml(policy_xml_filepath_or_filename: str, named_values: dict[str
     """
     
     policy_xml_filepath = determine_policy_path(policy_xml_filepath_or_filename, sample_name)
-    print(f"📄 Reading policy XML from  : {policy_xml_filepath}")
+    # print(f"📄 Reading policy XML from : {policy_xml_filepath}")  # debug
 
     # Read the specified policy XML file
     with open(policy_xml_filepath, 'r', encoding='utf-8') as policy_xml_file:
