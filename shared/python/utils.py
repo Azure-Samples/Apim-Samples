@@ -233,10 +233,10 @@ class InfrastructureNotebookHelper:
         self.index = index
         self.apim_sku = apim_sku
 
-    def create_infrastructure(self) -> bool:
+    def create_infrastructure(self, bypass_infrastructure_check: bool = False) -> bool:
         import sys 
 
-        if not does_infrastructure_exist(self.deployment, self.index):
+        if bypass_infrastructure_check or not does_infrastructure_exist(self.deployment, self.index):
             # Build the command to call the infrastructure creation script
             cmd_args = [
                 sys.executable, 
@@ -262,118 +262,8 @@ class InfrastructureNotebookHelper:
 
             return process.returncode == 0
         
-
-    # def _create_infrastructure(self, infrastructure: INFRASTRUCTURE, index: int | None) -> bool:
-    #     """
-    #     Create new infrastructure by executing the infrastructure creation notebook.
-        
-    #     Args:
-    #         infrastructure (INFRASTRUCTURE): The infrastructure type to create.
-    #         index (int | None): The index for the infrastructure.
-            
-    #     Returns:
-    #         bool: True if creation was successful, False otherwise.
-    #     """
-    #     import os
-    #     import tempfile
-    #     import json
-        
-    #     try:
-    #         # Find the project root and infrastructure directory
-    #         project_root = find_project_root()
-    #         infra_dir = os.path.join(project_root, 'infrastructure', infrastructure.value)
-            
-    #         if not os.path.exists(infra_dir):
-    #             print_error(f'Infrastructure directory not found: {infra_dir}')
-    #             return False
-            
-    #         # Check if the infrastructure has a create.ipynb file
-    #         create_notebook_path = os.path.join(infra_dir, 'create.ipynb')
-    #         if not os.path.exists(create_notebook_path):
-    #             print_error(f'Infrastructure creation notebook not found: {create_notebook_path}')
-    #             return False
-            
-    #         print_info(f'Executing infrastructure creation notebook: {create_notebook_path}')
-            
-    #         # Execute the infrastructure creation notebook
-    #         success = self._execute_infrastructure_notebook(infra_dir, infrastructure, index)
-            
-    #         if success:
-    #             print_success('Infrastructure creation completed successfully.')
-    #             return True
-    #         else:
-    #             print_error('Infrastructure creation failed.')
-    #             return False
-                
-    #     except Exception as e:
-    #         print_error(f'Error creating infrastructure: {str(e)}')
-    #         return False
-
-    # def _execute_infrastructure_notebook(self, infra_dir: str, infrastructure: INFRASTRUCTURE, index: int | None) -> bool:
-    #     """
-    #     Execute the infrastructure creation using the dedicated Python module.
-        
-    #     Args:
-    #         infra_dir (str): Path to the infrastructure directory.
-    #         infrastructure (INFRASTRUCTURE): The infrastructure type.
-    #         index (int | None): The index for the infrastructure.
-            
-    #     Returns:
-    #         bool: True if execution was successful, False otherwise.
-    #     """
-    #     import os
-    #     import subprocess
-    #     import sys
-        
-    #     try:
-    #         # Check if the infrastructure has a dedicated creation script
-    #         create_script_path = os.path.join(infra_dir, 'create_infrastructure.py')
-            
-    #         if os.path.exists(create_script_path):
-    #             # Use the dedicated creation script
-    #             print_info(f'Using dedicated infrastructure creation script: {create_script_path}')
-                
-    #             # Build the command arguments
-    #             cmd_args = [sys.executable, create_script_path, '--location', self.rg_location]
-                
-    #             if index is not None:
-    #                 cmd_args.extend(['--index', str(index)])
-                
-    #             print_info(f'Command: {" ".join(cmd_args)}')
-                
-    #             # Execute the script
-    #             print_info('Executing infrastructure creation script...')
-    #             result = subprocess.run(cmd_args, 
-    #                                   capture_output=True, 
-    #                                   text=True, 
-    #                                   timeout=1800,  # 30 minute timeout
-    #                                   cwd=infra_dir)
-                
-    #             # Print the output
-    #             if result.stdout:
-    #                 print(result.stdout)
-    #             if result.stderr:
-    #                 print_error("Script stderr output:")
-    #                 print(result.stderr)
-                
-    #             if result.returncode != 0:
-    #                 print_error(f"Script failed with return code: {result.returncode}")
-                
-    #             return result.returncode == 0
-                
-    #         else:
-    #             # Fallback to the original approach
-    #             print_warning(f'No dedicated creation script found at {create_script_path}')
-    #             print_info('Falling back to programmatic infrastructure creation...')
-                
-    #             return self._execute_infrastructure_fallback(infra_dir, infrastructure, index)
-                    
-    #     except Exception as e:
-    #         print_error(f'Error executing infrastructure creation: {str(e)}')
-    #         return False
-
 class NotebookHelper:
-    def __init__(self, sample_folder: str, rg_name: str, rg_location: str, deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE], use_jwt: bool = False):
+    def __init__(self, sample_folder: str, rg_name: str, rg_location: str, deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE], use_jwt: bool = False, index: int = 1):
         """
         Initialize the NotebookHelper with a name and resource group.
         
@@ -389,6 +279,7 @@ class NotebookHelper:
         self.deployment = deployment
         self.supported_infrastructures = supported_infrastructures
         self.use_jwt = use_jwt
+        self.index = index
 
         validate_infrastructure(deployment, supported_infrastructures)
 
@@ -420,237 +311,6 @@ class NotebookHelper:
             except ValueError:
                 return None
         return None
-
-    # def _create_infrastructure(self, infrastructure: INFRASTRUCTURE, index: int | None) -> bool:
-    #     """
-    #     Create new infrastructure by executing the infrastructure creation notebook.
-        
-    #     Args:
-    #         infrastructure (INFRASTRUCTURE): The infrastructure type to create.
-    #         index (int | None): The index for the infrastructure.
-            
-    #     Returns:
-    #         bool: True if creation was successful, False otherwise.
-    #     """
-    #     import os
-    #     import tempfile
-    #     import json
-        
-    #     try:
-    #         # Find the project root and infrastructure directory
-    #         project_root = find_project_root()
-    #         infra_dir = os.path.join(project_root, 'infrastructure', infrastructure.value)
-            
-    #         if not os.path.exists(infra_dir):
-    #             print_error(f'Infrastructure directory not found: {infra_dir}')
-    #             return False
-            
-    #         # Check if the infrastructure has a create.ipynb file
-    #         create_notebook_path = os.path.join(infra_dir, 'create.ipynb')
-    #         if not os.path.exists(create_notebook_path):
-    #             print_error(f'Infrastructure creation notebook not found: {create_notebook_path}')
-    #             return False
-            
-    #         print_info(f'Executing infrastructure creation notebook: {create_notebook_path}')
-            
-    #         # Execute the infrastructure creation notebook
-    #         success = self._execute_infrastructure_notebook(infra_dir, infrastructure, index)
-            
-    #         if success:
-    #             print_success('Infrastructure creation completed successfully.')
-    #             return True
-    #         else:
-    #             print_error('Infrastructure creation failed.')
-    #             return False
-                
-    #     except Exception as e:
-    #         print_error(f'Error creating infrastructure: {str(e)}')
-    #         return False
-
-    # def _execute_infrastructure_notebook(self, infra_dir: str, infrastructure: INFRASTRUCTURE, index: int | None) -> bool:
-    #     """
-    #     Execute the infrastructure creation using the dedicated Python module.
-        
-    #     Args:
-    #         infra_dir (str): Path to the infrastructure directory.
-    #         infrastructure (INFRASTRUCTURE): The infrastructure type.
-    #         index (int | None): The index for the infrastructure.
-            
-    #     Returns:
-    #         bool: True if execution was successful, False otherwise.
-    #     """
-    #     import os
-    #     import subprocess
-    #     import sys
-        
-    #     try:
-    #         # Check if the infrastructure has a dedicated creation script
-    #         create_script_path = os.path.join(infra_dir, 'create_infrastructure.py')
-            
-    #         if os.path.exists(create_script_path):
-    #             # Use the dedicated creation script
-    #             print_info(f'Using dedicated infrastructure creation script: {create_script_path}')
-                
-    #             # Build the command arguments
-    #             cmd_args = [sys.executable, create_script_path, '--location', self.rg_location]
-                
-    #             if index is not None:
-    #                 cmd_args.extend(['--index', str(index)])
-                
-    #             print_info(f'Command: {" ".join(cmd_args)}')
-                
-    #             # Execute the script
-    #             print_info('Executing infrastructure creation script...')
-    #             result = subprocess.run(cmd_args, 
-    #                                   capture_output=True, 
-    #                                   text=True, 
-    #                                   timeout=1800,  # 30 minute timeout
-    #                                   cwd=infra_dir)
-                
-    #             # Print the output
-    #             if result.stdout:
-    #                 print(result.stdout)
-    #             if result.stderr:
-    #                 print_error("Script stderr output:")
-    #                 print(result.stderr)
-                
-    #             if result.returncode != 0:
-    #                 print_error(f"Script failed with return code: {result.returncode}")
-                
-    #             return result.returncode == 0
-                
-    #         else:
-    #             # Fallback to the original approach
-    #             print_warning(f'No dedicated creation script found at {create_script_path}')
-    #             print_info('Falling back to programmatic infrastructure creation...')
-                
-    #             return self._execute_infrastructure_fallback(infra_dir, infrastructure, index)
-                    
-    #     except Exception as e:
-    #         print_error(f'Error executing infrastructure creation: {str(e)}')
-    #         return False
-
-#     def _execute_infrastructure_fallback(self, infra_dir: str, infrastructure: INFRASTRUCTURE, index: int | None) -> bool:
-#         """
-#         Fallback method using the original temporary script approach.
-#         """
-#         import os
-#         import json
-#         import subprocess
-#         import sys
-        
-#         try:
-#             # Change to the infrastructure directory
-#             original_cwd = os.getcwd()
-#             os.chdir(infra_dir)
-            
-#             # Create a temporary Python script that mimics the notebook execution
-#             index_value = str(index) if index is not None else "None"
-#             script_content = f'''import sys
-# import os
-# import json
-
-# # Add the shared python path
-# project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# shared_python_path = os.path.join(project_root, 'shared', 'python')
-# sys.path.append(shared_python_path)
-
-# import utils
-# from apimtypes import *
-
-# # Infrastructure creation parameters
-# rg_location = "{self.rg_location}"
-# index = {index_value}
-# deployment = INFRASTRUCTURE.{infrastructure.name}
-
-# try:
-#     # Create the infrastructure
-#     print("Starting infrastructure creation...")
-
-#     # Build resource group name and tags
-#     rg_name = utils.get_infra_rg_name(deployment, index)
-#     rg_tags = utils.build_infrastructure_tags(deployment)
-
-#     print(f"Creating infrastructure: {{deployment.value}}")
-#     print(f"Resource group: {{rg_name}}")
-#     print(f"Location: {{rg_location}}")
-
-#     # Check if params.json exists and use default parameters
-#     params_file = "params.json"
-#     if os.path.exists(params_file):
-#         print(f"Loading parameters from {{params_file}}")
-#         with open(params_file, 'r') as f:
-#             params_data = json.load(f)
-        
-#         # Extract the parameters
-#         bicep_parameters = {{}}
-#         if "parameters" in params_data:
-#             for key, value in params_data["parameters"].items():
-#                 bicep_parameters[key] = {{"value": value["value"]}}
-#         else:
-#             # Fallback to direct parameters structure
-#             bicep_parameters = params_data
-#     else:
-#         print("No params.json found, using minimal default parameters")
-#         # Use minimal default parameters for infrastructure creation
-#         bicep_parameters = {{}}
-
-#     # Execute the deployment
-#     print("Executing Bicep deployment...")
-#     output = utils.create_bicep_deployment_group(rg_name, rg_location, deployment, bicep_parameters, rg_tags=rg_tags)
-
-#     if output.success:
-#         print("Infrastructure creation completed successfully!")
-#         sys.exit(0)
-#     else:
-#         print("Infrastructure creation failed!")
-#         print(f"Error output: {{output.text if hasattr(output, 'text') else 'No error details available'}}")
-#         sys.exit(1)
-        
-# except Exception as e:
-#     print(f"Error during infrastructure creation: {{str(e)}}")
-#     import traceback
-#     traceback.print_exc()
-#     sys.exit(1)
-# '''
-            
-#             # Write the script to a temporary file
-#             script_path = os.path.join(infra_dir, 'temp_create_infrastructure.py')
-#             with open(script_path, 'w') as f:
-#                 f.write(script_content)
-            
-#             try:
-#                 # Execute the script
-#                 print_info('Executing infrastructure creation script...')
-                
-#                 result = subprocess.run([sys.executable, script_path], 
-#                                       capture_output=True, 
-#                                       text=True, 
-#                                       timeout=1800)  # 30 minute timeout
-                
-#                 # Print the output
-#                 if result.stdout:
-#                     print(result.stdout)
-#                 if result.stderr:
-#                     print_error("Script stderr output:")
-#                     print(result.stderr)
-                
-#                 if result.returncode != 0:
-#                     print_error(f"Script failed with return code: {result.returncode}")
-                
-#                 return result.returncode == 0
-                
-#             finally:
-#                 # Clean up the temporary script
-#                 if os.path.exists(script_path):
-#                     os.remove(script_path)
-                    
-#         except Exception as e:
-#             print_error(f'Error executing infrastructure fallback: {str(e)}')
-#             return False
-#         finally:
-#             # Restore the original working directory
-#             os.chdir(original_cwd)
 
     def _clean_up_jwt(self, apim_name: str) -> None:
         # 5) Clean up old JWT signing keys after successful deployment
@@ -696,7 +356,7 @@ class NotebookHelper:
         # Add existing infrastructure options
         if available_options:
             print_info(f'Found {len(available_options)} existing infrastructure(s). You can select an existing or create a new one.')
-            print('')
+            print(f'\n     Select an EXISTING infrastructure:')
             
             for infra, index in available_options:
                 index_str = f' (index: {index})' if index is not None else ''
@@ -709,7 +369,8 @@ class NotebookHelper:
         
         # Add option to create the desired infrastructure
         desired_index_str = f' (index: {self._get_current_index()})' if self._get_current_index() is not None else ''
-        print(f'     {option_counter}. 🚀 Create new infrastructure: {self.deployment.value}{desired_index_str} - Resource Group: {desired_rg_name}')
+        print(f'\n     Create a NEW infrastructure:')
+        print(f'     {option_counter}. {self.deployment.value}{desired_index_str} - Resource Group: {desired_rg_name}')
         display_options.append(('create_new', self.deployment, self._get_current_index()))
         
         print('')
@@ -737,7 +398,9 @@ class NotebookHelper:
                         print_info(f'Creating new infrastructure: {selected_infra.value}{" (index: " + str(selected_index) + ")" if selected_index is not None else ""}')
                         
                         # Execute the infrastructure creation
-                        success = self._create_infrastructure(selected_infra, selected_index)
+                        inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, APIM_SKU.BASICV2)
+                        success = inb_helper.create_infrastructure(True)  # Bypass infrastructure check to force creation
+
                         if success:
                             print_success(f'Successfully created infrastructure: {selected_infra.value}{" (index: " + str(selected_index) + ")" if selected_index is not None else ""}')
                             return selected_infra, selected_index
@@ -792,6 +455,87 @@ class NotebookHelper:
                         continue
         
         return instances
+
+    def deploy_sample(self, bicep_parameters: dict) -> Output:
+        # Check infrastructure availability and let user select or create
+        print("Checking infrastructure availability...")
+        print(f"Desired infrastructure : {self.deployment.value}")
+        print(f"Desired index          : {self.index}")
+        print(f"Desired resource group : {self.rg_name}")
+
+        # Call the resource group existence check only once
+        rg_exists = does_resource_group_exist(self.rg_name)
+        print(f"Resource group exists: {rg_exists}")
+
+        # If the desired infrastructure doesn't exist, use the interactive selection process
+        if not rg_exists:
+            print(f"\nDesired infrastructure does not exist. Querying for available options...")
+            
+            # Check if we've already done infrastructure selection (prevent double execution)
+            if 'infrastructure_selection_completed' not in globals():
+                # Use the NotebookHelper's infrastructure selection process
+                selected_deployment, selected_index = self._query_and_select_infrastructure()
+                
+                if selected_deployment is None:
+                    raise SystemExit(1)
+                
+                # Update the notebook helper with the selected infrastructure
+                self.deployment = selected_deployment
+                self.index = selected_index
+                self.rg_name = get_infra_rg_name(self.deployment, self.index)
+                
+                print(f"✅ Using infrastructure : {self.deployment.value}")
+                print(f"📦 Resource group       : {self.rg_name}")
+                
+                # Update the variables for the rest of the notebook
+                
+                # Verify the updates were applied correctly
+                print(f"📝 Updated variables    : deployment = {self.deployment.value}, index = {self.index}, rg_name = {self.rg_name}")
+            else:
+                print("✅ Infrastructure selection already completed in this session")
+        else:
+            print("\n✅ Desired infrastructure already exists, proceeding with sample deployment")
+
+        # Deploy the sample APIs to the selected infrastructure
+        print(f"\n🚀 Deploying sample APIs to infrastructure: {self.deployment.value}")
+        print(f"📦 Resource group: {self.rg_name}")
+
+        # Get the current sample directory
+        sample_dir = Path.cwd() if Path.cwd().name == self.sample_folder else Path(find_project_root()) / 'samples' / self.sample_folder
+        original_cwd = os.getcwd()
+
+        try:
+            # Change to sample directory
+            os.chdir(sample_dir)
+            print(f"📁 Changed working directory to: {sample_dir}")
+            
+            # Prepare deployment parameters
+            bicep_parameters_format = {
+                "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+                "contentVersion": "1.0.0.0",
+                "parameters": bicep_parameters
+            }
+            
+            # Write the parameters file
+            params_file_path = sample_dir / 'params.json'
+            with open(params_file_path, 'w') as file:
+                file.write(json.dumps(bicep_parameters_format))
+            
+            print(f"📝 Updated the bicep parameters file 'params.json'")
+            
+            # Run the deployment directly
+            main_bicep_path = sample_dir / 'main.bicep'
+            output = run(
+                f'az deployment group create --name {self.sample_folder} --resource-group {self.rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
+                f"Sample deployment '{self.sample_folder}' succeeded", 
+                f"Sample deployment '{self.sample_folder}' failed."
+            )
+            
+            return output
+        finally:
+            # Always restore the original working directory
+            os.chdir(original_cwd)
+            print(f"📁 Restored working directory to: {original_cwd}")
 
     def deploy_bicep(self, bicep_parameters: dict) -> Output:
         """

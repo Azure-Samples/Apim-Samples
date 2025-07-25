@@ -34,17 +34,17 @@ def _create_simple_apim_infrastructure(
         utils.Output: The deployment result.
     """
     
-    print(f"\n🚀 Creating Simple APIM infrastructure...")
-    print(f"   Location       : {rg_location}")
-    print(f"   Index          : {index}")
-    print(f"   APIM SKU       : {apim_sku.value}")
-    
     # 1) Setup deployment parameters
     deployment = INFRASTRUCTURE.SIMPLE_APIM
     rg_name = utils.get_infra_rg_name(deployment, index)
     rg_tags = utils.build_infrastructure_tags(deployment)
-    
-    print(f"   Resource Group : {rg_name}\n")
+
+    print(f"\n🚀 Creating Simple APIM infrastructure...")
+    print(f"    Location       : {rg_location}")
+    print(f"    Index          : {index}")
+    print(f"    Infrastructure : {index}")
+    print(f"    APIM SKU       : {apim_sku.value}")
+    print(f"    Resource Group : {rg_name}\n")
     
     # 2) Set up the policy fragments
     if custom_policy_fragments is None:
