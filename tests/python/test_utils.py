@@ -952,3 +952,432 @@ def test_cleanup_functions_comprehensive(monkeypatch):
 
 
 import json
+
+
+# ------------------------------
+#    INFRASTRUCTURE SELECTION TESTS
+# ------------------------------
+
+def test_find_infrastructure_instances_success(monkeypatch):
+    """Test _find_infrastructure_instances with successful Azure query."""
+    # Create a mock NotebookHelper instance
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+    
+    # Mock successful Azure CLI response
+    mock_output = utils.Output(success=True, text='apim-infra-simple-apim-1\napim-infra-simple-apim-2\napim-infra-simple-apim')
+    monkeypatch.setattr(utils, 'run', lambda *args, **kwargs: mock_output)
+    
+    result = nb_helper._find_infrastructure_instances(INFRASTRUCTURE.SIMPLE_APIM)
+    
+    expected = [
+        (INFRASTRUCTURE.SIMPLE_APIM, None),
+        (INFRASTRUCTURE.SIMPLE_APIM, 1),
+        (INFRASTRUCTURE.SIMPLE_APIM, 2)
+    ]
+    # Check that we have the expected results regardless of order
+    assert len(result) == len(expected)
+    assert set(result) == set(expected)
+
+def test_find_infrastructure_instances_no_results(monkeypatch):
+    """Test _find_infrastructure_instances with no matching resource groups."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+    
+    # Mock empty Azure CLI response
+    mock_output = utils.Output(success=True, text='')
+    monkeypatch.setattr(utils, 'run', lambda *args, **kwargs: mock_output)
+    
+    result = nb_helper._find_infrastructure_instances(INFRASTRUCTURE.SIMPLE_APIM)
+    assert result == []
+
+def test_find_infrastructure_instances_failure(monkeypatch):
+    """Test _find_infrastructure_instances when Azure CLI fails."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+    
+    # Mock failed Azure CLI response
+    mock_output = utils.Output(success=False, text='Error: Authentication failed')
+    monkeypatch.setattr(utils, 'run', lambda *args, **kwargs: mock_output)
+    
+    result = nb_helper._find_infrastructure_instances(INFRASTRUCTURE.SIMPLE_APIM)
+    assert result == []
+
+def test_find_infrastructure_instances_invalid_names(monkeypatch):
+    """Test _find_infrastructure_instances with invalid resource group names."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+    
+    # Mock Azure CLI response with valid and invalid names
+    mock_output = utils.Output(
+        success=True, 
+        text='apim-infra-simple-apim-1\napim-infra-simple-apim-invalid\napim-infra-simple-apim-2\napim-infra-different'
+    )
+    monkeypatch.setattr(utils, 'run', lambda *args, **kwargs: mock_output)
+    
+    result = nb_helper._find_infrastructure_instances(INFRASTRUCTURE.SIMPLE_APIM)
+    
+    # Should only include valid names and skip invalid ones
+    expected = [
+        (INFRASTRUCTURE.SIMPLE_APIM, 1),
+        (INFRASTRUCTURE.SIMPLE_APIM, 2)
+    ]
+    # Check that we have the expected results regardless of order
+    assert len(result) == len(expected)
+    assert set(result) == set(expected)
+
+def test_find_infrastructure_instances_mixed_formats(monkeypatch):
+    """Test _find_infrastructure_instances with mixed indexed and non-indexed names."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.APIM_ACA, [INFRASTRUCTURE.APIM_ACA]
+    )
+    
+    # Mock Azure CLI response with mixed formats
+    mock_output = utils.Output(
+        success=True, 
+        text='apim-infra-apim-aca\napim-infra-apim-aca-1\napim-infra-apim-aca-5'
+    )
+    monkeypatch.setattr(utils, 'run', lambda *args, **kwargs: mock_output)
+    
+    result = nb_helper._find_infrastructure_instances(INFRASTRUCTURE.APIM_ACA)
+    
+    expected = [
+        (INFRASTRUCTURE.APIM_ACA, None),
+        (INFRASTRUCTURE.APIM_ACA, 1),
+        (INFRASTRUCTURE.APIM_ACA, 5)
+    ]
+    # Check that we have the expected results regardless of order
+    assert len(result) == len(expected)
+    assert set(result) == set(expected)
+
+def test_query_and_select_infrastructure_no_options(monkeypatch):
+    """Test _query_and_select_infrastructure when no infrastructures are available."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA]
+    )
+    
+    # Mock empty results for all infrastructure types
+    monkeypatch.setattr(nb_helper, '_find_infrastructure_instances', lambda x: [])
+    monkeypatch.setattr(utils, 'print_info', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'print_warning', lambda *args, **kwargs: None)
+    
+    result = nb_helper._query_and_select_infrastructure()
+    assert result == (None, None)
+
+def test_query_and_select_infrastructure_single_option(monkeypatch):
+    """Test _query_and_select_infrastructure with a single available option."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA]
+    )
+    
+    # Mock single result
+    def mock_find_instances(infra):
+        if infra == INFRASTRUCTURE.SIMPLE_APIM:
+            return [(INFRASTRUCTURE.SIMPLE_APIM, 1)]
+        return []
+    
+    monkeypatch.setattr(nb_helper, '_find_infrastructure_instances', mock_find_instances)
+    monkeypatch.setattr(utils, 'print_info', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'print_success', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'get_infra_rg_name', lambda infra, idx: f'apim-infra-{infra.value}-{idx}')
+    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
+    
+    # Mock user input to select option 1
+    monkeypatch.setattr('builtins.input', lambda prompt: '1')
+    
+    result = nb_helper._query_and_select_infrastructure()
+    assert result == (INFRASTRUCTURE.SIMPLE_APIM, 1)
+
+def test_query_and_select_infrastructure_multiple_options(monkeypatch):
+    """Test _query_and_select_infrastructure with multiple available options."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA]
+    )
+    
+    # Mock multiple results
+    def mock_find_instances(infra):
+        if infra == INFRASTRUCTURE.SIMPLE_APIM:
+            return [(INFRASTRUCTURE.SIMPLE_APIM, 1), (INFRASTRUCTURE.SIMPLE_APIM, 2)]
+        elif infra == INFRASTRUCTURE.APIM_ACA:
+            return [(INFRASTRUCTURE.APIM_ACA, None)]
+        return []
+    
+    monkeypatch.setattr(nb_helper, '_find_infrastructure_instances', mock_find_instances)
+    monkeypatch.setattr(utils, 'print_info', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'print_success', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'get_infra_rg_name', lambda infra, idx: f'apim-infra-{infra.value}-{idx or ""}')
+    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
+    
+    # Mock user input to select option 1 (APIM_ACA with no index, sorted first alphabetically)
+    monkeypatch.setattr('builtins.input', lambda prompt: '1')
+    
+    result = nb_helper._query_and_select_infrastructure()
+    assert result == (INFRASTRUCTURE.APIM_ACA, None)
+
+def test_query_and_select_infrastructure_user_cancellation(monkeypatch):
+    """Test _query_and_select_infrastructure when user cancels selection."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+    
+    # Mock single result
+    def mock_find_instances(infra):
+        return [(INFRASTRUCTURE.SIMPLE_APIM, 1)]
+    
+    monkeypatch.setattr(nb_helper, '_find_infrastructure_instances', mock_find_instances)
+    monkeypatch.setattr(utils, 'print_info', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'print_warning', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'get_infra_rg_name', lambda infra, idx: f'apim-infra-{infra.value}-{idx}')
+    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
+    
+    # Mock user input to press Enter (cancel)
+    monkeypatch.setattr('builtins.input', lambda prompt: '')
+    
+    result = nb_helper._query_and_select_infrastructure()
+    assert result == (None, None)
+
+def test_query_and_select_infrastructure_invalid_input_then_valid(monkeypatch):
+    """Test _query_and_select_infrastructure with invalid input followed by valid input."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+    
+    # Mock single result
+    def mock_find_instances(infra):
+        return [(INFRASTRUCTURE.SIMPLE_APIM, 1)]
+    
+    monkeypatch.setattr(nb_helper, '_find_infrastructure_instances', mock_find_instances)
+    monkeypatch.setattr(utils, 'print_info', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'print_error', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'print_success', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'get_infra_rg_name', lambda infra, idx: f'apim-infra-{infra.value}-{idx}')
+    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
+    
+    # Mock user input sequence: invalid number, invalid text, then valid choice
+    inputs = iter(['99', 'abc', '1'])
+    monkeypatch.setattr('builtins.input', lambda prompt: next(inputs))
+    
+    result = nb_helper._query_and_select_infrastructure()
+    assert result == (INFRASTRUCTURE.SIMPLE_APIM, 1)
+
+def test_query_and_select_infrastructure_keyboard_interrupt(monkeypatch):
+    """Test _query_and_select_infrastructure when user presses Ctrl+C."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+    
+    # Mock single result
+    def mock_find_instances(infra):
+        return [(INFRASTRUCTURE.SIMPLE_APIM, 1)]
+    
+    monkeypatch.setattr(nb_helper, '_find_infrastructure_instances', mock_find_instances)
+    monkeypatch.setattr(utils, 'print_info', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'print_warning', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'get_infra_rg_name', lambda infra, idx: f'apim-infra-{infra.value}-{idx}')
+    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
+    
+    # Mock user input to raise KeyboardInterrupt
+    def mock_input(prompt):
+        raise KeyboardInterrupt()
+    monkeypatch.setattr('builtins.input', mock_input)
+    
+    result = nb_helper._query_and_select_infrastructure()
+    assert result == (None, None)
+
+def test_deploy_bicep_with_infrastructure_selection(monkeypatch):
+    """Test deploy_bicep method with infrastructure selection when original doesn't exist."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA]
+    )
+    
+    # Mock does_resource_group_exist to return False for original, triggering selection
+    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda rg: False)
+    
+    # Mock infrastructure selection to return a valid infrastructure
+    selected_infra = INFRASTRUCTURE.APIM_ACA
+    selected_index = 2
+    monkeypatch.setattr(nb_helper, '_query_and_select_infrastructure', 
+                       lambda: (selected_infra, selected_index))
+    
+    # Mock successful deployment
+    mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
+    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample', 
+                       lambda *args, **kwargs: mock_output)
+    
+    # Mock utility functions
+    monkeypatch.setattr(utils, 'get_infra_rg_name', 
+                       lambda infra, idx: f'apim-infra-{infra.value}-{idx}')
+    monkeypatch.setattr(utils, 'print_error', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'print_success', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'print_val', lambda *args, **kwargs: None)
+    
+    # Test the deployment
+    result = nb_helper.deploy_bicep({'test': {'value': 'param'}})
+    
+    # Verify the helper was updated with selected infrastructure
+    assert nb_helper.deployment == selected_infra
+    assert nb_helper.rg_name == 'apim-infra-apim-aca-2'
+    assert result.success is True
+
+def test_deploy_bicep_no_infrastructure_found(monkeypatch):
+    """Test deploy_bicep method when no suitable infrastructure is found."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+    
+    # Mock does_resource_group_exist to return False for original
+    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda rg: False)
+    
+    # Mock infrastructure selection to return None (no infrastructure found)
+    monkeypatch.setattr(nb_helper, '_query_and_select_infrastructure', 
+                       lambda: (None, None))
+    
+    # Mock utility functions
+    monkeypatch.setattr(utils, 'print_error', lambda *args, **kwargs: None)
+    
+    # Test should raise SystemExit
+    with pytest.raises(SystemExit):
+        nb_helper.deploy_bicep({'test': {'value': 'param'}})
+
+def test_deploy_bicep_existing_infrastructure(monkeypatch):
+    """Test deploy_bicep method when the specified infrastructure already exists."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+    
+    # Mock does_resource_group_exist to return True (infrastructure exists)
+    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda rg: True)
+    
+    # Mock successful deployment
+    mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
+    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample', 
+                       lambda *args, **kwargs: mock_output)
+    
+    # Mock utility functions
+    monkeypatch.setattr(utils, 'print_success', lambda *args, **kwargs: None)
+    
+    # Test the deployment - should not call infrastructure selection
+    result = nb_helper.deploy_bicep({'test': {'value': 'param'}})
+    
+    # Verify the helper was not modified (still has original values)
+    assert nb_helper.deployment == INFRASTRUCTURE.SIMPLE_APIM
+    assert nb_helper.rg_name == 'test-rg'
+    assert result.success is True
+
+def test_deploy_bicep_deployment_failure(monkeypatch):
+    """Test deploy_bicep method when Bicep deployment fails."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+    
+    # Mock does_resource_group_exist to return True
+    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda rg: True)
+    
+    # Mock failed deployment
+    mock_output = utils.Output(success=False, text='Deployment failed')
+    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample', 
+                       lambda *args, **kwargs: mock_output)
+    
+    # Test should raise SystemExit
+    with pytest.raises(SystemExit):
+        nb_helper.deploy_bicep({'test': {'value': 'param'}})
+
+def test_notebookhelper_initialization_with_supported_infrastructures():
+    """Test NotebookHelper initialization with supported infrastructures list."""
+    supported_infras = [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA]
+    
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, supported_infras
+    )
+    
+    assert nb_helper.deployment == INFRASTRUCTURE.SIMPLE_APIM
+    assert nb_helper.supported_infrastructures == supported_infras
+    assert nb_helper.sample_folder == 'test-sample'
+    assert nb_helper.rg_name == 'test-rg'
+    assert nb_helper.rg_location == 'eastus'
+    assert nb_helper.use_jwt is False
+
+def test_notebookhelper_initialization_with_jwt(monkeypatch):
+    """Test NotebookHelper initialization with JWT enabled."""
+    # Mock JWT-related functions
+    monkeypatch.setattr(utils, 'generate_signing_key', lambda: ('test-key', 'test-key-b64'))
+    monkeypatch.setattr(utils, 'print_val', lambda *args, **kwargs: None)
+    monkeypatch.setattr('time.time', lambda: 1234567890)
+    
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM], use_jwt=True
+    )
+    
+    assert nb_helper.use_jwt is True
+    assert nb_helper.jwt_key_name == 'JwtSigningKey-test-sample-1234567890'
+    assert nb_helper.jwt_key_value == 'test-key'
+    assert nb_helper.jwt_key_value_bytes_b64 == 'test-key-b64'
+
+def test_infrastructure_sorting_in_query_and_select(monkeypatch):
+    """Test that infrastructure options are sorted correctly by type then index."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus', 
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA, INFRASTRUCTURE.AFD_APIM_PE]
+    )
+    
+    # Mock mixed results in unsorted order
+    def mock_find_instances(infra):
+        if infra == INFRASTRUCTURE.SIMPLE_APIM:
+            return [(INFRASTRUCTURE.SIMPLE_APIM, 3), (INFRASTRUCTURE.SIMPLE_APIM, 1)]
+        elif infra == INFRASTRUCTURE.APIM_ACA:
+            return [(INFRASTRUCTURE.APIM_ACA, None), (INFRASTRUCTURE.APIM_ACA, 2)]
+        elif infra == INFRASTRUCTURE.AFD_APIM_PE:
+            return [(INFRASTRUCTURE.AFD_APIM_PE, 1)]
+        return []
+    
+    monkeypatch.setattr(nb_helper, '_find_infrastructure_instances', mock_find_instances)
+    monkeypatch.setattr(utils, 'print_info', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'print_success', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'get_infra_rg_name', lambda infra, idx: f'apim-infra-{infra.value}-{idx or ""}')
+    
+    # Capture the printed options to verify sorting
+    printed_options = []
+    def mock_print(*args, **kwargs):
+        if args and isinstance(args[0], str) and args[0].strip().startswith(('1.', '2.', '3.', '4.', '5.')):
+            printed_options.append(args[0].strip())
+    
+    monkeypatch.setattr('builtins.print', mock_print)
+    
+    # Mock user input to select first option
+    monkeypatch.setattr('builtins.input', lambda prompt: '1')
+    
+    nb_helper._query_and_select_infrastructure()
+    
+    # Verify sorting: AFD_APIM_PE (alphabetically first), then APIM_ACA, then SIMPLE_APIM
+    # Within each type, sorted by index (None treated as 0)
+    expected_order = [
+        '1. afd-apim-pe (index: 1)',
+        '2. apim-aca - Resource Group:',  # No index
+        '3. apim-aca (index: 2)',
+        '4. simple-apim (index: 1)',
+        '5. simple-apim (index: 3)'
+    ]
+    
+    for i, expected in enumerate(expected_order):
+        assert expected in printed_options[i], f"Expected '{expected}' in '{printed_options[i]}'"

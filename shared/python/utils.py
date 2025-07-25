@@ -102,7 +102,7 @@ class Output(object):
 
         self.is_json = self.json_data is not None
 
-    def get(self, key: str, label: str = '', secure: bool = False) -> str | None:
+    def get(self, key: str, label: str = '', secure: bool = False, suppress_logging: bool = False) -> str | None:
         """
         Retrieve a deployment output property by key, with optional label and secure masking.
 
@@ -136,7 +136,7 @@ class Output(object):
             elif key in self.json_data:
                 deployment_output = self.json_data[key]['value']
 
-            if label:
+            if not suppress_logging and label:
                 if secure and isinstance(deployment_output, str) and len(deployment_output) >= 4:
                     print_val(label, f"****{deployment_output[-4:]}")
                 else:
@@ -153,7 +153,7 @@ class Output(object):
 
             return None
 
-    def getJson(self, key: str, label: str = '', secure: bool = False) -> Any:
+    def getJson(self, key: str, label: str = '', secure: bool = False, suppress_logging: bool = False) -> Any:
         """
         Retrieve a deployment output property by key and return it as a JSON object.
         This method is independent from get() and retrieves the raw deployment output value.
@@ -188,7 +188,7 @@ class Output(object):
             elif key in self.json_data:
                 deployment_output = self.json_data[key]['value']
 
-            if label:
+            if not suppress_logging and label:
                 if secure and isinstance(deployment_output, str) and len(deployment_output) >= 4:
                     print_val(label, f"****{deployment_output[-4:]}")
                 else:
@@ -221,9 +221,61 @@ class Output(object):
 
             return None
 
+class InfrastructureNotebookHelper:
+    """
+    Helper class for managing infrastructure notebooks.
+    Provides methods to execute infrastructure creation notebooks and handle outputs.
+    """
 
+    def __init__(self, rg_location: str, deployment: INFRASTRUCTURE, index: int, apim_sku: APIM_SKU):
+        self.rg_location = rg_location
+        self.deployment = deployment
+        self.index = index
+        self.apim_sku = apim_sku
+
+    def create_infrastructure(self, bypass_infrastructure_check: bool = False) -> bool:
+        import sys 
+
+        if bypass_infrastructure_check or not does_infrastructure_exist(self.deployment, self.index):
+            # Map infrastructure types to their folder names
+            infra_folder_map = {
+                INFRASTRUCTURE.SIMPLE_APIM: 'simple-apim',
+                INFRASTRUCTURE.AFD_APIM_PE: 'afd-apim-pe', 
+                INFRASTRUCTURE.APIM_ACA: 'apim-aca'
+            }
+            
+            infra_folder = infra_folder_map.get(self.deployment)
+            if not infra_folder:
+                print(f"❌ Unsupported infrastructure type: {self.deployment.value}")
+                return False
+            
+            # Build the command to call the infrastructure creation script
+            cmd_args = [
+                sys.executable, 
+                os.path.join(find_project_root(), 'infrastructure', infra_folder, 'create_infrastructure.py'),
+                '--location', self.rg_location,
+                '--sku', str(self.apim_sku.value),
+                '--index', str(self.index)
+            ]
+
+            # Execute the infrastructure creation script with real-time output streaming and UTF-8 encoding to handle Unicode characters properly
+            process = subprocess.Popen(cmd_args, stdout = subprocess.PIPE, stderr = subprocess.STDOUT, text = True, 
+                                    bufsize = 1, universal_newlines = True, encoding = 'utf-8', errors = 'replace')
+
+            try:
+                # Stream output in real-time
+                for line in process.stdout:
+                    print(line.rstrip())
+            except Exception as e:
+                print(f"Error reading subprocess output: {e}")
+                
+            # Wait for process to complete
+            process.wait()
+
+            return process.returncode == 0
+        
 class NotebookHelper:
-    def __init__(self, sample_folder: str, rg_name: str, rg_location: str, deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE], use_jwt: bool = False):
+    def __init__(self, sample_folder: str, rg_name: str, rg_location: str, deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE], use_jwt: bool = False, index: int = 1):
         """
         Initialize the NotebookHelper with a name and resource group.
         
@@ -239,6 +291,7 @@ class NotebookHelper:
         self.deployment = deployment
         self.supported_infrastructures = supported_infrastructures
         self.use_jwt = use_jwt
+        self.index = index
 
         validate_infrastructure(deployment, supported_infrastructures)
 
@@ -252,10 +305,249 @@ class NotebookHelper:
         print_val('JWT key value', self.jwt_key_value)                    # this value is used to create the signed JWT token for requests to APIM
         print_val('JWT key value (base64)', self.jwt_key_value_bytes_b64) # this value is used in the APIM validate-jwt policy's issuer-signing-key attribute  
 
+    def _get_current_index(self) -> int | None:
+        """
+        Extract the index from the current resource group name.
+        
+        Returns:
+            int | None: The index if it exists, None otherwise.
+        """
+        prefix = f'apim-infra-{self.deployment.value}'
+        
+        if self.rg_name == prefix:
+            return None
+        elif self.rg_name.startswith(prefix + '-'):
+            try:
+                index_str = self.rg_name[len(prefix + '-'):]
+                return int(index_str)
+            except ValueError:
+                return None
+        return None
+
     def _clean_up_jwt(self, apim_name: str) -> None:
         # 5) Clean up old JWT signing keys after successful deployment
         if not cleanup_old_jwt_signing_keys(apim_name, self.rg_name, self.jwt_key_name):
             print_warning('JWT key cleanup failed, but deployment was successful. Old keys may need manual cleanup.')
+
+    def _query_and_select_infrastructure(self) -> tuple[INFRASTRUCTURE | None, int | None]:
+        """
+        Query for available infrastructures and allow user to select one or create new infrastructure.
+        
+        Returns:
+            tuple: (selected_infrastructure, selected_index) or (None, None) if no valid option
+        """
+        
+        print_info('Querying for available infrastructures...', blank_above = True)
+        
+        # Get all resource groups that match the infrastructure pattern
+        available_options = []
+        
+        for infra in self.supported_infrastructures:
+            infra_options = self._find_infrastructure_instances(infra)
+            available_options.extend(infra_options)
+        
+        # Check if the desired infrastructure/index combination exists
+        desired_rg_name = get_infra_rg_name(self.deployment, self._get_current_index())
+        desired_exists = any(
+            get_infra_rg_name(infra, idx) == desired_rg_name 
+            for infra, idx in available_options
+        )
+        
+        if desired_exists:
+            # Scenario 1: Desired infrastructure exists, use it directly
+            print_success(f'Found desired infrastructure: {self.deployment.value} with resource group {desired_rg_name}')
+            return self.deployment, self._get_current_index()
+        
+        # Sort available options by infrastructure type, then by index
+        available_options.sort(key = lambda x: (x[0].value, x[1] if x[1] is not None else 0))
+        
+        # Prepare display options
+        display_options = []
+        option_counter = 1
+        
+        # Add existing infrastructure options
+        if available_options:
+            print_info(f'Found {len(available_options)} existing infrastructure(s). You can select an existing or create a new one.')
+            print(f'\n     Select an EXISTING infrastructure:')
+            
+            for infra, index in available_options:
+                index_str = f' (index: {index})' if index is not None else ''
+                rg_name = get_infra_rg_name(infra, index)
+                print(f'     {option_counter}. {infra.value}{index_str} - Resource Group: {rg_name}')
+                display_options.append(('existing', infra, index))
+                option_counter += 1
+        else:
+            print_warning('No existing supported infrastructures found.')
+        
+        # Add option to create the desired infrastructure
+        desired_index_str = f' (index: {self._get_current_index()})' if self._get_current_index() is not None else ''
+        print(f'\n     Create a NEW infrastructure:')
+        print(f'     {option_counter}. {self.deployment.value}{desired_index_str} - Resource Group: {desired_rg_name}')
+        display_options.append(('create_new', self.deployment, self._get_current_index()))
+        
+        print('')
+        
+        # Get user selection
+        while True:
+            try:
+                if available_options:
+                    choice = input(f'Select infrastructure (1-{len(display_options)}) or press Enter to exit: ').strip()
+                else:
+                    choice = input(f'Create new infrastructure ({len(display_options)}) or press Enter to exit: ').strip()
+                
+                if not choice:
+                    print_warning('No infrastructure selected. Exiting.')
+                    return None, None
+                
+                choice_idx = int(choice) - 1
+                if 0 <= choice_idx < len(display_options):
+                    option_type, selected_infra, selected_index = display_options[choice_idx]
+                    
+                    if option_type == 'existing':
+                        print_success(f'Selected existing: {selected_infra.value}{" (index: " + str(selected_index) + ")" if selected_index is not None else ""}')
+                        return selected_infra, selected_index
+                    elif option_type == 'create_new':
+                        print_info(f'Creating new infrastructure: {selected_infra.value}{" (index: " + str(selected_index) + ")" if selected_index is not None else ""}')
+                        
+                        # Execute the infrastructure creation
+                        inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, APIM_SKU.BASICV2)
+                        success = inb_helper.create_infrastructure(True)  # Bypass infrastructure check to force creation
+
+                        if success:
+                            print_success(f'Successfully created infrastructure: {selected_infra.value}{" (index: " + str(selected_index) + ")" if selected_index is not None else ""}')
+                            return selected_infra, selected_index
+                        else:
+                            print_error('Failed to create infrastructure.')
+                            return None, None
+                else:
+                    print_error(f'Invalid choice. Please enter a number between 1 and {len(display_options)}.')
+                    
+            except ValueError:
+                print_error('Invalid input. Please enter a number.')
+            except KeyboardInterrupt:
+                print_warning('\nOperation cancelled by user.')
+                return None, None
+
+    def _find_infrastructure_instances(self, infrastructure: INFRASTRUCTURE) -> list[tuple[INFRASTRUCTURE, int | None]]:
+        """
+        Find all instances of a specific infrastructure type by querying Azure resource groups.
+        
+        Args:
+            infrastructure (INFRASTRUCTURE): The infrastructure type to search for.
+            
+        Returns:
+            list: List of tuples (infrastructure, index) for found instances.
+        """
+        
+        instances = []
+        
+        # Query Azure for resource groups with the infrastructure tag
+        query_cmd = f'az group list --tag infrastructure={infrastructure.value} --query "[].name" -o tsv'
+        output = run(query_cmd, print_command_to_run = False, print_errors = False)
+        
+        if output.success and output.text.strip():
+            rg_names = [name.strip() for name in output.text.strip().split('\n') if name.strip()]
+            
+            for rg_name in rg_names:
+                # Parse the resource group name to extract the index
+                # Expected format: apim-infra-{infrastructure}-{index} or apim-infra-{infrastructure}
+                prefix = f'apim-infra-{infrastructure.value}'
+                
+                if rg_name == prefix:
+                    # No index
+                    instances.append((infrastructure, None))
+                elif rg_name.startswith(prefix + '-'):
+                    # Has index
+                    try:
+                        index_str = rg_name[len(prefix + '-'):]
+                        index = int(index_str)
+                        instances.append((infrastructure, index))
+                    except ValueError:
+                        # Invalid index format, skip
+                        continue
+        
+        return instances
+
+    def deploy_sample(self, bicep_parameters: dict) -> Output:
+        # Check infrastructure availability and let user select or create
+        print("Checking infrastructure availability...")
+        print(f"Desired infrastructure : {self.deployment.value}")
+        print(f"Desired index          : {self.index}")
+        print(f"Desired resource group : {self.rg_name}")
+
+        # Call the resource group existence check only once
+        rg_exists = does_resource_group_exist(self.rg_name)
+        print(f"Resource group exists: {rg_exists}")
+
+        # If the desired infrastructure doesn't exist, use the interactive selection process
+        if not rg_exists:
+            print(f"\nDesired infrastructure does not exist. Querying for available options...")
+            
+            # Check if we've already done infrastructure selection (prevent double execution)
+            if 'infrastructure_selection_completed' not in globals():
+                # Use the NotebookHelper's infrastructure selection process
+                selected_deployment, selected_index = self._query_and_select_infrastructure()
+                
+                if selected_deployment is None:
+                    raise SystemExit(1)
+                
+                # Update the notebook helper with the selected infrastructure
+                self.deployment = selected_deployment
+                self.index = selected_index
+                self.rg_name = get_infra_rg_name(self.deployment, self.index)
+                
+                print(f"✅ Using infrastructure : {self.deployment.value}")
+                print(f"📦 Resource group       : {self.rg_name}")
+                
+                # Update the variables for the rest of the notebook
+                
+                # Verify the updates were applied correctly
+                print(f"📝 Updated variables    : deployment = {self.deployment.value}, index = {self.index}, rg_name = {self.rg_name}")
+            else:
+                print("✅ Infrastructure selection already completed in this session")
+        else:
+            print("\n✅ Desired infrastructure already exists, proceeding with sample deployment")
+
+        # Deploy the sample APIs to the selected infrastructure
+        print(f"\n🚀 Deploying sample APIs to infrastructure: {self.deployment.value}")
+        print(f"📦 Resource group: {self.rg_name}")
+
+        # Get the current sample directory
+        sample_dir = Path.cwd() if Path.cwd().name == self.sample_folder else Path(find_project_root()) / 'samples' / self.sample_folder
+        original_cwd = os.getcwd()
+
+        try:
+            # Change to sample directory
+            os.chdir(sample_dir)
+            print(f"📁 Changed working directory to: {sample_dir}")
+            
+            # Prepare deployment parameters
+            bicep_parameters_format = {
+                "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+                "contentVersion": "1.0.0.0",
+                "parameters": bicep_parameters
+            }
+            
+            # Write the parameters file
+            params_file_path = sample_dir / 'params.json'
+            with open(params_file_path, 'w') as file:
+                file.write(json.dumps(bicep_parameters_format))
+            
+            print(f"📝 Updated the bicep parameters file 'params.json'")
+            
+            # Run the deployment directly
+            main_bicep_path = sample_dir / 'main.bicep'
+            output = run(
+                f'az deployment group create --name {self.sample_folder} --resource-group {self.rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
+                f"Sample deployment '{self.sample_folder}' succeeded", 
+                f"Sample deployment '{self.sample_folder}' failed."
+            )
+            
+            return output
+        finally:
+            # Always restore the original working directory
+            os.chdir(original_cwd)
+            print(f"📁 Restored working directory to: {original_cwd}")
 
     def deploy_bicep(self, bicep_parameters: dict) -> Output:
         """
@@ -270,8 +562,20 @@ class NotebookHelper:
 
         # Infrastructure must be in place before samples can be layered on top
         if not does_resource_group_exist(self.rg_name):
-            print_error(f'The specified infrastructure resource group and its resources must exist first. Please check that the user-defined parameters above are correctly referencing an existing infrastructure. If it does not yet exist, run the desired infrastructure in the /infra/ folder first.')
-            raise SystemExit(1)
+            print_error(f'The specified infrastructure resource group and its resources must exist first.')
+            
+            # Query for available infrastructures and let user select
+            selected_deployment, selected_index = self._query_and_select_infrastructure()
+            
+            if selected_deployment is None:
+                print_error('No suitable infrastructure found. Please create the required infrastructure first.')
+                raise SystemExit(1)
+            
+            # Update the helper with the selected infrastructure and index
+            self.deployment = selected_deployment
+            self.rg_name = get_infra_rg_name(selected_deployment, selected_index)
+            print_success(f'Updated to use infrastructure: {selected_deployment.value} (index: {selected_index})')
+            print_val('New resource group name', self.rg_name)
 
         # Execute the deployment using the utility function that handles working directory management
         output = create_bicep_deployment_group_for_sample(self.sample_folder, self.rg_name, self.rg_location, bicep_parameters)
@@ -667,6 +971,32 @@ def create_resource_group(rg_name: str, resource_group_location: str | None = No
             f"Failed to create the resource group '{rg_name}'", 
             False, True, False, False)
 
+def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int) -> bool:
+    """
+    Check if a specific infrastructure exists by querying the resource group.
+
+    Args:
+        infrastructure (INFRASTRUCTURE): The infrastructure type to check.
+        index (int): index for multi-instance infrastructures.
+
+    Returns:
+        bool: True if the infrastructure exists, False otherwise.
+    """
+    
+    print(f"🔍 Checking if infrastructure already exists...")
+
+    rg_name = get_infra_rg_name(infrastructure, index)
+
+    if does_resource_group_exist(rg_name):
+        print(f"✅ Infrastructure already exists!\n")
+        print("ℹ️  To redeploy, either:")
+        print("     1. Use a different index number, or")
+        print("     2. Delete the existing resource group first using the clean-up notebook")
+        return True
+    else:
+        print("   Infrastructure does not yet exist.")    
+        return False
+
 def does_resource_group_exist(rg_name: str) -> bool:
     """
     Check if a resource group exists in Azure.
@@ -693,7 +1023,7 @@ def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str,
     """
 
     policy_xml_filepath = determine_policy_path(policy_xml_filepath, sample_name)
-    print(f"📄 Reading policy XML from  : {policy_xml_filepath}")
+    # print(f"📄 Reading policy XML from : {policy_xml_filepath}")  # debug
 
     # Read the specified policy XML file
     with open(policy_xml_filepath, 'r', encoding='utf-8') as policy_xml_file:
@@ -793,7 +1123,7 @@ def read_policy_xml(policy_xml_filepath_or_filename: str, named_values: dict[str
     """
     
     policy_xml_filepath = determine_policy_path(policy_xml_filepath_or_filename, sample_name)
-    print(f"📄 Reading policy XML from  : {policy_xml_filepath}")
+    # print(f"📄 Reading policy XML from : {policy_xml_filepath}")  # debug
 
     # Read the specified policy XML file
     with open(policy_xml_filepath, 'r', encoding='utf-8') as policy_xml_file:
@@ -1019,8 +1349,6 @@ def get_infra_rg_name(deployment_name: INFRASTRUCTURE, index: int | None = None)
 
     if index is not None:
         rg_name = f"{rg_name}-{str(index)}"
-
-    print_val("Resource group name", rg_name)
 
     return rg_name
 
