@@ -237,12 +237,24 @@ class InfrastructureNotebookHelper:
         import sys 
 
         if bypass_infrastructure_check or not does_infrastructure_exist(self.deployment, self.index):
+            # Map infrastructure types to their folder names
+            infra_folder_map = {
+                INFRASTRUCTURE.SIMPLE_APIM: 'simple-apim',
+                INFRASTRUCTURE.AFD_APIM_PE: 'afd-apim-pe', 
+                INFRASTRUCTURE.APIM_ACA: 'apim-aca'
+            }
+            
+            infra_folder = infra_folder_map.get(self.deployment)
+            if not infra_folder:
+                print(f"❌ Unsupported infrastructure type: {self.deployment.value}")
+                return False
+            
             # Build the command to call the infrastructure creation script
             cmd_args = [
                 sys.executable, 
-                os.path.join(find_project_root(), 'infrastructure', 'simple-apim', 'create_infrastructure.py'),
+                os.path.join(find_project_root(), 'infrastructure', infra_folder, 'create_infrastructure.py'),
                 '--location', self.rg_location,
-                '--sku', str(self.apim_sku),
+                '--sku', str(self.apim_sku.value),
                 '--index', str(self.index)
             ]
 
