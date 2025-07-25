@@ -42,7 +42,7 @@ def _create_simple_apim_infrastructure(
     print(f"\n🚀 Creating Simple APIM infrastructure...")
     print(f"    Location       : {rg_location}")
     print(f"    Index          : {index}")
-    print(f"    Infrastructure : {index}")
+    print(f"    Infrastructure : {deployment.value}")
     print(f"    APIM SKU       : {apim_sku.value}")
     print(f"    Resource Group : {rg_name}\n")
     
