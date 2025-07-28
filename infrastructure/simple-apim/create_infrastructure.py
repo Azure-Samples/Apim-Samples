@@ -34,7 +34,10 @@ def _create_simple_apim_infrastructure(
         utils.Output: The deployment result.
     """
     
-    # 1) Setup deployment parameters
+    # ------------------------------
+    #    SETUP DEPLOYMENT PARAMETERS
+    # ------------------------------
+    
     deployment = INFRASTRUCTURE.SIMPLE_APIM
     rg_name = utils.get_infra_rg_name(deployment, index)
     rg_tags = utils.build_infrastructure_tags(deployment)
@@ -46,7 +49,10 @@ def _create_simple_apim_infrastructure(
     print(f"    APIM SKU       : {apim_sku.value}")
     print(f"    Resource Group : {rg_name}\n")
     
-    # 2) Set up the policy fragments
+    # ------------------------------
+    #    CONFIGURE POLICY FRAGMENTS
+    # ------------------------------
+    
     if custom_policy_fragments is None:
         pfs: List[PolicyFragment] = [
             PolicyFragment('AuthZ-Match-All', utils.read_policy_xml(utils.determine_shared_policy_path('pf-authz-match-all.xml')), 'Authorizes if all of the specified roles match the JWT role claims.'),
@@ -58,7 +64,10 @@ def _create_simple_apim_infrastructure(
     else:
         pfs = custom_policy_fragments
     
-    # 3) Define the APIs
+    # ------------------------------
+    #    CONFIGURE APIs
+    # ------------------------------
+    
     if custom_apis is None:
         # Default Hello World API
         pol_hello_world = utils.read_policy_xml(HELLO_WORLD_XML_POLICY_PATH)
@@ -68,14 +77,18 @@ def _create_simple_apim_infrastructure(
     else:
         apis = custom_apis
     
-    # 4) Define the Bicep parameters with serialized APIs
+    # ------------------------------
+    #    PREPARE BICEP DEPLOYMENT
+    # ------------------------------
+    
+    # Define the Bicep parameters with serialized APIs
     bicep_parameters = {
-        'apimSku'               : {'value': apim_sku.value},
-        'apis'                  : {'value': [api.to_dict() for api in apis]},
-        'policyFragments'       : {'value': [pf.to_dict() for pf in pfs]}
+        'apimSku'         : {'value': apim_sku.value},
+        'apis'            : {'value': [api.to_dict() for api in apis]},
+        'policyFragments' : {'value': [pf.to_dict() for pf in pfs]}
     }
     
-    # 5) Change to the infrastructure directory to ensure bicep files are found
+    # Change to the infrastructure directory to ensure bicep files are found
     original_cwd = os.getcwd()
     infra_dir = Path(__file__).parent
     
@@ -83,7 +96,7 @@ def _create_simple_apim_infrastructure(
         os.chdir(infra_dir)
         print(f"📁 Changed working directory to: {infra_dir}")
         
-        # 6) Prepare deployment parameters and run directly to avoid path detection issues
+        # Prepare deployment parameters and run directly to avoid path detection issues
         bicep_parameters_format = {
             "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
             "contentVersion": "1.0.0.0",
@@ -98,6 +111,10 @@ def _create_simple_apim_infrastructure(
         
         print(f"📝 Updated the policy XML in the bicep parameters file 'params.json'")
         
+        # ------------------------------
+        #    EXECUTE DEPLOYMENT
+        # ------------------------------
+        
         # Create the resource group if it doesn't exist
         utils.create_resource_group(rg_name, rg_location, rg_tags)
         
@@ -109,7 +126,10 @@ def _create_simple_apim_infrastructure(
             f"Deployment '{deployment.value}' failed."
         )
         
-        # 7) Check the deployment results and perform verification
+        # ------------------------------
+        #    VERIFY DEPLOYMENT RESULTS
+        # ------------------------------
+        
         if output.success:
             print("\n✅ Infrastructure creation completed successfully!")
             if output.json_data:

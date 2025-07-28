@@ -27,11 +27,11 @@ from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE
 
 
 # Define ANSI escape code constants for clarity in the print commands below
-RESET   = "\x1b[0m"
-BOLD_B  = "\x1b[1;34m"   # blue
-BOLD_R  = "\x1b[1;31m"   # red
-BOLD_G  = "\x1b[1;32m"   # green
-BOLD_Y  = "\x1b[1;33m"   # yellow
+BOLD_B = "\x1b[1;34m"   # blue
+BOLD_G = "\x1b[1;32m"   # green
+BOLD_R = "\x1b[1;31m"   # red
+BOLD_Y = "\x1b[1;33m"   # yellow
+RESET  = "\x1b[0m"
 
 CONSOLE_WIDTH = 175
 
@@ -227,13 +227,41 @@ class InfrastructureNotebookHelper:
     Provides methods to execute infrastructure creation notebooks and handle outputs.
     """
 
+    # ------------------------------
+    #    CONSTRUCTOR
+    # ------------------------------
+
     def __init__(self, rg_location: str, deployment: INFRASTRUCTURE, index: int, apim_sku: APIM_SKU):
+        """
+        Initialize the InfrastructureNotebookHelper.
+        
+        Args:
+            rg_location (str): Azure region for deployment.
+            deployment (INFRASTRUCTURE): Infrastructure type to deploy.
+            index (int): Index for multi-instance deployments.
+            apim_sku (APIM_SKU): SKU for API Management service.
+        """
+
         self.rg_location = rg_location
         self.deployment = deployment
         self.index = index
         self.apim_sku = apim_sku
 
+    # ------------------------------
+    #    PUBLIC METHODS
+    # ------------------------------
+
     def create_infrastructure(self, bypass_infrastructure_check: bool = False) -> bool:
+        """
+        Create infrastructure by executing the appropriate creation script.
+        
+        Args:
+            bypass_infrastructure_check (bool): Skip infrastructure existence check. Defaults to False.
+            
+        Returns:
+            bool: True if infrastructure creation succeeded, False otherwise.
+        """
+
         import sys 
 
         if bypass_infrastructure_check or not does_infrastructure_exist(self.deployment, self.index):
@@ -273,16 +301,30 @@ class InfrastructureNotebookHelper:
             process.wait()
 
             return process.returncode == 0
+
+        return True
         
 class NotebookHelper:
+    """
+    Helper class for managing sample notebook deployments and infrastructure interaction.
+    """
+
+    # ------------------------------
+    #    CONSTRUCTOR
+    # ------------------------------
+
     def __init__(self, sample_folder: str, rg_name: str, rg_location: str, deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE], use_jwt: bool = False, index: int = 1):
         """
-        Initialize the NotebookHelper with a name and resource group.
+        Initialize the NotebookHelper with sample configuration and infrastructure details.
         
         Args:
             sample_folder (str): The name of the sample folder.
             rg_name (str): The name of the resource group associated with the notebook.
             rg_location (str): The Azure region for deployment.
+            deployment (INFRASTRUCTURE): The infrastructure type to use.
+            supported_infrastructures (list[INFRASTRUCTURE]): List of supported infrastructure types.
+            use_jwt (bool): Whether to generate JWT tokens. Defaults to False.
+            index (int): Index for multi-instance deployments. Defaults to 1.
         """
 
         self.sample_folder = sample_folder
@@ -298,7 +340,13 @@ class NotebookHelper:
         if use_jwt:
             self._create_jwt()
 
+    # ------------------------------
+    #    PRIVATE METHODS
+    # ------------------------------
+
     def _create_jwt(self) -> None:
+        """Create JWT signing key and values for the sample."""
+
         # Set up the signing key for the JWT policy
         self.jwt_key_name = f'JwtSigningKey-{self.sample_folder}-{int(time.time())}'
         self.jwt_key_value, self.jwt_key_value_bytes_b64 = generate_signing_key()
@@ -312,20 +360,24 @@ class NotebookHelper:
         Returns:
             int | None: The index if it exists, None otherwise.
         """
+
         prefix = f'apim-infra-{self.deployment.value}'
         
         if self.rg_name == prefix:
             return None
-        elif self.rg_name.startswith(prefix + '-'):
+        elif self.rg_name.startswith(f'{prefix}-'):
             try:
-                index_str = self.rg_name[len(prefix + '-'):]
+                index_str = self.rg_name[len(f'{prefix}-'):]
                 return int(index_str)
             except ValueError:
                 return None
+
         return None
 
     def _clean_up_jwt(self, apim_name: str) -> None:
-        # 5) Clean up old JWT signing keys after successful deployment
+        """Clean up old JWT signing keys after successful deployment."""
+
+        # Clean up old JWT signing keys after successful deployment
         if not cleanup_old_jwt_signing_keys(apim_name, self.rg_name, self.jwt_key_name):
             print_warning('JWT key cleanup failed, but deployment was successful. Old keys may need manual cleanup.')
 
@@ -468,7 +520,21 @@ class NotebookHelper:
         
         return instances
 
+    # ------------------------------
+    #    PUBLIC METHODS
+    # ------------------------------
+
     def deploy_sample(self, bicep_parameters: dict) -> Output:
+        """
+        Deploy a sample with infrastructure auto-detection and selection.
+        
+        Args:
+            bicep_parameters (dict): Parameters for the Bicep template deployment.
+            
+        Returns:
+            Output: The deployment result.
+        """
+
         # Check infrastructure availability and let user select or create
         print("Checking infrastructure availability...")
         print(f"Desired infrastructure : {self.deployment.value}")
@@ -498,8 +564,6 @@ class NotebookHelper:
                 
                 print(f"✅ Using infrastructure : {self.deployment.value}")
                 print(f"📦 Resource group       : {self.rg_name}")
-                
-                # Update the variables for the rest of the notebook
                 
                 # Verify the updates were applied correctly
                 print(f"📝 Updated variables    : deployment = {self.deployment.value}, index = {self.index}, rg_name = {self.rg_name}")
@@ -551,13 +615,13 @@ class NotebookHelper:
 
     def deploy_bicep(self, bicep_parameters: dict) -> Output:
         """
-        Deploy a Bicep template for the sample.
+        Deploy a Bicep template for the sample with infrastructure auto-detection.
         
         Args:
             bicep_parameters (dict): Parameters for the Bicep template.
             
         Returns:
-            Object: The deployment's output object
+            Output: The deployment's output object.
         """
 
         # Infrastructure must be in place before samples can be layered on top
@@ -1339,7 +1403,7 @@ def get_infra_rg_name(deployment_name: INFRASTRUCTURE, index: int | None = None)
 
     Args:
         deployment_name (INFRASTRUCTURE): The infrastructure deployment enum value.
-        index (int, optional): An optional index to append to the name.
+        index (int | None): An optional index to append to the name. Defaults to None.
 
     Returns:
         str: The generated resource group name.
@@ -1348,7 +1412,7 @@ def get_infra_rg_name(deployment_name: INFRASTRUCTURE, index: int | None = None)
     rg_name = f"apim-infra-{deployment_name.value}"
 
     if index is not None:
-        rg_name = f"{rg_name}-{str(index)}"
+        rg_name = f"{rg_name}-{index}"
 
     return rg_name
 
@@ -1445,18 +1509,19 @@ validate_sku            = lambda val: APIM_SKU(val)
 
 def validate_infrastructure(infra: INFRASTRUCTURE, supported_infras: list[INFRASTRUCTURE]) -> None:
     """
-    Validate that the provided infrastructure is a supported infrastructure.
+    Validate that the provided infrastructure is supported.
 
     Args:
         infra (INFRASTRUCTURE): The infrastructure deployment enum value.
-        supported_infras (list[INFRASTRUCTURE]): List of supported infrastructures.
+        supported_infras (list[INFRASTRUCTURE]): List of supported infrastructure types.
 
     Raises:
         ValueError: If the infrastructure is not supported.
     """
 
     if infra not in supported_infras:
-        raise ValueError(f"Unsupported infrastructure: {infra}. Supported infrastructures are: {', '.join([i.value for i in supported_infras])}")
+        supported_names = ', '.join([i.value for i in supported_infras])
+        raise ValueError(f"Unsupported infrastructure: {infra}. Supported infrastructures are: {supported_names}")
     
 def generate_signing_key() -> tuple[str, str]:
     """
