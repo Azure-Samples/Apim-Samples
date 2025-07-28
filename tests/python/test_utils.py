@@ -1070,6 +1070,8 @@ def test_query_and_select_infrastructure_no_options(monkeypatch):
     monkeypatch.setattr(nb_helper, '_find_infrastructure_instances', lambda x: [])
     monkeypatch.setattr(utils, 'print_info', lambda *args, **kwargs: None)
     monkeypatch.setattr(utils, 'print_warning', lambda *args, **kwargs: None)
+    # Mock input to return empty string (simulating user pressing Enter to exit)
+    monkeypatch.setattr('builtins.input', lambda prompt: '')
     
     result = nb_helper._query_and_select_infrastructure()
     assert result == (None, None)
