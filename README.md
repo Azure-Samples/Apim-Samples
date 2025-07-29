@@ -38,7 +38,7 @@ _Try it out, learn from it, apply it in your setups._
 
 ---
 
-## 🚀 Getting Started
+## 🏗️ Infrastructure Setup
 
 ### Quick Start Options
 
@@ -159,11 +159,13 @@ For detailed troubleshooting of setup issues, see [Import Troubleshooting Guide]
 
 📘 **For comprehensive troubleshooting including deployment errors, authentication issues, and more, see our main [Troubleshooting Guide](TROUBLESHOOTING.md).**
 
-### ▶️ Running a Sample
+## 🚀 Running a Sample
 
-1. Locate the specific sample's `create.ipynb` file and adjust the parameters under the `User-defined Parameters` header as you see fit.
-1. Ensure that the specified infrastructure already exists in your subscription. If not, proceed to the desired infrastructure folder and execute its `create.ipynb` file. Wait until this completes before continuing.
-1. Execute the sample's `create.ipynb` file.
+1. Open the desired sample's `create.ipynb` file.
+1. Optional: Adjust the parameters under the `User-defined Parameters` header, if desired.
+1. Execute the `create.ipynb` Jupyter notebook via `Run All`.
+
+> A supported infrastructure does not yet need to exist before the sample is executed. The notebook will determine the current state and present you with options to create or select a supported infrastructure, if necessary.
 
 Now that infrastructure and sample have been stood up, you can experiment with the policies, make requests against APIM, etc.
 
