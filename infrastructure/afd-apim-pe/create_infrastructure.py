@@ -72,22 +72,22 @@ def _create_afd_apim_pe_infrastructure(
         
         # If Container Apps is enabled, create the ACA APIs in APIM
         if use_aca:
-            pol_backend = utils.read_policy_xml(BACKEND_XML_POLICY_PATH)
-            pol_aca_backend_1 = pol_backend.format(backend_id = 'aca-backend-1')
-            pol_aca_backend_2 = pol_backend.format(backend_id = 'aca-backend-2')
+            pol_backend          = utils.read_policy_xml(BACKEND_XML_POLICY_PATH)
+            pol_aca_backend_1    = pol_backend.format(backend_id = 'aca-backend-1')
+            pol_aca_backend_2    = pol_backend.format(backend_id = 'aca-backend-2')
             pol_aca_backend_pool = pol_backend.format(backend_id = 'aca-backend-pool')
 
-            # Hello World (ACA Backend 1)
+            # API 1: Hello World (ACA Backend 1)
             api_hwaca_1_get = GET_APIOperation('This is a GET for Hello World on ACA Backend 1')
-            api_hwaca_1 = API('hello-world-aca-1', 'Hello World (ACA 1)', '/aca-1', 'This is the ACA API for Backend 1', policyXml = pol_aca_backend_1, operations = [api_hwaca_1_get])
+            api_hwaca_1     = API('hello-world-aca-1', 'Hello World (ACA 1)', '/aca-1', 'This is the ACA API for Backend 1', pol_aca_backend_1, [api_hwaca_1_get])
 
-            # Hello World (ACA Backend 2)
+            # API 2: Hello World (ACA Backend 2)
             api_hwaca_2_get = GET_APIOperation('This is a GET for Hello World on ACA Backend 2')
-            api_hwaca_2 = API('hello-world-aca-2', 'Hello World (ACA 2)', '/aca-2', 'This is the ACA API for Backend 2', policyXml = pol_aca_backend_2, operations = [api_hwaca_2_get])
+            api_hwaca_2     = API('hello-world-aca-2', 'Hello World (ACA 2)', '/aca-2', 'This is the ACA API for Backend 2', pol_aca_backend_2, [api_hwaca_2_get])
 
-            # Hello World (ACA Backend Pool)
+            # API 3: Hello World (ACA Backend Pool)
             api_hwaca_pool_get = GET_APIOperation('This is a GET for Hello World on ACA Backend Pool')
-            api_hwaca_pool = API('hello-world-aca-pool', 'Hello World (ACA Pool)', '/aca-pool', 'This is the ACA API for Backend Pool', policyXml = pol_aca_backend_pool, operations = [api_hwaca_pool_get])
+            api_hwaca_pool     = API('hello-world-aca-pool', 'Hello World (ACA Pool)', '/aca-pool', 'This is the ACA API for Backend Pool', pol_aca_backend_pool, [api_hwaca_pool_get])
 
             # Add ACA APIs to the existing apis array
             apis += [api_hwaca_1, api_hwaca_2, api_hwaca_pool]
@@ -96,11 +96,11 @@ def _create_afd_apim_pe_infrastructure(
     
     # 4) Define the Bicep parameters with serialized APIs
     bicep_parameters = {
-        'apimSku'               : {'value': apim_sku.value},
-        'apis'                  : {'value': [api.to_dict() for api in apis]},
-        'policyFragments'       : {'value': [pf.to_dict() for pf in pfs]},
-        'apimPublicAccess'      : {'value': apim_network_mode in [APIMNetworkMode.PUBLIC, APIMNetworkMode.EXTERNAL_VNET]},
-        'useACA'                : {'value': use_aca}
+        'apimSku'          : {'value': apim_sku.value},
+        'apis'             : {'value': [api.to_dict() for api in apis]},
+        'policyFragments'  : {'value': [pf.to_dict() for pf in pfs]},
+        'apimPublicAccess' : {'value': apim_network_mode in [APIMNetworkMode.PUBLIC, APIMNetworkMode.EXTERNAL_VNET]},
+        'useACA'           : {'value': use_aca}
     }
     
     # 5) Change to the infrastructure directory to ensure bicep files are found

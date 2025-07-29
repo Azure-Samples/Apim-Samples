@@ -34,10 +34,7 @@ def _create_simple_apim_infrastructure(
         utils.Output: The deployment result.
     """
     
-    # ------------------------------
-    #    SETUP DEPLOYMENT PARAMETERS
-    # ------------------------------
-    
+    # 1) Setup deployment parameters
     deployment = INFRASTRUCTURE.SIMPLE_APIM
     rg_name = utils.get_infra_rg_name(deployment, index)
     rg_tags = utils.build_infrastructure_tags(deployment)
@@ -49,10 +46,7 @@ def _create_simple_apim_infrastructure(
     print(f"    APIM SKU       : {apim_sku.value}")
     print(f"    Resource Group : {rg_name}\n")
     
-    # ------------------------------
-    #    CONFIGURE POLICY FRAGMENTS
-    # ------------------------------
-    
+    # 2) Set up the policy fragments
     if custom_policy_fragments is None:
         pfs: List[PolicyFragment] = [
             PolicyFragment('AuthZ-Match-All', utils.read_policy_xml(utils.determine_shared_policy_path('pf-authz-match-all.xml')), 'Authorizes if all of the specified roles match the JWT role claims.'),
@@ -64,10 +58,7 @@ def _create_simple_apim_infrastructure(
     else:
         pfs = custom_policy_fragments
     
-    # ------------------------------
-    #    CONFIGURE APIs
-    # ------------------------------
-    
+    # 3) Define the APIs
     if custom_apis is None:
         # Default Hello World API
         pol_hello_world = utils.read_policy_xml(HELLO_WORLD_XML_POLICY_PATH)
@@ -77,10 +68,7 @@ def _create_simple_apim_infrastructure(
     else:
         apis = custom_apis
     
-    # ------------------------------
-    #    PREPARE BICEP DEPLOYMENT
-    # ------------------------------
-    
+    # 4) Define the Bicep parameters with serialized APIs
     # Define the Bicep parameters with serialized APIs
     bicep_parameters = {
         'apimSku'         : {'value': apim_sku.value},
