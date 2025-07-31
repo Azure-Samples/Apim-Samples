@@ -17,11 +17,11 @@ class UserName(StrEnum):
     Predefined user names for testing purposes.
     """
 
-    DYLAN_WILLIAMS = "Dylan Williams"
-    ELIZABETH_MOORE = "Elizabeth Moore"
-    MARIO_ROGERS = "Mario Rogers"
-    ELLIS_TURNER = "Ellis Turner"
-    HARRY_SMITH = "Harry Smith"
+    DYLAN_WILLIAMS = 'Dylan Williams'
+    ELIZABETH_MOORE = 'Elizabeth Moore'
+    MARIO_ROGERS = 'Mario Rogers'
+    ELLIS_TURNER = 'Ellis Turner'
+    HARRY_SMITH = 'Harry Smith'
 
 
 class User:
@@ -82,7 +82,7 @@ class UserHelper:
     # ------------------------------
 
     @staticmethod
-    def get_user(username: "str | UserName") -> "User | None":
+    def get_user(username: 'str | UserName') -> 'User | None':
         """
         Retrieves a user by their username (string or UserName enum).
 
@@ -93,12 +93,12 @@ class UserHelper:
             User | None: The user if found, otherwise None.
         """
 
-        name = username.value if hasattr(username, "value") else username
+        name = username.value if hasattr(username, 'value') else username
 
         return next((user for user in Users if user.name == name), None)
 
     @staticmethod
-    def get_user_by_role(role_or_roles: str | list[str]) -> "User | None":
+    def get_user_by_role(role_or_roles: str | list[str]) -> 'User | None':
         """
         Retrieves a random user who has any of the specified roles.
 

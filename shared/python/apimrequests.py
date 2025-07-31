@@ -90,8 +90,12 @@ class ApimRequests:
             if msg:
                 utils.print_message(msg, blank_above = True)
 
+            # Ensure path has a leading slash
+            if not path.startswith('/'):
+                path = '/' + path
+            
             url = self.url + path
-            utils.print_info(f"{method.value} {url}")
+            utils.print_info(f'{method.value} {url}')
 
             merged_headers = self.headers.copy()
 
@@ -115,7 +119,7 @@ class ApimRequests:
             return responseBody
 
         except requests.exceptions.RequestException as e:
-            utils.print_error(f"Error making request: {e}")
+            utils.print_error(f'Error making request: {e}')
             return None
         
     def _multiRequest(self, method: HTTP_VERB, path: str, runs: int, headers: list[any] = None, data: any = None, msg: str | None = None, printResponse: bool = True, sleepMs: int | None = None) -> list[dict[str, Any]]:
@@ -144,16 +148,20 @@ class ApimRequests:
             if msg:
                 utils.print_message(msg, blank_above = True)
         
+            # Ensure path has a leading slash
+            if not path.startswith('/'):
+                path = '/' + path
+            
             url = self.url + path
-            utils.print_info(f"{method.value} {url}")
+            utils.print_info(f'{method.value} {url}')
 
             for i in range(runs):
-                utils.print_info(f"▶️ Run {i + 1}/{runs}:")
+                utils.print_info(f'▶️ Run {i + 1}/{runs}:')
 
                 start_time = time.time()
                 response = session.request(method.value, url, json = data)
                 response_time = time.time() - start_time
-                utils.print_info(f"⌚ {response_time:.2f} seconds")
+                utils.print_info(f'⌚ {response_time:.2f} seconds')
 
                 self._print_response_code(response)
 
@@ -165,10 +173,10 @@ class ApimRequests:
                     resp_data = response.text
 
                 api_runs.append({
-                    "run": i + 1,
-                    "response": resp_data,
-                    "status_code": response.status_code,
-                    "response_time": response_time
+                    'run': i + 1,
+                    'response': resp_data,
+                    'status_code': response.status_code,
+                    'response_time': response_time
                 })
 
                 if sleepMs is not None:
@@ -187,16 +195,16 @@ class ApimRequests:
         """
 
         self._print_response_code(response)
-        utils.print_val("Response headers", response.headers, True)
+        utils.print_val('Response headers', response.headers, True)
 
         if response.status_code == 200:
             try:
                 data = json.loads(response.text)
-                utils.print_val("Response body", json.dumps(data, indent = 4), True)
+                utils.print_val('Response body', json.dumps(data, indent = 4), True)
             except Exception:
-                utils.print_val("Response body", response.text, True)
+                utils.print_val('Response body', response.text, True)
         else:
-            utils.print_val("Response body", response.text, True)
+            utils.print_val('Response body', response.text, True)
 
     def _print_response_code(self, response) -> None:
         """
@@ -204,13 +212,13 @@ class ApimRequests:
         """
 
         if 200 <= response.status_code < 300:
-            status_code_str = f"{utils.BOLD_G}{response.status_code} - {response.reason}{utils.RESET}"
+            status_code_str = f'{utils.BOLD_G}{response.status_code} - {response.reason}{utils.RESET}'
         elif response.status_code >= 400:
-            status_code_str = f"{utils.BOLD_R}{response.status_code} - {response.reason}{utils.RESET}"
+            status_code_str = f'{utils.BOLD_R}{response.status_code} - {response.reason}{utils.RESET}'
         else:
             status_code_str = str(response.status_code)
 
-        utils.print_val("Response status", status_code_str)
+        utils.print_val('Response status', status_code_str)
 
     def _poll_async_operation(self, location_url: str, headers: dict = None, timeout: int = 60, poll_interval: int = 2) -> requests.Response | None:
         """
@@ -231,23 +239,23 @@ class ApimRequests:
             try:
                 response = requests.get(location_url, headers=headers or {})
                 
-                utils.print_info(f"Polling operation - Status: {response.status_code}")
+                utils.print_info(f'Polling operation - Status: {response.status_code}')
                 
                 if response.status_code == 200:
-                    utils.print_ok("Async operation completed successfully!")
+                    utils.print_ok('Async operation completed successfully!')
                     return response
                 elif response.status_code == 202:
-                    utils.print_info(f"Operation still in progress, waiting {poll_interval} seconds...")
+                    utils.print_info(f'Operation still in progress, waiting {poll_interval} seconds...')
                     time.sleep(poll_interval)
                 else:
-                    utils.print_error(f"Unexpected status code during polling: {response.status_code}")
+                    utils.print_error(f'Unexpected status code during polling: {response.status_code}')
                     return response
                     
             except requests.exceptions.RequestException as e:
-                utils.print_error(f"Error polling operation: {e}")
+                utils.print_error(f'Error polling operation: {e}')
                 return None
         
-        utils.print_error(f"Async operation timeout reached after {timeout} seconds")
+        utils.print_error(f'Async operation timeout reached after {timeout} seconds')
         return None
 
     # ------------------------------
@@ -324,8 +332,12 @@ class ApimRequests:
             if msg:
                 utils.print_message(msg, blank_above = True)
     
+            # Ensure path has a leading slash
+            if not path.startswith('/'):
+                path = '/' + path
+            
             url = self.url + path
-            utils.print_info(f"POST {url}")
+            utils.print_info(f'POST {url}')
     
             merged_headers = self.headers.copy()
     
@@ -335,12 +347,12 @@ class ApimRequests:
             # Make the initial async request
             response = requests.request(HTTP_VERB.POST.value, url, headers = merged_headers, json = data)
             
-            utils.print_info(f"Initial response status: {response.status_code}")
+            utils.print_info(f'Initial response status: {response.status_code}')
             
             if response.status_code == 202:  # Accepted - async operation started
                 location_header = response.headers.get('Location')
                 if location_header:
-                    utils.print_info(f"Found Location header: {location_header}")
+                    utils.print_info(f'Found Location header: {location_header}')
                     
                     # Poll the location URL until completion
                     final_response = self._poll_async_operation(
@@ -364,10 +376,10 @@ class ApimRequests:
     
                         return responseBody
                     else:
-                        utils.print_error("Async operation failed or timed out")
+                        utils.print_error('Async operation failed or timed out')
                         return None
                 else:
-                    utils.print_error("No Location header found in 202 response")
+                    utils.print_error('No Location header found in 202 response')
                     if printResponse:
                         self._print_response(response)
                     return None
@@ -387,7 +399,7 @@ class ApimRequests:
                 return responseBody
     
         except requests.exceptions.RequestException as e:
-            utils.print_error(f"Error making request: {e}")
+            utils.print_error(f'Error making request: {e}')
             return None
     
     

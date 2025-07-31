@@ -78,21 +78,21 @@ class Role:
     Predefined roles and their GUIDs (mocked for testing purposes).
     """
 
-    NONE                = "00000000-0000-0000-0000-000000000000"  # No role assigned
-    HR_MEMBER           = "316790bc-fbd3-4a14-8867-d1388ffbc195"
-    HR_ASSOCIATE        = "d3c1b0f2-4a5e-4c8b-9f6d-7c8e1f2a3b4c"
-    HR_ADMINISTRATOR    = "a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6"
-    MARKETING_MEMBER    = "b2c3d4e5-f6g7-8h9i-0j1k-2l3m4n5o6p7q"
+    NONE                = '00000000-0000-0000-0000-000000000000'  # No role assigned
+    HR_MEMBER           = '316790bc-fbd3-4a14-8867-d1388ffbc195'
+    HR_ASSOCIATE        = 'd3c1b0f2-4a5e-4c8b-9f6d-7c8e1f2a3b4c'
+    HR_ADMINISTRATOR    = 'a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6'
+    MARKETING_MEMBER    = 'b2c3d4e5-f6g7-8h9i-0j1k-2l3m4n5o6p7q'
 
 class APIMNetworkMode(StrEnum):
     """
     Networking configuration modes for Azure API Management (APIM).
     """
 
-    PUBLIC        = "Public"    # APIM is accessible from the public internet
-    EXTERNAL_VNET = "External"  # APIM is deployed in a VNet with external (public) access
-    INTERNAL_VNET = "Internal"  # APIM is deployed in a VNet with only internal (private) access
-    NONE          = "None"      # No explicit network configuration (legacy or default)
+    PUBLIC        = 'Public'    # APIM is accessible from the public internet
+    EXTERNAL_VNET = 'External'  # APIM is deployed in a VNet with external (public) access
+    INTERNAL_VNET = 'Internal'  # APIM is deployed in a VNet with only internal (private) access
+    NONE          = 'None'      # No explicit network configuration (legacy or default)
 
 
 class APIM_SKU(StrEnum):
@@ -100,13 +100,13 @@ class APIM_SKU(StrEnum):
     APIM SKU types.
     """
 
-    DEVELOPER  = "Developer"
-    BASIC      = "Basic"
-    STANDARD   = "Standard"
-    PREMIUM    = "Premium"
-    BASICV2    = "Basicv2"
-    STANDARDV2 = "Standardv2"
-    PREMIUMV2  = "Premiumv2"
+    DEVELOPER  = 'Developer'
+    BASIC      = 'Basic'
+    STANDARD   = 'Standard'
+    PREMIUM    = 'Premium'
+    BASICV2    = 'Basicv2'
+    STANDARDV2 = 'Standardv2'
+    PREMIUMV2  = 'Premiumv2'
 
 
 class HTTP_VERB(StrEnum):
@@ -114,13 +114,13 @@ class HTTP_VERB(StrEnum):
     HTTP verbs that can be used for API operations.
     """
 
-    GET     = "GET"
-    POST    = "POST"
-    PUT     = "PUT"
-    DELETE  = "DELETE"
-    PATCH   = "PATCH"
-    OPTIONS = "OPTIONS"
-    HEAD    = "HEAD"
+    GET     = 'GET'
+    POST    = 'POST'
+    PUT     = 'PUT'
+    DELETE  = 'DELETE'
+    PATCH   = 'PATCH'
+    OPTIONS = 'OPTIONS'
+    HEAD    = 'HEAD'
 
 
 class INFRASTRUCTURE(StrEnum):
@@ -128,9 +128,9 @@ class INFRASTRUCTURE(StrEnum):
     Infrastructure types for APIM automation scenarios.
     """
 
-    SIMPLE_APIM  = "simple-apim"   # Simple API Management with no dependencies
-    APIM_ACA     = "apim-aca"      # Azure API Management connected to Azure Container Apps
-    AFD_APIM_PE  = "afd-apim-pe"   # Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
+    SIMPLE_APIM  = 'simple-apim'   # Simple API Management with no dependencies
+    APIM_ACA     = 'apim-aca'      # Azure API Management connected to Azure Container Apps
+    AFD_APIM_PE  = 'afd-apim-pe'   # Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
 
 
 # ------------------------------
@@ -177,16 +177,16 @@ class API:
 
     def to_dict(self) -> dict:
         return {
-            "name": self.name,
-            "displayName": self.displayName,
-            "path": self.path,
-            "description": self.description,
-            "operations": [op.to_dict() for op in self.operations] if self.operations else [],
-            "serviceUrl": self.serviceUrl,
-            "subscriptionRequired": self.subscriptionRequired,
-            "policyXml": self.policyXml,
-            "tags": self.tags,
-            "productNames": self.productNames
+            'name': self.name,
+            'displayName': self.displayName,
+            'path': self.path,
+            'description': self.description,
+            'operations': [op.to_dict() for op in self.operations] if self.operations else [],
+            'serviceUrl': self.serviceUrl,
+            'subscriptionRequired': self.subscriptionRequired,
+            'policyXml': self.policyXml,
+            'tags': self.tags,
+            'productNames': self.productNames
         }
 
 
@@ -213,7 +213,7 @@ class APIOperation:
             try:
                 method = HTTP_VERB(method).value
             except Exception:
-                raise ValueError(f"Invalid HTTP_VERB: {method}")
+                raise ValueError(f'Invalid HTTP_VERB: {method}')
 
         self.name = name
         self.displayName = displayName
@@ -229,13 +229,13 @@ class APIOperation:
     
     def to_dict(self) -> dict:
         return {
-            "name": self.name,
-            "displayName": self.displayName,
-            "urlTemplate": self.urlTemplate,
-            "description": self.description,
-            "method": self.method,
-            "policyXml": self.policyXml,
-            "templateParameters": self.templateParameters
+            'name': self.name,
+            'displayName': self.displayName,
+            'urlTemplate': self.urlTemplate,
+            'description': self.description,
+            'method': self.method,
+            'policyXml': self.policyXml,
+            'templateParameters': self.templateParameters
         }
 
 
@@ -307,9 +307,9 @@ class NamedValue:
 
     def to_dict(self) -> dict:
         nv_dict = {
-            "name": self.name,
-            "value": self.value,
-            "isSecret": self.isSecret
+            'name': self.name,
+            'value': self.value,
+            'isSecret': self.isSecret
         }
 
         return nv_dict
@@ -341,9 +341,9 @@ class PolicyFragment:
 
     def to_dict(self) -> dict:
         pf_dict = {
-            "name": self.name,
-            "policyXml": self.policyXml,
-            "description": self.description 
+            'name': self.name,
+            'policyXml': self.policyXml,
+            'description': self.description 
         }
 
         return pf_dict
@@ -405,15 +405,15 @@ class Product:
 
     def to_dict(self) -> dict:
         product_dict = {
-            "name": self.name,
-            "displayName": self.displayName,
-            "description": self.description,
-            "state": self.state,
-            "subscriptionRequired": self.subscriptionRequired,
-            "approvalRequired": self.approvalRequired
+            'name': self.name,
+            'displayName': self.displayName,
+            'description': self.description,
+            'state': self.state,
+            'subscriptionRequired': self.subscriptionRequired,
+            'approvalRequired': self.approvalRequired
         }
 
         if self.policyXml is not None:
-            product_dict["policyXml"] = self.policyXml
+            product_dict['policyXml'] = self.policyXml
 
         return product_dict

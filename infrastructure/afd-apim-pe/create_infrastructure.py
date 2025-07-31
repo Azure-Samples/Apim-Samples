@@ -42,13 +42,13 @@ def _create_afd_apim_pe_infrastructure(
     rg_tags = utils.build_infrastructure_tags(deployment)
     apim_network_mode = APIMNetworkMode.EXTERNAL_VNET
 
-    print(f"\n🚀 Creating AFD-APIM-PE infrastructure...")
-    print(f"    Location       : {rg_location}")
-    print(f"    Index          : {index}")
-    print(f"    Infrastructure : {deployment.value}")
-    print(f"    APIM SKU       : {apim_sku.value}")
-    print(f"    Use ACA        : {use_aca}")
-    print(f"    Resource Group : {rg_name}\n")
+    print(f'\n🚀 Creating AFD-APIM-PE infrastructure...')
+    print(f'    Location       : {rg_location}')
+    print(f'    Index          : {index}')
+    print(f'    Infrastructure : {deployment.value}')
+    print(f'    APIM SKU       : {apim_sku.value}')
+    print(f'    Use ACA        : {use_aca}')
+    print(f'    Resource Group : {rg_name}\n')
     
     # 2) Set up the policy fragments
     if custom_policy_fragments is None:
@@ -109,62 +109,62 @@ def _create_afd_apim_pe_infrastructure(
     
     try:
         os.chdir(infra_dir)
-        print(f"📁 Changed working directory to: {infra_dir}")
+        print(f'📁 Changed working directory to: {infra_dir}')
         
         # 6) Create the resource group if it doesn't exist
         utils.create_resource_group(rg_name, rg_location, rg_tags)
         
         # 7) First deployment with public access enabled
-        print("\n🚀 Phase 1: Creating infrastructure with public access enabled...")
+        print('\n🚀 Phase 1: Creating infrastructure with public access enabled...')
         output = utils.create_bicep_deployment_group(rg_name, rg_location, deployment, bicep_parameters)
         
         if not output.success:
-            print("❌ Phase 1 deployment failed!")
+            print('❌ Phase 1 deployment failed!')
             return output
             
         # Extract service details for private link approval
         if output.json_data:
             apim_service_id = output.get('apimServiceId', 'APIM Service Id', suppress_logging = True)
             
-            print("✅ Phase 1 deployment completed successfully!")
+            print('✅ Phase 1 deployment completed successfully!')
             
             # 8) Approve private link connections
-            print("\n🔗 Approving Front Door private link connections...")
+            print('\n🔗 Approving Front Door private link connections...')
             _approve_private_link_connections(apim_service_id)
             
             # 9) Second deployment to disable public access
-            print("\n🔒 Phase 2: Disabling APIM public access...")
+            print('\n🔒 Phase 2: Disabling APIM public access...')
             bicep_parameters['apimPublicAccess']['value'] = False
             
             output = utils.create_bicep_deployment_group(rg_name, rg_location, deployment, bicep_parameters)
             
             if output.success:
-                print("\n✅ Infrastructure creation completed successfully!")
+                print('\n✅ Infrastructure creation completed successfully!')
                 if output.json_data:
                     apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM API Gateway URL', suppress_logging = True)
                     afd_endpoint_url = output.get('fdeSecureUrl', 'Front Door Endpoint URL', suppress_logging = True)
                     apim_apis = output.getJson('apiOutputs', 'APIs', suppress_logging = True)
                     
-                    print(f"\n📋 Infrastructure Details:")
-                    print(f"   Resource Group     : {rg_name}")
-                    print(f"   Location           : {rg_location}")
-                    print(f"   APIM SKU           : {apim_sku.value}")
-                    print(f"   Use ACA            : {use_aca}")
-                    print(f"   Gateway URL        : {apim_gateway_url}")
-                    print(f"   Front Door URL     : {afd_endpoint_url}")
-                    print(f"   APIs Created       : {len(apim_apis)}")
+                    print(f'\n📋 Infrastructure Details:')
+                    print(f'   Resource Group     : {rg_name}')
+                    print(f'   Location           : {rg_location}')
+                    print(f'   APIM SKU           : {apim_sku.value}')
+                    print(f'   Use ACA            : {use_aca}')
+                    print(f'   Gateway URL        : {apim_gateway_url}')
+                    print(f'   Front Door URL     : {afd_endpoint_url}')
+                    print(f'   APIs Created       : {len(apim_apis)}')
                     
                     # Perform basic verification
-                    _verify_infrastructure(rg_name, afd_endpoint_url, apim_gateway_url, use_aca)
+                    _verify_infrastructure(rg_name, use_aca)
             else:
-                print("❌ Phase 2 deployment failed!")
+                print('❌ Phase 2 deployment failed!')
                 
         return output
         
     finally:
         # Always restore the original working directory
         os.chdir(original_cwd)
-        print(f"📁 Restored working directory to: {original_cwd}")
+        print(f'📁 Restored working directory to: {original_cwd}')
 
 def _approve_private_link_connections(apim_service_id: str) -> None:
     """
@@ -175,7 +175,7 @@ def _approve_private_link_connections(apim_service_id: str) -> None:
     """
     
     # Get all pending private endpoint connections as JSON
-    output = utils.run(f"az network private-endpoint-connection list --id {apim_service_id} --query \"[?contains(properties.privateLinkServiceConnectionState.status, 'Pending')]\" -o json", print_command_to_run = False)
+    output = utils.run(f"az network private-endpoint-connection list --id {apim_service_id} --query \"[?contains(properties.privateLinkServiceConnectionState.status, 'Pending')]\' -o json', print_command_to_run = False)
 
     # Handle both a single object and a list of objects
     pending_connections = output.json_data if output.success and output.is_json else []
@@ -184,80 +184,78 @@ def _approve_private_link_connections(apim_service_id: str) -> None:
         pending_connections = [pending_connections]
 
     total = len(pending_connections)
-    print(f"Found {total} pending private link service connection(s).")
+    print(f'Found {total} pending private link service connection(s).')
 
     if total > 0:
         for i, conn in enumerate(pending_connections, 1):
             conn_id = conn.get('id')
             conn_name = conn.get('name', '<unknown>')
-            print(f"  {i}/{total}: Approving {conn_name}")
+            print(f'  {i}/{total}: Approving {conn_name}')
 
             approve_result = utils.run(
                 f"az network private-endpoint-connection approve --id {conn_id} --description 'Approved'",
-                f"Private Link Connection approved: {conn_name}",
-                f"Failed to approve Private Link Connection: {conn_name}",
+                f'Private Link Connection approved: {conn_name}',
+                f'Failed to approve Private Link Connection: {conn_name}',
                 print_command_to_run = False
             )
 
-        print("✅ Private link approvals completed")
+        print('✅ Private link approvals completed')
     else:
-        print("No pending private link service connections found. Nothing to approve.")
+        print('No pending private link service connections found. Nothing to approve.')
 
-def _verify_infrastructure(rg_name: str, afd_endpoint_url: str, apim_gateway_url: str, use_aca: bool) -> bool:
+def _verify_infrastructure(rg_name: str, use_aca: bool) -> bool:
     """
     Verify that the infrastructure was created successfully.
     
     Args:
         rg_name (str): Resource group name.
-        afd_endpoint_url (str): Azure Front Door endpoint URL.
-        apim_gateway_url (str): API Management gateway URL.
         use_aca (bool): Whether Container Apps were included.
         
     Returns:
         bool: True if verification passed, False otherwise.
     """
     
-    print("\n🔍 Verifying infrastructure...")
+    print('\n🔍 Verifying infrastructure...')
     
     try:
         # Check if the resource group exists
         if not utils.does_resource_group_exist(rg_name):
-            print("❌ Resource group does not exist!")
+            print('❌ Resource group does not exist!')
             return False
         
-        print("✅ Resource group verified")
+        print('✅ Resource group verified')
         
         # Get APIM service details
-        output = utils.run(f'az apim list -g {rg_name} --query "[0]" -o json', print_command_to_run = False, print_errors = False)
+        output = utils.run(f'az apim list -g {rg_name} --query '[0]' -o json', print_command_to_run = False, print_errors = False)
         
         if output.success and output.json_data:
             apim_name = output.json_data.get('name')
-            print(f"✅ APIM Service verified: {apim_name}")
+            print(f'✅ APIM Service verified: {apim_name}')
             
             # Check Front Door
-            afd_output = utils.run(f'az afd profile list -g {rg_name} --query "[0]" -o json', print_command_to_run = False, print_errors = False)
+            afd_output = utils.run(f'az afd profile list -g {rg_name} --query '[0]' -o json', print_command_to_run = False, print_errors = False)
             
             if afd_output.success and afd_output.json_data:
                 afd_name = afd_output.json_data.get('name')
-                print(f"✅ Azure Front Door verified: {afd_name}")
+                print(f'✅ Azure Front Door verified: {afd_name}')
                 
                 # Check Container Apps if enabled
                 if use_aca:
-                    aca_output = utils.run(f'az containerapp list -g {rg_name} --query "length(@)"', print_command_to_run = False, print_errors = False)
+                    aca_output = utils.run(f'az containerapp list -g {rg_name} --query 'length(@)'', print_command_to_run = False, print_errors = False)
                     
                     if aca_output.success:
                         aca_count = int(aca_output.text.strip())
-                        print(f"✅ Container Apps verified: {aca_count} app(s) created")
+                        print(f'✅ Container Apps verified: {aca_count} app(s) created')
             
-            print("\n🎉 Infrastructure verification completed successfully!")
+            print('\n🎉 Infrastructure verification completed successfully!')
             return True
             
         else:
-            print("\n❌ APIM service not found!")
+            print('\n❌ APIM service not found!')
             return False
             
     except Exception as e:
-        print(f"\n⚠️  Verification failed with error: {str(e)}")
+        print(f'\n⚠️  Verification failed with error: {str(e)}')
         return False
 
 def main():
@@ -288,14 +286,14 @@ def main():
         )
         
         if result.success:
-            print("\n🎉 Infrastructure creation completed successfully!")
+            print('\n🎉 Infrastructure creation completed successfully!')
             sys.exit(0)
         else:
-            print("\n💥 Infrastructure creation failed!")
+            print('\n💥 Infrastructure creation failed!')
             sys.exit(1)
             
     except Exception as e:
-        print(f"\n💥 Error: {str(e)}")
+        print(f'\n💥 Error: {str(e)}')
         sys.exit(1)
 
 

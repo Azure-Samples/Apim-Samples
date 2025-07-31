@@ -39,12 +39,12 @@ def _create_simple_apim_infrastructure(
     rg_name = utils.get_infra_rg_name(deployment, index)
     rg_tags = utils.build_infrastructure_tags(deployment)
 
-    print(f"\n🚀 Creating Simple APIM infrastructure...")
-    print(f"    Location       : {rg_location}")
-    print(f"    Index          : {index}")
-    print(f"    Infrastructure : {deployment.value}")
-    print(f"    APIM SKU       : {apim_sku.value}")
-    print(f"    Resource Group : {rg_name}\n")
+    print(f'\n🚀 Creating Simple APIM infrastructure...')
+    print(f'    Location       : {rg_location}')
+    print(f'    Index          : {index}')
+    print(f'    Infrastructure : {deployment.value}')
+    print(f'    APIM SKU       : {apim_sku.value}')
+    print(f'    Resource Group : {rg_name}\n')
     
     # 2) Set up the policy fragments
     if custom_policy_fragments is None:
@@ -82,13 +82,13 @@ def _create_simple_apim_infrastructure(
     
     try:
         os.chdir(infra_dir)
-        print(f"📁 Changed working directory to: {infra_dir}")
+        print(f'📁 Changed working directory to: {infra_dir}')
         
         # Prepare deployment parameters and run directly to avoid path detection issues
         bicep_parameters_format = {
-            "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
-            "contentVersion": "1.0.0.0",
-            "parameters": bicep_parameters
+            '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
+            'contentVersion': '1.0.0.0',
+            'parameters': bicep_parameters
         }
         
         # Write the parameters file
@@ -109,7 +109,7 @@ def _create_simple_apim_infrastructure(
         # Run the deployment directly
         main_bicep_path = infra_dir / 'main.bicep'
         output = utils.run(
-            f'az deployment group create --name {deployment.value} --resource-group {rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
+            f'az deployment group create --name {deployment.value} --resource-group {rg_name} --template-file '{main_bicep_path}' --parameters '{params_file_path}' --query 'properties.outputs'',
             f"Deployment '{deployment.value}' succeeded", 
             f"Deployment '{deployment.value}' failed."
         )
@@ -119,90 +119,88 @@ def _create_simple_apim_infrastructure(
         # ------------------------------
         
         if output.success:
-            print("\n✅ Infrastructure creation completed successfully!")
+            print('\n✅ Infrastructure creation completed successfully!')
             if output.json_data:
                 apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM API Gateway URL', suppress_logging = True)
                 apim_apis = output.getJson('apiOutputs', 'APIs', suppress_logging = True)
                 
-                print(f"\n📋 Infrastructure Details:")
-                print(f"   Resource Group : {rg_name}")
-                print(f"   Location       : {rg_location}")
-                print(f"   APIM SKU       : {apim_sku.value}")
-                print(f"   Gateway URL    : {apim_gateway_url}")
-                print(f"   APIs Created   : {len(apim_apis)}")
+                print(f'\n📋 Infrastructure Details:')
+                print(f'   Resource Group : {rg_name}')
+                print(f'   Location       : {rg_location}')
+                print(f'   APIM SKU       : {apim_sku.value}')
+                print(f'   Gateway URL    : {apim_gateway_url}')
+                print(f'   APIs Created   : {len(apim_apis)}')
                 
                 # Perform basic verification
-                _verify_infrastructure(rg_name, apim_gateway_url)
+                _verify_infrastructure(rg_name)
         else:
-            print("❌ Infrastructure creation failed!")
+            print('❌ Infrastructure creation failed!')
             
         return output
         
     finally:
         # Always restore the original working directory
         os.chdir(original_cwd)
-        print(f"📁 Restored working directory to: {original_cwd}")
+        print(f'📁 Restored working directory to: {original_cwd}')
 
-def _verify_infrastructure(rg_name: str, apim_gateway_url: str) -> bool:
+def _verify_infrastructure(rg_name: str) -> bool:
     """
     Verify that the infrastructure was created successfully.
     
     Args:
         rg_name (str): Resource group name.
-        apim_gateway_url (str): API Management gateway Url.
         
     Returns:
         bool: True if verification passed, False otherwise.
     """
     
-    print("\n🔍 Verifying infrastructure...")
+    print('\n🔍 Verifying infrastructure...')
     
     try:
         # Check if the resource group exists
         if not utils.does_resource_group_exist(rg_name):
-            print("❌ Resource group does not exist!")
+            print('❌ Resource group does not exist!')
             return False
         
-        print("✅ Resource group verified")
+        print('✅ Resource group verified')
         
         # Get APIM service details
-        output = utils.run(f'az apim list -g {rg_name} --query "[0]" -o json', print_command_to_run = False, print_errors = False)
+        output = utils.run(f'az apim list -g {rg_name} --query '[0]' -o json', print_command_to_run = False, print_errors = False)
         
         if output.success and output.json_data:
             apim_name = output.json_data.get('name')
-            apim_gateway_url = output.json_data.get('gatewayUrl')
             
-            print(f"✅ APIM Service verified: {apim_name}")
+            print(f'✅ APIM Service verified: {apim_name}')
             
             # Get API count
-            api_output = utils.run(f'az apim api list --service-name {apim_name} -g {rg_name} --query "length(@)"', 
+            api_output = utils.run(f'az apim api list --service-name {apim_name} -g {rg_name} --query 'length(@)'', 
                                   print_command_to_run = False, print_errors = False)
             
             if api_output.success:
                 api_count = int(api_output.text.strip())
-                print(f"✅ APIs verified: {api_count} API(s) created")
+                print(f'✅ APIs verified: {api_count} API(s) created')
                 
                 # Test basic connectivity (optional)
                 if api_count > 0:
                     try:
                         # Get subscription key for testing
-                        sub_output = utils.run(f'az apim subscription list --service-name {apim_name} -g {rg_name} --query "[0].primaryKey" -o tsv', 
+                        sub_output = utils.run(f'az apim subscription list --service-name {apim_name} -g {rg_name} --query '[0].primaryKey' -o tsv', 
                                              print_command_to_run = False, print_errors = False)
                         
                         if sub_output.success and sub_output.text.strip():
-                            print("✅ Subscription key available for API testing")
+                            print('✅ Subscription key available for API testing')
                     except:
                         pass
             
-            print("\n🎉 Infrastructure verification completed successfully!")
+            print('\n🎉 Infrastructure verification completed successfully!')
             return True
             
         else:
-            print("\n❌ APIM service not found!")
+            print('\n❌ APIM service not found!')
             return False
             
     except Exception as e:
-        print(f"\n⚠️  Verification failed with error: {str(e)}")
+        print(f'\n⚠️  Verification failed with error: {str(e)}')
         return False
 
 def main():
@@ -228,14 +226,14 @@ def main():
         result = _create_simple_apim_infrastructure(rg_location = args.location, index = args.index, apim_sku = sku_map[args.sku])
         
         if result.success:
-            print("\n🎉 Infrastructure creation completed successfully!")
+            print('\n🎉 Infrastructure creation completed successfully!')
             sys.exit(0)
         else:
-            print("\n💥 Infrastructure creation failed!")
+            print('\n💥 Infrastructure creation failed!')
             sys.exit(1)
             
     except Exception as e:
-        print(f"\n💥 Error: {str(e)}")
+        print(f'\n💥 Error: {str(e)}')
         sys.exit(1)
 
 
