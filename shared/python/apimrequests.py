@@ -90,6 +90,10 @@ class ApimRequests:
             if msg:
                 utils.print_message(msg, blank_above = True)
 
+            # Ensure path has a leading slash
+            if not path.startswith('/'):
+                path = '/' + path
+            
             url = self.url + path
             utils.print_info(f"{method.value} {url}")
 
@@ -144,6 +148,10 @@ class ApimRequests:
             if msg:
                 utils.print_message(msg, blank_above = True)
         
+            # Ensure path has a leading slash
+            if not path.startswith('/'):
+                path = '/' + path
+            
             url = self.url + path
             utils.print_info(f"{method.value} {url}")
 
@@ -324,6 +332,10 @@ class ApimRequests:
             if msg:
                 utils.print_message(msg, blank_above = True)
     
+            # Ensure path has a leading slash
+            if not path.startswith('/'):
+                path = '/' + path
+            
             url = self.url + path
             utils.print_info(f"POST {url}")
     
