@@ -95,7 +95,11 @@ class Output(object):
 
         # Check if the exact string is JSON. 
         if (is_string_json(text)):
-            self.json_data = json.loads(text)
+            try:
+                self.json_data = json.loads(text)
+            except json.JSONDecodeError as e:
+                self.jsonParseException = e
+                self.json_data = extract_json(text)
         else:
             # Check if a substring in the string is JSON.
             self.json_data = extract_json(text)
@@ -1250,7 +1254,12 @@ def extract_json(text: str) -> Any:
 
     # If the string is already valid JSON, parse and return it as a Python object.
     if is_string_json(text):
-        return json.loads(text)
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError:
+            # If JSON parsing fails despite is_string_json returning True, 
+            # fall through to substring search
+            pass
 
     decoder = json.JSONDecoder()
 
@@ -1277,6 +1286,10 @@ def is_string_json(text: str) -> bool:
 
     # Accept only str, bytes, or bytearray as valid input for JSON parsing.
     if not isinstance(text, (str, bytes, bytearray)):
+        return False
+
+    # Skip empty or whitespace-only strings
+    if not text or not text.strip():
         return False
 
     # First try JSON parsing (handles double quotes)
