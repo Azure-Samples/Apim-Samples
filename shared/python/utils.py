@@ -422,12 +422,29 @@ class NotebookHelper:
         # Add existing infrastructure options
         if available_options:
             print_info(f'Found {len(available_options)} existing infrastructure(s). You can select an existing or create a new one.')
-            print(f'\n     Select an EXISTING infrastructure:')
+            
+            # ALWAYS make "Create a NEW infrastructure" the first option for consistency
+            desired_index_str = self._get_current_index() if self._get_current_index() is not None else 'N/A'
+            desired_location = self.rg_location
+            
+            print(f'\n     Create a NEW infrastructure:\n')
+            # Column headers
+            print(f'     {"#":>3} {"Infrastructure":<20} {"Index":>8} {"Resource Group":<35} {"Location":<15}')
+            print(f'     {"-"*3:>3} {"-"*20:<20} {"-"*8:>8} {"-"*35:<35} {"-"*15:<15}')
+            print(f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35} {desired_location:<15}')
+            display_options.append(('create_new', self.deployment, self._get_current_index()))
+            option_counter += 1
+            
+            print(f'\n     Or select an EXISTING infrastructure:\n')
+            # Column headers
+            print(f'     {"#":>3} {"Infrastructure":<20} {"Index":>8} {"Resource Group":<35} {"Location":<15}')
+            print(f'     {"-"*3:>3} {"-"*20:<20} {"-"*8:>8} {"-"*35:<35} {"-"*15:<15}')
             
             for infra, index in available_options:
-                index_str = f' (index: {index})' if index is not None else ''
+                index_str = index if index is not None else 'N/A'
                 rg_name = get_infra_rg_name(infra, index)
-                print(f'     {option_counter}. {infra.value}{index_str} - Resource Group: {rg_name}')
+                rg_location = get_resource_group_location(rg_name)
+                print(f'     {option_counter:>3} {infra.value:<20} {index_str:>8} {rg_name:<35} {rg_location:<15}')
                 display_options.append(('existing', infra, index))
                 option_counter += 1
         else:
@@ -448,12 +465,6 @@ class NotebookHelper:
             else:
                 print_error('Failed to create infrastructure.')
                 return None, None
-        
-        # Add option to create the desired infrastructure
-        desired_index_str = f' (index: {self._get_current_index()})' if self._get_current_index() is not None else ''
-        print(f'\n     Create a NEW infrastructure:')
-        print(f'     {option_counter}. {self.deployment.value}{desired_index_str} - Resource Group: {desired_rg_name}')
-        display_options.append(('create_new', self.deployment, self._get_current_index()))
         
         print('')
         
@@ -551,10 +562,10 @@ class NotebookHelper:
         """
 
         # Check infrastructure availability and let user select or create
-        print("Checking infrastructure availability...")
-        print(f"Desired infrastructure : {self.deployment.value}")
-        print(f"Desired index          : {self.index}")
-        print(f"Desired resource group : {self.rg_name}")
+        print(f"Checking infrastructure availability...\n")
+        print(f"   Desired infrastructure : {self.deployment.value}")
+        print(f"   Desired index          : {self.index}")
+        print(f"   Desired resource group : {self.rg_name}\n")
 
         # Call the resource group existence check only once
         rg_exists = does_resource_group_exist(self.rg_name)
@@ -1030,6 +1041,20 @@ def does_resource_group_exist(rg_name: str) -> bool:
 
     output = run(f"az group show --name {rg_name}", print_output = False, print_errors = False)
     return output.success
+
+def get_resource_group_location(rg_name: str) -> str:
+    """
+    Get the location of a resource group.
+
+    Args:
+        rg_name (str): Name of the resource group.
+
+    Returns:
+        str: The location of the resource group, or 'Unknown' if not found.
+    """
+
+    output = run(f"az group show --name {rg_name} --query location -o tsv", print_command_to_run = False, print_output = False, print_errors = False)
+    return output.text.strip() if output.success and output.text.strip() else 'Unknown'
 
 def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str, str], sample_name: str = None) -> str:
     """
