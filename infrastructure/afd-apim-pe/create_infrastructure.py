@@ -226,14 +226,14 @@ def _verify_infrastructure(rg_name: str, use_aca: bool) -> bool:
         print('✅ Resource group verified')
         
         # Get APIM service details
-        output = utils.run(f'az apim list -g {rg_name} --query "[0]" -o json', print_command_to_run = False, print_errors = False)
+        output = utils.run(f'az apim list -g {rg_name} --query '[0]' -o json', print_command_to_run = False, print_errors = False)
         
         if output.success and output.json_data:
             apim_name = output.json_data.get('name')
             print(f'✅ APIM Service verified: {apim_name}')
             
             # Check Front Door
-            afd_output = utils.run(f'az afd profile list -g {rg_name} --query "[0]" -o json', print_command_to_run = False, print_errors = False)
+            afd_output = utils.run(f'az afd profile list -g {rg_name} --query '[0]' -o json', print_command_to_run = False, print_errors = False)
             
             if afd_output.success and afd_output.json_data:
                 afd_name = afd_output.json_data.get('name')
@@ -241,7 +241,7 @@ def _verify_infrastructure(rg_name: str, use_aca: bool) -> bool:
                 
                 # Check Container Apps if enabled
                 if use_aca:
-                    aca_output = utils.run(f'az containerapp list -g {rg_name} --query "length(@)"', print_command_to_run = False, print_errors = False)
+                    aca_output = utils.run(f'az containerapp list -g {rg_name} --query 'length(@)'', print_command_to_run = False, print_errors = False)
                     
                     if aca_output.success:
                         aca_count = int(aca_output.text.strip())

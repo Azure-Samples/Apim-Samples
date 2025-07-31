@@ -44,13 +44,13 @@ def test_single_get_success(mock_print_error, mock_print_info, mock_print_messag
     mock_response.status_code = 200
     mock_response.headers = {'Content-Type': 'application/json'}
     mock_response.json.return_value = {'result': 'ok'}
-    mock_response.text = '{'result': 'ok'}'
+    mock_response.text = '{"result": "ok"}'
     mock_response.raise_for_status.return_value = None
     mock_request.return_value = mock_response
 
     with patch.object(apim, '_print_response') as mock_print_response:
         result = apim.singleGet(default_path, printResponse=True)
-        assert result == '{\n    'result': 'ok'\n}'
+        assert result == '{\n    "result": "ok"\n}'
         mock_print_response.assert_called_once_with(mock_response)
         mock_print_error.assert_not_called()
 
@@ -75,13 +75,13 @@ def test_single_post_success(mock_print_error, mock_print_info, mock_print_messa
     mock_response.status_code = 201
     mock_response.headers = {'Content-Type': 'application/json'}
     mock_response.json.return_value = {'created': True}
-    mock_response.text = '{'created': true}'
+    mock_response.text = '{"created": true}'
     mock_response.raise_for_status.return_value = None
     mock_request.return_value = mock_response
 
     with patch.object(apim, '_print_response') as mock_print_response:
         result = apim.singlePost(default_path, data=default_data, printResponse=True)
-        assert result == '{\n    'created': true\n}'
+        assert result == '{\n    "created": true\n}'
         mock_print_response.assert_called_once_with(mock_response)
         mock_print_error.assert_not_called()
 
@@ -95,7 +95,7 @@ def test_multi_get_success(mock_print_info, mock_print_message, mock_session, ap
     mock_response.status_code = 200
     mock_response.headers = {'Content-Type': 'application/json'}
     mock_response.json.return_value = {'result': 'ok'}
-    mock_response.text = '{'result': 'ok'}'
+    mock_response.text = '{"result": "ok"}'
     mock_response.raise_for_status.return_value = None
     mock_sess.request.return_value = mock_response
     mock_session.return_value = mock_sess
@@ -105,7 +105,7 @@ def test_multi_get_success(mock_print_info, mock_print_message, mock_session, ap
         assert len(result) == 2
         for run in result:
             assert run['status_code'] == 200
-            assert run['response'] == '{\n    'result': 'ok'\n}'
+            assert run['response'] == '{\n    "result": "ok"\n}'
         assert mock_sess.request.call_count == 2
         mock_print_code.assert_called()
 
@@ -166,7 +166,7 @@ def test_request_header_merging():
         mock_response.status_code = 200
         mock_response.headers = {'Content-Type': 'application/json'}
         mock_response.json.return_value = {'ok': True}
-        mock_response.text = '{'ok': true}'
+        mock_response.text = '{"ok": true}'
         mock_response.raise_for_status.return_value = None
         mock_request.return_value = mock_response
         # Custom header should override default
@@ -290,7 +290,7 @@ def test_request_with_data(mock_request, apim):
     mock_response.status_code = 201
     mock_response.headers = {'Content-Type': 'application/json'}
     mock_response.json.return_value = {'created': True}
-    mock_response.text = '{'created': true}'
+    mock_response.text = '{"created": true}'
     mock_request.return_value = mock_response
 
     data = {'name': 'test', 'value': 'data'}
@@ -300,7 +300,7 @@ def test_request_with_data(mock_request, apim):
     call_kwargs = mock_request.call_args[1]
     assert call_kwargs['json'] == data
     # The method returns JSON-formatted string for application/json content
-    assert result == '{\n    'created': true\n}'
+    assert result == '{\n    "created": true\n}'
 
 @pytest.mark.unit
 def test_apim_requests_without_subscription_key():
