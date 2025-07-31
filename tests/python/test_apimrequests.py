@@ -1,8 +1,9 @@
 import pytest
 import requests
+import time
 from unittest.mock import patch, MagicMock
 from apimrequests import ApimRequests
-from apimtypes import SUBSCRIPTION_KEY_PARAMETER_NAME
+from apimtypes import SUBSCRIPTION_KEY_PARAMETER_NAME, HTTP_VERB
 
 # Sample values for tests
 default_url = 'https://example.com/apim/'
@@ -311,3 +312,362 @@ def test_apim_requests_without_subscription_key():
     assert apim.apimSubscriptionKey is None
     assert SUBSCRIPTION_KEY_PARAMETER_NAME not in apim.headers
     assert apim.headers['Accept'] == 'application/json'
+
+
+@pytest.mark.unit
+def test_headers_setter(apim):
+    """Test the headers setter property."""
+    new_headers = {'Authorization': 'Bearer token', 'Custom': 'value'}
+    apim.headers = new_headers
+    assert apim.headers == new_headers
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.request')
+@patch('apimrequests.utils.print_message')
+@patch('apimrequests.utils.print_info')
+def test_request_with_message(mock_print_info, mock_print_message, mock_request, apim):
+    """Test _request method with message parameter."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.json.return_value = {'result': 'ok'}
+    mock_response.text = '{"result": "ok"}'
+    mock_request.return_value = mock_response
+
+    with patch.object(apim, '_print_response'):
+        apim._request(HTTP_VERB.GET, '/test', msg='Test message')
+
+    mock_print_message.assert_called_once_with('Test message', blank_above=True)
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.request')
+@patch('apimrequests.utils.print_info')
+def test_request_path_without_leading_slash(mock_print_info, mock_request, apim):
+    """Test _request method with path without leading slash."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.json.return_value = {'result': 'ok'}
+    mock_response.text = '{"result": "ok"}'
+    mock_request.return_value = mock_response
+
+    with patch.object(apim, '_print_response'):
+        apim._request(HTTP_VERB.GET, 'test')
+
+    # Should call with the corrected URL
+    expected_url = default_url + '/test'
+    mock_request.assert_called_once()
+    args, kwargs = mock_request.call_args
+    assert args[1] == expected_url
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.Session')
+@patch('apimrequests.utils.print_message')
+@patch('apimrequests.utils.print_info')
+def test_multi_request_with_message(mock_print_info, mock_print_message, mock_session_class, apim):
+    """Test _multiRequest method with message parameter."""
+    mock_session = MagicMock()
+    mock_session_class.return_value = mock_session
+    
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.json.return_value = {'result': 'ok'}
+    mock_response.text = '{"result": "ok"}'
+    mock_session.request.return_value = mock_response
+
+    with patch.object(apim, '_print_response_code'):
+        result = apim._multiRequest(HTTP_VERB.GET, '/test', 1, msg='Multi-request message')
+
+    mock_print_message.assert_called_once_with('Multi-request message', blank_above=True)
+    assert len(result) == 1
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.Session')
+@patch('apimrequests.utils.print_info')
+def test_multi_request_path_without_leading_slash(mock_print_info, mock_session_class, apim):
+    """Test _multiRequest method with path without leading slash."""
+    mock_session = MagicMock()
+    mock_session_class.return_value = mock_session
+    
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.json.return_value = {'result': 'ok'}
+    mock_response.text = '{"result": "ok"}'
+    mock_session.request.return_value = mock_response
+
+    with patch.object(apim, '_print_response_code'):
+        apim._multiRequest(HTTP_VERB.GET, 'test', 1)
+
+    # Should call with the corrected URL
+    expected_url = default_url + '/test'
+    mock_session.request.assert_called_once()
+    args, kwargs = mock_session.request.call_args
+    assert args[1] == expected_url
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.Session')
+@patch('apimrequests.utils.print_info')
+def test_multi_request_non_json_response(mock_print_info, mock_session_class, apim):
+    """Test _multiRequest method with non-JSON response."""
+    mock_session = MagicMock()
+    mock_session_class.return_value = mock_session
+    
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'text/plain'}
+    mock_response.text = 'Plain text response'
+    mock_session.request.return_value = mock_response
+
+    with patch.object(apim, '_print_response_code'):
+        result = apim._multiRequest(HTTP_VERB.GET, '/test', 1)
+
+    assert len(result) == 1
+    assert result[0]['response'] == 'Plain text response'
+
+
+@pytest.mark.unit
+@patch('apimrequests.utils.print_val')
+def test_print_response_non_200_status(mock_print_val, apim):
+    """Test _print_response method with non-200 status code."""
+    mock_response = MagicMock()
+    mock_response.status_code = 404
+    mock_response.reason = 'Not Found'
+    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.text = '{"error": "not found"}'
+
+    with patch.object(apim, '_print_response_code'):
+        apim._print_response(mock_response)
+
+    # Should print response body directly for non-200 status
+    mock_print_val.assert_any_call('Response body', '{"error": "not found"}', True)
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.get')
+@patch('apimrequests.utils.print_info')
+@patch('apimrequests.utils.print_ok')
+@patch('apimrequests.time.sleep')
+def test_poll_async_operation_success(mock_sleep, mock_print_ok, mock_print_info, mock_get, apim):
+    """Test _poll_async_operation method with successful completion."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_get.return_value = mock_response
+
+    result = apim._poll_async_operation('http://example.com/operation/123')
+
+    assert result == mock_response
+    mock_print_ok.assert_called_once_with('Async operation completed successfully!')
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.get')
+@patch('apimrequests.utils.print_info')
+@patch('apimrequests.utils.print_error')
+@patch('apimrequests.time.sleep')
+def test_poll_async_operation_in_progress_then_success(mock_sleep, mock_print_error, mock_print_info, mock_get, apim):
+    """Test _poll_async_operation method with in-progress then success."""
+    # First call returns 202 (in progress), second call returns 200 (complete)
+    responses = [
+        MagicMock(status_code=202),
+        MagicMock(status_code=200)
+    ]
+    mock_get.side_effect = responses
+
+    result = apim._poll_async_operation('http://example.com/operation/123', poll_interval=1)
+
+    assert result == responses[1]  # Should return the final success response
+    assert mock_get.call_count == 2
+    mock_sleep.assert_called_once_with(1)
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.get')
+@patch('apimrequests.utils.print_error')
+def test_poll_async_operation_unexpected_status(mock_print_error, mock_get, apim):
+    """Test _poll_async_operation method with unexpected status code."""
+    mock_response = MagicMock()
+    mock_response.status_code = 500
+    mock_get.return_value = mock_response
+
+    result = apim._poll_async_operation('http://example.com/operation/123')
+
+    assert result == mock_response  # Should return the error response
+    mock_print_error.assert_called_with('Unexpected status code during polling: 500')
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.get')
+@patch('apimrequests.utils.print_error')
+def test_poll_async_operation_request_exception(mock_print_error, mock_get, apim):
+    """Test _poll_async_operation method with request exception."""
+    mock_get.side_effect = requests.exceptions.RequestException('Connection error')
+
+    result = apim._poll_async_operation('http://example.com/operation/123')
+
+    assert result is None
+    mock_print_error.assert_called_with('Error polling operation: Connection error')
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.get')
+@patch('apimrequests.utils.print_error')
+@patch('apimrequests.time.time')
+@patch('apimrequests.time.sleep')
+def test_poll_async_operation_timeout(mock_sleep, mock_time, mock_print_error, mock_get, apim):
+    """Test _poll_async_operation method with timeout."""
+    # Mock time to simulate timeout
+    mock_time.side_effect = [0, 30, 61]  # start, first check, timeout check
+    
+    mock_response = MagicMock()
+    mock_response.status_code = 202
+    mock_get.return_value = mock_response
+
+    result = apim._poll_async_operation('http://example.com/operation/123', timeout=60)
+
+    assert result is None
+    mock_print_error.assert_called_with('Async operation timeout reached after 60 seconds')
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.request')
+@patch('apimrequests.utils.print_message')
+@patch('apimrequests.utils.print_info')
+def test_single_post_async_success_with_location(mock_print_info, mock_print_message, mock_request, apim):
+    """Test singlePostAsync method with successful async operation."""
+    # Mock initial 202 response with Location header
+    initial_response = MagicMock()
+    initial_response.status_code = 202
+    initial_response.headers = {'Location': 'http://example.com/operation/123'}
+    
+    # Mock final 200 response
+    final_response = MagicMock()
+    final_response.status_code = 200
+    final_response.headers = {'Content-Type': 'application/json'}
+    final_response.json.return_value = {'result': 'completed'}
+    final_response.text = '{"result": "completed"}'
+    
+    mock_request.return_value = initial_response
+
+    with patch.object(apim, '_poll_async_operation', return_value=final_response) as mock_poll:
+        with patch.object(apim, '_print_response') as mock_print_response:
+            result = apim.singlePostAsync('/test', data={'test': 'data'}, msg='Async test')
+
+    mock_print_message.assert_called_once_with('Async test', blank_above=True)
+    mock_poll.assert_called_once()
+    mock_print_response.assert_called_once_with(final_response)
+    assert result == '{\n    "result": "completed"\n}'
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.request')
+@patch('apimrequests.utils.print_info')
+@patch('apimrequests.utils.print_error')
+def test_single_post_async_no_location_header(mock_print_error, mock_print_info, mock_request, apim):
+    """Test singlePostAsync method with 202 response but no Location header."""
+    mock_response = MagicMock()
+    mock_response.status_code = 202
+    mock_response.headers = {}  # No Location header
+    mock_request.return_value = mock_response
+
+    with patch.object(apim, '_print_response') as mock_print_response:
+        result = apim.singlePostAsync('/test')
+
+    mock_print_error.assert_called_once_with('No Location header found in 202 response')
+    mock_print_response.assert_called_once_with(mock_response)
+    assert result is None
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.request')
+@patch('apimrequests.utils.print_info')
+def test_single_post_async_non_async_response(mock_print_info, mock_request, apim):
+    """Test singlePostAsync method with non-async (immediate) response."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.json.return_value = {'result': 'immediate'}
+    mock_response.text = '{"result": "immediate"}'
+    mock_request.return_value = mock_response
+
+    with patch.object(apim, '_print_response') as mock_print_response:
+        result = apim.singlePostAsync('/test')
+
+    mock_print_response.assert_called_once_with(mock_response)
+    assert result == '{\n    "result": "immediate"\n}'
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.request')
+@patch('apimrequests.utils.print_error')
+def test_single_post_async_request_exception(mock_print_error, mock_request, apim):
+    """Test singlePostAsync method with request exception."""
+    mock_request.side_effect = requests.exceptions.RequestException('Connection error')
+
+    result = apim.singlePostAsync('/test')
+
+    assert result is None
+    mock_print_error.assert_called_once_with('Error making request: Connection error')
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.request')
+@patch('apimrequests.utils.print_error')
+def test_single_post_async_failed_polling(mock_print_error, mock_request, apim):
+    """Test singlePostAsync method with failed async operation polling."""
+    initial_response = MagicMock()
+    initial_response.status_code = 202
+    initial_response.headers = {'Location': 'http://example.com/operation/123'}
+    mock_request.return_value = initial_response
+
+    with patch.object(apim, '_poll_async_operation', return_value=None) as mock_poll:
+        result = apim.singlePostAsync('/test')
+
+    mock_poll.assert_called_once()
+    mock_print_error.assert_called_once_with('Async operation failed or timed out')
+    assert result is None
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.request')
+@patch('apimrequests.utils.print_info')
+def test_single_post_async_path_without_leading_slash(mock_print_info, mock_request, apim):
+    """Test singlePostAsync method with path without leading slash."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.json.return_value = {'result': 'ok'}
+    mock_response.text = '{"result": "ok"}'
+    mock_request.return_value = mock_response
+
+    with patch.object(apim, '_print_response'):
+        apim.singlePostAsync('test')
+
+    # Should call with the corrected URL
+    expected_url = default_url + '/test'
+    mock_request.assert_called_once()
+    args, kwargs = mock_request.call_args
+    assert args[1] == expected_url
+
+
+@pytest.mark.unit
+@patch('apimrequests.requests.request')
+@patch('apimrequests.utils.print_info')
+def test_single_post_async_non_json_response(mock_print_info, mock_request, apim):
+    """Test singlePostAsync method with non-JSON response."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'text/plain'}
+    mock_response.text = 'Plain text result'
+    mock_request.return_value = mock_response
+
+    with patch.object(apim, '_print_response'):
+        result = apim.singlePostAsync('/test')
+
+    assert result == 'Plain text result'
