@@ -54,13 +54,13 @@ class ApimTesting:
             self.total_tests += 1
             assert value == expected, f'Value [{value}] does not match expected [{expected}]'
             self.tests_passed += 1
-            print(f"✅ Test {self.total_tests}: PASS")
+            print(f'✅ Test {self.total_tests}: PASS')
 
             return True
         except AssertionError as e:
             self.tests_failed += 1
             self.errors.append(f'{str(e)}')
-            print(f"❌ Test {self.total_tests}: FAIL - {str(e)}")
+            print(f'❌ Test {self.total_tests}: FAIL - {str(e)}')
 
             return False
         
@@ -78,7 +78,7 @@ class ApimTesting:
         border_line = '=' * border_width
         
         # Create padded title
-        title = f"🧪 {self.test_suite_name} - Test Results Summary 🧪"
+        title = f'🧪 {self.test_suite_name} - Test Results Summary 🧪'
         title_padding = max(0, (border_width - len(title)) // 2)
 
         # Start the fancy display
@@ -88,8 +88,8 @@ class ApimTesting:
         print(border_line)
         print()
         
-        print(f' Sample Name : {self.sample_name if self.sample_name else "N/A"}')
-        print(f' Deployment  : {self.deployment.name if self.deployment else "N/A"}\n')
+        print(f' Sample Name : {self.sample_name if self.sample_name else 'N/A'}')
+        print(f' Deployment  : {self.deployment.name if self.deployment else 'N/A'}\n')
 
         # Test statistics with visual indicators
         print(f'📊 Test Execution Statistics:')

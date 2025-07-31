@@ -13,27 +13,27 @@ from apimtypes import Role
 
 @pytest.mark.unit
 def test_user_init_with_roles():
-    user = User(id="123", name="Alice", roles=["admin", "user"])
-    assert user.id == "123"
-    assert user.name == "Alice"
-    assert user.roles == ["admin", "user"]
+    user = User(id='123', name='Alice', roles=['admin', 'user'])
+    assert user.id == '123'
+    assert user.name == 'Alice'
+    assert user.roles == ['admin', 'user']
 
 @pytest.mark.unit
 def test_user_init_without_roles():
-    user = User(id="456", name="Bob")
-    assert user.id == "456"
-    assert user.name == "Bob"
+    user = User(id='456', name='Bob')
+    assert user.id == '456'
+    assert user.name == 'Bob'
     assert user.roles == []
 
 @pytest.mark.unit
 def test_user_role_mutability():
-    user = User(id="789", name="Charlie")
-    user.roles.append("editor")
-    assert user.roles == ["editor"]
+    user = User(id='789', name='Charlie')
+    user.roles.append('editor')
+    assert user.roles == ['editor']
 
 @pytest.mark.unit
 def test_user_repr():
-    user = User(id="abc", name="Dana", roles=["guest"])
+    user = User(id='abc', name='Dana', roles=['guest'])
     # __repr__ is not defined, so fallback to default, but check type
     assert isinstance(repr(user), str)
 
@@ -140,41 +140,41 @@ def test_get_user_by_role_randomness(monkeypatch):
 def test_user_edge_cases():
     """Test User class with edge cases."""
     # Test with empty/None values
-    user_empty = User("", "", [])
-    assert user_empty.id == ""
-    assert user_empty.name == ""
+    user_empty = User('', '', [])
+    assert user_empty.id == ''
+    assert user_empty.name == ''
     assert user_empty.roles == []
     
-    user_none_roles = User("test", "Test", None)
+    user_none_roles = User('test', 'Test', None)
     assert user_none_roles.roles == []
     
     # Test role modification after creation
-    user = User("test", "Test", ["role1"])
-    user.roles.append("role2")
-    assert "role2" in user.roles
+    user = User('test', 'Test', ['role1'])
+    user.roles.append('role2')
+    assert 'role2' in user.roles
 
 
 def test_user_helper_edge_cases():
     """Test UserHelper with comprehensive edge cases."""
     # Test with roles that don't exist in any user
-    result = UserHelper.get_user_by_role("nonexistent_role")
+    result = UserHelper.get_user_by_role('nonexistent_role')
     assert result is None
     
     # Test with multiple users having the same role
     from users import Users
-    users_with_same_role = [u for u in Users if "hr_member" in u.roles]
+    users_with_same_role = [u for u in Users if 'hr_member' in u.roles]
     if len(users_with_same_role) > 1:
         # Should return one of them (random selection)
-        result = UserHelper.get_user_by_role("hr_member")
+        result = UserHelper.get_user_by_role('hr_member')
         assert result is not None
-        assert "hr_member" in result.roles
+        assert 'hr_member' in result.roles
 
 
 def test_user_helper_role_variations():
     """Test UserHelper with different role variations."""
     # Test with role as single string vs list
-    result_str = UserHelper.get_user_by_role("hr_administrator")
-    result_list = UserHelper.get_user_by_role(["hr_administrator"])
+    result_str = UserHelper.get_user_by_role('hr_administrator')
+    result_list = UserHelper.get_user_by_role(['hr_administrator'])
     
     if result_str is not None:
         assert result_str.id == result_list.id
@@ -195,9 +195,9 @@ def test_user_helper_users_list_integrity():
 
 def test_user_equality_and_hashing():
     """Test User equality and potential hashing."""
-    user1 = User("test", "Test User", ["role1"])
-    user2 = User("test", "Test User", ["role1"])
-    user3 = User("different", "Different User", ["role2"])
+    user1 = User('test', 'Test User', ['role1'])
+    user2 = User('test', 'Test User', ['role1'])
+    user3 = User('different', 'Different User', ['role2'])
     
     # Test equality based on content
     assert user1.id == user2.id
@@ -212,12 +212,12 @@ def test_user_equality_and_hashing():
 
 def test_user_repr_completeness():
     """Test User __repr__ method provides useful information."""
-    user = User("test-id", "Test User Name", ["admin", "user"])
+    user = User('test-id', 'Test User Name', ['admin', 'user'])
     repr_str = repr(user)
     
-    assert "User" in repr_str
-    assert "test-id" in repr_str
-    assert "Test User Name" in repr_str
+    assert 'User' in repr_str
+    assert 'test-id' in repr_str
+    assert 'Test User Name' in repr_str
 
 
 def test_get_user_by_role_with_none_handling():
@@ -242,7 +242,7 @@ def test_get_user_by_role_with_none_handling():
 def test_user_helper_randomness_distribution():
     """Test that get_user_by_role provides some randomness when multiple users match."""
     # This test checks the randomness aspect mentioned in the existing tests
-    matching_role = "hr_member"  # Assuming this role exists in multiple users
+    matching_role = 'hr_member'  # Assuming this role exists in multiple users
     
     results = set()
     for _ in range(10):  # Try 10 times to see if we get different results
@@ -266,13 +266,13 @@ def test_user_helper_randomness_distribution():
 
 def test_user_roles_mutability_safety():
     """Test that user roles can be safely modified."""
-    user = User("test", "Test", ["initial_role"])
+    user = User('test', 'Test', ['initial_role'])
     original_roles = user.roles.copy()
     
     # Modify roles
-    user.roles.append("new_role")
-    user.roles.remove("initial_role")
+    user.roles.append('new_role')
+    user.roles.remove('initial_role')
     
-    assert "new_role" in user.roles
-    assert "initial_role" not in user.roles
+    assert 'new_role' in user.roles
+    assert 'initial_role' not in user.roles
     assert user.roles != original_roles

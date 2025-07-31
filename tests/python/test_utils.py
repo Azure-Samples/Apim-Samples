@@ -12,13 +12,13 @@ from apimtypes import INFRASTRUCTURE
 # ------------------------------
 
 @pytest.mark.parametrize(
-    "input_str,expected",
+    'input_str,expected',
     [
-        ("{\"a\": 1}", True),
-        ("[1, 2, 3]", True),
-        ("not json", False),
-        ("{\"a\": 1", False),
-        ("", False),
+        ('{\"a\": 1}', True),
+        ('[1, 2, 3]', True),
+        ('not json', False),
+        ('{\"a\": 1', False),
+        ('', False),
         (None, False),
         (123, False),
     ]
@@ -65,8 +65,8 @@ def test_get_deployment_name_error(monkeypatch):
 # ------------------------------
 
 def test_get_frontdoor_url_success(monkeypatch):
-    mock_profile = [{"name": "afd1"}]
-    mock_endpoints = [{"hostName": "foo.azurefd.net"}]
+    mock_profile = [{'name': 'afd1'}]
+    mock_endpoints = [{'hostName': 'foo.azurefd.net'}]
     def run_side_effect(cmd, *a, **kw):
         if 'profile list' in cmd:
             return MagicMock(success=True, json_data=mock_profile)
@@ -102,10 +102,10 @@ def test_get_rg_name():
 # ------------------------------
 
 def test_run_success(monkeypatch):
-    monkeypatch.setattr('subprocess.check_output', lambda *a, **kw: b'{"a": 1}')
+    monkeypatch.setattr('subprocess.check_output', lambda *a, **kw: b'{'a': 1}')
     out = utils.run('echo', print_command_to_run=False)
     assert out.success is True
-    assert out.json_data == {"a": 1}
+    assert out.json_data == {'a': 1}
 
 def test_run_failure(monkeypatch):
     class DummyErr(Exception):
@@ -212,7 +212,7 @@ def test_read_policy_xml_auto_detection_failure(monkeypatch):
     
     monkeypatch.setattr('inspect.currentframe', mock_inspect_currentframe)
     
-    with pytest.raises(ValueError, match="Could not auto-detect sample name"):
+    with pytest.raises(ValueError, match='Could not auto-detect sample name'):
         utils.read_policy_xml('policy.xml', {'key': 'value'})
 
 # ------------------------------
@@ -247,34 +247,34 @@ def test_cleanup_deployment_single(monkeypatch):
 # ------------------------------
 
 @pytest.mark.parametrize(
-    "input_val,expected",
+    'input_val,expected',
     [
         (None, None),
         (123, None),
         ([], None),
-        ("", None),
-        ("   ", None),
-        ("not json", None),
-        ("{\"a\": 1}", {"a": 1}),
-        ("[1, 2, 3]", [1, 2, 3]),
-        ("  {\"a\": 1}  ", {"a": 1}),
-        ("prefix {\"foo\": 42} suffix", {"foo": 42}),
-        ("prefix [1, 2, 3] suffix", [1, 2, 3]),
-        ("{\"a\": 1}{\"b\": 2}", {"a": 1}),  # Only first JSON object
-        ("[1, 2, 3][4, 5, 6]", [1, 2, 3]),  # Only first JSON array
-        ("{\"a\": [1, 2, {\"b\": 3}]}", {"a": [1, 2, {"b": 3}]}),
-        ("\n\t{\"a\": 1}\n", {"a": 1}),
-        ("{\"a\": \"b \\u1234\"}", {"a": "b \u1234"}),
-        ("{\"a\": 1} [2, 3]", {"a": 1}),  # Object before array
-        ("[2, 3] {\"a\": 1}", [2, 3]),  # Array before object
-        ("{\"a\": 1, \"b\": {\"c\": 2}}", {"a": 1, "b": {"c": 2}}),
-        ("{\"a\": 1, \"b\": [1, 2, 3]}", {"a": 1, "b": [1, 2, 3]}),
-        ("\n\n[\n1, 2, 3\n]\n", [1, 2, 3]),
-        ("{\"a\": 1, \"b\": null}", {"a": 1, "b": None}),
-        ("{\"a\": true, \"b\": false}", {"a": True, "b": False}),
-        ("{\"a\": 1, \"b\": \"c\"}", {"a": 1, "b": "c"}),
-        ("{\"a\": 1, \"b\": [1, 2, {\"c\": 3}]} ", {"a": 1, "b": [1, 2, {"c": 3}]}),
-        ("{\"a\": 1, \"b\": [1, 2, {\"c\": 3, \"d\": [4, 5]}]} ", {"a": 1, "b": [1, 2, {"c": 3, "d": [4, 5]}]}),
+        ('', None),
+        ('   ', None),
+        ('not json', None),
+        ('{\"a\": 1}', {'a': 1}),
+        ('[1, 2, 3]', [1, 2, 3]),
+        ('  {\"a\": 1}  ', {'a': 1}),
+        ('prefix {\"foo\": 42} suffix', {'foo': 42}),
+        ('prefix [1, 2, 3] suffix', [1, 2, 3]),
+        ('{\"a\": 1}{\"b\": 2}', {'a': 1}),  # Only first JSON object
+        ('[1, 2, 3][4, 5, 6]', [1, 2, 3]),  # Only first JSON array
+        ('{\"a\": [1, 2, {\"b\": 3}]}', {'a': [1, 2, {'b': 3}]}),
+        ('\n\t{\"a\": 1}\n', {'a': 1}),
+        ('{\"a\": \"b \\u1234\"}', {'a': 'b \u1234'}),
+        ('{\"a\": 1} [2, 3]', {'a': 1}),  # Object before array
+        ('[2, 3] {\"a\": 1}', [2, 3]),  # Array before object
+        ('{\"a\": 1, \"b\": {\"c\": 2}}', {'a': 1, 'b': {'c': 2}}),
+        ('{\"a\": 1, \"b\": [1, 2, 3]}', {'a': 1, 'b': [1, 2, 3]}),
+        ('\n\n[\n1, 2, 3\n]\n', [1, 2, 3]),
+        ('{\"a\": 1, \"b\": null}', {'a': 1, 'b': None}),
+        ('{\"a\": true, \"b\": false}', {'a': True, 'b': False}),
+        ('{\"a\": 1, \"b\": \"c\"}', {'a': 1, 'b': 'c'}),
+        ('{\"a\": 1, \"b\": [1, 2, {\"c\": 3}]} ', {'a': 1, 'b': [1, 2, {'c': 3}]}),
+        ('{\"a\": 1, \"b\": [1, 2, {\"c\": 3, \"d\": [4, 5]}]} ', {'a': 1, 'b': [1, 2, {'c': 3, 'd': [4, 5]}]}),
     ]
 )
 def test_extract_json_edge_cases(input_val, expected):
@@ -284,17 +284,17 @@ def test_extract_json_edge_cases(input_val, expected):
 
 def test_extract_json_large_object():
     """Test extract_json with a large JSON object."""
-    large_obj = {"a": list(range(1000)), "b": {"c": "x" * 1000}}
+    large_obj = {'a': list(range(1000)), 'b': {'c': 'x' * 1000}}
     import json
     s = json.dumps(large_obj)
     assert utils.extract_json(s) == large_obj
 
 def test_extract_json_multiple_json_types():
     """Test extract_json returns the first valid JSON (object or array) in the string."""
-    s = '[1,2,3]{"a": 1}'
+    s = '[1,2,3]{'a': 1}'
     assert utils.extract_json(s) == [1, 2, 3]
-    s2 = '{"a": 1}[1,2,3]'
-    assert utils.extract_json(s2) == {"a": 1}
+    s2 = '{'a': 1}[1,2,3]'
+    assert utils.extract_json(s2) == {'a': 1}
 
 # ------------------------------
 #    validate_infrastructure
@@ -308,7 +308,7 @@ def test_validate_infrastructure_unsupported():
     # Should raise ValueError for unsupported infra
     with pytest.raises(ValueError) as exc:
         utils.validate_infrastructure(INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.APIM_ACA])
-    assert "Unsupported infrastructure" in str(exc.value)
+    assert 'Unsupported infrastructure' in str(exc.value)
 
 def test_validate_infrastructure_multiple_supported():
     # Should return True if infra is in the supported list
@@ -337,7 +337,7 @@ def test_build_infrastructure_tags_with_enum():
 
 def test_build_infrastructure_tags_with_string():
     """Test build_infrastructure_tags with string infrastructure."""
-    result = utils.build_infrastructure_tags("test-infra")
+    result = utils.build_infrastructure_tags('test-infra')
     expected = {'infrastructure': 'test-infra'}
     assert result == expected
 
@@ -405,8 +405,8 @@ def test_create_resource_group_not_exists_with_tags(monkeypatch):
     mock_run.assert_called_once()
     actual_cmd = mock_run.call_args[0][0]
     assert 'source=apim-sample' in actual_cmd
-    assert 'infrastructure="simple-apim"' in actual_cmd
-    assert 'env="dev"' in actual_cmd
+    assert 'infrastructure='simple-apim'' in actual_cmd
+    assert 'env='dev'' in actual_cmd
 
 def test_create_resource_group_already_exists(monkeypatch):
     """Test create_resource_group when resource group already exists."""
@@ -426,14 +426,14 @@ def test_create_resource_group_tags_with_special_chars(monkeypatch):
     monkeypatch.setattr(utils, 'run', mock_run)
     monkeypatch.setattr(utils, 'print_info', MagicMock())
     
-    tags = {'description': 'This is a "test" environment', 'owner': 'john@company.com'}
+    tags = {'description': 'This is a 'test' environment', 'owner': 'john@company.com'}
     utils.create_resource_group('test-rg', 'eastus', tags)
     
     mock_run.assert_called_once()
     actual_cmd = mock_run.call_args[0][0]
     # Check that quotes are properly escaped
-    assert 'description="This is a \\"test\\" environment"' in actual_cmd
-    assert 'owner="john@company.com"' in actual_cmd
+    assert 'description='This is a \\'test\\' environment'' in actual_cmd
+    assert 'owner='john@company.com'' in actual_cmd
 
 def test_create_resource_group_tags_with_numeric_values(monkeypatch):
     """Test create_resource_group with tags containing numeric values."""
@@ -448,8 +448,8 @@ def test_create_resource_group_tags_with_numeric_values(monkeypatch):
     mock_run.assert_called_once()
     actual_cmd = mock_run.call_args[0][0]
     # Numeric values should be converted to strings
-    assert 'cost-center="12345"' in actual_cmd
-    assert 'version="1.0"' in actual_cmd
+    assert 'cost-center='12345'' in actual_cmd
+    assert 'version='1.0'' in actual_cmd
 
 
 # ------------------------------
@@ -557,8 +557,8 @@ def test_create_bicep_deployment_group_params_file_written(monkeypatch):
     import json
     written_data = json.loads(written_content)
     
-    assert written_data['$schema'] == "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#"
-    assert written_data['contentVersion'] == "1.0.0.0"
+    assert written_data['$schema'] == 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#'
+    assert written_data['contentVersion'] == '1.0.0.0'
     assert written_data['parameters'] == bicep_params
 
 def test_create_bicep_deployment_group_no_tags(monkeypatch):
@@ -621,21 +621,21 @@ def test_print_functions_comprehensive():
     
     try:
         # Test all print functions
-        utils.print_info("Test info message")
-        utils.print_success("Test success message")
-        utils.print_warning("Test warning message")
-        utils.print_error("Test error message")
-        utils.print_message("Test message")
-        utils.print_val("Test key", "Test value")
+        utils.print_info('Test info message')
+        utils.print_success('Test success message')
+        utils.print_warning('Test warning message')
+        utils.print_error('Test error message')
+        utils.print_message('Test message')
+        utils.print_val('Test key', 'Test value')
         
         output = captured_output.getvalue()
-        assert "Test info message" in output
-        assert "Test success message" in output
-        assert "Test warning message" in output
-        assert "Test error message" in output
-        assert "Test message" in output
-        assert "Test key" in output
-        assert "Test value" in output
+        assert 'Test info message' in output
+        assert 'Test success message' in output
+        assert 'Test warning message' in output
+        assert 'Test error message' in output
+        assert 'Test message' in output
+        assert 'Test key' in output
+        assert 'Test value' in output
     finally:
         sys.stdout = sys.__stdout__
 
@@ -716,7 +716,7 @@ def test_check_apim_blob_permissions_failure(monkeypatch):
     """Test check_apim_blob_permissions with failed permissions."""
     def mock_run_failure(cmd, **kwargs):
         if 'az apim api operation' in cmd:
-            return utils.Output(success=True, text='{"statusCode": 403}')
+            return utils.Output(success=True, text='{'statusCode': 403}')
         return utils.Output(success=True, text='{}')
 
     monkeypatch.setattr(utils, 'run', mock_run_failure)
@@ -777,11 +777,11 @@ def test_read_policy_xml_with_named_values_formatting(monkeypatch):
 
 
 @pytest.mark.parametrize(
-    "infra_type,expected_suffix",
+    'infra_type,expected_suffix',
     [
-        (INFRASTRUCTURE.SIMPLE_APIM, "simple-apim"),
-        (INFRASTRUCTURE.AFD_APIM_PE, "afd-apim-pe"),
-        (INFRASTRUCTURE.APIM_ACA, "apim-aca"),
+        (INFRASTRUCTURE.SIMPLE_APIM, 'simple-apim'),
+        (INFRASTRUCTURE.AFD_APIM_PE, 'afd-apim-pe'),
+        (INFRASTRUCTURE.APIM_ACA, 'apim-aca'),
     ]
 )
 def test_get_infra_rg_name_different_types(infra_type, expected_suffix, monkeypatch):
@@ -794,7 +794,7 @@ def test_get_infra_rg_name_different_types(infra_type, expected_suffix, monkeypa
 def test_create_bicep_deployment_group_for_sample_success(monkeypatch):
     """Test create_bicep_deployment_group_for_sample success case."""
     import os
-    mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
+    mock_output = utils.Output(success=True, text='{'outputs': {'test': 'value'}}')
     
     def mock_create_bicep(rg_name, rg_location, deployment, bicep_parameters, bicep_parameters_file='params.json', rg_tags=None):
         return mock_output
@@ -820,7 +820,7 @@ def test_extract_json_invalid_input():
     assert utils.extract_json(None) is None
     assert utils.extract_json(123) is None
     assert utils.extract_json([1, 2, 3]) is None
-    assert utils.extract_json("not json at all") is None
+    assert utils.extract_json('not json at all') is None
 
 
 def test_generate_signing_key_format():
@@ -841,13 +841,13 @@ def test_generate_signing_key_format():
         decoded = base64.b64decode(b64_key)
         assert len(decoded) == len(key)  # Decoded should match original length
     except Exception:
-        pytest.fail("Base64 key is not valid base64")
+        pytest.fail('Base64 key is not valid base64')
 
 
 def test_output_class_functionality():
     """Test the Output class properties and methods."""
     # Test successful output with deployment structure
-    output = utils.Output(success=True, text='{"properties": {"outputs": {"test": {"value": "value"}}}}')
+    output = utils.Output(success=True, text='{'properties': {'outputs': {'test': {'value': 'value'}}}}')
     assert output.success is True
     assert output.get('test') == 'value'
     assert output.get('missing') is None  # Should return None for missing key without label
@@ -864,26 +864,26 @@ def test_run_command_with_error_suppression(monkeypatch):
         # Simulate a CalledProcessError with bytes output
         import subprocess
         error = subprocess.CalledProcessError(1, cmd)
-        error.output = b"test output"  # Return bytes, as subprocess would
+        error.output = b'test output'  # Return bytes, as subprocess would
         raise error
     
     monkeypatch.setattr('subprocess.check_output', mock_subprocess_check_output)
     
-    output = utils.run("test command", print_errors=False, print_output=False)
+    output = utils.run('test command', print_errors=False, print_output=False)
     assert output.success is False
-    assert output.text == "test output"
+    assert output.text == 'test output'
 
 
 def test_bicep_directory_determination_edge_cases(monkeypatch, tmp_path):
     """Test edge cases in Bicep directory determination."""
     # Test when no main.bicep exists anywhere
-    empty_dir = tmp_path / "empty"
+    empty_dir = tmp_path / 'empty'
     empty_dir.mkdir()
     monkeypatch.setattr(os, 'getcwd', lambda: str(empty_dir))
     
     # Should fall back to current directory + infrastructure/nonexistent
-    result = utils._determine_bicep_directory("nonexistent")
-    expected = os.path.join(str(empty_dir), "infrastructure", "nonexistent")
+    result = utils._determine_bicep_directory('nonexistent')
+    expected = os.path.join(str(empty_dir), 'infrastructure', 'nonexistent')
     assert result == expected
 
 
@@ -910,23 +910,23 @@ def test_get_azure_role_guid_comprehensive(monkeypatch):
     """Test get_azure_role_guid with comprehensive scenarios."""
     # Mock the azure-roles.json file content
     mock_roles = {
-        "Storage Blob Data Reader": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
-        "Storage Account Contributor": "17d1049b-9a84-46fb-8f53-869881c3d3ab"
+        'Storage Blob Data Reader': '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1',
+        'Storage Account Contributor': '17d1049b-9a84-46fb-8f53-869881c3d3ab'
     }
     
     m = mock_open(read_data=json.dumps(mock_roles))
     monkeypatch.setattr(builtins, 'open', m)
     
     # Test valid role
-    result = utils.get_azure_role_guid("Storage Blob Data Reader")
-    assert result == "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
+    result = utils.get_azure_role_guid('Storage Blob Data Reader')
+    assert result == '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
     
     # Test case sensitivity - function is case sensitive, so this should return None
-    result = utils.get_azure_role_guid("storage blob data reader")
+    result = utils.get_azure_role_guid('storage blob data reader')
     assert result is None
     
     # Test invalid role
-    result = utils.get_azure_role_guid("Nonexistent Role")
+    result = utils.get_azure_role_guid('Nonexistent Role')
     assert result is None
 
 
@@ -1119,7 +1119,7 @@ def test_query_and_select_infrastructure_multiple_options(monkeypatch):
     monkeypatch.setattr(nb_helper, '_find_infrastructure_instances', mock_find_instances)
     monkeypatch.setattr(utils, 'print_info', lambda *args, **kwargs: None)
     monkeypatch.setattr(utils, 'print_success', lambda *args, **kwargs: None)
-    monkeypatch.setattr(utils, 'get_infra_rg_name', lambda infra, idx: f'apim-infra-{infra.value}-{idx or ""}')
+    monkeypatch.setattr(utils, 'get_infra_rg_name', lambda infra, idx: f'apim-infra-{infra.value}-{idx or ''}')
     monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
     
     # Mock user input to select option 1 (APIM_ACA with no index, sorted first alphabetically)
@@ -1218,7 +1218,7 @@ def test_deploy_bicep_with_infrastructure_selection(monkeypatch):
                        lambda: (selected_infra, selected_index))
     
     # Mock successful deployment
-    mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
+    mock_output = utils.Output(success=True, text='{'outputs': {'test': 'value'}}')
     monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample', 
                        lambda *args, **kwargs: mock_output)
     
@@ -1269,7 +1269,7 @@ def test_deploy_bicep_existing_infrastructure(monkeypatch):
     monkeypatch.setattr(utils, 'does_resource_group_exist', lambda rg: True)
     
     # Mock successful deployment
-    mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
+    mock_output = utils.Output(success=True, text='{'outputs': {'test': 'value'}}')
     monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample', 
                        lambda *args, **kwargs: mock_output)
     
@@ -1356,7 +1356,7 @@ def test_infrastructure_sorting_in_query_and_select(monkeypatch):
     monkeypatch.setattr(nb_helper, '_find_infrastructure_instances', mock_find_instances)
     monkeypatch.setattr(utils, 'print_info', lambda *args, **kwargs: None)
     monkeypatch.setattr(utils, 'print_success', lambda *args, **kwargs: None)
-    monkeypatch.setattr(utils, 'get_infra_rg_name', lambda infra, idx: f'apim-infra-{infra.value}-{idx or ""}')
+    monkeypatch.setattr(utils, 'get_infra_rg_name', lambda infra, idx: f'apim-infra-{infra.value}-{idx or ''}')
     
     # Capture the printed options to verify sorting
     printed_options = []

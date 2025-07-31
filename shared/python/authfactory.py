@@ -46,14 +46,14 @@ class JwtPayload:
         Convert the payload to a dictionary for encoding.
         """
         pl: dict[str, Any] = {
-            "sub": self.sub,
-            "name": self.name,
-            "iat": self.iat,
-            "exp": self.exp
+            'sub': self.sub,
+            'name': self.name,
+            'iat': self.iat,
+            'exp': self.exp
         } 
 
         if bool(self.roles):
-            pl["roles"] = self.roles
+            pl['roles'] = self.roles
 
         return pl
 
@@ -95,7 +95,7 @@ class SymmetricJwtToken:
         Note:
             The key parameter used for signing must be a regular ASCII string, NOT a base64-encoded string. If you have a base64-encoded key, decode it to its ASCII form before using it here. Passing a base64-encoded string directly will result in signature validation errors in APIM or other JWT consumers.
         """
-        return jwt.encode(self.payload.to_dict(), self.key, algorithm = "HS256")
+        return jwt.encode(self.payload.to_dict(), self.key, algorithm = 'HS256')
 
     
 class AuthFactory:
@@ -110,10 +110,10 @@ class AuthFactory:
     @staticmethod
     def create_symmetric_jwt_token_for_user(user: User, jwt_key: str) -> str:
         if not user:
-            raise ValueError("User is required to create a symmetric JWT token.")
+            raise ValueError('User is required to create a symmetric JWT token.')
         
         if not str(jwt_key):
-            raise ValueError("JWT key is required to create a symmetric JWT token.")
+            raise ValueError('JWT key is required to create a symmetric JWT token.')
 
         jwt_payload = JwtPayload(subject = user.id, name = user.name, roles = user.roles)
         symmetric_jwt = SymmetricJwtToken(jwt_key, jwt_payload)
@@ -133,11 +133,11 @@ class AuthFactory:
         """
 
         if not user:
-            raise ValueError("User is required to create JWT payload.")
+            raise ValueError('User is required to create JWT payload.')
 
         return {
-            "sub": user.id,
-            "name": user.name,
-            "roles": user.roles
+            'sub': user.id,
+            'name': user.name,
+            'roles': user.roles
         }
 
