@@ -132,7 +132,7 @@ def _create_simple_apim_infrastructure(
                 print(f"   APIs Created   : {len(apim_apis)}")
                 
                 # Perform basic verification
-                _verify_infrastructure(rg_name, apim_gateway_url)
+                _verify_infrastructure(rg_name)
         else:
             print("❌ Infrastructure creation failed!")
             
@@ -143,13 +143,12 @@ def _create_simple_apim_infrastructure(
         os.chdir(original_cwd)
         print(f"📁 Restored working directory to: {original_cwd}")
 
-def _verify_infrastructure(rg_name: str, apim_gateway_url: str) -> bool:
+def _verify_infrastructure(rg_name: str) -> bool:
     """
     Verify that the infrastructure was created successfully.
     
     Args:
         rg_name (str): Resource group name.
-        apim_gateway_url (str): API Management gateway Url.
         
     Returns:
         bool: True if verification passed, False otherwise.
@@ -170,7 +169,6 @@ def _verify_infrastructure(rg_name: str, apim_gateway_url: str) -> bool:
         
         if output.success and output.json_data:
             apim_name = output.json_data.get('name')
-            apim_gateway_url = output.json_data.get('gatewayUrl')
             
             print(f"✅ APIM Service verified: {apim_name}")
             

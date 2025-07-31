@@ -155,7 +155,7 @@ def _create_afd_apim_pe_infrastructure(
                     print(f"   APIs Created       : {len(apim_apis)}")
                     
                     # Perform basic verification
-                    _verify_infrastructure(rg_name, afd_endpoint_url, apim_gateway_url, use_aca)
+                    _verify_infrastructure(rg_name, use_aca)
             else:
                 print("❌ Phase 2 deployment failed!")
                 
@@ -203,14 +203,12 @@ def _approve_private_link_connections(apim_service_id: str) -> None:
     else:
         print("No pending private link service connections found. Nothing to approve.")
 
-def _verify_infrastructure(rg_name: str, afd_endpoint_url: str, apim_gateway_url: str, use_aca: bool) -> bool:
+def _verify_infrastructure(rg_name: str, use_aca: bool) -> bool:
     """
     Verify that the infrastructure was created successfully.
     
     Args:
         rg_name (str): Resource group name.
-        afd_endpoint_url (str): Azure Front Door endpoint URL.
-        apim_gateway_url (str): API Management gateway URL.
         use_aca (bool): Whether Container Apps were included.
         
     Returns:
