@@ -432,6 +432,22 @@ class NotebookHelper:
                 option_counter += 1
         else:
             print_warning('No existing supported infrastructures found.')
+            print_info(f'🚀 Automatically proceeding to create new infrastructure: {self.deployment.value}')
+            
+            # Automatically create the desired infrastructure without user confirmation
+            selected_index = self._get_current_index()
+            print_info(f'Creating new infrastructure: {self.deployment.value}{" (index: " + str(selected_index) + ")" if selected_index is not None else ""}')
+            
+            # Execute the infrastructure creation
+            inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, APIM_SKU.BASICV2)
+            success = inb_helper.create_infrastructure(True)  # Bypass infrastructure check to force creation
+
+            if success:
+                print_success(f'Successfully created infrastructure: {self.deployment.value}{" (index: " + str(selected_index) + ")" if selected_index is not None else ""}')
+                return self.deployment, selected_index
+            else:
+                print_error('Failed to create infrastructure.')
+                return None, None
         
         # Add option to create the desired infrastructure
         desired_index_str = f' (index: {self._get_current_index()})' if self._get_current_index() is not None else ''
@@ -444,10 +460,7 @@ class NotebookHelper:
         # Get user selection
         while True:
             try:
-                if available_options:
-                    choice = input(f'Select infrastructure (1-{len(display_options)}) or press Enter to exit: ').strip()
-                else:
-                    choice = input(f'Create new infrastructure ({len(display_options)}) or press Enter to exit: ').strip()
+                choice = input(f'Select infrastructure (1-{len(display_options)}) or press Enter to exit: ').strip()
                 
                 if not choice:
                     print_warning('No infrastructure selected. Exiting.')
