@@ -313,7 +313,7 @@ class NotebookHelper:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, sample_folder: str, rg_name: str, rg_location: str, deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE], use_jwt: bool = False, index: int = 1):
+    def __init__(self, sample_folder: str, rg_name: str, rg_location: str, deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE], use_jwt: bool = False, index: int = 1, is_debug = False):
         """
         Initialize the NotebookHelper with sample configuration and infrastructure details.
         
@@ -325,6 +325,7 @@ class NotebookHelper:
             supported_infrastructures (list[INFRASTRUCTURE]): List of supported infrastructure types.
             use_jwt (bool): Whether to generate JWT tokens. Defaults to False.
             index (int): Index for multi-instance deployments. Defaults to 1.
+            is_debug (bool): Whether to enable debug mode. Defaults to False.
         """
 
         self.sample_folder = sample_folder
@@ -334,6 +335,7 @@ class NotebookHelper:
         self.supported_infrastructures = supported_infrastructures
         self.use_jwt = use_jwt
         self.index = index
+        self.is_debug = is_debug
 
         validate_infrastructure(deployment, supported_infrastructures)
 
@@ -577,7 +579,7 @@ class NotebookHelper:
         print(f"📦 Resource group: {self.rg_name}")
 
         # Execute the deployment using the utility function that handles working directory management
-        output = create_bicep_deployment_group_for_sample(self.sample_folder, self.rg_name, self.rg_location, bicep_parameters)
+        output = create_bicep_deployment_group_for_sample(self.sample_folder, self.rg_name, self.rg_location, bicep_parameters, is_debug = self.is_debug)
 
         # Print a deployment summary, if successful; otherwise, exit with an error
         if output.success:
@@ -801,7 +803,7 @@ def get_azure_role_guid(role_name: str) -> Optional[str]:
         return None
 
 
-def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: str | INFRASTRUCTURE, bicep_parameters: dict, bicep_parameters_file: str = 'params.json', rg_tags: dict | None = None) -> Output:
+def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: str | INFRASTRUCTURE, bicep_parameters: dict, bicep_parameters_file: str = 'params.json', rg_tags: dict | None = None, is_debug: bool = False) -> Output:
     """
     Create a Bicep deployment in a resource group, writing parameters to a file and running the deployment.
     Creates the resource group if it does not exist.
@@ -813,6 +815,7 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
         bicep_parameters: Parameters for the Bicep template.
         bicep_parameters_file (str, optional): File to write parameters to.
         rg_tags (dict, optional): Additional tags to apply to the resource group.
+        is_debug (bool, optional): Whether to enable debug mode. Defaults to False.
 
     Returns:
         Output: The result of the deployment command.
@@ -856,8 +859,12 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
     if not os.path.exists(main_bicep_path):
         raise FileNotFoundError(f"main.bicep file not found in expected infrastructure directory: {bicep_dir}")
 
-    return run(f"az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file \"{main_bicep_path}\" --parameters \"{params_file_path}\" --query \"properties.outputs\"",
-        f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.")
+    cmd = f'az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"'
+
+    if is_debug:
+        cmd += ' --debug'
+
+    return run(cmd, f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.")
 
 
 # TODO: Reconcile this with apimtypes.py _get_project_root
@@ -887,7 +894,7 @@ def find_project_root() -> str:
     raise FileNotFoundError("Could not determine project root directory")
 
 
-def create_bicep_deployment_group_for_sample(sample_name: str, rg_name: str, rg_location: str, bicep_parameters: dict, bicep_parameters_file: str = 'params.json', rg_tags: dict | None = None) -> Output:
+def create_bicep_deployment_group_for_sample(sample_name: str, rg_name: str, rg_location: str, bicep_parameters: dict, bicep_parameters_file: str = 'params.json', rg_tags: dict | None = None, is_debug: bool = False) -> Output:
     """
     Create a Bicep deployment for a sample, handling the working directory change automatically.
     This function ensures that the params.json file is written to the correct sample directory
@@ -900,6 +907,7 @@ def create_bicep_deployment_group_for_sample(sample_name: str, rg_name: str, rg_
         bicep_parameters: Parameters for the Bicep template.
         bicep_parameters_file (str, optional): File to write parameters to.
         rg_tags (dict, optional): Additional tags to apply to the resource group.
+        is_debug (bool, optional): Whether to enable debug mode. Defaults to False.
 
     Returns:
         Output: The result of the deployment command.
@@ -933,7 +941,7 @@ def create_bicep_deployment_group_for_sample(sample_name: str, rg_name: str, rg_
         print(f"📁 Changed working directory to: {sample_dir}")
         
         # Call the original deployment function
-        return create_bicep_deployment_group(rg_name, rg_location, sample_name, bicep_parameters, bicep_parameters_file, rg_tags)
+        return create_bicep_deployment_group(rg_name, rg_location, sample_name, bicep_parameters, bicep_parameters_file, rg_tags, is_debug)
         
     finally:
         # Always restore the original working directory
