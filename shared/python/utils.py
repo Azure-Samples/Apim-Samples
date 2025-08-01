@@ -395,7 +395,11 @@ class NotebookHelper:
             tuple: (selected_infrastructure, selected_index) or (None, None) if no valid option
         """
         
-        print_info('Querying for available infrastructures...', blank_above = True)
+        # SJK: Querying the resource group location is inefficient at this time as it's done sequentially. 
+        # I'm leaving the code here, but may revisit it later.
+        QUERY_RG_LOCATION = False
+
+        print('Querying for available infrastructures...\n')
         
         # Get all resource groups that match the infrastructure pattern
         available_options = []
@@ -425,30 +429,45 @@ class NotebookHelper:
         
         # Add existing infrastructure options
         if available_options:
-            print_info(f'Found {len(available_options)} existing infrastructure(s). You can select an existing or create a new one.')
+            print_info(f'Found {len(available_options)} existing infrastructure(s). You can either create a new one or select an existing one.')
             
             # ALWAYS make "Create a NEW infrastructure" the first option for consistency
             desired_index_str = self._get_current_index() if self._get_current_index() is not None else 'N/A'
             desired_location = self.rg_location
             
-            print(f'\n     Create a NEW infrastructure:\n')
+            print(f'\n   Create a NEW infrastructure:\n')
             # Column headers
-            print(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35} {'Location':<15}')
-            print(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35} {'-'*15:<15}')
-            print(f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35} {desired_location:<15}')
+            if QUERY_RG_LOCATION:
+                print(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35} {'Location':<15}')
+                print(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35} {'-'*15:<15}')
+                print(f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35} {desired_location:<15}')
+            else: 
+                print(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35}')
+                print(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35}')
+                print(f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35}')
+
             display_options.append(('create_new', self.deployment, self._get_current_index()))
             option_counter += 1
             
-            print(f'\n     Or select an EXISTING infrastructure:\n')
+            print(f'\n   Or select an EXISTING infrastructure:\n')
             # Column headers
-            print(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35} {'Location':<15}')
-            print(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35} {'-'*15:<15}')
+            if QUERY_RG_LOCATION:
+                print(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35} {'Location':<15}')
+                print(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35} {'-'*15:<15}')
+            else:
+                print(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35}')
+                print(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35}')
             
             for infra, index in available_options:
                 index_str = index if index is not None else 'N/A'
                 rg_name = get_infra_rg_name(infra, index)
-                rg_location = get_resource_group_location(rg_name)
-                print(f'     {option_counter:>3} {infra.value:<20} {index_str:>8} {rg_name:<35} {rg_location:<15}')
+                
+                if QUERY_RG_LOCATION:
+                    rg_location = get_resource_group_location(rg_name)
+                    print(f'     {option_counter:>3} {infra.value:<20} {index_str:>8} {rg_name:<35} {rg_location:<15}')
+                else:
+                    print(f'     {option_counter:>3} {infra.value:<20} {index_str:>8} {rg_name:<35}')
+
                 display_options.append(('existing', infra, index))
                 option_counter += 1
         else:
@@ -566,18 +585,17 @@ class NotebookHelper:
         """
 
         # Check infrastructure availability and let user select or create
-        print(f'Checking infrastructure availability...\n')
-        print(f'   Desired infrastructure : {self.deployment.value}')
-        print(f'   Desired index          : {self.index}')
-        print(f'   Desired resource group : {self.rg_name}\n')
+        print(f'Checking desired infrastructure availability...\n')
+        print(f'   Infrastructure : {self.deployment.value}')
+        print(f'   Index          : {self.index}')
+        print(f'   Resource group : {self.rg_name}\n')
 
         # Call the resource group existence check only once
         rg_exists = does_resource_group_exist(self.rg_name)
-        print(f'Resource group exists: {rg_exists}')
 
         # If the desired infrastructure doesn't exist, use the interactive selection process
         if not rg_exists:
-            print(f'\nDesired infrastructure does not exist. Querying for available options...')
+            print_info('Desired infrastructure does not exist.\n')
             
             # Check if we've already done infrastructure selection (prevent double execution)
             if 'infrastructure_selection_completed' not in globals():
@@ -592,19 +610,18 @@ class NotebookHelper:
                 self.index = selected_index
                 self.rg_name = get_infra_rg_name(self.deployment, self.index)
                 
-                print(f'✅ Using infrastructure : {self.deployment.value}')
-                print(f'📦 Resource group       : {self.rg_name}')
-                
                 # Verify the updates were applied correctly
-                print(f'📝 Updated variables    : deployment = {self.deployment.value}, index = {self.index}, rg_name = {self.rg_name}')
+                print(f'📝 Updated infrastructure variables')
             else:
                 print('✅ Infrastructure selection already completed in this session')
         else:
             print('\n✅ Desired infrastructure already exists, proceeding with sample deployment')
 
         # Deploy the sample APIs to the selected infrastructure
-        print(f'\n🚀 Deploying sample APIs to infrastructure: {self.deployment.value}')
-        print(f'📦 Resource group: {self.rg_name}')
+        print(f'\nDeploying sample to:\n')
+        print(f'   Infrastructure : {self.deployment.value}')
+        print(f'   Index          : {self.index}')
+        print(f'   Resource group : {self.rg_name}\n')
 
         # Execute the deployment using the utility function that handles working directory management
         output = create_bicep_deployment_group_for_sample(self.sample_folder, self.rg_name, self.rg_location, bicep_parameters, is_debug = self.is_debug)
@@ -651,44 +668,47 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
         return
 
     try:
-        print_info(f"🧹 Cleaning up resource group '{rg_name}'...")
+        print_info(f'Resource group : {rg_name}')
 
         # Show the deployment details
-        output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment')
+        output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False)
 
         if output.success and output.json_data:
-            provisioning_state = output.json_data.get('properties').get('provisioningState')
-            print_info(f'Deployment provisioning state: {provisioning_state}')
+            # provisioning_state = output.json_data.get('properties').get('provisioningState')
+            # print_info(f'Deployment provisioning state: {provisioning_state}')
 
             # Delete and purge CognitiveService accounts
-            output = run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts')
+            output = run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False)
+
             if output.success and output.json_data:
                 for resource in output.json_data:
-                    print_info(f"Deleting and purging Cognitive Service Account '{resource['name']}' in resource group '{rg_name}'...")
-                    output = run(f"az cognitiveservices account delete -g {rg_name} -n {resource['name']}", f"Cognitive Services '{resource['name']}' deleted", f"Failed to delete Cognitive Services '{resource['name']}'")
-                    output = run(f"az cognitiveservices account purge -g {rg_name} -n {resource['name']} --location \"{resource['location']}\"", f"Cognitive Services '{resource['name']}' purged", f"Failed to purge Cognitive Services '{resource['name']}'")
+                    print_info(f"Deleting and purging Cognitive Service Account '{resource['name']}'...")
+                    output = run(f"az cognitiveservices account delete -g {rg_name} -n {resource['name']}", f"Cognitive Services '{resource['name']}' deleted", f"Failed to delete Cognitive Services '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az cognitiveservices account purge -g {rg_name} -n {resource['name']} --location \"{resource['location']}\"", f"Cognitive Services '{resource['name']}' purged", f"Failed to purge Cognitive Services '{resource['name']}'", print_command_to_run = False)
 
             # Delete and purge APIM resources
-            output = run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources')
+            output = run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False)
+
             if output.success and output.json_data:
                 for resource in output.json_data:
-                    print_info(f"Deleting and purging API Management '{resource['name']}' in resource group '{rg_name}'...")
-                    output = run(f"az apim delete -n {resource['name']} -g {rg_name} -y", f"API Management '{resource['name']}' deleted", f"Failed to delete API Management '{resource['name']}'")
-                    output = run(f"az apim deletedservice purge --service-name {resource['name']} --location \"{resource['location']}\"", f"API Management '{resource['name']}' purged", f"Failed to purge API Management '{resource['name']}'")
+                    print_info(f"Deleting and purging API Management '{resource['name']}'...")
+                    output = run(f"az apim delete -n {resource['name']} -g {rg_name} -y", f"API Management '{resource['name']}' deleted", f"Failed to delete API Management '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az apim deletedservice purge --service-name {resource['name']} --location \"{resource['location']}\"", f"API Management '{resource['name']}' purged", f"Failed to purge API Management '{resource['name']}'", print_command_to_run = False)
 
             # Delete and purge Key Vault resources
-            output = run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources')
+            output = run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False)
+            
             if output.success and output.json_data:
                 for resource in output.json_data:
-                    print_info(f"Deleting and purging Key Vault '{resource['name']}' in resource group '{rg_name}'...")
-                    output = run(f"az keyvault delete -n {resource['name']} -g {rg_name}", f"Key Vault '{resource['name']}' deleted", f"Failed to delete Key Vault '{resource['name']}'")
-                    output = run(f"az keyvault purge -n {resource['name']} --location \"{resource['location']}\"", f"Key Vault '{resource['name']}' purged", f"Failed to purge Key Vault '{resource['name']}'")
+                    print_info(f"Deleting and purging Key Vault '{resource['name']}'...")
+                    output = run(f"az keyvault delete -n {resource['name']} -g {rg_name}", f"Key Vault '{resource['name']}' deleted", f"Failed to delete Key Vault '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az keyvault purge -n {resource['name']} --location \"{resource['location']}\"", f"Key Vault '{resource['name']}' purged", f"Failed to purge Key Vault '{resource['name']}'", print_command_to_run = False)
 
             # Delete the resource group last
-            print_message(f"🧹 Deleting resource group '{rg_name}'...")
-            output = run(f'az group delete --name {rg_name} -y', f"Resource group '{rg_name}' deleted', f'Failed to delete resource group '{rg_name}'")
+            print_message(f"Deleting resource group '{rg_name}'...")
+            output = run(f'az group delete --name {rg_name} -y', f"Resource group '{rg_name}' deleted', f'Failed to delete resource group '{rg_name}'", print_command_to_run = False)
 
-            print_message('🧹 Cleanup completed.')
+            print_message('Cleanup completed.')
 
     except Exception as e:
         print(f'An error occurred during cleanup: {e}')
@@ -892,7 +912,7 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
     if is_debug:
         cmd += ' --debug'
 
-    return run(cmd, f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.")
+    return run(cmd, f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.", print_command_to_run = False)
 
 
 # TODO: Reconcile this with apimtypes.py _get_project_root
@@ -1004,7 +1024,7 @@ def create_resource_group(rg_name: str, resource_group_location: str | None = No
         run(f'az group create --name {rg_name} --location {resource_group_location} --tags {tag_string}',
             f"Resource group '{rg_name}' created",
             f"Failed to create the resource group '{rg_name}'", 
-            False, True, False, False)
+            False, False, False, False)
 
 def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int) -> bool:
     """
@@ -1043,7 +1063,7 @@ def does_resource_group_exist(rg_name: str) -> bool:
         bool: True if the resource group exists, False otherwise.
     """
 
-    output = run(f'az group show --name {rg_name}', print_output = False, print_errors = False)
+    output = run(f'az group show --name {rg_name}', print_command_to_run = False, print_output = False, print_errors = False)
     return output.success
 
 def get_resource_group_location(rg_name: str) -> str:
@@ -1208,31 +1228,12 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
     else:
         indexes_list = [indexes]
 
+    i = 1
     for idx in indexes_list:
-        print_info(f'Cleaning up resources for {deployment} - {idx}', True)
+        print_info(f'{i}/{len(indexes_list)}: Cleaning up resources for {deployment} - {idx}', True)
         rg_name = get_infra_rg_name(deployment, idx)
         _cleanup_resources(deployment.value, rg_name)
-
-def cleanup_deployment(deployment: str, indexes: int | list[int] | None = None) -> None:
-    """
-    Clean up sample deployments by deployment name and index/indexes.
-    Obtains the resource group name for each index and calls the private cleanup method.
-
-    Args:
-        deployment (str): The deployment name (string).
-        indexes (int | list[int] | None): A single index, a list of indexes, or None for no index.
-    """
-    if not isinstance(deployment, str):
-        raise ValueError('deployment must be a string')
-    if indexes is None:
-        indexes_list = [None]
-    elif isinstance(indexes, (list, tuple)):
-        indexes_list = list(indexes)
-    else:
-        indexes_list = [indexes]
-    for idx in indexes_list:
-        rg_name = get_rg_name(deployment, idx)
-        _cleanup_resources(deployment, rg_name)
+        i += 1
 
 def extract_json(text: str) -> Any:
     """

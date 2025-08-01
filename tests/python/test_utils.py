@@ -230,17 +230,253 @@ def test_cleanup_resources_smoke(monkeypatch):
     # Direct private method call for legacy test (should still work)
     utils._cleanup_resources(INFRASTRUCTURE.SIMPLE_APIM.value, 'rg')
 
+
+def test_cleanup_resources_missing_parameters(monkeypatch):
+    """Test _cleanup_resources with missing parameters."""
+    print_calls = []
+    
+    def mock_print_error(message, *args, **kwargs):
+        print_calls.append(message)
+    
+    monkeypatch.setattr(utils, 'print_error', mock_print_error)
+    
+    # Test missing deployment name
+    utils._cleanup_resources('', 'valid-rg')
+    assert 'Missing deployment name parameter.' in print_calls
+    
+    # Test missing resource group name
+    print_calls.clear()
+    utils._cleanup_resources('valid-deployment', '')
+    assert 'Missing resource group name parameter.' in print_calls
+    
+    # Test None deployment name
+    print_calls.clear()
+    utils._cleanup_resources(None, 'valid-rg')
+    assert 'Missing deployment name parameter.' in print_calls
+    
+    # Test None resource group name
+    print_calls.clear()
+    utils._cleanup_resources('valid-deployment', None)
+    assert 'Missing resource group name parameter.' in print_calls
+
+
+def test_cleanup_resources_with_resources(monkeypatch):
+    """Test _cleanup_resources with various resource types present."""
+    run_commands = []
+    
+    def mock_run(command, ok_message='', error_message='', print_command_to_run=True, print_errors=True, print_warnings=True):
+        run_commands.append(command)
+        
+        # Mock deployment show response
+        if 'deployment group show' in command:
+            return utils.Output(success=True, text='{"properties": {"provisioningState": "Succeeded"}}')
+        
+        # Mock cognitive services list response
+        if 'cognitiveservices account list' in command:
+            return utils.Output(success=True, text='[{"name": "cog-service-1", "location": "eastus"}, {"name": "cog-service-2", "location": "westus"}]')
+        
+        # Mock APIM list response
+        if 'apim list' in command:
+            return utils.Output(success=True, text='[{"name": "apim-service-1", "location": "eastus"}, {"name": "apim-service-2", "location": "westus"}]')
+        
+        # Mock Key Vault list response
+        if 'keyvault list' in command:
+            return utils.Output(success=True, text='[{"name": "kv-vault-1", "location": "eastus"}, {"name": "kv-vault-2", "location": "westus"}]')
+        
+        # Default successful response for delete/purge operations
+        return utils.Output(success=True, text='Operation completed')
+    
+    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_message', lambda *a, **kw: None)
+    
+    # Execute cleanup
+    utils._cleanup_resources('test-deployment', 'test-rg')
+    
+    # Verify all expected commands were called
+    command_patterns = [
+        'az deployment group show --name test-deployment -g test-rg',
+        'az cognitiveservices account list -g test-rg',
+        'az cognitiveservices account delete -g test-rg -n cog-service-1',
+        'az cognitiveservices account purge -g test-rg -n cog-service-1 --location "eastus"',
+        'az cognitiveservices account delete -g test-rg -n cog-service-2',
+        'az cognitiveservices account purge -g test-rg -n cog-service-2 --location "westus"',
+        'az apim list -g test-rg',
+        'az apim delete -n apim-service-1 -g test-rg -y',
+        'az apim deletedservice purge --service-name apim-service-1 --location "eastus"',
+        'az apim delete -n apim-service-2 -g test-rg -y',
+        'az apim deletedservice purge --service-name apim-service-2 --location "westus"',
+        'az keyvault list -g test-rg',
+        'az keyvault delete -n kv-vault-1 -g test-rg',
+        'az keyvault purge -n kv-vault-1 --location "eastus"',
+        'az keyvault delete -n kv-vault-2 -g test-rg',
+        'az keyvault purge -n kv-vault-2 --location "westus"',
+        'az group delete --name test-rg -y'
+    ]
+    
+    for pattern in command_patterns:
+        assert any(pattern in cmd for cmd in run_commands), f"Expected command pattern not found: {pattern}"
+
+
+def test_cleanup_resources_no_resources(monkeypatch):
+    """Test _cleanup_resources when no resources exist."""
+    run_commands = []
+    
+    def mock_run(command, ok_message='', error_message='', print_command_to_run=True, print_errors=True, print_warnings=True):
+        run_commands.append(command)
+        
+        # Mock deployment show response
+        if 'deployment group show' in command:
+            return utils.Output(success=True, text='{"properties": {"provisioningState": "Succeeded"}}')
+        
+        # Mock empty resource lists
+        if any(x in command for x in ['cognitiveservices account list', 'apim list', 'keyvault list']):
+            return utils.Output(success=True, text='[]')
+        
+        # Default successful response
+        return utils.Output(success=True, text='Operation completed')
+    
+    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_message', lambda *a, **kw: None)
+    
+    # Execute cleanup
+    utils._cleanup_resources('test-deployment', 'test-rg')
+    
+    # Verify only listing and resource group deletion commands were called
+    expected_commands = [
+        'az deployment group show --name test-deployment -g test-rg',
+        'az cognitiveservices account list -g test-rg',
+        'az apim list -g test-rg',
+        'az keyvault list -g test-rg',
+        'az group delete --name test-rg -y'
+    ]
+    
+    for expected in expected_commands:
+        assert any(expected in cmd for cmd in run_commands), f"Expected command not found: {expected}"
+    
+    # Verify no delete/purge commands for individual resources
+    delete_purge_patterns = ['delete -n', 'purge -n', 'deletedservice purge']
+    for pattern in delete_purge_patterns:
+        assert not any(pattern in cmd for cmd in run_commands), f"Unexpected delete/purge command found: {pattern}"
+
+
+def test_cleanup_resources_command_failures(monkeypatch):
+    """Test _cleanup_resources when commands fail."""
+    
+    def mock_run(command, ok_message='', error_message='', print_command_to_run=True, print_errors=True, print_warnings=True):
+        # Mock deployment show failure
+        if 'deployment group show' in command:
+            return utils.Output(success=False, text='Deployment not found')
+        
+        # All other commands succeed
+        return utils.Output(success=True, json_data=[])
+    
+    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_message', lambda *a, **kw: None)
+    
+    # Should not raise exception even when deployment show fails
+    utils._cleanup_resources('test-deployment', 'test-rg')
+
+
+def test_cleanup_resources_exception_handling(monkeypatch):
+    """Test _cleanup_resources exception handling."""
+    exception_caught = []
+    
+    def mock_run(command, ok_message='', error_message='', print_command_to_run=True, print_errors=True, print_warnings=True):
+        raise Exception("Simulated Azure CLI error")
+    
+    def mock_print(message):
+        exception_caught.append(message)
+    
+    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_message', lambda *a, **kw: None)
+    monkeypatch.setattr('builtins.print', mock_print)
+    monkeypatch.setattr('traceback.print_exc', lambda: None)
+    
+    # Should handle exception gracefully
+    utils._cleanup_resources('test-deployment', 'test-rg')
+    
+    # Verify exception was caught and printed
+    assert any('An error occurred during cleanup:' in msg for msg in exception_caught)
+
 def test_cleanup_infra_deployment_single(monkeypatch):
     monkeypatch.setattr(utils, '_cleanup_resources', lambda deployment_name, rg_name: None)
     utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, None)
     utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, 1)
     utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2])
 
-def test_cleanup_deployment_single(monkeypatch):
-    monkeypatch.setattr(utils, '_cleanup_resources', lambda deployment_name, rg_name: None)
-    utils.cleanup_deployment('foo', None)
-    utils.cleanup_deployment('foo', 1)
-    utils.cleanup_deployment('foo', [1, 2])
+
+def test_cleanup_infra_deployments_all_infrastructure_types(monkeypatch):
+    """Test cleanup_infra_deployments with all infrastructure types."""
+    cleanup_calls = []
+    
+    def mock_cleanup_resources(deployment_name, rg_name):
+        cleanup_calls.append((deployment_name, rg_name))
+    
+    def mock_get_infra_rg_name(deployment, index):
+        return f'apim-infra-{deployment.value}-{index}' if index else f'apim-infra-{deployment.value}'
+    
+    monkeypatch.setattr(utils, '_cleanup_resources', mock_cleanup_resources)
+    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
+    
+    # Test all infrastructure types
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, 1)
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.APIM_ACA, 2)
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.AFD_APIM_PE, 3)
+    
+    # Verify correct calls were made
+    assert ('simple-apim', 'apim-infra-simple-apim-1') in cleanup_calls
+    assert ('apim-aca', 'apim-infra-apim-aca-2') in cleanup_calls
+    assert ('afd-apim-pe', 'apim-infra-afd-apim-pe-3') in cleanup_calls
+
+
+def test_cleanup_infra_deployments_index_scenarios(monkeypatch):
+    """Test cleanup_infra_deployments with various index scenarios."""
+    cleanup_calls = []
+    
+    def mock_cleanup_resources(deployment_name, rg_name):
+        cleanup_calls.append((deployment_name, rg_name))
+    
+    def mock_get_infra_rg_name(deployment, index):
+        return f'apim-infra-{deployment.value}-{index}' if index else f'apim-infra-{deployment.value}'
+    
+    monkeypatch.setattr(utils, '_cleanup_resources', mock_cleanup_resources)
+    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
+    
+    # Test None index
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, None)
+    
+    # Test single integer index
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, 5)
+    
+    # Test list of integers
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2, 3])
+    
+    # Test tuple of integers
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, (4, 5))
+    
+    # Test empty list
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [])
+    
+    # Verify correct calls were made
+    expected_calls = [
+        ('simple-apim', 'apim-infra-simple-apim'),        # None index
+        ('simple-apim', 'apim-infra-simple-apim-5'),      # Single index 5
+        ('simple-apim', 'apim-infra-simple-apim-1'),      # List [1, 2, 3] - first
+        ('simple-apim', 'apim-infra-simple-apim-2'),      # List [1, 2, 3] - second
+        ('simple-apim', 'apim-infra-simple-apim-3'),      # List [1, 2, 3] - third
+        ('simple-apim', 'apim-infra-simple-apim-4'),      # Tuple (4, 5) - first
+        ('simple-apim', 'apim-infra-simple-apim-5'),      # Tuple (4, 5) - second
+    ]
+    
+    for expected_call in expected_calls:
+        assert expected_call in cleanup_calls
+
 
 # ------------------------------
 #    EXTRACT_JSON EDGE CASES
@@ -932,24 +1168,178 @@ def test_get_azure_role_guid_comprehensive(monkeypatch):
 
 def test_cleanup_functions_comprehensive(monkeypatch):
     """Test cleanup functions with various scenarios."""
+    run_commands = []
+    
     def mock_run(command, ok_message='', error_message='', print_output=False, print_command_to_run=True, print_errors=True, print_warnings=True):
+        run_commands.append(command)
+        
+        # Return appropriate mock responses
+        if 'deployment group show' in command:
+            return utils.Output(success=True, json_data={
+                'properties': {'provisioningState': 'Succeeded'}
+            })
+        
+        # Return empty lists for resource queries to avoid complex mocking
+        if any(x in command for x in ['list -g', 'list']):
+            return utils.Output(success=True, json_data=[])
+            
         return utils.Output(success=True, text='{}')
     
+    def mock_get_infra_rg_name(deployment, index):
+        return f'test-rg-{deployment.value}-{index}' if index else f'test-rg-{deployment.value}'
+    
     monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_message', lambda *a, **kw: None)
     
     # Test _cleanup_resources (private function)
     utils._cleanup_resources('test-deployment', 'test-rg')  # Should not raise
-    
-    # Test cleanup_deployment 
-    utils.cleanup_deployment('test-deployment')  # Should not raise
-    
+   
     # Test cleanup_infra_deployments with INFRASTRUCTURE enum (correct function name and parameter type)
     from apimtypes import INFRASTRUCTURE
-    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM)  # Should not raise
     
-    # Test cleanup_deployment with string
-    utils.cleanup_deployment('test-deployment')  # Should not raise
+    # Test with all infrastructure types
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM)
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.APIM_ACA, 1)
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.AFD_APIM_PE, [1, 2])
+    
+    # Verify commands were executed
+    assert len(run_commands) > 0
 
+
+def test_cleanup_edge_cases_comprehensive(monkeypatch):
+    """Test cleanup functions with edge cases and error conditions."""
+    
+    # Test with different index types
+    cleanup_calls = []
+    
+    def mock_cleanup_resources(deployment_name, rg_name):
+        cleanup_calls.append((deployment_name, rg_name))
+    
+    def mock_get_infra_rg_name(deployment, index):
+        return f'rg-{deployment.value}-{index}' if index is not None else f'rg-{deployment.value}'
+    
+    monkeypatch.setattr(utils, '_cleanup_resources', mock_cleanup_resources)
+    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
+    
+    # Test with zero index
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, 0)
+    assert ('simple-apim', 'rg-simple-apim-0') in cleanup_calls
+    
+    # Test with negative index
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, -1)
+    assert ('simple-apim', 'rg-simple-apim--1') in cleanup_calls
+    
+    # Test with large index
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, 9999)
+    assert ('simple-apim', 'rg-simple-apim-9999') in cleanup_calls
+    
+    # Test with mixed positive and negative indexes in list
+    cleanup_calls.clear()
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.APIM_ACA, [-1, 0, 1])
+    expected = [
+        ('apim-aca', 'rg-apim-aca--1'),
+        ('apim-aca', 'rg-apim-aca-0'),
+        ('apim-aca', 'rg-apim-aca-1')
+    ]
+    for call in expected:
+        assert call in cleanup_calls
+    
+    # Test with single-item list
+    cleanup_calls.clear()
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.AFD_APIM_PE, [42])
+    assert ('afd-apim-pe', 'rg-afd-apim-pe-42') in cleanup_calls
+
+
+def test_cleanup_resources_partial_failures(monkeypatch):
+    """Test _cleanup_resources when some operations fail."""
+    run_commands = []
+    
+    def mock_run(command, ok_message='', error_message='', print_command_to_run=True, print_errors=True, print_warnings=True):
+        run_commands.append(command)
+        
+        # Mock deployment show response
+        if 'deployment group show' in command:
+            return utils.Output(success=True, text='{"properties": {"provisioningState": "Failed"}}')
+        
+        # Mock resources exist
+        if 'cognitiveservices account list' in command:
+            return utils.Output(success=True, text='[{"name": "cog-service-1", "location": "eastus"}]')
+        
+        if 'apim list' in command:
+            return utils.Output(success=True, text='[{"name": "apim-service-1", "location": "eastus"}]')
+        
+        if 'keyvault list' in command:
+            return utils.Output(success=True, text='[{"name": "kv-vault-1", "location": "eastus"}]')
+        
+        # Simulate failure for delete operations but success for purge
+        if 'delete' in command and ('cognitiveservices' in command or 'apim delete' in command or 'keyvault delete' in command):
+            return utils.Output(success=False, text='Delete failed')
+        
+        # Simulate failure for purge operations
+        if 'purge' in command:
+            return utils.Output(success=False, text='Purge failed')
+        
+        # Resource group deletion succeeds
+        return utils.Output(success=True, text='Operation completed')
+    
+    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_message', lambda *a, **kw: None)
+    
+    # Should not raise exception even when individual operations fail
+    utils._cleanup_resources('test-deployment', 'test-rg')
+    
+    # Verify all expected commands were attempted despite failures
+    expected_patterns = [
+        'deployment group show',
+        'cognitiveservices account list',
+        'cognitiveservices account delete',
+        'cognitiveservices account purge',
+        'apim list',
+        'apim delete',
+        'apim deletedservice purge',
+        'keyvault list',
+        'keyvault delete',
+        'keyvault purge',
+        'group delete'
+    ]
+    
+    for pattern in expected_patterns:
+        assert any(pattern in cmd for cmd in run_commands), f"Expected command pattern not found: {pattern}"
+
+
+def test_cleanup_resources_malformed_responses(monkeypatch):
+    """Test _cleanup_resources with malformed API responses."""
+    
+    def mock_run(command, ok_message='', error_message='', print_command_to_run=True, print_errors=True, print_warnings=True):
+        
+        # Mock deployment show with missing properties
+        if 'deployment group show' in command:
+            return utils.Output(success=True, text='{}')
+        
+        # Mock malformed resource responses (missing required fields)
+        if 'cognitiveservices account list' in command:
+            return utils.Output(success=True, text='[{"name": "cog-service-1"}, {"location": "eastus"}, {}]')
+        
+        if 'apim list' in command:
+            return utils.Output(success=True, text='[{"name": "apim-service-1"}, {"location": "eastus"}]')
+        
+        if 'keyvault list' in command:
+            return utils.Output(success=True, text='[{"name": "kv-vault-1"}]')
+        
+        # Default response for delete/purge operations
+        return utils.Output(success=True, text='Operation completed')
+    
+    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_message', lambda *a, **kw: None)
+    
+    # Should handle malformed responses gracefully without raising exceptions
+    utils._cleanup_resources('test-deployment', 'test-rg')
+    
 
 import json
 
