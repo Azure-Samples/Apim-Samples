@@ -615,7 +615,7 @@ class NotebookHelper:
             else:
                 print('✅ Infrastructure selection already completed in this session')
         else:
-            print('\n✅ Desired infrastructure already exists, proceeding with sample deployment')
+            print('✅ Desired infrastructure already exists, proceeding with sample deployment')
 
         # Deploy the sample APIs to the selected infrastructure
         print(f'\nDeploying sample to:\n')
@@ -901,7 +901,7 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
     with open(params_file_path, 'w') as file:
         file.write(json.dumps(bicep_parameters_format))
 
-    print(f"📝 Updated the policy XML in the bicep parameters file '{bicep_parameters_file}'")
+    print(f'📝 Updated the policy XML in the bicep parameters file {bicep_parameters_file}')
     
     # Verify that main.bicep exists in the infrastructure directory
     if not os.path.exists(main_bicep_path):
@@ -912,6 +912,7 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
     if is_debug:
         cmd += ' --debug'
 
+    print('\Deploying bicep...\n')
     return run(cmd, f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.", print_command_to_run = False)
 
 
