@@ -41,13 +41,12 @@ def _create_apim_aca_infrastructure(
     rg_name = utils.get_infra_rg_name(deployment, index)
     rg_tags = utils.build_infrastructure_tags(deployment)
 
-    print(f'\n🚀 Creating APIM-ACA infrastructure...')
-    print(f'    Location       : {rg_location}')
-    print(f'    Index          : {index}')
-    print(f'    Infrastructure : {deployment.value}')
-    print(f'    APIM SKU       : {apim_sku.value}')
-    print(f'    Reveal Backend : {reveal_backend}')
-    print(f'    Resource Group : {rg_name}\n')
+    print(f'\n🚀 Creating APIM-ACA infrastructure...\n')
+    print(f'   Infrastructure : {deployment.value}')
+    print(f'   Index          : {index}')
+    print(f'   Resource group : {rg_name}')
+    print(f'   Location       : {rg_location}')
+    print(f'   APIM SKU       : {apim_sku.value}\n')
     
     # 2) Set up the policy fragments
     if custom_policy_fragments is None:
@@ -130,7 +129,8 @@ def _create_apim_aca_infrastructure(
         output = utils.run(
             f'az deployment group create --name {deployment.value} --resource-group {rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
             f"Deployment '{deployment.value}' succeeded", 
-            f"Deployment '{deployment.value}' failed."
+            f"Deployment '{deployment.value}' failed.",
+            print_command_to_run = False
         )
         
         # 7) Check the deployment results and perform verification

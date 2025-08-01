@@ -42,13 +42,12 @@ def _create_afd_apim_pe_infrastructure(
     rg_tags = utils.build_infrastructure_tags(deployment)
     apim_network_mode = APIMNetworkMode.EXTERNAL_VNET
 
-    print(f'\n🚀 Creating AFD-APIM-PE infrastructure...')
-    print(f'    Location       : {rg_location}')
-    print(f'    Index          : {index}')
-    print(f'    Infrastructure : {deployment.value}')
-    print(f'    APIM SKU       : {apim_sku.value}')
-    print(f'    Use ACA        : {use_aca}')
-    print(f'    Resource Group : {rg_name}\n')
+    print(f'\n🚀 Creating AFD-APIM-PE infrastructure...\n')
+    print(f'   Infrastructure : {deployment.value}')
+    print(f'   Index          : {index}')
+    print(f'   Resource group : {rg_name}')
+    print(f'   Location       : {rg_location}')
+    print(f'   APIM SKU       : {apim_sku.value}\n')
     
     # 2) Set up the policy fragments
     if custom_policy_fragments is None:
