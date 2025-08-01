@@ -4,7 +4,7 @@ This document outlines the compatibility between samples and infrastructure type
 
 ## Printable Test Checklist
 
-
+A printable checklist is maintained in the [Test-Matrix.md](./Test-Matrix.md) file.
 
 ## Infrastructure Types
 
