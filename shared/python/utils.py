@@ -912,7 +912,7 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
     if is_debug:
         cmd += ' --debug'
 
-    print('\Deploying bicep...\n')
+    print('\nDeploying bicep...\n')
     return run(cmd, f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.", print_command_to_run = False)
 
 
