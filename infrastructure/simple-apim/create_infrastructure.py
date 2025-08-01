@@ -109,7 +109,7 @@ def _create_simple_apim_infrastructure(
         # Run the deployment directly
         main_bicep_path = infra_dir / 'main.bicep'
         output = utils.run(
-            f'az deployment group create --name {deployment.value} --resource-group {rg_name} --template-file '{main_bicep_path}' --parameters '{params_file_path}' --query 'properties.outputs'',
+            f'az deployment group create --name {deployment.value} --resource-group {rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
             f"Deployment '{deployment.value}' succeeded", 
             f"Deployment '{deployment.value}' failed."
         )
@@ -165,7 +165,7 @@ def _verify_infrastructure(rg_name: str) -> bool:
         print('✅ Resource group verified')
         
         # Get APIM service details
-        output = utils.run(f'az apim list -g {rg_name} --query '[0]' -o json', print_command_to_run = False, print_errors = False)
+        output = utils.run(f'az apim list -g {rg_name} --query "[0]" -o json', print_command_to_run = False, print_errors = False)
         
         if output.success and output.json_data:
             apim_name = output.json_data.get('name')
@@ -173,7 +173,7 @@ def _verify_infrastructure(rg_name: str) -> bool:
             print(f'✅ APIM Service verified: {apim_name}')
             
             # Get API count
-            api_output = utils.run(f'az apim api list --service-name {apim_name} -g {rg_name} --query 'length(@)'', 
+            api_output = utils.run(f'az apim api list --service-name {apim_name} -g {rg_name} --query "length(@)"', 
                                   print_command_to_run = False, print_errors = False)
             
             if api_output.success:
@@ -184,7 +184,7 @@ def _verify_infrastructure(rg_name: str) -> bool:
                 if api_count > 0:
                     try:
                         # Get subscription key for testing
-                        sub_output = utils.run(f'az apim subscription list --service-name {apim_name} -g {rg_name} --query '[0].primaryKey' -o tsv', 
+                        sub_output = utils.run(f'az apim subscription list --service-name {apim_name} -g {rg_name} --query "[0].primaryKey" -o tsv', 
                                              print_command_to_run = False, print_errors = False)
                         
                         if sub_output.success and sub_output.text.strip():
