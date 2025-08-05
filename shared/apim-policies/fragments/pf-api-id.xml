@@ -20,21 +20,13 @@
 -->
 <fragment>
 	<set-variable name="apiId" value="@{
-        var apiName = context.Api.Name;
-        var apiId = string.Empty;
-        
         // Use regex to match the pattern: (api-\d+) at the end of the string
-        var match = System.Text.RegularExpressions.Regex.Match(apiName, @"\(api-\d+\)$");
+        var match = System.Text.RegularExpressions.Regex.Match(context.Api.Name, @"\(api-\d+\)$");
         
-        if (match.Success)
-        {
-            // Extract the content within parentheses, removing the parentheses
-            apiId = match.Value.Substring(1, match.Value.Length - 2);
-        }
-        
-        return apiId;
+        // Extract the content within parentheses, removing the parentheses
+        return (match.Success) ? match.Value.Substring(1, match.Value.Length - 2) : string.Empty;
     }" />
-    
+
 	<choose>
 		<when condition="@(!string.IsNullOrEmpty(context.Variables.GetValueOrDefault<string>("apiId", string.Empty)))">
 			<trace source="API Id Policy Fragment">
