@@ -1,0 +1,52 @@
+<!--
+    Policy Fragment: Extract API ID from API Name
+    
+    Tags are very useful to explicitly identify an API as API names or paths may be ambiguous and repetitive. Having explicit IDs can significantly aid with telemetry. 
+    As there is no way yet to extract a tag associated with an API in Azure API Management using policies, putting such information in the API name is a workable alternative. 
+    If the format is consistent, it can be parsed and used in the policies.
+
+    The format we are looking for is `<api-name> (api-246)`, where the value in parentheses starts with "api-" followed by numeric characters.
+    
+    This fragment extracts the API ID from context.Api.Name and stores it in the "apiId" variable.
+    If the format doesn't match the expected pattern, the variable will be set to an empty string.
+
+    Expected format examples:
+    - "User Management API (api-246)" → extracts "api-246"
+    - "Order Service (api-123)" → extracts "api-123"
+    - "Payment Gateway (payment-456)" → ignored (doesn't start with "api-")
+    - "Simple API" → ignored (no parentheses)
+
+    https://learn.microsoft.com/azure/api-management/api-management-policy-expressions#ref-context-api
+-->
+<fragment>
+	<set-variable name="apiId" value="@{
+        var apiName = context.Api.Name;
+        var apiId = string.Empty;
+        
+        // Use regex to match the pattern: (api-\d+) at the end of the string
+        var match = System.Text.RegularExpressions.Regex.Match(apiName, @"\(api-\d+\)$");
+        
+        if (match.Success)
+        {
+            // Extract the content within parentheses, removing the parentheses
+            apiId = match.Value.Substring(1, match.Value.Length - 2);
+        }
+        
+        return apiId;
+    }" />
+    
+	<choose>
+		<when condition="@(!string.IsNullOrEmpty(context.Variables.GetValueOrDefault<string>("apiId", string.Empty)))">
+			<trace source="API Id Policy Fragment">
+                <message>@{
+                    return "Extracted API ID: " + (string)context.Variables["apiId"];
+                }</message>
+				<metadata name="ApiId" value="@((string)context.Variables["apiId"])" />
+			</trace>
+			<!-- Set a header for downstream services to use -->
+			<set-header name="X-Api-Id" exists-action="override">
+				<value>@((string)context.Variables["apiId"])</value>
+			</set-header>
+		</when>
+	</choose>
+</fragment>

@@ -49,6 +49,7 @@ def _create_simple_apim_infrastructure(
     # 2) Set up the policy fragments
     if custom_policy_fragments is None:
         pfs: List[PolicyFragment] = [
+            PolicyFragment('Api-Id', utils.read_policy_xml(utils.determine_shared_policy_path('pf-api-id.xml')), 'Extracts a specific API identifier for tracing.'),
             PolicyFragment('AuthZ-Match-All', utils.read_policy_xml(utils.determine_shared_policy_path('pf-authz-match-all.xml')), 'Authorizes if all of the specified roles match the JWT role claims.'),
             PolicyFragment('AuthZ-Match-Any', utils.read_policy_xml(utils.determine_shared_policy_path('pf-authz-match-any.xml')), 'Authorizes if any of the specified roles match the JWT role claims.'),
             PolicyFragment('Http-Response-200', utils.read_policy_xml(utils.determine_shared_policy_path('pf-http-response-200.xml')), 'Returns a 200 OK response for the current HTTP method.'),

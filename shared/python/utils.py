@@ -472,7 +472,7 @@ class NotebookHelper:
                 option_counter += 1
         else:
             print_warning('No existing supported infrastructures found.')
-            print_info(f'🚀 Automatically proceeding to create new infrastructure: {self.deployment.value}')
+            print_info(f'Automatically proceeding to create new infrastructure: {self.deployment.value}')
             
             # Automatically create the desired infrastructure without user confirmation
             selected_index = self._get_current_index()
