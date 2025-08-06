@@ -286,8 +286,8 @@ class InfrastructureNotebookHelper:
                 sys.executable, 
                 os.path.join(find_project_root(), 'infrastructure', infra_folder, 'create_infrastructure.py'),
                 '--location', self.rg_location,
-                '--sku', str(self.apim_sku.value),
-                '--index', str(self.index)
+                '--index', str(self.index),
+                '--sku', str(self.apim_sku.value)
             ]
 
             # Execute the infrastructure creation script with real-time output streaming and UTF-8 encoding to handle Unicode characters properly
