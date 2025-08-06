@@ -317,7 +317,7 @@ class NotebookHelper:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, sample_folder: str, rg_name: str, rg_location: str, deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE], use_jwt: bool = False, index: int = 1, is_debug = False):
+    def __init__(self, sample_folder: str, rg_name: str, rg_location: str, deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE], use_jwt: bool = False, index: int = 1, is_debug = False, apim_sku: APIM_SKU = APIM_SKU.BASICV2):
         """
         Initialize the NotebookHelper with sample configuration and infrastructure details.
         
@@ -340,6 +340,7 @@ class NotebookHelper:
         self.use_jwt = use_jwt
         self.index = index
         self.is_debug = is_debug
+        self.apim_sku = apim_sku
 
         validate_infrastructure(deployment, supported_infrastructures)
 
@@ -479,7 +480,7 @@ class NotebookHelper:
             print_info(f'Creating new infrastructure: {self.deployment.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
             
             # Execute the infrastructure creation
-            inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, APIM_SKU.BASICV2)
+            inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, self.apim_sku)
             success = inb_helper.create_infrastructure(True)  # Bypass infrastructure check to force creation
 
             if success:
@@ -511,7 +512,7 @@ class NotebookHelper:
                         print_info(f'Creating new infrastructure: {selected_infra.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
                         
                         # Execute the infrastructure creation
-                        inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, APIM_SKU.BASICV2)
+                        inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, self.apim_sku)
                         success = inb_helper.create_infrastructure(True)  # Bypass infrastructure check to force creation
 
                         if success:
