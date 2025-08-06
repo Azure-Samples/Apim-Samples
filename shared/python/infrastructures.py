@@ -137,8 +137,13 @@ class Infrastructure:
                         except:
                             pass
                 
-                print('\n🎉 Infrastructure verification completed successfully!')
-                return True
+                # Call infrastructure-specific verification
+                if self._verify_infrastructure_specific(rg_name):
+                    print('\n🎉 Infrastructure verification completed successfully!')
+                    return True
+                else:
+                    print('\n❌ Infrastructure-specific verification failed!')
+                    return False
                 
             else:
                 print('\n❌ APIM service not found!')
@@ -147,6 +152,20 @@ class Infrastructure:
         except Exception as e:
             print(f'\n⚠️  Verification failed with error: {str(e)}')
             return False
+
+    def _verify_infrastructure_specific(self, rg_name: str) -> bool:
+        """
+        Verify infrastructure-specific components.
+        This is a virtual method that can be overridden by subclasses for specific verification logic.
+        
+        Args:
+            rg_name (str): Resource group name.
+            
+        Returns:
+            bool: True if verification passed, False otherwise.
+        """
+        # Base implementation - no additional verification required
+        return True
 
     # ------------------------------
     #    PUBLIC METHODS
@@ -253,16 +272,6 @@ class Infrastructure:
             os.chdir(original_cwd)
             print(f'📁 Restored working directory to: {original_cwd}')
 
-    # @abstractmethod
-    # def verify_infrastructure(self) -> bool:
-    #     """
-    #     Verify the infrastructure deployment.
-    #     This method should be implemented in subclasses to handle specific verification logic.
-    #     """
-    #     pass
-
-    
-
 
 class SimpleApimInfrastructure(Infrastructure):
     """
@@ -281,6 +290,32 @@ class ApimAcaInfrastructure(Infrastructure):
     def __init__(self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2, infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
         super().__init__(INFRASTRUCTURE.APIM_ACA, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis)
 
+    def _verify_infrastructure_specific(self, rg_name: str) -> bool:
+        """
+        Verify APIM-ACA specific components.
+        
+        Args:
+            rg_name (str): Resource group name.
+            
+        Returns:
+            bool: True if verification passed, False otherwise.
+        """
+        try:
+            # Get Container Apps count
+            aca_output = utils.run(f'az containerapp list -g {rg_name} --query "length(@)"', print_command_to_run = False, print_errors = False)
+            
+            if aca_output.success:
+                aca_count = int(aca_output.text.strip())
+                print(f'✅ Container Apps verified: {aca_count} app(s) created')
+                return True
+            else:
+                print('❌ Container Apps verification failed!')
+                return False
+                
+        except Exception as e:
+            print(f'⚠️  Container Apps verification failed with error: {str(e)}')
+            return False
+
 
 class AfdApimAcaInfrastructure(Infrastructure):
     """
@@ -289,3 +324,55 @@ class AfdApimAcaInfrastructure(Infrastructure):
 
     def __init__(self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2, infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
         super().__init__(INFRASTRUCTURE.AFD_APIM_PE, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis)
+
+    def _define_bicep_parameters(self) -> dict:
+        """
+        Define AFD-APIM-PE specific Bicep parameters.
+        """
+        # Get base parameters
+        base_params = super()._define_bicep_parameters()
+        
+        # Add AFD-specific parameters
+        afd_params = {
+            'apimPublicAccess': {'value': True},  # Initially true for private link approval
+            'useACA': {'value': len(self.infra_apis) > 0 if self.infra_apis else False}  # Enable ACA if custom APIs are provided
+        }
+        
+        # Merge with base parameters
+        base_params.update(afd_params)
+        return base_params
+
+    def _verify_infrastructure_specific(self, rg_name: str) -> bool:
+        """
+        Verify AFD-APIM-PE specific components.
+        
+        Args:
+            rg_name (str): Resource group name.
+            
+        Returns:
+            bool: True if verification passed, False otherwise.
+        """
+        try:
+            # Check Front Door
+            afd_output = utils.run(f'az afd profile list -g {rg_name} --query "[0]" -o json', print_command_to_run = False, print_errors = False)
+            
+            if afd_output.success and afd_output.json_data:
+                afd_name = afd_output.json_data.get('name')
+                print(f'✅ Azure Front Door verified: {afd_name}')
+                
+                # Check Container Apps if they exist (optional for this infrastructure)
+                aca_output = utils.run(f'az containerapp list -g {rg_name} --query "length(@)"', print_command_to_run = False, print_errors = False)
+                
+                if aca_output.success:
+                    aca_count = int(aca_output.text.strip())
+                    if aca_count > 0:
+                        print(f'✅ Container Apps verified: {aca_count} app(s) created')
+                
+                return True
+            else:
+                print('❌ Azure Front Door verification failed!')
+                return False
+                
+        except Exception as e:
+            print(f'⚠️  AFD-APIM-PE verification failed with error: {str(e)}')
+            return False

@@ -323,8 +323,263 @@ def test_define_bicep_parameters(mock_utils):
 
 
 # ------------------------------
-#    ABSTRACT METHOD TESTS
+#    INFRASTRUCTURE VERIFICATION TESTS
 # ------------------------------
+
+@pytest.mark.unit
+def test_base_infrastructure_verification_success(mock_utils):
+    """Test base infrastructure verification success."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+    
+    # Mock successful resource group check
+    mock_utils.does_resource_group_exist.return_value = True
+    
+    # Mock successful APIM service check
+    mock_apim_output = Mock()
+    mock_apim_output.success = True
+    mock_apim_output.json_data = {'name': 'test-apim'}
+    
+    # Mock successful API count check
+    mock_api_output = Mock()
+    mock_api_output.success = True
+    mock_api_output.text = '5'  # 5 APIs
+    
+    # Mock successful subscription check
+    mock_sub_output = Mock()
+    mock_sub_output.success = True
+    mock_sub_output.text = 'test-subscription-key'
+    
+    mock_utils.run.side_effect = [mock_apim_output, mock_api_output, mock_sub_output]
+    
+    result = infra._verify_infrastructure('test-rg')
+    
+    assert result is True
+    mock_utils.does_resource_group_exist.assert_called_once_with('test-rg')
+    assert mock_utils.run.call_count >= 2  # At least APIM list and API count
+
+@pytest.mark.unit
+def test_base_infrastructure_verification_missing_rg(mock_utils):
+    """Test base infrastructure verification with missing resource group."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+    
+    # Mock missing resource group
+    mock_utils.does_resource_group_exist.return_value = False
+    
+    result = infra._verify_infrastructure('test-rg')
+    
+    assert result is False
+    mock_utils.does_resource_group_exist.assert_called_once_with('test-rg')
+
+@pytest.mark.unit
+def test_base_infrastructure_verification_missing_apim(mock_utils):
+    """Test base infrastructure verification with missing APIM service."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+    
+    # Mock successful resource group check
+    mock_utils.does_resource_group_exist.return_value = True
+    
+    # Mock failed APIM service check
+    mock_apim_output = Mock()
+    mock_apim_output.success = False
+    mock_apim_output.json_data = None
+    
+    mock_utils.run.return_value = mock_apim_output
+    
+    result = infra._verify_infrastructure('test-rg')
+    
+    assert result is False
+
+@pytest.mark.unit
+def test_infrastructure_specific_verification_base(mock_utils):
+    """Test the base infrastructure-specific verification method."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+    
+    # Base implementation should always return True
+    result = infra._verify_infrastructure_specific('test-rg')
+    
+    assert result is True
+
+# ------------------------------
+#    APIM-ACA INFRASTRUCTURE SPECIFIC TESTS
+# ------------------------------
+
+@pytest.mark.unit
+def test_apim_aca_infrastructure_verification_success(mock_utils):
+    """Test APIM-ACA infrastructure-specific verification success."""
+    infra = infrastructures.ApimAcaInfrastructure(
+        rg_location=TEST_LOCATION,
+        index=TEST_INDEX,
+        apim_sku=APIM_SKU.BASICV2
+    )
+    
+    # Mock successful Container Apps check
+    mock_aca_output = Mock()
+    mock_aca_output.success = True
+    mock_aca_output.text = '3'  # 3 Container Apps
+    
+    mock_utils.run.return_value = mock_aca_output
+    
+    result = infra._verify_infrastructure_specific('test-rg')
+    
+    assert result is True
+    mock_utils.run.assert_called_once_with(
+        'az containerapp list -g test-rg --query "length(@)"', 
+        print_command_to_run=False, 
+        print_errors=False
+    )
+
+@pytest.mark.unit
+def test_apim_aca_infrastructure_verification_failure(mock_utils):
+    """Test APIM-ACA infrastructure-specific verification failure."""
+    infra = infrastructures.ApimAcaInfrastructure(
+        rg_location=TEST_LOCATION,
+        index=TEST_INDEX,
+        apim_sku=APIM_SKU.BASICV2
+    )
+    
+    # Mock failed Container Apps check
+    mock_aca_output = Mock()
+    mock_aca_output.success = False
+    
+    mock_utils.run.return_value = mock_aca_output
+    
+    result = infra._verify_infrastructure_specific('test-rg')
+    
+    assert result is False
+
+
+# ------------------------------
+#    AFD-APIM-PE INFRASTRUCTURE SPECIFIC TESTS
+# ------------------------------
+
+@pytest.mark.unit
+def test_afd_apim_infrastructure_verification_success(mock_utils):
+    """Test AFD-APIM-PE infrastructure-specific verification success."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location=TEST_LOCATION,
+        index=TEST_INDEX,
+        apim_sku=APIM_SKU.STANDARDV2
+    )
+    
+    # Mock successful Front Door check
+    mock_afd_output = Mock()
+    mock_afd_output.success = True
+    mock_afd_output.json_data = {'name': 'test-afd'}
+    
+    # Mock successful Container Apps check
+    mock_aca_output = Mock()
+    mock_aca_output.success = True
+    mock_aca_output.text = '2'  # 2 Container Apps
+    
+    mock_utils.run.side_effect = [mock_afd_output, mock_aca_output]
+    
+    result = infra._verify_infrastructure_specific('test-rg')
+    
+    assert result is True
+    assert mock_utils.run.call_count == 2
+
+@pytest.mark.unit
+def test_afd_apim_infrastructure_verification_no_afd(mock_utils):
+    """Test AFD-APIM-PE infrastructure-specific verification with missing AFD."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location=TEST_LOCATION,
+        index=TEST_INDEX,
+        apim_sku=APIM_SKU.STANDARDV2
+    )
+    
+    # Mock failed Front Door check
+    mock_afd_output = Mock()
+    mock_afd_output.success = False
+    mock_afd_output.json_data = None
+    
+    mock_utils.run.return_value = mock_afd_output
+    
+    result = infra._verify_infrastructure_specific('test-rg')
+    
+    assert result is False
+
+@pytest.mark.unit
+def test_afd_apim_infrastructure_bicep_parameters(mock_utils):
+    """Test AFD-APIM-PE specific Bicep parameters."""
+    # Test with custom APIs (should enable ACA)
+    custom_apis = [
+        API('test-api', 'Test API', '/test', 'Test API description')
+    ]
+    
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location=TEST_LOCATION,
+        index=TEST_INDEX,
+        apim_sku=APIM_SKU.STANDARDV2,
+        infra_apis=custom_apis
+    )
+    
+    # Initialize components
+    infra._define_policy_fragments()
+    infra._define_apis()
+    
+    bicep_params = infra._define_bicep_parameters()
+    
+    # Check AFD-specific parameters
+    assert 'apimPublicAccess' in bicep_params
+    assert bicep_params['apimPublicAccess']['value'] is True
+    assert 'useACA' in bicep_params
+    assert bicep_params['useACA']['value'] is True  # Should be True due to custom APIs
+    
+    # Test without custom APIs (should disable ACA)
+    infra_no_apis = infrastructures.AfdApimAcaInfrastructure(
+        rg_location=TEST_LOCATION,
+        index=TEST_INDEX,
+        apim_sku=APIM_SKU.STANDARDV2
+    )
+    
+    # Initialize components
+    infra_no_apis._define_policy_fragments()
+    infra_no_apis._define_apis()
+    
+    bicep_params_no_apis = infra_no_apis._define_bicep_parameters()
+    
+    # Should disable ACA when no custom APIs
+    assert bicep_params_no_apis['useACA']['value'] is False
+
+
+# ------------------------------
+#    INFRASTRUCTURE CLASS CONSISTENCY TESTS
+# ------------------------------
+
+@pytest.mark.unit
+def test_all_concrete_infrastructure_classes_have_verification(mock_utils):
+    """Test that all concrete infrastructure classes have verification methods."""
+    # Test Simple APIM (uses base verification)
+    simple_infra = infrastructures.SimpleApimInfrastructure(TEST_LOCATION, TEST_INDEX)
+    assert hasattr(simple_infra, '_verify_infrastructure_specific')
+    assert callable(simple_infra._verify_infrastructure_specific)
+    
+    # Test APIM-ACA (has custom verification)
+    aca_infra = infrastructures.ApimAcaInfrastructure(TEST_LOCATION, TEST_INDEX)
+    assert hasattr(aca_infra, '_verify_infrastructure_specific')
+    assert callable(aca_infra._verify_infrastructure_specific)
+    
+    # Test AFD-APIM-PE (has custom verification)
+    afd_infra = infrastructures.AfdApimAcaInfrastructure(TEST_LOCATION, TEST_INDEX)
+    assert hasattr(afd_infra, '_verify_infrastructure_specific')
+    assert callable(afd_infra._verify_infrastructure_specific)
+
 
 # ------------------------------
 #    DEPLOYMENT TESTS
