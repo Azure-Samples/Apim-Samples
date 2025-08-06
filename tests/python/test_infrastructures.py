@@ -32,7 +32,7 @@ def mock_utils():
     with patch('infrastructures.utils') as mock_utils:
         mock_utils.get_infra_rg_name.return_value = 'rg-test-infrastructure-01'
         mock_utils.build_infrastructure_tags.return_value = {'environment': 'test', 'project': 'apim-samples'}
-        mock_utils.read_policy_xmll.return_value = '<policies><inbound><base /></inbound></policies>'
+        mock_utils.read_policy_xml.return_value = '<policies><inbound><base /></inbound></policies>'
         mock_utils.determine_shared_policy_path.return_value = '/mock/path/policy.xml'
         mock_utils.create_resource_group.return_value = None
         mock_utils.verify_infrastructure.return_value = True
@@ -74,7 +74,7 @@ def test_infrastructure_creation_basic(mock_utils):
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
         index=TEST_INDEX,
-        location=TEST_LOCATION
+        rg_location=TEST_LOCATION
     )
     
     assert infra.infra == INFRASTRUCTURE.SIMPLE_APIM
@@ -91,7 +91,7 @@ def test_infrastructure_creation_with_custom_values(mock_utils):
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.APIM_ACA,
         index=2,
-        location='westus2',
+        rg_location='westus2',
         apim_sku=APIM_SKU.PREMIUM,
         networkMode=APIMNetworkMode.EXTERNAL_VNET
     )
@@ -108,15 +108,18 @@ def test_infrastructure_creation_with_custom_policy_fragments(mock_utils, mock_p
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
         index=TEST_INDEX,
-        location=TEST_LOCATION,
+        rg_location=TEST_LOCATION,
         infra_pfs=mock_policy_fragments
     )
     
+    # Initialize policy fragments
+    pfs = infra._define_policy_fragments()
+    
     # Should have base policy fragments + custom ones
-    assert len(infra.pfs) == 7  # 5 base + 2 custom
-    assert any(pf.name == 'Test-Fragment-1' for pf in infra.pfs)
-    assert any(pf.name == 'Test-Fragment-2' for pf in infra.pfs)
-    assert any(pf.name == 'AuthZ-Match-All' for pf in infra.pfs)
+    assert len(pfs) == 7  # 5 base + 2 custom
+    assert any(pf.name == 'Test-Fragment-1' for pf in pfs)
+    assert any(pf.name == 'Test-Fragment-2' for pf in pfs)
+    assert any(pf.name == 'AuthZ-Match-All' for pf in pfs)
 
 @pytest.mark.unit
 def test_infrastructure_creation_with_custom_apis(mock_utils, mock_apis):
@@ -124,15 +127,18 @@ def test_infrastructure_creation_with_custom_apis(mock_utils, mock_apis):
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
         index=TEST_INDEX,
-        location=TEST_LOCATION,
+        rg_location=TEST_LOCATION,
         infra_apis=mock_apis
     )
     
+    # Initialize APIs
+    apis = infra._define_apis()
+    
     # Should have base APIs + custom ones
-    assert len(infra.apis) == 3  # 1 base (hello-world) + 2 custom
+    assert len(apis) == 3  # 1 base (hello-world) + 2 custom
     assert any(api.name == 'test-api-1' for api in infra.apis)
-    assert any(api.name == 'test-api-2' for api in infra.apis)
-    assert any(api.name == 'hello-world' for api in infra.apis)
+    assert any(api.name == 'test-api-2' for api in apis)
+    assert any(api.name == 'hello-world' for api in apis)
 
 @pytest.mark.unit
 def test_infrastructure_creation_calls_utils_functions(mock_utils):
@@ -140,14 +146,18 @@ def test_infrastructure_creation_calls_utils_functions(mock_utils):
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
         index=TEST_INDEX,
-        location=TEST_LOCATION
+        rg_location=TEST_LOCATION
     )
     
     mock_utils.get_infra_rg_name.assert_called_once_with(INFRASTRUCTURE.SIMPLE_APIM, TEST_INDEX)
     mock_utils.build_infrastructure_tags.assert_called_once_with(INFRASTRUCTURE.SIMPLE_APIM)
     
-    # Should call read_policy_xmll for base policy fragments
-    assert mock_utils.read_policy_xmll.call_count >= 5  # At least 5 base policy fragments
+    # Initialize policy fragments to trigger utils calls
+    infra._define_policy_fragments()
+    infra._define_apis()
+    
+    # Should call read_policy_xml for base policy fragments and APIs
+    assert mock_utils.read_policy_xml.call_count >= 6  # 5 base policy fragments + 1 hello-world API
     assert mock_utils.determine_shared_policy_path.call_count >= 5
 
 @pytest.mark.unit
@@ -156,8 +166,11 @@ def test_infrastructure_base_policy_fragments_creation(mock_utils):
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
         index=TEST_INDEX,
-        location=TEST_LOCATION
+        rg_location=TEST_LOCATION
     )
+    
+    # Initialize policy fragments
+    pfs = infra._define_policy_fragments()
     
     # Check that all base policy fragments are created
     expected_fragment_names = [
@@ -178,8 +191,11 @@ def test_infrastructure_base_apis_creation(mock_utils):
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
         index=TEST_INDEX,
-        location=TEST_LOCATION
+        rg_location=TEST_LOCATION
     )
+    
+    # Initialize APIs
+    apis = infra._define_apis()
     
     # Check that hello-world API is created
     assert len(infra.base_apis) == 1
@@ -201,13 +217,16 @@ def test_define_policy_fragments_with_none_input(mock_utils):
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
         index=TEST_INDEX,
-        location=TEST_LOCATION,
+        rg_location=TEST_LOCATION,
         infra_pfs=None
     )
     
+    # Initialize policy fragments
+    pfs = infra._define_policy_fragments()
+    
     # Should only have base policy fragments
-    assert len(infra.pfs) == 5
-    assert all(pf.name in ['AuthZ-Match-All', 'AuthZ-Match-Any', 'Http-Response-200', 'Product-Match-Any', 'Remove-Request-Headers'] for pf in infra.pfs)
+    assert len(pfs) == 5
+    assert all(pf.name in ['AuthZ-Match-All', 'AuthZ-Match-Any', 'Http-Response-200', 'Product-Match-Any', 'Remove-Request-Headers'] for pf in pfs)
 
 @pytest.mark.unit
 def test_define_policy_fragments_with_custom_input(mock_utils, mock_policy_fragments):
@@ -215,12 +234,15 @@ def test_define_policy_fragments_with_custom_input(mock_utils, mock_policy_fragm
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
         index=TEST_INDEX,
-        location=TEST_LOCATION,
+        rg_location=TEST_LOCATION,
         infra_pfs=mock_policy_fragments
     )
     
+    # Initialize policy fragments
+    pfs = infra._define_policy_fragments()
+    
     # Should have base + custom policy fragments
-    assert len(infra.pfs) == 7  # 5 base + 2 custom
+    assert len(pfs) == 7  # 5 base + 2 custom
     fragment_names = [pf.name for pf in infra.pfs]
     assert 'Test-Fragment-1' in fragment_names
     assert 'Test-Fragment-2' in fragment_names
@@ -237,13 +259,16 @@ def test_define_apis_with_none_input(mock_utils):
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
         index=TEST_INDEX,
-        location=TEST_LOCATION,
+        rg_location=TEST_LOCATION,
         infra_apis=None
     )
     
+    # Initialize APIs
+    apis = infra._define_apis()
+    
     # Should only have base APIs
-    assert len(infra.apis) == 1
-    assert infra.apis[0].name == 'hello-world'
+    assert len(apis) == 1
+    assert apis[0].name == 'hello-world'
 
 @pytest.mark.unit
 def test_define_apis_with_custom_input(mock_utils, mock_apis):
@@ -251,13 +276,16 @@ def test_define_apis_with_custom_input(mock_utils, mock_apis):
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
         index=TEST_INDEX,
-        location=TEST_LOCATION,
+        rg_location=TEST_LOCATION,
         infra_apis=mock_apis
     )
     
+    # Initialize APIs
+    apis = infra._define_apis()
+    
     # Should have base + custom APIs
-    assert len(infra.apis) == 3  # 1 base + 2 custom
-    api_names = [api.name for api in infra.apis]
+    assert len(apis) == 3  # 1 base + 2 custom
+    api_names = [api.name for api in apis]
     assert 'test-api-1' in api_names
     assert 'test-api-2' in api_names
     assert 'hello-world' in api_names
@@ -273,8 +301,12 @@ def test_define_bicep_parameters(mock_utils):
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
         index=TEST_INDEX,
-        location=TEST_LOCATION
+        rg_location=TEST_LOCATION
     )
+    
+    # Initialize APIs and policy fragments first
+    infra._define_policy_fragments()
+    infra._define_apis()
     
     bicep_params = infra._define_bicep_parameters()
     
@@ -325,14 +357,15 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
         infra = TestInfrastructure(
             infra=INFRASTRUCTURE.SIMPLE_APIM,
             index=TEST_INDEX,
-            location=TEST_LOCATION
+            rg_location=TEST_LOCATION
         )
         
         result = infra.deploy_infrastructure()
     
     # Verify the deployment process
     mock_utils.create_resource_group.assert_called_once()
-    mock_utils.run.assert_called_once()
+    # The utils.run method is now called multiple times (deployment + verification steps)
+    assert mock_utils.run.call_count >= 1  # At least one call for deployment
     # Note: utils.verify_infrastructure is currently commented out in the actual code
     # mock_utils.verify_infrastructure.assert_called_once()
     
@@ -377,7 +410,7 @@ def test_deploy_infrastructure_failure(mock_path_class, mock_chdir, mock_getcwd,
         infra = TestInfrastructure(
             infra=INFRASTRUCTURE.SIMPLE_APIM,
             index=TEST_INDEX,
-            location=TEST_LOCATION
+            rg_location=TEST_LOCATION
         )
         
         result = infra.deploy_infrastructure()
@@ -404,7 +437,7 @@ def test_deploy_infrastructure_failure(mock_path_class, mock_chdir, mock_getcwd,
 def test_simple_apim_infrastructure_creation(mock_utils):
     """Test SimpleApimInfrastructure creation."""
     infra = infrastructures.SimpleApimInfrastructure(
-        location=TEST_LOCATION,
+        rg_location=TEST_LOCATION,
         index=TEST_INDEX,
         apim_sku=APIM_SKU.DEVELOPER
     )
@@ -419,7 +452,7 @@ def test_simple_apim_infrastructure_creation(mock_utils):
 def test_simple_apim_infrastructure_defaults(mock_utils):
     """Test SimpleApimInfrastructure with default values."""
     infra = infrastructures.SimpleApimInfrastructure(
-        location=TEST_LOCATION,
+        rg_location=TEST_LOCATION,
         index=TEST_INDEX
     )
     
@@ -429,7 +462,7 @@ def test_simple_apim_infrastructure_defaults(mock_utils):
 def test_apim_aca_infrastructure_creation(mock_utils):
     """Test ApimAcaInfrastructure creation."""
     infra = infrastructures.ApimAcaInfrastructure(
-        location=TEST_LOCATION,
+        rg_location=TEST_LOCATION,
         index=TEST_INDEX,
         apim_sku=APIM_SKU.STANDARD
     )
@@ -444,7 +477,7 @@ def test_apim_aca_infrastructure_creation(mock_utils):
 def test_afd_apim_aca_infrastructure_creation(mock_utils):
     """Test AfdApimAcaInfrastructure creation."""
     infra = infrastructures.AfdApimAcaInfrastructure(
-        location=TEST_LOCATION,
+        rg_location=TEST_LOCATION,
         index=TEST_INDEX,
         apim_sku=APIM_SKU.PREMIUM
     )
@@ -464,10 +497,14 @@ def test_afd_apim_aca_infrastructure_creation(mock_utils):
 def test_infrastructure_end_to_end_simple(mock_utils):
     """Test end-to-end Infrastructure creation with SimpleApim."""
     infra = infrastructures.SimpleApimInfrastructure(
-        location='eastus',
+        rg_location='eastus',
         index=1,
         apim_sku=APIM_SKU.DEVELOPER
     )
+    
+    # Initialize components
+    infra._define_policy_fragments()
+    infra._define_apis()
     
     # Verify all components are created correctly
     assert infra.infra == INFRASTRUCTURE.SIMPLE_APIM
@@ -488,12 +525,16 @@ def test_infrastructure_with_all_custom_components(mock_utils, mock_policy_fragm
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.APIM_ACA,
         index=2,
-        location='westus2',
+        rg_location='westus2',
         apim_sku=APIM_SKU.PREMIUM,
         networkMode=APIMNetworkMode.EXTERNAL_VNET,
         infra_pfs=mock_policy_fragments,
         infra_apis=mock_apis
     )
+    
+    # Initialize components
+    infra._define_policy_fragments()
+    infra._define_apis()
     
     # Verify all components are combined correctly
     assert len(infra.base_pfs) == 5
@@ -528,7 +569,7 @@ def test_concrete_infrastructure_missing_params():
         infrastructures.SimpleApimInfrastructure()
     
     with pytest.raises(TypeError):
-        infrastructures.SimpleApimInfrastructure(location=TEST_LOCATION)
+        infrastructures.SimpleApimInfrastructure(rg_location=TEST_LOCATION)
 
 
 # ------------------------------
@@ -544,10 +585,14 @@ def test_infrastructure_empty_custom_lists(mock_utils):
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
         index=TEST_INDEX,
-        location=TEST_LOCATION,
+        rg_location=TEST_LOCATION,
         infra_pfs=empty_pfs,
         infra_apis=empty_apis
     )
+    
+    # Initialize components
+    infra._define_policy_fragments()
+    infra._define_apis()
     
     # Empty lists should behave the same as None
     assert len(infra.pfs) == 5  # Only base policy fragments
@@ -559,10 +604,10 @@ def test_infrastructure_attribute_access(mock_utils):
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
         index=TEST_INDEX,
-        location=TEST_LOCATION
+        rg_location=TEST_LOCATION
     )
     
-    # Test all attributes are accessible
+    # Test constructor attributes are accessible
     assert hasattr(infra, 'infra')
     assert hasattr(infra, 'index')
     assert hasattr(infra, 'rg_location')
@@ -570,6 +615,12 @@ def test_infrastructure_attribute_access(mock_utils):
     assert hasattr(infra, 'networkMode')
     assert hasattr(infra, 'rg_name')
     assert hasattr(infra, 'rg_tags')
+    
+    # Initialize components to create the lazily-loaded attributes
+    infra._define_policy_fragments()
+    infra._define_apis()
+    
+    # Test that lazy-loaded attributes are now accessible
     assert hasattr(infra, 'base_pfs')
     assert hasattr(infra, 'pfs')
     assert hasattr(infra, 'base_apis')
@@ -584,7 +635,7 @@ def test_infrastructure_string_representation(mock_utils):
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
         index=TEST_INDEX,
-        location=TEST_LOCATION
+        rg_location=TEST_LOCATION
     )
     
     # Test that the object can be converted to string without error
@@ -609,7 +660,7 @@ def test_all_infrastructure_types_coverage(mock_utils):
 def test_policy_fragment_creation_robustness(mock_utils):
     """Test that policy fragment creation is robust."""
     # Test with various mock return values
-    mock_utils.read_policy_xmll.side_effect = [
+    mock_utils.read_policy_xml.side_effect = [
         '<policy1/>',
         '<policy2/>',
         '<policy3/>',
@@ -621,8 +672,12 @@ def test_policy_fragment_creation_robustness(mock_utils):
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
         index=TEST_INDEX,
-        location=TEST_LOCATION
+        rg_location=TEST_LOCATION
     )
+    
+    # Initialize policy fragments
+    infra._define_policy_fragments()
+    infra._define_apis()
     
     # Verify all policy fragments were created with different XML
     policy_xmls = [pf.policyXml for pf in infra.base_pfs]
