@@ -266,12 +266,13 @@ class InfrastructureNotebookHelper:
     #    PUBLIC METHODS
     # ------------------------------
 
-    def create_infrastructure(self, bypass_infrastructure_check: bool = False) -> bool:
+    def create_infrastructure(self, bypass_infrastructure_check: bool = False, allow_update: bool = True) -> bool:
         """
         Create infrastructure by executing the appropriate creation script.
         
         Args:
             bypass_infrastructure_check (bool): Skip infrastructure existence check. Defaults to False.
+            allow_update (bool): Allow infrastructure updates when infrastructure already exists. Defaults to True.
             
         Returns:
             bool: True if infrastructure creation succeeded, False otherwise.
@@ -279,7 +280,14 @@ class InfrastructureNotebookHelper:
 
         import sys 
 
-        if bypass_infrastructure_check or not does_infrastructure_exist(self.deployment, self.index):
+        try:
+            # For infrastructure notebooks, allow the update option
+            infrastructure_exists = does_infrastructure_exist(self.deployment, self.index, allow_update_option=allow_update)
+        except SystemExit:
+            # User cancelled the operation
+            return False
+        
+        if bypass_infrastructure_check or not infrastructure_exists:
             # Map infrastructure types to their folder names
             infra_folder_map = {
                 INFRASTRUCTURE.SIMPLE_APIM: 'simple-apim',
@@ -537,9 +545,16 @@ class NotebookHelper:
                     
             except ValueError:
                 print_error('Invalid input. Please enter a number.')
-            except KeyboardInterrupt:
-                print_warning('\nOperation cancelled by user.')
-                return None, None
+            except (EOFError, KeyboardInterrupt, Exception) as e:
+                if isinstance(e, KeyboardInterrupt):
+                    print('\n❌ Operation cancelled by user (Escape/Ctrl+C pressed).')
+                elif isinstance(e, EOFError):
+                    print('\n❌ Operation cancelled by user (EOF detected).')
+                else:
+                    print(f'\n❌ Operation cancelled due to error: {str(e)}')
+                
+                # Explicitly raise SystemExit to ensure the notebook stops
+                raise SystemExit("Infrastructure selection cancelled by user")
 
     def _find_infrastructure_instances(self, infrastructure: INFRASTRUCTURE) -> list[tuple[INFRASTRUCTURE, int | None]]:
         """
@@ -1038,16 +1053,17 @@ def create_resource_group(rg_name: str, resource_group_location: str | None = No
             f"Failed to create the resource group '{rg_name}'", 
             False, False, False, False)
 
-def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int) -> bool:
+def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_update_option: bool = False) -> bool:
     """
     Check if a specific infrastructure exists by querying the resource group.
 
     Args:
         infrastructure (INFRASTRUCTURE): The infrastructure type to check.
         index (int): index for multi-instance infrastructures.
+        allow_update_option (bool): If True, provides option to proceed with infrastructure update when infrastructure exists.
 
     Returns:
-        bool: True if the infrastructure exists, False otherwise.
+        bool: True if the infrastructure exists and no update is desired, False if infrastructure doesn't exist or update is confirmed.
     """
     
     print(f'🔍 Checking if infrastructure already exists...')
@@ -1055,10 +1071,53 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int) -> boo
     rg_name = get_infra_rg_name(infrastructure, index)
 
     if does_resource_group_exist(rg_name):
-        print(f'✅ Infrastructure already exists!\n')
-        print('ℹ️  To redeploy, either:')
-        print('     1. Use a different index number, or')
-        print('     2. Delete the existing resource group first using the clean-up notebook')
+        print(f'✅ Infrastructure already exists: {rg_name}\n')
+        
+        if allow_update_option:
+            print('🔄 Infrastructure Update Options:\n')
+            print('   This infrastructure notebook can update the existing infrastructure.')
+            print('   Updates are additive and will:')
+            print('   • Add new APIs and policy fragments defined in the infrastructure')
+            print('   • Update existing infrastructure components to match the template')
+            print('   • Preserve manually added samples and configurations\n')
+            
+            print('ℹ️  Choose an option:')
+            print('     1. Update the existing infrastructure (recommended - not destructive if samples exist)')
+            print('     2. Use a different index')
+            print('     3. Delete the existing resource group first using the clean-up notebook')
+            
+            while True:
+                try:
+                    choice = input('\nEnter your choice (1, 2, or 3) [default: 1]: ').strip()
+                    
+                    # Default to option 1 if user just presses Enter
+                    if choice == '' or choice == '1':
+                        print('\n🚀 Proceeding with infrastructure update...')
+                        return False  # Allow deployment to proceed
+                    elif choice == '2':
+                        print('\n📝 Please change the index number in the notebook and re-run.')
+                        return True  # Block deployment
+                    elif choice == '3':
+                        print('\n🗑️ Please use the clean-up notebook to delete the resource group first.')
+                        return True  # Block deployment
+                    else:
+                        print('❌ Invalid choice. Please enter 1, 2, or 3 (or press Enter for default).')
+                        
+                except (EOFError, KeyboardInterrupt, Exception) as e:
+                    if isinstance(e, KeyboardInterrupt):
+                        print('\n\n❌ Operation cancelled by user (Escape/Ctrl+C pressed).')
+                    elif isinstance(e, EOFError):
+                        print('\n\n❌ Operation cancelled by user (EOF detected).')
+                    else:
+                        print(f'\n\n❌ Operation cancelled due to error: {str(e)}')
+                    
+                    # Explicitly raise SystemExit to ensure the notebook stops
+                    raise SystemExit("Infrastructure deployment cancelled by user")
+        else:
+            print('ℹ️  To redeploy, either:')
+            print('     1. Use a different index, or')
+            print('     2. Delete the existing resource group first using the clean-up notebook')
+            
         return True
     else:
         print('   Infrastructure does not yet exist.')    
