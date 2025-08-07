@@ -293,8 +293,7 @@ class InfrastructureNotebookHelper:
                             raise SystemExit("User cancelled deployment")
                     except (KeyboardInterrupt, EOFError):
                         print('\n❌ Infrastructure deployment cancelled by user (Escape/Ctrl+C pressed).')
-                        # Raise an exception that will stop notebook execution
-                        raise KeyboardInterrupt("User cancelled infrastructure deployment")
+                        raise SystemExit("User cancelled deployment")
             
             # Check infrastructure existence for the normal flow
             infrastructure_exists = does_resource_group_exist(get_infra_rg_name(self.deployment, self.index)) if not allow_update else False
@@ -537,7 +536,7 @@ class NotebookHelper:
         # Get user selection
         while True:
             try:
-                choice = input(f'Select infrastructure (1-{len(display_options)}) or press Enter to exit: ').strip()
+                choice = input(f'Select infrastructure (1-{len(display_options)}): ').strip()
                 
                 if not choice:
                     print_warning('No infrastructure selected. Exiting.')
@@ -568,16 +567,7 @@ class NotebookHelper:
                     
             except ValueError:
                 print_error('Invalid input. Please enter a number.')
-            except (EOFError, KeyboardInterrupt, Exception) as e:
-                if isinstance(e, KeyboardInterrupt):
-                    print('\n❌ Operation cancelled by user (Escape/Ctrl+C pressed).')
-                elif isinstance(e, EOFError):
-                    print('\n❌ Operation cancelled by user (EOF detected).')
-                else:
-                    print(f'\n❌ Operation cancelled due to error: {str(e)}')
-                
-                # Explicitly raise SystemExit to ensure the notebook stops
-                raise SystemExit("Infrastructure selection cancelled by user")
+
 
     def _find_infrastructure_instances(self, infrastructure: INFRASTRUCTURE) -> list[tuple[INFRASTRUCTURE, int | None]]:
         """
@@ -1097,23 +1087,18 @@ def _prompt_for_infrastructure_update(rg_name: str) -> bool:
     print('ℹ️  Choose an option:')
     print('     1. Update the existing infrastructure (recommended)')
     print('     2. Use a different index')
-    print('     3. Delete the existing resource group first using the clean-up notebook')
+    print('     3. Delete the existing resource group first using the clean-up notebook\n')
     
     while True:
-        choice = input('\nEnter your choice (1, 2, or 3) [default: 1]: ').strip()
+        choice = input('\nEnter your choice (1, 2, or 3): ').strip()
         
         # Default to option 1 if user just presses Enter
-        if choice == '' or choice == '1':
-            print('\n🚀 Proceeding with infrastructure update...')
+        if choice == '1':
             return True
-        elif choice == '2':
-            print('\n📝 Please change the index number in the notebook and re-run.')
-            return False
-        elif choice == '3':
-            print('\n🗑️ Please use the clean-up notebook to delete the resource group first.')
+        elif not choice or choice in('2', '3'):
             return False
         else:
-            print('❌ Invalid choice. Please enter 1, 2, or 3 (or press Enter for default).')
+            print('❌ Invalid choice. Please enter 1, 2, or 3.')
 
 def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_update_option: bool = False) -> bool:
     """
@@ -1146,38 +1131,22 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
             print('ℹ️  Choose an option:\n')
             print('     1. Update the existing infrastructure (recommended and not destructive if samples already exist)')
             print('     2. Use a different index')
-            print('     3. Delete the existing resource group first using the clean-up notebook')
+            print('     3. Delete the existing resource group first using the clean-up notebook\n')
             
             while True:
-                try:
-                    choice = input('\nEnter your choice (1, 2, or 3) [default: 1]: ').strip()
-                    
-                    # Default to option 1 if user just presses Enter
-                    if choice == '' or choice == '1':
-                        return False  # Allow deployment to proceed
-                    elif choice == '2':
-                        print('\n📝 Please change the index number in the notebook and re-run.')
-                        return True  # Block deployment
-                    elif choice == '3':
-                        print('\n🗑️ Please use the clean-up notebook to delete the resource group first.')
-                        return True  # Block deployment
-                    else:
-                        print('❌ Invalid choice. Please enter 1, 2, or 3 (or press Enter for default).')
-                        
-                except (EOFError, KeyboardInterrupt, Exception) as e:
-                    if isinstance(e, KeyboardInterrupt):
-                        print('\n\n❌ Operation cancelled by user (Escape/Ctrl+C pressed).')
-                    elif isinstance(e, EOFError):
-                        print('\n\n❌ Operation cancelled by user (EOF detected).')
-                    else:
-                        print(f'\n\n❌ Operation cancelled due to error: {str(e)}')
-                    
-                    # Return True to block deployment and let the calling code handle it
-                    return True
+                choice = input('\nEnter your choice (1, 2, or 3): ').strip()
+                
+                # Default to option 1 if user just presses Enter
+                if choice == '1':
+                    return False  # Allow deployment to proceed
+                elif not choice or choice in('2', '3'):
+                    return True  # Block deployment
+                else:
+                    print('❌ Invalid choice. Please enter 1, 2, or 3.')
         else:
             print('ℹ️  To redeploy, either:')
             print('     1. Use a different index, or')
-            print('     2. Delete the existing resource group first using the clean-up notebook')
+            print('     2. Delete the existing resource group first using the clean-up notebook\n')
             
         return True
     else:
