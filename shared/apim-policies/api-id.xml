@@ -1,0 +1,27 @@
+<!--
+    This policy sample demonstrates the listing of all inbound HTTP headers, which can be a bit more straight-forward than setting up a trace.
+-->
+<policies>
+    <inbound>
+        <base />
+        <include-fragment fragment-id="Api-Id" />
+        <return-response>
+            <set-status code="200" reason="OK" />
+            <set-body>
+                @{
+                    var apiId = context.Variables.GetValueOrDefault<string>("apiId", string.Empty);
+                    return (string.IsNullOrEmpty(apiId)) ? "No API ID extracted." : string.Format("Extracted API ID: {0}", apiId);
+                }
+            </set-body>
+        </return-response>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

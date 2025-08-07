@@ -51,6 +51,7 @@ class ApimTesting:
             bool: True, if the assertion passes; otherwise, False.
         """
         try:
+            print(f'🔍 Assert that [{value}] matches [{expected}].')
             self.total_tests += 1
             assert value == expected, f'Value [{value}] does not match expected [{expected}]'
             self.tests_passed += 1
