@@ -1,43 +1,12 @@
 """
-Infrastructure creation module for Simple APIM.
-
-This module provides a reusable way to create Simple APIM infrastructure
-that can be called from notebooks or other scripts.
+This module provides a reusable way to create Simple APIM infrastructure that can be called from notebooks or other scripts.
 """
 
 import sys
-import os
 import argparse
-from pathlib import Path
-import utils
-from apimtypes import *
-import json
+from apimtypes import APIM_SKU
+from infrastructures import SimpleApimInfrastructure
 
-def _create_simple_apim_infrastructure(
-    rg_location: str = 'eastus2',
-    index: int | None = None,
-    apim_sku: APIM_SKU = APIM_SKU.BASICV2,
-    custom_apis: list[API] | None = None,
-    custom_policy_fragments: list[PolicyFragment] | None = None
-) -> utils.Output:
-    """
-    Create Simple APIM infrastructure with the specified parameters.
-    
-    Args:
-        rg_location (str): Azure region for deployment. Defaults to 'eastus2'.
-        index (int | None): Index for the infrastructure. Defaults to None (no index).
-        apim_sku (APIM_SKU): SKU for API Management. Defaults to BASICV2.
-        custom_apis (list[API] | None): Custom APIs to deploy. If None, uses default Hello World API.
-        custom_policy_fragments (list[PolicyFragment] | None): Custom policy fragments. If None, uses defaults.
-        
-    Returns:
-        utils.Output: The deployment result.
-    """
-    
-    # 1) Setup deployment parameters
-    deployment = INFRASTRUCTURE.SIMPLE_APIM
-    rg_name = utils.get_infra_rg_name(deployment, index)
-    rg_tags = utils.build_infrastructure_tags(deployment)
 
     print(f'\n🚀 Creating Simple APIM infrastructure...\n')
     print(f'   Infrastructure : {deployment.value}')
@@ -82,162 +51,32 @@ def _create_simple_apim_infrastructure(
     infra_dir = Path(__file__).parent
     
     try:
-        os.chdir(infra_dir)
-        print(f'📁 Changed working directory to: {infra_dir}')
-        
-        # Prepare deployment parameters and run directly to avoid path detection issues
-        bicep_parameters_format = {
-            '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
-            'contentVersion': '1.0.0.0',
-            'parameters': bicep_parameters
-        }
-        
-        # Write the parameters file
-        params_file_path = infra_dir / 'params.json'
-
-        with open(params_file_path, 'w') as file:            
-            file.write(json.dumps(bicep_parameters_format))
-        
-        print(f"📝 Updated the policy XML in the bicep parameters file 'params.json'")
-        
-        # ------------------------------
-        #    EXECUTE DEPLOYMENT
-        # ------------------------------
-        
-        # Create the resource group if it doesn't exist
-        utils.create_resource_group(rg_name, rg_location, rg_tags)
-        
-        # Run the deployment directly
-        main_bicep_path = infra_dir / 'main.bicep'
-        output = utils.run(
-            f'az deployment group create --name {deployment.value} --resource-group {rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
-            f"Deployment '{deployment.value}' succeeded", 
-            f"Deployment '{deployment.value}' failed.",
-            print_command_to_run = False
-        )
-        
-        # ------------------------------
-        #    VERIFY DEPLOYMENT RESULTS
-        # ------------------------------
-        
-        if output.success:
-            print('\n✅ Infrastructure creation completed successfully!')
-            if output.json_data:
-                apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM API Gateway URL', suppress_logging = True)
-                apim_apis = output.getJson('apiOutputs', 'APIs', suppress_logging = True)
-                
-                print(f'\n📋 Infrastructure Details:')
-                print(f'   Resource Group : {rg_name}')
-                print(f'   Location       : {rg_location}')
-                print(f'   APIM SKU       : {apim_sku.value}')
-                print(f'   Gateway URL    : {apim_gateway_url}')
-                print(f'   APIs Created   : {len(apim_apis)}')
-                
-                # Perform basic verification
-                _verify_infrastructure(rg_name)
-        else:
-            print('❌ Infrastructure creation failed!')
-            
-        return output
-        
-    finally:
-        # Always restore the original working directory
-        os.chdir(original_cwd)
-        print(f'📁 Restored working directory to: {original_cwd}')
-
-def _verify_infrastructure(rg_name: str) -> bool:
-    """
-    Verify that the infrastructure was created successfully.
-    
-    Args:
-        rg_name (str): Resource group name.
-        
-    Returns:
-        bool: True if verification passed, False otherwise.
-    """
-    
-    print('\n🔍 Verifying infrastructure...')
-    
-    try:
-        # Check if the resource group exists
-        if not utils.does_resource_group_exist(rg_name):
-            print('❌ Resource group does not exist!')
-            return False
-        
-        print('✅ Resource group verified')
-        
-        # Get APIM service details
-        output = utils.run(f'az apim list -g {rg_name} --query "[0]" -o json', print_command_to_run = False, print_errors = False)
-        
-        if output.success and output.json_data:
-            apim_name = output.json_data.get('name')
-            
-            print(f'✅ APIM Service verified: {apim_name}')
-            
-            # Get API count
-            api_output = utils.run(f'az apim api list --service-name {apim_name} -g {rg_name} --query "length(@)"', 
-                                  print_command_to_run = False, print_errors = False)
-            
-            if api_output.success:
-                api_count = int(api_output.text.strip())
-                print(f'✅ APIs verified: {api_count} API(s) created')
-                
-                # Test basic connectivity (optional)
-                if api_count > 0:
-                    try:
-                        # Get subscription key for testing
-                        sub_output = utils.run(f'az apim subscription list --service-name {apim_name} -g {rg_name} --query "[0].primaryKey" -o tsv', 
-                                             print_command_to_run = False, print_errors = False)
-                        
-                        if sub_output.success and sub_output.text.strip():
-                            print('✅ Subscription key available for API testing')
-                    except:
-                        pass
-            
-            print('\n🎉 Infrastructure verification completed successfully!')
-            return True
-            
-        else:
-            print('\n❌ APIM service not found!')
-            return False
+        result = SimpleApimInfrastructure(location, index, apim_sku).deploy_infrastructure()
+        sys.exit(0 if result.success else 1)
             
     except Exception as e:
-        print(f'\n⚠️  Verification failed with error: {str(e)}')
-        return False
+        print(f'\n💥 Error: {str(e)}')
+        sys.exit(1)
 
 def main():
     """
     Main entry point for command-line usage.
     """
         
-    parser = argparse.ArgumentParser(description='Create Simple APIM infrastructure')
-    parser.add_argument('--location', default='eastus2', help='Azure region (default: eastus2)')
-    parser.add_argument('--index', type=int, help='Infrastructure index')
-    parser.add_argument('--sku', choices=['Basicv2', 'Standardv2', 'Premiumv2'], default='Basicv2', help='APIM SKU (default: Basicv2)')
-    
+    parser = argparse.ArgumentParser(description = 'Create Simple APIM infrastructure')
+    parser.add_argument('--location', default = 'eastus2', help = 'Azure region (default: eastus2)')
+    parser.add_argument('--index', type = int, help = 'Infrastructure index')
+    parser.add_argument('--sku', choices = ['Basicv2', 'Standardv2', 'Premiumv2'], default = 'Basicv2', help = 'APIM SKU (default: Basicv2)')    
     args = parser.parse_args()
-    
-    # Convert SKU string to enum
-    sku_map = {
-        'Basicv2': APIM_SKU.BASICV2,
-        'Standardv2': APIM_SKU.STANDARDV2,
-        'Premiumv2': APIM_SKU.PREMIUMV2
-    }
-    
+
+    # Convert SKU string to enum using the enum's built-in functionality
     try:
-        result = _create_simple_apim_infrastructure(rg_location = args.location, index = args.index, apim_sku = sku_map[args.sku])
-        
-        if result.success:
-            print('\n🎉 Infrastructure creation completed successfully!')
-            sys.exit(0)
-        else:
-            print('\n💥 Infrastructure creation failed!')
-            sys.exit(1)
-            
-    except Exception as e:
-        print(f'\n💥 Error: {str(e)}')
+        apim_sku = APIM_SKU(args.sku)
+    except ValueError:
+        print(f"Error: Invalid SKU '{args.sku}'. Valid options are: {', '.join([sku.value for sku in APIM_SKU])}")
         sys.exit(1)
 
+    create_infrastructure(args.location, args.index, apim_sku)
 
 if __name__ == '__main__':
     main()

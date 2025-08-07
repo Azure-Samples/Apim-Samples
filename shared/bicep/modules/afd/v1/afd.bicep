@@ -27,6 +27,9 @@ param afdSku string = 'Premium_AzureFrontDoor'
 @description('The name of the API Management instance. Defaults to "apim-<resourceSuffix>".')
 param apimName string = 'apim-${resourceSuffix}'
 
+@description('Log Analytics Workspace ID for diagnostic settings (optional)')
+param logAnalyticsWorkspaceId string = ''
+
 
 // ------------------------------
 //    RESOURCES
@@ -172,6 +175,35 @@ resource securityPolicy 'Microsoft.Cdn/profiles/securityPolicies@2025-04-15' = {
         }
       ]
     }
+  }
+}
+
+// https://learn.microsoft.com/azure/templates/microsoft.insights/diagnosticsettings
+resource frontDoorDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceId)) {
+  name: 'afd-diagnostics'
+  scope: frontDoorProfile
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        categoryGroup: 'allLogs'
+        enabled: true
+        retentionPolicy: {
+          enabled: false
+          days: 0
+        }
+      }
+    ]
+    metrics: [
+      {
+        category: 'AllMetrics'
+        enabled: true
+        retentionPolicy: {
+          enabled: false
+          days: 0
+        }
+      }
+    ]
   }
 }
 

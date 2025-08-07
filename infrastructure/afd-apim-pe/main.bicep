@@ -292,6 +292,7 @@ module afdModule '../../shared/bicep/modules/afd/v1/afd.bicep' = {
     fdeName: afdEndpointName
     afdSku: 'Premium_AzureFrontDoor'
     apimName: apimName
+    logAnalyticsWorkspaceId: lawId
   }
   dependsOn: [
     apimModule

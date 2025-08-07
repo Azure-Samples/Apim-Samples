@@ -286,8 +286,8 @@ class InfrastructureNotebookHelper:
                 sys.executable, 
                 os.path.join(find_project_root(), 'infrastructure', infra_folder, 'create_infrastructure.py'),
                 '--location', self.rg_location,
-                '--sku', str(self.apim_sku.value),
-                '--index', str(self.index)
+                '--index', str(self.index),
+                '--sku', str(self.apim_sku.value)
             ]
 
             # Execute the infrastructure creation script with real-time output streaming and UTF-8 encoding to handle Unicode characters properly
@@ -317,7 +317,7 @@ class NotebookHelper:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, sample_folder: str, rg_name: str, rg_location: str, deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE], use_jwt: bool = False, index: int = 1, is_debug = False):
+    def __init__(self, sample_folder: str, rg_name: str, rg_location: str, deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE], use_jwt: bool = False, index: int = 1, is_debug = False, apim_sku: APIM_SKU = APIM_SKU.BASICV2):
         """
         Initialize the NotebookHelper with sample configuration and infrastructure details.
         
@@ -340,6 +340,7 @@ class NotebookHelper:
         self.use_jwt = use_jwt
         self.index = index
         self.is_debug = is_debug
+        self.apim_sku = apim_sku
 
         validate_infrastructure(deployment, supported_infrastructures)
 
@@ -479,7 +480,7 @@ class NotebookHelper:
             print_info(f'Creating new infrastructure: {self.deployment.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
             
             # Execute the infrastructure creation
-            inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, APIM_SKU.BASICV2)
+            inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, self.apim_sku)
             success = inb_helper.create_infrastructure(True)  # Bypass infrastructure check to force creation
 
             if success:
@@ -511,7 +512,7 @@ class NotebookHelper:
                         print_info(f'Creating new infrastructure: {selected_infra.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
                         
                         # Execute the infrastructure creation
-                        inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, APIM_SKU.BASICV2)
+                        inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, self.apim_sku)
                         success = inb_helper.create_infrastructure(True)  # Bypass infrastructure check to force creation
 
                         if success:
@@ -618,6 +619,8 @@ class NotebookHelper:
             print('✅ Desired infrastructure already exists, proceeding with sample deployment')
 
         # Deploy the sample APIs to the selected infrastructure
+        print(f'\n------------------------------------------------')
+        print(f'\nSAMPLE DEPLOYMENT')
         print(f'\nDeploying sample to:\n')
         print(f'   Infrastructure : {self.deployment.value}')
         print(f'   Index          : {self.index}')
@@ -674,9 +677,6 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
         output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False)
 
         if output.success and output.json_data:
-            # provisioning_state = output.json_data.get('properties').get('provisioningState')
-            # print_info(f'Deployment provisioning state: {provisioning_state}')
-
             # Delete and purge CognitiveService accounts
             output = run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False)
 
@@ -1235,6 +1235,8 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
         rg_name = get_infra_rg_name(deployment, idx)
         _cleanup_resources(deployment.value, rg_name)
         i += 1
+
+    print_ok('All done!')
 
 def extract_json(text: str) -> Any:
     """
