@@ -170,7 +170,7 @@ def test_infrastructure_base_policy_fragments_creation(mock_utils):
     )
     
     # Initialize policy fragments
-    pfs = infra._define_policy_fragments()
+    infra._define_policy_fragments()
     
     # Check that all base policy fragments are created
     expected_fragment_names = [
@@ -195,7 +195,7 @@ def test_infrastructure_base_apis_creation(mock_utils):
     )
     
     # Initialize APIs
-    apis = infra._define_apis()
+    infra._define_apis()
     
     # Check that hello-world API is created
     assert len(infra.base_apis) == 1

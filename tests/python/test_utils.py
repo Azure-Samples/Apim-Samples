@@ -406,7 +406,199 @@ def test_cleanup_infra_deployment_single(monkeypatch):
     monkeypatch.setattr(utils, '_cleanup_resources', lambda deployment_name, rg_name: None)
     utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, None)
     utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, 1)
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1])  # Single item in list should use sequential mode
+
+
+def test_cleanup_infra_deployments_parallel_mode(monkeypatch):
+    """Test cleanup_infra_deployments with multiple indexes using parallel execution."""
+    cleanup_calls = []
+    
+    def mock_cleanup_resources_thread_safe(deployment_name, rg_name, thread_prefix, thread_color):
+        cleanup_calls.append((deployment_name, rg_name, thread_prefix, thread_color))
+        return True, ""  # Return success
+    
+    def mock_get_infra_rg_name(deployment, index):
+        return f'apim-infra-{deployment.value}-{index}' if index else f'apim-infra-{deployment.value}'
+    
+    monkeypatch.setattr(utils, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
+    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_ok', lambda *a, **kw: None)
+    
+    # Test with multiple indexes (should use parallel mode)
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2, 3])
+    
+    # Verify all cleanup calls were made
+    assert len(cleanup_calls) == 3
+    
+    # Check that the correct resource groups were targeted
+    expected_rgs = [
+        'apim-infra-simple-apim-1',
+        'apim-infra-simple-apim-2', 
+        'apim-infra-simple-apim-3'
+    ]
+    actual_rgs = [call[1] for call in cleanup_calls]
+    assert set(actual_rgs) == set(expected_rgs)
+    
+    # Check that thread prefixes contain the correct infrastructure and index info
+    for deployment_name, rg_name, thread_prefix, thread_color in cleanup_calls:
+        assert deployment_name == 'simple-apim'
+        assert 'simple-apim' in thread_prefix
+        assert thread_color in utils.THREAD_COLORS
+
+
+def test_cleanup_infra_deployments_parallel_with_failures(monkeypatch):
+    """Test parallel cleanup handling when some threads fail."""
+    cleanup_calls = []
+    
+    def mock_cleanup_resources_thread_safe(deployment_name, rg_name, thread_prefix, thread_color):
+        cleanup_calls.append((deployment_name, rg_name))
+        # Simulate failure for index 2
+        if 'simple-apim-2' in rg_name:
+            return False, "Simulated failure for testing"
+        return True, ""
+    
+    def mock_get_infra_rg_name(deployment, index):
+        return f'apim-infra-{deployment.value}-{index}'
+    
+    monkeypatch.setattr(utils, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
+    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_error', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_warning', lambda *a, **kw: None)
+    
+    # Test with multiple indexes where one fails
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2, 3])
+    
+    # Verify all cleanup attempts were made despite failure
+    assert len(cleanup_calls) == 3
+
+
+def test_cleanup_resources_thread_safe_success(monkeypatch):
+    """Test the thread-safe cleanup wrapper with successful execution."""
+    original_calls = []
+    
+    def mock_cleanup_resources_with_thread_safe_printing(deployment_name, rg_name, thread_prefix, thread_color):
+        original_calls.append((deployment_name, rg_name))
+    
+    monkeypatch.setattr(utils, '_cleanup_resources_with_thread_safe_printing', mock_cleanup_resources_with_thread_safe_printing)
+    
+    # Test successful cleanup
+    success, error_msg = utils._cleanup_resources_thread_safe(
+        'test-deployment', 'test-rg', '[TEST]: ', utils.BOLD_G
+    )
+    
+    assert success is True
+    assert error_msg == ""
+    assert len(original_calls) == 1
+    assert original_calls[0] == ('test-deployment', 'test-rg')
+
+
+def test_cleanup_resources_thread_safe_failure(monkeypatch):
+    """Test the thread-safe cleanup wrapper with exception handling."""
+    def mock_cleanup_resources_with_thread_safe_printing(deployment_name, rg_name, thread_prefix, thread_color):
+        raise Exception("Simulated cleanup failure")
+    
+    monkeypatch.setattr(utils, '_cleanup_resources_with_thread_safe_printing', mock_cleanup_resources_with_thread_safe_printing)
+    
+    # Test failed cleanup
+    success, error_msg = utils._cleanup_resources_thread_safe(
+        'test-deployment', 'test-rg', '[TEST]: ', utils.BOLD_G
+    )
+    
+    assert success is False
+    assert "Simulated cleanup failure" in error_msg
+
+
+def test_cleanup_infra_deployments_max_workers_limit(monkeypatch):
+    """Test that parallel cleanup properly handles different numbers of indexes."""
+    cleanup_calls = []
+    
+    def mock_cleanup_resources_thread_safe(deployment_name, rg_name, thread_prefix, thread_color):
+        cleanup_calls.append((deployment_name, rg_name, thread_prefix, thread_color))
+        return True, ""
+    
+    def mock_get_infra_rg_name(deployment, index):
+        return f'rg-{deployment.value}-{index}'
+    
+    # Mock Azure CLI calls to avoid real execution
+    def mock_run(*args, **kwargs):
+        return utils.Output(success=True, text='{}')
+    
+    monkeypatch.setattr(utils, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
+    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(utils, 'run', mock_run)  # Mock Azure CLI calls
+    monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_ok', lambda *a, **kw: None)
+    
+    # Test with 6 indexes (should use parallel mode and handle all indexes)
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2, 3, 4, 5, 6])
+    
+    # Verify all 6 cleanup calls were made
+    assert len(cleanup_calls) == 6, f"Expected 6 cleanup calls, got {len(cleanup_calls)}"
+    
+    # Check that the correct resource groups were targeted
+    expected_rgs = [f'rg-simple-apim-{i}' for i in range(1, 7)]
+    actual_rgs = [call[1] for call in cleanup_calls]
+    assert set(actual_rgs) == set(expected_rgs), f"Expected RGs {expected_rgs}, got {actual_rgs}"
+    
+    # Test with 2 indexes (should use parallel mode)
+    cleanup_calls.clear()
     utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2])
+    
+    assert len(cleanup_calls) == 2, f"Expected 2 cleanup calls, got {len(cleanup_calls)}"
+    
+    # Test that thread prefixes and colors are assigned properly
+    for call in cleanup_calls:
+        deployment_name, rg_name, thread_prefix, thread_color = call
+        assert deployment_name == 'simple-apim'
+        assert 'simple-apim' in thread_prefix
+        assert thread_color in utils.THREAD_COLORS
+
+
+def test_cleanup_infra_deployments_thread_color_assignment(monkeypatch):
+    """Test that thread colors are assigned correctly and cycle through available colors."""
+    cleanup_calls = []
+    
+    def mock_cleanup_resources_thread_safe(deployment_name, rg_name, thread_prefix, thread_color):
+        cleanup_calls.append((deployment_name, rg_name, thread_prefix, thread_color))
+        return True, ""
+    
+    def mock_get_infra_rg_name(deployment, index):
+        return f'apim-infra-{deployment.value}-{index}'
+    
+    # Mock Azure CLI calls to avoid real execution
+    def mock_run(*args, **kwargs):
+        return utils.Output(success=True, text='{}')
+    
+    monkeypatch.setattr(utils, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
+    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(utils, 'run', mock_run)  # Mock Azure CLI calls
+    monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_ok', lambda *a, **kw: None)
+    
+    # Test with more indexes than available colors to verify cycling
+    num_colors = len(utils.THREAD_COLORS)
+    test_indexes = list(range(1, num_colors + 3))  # More than available colors
+    
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, test_indexes)
+    
+    # Verify colors were assigned and cycled correctly
+    assigned_colors = [call[3] for call in cleanup_calls]
+    
+    # Sort the calls by the index extracted from the rg_name to check in deterministic order
+    cleanup_calls_sorted = sorted(cleanup_calls, key=lambda x: int(x[1].split('-')[-1]))
+    assigned_colors_sorted = [call[3] for call in cleanup_calls_sorted]
+    
+    # First num_colors should use each color once
+    for i in range(num_colors):
+        expected_color = utils.THREAD_COLORS[i % num_colors]
+        assert assigned_colors_sorted[i] == expected_color
+    
+    # Additional colors should cycle back to the beginning
+    if len(assigned_colors_sorted) > num_colors:
+        assert assigned_colors_sorted[num_colors] == utils.THREAD_COLORS[0]
+        assert assigned_colors_sorted[num_colors + 1] == utils.THREAD_COLORS[1]
 
 
 def test_cleanup_infra_deployments_all_infrastructure_types(monkeypatch):
@@ -437,45 +629,69 @@ def test_cleanup_infra_deployments_all_infrastructure_types(monkeypatch):
 def test_cleanup_infra_deployments_index_scenarios(monkeypatch):
     """Test cleanup_infra_deployments with various index scenarios."""
     cleanup_calls = []
+    thread_safe_calls = []
     
     def mock_cleanup_resources(deployment_name, rg_name):
         cleanup_calls.append((deployment_name, rg_name))
     
+    def mock_cleanup_resources_thread_safe(deployment_name, rg_name, thread_prefix, thread_color):
+        thread_safe_calls.append((deployment_name, rg_name, thread_prefix, thread_color))
+        return True, ""
+    
     def mock_get_infra_rg_name(deployment, index):
         return f'apim-infra-{deployment.value}-{index}' if index else f'apim-infra-{deployment.value}'
     
-    monkeypatch.setattr(utils, '_cleanup_resources', mock_cleanup_resources)
-    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
-    monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
+    # Mock Azure CLI calls to avoid real execution
+    def mock_run(*args, **kwargs):
+        return utils.Output(success=True, text='{}')
     
-    # Test None index
+    monkeypatch.setattr(utils, '_cleanup_resources', mock_cleanup_resources)
+    monkeypatch.setattr(utils, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
+    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(utils, 'run', mock_run)  # Mock Azure CLI calls
+    monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_ok', lambda *a, **kw: None)
+    
+    # Test None index (sequential)
     utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, None)
     
-    # Test single integer index
+    # Test single integer index (sequential)
     utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, 5)
     
-    # Test list of integers
-    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2, 3])
+    # Test single item list (sequential)
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1])
     
-    # Test tuple of integers
+    # Test list of integers (parallel)
+    utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [2, 3])
+    
+    # Test tuple of integers (parallel)
     utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, (4, 5))
     
-    # Test empty list
+    # Test empty list (sequential, with no index)
     utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [])
     
-    # Verify correct calls were made
-    expected_calls = [
+    # Verify sequential calls
+    expected_sequential_calls = [
         ('simple-apim', 'apim-infra-simple-apim'),        # None index
         ('simple-apim', 'apim-infra-simple-apim-5'),      # Single index 5
-        ('simple-apim', 'apim-infra-simple-apim-1'),      # List [1, 2, 3] - first
-        ('simple-apim', 'apim-infra-simple-apim-2'),      # List [1, 2, 3] - second
-        ('simple-apim', 'apim-infra-simple-apim-3'),      # List [1, 2, 3] - third
+        ('simple-apim', 'apim-infra-simple-apim-1'),      # Single item list [1]
+        ('simple-apim', 'apim-infra-simple-apim'),        # Empty list (None index)
+    ]
+    
+    for expected_call in expected_sequential_calls:
+        assert expected_call in cleanup_calls, f"Expected sequential call {expected_call} not found in {cleanup_calls}"
+    
+    # Verify parallel calls (extract just the deployment and rg_name parts)
+    parallel_calls = [(call[0], call[1]) for call in thread_safe_calls]
+    expected_parallel_calls = [
+        ('simple-apim', 'apim-infra-simple-apim-2'),      # List [2, 3] - first
+        ('simple-apim', 'apim-infra-simple-apim-3'),      # List [2, 3] - second
         ('simple-apim', 'apim-infra-simple-apim-4'),      # Tuple (4, 5) - first
         ('simple-apim', 'apim-infra-simple-apim-5'),      # Tuple (4, 5) - second
     ]
     
-    for expected_call in expected_calls:
-        assert expected_call in cleanup_calls
+    for expected_call in expected_parallel_calls:
+        assert expected_call in parallel_calls, f"Expected parallel call {expected_call} not found in {parallel_calls}"
 
 
 # ------------------------------
@@ -1210,33 +1426,45 @@ def test_cleanup_functions_comprehensive(monkeypatch):
 
 def test_cleanup_edge_cases_comprehensive(monkeypatch):
     """Test cleanup functions with edge cases and error conditions."""
-    
+
     # Test with different index types
     cleanup_calls = []
-    
+
     def mock_cleanup_resources(deployment_name, rg_name):
         cleanup_calls.append((deployment_name, rg_name))
-    
+        return True, ""
+
+    def mock_cleanup_resources_thread_safe(deployment_name, rg_name, thread_prefix, thread_color):
+        cleanup_calls.append((deployment_name, rg_name))
+        return True, ""
+
     def mock_get_infra_rg_name(deployment, index):
         return f'rg-{deployment.value}-{index}' if index is not None else f'rg-{deployment.value}'
-    
+
+    # Mock Azure CLI calls to avoid real execution
+    def mock_run(*args, **kwargs):
+        return utils.Output(success=True, text='{}')
+
     monkeypatch.setattr(utils, '_cleanup_resources', mock_cleanup_resources)
+    monkeypatch.setattr(utils, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
     monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(utils, 'run', mock_run)  # Mock Azure CLI calls
     monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
-    
-    # Test with zero index
+    monkeypatch.setattr(utils, 'print_ok', lambda *a, **kw: None)
+
+    # Test with zero index (single index, uses sequential path)
     utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, 0)
     assert ('simple-apim', 'rg-simple-apim-0') in cleanup_calls
-    
-    # Test with negative index
+
+    # Test with negative index (single index, uses sequential path)
     utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, -1)
     assert ('simple-apim', 'rg-simple-apim--1') in cleanup_calls
-    
-    # Test with large index
+
+    # Test with large index (single index, uses sequential path)
     utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, 9999)
     assert ('simple-apim', 'rg-simple-apim-9999') in cleanup_calls
-    
-    # Test with mixed positive and negative indexes in list
+
+    # Test with mixed positive and negative indexes in list (multiple indexes, uses parallel path)
     cleanup_calls.clear()
     utils.cleanup_infra_deployments(INFRASTRUCTURE.APIM_ACA, [-1, 0, 1])
     expected = [
@@ -1245,9 +1473,7 @@ def test_cleanup_edge_cases_comprehensive(monkeypatch):
         ('apim-aca', 'rg-apim-aca-1')
     ]
     for call in expected:
-        assert call in cleanup_calls
-    
-    # Test with single-item list
+        assert call in cleanup_calls    # Test with single-item list
     cleanup_calls.clear()
     utils.cleanup_infra_deployments(INFRASTRUCTURE.AFD_APIM_PE, [42])
     assert ('afd-apim-pe', 'rg-afd-apim-pe-42') in cleanup_calls
