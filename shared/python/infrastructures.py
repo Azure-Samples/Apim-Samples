@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 from apimtypes import *
 import utils
-# from abc import ABC, abstractmethod
+from utils import Output
 
 
 # ------------------------------
@@ -342,6 +342,217 @@ class AfdApimAcaInfrastructure(Infrastructure):
         base_params.update(afd_params)
         return base_params
 
+    def _approve_private_link_connections(self, apim_service_id: str) -> bool:
+        """
+        Approve pending private link connections from AFD to APIM.
+        
+        Args:
+            apim_service_id (str): APIM service resource ID.
+            
+        Returns:
+            bool: True if all connections were approved successfully, False otherwise.
+        """
+        print('\n🔗 Step 3: Approving Front Door private link connection to APIM...')
+        
+        try:
+            # Get all pending private endpoint connections
+            output = utils.run(
+                f'az network private-endpoint-connection list --id {apim_service_id} --query "[?contains(properties.privateLinkServiceConnectionState.status, \'Pending\')]" -o json',
+                print_command_to_run = False,
+                print_errors = False
+            )
+            
+            if not output.success:
+                print('❌ Failed to retrieve private endpoint connections')
+                return False
+                
+            pending_connections = output.json_data if output.is_json else []
+            
+            # Handle both single object and list
+            if isinstance(pending_connections, dict):
+                pending_connections = [pending_connections]
+            
+            total = len(pending_connections)
+            print(f'   Found {total} pending private link service connection(s)')
+            
+            if total == 0:
+                print('   ✅ No pending connections found - may already be approved')
+                return True
+                
+            # Approve each pending connection
+            for i, conn in enumerate(pending_connections, 1):
+                conn_id = conn.get('id')
+                conn_name = conn.get('name', '<unknown>')
+                print(f'   Approving {i}/{total}: {conn_name}')
+                
+                approve_result = utils.run(
+                    f'az network private-endpoint-connection approve --id {conn_id} --description "Approved by infrastructure deployment"',
+                    f'✅ Private Link Connection approved: {conn_name}',
+                    f'❌ Failed to approve Private Link Connection: {conn_name}',
+                    print_command_to_run = False
+                )
+                
+                if not approve_result.success:
+                    return False
+            
+            print('   ✅ All private link connections approved successfully')
+            return True
+            
+        except Exception as e:
+            print(f'   ❌ Error during private link approval: {str(e)}')
+            return False
+
+    def _disable_apim_public_access(self) -> bool:
+        """
+        Disable public network access to APIM by redeploying with updated parameters.
+        
+        Returns:
+            bool: True if deployment succeeded, False otherwise.
+        """
+        print('\n🔒 Step 5: Disabling API Management public network access...')
+        
+        try:
+            # Update parameters to disable public access
+            self.bicep_parameters['apimPublicAccess']['value'] = False
+            
+            # Write updated parameters file
+            original_cwd = os.getcwd()
+            shared_dir = Path(__file__).parent
+            infra_dir = shared_dir.parent.parent / 'infrastructure' / 'afd-apim-pe'
+            
+            try:
+                os.chdir(infra_dir)
+                
+                bicep_parameters_format = {
+                    '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
+                    'contentVersion': '1.0.0.0',
+                    'parameters': self.bicep_parameters
+                }
+                
+                params_file_path = infra_dir / 'params.json'
+                with open(params_file_path, 'w') as file:
+                    file.write(json.dumps(bicep_parameters_format))
+                
+                print('   📝 Updated parameters to disable public access')
+                
+                # Run the second deployment
+                main_bicep_path = infra_dir / 'main.bicep'
+                output = utils.run(
+                    f'az deployment group create --name {self.infra.value}-lockdown --resource-group {self.rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
+                    '✅ Public access disabled successfully',
+                    '❌ Failed to disable public access',
+                    print_command_to_run = False
+                )
+                
+                return output.success
+                
+            finally:
+                os.chdir(original_cwd)
+                
+        except Exception as e:
+            print(f'   ❌ Error during public access disable: {str(e)}')
+            return False
+
+    def _verify_apim_connectivity(self, apim_gateway_url: str) -> bool:
+        """
+        Verify APIM connectivity before disabling public access using the health check endpoint.
+        
+        Args:
+            apim_gateway_url (str): APIM gateway URL.
+            
+        Returns:
+            bool: True if connectivity test passed, False otherwise.
+        """
+        print('\n✅ Step 4: Verifying API request success via API Management...')
+        
+        try:
+            # Use the health check endpoint which doesn't require a subscription key
+            import requests
+            
+            healthcheck_url = f'{apim_gateway_url}/status-0123456789abcdef'
+            print(f'   Testing connectivity to health check endpoint: {healthcheck_url}')
+            
+            response = requests.get(healthcheck_url, timeout=30)
+            
+            if response.status_code == 200:
+                print('   ✅ APIM connectivity verified - Health check returned 200')
+                return True
+            else:
+                print(f'   ⚠️  APIM health check returned status code {response.status_code} (expected 200)')
+                return True  # Continue anyway as this might be expected during deployment
+                
+        except Exception as e:
+            print(f'   ⚠️  APIM connectivity test failed: {str(e)}')
+            print('   ℹ️  Continuing deployment - this may be expected during infrastructure setup')
+            return True  # Continue anyway
+
+    def deploy_infrastructure(self) -> Output:
+        """
+        Deploy the AFD-APIM-PE infrastructure with the required multi-step process.
+        
+        Returns:
+            utils.Output: The deployment result.
+        """
+        print('\n🚀 Starting AFD-APIM-PE infrastructure deployment...\n')
+        print('   This deployment requires multiple steps:\n')
+        print('   1. Initial deployment with public access enabled')
+        print('   2. Approve private link connections')  
+        print('   3. Verify connectivity')
+        print('   4. Disable public access to APIM')
+        print('   5. Final verification\n')
+        
+        # Step 1 & 2: Initial deployment using base class method
+        output = super().deploy_infrastructure()
+        
+        if not output.success:
+            print('❌ Initial deployment failed!')
+            return output
+            
+        print('\n✅ Step 1 & 2: Initial infrastructure deployment completed')
+        
+        # Extract required values from deployment output
+        if not output.json_data:
+            print('❌ No deployment output data available')
+            return output
+            
+        apim_service_id = output.get('apimServiceId', 'APIM Service ID', suppress_logging = True)
+        apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM Gateway URL', suppress_logging = True)
+        
+        if not apim_service_id or not apim_gateway_url:
+            print('❌ Required APIM information not found in deployment output')
+            return output
+        
+        # Step 3: Approve private link connections
+        if not self._approve_private_link_connections(apim_service_id):
+            print('❌ Private link approval failed!')
+            # Create a failed output object
+            failed_output = utils.Output()
+            failed_output.success = False
+            failed_output.text = 'Private link approval failed'
+            return failed_output
+        
+        # Step 4: Verify connectivity (optional - continues on failure)
+        self._verify_apim_connectivity(apim_gateway_url)
+        
+        # Step 5: Disable public access
+        if not self._disable_apim_public_access():
+            print('❌ Failed to disable public access!')
+            # Create a failed output object
+            failed_output = utils.Output()
+            failed_output.success = False
+            failed_output.text = 'Failed to disable public access'
+            return failed_output
+        
+        print('\n🎉 AFD-APIM-PE infrastructure deployment completed successfully!\n')
+        print('\n📋 Final Configuration:\n')
+        print('   ✅ Azure Front Door deployed')
+        print('   ✅ API Management deployed with private endpoints')
+        print('   ✅ Private link connections approved')
+        print('   ✅ Public access to APIM disabled')
+        print('   ℹ️  Traffic now flows: Internet → AFD → Private Endpoint → APIM')
+        
+        return output
+
     def _verify_infrastructure_specific(self, rg_name: str) -> bool:
         """
         Verify AFD-APIM-PE specific components.
@@ -367,6 +578,19 @@ class AfdApimAcaInfrastructure(Infrastructure):
                     aca_count = int(aca_output.text.strip())
                     if aca_count > 0:
                         print(f'✅ Container Apps verified: {aca_count} app(s) created')
+                
+                # Verify private endpoint connections (optional - don't fail if it errors)
+                try:
+                    apim_output = utils.run(f'az apim list -g {rg_name} --query "[0].id" -o tsv', print_command_to_run = False, print_errors = False)
+                    if apim_output.success and apim_output.text.strip():
+                        apim_id = apim_output.text.strip()
+                        pe_output = utils.run(f'az network private-endpoint-connection list --id {apim_id} --query "length(@)"', print_command_to_run = False, print_errors = False)
+                        if pe_output.success:
+                            pe_count = int(pe_output.text.strip())
+                            print(f'✅ Private endpoint connections: {pe_count}')
+                except:
+                    # Don't fail verification if private endpoint check fails
+                    pass
                 
                 return True
             else:

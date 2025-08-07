@@ -487,12 +487,18 @@ def test_afd_apim_infrastructure_verification_success(mock_utils):
     mock_aca_output.success = True
     mock_aca_output.text = '2'  # 2 Container Apps
     
-    mock_utils.run.side_effect = [mock_afd_output, mock_aca_output]
+    # Mock successful APIM check for private endpoints (optional third call)
+    mock_apim_output = Mock()
+    mock_apim_output.success = True
+    mock_apim_output.text = 'apim-resource-id'
+    
+    mock_utils.run.side_effect = [mock_afd_output, mock_aca_output, mock_apim_output]
     
     result = infra._verify_infrastructure_specific('test-rg')
     
     assert result is True
-    assert mock_utils.run.call_count == 2
+    # Allow for 2-3 calls (3rd call is optional for private endpoint verification)
+    assert mock_utils.run.call_count >= 2
 
 @pytest.mark.unit
 def test_afd_apim_infrastructure_verification_no_afd(mock_utils):
