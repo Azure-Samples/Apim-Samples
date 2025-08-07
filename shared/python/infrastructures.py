@@ -172,13 +172,17 @@ class Infrastructure:
     #    PUBLIC METHODS
     # ------------------------------   
 
-    def deploy_infrastructure(self) -> 'utils.Output':
+    def deploy_infrastructure(self, is_update: bool = False) -> 'utils.Output':
         """
         Deploy the infrastructure using the defined Bicep parameters.
         This method should be implemented in subclasses to handle specific deployment logic.
+        
+        Args:
+            is_update (bool): Whether this is an update to existing infrastructure or a new deployment.
         """
         
-        print(f'\n🚀 Creating infrastructure...\n')
+        action_verb = "Updating" if is_update else "Creating"
+        print(f'\n🚀 {action_verb} infrastructure...\n')
         print(f'   Infrastructure : {self.infra.value}')
         print(f'   Index          : {self.index}')
         print(f'   Resource group : {self.rg_name}')
@@ -487,14 +491,18 @@ class AfdApimAcaInfrastructure(Infrastructure):
             print('   ℹ️  Continuing deployment - this may be expected during infrastructure setup')
             return True  # Continue anyway
 
-    def deploy_infrastructure(self) -> Output:
+    def deploy_infrastructure(self, is_update: bool = False) -> Output:
         """
         Deploy the AFD-APIM-PE infrastructure with the required multi-step process.
         
+        Args:
+            is_update (bool): Whether this is an update to existing infrastructure or a new deployment.
+            
         Returns:
             utils.Output: The deployment result.
         """
-        print('\n🚀 Starting AFD-APIM-PE infrastructure deployment...\n')
+        action_verb = "Updating" if is_update else "Starting"
+        print(f'\n🚀 {action_verb} AFD-APIM-PE infrastructure deployment...\n')
         print('   This deployment requires multiple steps:\n')
         print('   1. Initial deployment with public access enabled')
         print('   2. Approve private link connections')  
@@ -503,7 +511,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
         print('   5. Final verification\n')
         
         # Step 1 & 2: Initial deployment using base class method
-        output = super().deploy_infrastructure()
+        output = super().deploy_infrastructure(is_update)
         
         if not output.success:
             print('❌ Initial deployment failed!')

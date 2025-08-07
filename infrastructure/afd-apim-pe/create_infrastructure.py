@@ -11,11 +11,14 @@ import utils
 
 def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU, no_aca: bool = False) -> None:
     try:
+        # Check if infrastructure already exists to determine messaging
+        infrastructure_exists = utils.does_resource_group_exist(utils.get_infra_rg_name(utils.INFRASTRUCTURE.AFD_APIM_PE, index))
+        
         # Create custom APIs for AFD-APIM-PE with optional Container Apps backends
         custom_apis = _create_afd_specific_apis(not no_aca)
         
         infra = AfdApimAcaInfrastructure(location, index, apim_sku, infra_apis = custom_apis)
-        result = infra.deploy_infrastructure()
+        result = infra.deploy_infrastructure(infrastructure_exists)
         
         sys.exit(0 if result.success else 1)
             

@@ -11,11 +11,14 @@ import utils
 
 def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU) -> None:
     try:
+        # Check if infrastructure already exists to determine messaging
+        infrastructure_exists = utils.does_resource_group_exist(utils.get_infra_rg_name(utils.INFRASTRUCTURE.APIM_ACA, index))
+        
         # Create custom APIs for APIM-ACA with Container Apps backends
         custom_apis = _create_aca_specific_apis()
         
         infra = ApimAcaInfrastructure(location, index, apim_sku, infra_apis = custom_apis)
-        result = infra.deploy_infrastructure()
+        result = infra.deploy_infrastructure(infrastructure_exists)
         
         sys.exit(0 if result.success else 1)
             
