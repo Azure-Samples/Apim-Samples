@@ -116,7 +116,7 @@ def test_infrastructure_creation_with_custom_policy_fragments(mock_utils, mock_p
     pfs = infra._define_policy_fragments()
     
     # Should have base policy fragments + custom ones
-    assert len(pfs) == 7  # 5 base + 2 custom
+    assert len(pfs) == 8  # 6 base + 2 custom
     assert any(pf.name == 'Test-Fragment-1' for pf in pfs)
     assert any(pf.name == 'Test-Fragment-2' for pf in pfs)
     assert any(pf.name == 'AuthZ-Match-All' for pf in pfs)
@@ -225,8 +225,8 @@ def test_define_policy_fragments_with_none_input(mock_utils):
     pfs = infra._define_policy_fragments()
     
     # Should only have base policy fragments
-    assert len(pfs) == 5
-    assert all(pf.name in ['AuthZ-Match-All', 'AuthZ-Match-Any', 'Http-Response-200', 'Product-Match-Any', 'Remove-Request-Headers'] for pf in pfs)
+    assert len(pfs) == 6
+    assert all(pf.name in ['Api-Id', 'AuthZ-Match-All', 'AuthZ-Match-Any', 'Http-Response-200', 'Product-Match-Any', 'Remove-Request-Headers'] for pf in pfs)
 
 @pytest.mark.unit
 def test_define_policy_fragments_with_custom_input(mock_utils, mock_policy_fragments):
@@ -242,7 +242,7 @@ def test_define_policy_fragments_with_custom_input(mock_utils, mock_policy_fragm
     pfs = infra._define_policy_fragments()
     
     # Should have base + custom policy fragments
-    assert len(pfs) == 7  # 5 base + 2 custom
+    assert len(pfs) == 8  # 6 base + 2 custom
     fragment_names = [pf.name for pf in infra.pfs]
     assert 'Test-Fragment-1' in fragment_names
     assert 'Test-Fragment-2' in fragment_names
@@ -319,7 +319,7 @@ def test_define_bicep_parameters(mock_utils):
     
     assert 'policyFragments' in bicep_params
     assert isinstance(bicep_params['policyFragments']['value'], list)
-    assert len(bicep_params['policyFragments']['value']) == 5  # base policy fragments
+    assert len(bicep_params['policyFragments']['value']) == 6  # base policy fragments
 
 
 # ------------------------------
@@ -769,8 +769,8 @@ def test_infrastructure_end_to_end_simple(mock_utils):
     
     # Verify all components are created correctly
     assert infra.infra == INFRASTRUCTURE.SIMPLE_APIM
-    assert len(infra.base_pfs) == 5
-    assert len(infra.pfs) == 5
+    assert len(infra.base_pfs) == 6
+    assert len(infra.pfs) == 6
     assert len(infra.base_apis) == 1
     assert len(infra.apis) == 1
     
@@ -778,7 +778,7 @@ def test_infrastructure_end_to_end_simple(mock_utils):
     bicep_params = infra._define_bicep_parameters()
     assert bicep_params['apimSku']['value'] == 'Developer'
     assert len(bicep_params['apis']['value']) == 1
-    assert len(bicep_params['policyFragments']['value']) == 5
+    assert len(bicep_params['policyFragments']['value']) == 6
 
 @pytest.mark.unit
 def test_infrastructure_with_all_custom_components(mock_utils, mock_policy_fragments, mock_apis):
@@ -798,8 +798,8 @@ def test_infrastructure_with_all_custom_components(mock_utils, mock_policy_fragm
     infra._define_apis()
     
     # Verify all components are combined correctly
-    assert len(infra.base_pfs) == 5
-    assert len(infra.pfs) == 7  # 5 base + 2 custom
+    assert len(infra.base_pfs) == 6
+    assert len(infra.pfs) == 8  # 6 base + 2 custom
     assert len(infra.base_apis) == 1
     assert len(infra.apis) == 3  # 1 base + 2 custom
     
@@ -807,7 +807,7 @@ def test_infrastructure_with_all_custom_components(mock_utils, mock_policy_fragm
     bicep_params = infra._define_bicep_parameters()
     assert bicep_params['apimSku']['value'] == 'Premium'
     assert len(bicep_params['apis']['value']) == 3
-    assert len(bicep_params['policyFragments']['value']) == 7
+    assert len(bicep_params['policyFragments']['value']) == 8
 
 
 # ------------------------------
@@ -856,7 +856,7 @@ def test_infrastructure_empty_custom_lists(mock_utils):
     infra._define_apis()
     
     # Empty lists should behave the same as None
-    assert len(infra.pfs) == 5  # Only base policy fragments
+    assert len(infra.pfs) == 6  # Only base policy fragments
     assert len(infra.apis) == 1  # Only base APIs
 
 @pytest.mark.unit
@@ -927,6 +927,7 @@ def test_policy_fragment_creation_robustness(mock_utils):
         '<policy3/>',
         '<policy4/>',
         '<policy5/>',
+        '<policy6/>',  # Added for the new Api-Id policy fragment
         '<hello-world-policy/>'
     ]
     
