@@ -619,6 +619,8 @@ class NotebookHelper:
             print('✅ Desired infrastructure already exists, proceeding with sample deployment')
 
         # Deploy the sample APIs to the selected infrastructure
+        print(f'\n------------------------------------------------')
+        print(f'\nSAMPLE DEPLOYMENT')
         print(f'\nDeploying sample to:\n')
         print(f'   Infrastructure : {self.deployment.value}')
         print(f'   Index          : {self.index}')
@@ -675,9 +677,6 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
         output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False)
 
         if output.success and output.json_data:
-            # provisioning_state = output.json_data.get('properties').get('provisioningState')
-            # print_info(f'Deployment provisioning state: {provisioning_state}')
-
             # Delete and purge CognitiveService accounts
             output = run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False)
 
@@ -1236,6 +1235,8 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
         rg_name = get_infra_rg_name(deployment, idx)
         _cleanup_resources(deployment.value, rg_name)
         i += 1
+
+    print_ok('All done!')
 
 def extract_json(text: str) -> Any:
     """
