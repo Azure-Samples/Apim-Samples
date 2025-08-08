@@ -1,6 +1,6 @@
 # Samples: OAuth 2.0 with 3rd Party
 
-Sets up a 3rd party integration via [Azure API Management Credential Manager](https://learn.microsoft.com/azure/api-management/credentials-overview).  
+Sets up a 3rd party integration via [Azure API Management Credential Manager][apim-credential-manager].  
 
 ***This sample has prerequisites! Please follow the instructions below.***
 
@@ -19,7 +19,7 @@ Sets up a 3rd party integration via [Azure API Management Credential Manager](ht
 
 ## 📝 Scenario
 
-We chose Spotify as it provides an extensive [REST API](https://developer.spotify.com/documentation/web-api) and has relatively generous limits on free API access. This makes for a relatively straight-forward experience for this sample. 
+We chose Spotify as it provides an extensive [REST API][spotify-rest-api] and has relatively generous limits on free API access. This makes for a relatively straight-forward experience for this sample. 
 Specifically, this sample uses Spotify's REST API to obtain information about its deep music and artist catalog. API Management is registered as an application in Spotify's applications with its own client ID and client secret for a given scope. This application is then set up as a generic OAuth 2.0 integration in Credential Manager.  
 Furthermore, we build on the knowledge gained from the _AuthX_ and _AuthX-Pro_ samples to authentication callers and authorize their use of the Spotify integration. 
 
@@ -42,17 +42,17 @@ This sample requires a little bit of manual pre-work in order to create a high-f
 
 ### A Spotify Account
 
-1. You can use your existing Spotify account or sign up for a new one [here](https://www.spotify.com/us/signup). Please ensure you adhere to Spotify's terms & conditions of use.
+1. You can use your existing Spotify account or sign up for a new one [here][spotify-signup]. Please ensure you adhere to Spotify's terms & conditions of use.
 
 ### A Spotify Application
 
 In order for API Management to gain access to Spotify's API, we need to create an application that represents API Management. 
 
-1. Open or log into the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
+1. Open or log into the [Spotify Developer Dashboard][spotify-dashboard].
 1. Review and accept the _Spotify Developer Terms of Service_, if required.
 1. Proceed with verifying your email address, if required.
 1. If the Dashboard does not open immediately, select it from the menu after clicking on your profile name (top-right corner).
-1. [Create the app](https://developer.spotify.com/dashboard/create):
+1. [Create the app][spotify-create-app]:
     - **App Name**: _APIM_
     - **App Description**: _API Management_
     - **Redirect URIs**: https://localhost:8080/callback
@@ -64,4 +64,13 @@ In order for API Management to gain access to Spotify's API, we need to create a
 
 ## Acknowledgement
 
-We thank [Spotify](https://www.spotify.com) for access to their API. Keep building great products!
+We thank [Spotify][spotify] for access to their API. Keep building great products!
+
+
+
+[apim-credential-manager]: https://learn.microsoft.com/azure/api-management/credentials-overview
+[spotify]: https://www.spotify.com
+[spotify-create-app]: https://developer.spotify.com/dashboard/create
+[spotify-dashboard]: https://developer.spotify.com/dashboard
+[spotify-rest-api]: https://developer.spotify.com/documentation/web-api
+[spotify-signup]: https://www.spotify.com/signup

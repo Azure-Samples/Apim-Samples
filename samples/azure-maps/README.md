@@ -50,6 +50,11 @@ This lab sets up:
 
 ## ⚙️ Configuration
 
-1. Decide which of the [Infrastructure Architectures](../../README.md#infrastructure-architectures) you wish to use.
-    1. If the infrastructure _does not_ yet exist, navigate to the desired [infrastructure](../../infrastructure/) folder and follow its README.md.
-    1. If the infrastructure _does_ exist, adjust the `user-defined parameters` in the _Initialize notebook variables_ below. Please ensure that all parameters match your infrastructure.
+1. Decide which of the [Infrastructure Architectures][infrastructure-architectures] you wish to use.
+  1. If the infrastructure _does not_ yet exist, navigate to the desired [infrastructure][infrastructure-folder] folder and follow its README.md.
+  1. If the infrastructure _does_ exist, adjust the `user-defined parameters` in the _Initialize notebook variables_ below. Please ensure that all parameters match your infrastructure.
+
+
+
+[infrastructure-architectures]: ../../README.md#infrastructure-architectures
+[infrastructure-folder]: ../../infrastructure/

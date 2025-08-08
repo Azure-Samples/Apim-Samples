@@ -198,7 +198,7 @@ You can monitor prebuild status in several ways:
    - Click on "View all" to see prebuild status
 
 2. **Codespaces Settings**:
-   - Visit [github.com/codespaces](https://github.com/codespaces)
+   - Visit [github.com/codespaces][github-codespaces]
    - Check the "Repository prebuilds" section
    - View build logs and status
 
@@ -273,7 +273,7 @@ The `devcontainer.json` includes specific Jupyter settings to ensure proper kern
 ]
 ```
 
-For more details on kernel configuration in VS Code, see: [VS Code Issue #130946](https://github.com/microsoft/vscode/issues/130946#issuecomment-1899389049)
+For more details on kernel configuration in VS Code, see: [VS Code Issue #130946][vscode-issue-130946]
 
 ## 🛠️ Troubleshooting
 
@@ -386,3 +386,8 @@ When modifying the dev container setup:
 ---
 
 *This dev container configuration is optimized for Azure API Management samples development with fast startup times and comprehensive tooling support.*
+
+
+
+[github-codespaces]: https://github.com/codespaces
+[vscode-issue-130946]: https://github.com/microsoft/vscode/issues/130946#issuecomment-1899389049

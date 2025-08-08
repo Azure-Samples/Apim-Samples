@@ -1,7 +1,7 @@
 # PlantUML Diagrams
 
 This directory contains PlantUML diagrams for the Azure API Management architecture.
-Azure Symbols are on [GitHub](https://github.com/plantuml-stdlib/Azure-PlantUML/blob/master/AzureSymbols.md)
+Azure Symbols are on [GitHub][azure-symbols].
 
 ## Using PlantUML in VS Code
 
@@ -46,3 +46,7 @@ If you encounter issues with PlantUML:
 3. **Alternative Rendering**:
    - If local rendering fails, try using the PlantUML server:
    - Change "plantuml.render" setting to "PlantUMLServer"
+
+
+
+[azure-symbols]: https://github.com/plantuml-stdlib/Azure-PlantUML/blob/master/AzureSymbols.md

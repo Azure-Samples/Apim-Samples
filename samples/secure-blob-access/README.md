@@ -8,7 +8,7 @@ This sample demonstrates implementing the **valet key pattern** with Azure API M
 
 ## 🎯 Objectives
 
-1. Learn how the [valet key pattern](https://learn.microsoft.com/azure/architecture/patterns/valet-key) works.
+1. Learn how the [valet key pattern][valet-key-pattern] works.
 1. Understand how APIM provides the SAS token for direct download from storage.
 1. Experience how you can secure the caller from APIM with your own mechanisms and use APIM's managed identity to interact with Azure Storage.
 
@@ -28,3 +28,7 @@ This lab sets up:
 - APIM managed identity with Storage Blob Data Reader permissions
 - An API that generates secure blob access URLs using the valet key pattern
 - Sample files: a text file for testing
+
+
+
+[valet-key-pattern]: https://learn.microsoft.com/azure/architecture/patterns/valet-key

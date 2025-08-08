@@ -13,10 +13,15 @@ Secure architecture that takes all traffic off the public Internet once Azure Fr
 
 ## ⚙️ Configuration
 
-Adjust the `user-defined parameters` in this lab's Jupyter Notebook's [Initialize notebook variables](./create.ipynb#initialize-notebook-variables) section.
+Adjust the `user-defined parameters` in this lab's Jupyter Notebook's [Initialize notebook variables][init-notebook-variables] section.
 
 ## ▶️ Execution
 
 👟 **Expected *Run All* runtime: ~13 minutes**
 
-1. Execute this lab's [Jupyter Notebook](./create.ipynb) step-by-step or via _Run All_.
+1. Execute this lab's [Jupyter Notebook][infra-notebook] step-by-step or via _Run All_.
+
+
+
+[init-notebook-variables]: ./create.ipynb#initialize-notebook-variables
+[infra-notebook]: ./create.ipynb

@@ -11,10 +11,15 @@ This architecture provides a basic API gateway using Azure API Management, suita
 
 ## ⚙️ Configuration
 
-Adjust the `user-defined parameters` in this lab's Jupyter Notebook's [Initialize notebook variables](./create.ipynb#initialize-notebook-variables) section.
+Adjust the `user-defined parameters` in this lab's Jupyter Notebook's [Initialize notebook variables][init-notebook-variables] section.
 
 ## ▶️ Execution
 
 👟 **Expected *Run All* runtime: ~3 minutes**
 
-1. Execute this lab's [Jupyter Notebook](./create.ipynb) step-by-step or via _Run All_.
+1. Execute this lab's [Jupyter Notebook][infra-notebook] step-by-step or via _Run All_.
+
+
+
+[infra-notebook]: ./create.ipynb
+[init-notebook-variables]: ./create.ipynb#initialize-notebook-variables

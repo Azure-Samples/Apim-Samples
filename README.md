@@ -1,10 +1,10 @@
 # Azure API Management Samples
 
-[![Python Tests](https://github.com/Azure-Samples/Apim-Samples/actions/workflows/python-tests.yml/badge.svg?branch=main)](https://github.com/Azure-Samples/Apim-Samples/actions/workflows/python-tests.yml)
+[![Python Tests][badge-python-tests]][workflow-python-tests]
 
 This repository provides a playground to safely experiment with and learn Azure API Management (APIM) policies in various architectures.  
 
-_If you are interested in APIM & Azure OpenAI integrations, please check out the excellent [AI Gateway](https://github.com/Azure-Samples/AI-Gateway) GitHub repository._
+_If you are interested in APIM & Azure OpenAI integrations, please check out the excellent [AI Gateway][ai-gateway] GitHub repository._
 
 ## 🎯 Objectives
 
@@ -18,23 +18,23 @@ _Try it out, learn from it, apply it in your setups._
 
 ## 📁 List of Infrastructures
 
-| Infrastructure Name                                                               | Description                                                                                                                                                           |
-|:----------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Simple API Management](./infrastructure/simple-apim)                             | Just the basics with a publicly accessible API Management instance fronting your APIs. This is the innermost way to experience and experiment with the APIM policies. |
-| [API Management & Container Apps](./infrastructure/apim-aca)                      | APIs are often implemented in containers running in Azure Container Apps. This architecture accesses the container apps publicly. It's beneficial to test both APIM and container app URLs here to contrast and compare experiences of API calls through and bypassing APIM. It is not intended to be a security baseline. |
-| [Secure Front Door & API Management & Container Apps](./infrastructure/afd-apim-pe)  | A higher-fidelity implementation of a secured setup in which Azure Front Door connects to APIM via the new private link integration. This traffic, once it traverses through Front Door, rides entirely on Microsoft-owned and operated networks. Similarly, the connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). APIM Standard V2 is used here to accept a private link from Front Door. |
+| Infrastructure Name                                                         | Description                                                                                                                                                           |
+|:----------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [Simple API Management][infra-simple-apim]                                  | Just the basics with a publicly accessible API Management instance fronting your APIs. This is the innermost way to experience and experiment with the APIM policies. |
+| [API Management & Container Apps][infra-apim-aca]                           | APIs are often implemented in containers running in Azure Container Apps. This architecture accesses the container apps publicly. It's beneficial to test both APIM and container app URLs to contrast and compare experiences of API calls through and bypassing APIM. It is not intended to be a security baseline.    |
+| [Secure Front Door & API Management & Container Apps][infra-afd-apim-pe]  | A higher-fidelity implementation of a secured setup in which Azure Front Door connects to APIM via the new private link integration. This traffic, once it traverses through Front Door, rides entirely on Microsoft-owned and operated networks. Similarly, the connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). APIM Standard V2 is used here to accept a private link from Front Door. |
 
 ## 📁 List of Samples
 
-| Sample Name                                                              | Description                                                                                                         | Supported Infrastructure(s)   |
-|:-------------------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------|:------------------------------|
-| [AuthX](./samples/authX/README.md)                                       | Authentication and role-based authorization in a mock HR API.                                                       | All infrastructures           |
-| [AuthX Pro](./samples/authX-pro/README.md)                               | Authentication and role-based authorization in a mock product with multiple APIs and policy fragments.              | All infrastructures           |
-| [General](./samples/general/README.md)                                   | Basic demo of APIM sample setup and policy usage.                                                                   | All infrastructures           |
-| [Load Balancing](./samples/load-balancing/README.md)                     | Priority and weighted load balancing across backends.                                                               | apim-aca, afd-apim (with ACA) |
-| [Secure Blob Access](./samples/secure-blob-access/README.md)             | Secure blob access via the [valet key pattern](https://learn.microsoft.com/azure/architecture/patterns/valet-key).  | All infrastructures           |
-| [Credential Manager (with Spotify)](./samples/oauth-3rd-party/README.md) | Authenticate with APIM which then uses its Credential Manager with Spotify's REST API.                              | All infrastructures           |
-| [Azure Maps](./samples/azure-maps/README.md)                             | Proxying calls to Azure Maps with APIM policies.                                                                    | All infrastructures           |
+| Sample Name                                                 | Description                                                                                                         | Supported Infrastructure(s)   |
+|:------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------|:------------------------------|
+| [AuthX][sample-authx]                                       | Authentication and role-based authorization in a mock HR API.                                                       | All infrastructures           |
+| [AuthX Pro][sample-authx-pro]                               | Authentication and role-based authorization in a mock product with multiple APIs and policy fragments.              | All infrastructures           |
+| [General][sample-general]                                   | Basic demo of APIM sample setup and policy usage.                                                                   | All infrastructures           |
+| [Load Balancing][sample-load-balancing]                     | Priority and weighted load balancing across backends.                                                               | apim-aca, afd-apim (with ACA) |
+| [Secure Blob Access][sample-secure-blob-access]             | Secure blob access via the [valet key pattern][valet-key-pattern].                                                  | All infrastructures           |
+| [Credential Manager (with Spotify)][sample-oauth-3rd-party] | Authenticate with APIM which then uses its Credential Manager with Spotify's REST API.                              | All infrastructures           |
+| [Azure Maps][sample-azure-maps]                             | Proxying calls to Azure Maps with APIM policies.                                                                    | All infrastructures           |
 
 ---
 
@@ -47,7 +47,7 @@ _Try it out, learn from it, apply it in your setups._
 The fastest way to get started is using our pre-configured development environment:
 
 - **GitHub Codespaces**: Click the green "Code" button → "Codespaces" → "Create codespace on main"
-- **VS Code Dev Containers**: Install the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers), then "Reopen in Container"
+- **VS Code Dev Containers**: Install the [Dev Containers extension][vscode-devcontainers], then "Reopen in Container"
 
 All prerequisites are automatically installed and configured. 
 
@@ -59,16 +59,16 @@ All prerequisites are automatically installed and configured.
 
 These prerequisites apply broadly across all infrastructure and samples. If there are specific deviations, expect them to be noted there.
 
-- [Python 3.12](https://www.python.org/) installed
+- [Python 3.12][python] installed
   - Python 3.13 may not have all dependencies ready yet. There have been issues during installs.
-- [VS Code](https://code.visualstudio.com/) installed with the [Jupyter notebook extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter) enabled
-- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) installed
-- [An Azure Subscription](https://azure.microsoft.com/free/) with Owner or Contributor+UserAccessAdministrator permissions. Execute [shared/jupyter/verify-az-account.ipynb](shared/jupyter/verify-az-account.ipynb) to verify.
+- [VS Code][vscode] installed with the [Jupyter notebook extension][vscode-jupyter] enabled
+- [Azure CLI][azure-cli-install] installed
+- [An Azure Subscription][azure-free] with Owner or Contributor+UserAccessAdministrator permissions. Execute [Verify Azure Account][verify-az-account-notebook] to verify.
 - **Azure Authentication**: Sign in to Azure with Azure CLI using the specific tenant and subscription you want to work with:
   - To log in to a specific tenant: `az login --tenant <your-tenant-id-or-domain>`
   - To set a specific subscription: `az account set --subscription <your-subscription-id-or-name>`
   - To verify your current context: `az account show`
-  - See the [Azure CLI authentication guide](https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively) for more options
+   - See the [Azure CLI authentication guide][azure-cli-auth] for more options
 
 ### 🛠️ Initialization
 
@@ -155,9 +155,9 @@ If you encounter import errors (e.g., `ModuleNotFoundError: No module named 'req
 
 4. **Check Python interpreter**: Use `Ctrl+Shift+P` → "Python: Select Interpreter" and choose your `.venv` interpreter.
 
-For detailed troubleshooting of setup issues, see [Import Troubleshooting Guide](.devcontainer/IMPORT-TROUBLESHOOTING.md).
+For detailed troubleshooting of setup issues, see [Import Troubleshooting Guide][import-troubleshooting].
 
-📘 **For comprehensive troubleshooting including deployment errors, authentication issues, and more, see our main [Troubleshooting Guide](TROUBLESHOOTING.md).**
+📘 **For comprehensive troubleshooting including deployment errors, authentication issues, and more, see our main [Troubleshooting Guide][troubleshooting].**
 
 ## 🚀 Running a Sample
 
@@ -181,7 +181,7 @@ Encountering issues? Check our comprehensive **[Troubleshooting Guide](TROUBLESH
 - **Azure CLI Issues** - Rate limiting and API version compatibility
 - **Resource Management Issues** - Resource group and APIM service problems
 
-For immediate help with common errors, diagnostic commands, and step-by-step solutions, see **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)**.
+For immediate help with common errors, diagnostic commands, and step-by-step solutions, see **[TROUBLESHOOTING.md][troubleshooting]**.
 
 ---
 
@@ -206,7 +206,7 @@ For immediate help with common errors, diagnostic commands, and step-by-step sol
 
 ### 🏛️ Infrastructure Architectures
 
-We provide several common architectural approaches to integrating APIM into your Azure ecosystem. While these are high-fidelity setups, they are not production-ready. Please refer to the [Azure API Management landing zone accelerator](https://learn.microsoft.com/azure/cloud-adoption-framework/scenarios/app-platform/api-management/landing-zone-accelerator) for up-to-date production setups.
+We provide several common architectural approaches to integrating APIM into your Azure ecosystem. While these are high-fidelity setups, they are not production-ready. Please refer to the [Azure API Management landing zone accelerator][apim-lza] for up-to-date production setups.
 
 ---
 
@@ -214,7 +214,7 @@ We provide several common architectural approaches to integrating APIM into your
 
 As you work with this repo, you will likely want to make your own customizations. There's little you need to know to be successful.
 
-The repo uses the bicep linter and has rules defined in `bicepconfig.json`. See the [bicep linter documentation](https://learn.microsoft.com/azure/azure-resource-manager/bicep/bicep-config-linter) for details.
+The repo uses the bicep linter and has rules defined in `bicepconfig.json`. See the [bicep linter documentation][bicep-linter-docs] for details.
 
 **We welcome contributions!** Please consider forking the repo and creating issues and pull requests to share your samples. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details. Thank you! 
 
@@ -232,7 +232,7 @@ Adding a new sample is relatively straight-forward.
 
 ### 🧪 Testing & Code Coverage
 
-Python modules in `shared/python` are covered by comprehensive unit tests located in `tests/python`. All tests use [pytest](https://docs.pytest.org/) and leverage modern pytest features, including custom markers for unit and HTTP tests.
+Python modules in `shared/python` are covered by comprehensive unit tests located in `tests/python`. All tests use [pytest][pytest-docs] and leverage modern pytest features, including custom markers for unit and HTTP tests.
 
 #### 🚀 Running Tests Locally
 
@@ -275,22 +275,59 @@ On every push or pull request, GitHub Actions will:
 - The `.gitignore` is configured to exclude coverage output and artifacts.
 - All test and coverage features work both locally and in CI.
 
-For more details on pytest usage, see the [pytest documentation](https://docs.pytest.org/en/8.2.x/).
+For more details on pytest usage, see the [pytest documentation][pytest-docs-versioned].
 
 ---
 
 ## 📚 Supporting Resources
 
-The APIM team maintains an [APIM policy snippets repo](https://github.com/Azure/api-management-policy-snippets) with use cases we have seen. They are not immediately executable samples and require integrations such as in this repo.
+The APIM team maintains an [APIM policy snippets repo][apim-snippets-repo] with use cases we have seen. They are not immediately executable samples and require integrations such as in this repo.
 
 ---
 
 ## 🙏 Acknowledgements
 
-This project has its roots in work done by [Alex Vieira](https://github.com/vieiraae) on the excellent Azure API Management [AI Gateway](https://github.com/Azure-Samples/AI-Gateway) GitHub repository. Much of the structure is similar and its reuse resulted in significant time savings. Thank you, Alex!
+This project has its roots in work done by [Alex Vieira][alex-vieira] on the excellent Azure API Management [AI Gateway][ai-gateway] GitHub repository. Much of the structure is similar and its reuse resulted in significant time savings. Thank you, Alex!
 
-Furthermore, [Houssem Dellai](https://github.com/HoussemDellai) was instrumental in setting up a working Front Door to API Management [private connectivity lab](https://github.com/Azure-Samples/AI-Gateway/tree/main/labs/private-connectivity). This created a working baseline for one of this repository's infrastructures. Thank you, Houssem!
+Furthermore, [Houssem Dellai][houssem-dellai] was instrumental in setting up a working Front Door to API Management [private connectivity lab][ai-gateway-private-connectivity]. This created a working baseline for one of this repository's infrastructures. Thank you, Houssem!
 
-[Andrew Redman](https://github.com/anotherRedbeard) for contributing the _Azure Maps_ sample.
+[Andrew Redman][andrew-redman] for contributing the _Azure Maps_ sample.
 
-The original author of this project is [Simon Kurtz](https://github.com/simonkurtz-msft).
+The original author of this project is [Simon Kurtz][simon-kurtz].
+
+
+
+[ai-gateway]: https://github.com/Azure-Samples/AI-Gateway
+[ai-gateway-private-connectivity]: https://github.com/Azure-Samples/AI-Gateway/tree/main/labs/private-connectivity
+[alex-vieira]: https://github.com/vieiraae
+[andrew-redman]: https://github.com/anotherRedbeard
+[apim-lza]: https://learn.microsoft.com/azure/cloud-adoption-framework/scenarios/app-platform/api-management/landing-zone-accelerator
+[apim-snippets-repo]: https://github.com/Azure/api-management-policy-snippets
+[azure-cli-auth]: https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively
+[azure-cli-install]: https://learn.microsoft.com/cli/azure/install-azure-cli
+[azure-free]: https://azure.microsoft.com/free/
+[badge-python-tests]: https://github.com/Azure-Samples/Apim-Samples/actions/workflows/python-tests.yml/badge.svg?branch=main
+[bicep-linter-docs]: https://learn.microsoft.com/azure/azure-resource-manager/bicep/bicep-config-linter
+[houssem-dellai]: https://github.com/HoussemDellai
+[import-troubleshooting]: .devcontainer/IMPORT-TROUBLESHOOTING.md
+[infra-afd-apim-pe]: ./infrastructure/afd-apim-pe
+[infra-apim-aca]: ./infrastructure/apim-aca
+[infra-simple-apim]: ./infrastructure/simple-apim
+[pytest-docs]: https://docs.pytest.org/
+[pytest-docs-versioned]: https://docs.pytest.org/en/8.2.x/
+[python]: https://www.python.org/
+[sample-authx]: ./samples/authX/README.md
+[sample-authx-pro]: ./samples/authX-pro/README.md
+[sample-azure-maps]: ./samples/azure-maps/README.md
+[sample-general]: ./samples/general/README.md
+[sample-load-balancing]: ./samples/load-balancing/README.md
+[sample-oauth-3rd-party]: ./samples/oauth-3rd-party/README.md
+[sample-secure-blob-access]: ./samples/secure-blob-access/README.md
+[simon-kurtz]: https://github.com/simonkurtz-msft
+[troubleshooting]: TROUBLESHOOTING.md
+[valet-key-pattern]: https://learn.microsoft.com/azure/architecture/patterns/valet-key
+[verify-az-account-notebook]: shared/jupyter/verify-az-account.ipynb
+[vscode]: https://code.visualstudio.com/
+[vscode-devcontainers]: https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers
+[vscode-jupyter]: https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter
+[workflow-python-tests]: https://github.com/Azure-Samples/Apim-Samples/actions/workflows/python-tests.yml
