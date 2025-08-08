@@ -1436,7 +1436,7 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
         print_info(f'Cleaning up resources for {deployment.value} - {idx}', True)
         rg_name = get_infra_rg_name(deployment, idx)
         _cleanup_resources(deployment.value, rg_name)
-        print_ok('Cleanup completed!')
+        print_ok('All done!')
         return
 
     # For multiple indexes, run in parallel
