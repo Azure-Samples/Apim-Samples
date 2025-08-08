@@ -290,7 +290,7 @@ class InfrastructureNotebookHelper:
                         should_proceed, new_index = _prompt_for_infrastructure_update(rg_name)
                         if new_index is not None:
                             # User selected option 2: Use a different index
-                            print(f'🔄 Retrying infrastructure creation with index {new_index}...\n')
+                            print(f'🔄 Retrying infrastructure creation with index {new_index}...')
                             self.index = new_index
                             # Recursively call create_infrastructure with the new index
                             return self.create_infrastructure(bypass_infrastructure_check, allow_update)
@@ -1086,13 +1086,12 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
     """
     print(f'✅ Infrastructure already exists: {rg_name}\n')
     print('🔄 Infrastructure Update Options:\n')
-    print('   This infrastructure notebook can update the existing infrastructure.')
-    print('   Updates are additive and will:')
+    print('   This infrastructure notebook can update the existing infrastructure. Updates are additive and will:\n')
     print('   • Add new APIs and policy fragments defined in the infrastructure')
     print('   • Update existing infrastructure components to match the template')
     print('   • Preserve manually added samples and configurations\n')
     
-    print('ℹ️  Choose an option:')
+    print('ℹ️  Choose an option:\n')
     print('     1. Update the existing infrastructure (recommended)')
     print('     2. Use a different index')
     print('     3. Exit, then delete the existing resource group separately via the clean-up notebook\n')
@@ -1109,8 +1108,7 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
                 try:
                     new_index_str = input('\nEnter the desired index for the infrastructure: ').strip()
                     if not new_index_str:
-                        print('❌ Please enter a valid index number.')
-                        continue
+                        return False, None
                     
                     new_index = int(new_index_str)
                     if new_index <= 0:
