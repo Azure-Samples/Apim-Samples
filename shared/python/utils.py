@@ -1086,21 +1086,22 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
     """
     print(f'✅ Infrastructure already exists: {rg_name}\n')
     print('🔄 Infrastructure Update Options:\n')
-    print('   This infrastructure notebook can update the existing infrastructure. Updates are additive and will:\n')
+    print('   This infrastructure notebook can update the existing infrastructure.')
+    print('   Updates are additive and will:')
     print('   • Add new APIs and policy fragments defined in the infrastructure')
     print('   • Update existing infrastructure components to match the template')
     print('   • Preserve manually added samples and configurations\n')
     
-    print('ℹ️  Choose an option:\n')
+    print('ℹ️  Choose an option:')
     print('     1. Update the existing infrastructure (recommended)')
     print('     2. Use a different index')
-    print('     3. Exit, then delete the existing resource group separately via the clean-up notebook\n')
+    print('     3. Delete the existing resource group first using the clean-up notebook\n')
     
     while True:
         choice = input('\nEnter your choice (1, 2, or 3): ').strip()
         
         # Default to option 1 if user just presses Enter
-        if choice == '1':
+        if choice == '1' or not choice:
             return True, None
         elif choice == '2':
             # Option 2: Prompt for a different index
@@ -1108,7 +1109,8 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
                 try:
                     new_index_str = input('\nEnter the desired index for the infrastructure: ').strip()
                     if not new_index_str:
-                        return False, None
+                        print('❌ Please enter a valid index number.')
+                        continue
                     
                     new_index = int(new_index_str)
                     if new_index <= 0:
@@ -1118,7 +1120,7 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
                     return False, new_index
                 except ValueError:
                     print('❌ Please enter a valid integer for the index.')
-        elif not choice or choice == '3':
+        elif choice == '3':
             return False, None
         else:
             print('❌ Invalid choice. Please enter 1, 2, or 3.')
@@ -1523,7 +1525,6 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
                     print_error(f"❌ Exception during cleanup for {deployment.value}-{task['index']}: {str(e)}")
 
     # Final summary
-    print()
     if failed_count == 0:
         print_ok(f'All {len(indexes_list)} infrastructure cleanups completed successfully!')
     else:

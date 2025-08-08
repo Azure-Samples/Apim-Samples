@@ -1686,11 +1686,19 @@ def test_query_and_select_infrastructure_no_options(monkeypatch):
     monkeypatch.setattr(nb_helper, '_find_infrastructure_instances', lambda x: [])
     monkeypatch.setattr(utils, 'print_info', lambda *args, **kwargs: None)
     monkeypatch.setattr(utils, 'print_warning', lambda *args, **kwargs: None)
-    # Mock input to return empty string (simulating user pressing Enter to exit)
-    monkeypatch.setattr('builtins.input', lambda prompt: '')
+    monkeypatch.setattr(utils, 'print_success', lambda *args, **kwargs: None)
     
+    # Mock the infrastructure creation to succeed
+    def mock_infrastructure_creation(self, bypass_check=True):
+        return True
+    
+    monkeypatch.setattr(utils.InfrastructureNotebookHelper, 'create_infrastructure', mock_infrastructure_creation)
+    
+    # When no infrastructures are available, it should automatically create new infrastructure
     result = nb_helper._query_and_select_infrastructure()
-    assert result == (None, None)
+    
+    # Expect it to return the desired infrastructure and None index (since 'test-rg' doesn't match the expected pattern)
+    assert result == (INFRASTRUCTURE.SIMPLE_APIM, None)
 
 def test_query_and_select_infrastructure_single_option(monkeypatch):
     """Test _query_and_select_infrastructure with a single available option."""
@@ -1818,30 +1826,212 @@ def test_query_and_select_infrastructure_invalid_input_then_valid(monkeypatch):
     result = nb_helper._query_and_select_infrastructure()
     assert result == (INFRASTRUCTURE.SIMPLE_APIM, 2)
 
-def test_query_and_select_infrastructure_keyboard_interrupt(monkeypatch):
-    """Test _query_and_select_infrastructure when user presses Ctrl+C."""
-    nb_helper = utils.NotebookHelper(
-        'test-sample', 'test-rg', 'eastus', 
-        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
-    )
+
+# ------------------------------
+#    TESTS FOR _prompt_for_infrastructure_update
+# ------------------------------
+
+def test_prompt_for_infrastructure_update_option_1(monkeypatch):
+    """Test _prompt_for_infrastructure_update when user selects option 1 (update)."""
+    monkeypatch.setattr('builtins.input', lambda prompt: '1')
     
-    # Mock single result
-    def mock_find_instances(infra):
-        return [(INFRASTRUCTURE.SIMPLE_APIM, 1)]
+    result = utils._prompt_for_infrastructure_update('test-rg')
+    assert result == (True, None)
+
+def test_prompt_for_infrastructure_update_option_1_default(monkeypatch):
+    """Test _prompt_for_infrastructure_update when user presses Enter (defaults to option 1)."""
+    monkeypatch.setattr('builtins.input', lambda prompt: '')
     
-    monkeypatch.setattr(nb_helper, '_find_infrastructure_instances', mock_find_instances)
-    monkeypatch.setattr(utils, 'print_info', lambda *args, **kwargs: None)
-    monkeypatch.setattr(utils, 'print_warning', lambda *args, **kwargs: None)
-    monkeypatch.setattr(utils, 'get_infra_rg_name', lambda infra, idx: f'apim-infra-{infra.value}-{idx}')
+    result = utils._prompt_for_infrastructure_update('test-rg')
+    assert result == (True, None)
+
+def test_prompt_for_infrastructure_update_option_2_valid_index(monkeypatch):
+    """Test _prompt_for_infrastructure_update when user selects option 2 with valid index."""
+    inputs = iter(['2', '5'])  # Option 2, then index 5
+    monkeypatch.setattr('builtins.input', lambda prompt: next(inputs))
+    
+    result = utils._prompt_for_infrastructure_update('test-rg')
+    assert result == (False, 5)
+
+def test_prompt_for_infrastructure_update_option_2_invalid_then_valid_index(monkeypatch):
+    """Test _prompt_for_infrastructure_update when user provides invalid index then valid one."""
+    inputs = iter(['2', '', '0', '-1', 'abc', '3'])  # Option 2, then empty, zero, negative, non-number, finally valid
+    monkeypatch.setattr('builtins.input', lambda prompt: next(inputs))
+    
+    result = utils._prompt_for_infrastructure_update('test-rg')
+    assert result == (False, 3)
+
+def test_prompt_for_infrastructure_update_option_3(monkeypatch):
+    """Test _prompt_for_infrastructure_update when user selects option 3 (delete first)."""
+    monkeypatch.setattr('builtins.input', lambda prompt: '3')
+    
+    result = utils._prompt_for_infrastructure_update('test-rg')
+    assert result == (False, None)
+
+def test_prompt_for_infrastructure_update_invalid_choice_then_valid(monkeypatch):
+    """Test _prompt_for_infrastructure_update with invalid choice followed by valid choice."""
+    inputs = iter(['4', '0', 'invalid', '1'])  # Invalid choices, then option 1
+    monkeypatch.setattr('builtins.input', lambda prompt: next(inputs))
+    
+    result = utils._prompt_for_infrastructure_update('test-rg')
+    assert result == (True, None)
+
+
+# ------------------------------
+#    TESTS FOR InfrastructureNotebookHelper.create_infrastructure WITH INDEX RETRY
+# ------------------------------
+
+def test_infrastructure_notebook_helper_create_with_index_retry(monkeypatch):
+    """Test InfrastructureNotebookHelper.create_infrastructure with option 2 (different index) retry."""
+    from apimtypes import INFRASTRUCTURE, APIM_SKU
+    
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
+    
+    # Mock resource group existence to return True initially
+    call_count = 0
+    def mock_rg_exists(rg_name):
+        nonlocal call_count
+        call_count += 1
+        # First call (index 1) returns True, second call (index 3) returns False
+        return call_count == 1
+    
+    # Mock the prompt to return option 2 with index 3
+    monkeypatch.setattr(utils, '_prompt_for_infrastructure_update', lambda rg_name: (False, 3))
+    monkeypatch.setattr(utils, 'does_resource_group_exist', mock_rg_exists)
+    
+    # Mock subprocess execution to succeed
+    class MockProcess:
+        def __init__(self, *args, **kwargs):
+            self.returncode = 0
+            self.stdout = iter(['Mock deployment output\n', 'Success!\n'])
+        
+        def wait(self):
+            pass
+    
+    monkeypatch.setattr('subprocess.Popen', MockProcess)
+    monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
+    
+    # Mock print functions to avoid output during testing
     monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
     
-    # Mock user input to raise KeyboardInterrupt
-    def mock_input(prompt):
-        raise KeyboardInterrupt()
-    monkeypatch.setattr('builtins.input', mock_input)
+    # Should succeed after retrying with index 3
+    result = helper.create_infrastructure()
+    assert result is True
+    assert helper.index == 3  # Verify index was updated
+
+def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch):
+    """Test InfrastructureNotebookHelper.create_infrastructure with multiple recursive retries."""
+    from apimtypes import INFRASTRUCTURE, APIM_SKU
     
-    result = nb_helper._query_and_select_infrastructure()
-    assert result == (None, None)
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
+    
+    # Mock resource group existence for multiple indexes
+    rg_checks = {}
+    def mock_rg_exists(rg_name):
+        # Parse index from resource group name
+        if 'simple-apim-1' in rg_name:
+            return True  # Index 1 exists
+        elif 'simple-apim-2' in rg_name:
+            return True  # Index 2 also exists
+        else:
+            return False  # Index 3 doesn't exist
+    
+    # Mock the prompt to first return index 2, then index 3
+    prompt_calls = 0
+    def mock_prompt(rg_name):
+        nonlocal prompt_calls
+        prompt_calls += 1
+        if prompt_calls == 1:
+            return (False, 2)  # First retry with index 2
+        else:
+            return (False, 3)  # Second retry with index 3
+    
+    monkeypatch.setattr(utils, '_prompt_for_infrastructure_update', mock_prompt)
+    monkeypatch.setattr(utils, 'does_resource_group_exist', mock_rg_exists)
+    
+    # Mock subprocess execution to succeed
+    class MockProcess:
+        def __init__(self, *args, **kwargs):
+            self.returncode = 0
+            self.stdout = iter(['Mock deployment output\n'])
+        
+        def wait(self):
+            pass
+    
+    monkeypatch.setattr('subprocess.Popen', MockProcess)
+    monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
+    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
+    
+    # Should succeed after retrying with index 3
+    result = helper.create_infrastructure()
+    assert result is True
+    assert helper.index == 3  # Verify final index
+
+def test_infrastructure_notebook_helper_create_user_cancellation(monkeypatch):
+    """Test InfrastructureNotebookHelper.create_infrastructure when user cancels during retry."""
+    from apimtypes import INFRASTRUCTURE, APIM_SKU
+    import pytest
+    
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
+    
+    # Mock resource group to exist (triggering prompt)
+    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda rg_name: True)
+    
+    # Mock the prompt to return cancellation (option 3)
+    monkeypatch.setattr(utils, '_prompt_for_infrastructure_update', lambda rg_name: (False, None))
+    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
+    
+    # Should raise SystemExit when user cancels
+    with pytest.raises(SystemExit) as exc_info:
+        helper.create_infrastructure()
+    
+    assert "User cancelled deployment" in str(exc_info.value)
+
+def test_infrastructure_notebook_helper_create_keyboard_interrupt_during_prompt(monkeypatch):
+    """Test InfrastructureNotebookHelper.create_infrastructure when KeyboardInterrupt occurs during prompt."""
+    from apimtypes import INFRASTRUCTURE, APIM_SKU
+    import pytest
+    
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
+    
+    # Mock resource group to exist (triggering prompt)
+    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda rg_name: True)
+    
+    # Mock the prompt to raise KeyboardInterrupt
+    def mock_prompt(rg_name):
+        raise KeyboardInterrupt()
+    
+    monkeypatch.setattr(utils, '_prompt_for_infrastructure_update', mock_prompt)
+    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
+    
+    # Should raise SystemExit when KeyboardInterrupt occurs
+    with pytest.raises(SystemExit) as exc_info:
+        helper.create_infrastructure()
+    
+    assert "User cancelled deployment" in str(exc_info.value)
+
+def test_infrastructure_notebook_helper_create_eof_error_during_prompt(monkeypatch):
+    """Test InfrastructureNotebookHelper.create_infrastructure when EOFError occurs during prompt."""
+    from apimtypes import INFRASTRUCTURE, APIM_SKU
+    import pytest
+    
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
+    
+    # Mock resource group to exist (triggering prompt)
+    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda rg_name: True)
+    
+    # Mock the prompt to raise EOFError
+    def mock_prompt(rg_name):
+        raise EOFError()
+    
+    monkeypatch.setattr(utils, '_prompt_for_infrastructure_update', mock_prompt)
+    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
+    
+    # Should raise SystemExit when EOFError occurs
+    with pytest.raises(SystemExit) as exc_info:
+        helper.create_infrastructure()
+    
+    assert "User cancelled deployment" in str(exc_info.value)
 
 def test_deploy_sample_with_infrastructure_selection(monkeypatch):
     """Test deploy_sample method with infrastructure selection when original doesn't exist."""
