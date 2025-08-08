@@ -1,0 +1,39 @@
+<!--
+        Purpose: Provide a stable, end-to-end correlation identifier for every request handled by APIM.
+
+        What you get:
+        - Accepts a client-provided x-correlation-id if present; otherwise generates a new UUID (v4).
+        - Stores the value in context.Variables["correlationId"] so other policies (e.g., log-to-eventhub/
+            set-header to backend, send-one-way) can reuse the exact same ID.
+        - Sets/overrides the x-correlation-id header on the active message:
+                * In inbound: ensures the backend receives the header for downstream tracing.
+                * In outbound (if you also include this fragment there): echoes the same value back to the caller
+                    so clients can correlate responses with their logs.
+
+        Why it matters:
+        - Faster troubleshooting and observability: correlate APIM traces, backend logs, and client telemetry
+            across hops using a single, consistent ID.
+        - Idempotent behavior: preserves an incoming ID when present; otherwise creates one and reuses it for
+            the entire request pipeline.
+
+        Usage:
+        - In API/Product policies, include in <inbound> to set the request header; optionally include in
+            <outbound> to return the same ID to the client, for example:
+                <include-fragment fragment-id="pf-correlation-id" />
+
+        Notes:
+        - The value is an opaque GUID (non-PII). If forwarding outside of trusted boundaries, verify that
+            propagating correlation identifiers aligns with your org's logging and data-handling policies.
+-->
+<fragment>
+    <!-- Determine or create the correlation ID -->
+    <set-variable name="correlationId" value="@{
+        var hasHeader = context.Request.Headers.ContainsKey("x-correlation-id");
+        return hasHeader ? (string)context.Request.Headers.GetValueOrDefault("x-correlation-id") : Guid.NewGuid().ToString();
+    }" />
+
+    <!-- Ensure the header exists in the active message (request in inbound, response in outbound) -->
+    <set-header name="x-correlation-id" exists-action="override">
+        <value>@(context.Variables.GetValueOrDefault<string>("correlationId"))</value>
+    </set-header>
+</fragment>

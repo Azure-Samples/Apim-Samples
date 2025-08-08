@@ -1,5 +1,12 @@
 <!--
-    This policy sample demonstrates the listing of all inbound HTTP headers, which can be a bit more straight-forward than setting up a trace.
+    This policy sample demonstrates the listing of all inbound HTTP headers,
+    which can be a bit more straight-forward than setting up a trace.
+
+    CAUTION: This returns all header names and values. It is useful for
+    development and troubleshooting, but may expose sensitive information such
+    as tokens, cookies, subscription keys, or Authorization headers. Use with
+    care and consider masking sensitive headers or restricting access in
+    non-development environments.
 -->
 <policies>
     <inbound>

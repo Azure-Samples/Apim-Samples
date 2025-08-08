@@ -11,6 +11,7 @@ param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id
 param apimName string = 'apim-${resourceSuffix}'
 param appInsightsName string = 'appi-${resourceSuffix}'
 param apis array = []
+param policyFragments array = []
 
 
 // ------------------
@@ -38,6 +39,17 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
     appInsightsInstrumentationKey: appInsightsInstrumentationKey
     appInsightsId: appInsightsId
     api: api
+  }
+}]
+
+// APIM Policy Fragments
+module policyFragmentsModule '../../shared/bicep/modules/apim/v1/policy-fragment.bicep' = [for pf in policyFragments: if(!empty(policyFragments)) {
+  name: 'pf-${pf.name}'
+  params: {
+    apimName: apimName
+    policyFragmentName: pf.name
+    policyFragmentDescription: pf.?description ?? ''
+    policyFragmentValue: pf.policyXml
   }
 }]
 

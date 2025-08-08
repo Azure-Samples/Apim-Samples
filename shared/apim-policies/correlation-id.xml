@@ -1,0 +1,28 @@
+<!--
+    Policy: Correlation-Id demo for General sample.
+    - Inbound: ensures x-correlation-id header exists, set into context variable, and returns the value.
+-->
+<policies>
+    <inbound>
+        <base />
+        <include-fragment fragment-id="Correlation-Id" />
+        <return-response>
+            <set-status code="200" reason="OK" />
+            <set-header name="Content-Type" exists-action="override">
+                <value>text/plain</value>
+            </set-header>
+            <set-body>@("Correlation ID: " + context.Variables.GetValueOrDefault<string>("correlationId"))</set-body>
+        </return-response>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <!-- Also ensure the response propagates the correlation id -->
+        <include-fragment fragment-id="Correlation-Id" />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
