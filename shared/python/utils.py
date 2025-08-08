@@ -2112,3 +2112,54 @@ def get_json(input: str) -> Any:
 
     # Return the original result if it's not a string or can't be parsed
     return input
+
+def get_api_subscription_key(api_name: str, apim_apis: list[dict] | None) -> Optional[str]:
+    """
+    Retrieve the subscriptionPrimaryKey for a specific API from the deployment's apiOutputs.
+
+    Matching strategy (in order):
+    1) Exact, case-insensitive match on the 'name' field.
+    2) Exact, case-insensitive match on the 'displayName' field.
+
+    Args:
+        apim_apis (list[dict] | None): The apiOutputs array from the deployment output.
+        api_name (str): The API name to look up (typically the value used when constructing API(...)).
+
+    Returns:
+        Optional[str]: The subscriptionPrimaryKey if found; otherwise, None.
+    """
+
+    try:
+        if not apim_apis:
+            print_warning('No APIs found in deployment outputs (apiOutputs).')
+            return None
+
+        target = (api_name or '').strip().lower()
+        if not target:
+            print_warning('Empty API name provided to get_subscription_key.')
+            return None
+
+        # Helper to extract a key safely
+        def _get_key(api: dict) -> Optional[str]:
+            key = api.get('subscriptionPrimaryKey')
+            if not key:
+                print_warning('API found but no subscriptionPrimaryKey present (subscription may not be required).')
+            return key
+
+        # 1) Match on 'name'
+        for api in apim_apis:
+            name = str(api.get('name', '')).strip().lower()
+            if name == target:
+                return _get_key(api)
+
+        # 2) Fallback: match on 'displayName'
+        for api in apim_apis:
+            display_name = str(api.get('displayName', '')).strip().lower()
+            if display_name == target:
+                return _get_key(api)
+
+        print_warning(f"API '{api_name}' not found in deployment outputs.")
+        return None
+    except Exception as e:
+        print_error(f"Error in get_subscription_key: {e}")
+        return None

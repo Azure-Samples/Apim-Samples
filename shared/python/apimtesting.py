@@ -2,7 +2,9 @@
 Rudimentary test framework to offload validations from the Jupyter notebooks. 
 """
 
+from typing import Optional
 from apimtypes import INFRASTRUCTURE
+import utils
 
 # ------------------------------
 #    CLASSES
@@ -17,7 +19,7 @@ class ApimTesting:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, test_suite_name: str = 'APIM Tests', sample_name: str = None, deployment: INFRASTRUCTURE = None) -> None:
+    def __init__(self, test_suite_name: str = 'APIM Tests', sample_name: str = None, deployment: INFRASTRUCTURE = None, apim_apis: list[dict] = [] ) -> None:
         """
         Initialize the ApimTesting instance.
 
@@ -26,6 +28,7 @@ class ApimTesting:
             sample_name (str, optional): The name of the sample being tested. Defaults to None.
             deployment (str, optional): The deployment name (INFRASTRUCTURE)
         """
+
         self.test_suite_name = test_suite_name
         self.sample_name = sample_name
         self.deployment = deployment
@@ -33,6 +36,7 @@ class ApimTesting:
         self.tests_failed = 0
         self.total_tests = 0
         self.errors = []
+        self.apim_apis = apim_apis
 
         
     # ------------------------------
@@ -50,6 +54,7 @@ class ApimTesting:
         Returns:
             bool: True, if the assertion passes; otherwise, False.
         """
+
         try:
             self.total_tests += 1
             assert value == expected, f'Value [{value}] does not match expected [{expected}]'
@@ -127,4 +132,20 @@ class ApimTesting:
         print(border_line)
         print(f'{test_completion_msg:^{border_width}}')
         print(border_line)
-        print()  # Final spacing
+        print()
+
+    def get_key(self, api_name: str) -> Optional[str]:
+        """
+        Convenience wrapper to retrieve an APIM subscription key by API name.
+
+        Args:
+            api_name (str): The logical API name/path used during deployment.
+
+        Returns:
+            Optional[str]: The subscription primary key if found; otherwise, None.
+        """
+
+        try:
+            return utils.get_api_subscription_key(self.apim_apis, api_name)
+        except Exception:
+            return None
