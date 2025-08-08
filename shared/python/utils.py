@@ -287,8 +287,14 @@ class InfrastructureNotebookHelper:
                 if does_resource_group_exist(rg_name):
                     # Infrastructure exists, show update dialog
                     try:
-                        should_proceed = _prompt_for_infrastructure_update(rg_name)
-                        if not should_proceed:
+                        should_proceed, new_index = _prompt_for_infrastructure_update(rg_name)
+                        if new_index is not None:
+                            # User selected option 2: Use a different index
+                            print(f'🔄 Retrying infrastructure creation with index {new_index}...\n')
+                            self.index = new_index
+                            # Recursively call create_infrastructure with the new index
+                            return self.create_infrastructure(bypass_infrastructure_check, allow_update)
+                        elif not should_proceed:
                             print('❌ Infrastructure deployment cancelled by user.')
                             raise SystemExit("User cancelled deployment")
                     except (KeyboardInterrupt, EOFError):
@@ -1066,7 +1072,7 @@ def create_resource_group(rg_name: str, resource_group_location: str | None = No
             f"Failed to create the resource group '{rg_name}'", 
             False, False, False, False)
 
-def _prompt_for_infrastructure_update(rg_name: str) -> bool:
+def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
     """
     Prompt the user for infrastructure update confirmation.
     
@@ -1074,7 +1080,9 @@ def _prompt_for_infrastructure_update(rg_name: str) -> bool:
         rg_name (str): The resource group name.
         
     Returns:
-        bool: True if user wants to proceed with update, False to cancel.
+        tuple: (proceed_with_update, new_index) where:
+            - proceed_with_update: True if user wants to proceed with update, False to cancel
+            - new_index: None if no index change, integer if user selected option 2
     """
     print(f'✅ Infrastructure already exists: {rg_name}\n')
     print('🔄 Infrastructure Update Options:\n')
@@ -1087,16 +1095,33 @@ def _prompt_for_infrastructure_update(rg_name: str) -> bool:
     print('ℹ️  Choose an option:')
     print('     1. Update the existing infrastructure (recommended)')
     print('     2. Use a different index')
-    print('     3. Delete the existing resource group first using the clean-up notebook\n')
+    print('     3. Exit, then delete the existing resource group separately via the clean-up notebook\n')
     
     while True:
         choice = input('\nEnter your choice (1, 2, or 3): ').strip()
         
         # Default to option 1 if user just presses Enter
         if choice == '1':
-            return True
-        elif not choice or choice in('2', '3'):
-            return False
+            return True, None
+        elif choice == '2':
+            # Option 2: Prompt for a different index
+            while True:
+                try:
+                    new_index_str = input('\nEnter the desired index for the infrastructure: ').strip()
+                    if not new_index_str:
+                        print('❌ Please enter a valid index number.')
+                        continue
+                    
+                    new_index = int(new_index_str)
+                    if new_index <= 0:
+                        print('❌ Index must be a positive integer.')
+                        continue
+                    
+                    return False, new_index
+                except ValueError:
+                    print('❌ Please enter a valid integer for the index.')
+        elif not choice or choice == '3':
+            return False, None
         else:
             print('❌ Invalid choice. Please enter 1, 2, or 3.')
 
@@ -1131,7 +1156,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
             print('ℹ️  Choose an option:\n')
             print('     1. Update the existing infrastructure (recommended and not destructive if samples already exist)')
             print('     2. Use a different index')
-            print('     3. Delete the existing resource group first using the clean-up notebook\n')
+            print('     3. Exit, then delete the existing resource group separately via the clean-up notebook\n')
             
             while True:
                 choice = input('\nEnter your choice (1, 2, or 3): ').strip()
@@ -1146,7 +1171,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
         else:
             print('ℹ️  To redeploy, either:')
             print('     1. Use a different index, or')
-            print('     2. Delete the existing resource group first using the clean-up notebook\n')
+            print('     2. Exit, then delete the existing resource group separately via the clean-up notebook\n')
             
         return True
     else:
@@ -1436,7 +1461,7 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
         print_info(f'Cleaning up resources for {deployment.value} - {idx}', True)
         rg_name = get_infra_rg_name(deployment, idx)
         _cleanup_resources(deployment.value, rg_name)
-        print_ok('All done!')
+        print_ok('Cleanup completed!')
         return
 
     # For multiple indexes, run in parallel
