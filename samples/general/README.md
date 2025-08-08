@@ -25,12 +25,6 @@ Sets up a simple APIM instance with a variety of policies to experiment.
 1. Decide which of the [Infrastructure Architectures][infrastructure-architectures] you wish to use.
 1. Press `Run All` in this sample's `create.ipynb` notebook.
 
-### Reusable policy fragments
-
-The following fragments are deployed for reuse across samples:
-
-- Correlation-Id: ensures x-correlation-id is set and propagated.
-
 
 
 [api-id-example]: https://github.com/Azure/api-management-policy-snippets/blob/main/examples/Send%20request%20context%20information%20to%20the%20backend%20service.policy.xml
