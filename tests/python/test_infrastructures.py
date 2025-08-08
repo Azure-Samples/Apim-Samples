@@ -948,3 +948,34 @@ def test_policy_fragment_creation_robustness(mock_utils):
     assert '<policy3/>' in policy_xmls
     assert '<policy4/>' in policy_xmls
     assert '<policy5/>' in policy_xmls
+
+    
+# ------------------------------
+#    PRIVATE METHOD TESTS
+# ------------------------------
+
+@pytest.mark.unit
+def test_add_shared_policy_fragment_private(mock_utils):
+    """Test the private _add_shared_policy_fragment helper."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+
+    # Ensure base list starts empty
+    assert len(infra.base_pfs) == 0
+
+    # Call the private helper
+    infra._add_shared_policy_fragment('Unit-Test-Fragment', 'unit-test.xml', 'Unit test fragment')
+
+    # One fragment should be added
+    assert len(infra.base_pfs) == 1
+    pf = infra.base_pfs[0]
+    assert pf.name == 'Unit-Test-Fragment'
+    assert pf.description == 'Unit test fragment'
+    assert pf.policyXml == '<policies><inbound><base /></inbound></policies>'
+
+    # Verify utils were invoked with expected arguments
+    mock_utils.determine_shared_policy_path.assert_called_with('unit-test.xml')
+    mock_utils.read_policy_xml.assert_called_with('/mock/path/policy.xml')

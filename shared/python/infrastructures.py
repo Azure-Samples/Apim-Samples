@@ -32,6 +32,8 @@ class Infrastructure:
         self.networkMode = networkMode
         self.infra_apis = infra_apis
         self.infra_pfs = infra_pfs
+        
+        self.base_pfs = []
 
         self.rg_name = utils.get_infra_rg_name(infra, index)
         self.rg_tags = utils.build_infrastructure_tags(infra)
@@ -40,6 +42,9 @@ class Infrastructure:
     # ------------------------------
     #    PRIVATE METHODS
     # ------------------------------  
+
+    def _add_shared_policy_fragment(self, name: str, filename: str, description: str) -> None:
+        self.base_pfs.append(PolicyFragment(name, utils.read_policy_xml(utils.determine_shared_policy_path(filename)), description))
 
     def _define_bicep_parameters(self) -> dict:
         # Define the Bicep parameters with serialized APIs
@@ -50,7 +55,6 @@ class Infrastructure:
         }
 
         return self.bicep_parameters
-    
 
     def _define_policy_fragments(self) -> List[PolicyFragment]:
         """
@@ -58,14 +62,13 @@ class Infrastructure:
         """
 
         # The base policy fragments common to all infrastructures
-        self.base_pfs = [
-            PolicyFragment('Api-Id', utils.read_policy_xml(utils.determine_shared_policy_path('pf-api-id.xml')), 'Extracts a specific API identifier for tracing.'),
-            PolicyFragment('AuthZ-Match-All', utils.read_policy_xml(utils.determine_shared_policy_path('pf-authz-match-all.xml')), 'Authorizes if all of the specified roles match the JWT role claims.'),
-            PolicyFragment('AuthZ-Match-Any', utils.read_policy_xml(utils.determine_shared_policy_path('pf-authz-match-any.xml')), 'Authorizes if any of the specified roles match the JWT role claims.'),
-            PolicyFragment('Http-Response-200', utils.read_policy_xml(utils.determine_shared_policy_path('pf-http-response-200.xml')), 'Returns a 200 OK response for the current HTTP method.'),
-            PolicyFragment('Product-Match-Any', utils.read_policy_xml(utils.determine_shared_policy_path('pf-product-match-any.xml')), 'Proceeds if any of the specified products match the context product name.'),
-            PolicyFragment('Remove-Request-Headers', utils.read_policy_xml(utils.determine_shared_policy_path('pf-remove-request-headers.xml')), 'Removes request headers from the incoming request.')
-        ]
+        self._add_shared_policy_fragment('Api-Id', 'pf-api-id.xml', 'Extracts a specific API identifier for tracing.')
+        self._add_shared_policy_fragment('Correlation-Id', 'pf-correlation-id.xml', 'Ensures x-correlation-id header exists and is propagated.')
+        self._add_shared_policy_fragment('AuthZ-Match-All', 'pf-authz-match-all.xml', 'Authorizes if all of the specified roles match the JWT role claims.')
+        self._add_shared_policy_fragment('AuthZ-Match-Any', 'pf-authz-match-any.xml', 'Authorizes if any of the specified roles match the JWT role claims.')
+        self._add_shared_policy_fragment('Http-Response-200', 'pf-http-response-200.xml', 'Returns a 200 OK response for the current HTTP method.')
+        self._add_shared_policy_fragment('Product-Match-Any', 'pf-product-match-any.xml', 'Proceeds if any of the specified products match the context product name.')
+        self._add_shared_policy_fragment('Remove-Request-Headers', 'pf-remove-request-headers.xml', 'Removes request headers from the incoming request.')
 
         # Combine base policy fragments with infrastructure-specific ones
         self.pfs = self.base_pfs + self.infra_pfs if self.infra_pfs else self.base_pfs
