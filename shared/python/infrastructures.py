@@ -49,6 +49,37 @@ class Infrastructure:
             'policyFragments' : {'value': [pf.to_dict() for pf in self.pfs]}
         }
 
+        # Try to detect the current principal and include optional KV cert creator parameters
+        try:
+            # Get current account info (user or SP)
+            acct = utils.run('az account show -o json', print_command_to_run = False, print_errors = False)
+            if acct.success and acct.json_data:
+                user_obj = acct.json_data.get('user', {})
+                user_type = user_obj.get('type')  # user or servicePrincipal
+                user_name = user_obj.get('name')
+
+                principal_type_param = 'User' if str(user_type).lower() == 'user' else 'ServicePrincipal'
+                object_id: str | None = None
+
+                if principal_type_param == 'User':
+                    # Resolve signed-in user's objectId
+                    me = utils.run('az ad signed-in-user show --query id -o tsv', print_command_to_run = False, print_errors = False)
+                    if me.success and me.text.strip():
+                        object_id = me.text.strip()
+                else:
+                    # Resolve current service principal objectId via appId/name
+                    if user_name:
+                        sp = utils.run(f"az ad sp show --id {user_name} --query id -o tsv", print_command_to_run = False, print_errors = False)
+                        if sp.success and sp.text.strip():
+                            object_id = sp.text.strip()
+
+                if object_id:
+                    self.bicep_parameters['kvCertificateCreatorObjectId'] = { 'value': object_id }
+                    self.bicep_parameters['kvCertificateCreatorPrincipalType'] = { 'value': principal_type_param }
+        except Exception:
+            # Best-effort; ignore failures and proceed without optional params
+            pass
+
         return self.bicep_parameters
     
 
@@ -200,7 +231,9 @@ class Infrastructure:
         infra_dir_map = {
             INFRASTRUCTURE.SIMPLE_APIM: 'simple-apim',
             INFRASTRUCTURE.APIM_ACA: 'apim-aca', 
-            INFRASTRUCTURE.AFD_APIM_PE: 'afd-apim-pe'
+            INFRASTRUCTURE.AFD_APIM_PE: 'afd-apim-pe',
+            INFRASTRUCTURE.AG_APIM_VNET: 'ag-apim-vnet',
+            INFRASTRUCTURE.AG_APIM_PE: 'ag-apim-pe'
         }
         
         # Get the infrastructure directory
@@ -242,7 +275,7 @@ class Infrastructure:
             # Run the deployment directly
             main_bicep_path = infra_dir / 'main.bicep'
             output = utils.run(
-                f'az deployment group create --name {self.infra.value} --resource-group {self.rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
+                f'az deployment group create --name {self.infra.value} --resource-group {self.rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs" --debug',
                 f"Deployment '{self.infra.value}' succeeded", 
                 f"Deployment '{self.infra.value}' failed.",
                 print_command_to_run = False
@@ -609,3 +642,21 @@ class AfdApimAcaInfrastructure(Infrastructure):
         except Exception as e:
             print(f'⚠️  AFD-APIM-PE verification failed with error: {str(e)}')
             return False
+
+
+class AgApimVnetInfrastructure(Infrastructure):
+    """
+    Represents an Application Gateway in front of APIM (External VNet) infrastructure.
+    """
+
+    def __init__(self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.DEVELOPER, infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
+        super().__init__(INFRASTRUCTURE.AG_APIM_VNET, index, rg_location, apim_sku, APIMNetworkMode.EXTERNAL_VNET, infra_pfs, infra_apis)
+
+
+class AgApimPeInfrastructure(Infrastructure):
+    """
+    Represents an Application Gateway in front of APIM via Private Endpoint infrastructure.
+    """
+
+    def __init__(self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.DEVELOPER, infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
+        super().__init__(INFRASTRUCTURE.AG_APIM_PE, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis)

@@ -129,9 +129,11 @@ class INFRASTRUCTURE(StrEnum):
     Infrastructure types for APIM automation scenarios.
     """
 
-    SIMPLE_APIM  = 'simple-apim'   # Simple API Management with no dependencies
-    APIM_ACA     = 'apim-aca'      # Azure API Management connected to Azure Container Apps
-    AFD_APIM_PE  = 'afd-apim-pe'   # Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
+    SIMPLE_APIM   = 'simple-apim'    # Simple API Management with no dependencies
+    APIM_ACA      = 'apim-aca'       # Azure API Management connected to Azure Container Apps
+    AFD_APIM_PE   = 'afd-apim-pe'    # Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
+    AG_APIM_VNET  = 'ag-apim-vnet'   # App Gateway in front of APIM with External VNet mode
+    AG_APIM_PE    = 'ag-apim-pe'     # App Gateway -> APIM via Private Endpoint
 
 
 # ------------------------------

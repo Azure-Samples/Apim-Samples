@@ -678,7 +678,7 @@ def test_deploy_infrastructure_failure(mock_path_class, mock_chdir, mock_getcwd,
     
     # Verify the deployment process was attempted
     mock_utils.create_resource_group.assert_called_once()
-    mock_utils.run.assert_called_once()
+    assert mock_utils.run.call_count == 2  # Account check + deployment attempt
     # Note: utils.verify_infrastructure is currently commented out in the actual code
     # mock_utils.verify_infrastructure.assert_not_called()  # Should not be called on failure
     
@@ -747,6 +747,38 @@ def test_afd_apim_aca_infrastructure_creation(mock_utils):
     assert infra.index == TEST_INDEX
     assert infra.rg_location == TEST_LOCATION
     assert infra.apim_sku == APIM_SKU.PREMIUM
+    assert infra.networkMode == APIMNetworkMode.PUBLIC
+
+
+@pytest.mark.unit
+def test_ag_apim_vnet_infrastructure_creation(mock_utils):
+    """Test AgApimVnetInfrastructure creation."""
+    infra = infrastructures.AgApimVnetInfrastructure(
+        rg_location=TEST_LOCATION,
+        index=TEST_INDEX,
+        apim_sku=APIM_SKU.DEVELOPER
+    )
+
+    assert infra.infra == INFRASTRUCTURE.AG_APIM_VNET
+    assert infra.index == TEST_INDEX
+    assert infra.rg_location == TEST_LOCATION
+    assert infra.apim_sku == APIM_SKU.DEVELOPER
+    assert infra.networkMode == APIMNetworkMode.EXTERNAL_VNET
+
+
+@pytest.mark.unit
+def test_ag_apim_pe_infrastructure_creation(mock_utils):
+    """Test AgApimPeInfrastructure creation."""
+    infra = infrastructures.AgApimPeInfrastructure(
+        rg_location=TEST_LOCATION,
+        index=TEST_INDEX,
+        apim_sku=APIM_SKU.DEVELOPER
+    )
+
+    assert infra.infra == INFRASTRUCTURE.AG_APIM_PE
+    assert infra.index == TEST_INDEX
+    assert infra.rg_location == TEST_LOCATION
+    assert infra.apim_sku == APIM_SKU.DEVELOPER
     assert infra.networkMode == APIMNetworkMode.PUBLIC
 
 
