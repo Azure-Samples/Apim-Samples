@@ -17,6 +17,10 @@ Thank you for your interest in contributing!
 - For infrastructure or sample changes, update the relevant `create.ipynb` and `main.bicep` files.
 - Keep documentation clear and concise.
 
+## Decision-Making Process
+
+All contributions are appreciated and evaluated. In the event of a difference of opinion, final decisions lie with the project owner.
+
 ## Code of Conduct
 
 Please be respectful and considerate in all interactions.

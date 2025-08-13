@@ -1,5 +1,6 @@
 # Azure API Management Samples
 
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11057/badge)](https://www.bestpractices.dev/projects/11057)
 [![Python Tests][badge-python-tests]][workflow-python-tests]
 
 This repository provides a playground to safely experiment with and learn Azure API Management (APIM) policies in various architectures.  
