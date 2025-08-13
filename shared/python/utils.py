@@ -38,6 +38,9 @@ BOLD_M = '\x1b[1;35m'   # magenta
 BOLD_W = '\x1b[1;37m'   # white
 RESET  = '\x1b[0m'
 
+INFRA_PREFIX = 'apim-infra-'
+SAMPLE_PREFIX = 'apim-sample-'
+
 # Thread colors for parallel operations
 THREAD_COLORS = [BOLD_B, BOLD_G, BOLD_Y, BOLD_C, BOLD_M, BOLD_W]
 
@@ -418,7 +421,7 @@ class NotebookHelper:
             int | None: The index if it exists, None otherwise.
         """
 
-        prefix = f'apim-infra-{self.deployment.value}'
+        prefix = f'{INFRA_PREFIX}{self.deployment.value}'
         
         if self.rg_name == prefix:
             return None
@@ -600,8 +603,8 @@ class NotebookHelper:
             
             for rg_name in rg_names:
                 # Parse the resource group name to extract the index
-                # Expected format: apim-infra-{infrastructure}-{index} or apim-infra-{infrastructure}
-                prefix = f'apim-infra-{infrastructure.value}'
+                # Expected format: {INFRA_PREFIX}{infrastructure}-{index} or {INFRA_PREFIX}{infrastructure}
+                prefix = f'{INFRA_PREFIX}{infrastructure.value}'
                 
                 if rg_name == prefix:
                     # No index
@@ -722,7 +725,7 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
         print_info(f'Resource group : {rg_name}')
 
         # Show the deployment details
-        output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False)
+        output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False, print_errors = False)
 
         if output.success and output.json_data:
             # Delete and purge CognitiveService accounts
@@ -780,7 +783,6 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
 
     except Exception as e:
         print(f'An error occurred during cleanup: {e}')
-        traceback.print_exc()
 
 def _print_log(message: str, prefix: str = '', color: str = '', output: str = '', duration: str = '', show_time: bool = False, blank_above: bool = False, blank_below: bool = False, wrap_lines: bool = False) -> None:
     """
@@ -1380,16 +1382,13 @@ def _cleanup_resources_thread_safe(deployment_name: str, rg_name: str, thread_pr
         # Create a modified version of _cleanup_resources that uses thread-safe printing
         _cleanup_resources_with_thread_safe_printing(deployment_name, rg_name, thread_prefix, thread_color)
         
-        with _print_lock:
-            _print_log(f"{thread_prefix}Completed cleanup for resource group: {rg_name}", '👉🏽 ', thread_color)
-        
+        # Don't print completion message here - it will be printed in the main function with progress
         return True, ""
                 
     except Exception as e:
         error_msg = f'An error occurred during cleanup of {rg_name}: {str(e)}'
         with _print_lock:
             _print_log(f"{thread_prefix}{error_msg}", '⛔ ', BOLD_R, show_time=True)
-            traceback.print_exc()
         return False, error_msg
 
 
@@ -1413,7 +1412,7 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
             _print_log(f"{thread_prefix}Resource group : {rg_name}", '👉🏽 ', thread_color)
 
         # Show the deployment details
-        output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False)
+        output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False, print_errors = False)
 
         if output.success and output.json_data:
             # Delete and purge CognitiveService accounts
@@ -1530,7 +1529,8 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
         })
 
     # Execute cleanup tasks in parallel
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+    print_info(f'Executing cleanup tasks in parallel with up to {max_workers} workers.', False)
+    with ThreadPoolExecutor(max_workers = max_workers) as executor:
         # Submit all tasks
         future_to_task = {
             executor.submit(
@@ -1551,20 +1551,35 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
             task = future_to_task[future]
             try:
                 success, error_msg = future.result()
-                completed_count += 1
                 
                 if success:
+                    completed_count += 1
+                    # Calculate status counts
+                    total_count = len(indexes_list)
+                    in_progress_count = total_count - completed_count - failed_count
+                    
                     with _print_lock:
-                        print_ok(f"Completed cleanup for {deployment.value}-{task['index']} ({completed_count}/{len(indexes_list)})")
+                        print_ok(f"Completed cleanup for resource group: {task['rg_name']}", blank_above = False)
+                        print_info(f"📊 Progress: {completed_count}/{total_count} completed, {failed_count} failed, {in_progress_count} remaining")
                 else:
                     failed_count += 1
+                    # Calculate status counts
+                    total_count = len(indexes_list)
+                    in_progress_count = total_count - completed_count - failed_count
+                    
                     with _print_lock:
                         print_error(f"❌ Failed cleanup for {deployment.value}-{task['index']}: {error_msg}")
+                        print_info(f"📊 Progress: {completed_count}/{total_count} completed, {failed_count} failed, {in_progress_count} remaining")
                         
             except Exception as e:
                 failed_count += 1
+                # Calculate status counts
+                total_count = len(indexes_list)
+                in_progress_count = total_count - completed_count - failed_count
+                
                 with _print_lock:
                     print_error(f"❌ Exception during cleanup for {deployment.value}-{task['index']}: {str(e)}")
+                    print_info(f"📊 Progress: {completed_count}/{total_count} completed, {failed_count} failed, {in_progress_count} remaining")
 
     # Final summary
     if failed_count == 0:
@@ -1789,7 +1804,7 @@ def get_infra_rg_name(deployment_name: INFRASTRUCTURE, index: int | None = None)
         str: The generated resource group name.
     """
 
-    rg_name = f'apim-infra-{deployment_name.value}'
+    rg_name = f'{INFRA_PREFIX}{deployment_name.value}'
 
     if index is not None:
         rg_name = f'{rg_name}-{index}'
@@ -1808,7 +1823,7 @@ def get_rg_name(deployment_name: str, index: int | None = None) -> str:
         str: The generated resource group name.
     """
 
-    rg_name = f'apim-sample-{deployment_name}'
+    rg_name = f'{SAMPLE_PREFIX}{deployment_name}'
 
     if index is not None:
         rg_name = f'{rg_name}-{str(index)}'
