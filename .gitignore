@@ -24,6 +24,16 @@ labs-in-progress/
 # Exclude sensitive or generated files
 .env*
 
+# Certificate files (never commit these)
+*.pfx
+*.pem
+*.crt
+*.key
+*.p12
+*.der
+*.cer
+apim-samples-ca/
+
 # Coverage data and reports
 .coverage
 tests/python/htmlcov/
