@@ -1171,7 +1171,7 @@ def test_determine_policy_path_filename_mode(monkeypatch):
     
     # Mock the project root
     mock_project_root = Path('/mock/project/root')
-    monkeypatch.setattr('apimtypes._get_project_root', lambda: mock_project_root)
+    monkeypatch.setattr('utils._get_project_root', lambda: mock_project_root)
     
     # Mock current frame to simulate being in samples/test-sample
     class MockFrame:
@@ -1972,13 +1972,6 @@ def test_infrastructure_notebook_helper_create_with_index_retry(monkeypatch):
     result = helper.create_infrastructure()
     assert result is True
     assert helper.index == 3  # Verify index was updated
-
-def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch):
-    """Test InfrastructureNotebookHelper.create_infrastructure with multiple recursive retries."""
-    # NOTE: This test is disabled because it tests an edge case that causes infinite recursion
-    # when self.rg_name is not updated after self.index changes. The main functionality
-    # is already tested in other tests. This is a known limitation of the current implementation.
-    pytest.skip("Test disabled due to infinite recursion issue in edge case scenario")
 
 def test_infrastructure_notebook_helper_create_user_cancellation(monkeypatch):
     """Test InfrastructureNotebookHelper.create_infrastructure when user cancels during retry."""

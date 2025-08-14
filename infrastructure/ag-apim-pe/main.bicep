@@ -252,26 +252,84 @@ resource kvCertScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
         Write-Output "No deleted certificates found or error checking: $($_.Exception.Message)"
       }
       
-      # Create self-signed certificate using OpenSSL (available in Linux deployment script environment)
-      Write-Output "Creating self-signed certificate using OpenSSL..."
+      # Try to create CA-signed certificate, fallback to self-signed
+      Write-Output "Creating certificate for infrastructure..."
       
-      # Create the certificate using OpenSSL commands
-      $keyPath = "/tmp/apim.key"
-      $certPath = "/tmp/apim.crt"
+      # Define paths
+      $serverKeyPath = "/tmp/server.key"
+      $serverCsrPath = "/tmp/server.csr"
+      $serverCertPath = "/tmp/server.crt"
       $pfxPath = "/tmp/apim.pfx"
       $password = "TempPassword123!"
+      $commonName = "apim-samples-${resourceGroup().name}"
       
-      # Generate private key
-      $keyResult = Invoke-Expression "openssl genrsa -out $keyPath 2048 2>&1"
-      Write-Output "Private key generation result: $keyResult"
+      # Check if APIM Samples Root CA exists in Key Vault
+      $useRootCA = $false
+      $rootCaCertPath = "/tmp/root-ca.crt"
+      $rootCaKeyPath = "/tmp/root-ca.key"
       
-      # Create certificate signing request and self-signed certificate
-      $certResult = Invoke-Expression "openssl req -new -x509 -key $keyPath -out $certPath -days 365 -subj '/CN=apim-samples-${resourceGroup().name}' 2>&1"
-      Write-Output "Certificate creation result: $certResult"
+      try {
+        Write-Output "Checking for APIM Samples Root CA in Key Vault..."
+        $rootCaCert = Get-AzKeyVaultSecret -VaultName $env:KEYVAULT_NAME -Name "apim-samples-root-ca-cert" -ErrorAction SilentlyContinue
+        $rootCaKey = Get-AzKeyVaultSecret -VaultName $env:KEYVAULT_NAME -Name "apim-samples-root-ca-key" -ErrorAction SilentlyContinue
+        
+        if ($rootCaCert -and $rootCaKey) {
+          Write-Output "Found Root CA in Key Vault! Creating CA-signed certificate..."
+          
+          # Download Root CA certificate and key
+          $rootCaCert.SecretValue | ConvertFrom-SecureString -AsPlainText | Out-File -FilePath $rootCaCertPath -Encoding ASCII
+          $rootCaKey.SecretValue | ConvertFrom-SecureString -AsPlainText | Out-File -FilePath $rootCaKeyPath -Encoding ASCII
+          $useRootCA = $true
+        }
+        else {
+          Write-Output "Root CA not found in Key Vault. Will create self-signed certificate."
+        }
+      }
+      catch {
+        Write-Output "Error checking for Root CA: $($_.Exception.Message)"
+        Write-Output "Will create self-signed certificate."
+      }
       
-      # Convert to PFX format
-      $pfxResult = Invoke-Expression "openssl pkcs12 -export -out $pfxPath -inkey $keyPath -in $certPath -password pass:$password 2>&1"
-      Write-Output "PFX conversion result: $pfxResult"
+      if ($useRootCA) {
+        # Create CA-signed certificate
+        Write-Output "Creating CA-signed certificate..."
+        
+        # Generate server private key
+        $keyResult = Invoke-Expression "openssl genrsa -out $serverKeyPath 2048 2>&1"
+        Write-Output "Server private key generation: $keyResult"
+        
+        # Create certificate signing request
+        $csrResult = Invoke-Expression "openssl req -new -key $serverKeyPath -out $serverCsrPath -subj '/CN=$commonName' 2>&1"
+        Write-Output "CSR creation: $csrResult"
+        
+        # Sign with Root CA
+        $signResult = Invoke-Expression "openssl x509 -req -in $serverCsrPath -CA $rootCaCertPath -CAkey $rootCaKeyPath -CAcreateserial -out $serverCertPath -days 365 2>&1"
+        Write-Output "Certificate signing: $signResult"
+        
+        # Create PFX with certificate chain (include Root CA)
+        $pfxResult = Invoke-Expression "openssl pkcs12 -export -out $pfxPath -inkey $serverKeyPath -in $serverCertPath -certfile $rootCaCertPath -password pass:$password 2>&1"
+        Write-Output "PFX creation with chain: $pfxResult"
+        
+        Write-Output "CA-signed certificate created successfully!"
+      }
+      else {
+        # Create self-signed certificate (fallback)
+        Write-Output "Creating self-signed certificate (fallback)..."
+        
+        # Generate private key
+        $keyResult = Invoke-Expression "openssl genrsa -out $serverKeyPath 2048 2>&1"
+        Write-Output "Private key generation: $keyResult"
+        
+        # Create self-signed certificate
+        $certResult = Invoke-Expression "openssl req -new -x509 -key $serverKeyPath -out $serverCertPath -days 365 -subj '/CN=$commonName' 2>&1"
+        Write-Output "Self-signed certificate creation: $certResult"
+        
+        # Convert to PFX format
+        $pfxResult = Invoke-Expression "openssl pkcs12 -export -out $pfxPath -inkey $serverKeyPath -in $serverCertPath -password pass:$password 2>&1"
+        Write-Output "PFX creation: $pfxResult"
+        
+        Write-Output "Self-signed certificate created (Root CA not available)."
+      }
       
       # Import to Key Vault
       Write-Output "Importing certificate to Key Vault..."
@@ -279,9 +337,12 @@ resource kvCertScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       $importedCert = Import-AzKeyVaultCertificate -VaultName $env:KEYVAULT_NAME -Name $env:CERT_NAME -FilePath $pfxPath -Password $securePassword
       
       # Clean up temporary files
-      Remove-Item -Path $keyPath -Force -ErrorAction SilentlyContinue
-      Remove-Item -Path $certPath -Force -ErrorAction SilentlyContinue
+      Remove-Item -Path $serverKeyPath -Force -ErrorAction SilentlyContinue
+      Remove-Item -Path $serverCsrPath -Force -ErrorAction SilentlyContinue
+      Remove-Item -Path $serverCertPath -Force -ErrorAction SilentlyContinue
       Remove-Item -Path $pfxPath -Force -ErrorAction SilentlyContinue
+      Remove-Item -Path $rootCaCertPath -Force -ErrorAction SilentlyContinue
+      Remove-Item -Path $rootCaKeyPath -Force -ErrorAction SilentlyContinue
       
       # Verify the imported certificate
       $finalCert = Get-AzKeyVaultCertificate -VaultName $env:KEYVAULT_NAME -Name $env:CERT_NAME
@@ -294,12 +355,14 @@ resource kvCertScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       Write-Output "Certificate ID: $($finalCert.Id)"
       Write-Output "Secret ID: $($finalCert.SecretId)"
       Write-Output "Thumbprint: $($finalCert.Thumbprint)"
+      Write-Output "Certificate Type: $(if ($useRootCA) { 'CA-signed' } else { 'Self-signed' })"
       
       # Output the results
       $DeploymentScriptOutputs = @{
         secretId = $finalCert.SecretId
         certificateId = $finalCert.Id
         thumbprint = $finalCert.Thumbprint
+        certificateType = if ($useRootCA) { 'CA-signed' } else { 'Self-signed' }
       }
     '''
   }

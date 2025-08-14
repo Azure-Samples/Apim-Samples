@@ -3,24 +3,28 @@ Module providing utility functions.
 """
 
 import ast
+import base64
 import datetime
+import inspect
 import json
 import os
+import platform
 import re
+import secrets
+import shutil
+import string
 import subprocess
+import sys
+import tempfile
 import textwrap
+import threading
 import time
 import traceback
-import string
-import secrets
-import base64
-import inspect
-import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from typing import Any, Optional, Tuple
-from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE
+from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, _get_project_root
 
 
 # ------------------------------
@@ -284,8 +288,7 @@ class InfrastructureNotebookHelper:
         """
 
         try:
-            import sys 
-
+            
             # For infrastructure notebooks, check if update is allowed and handle user choice
             if allow_update:
                 if does_resource_group_exist(self.rg_name):
@@ -863,7 +866,6 @@ def _determine_bicep_directory(infrastructure_dir: str) -> str:
     
     # Try to find the project root and construct the path from there
     try:
-        from apimtypes import _get_project_root
         project_root = _get_project_root()
         bicep_dir = os.path.join(str(project_root), 'infrastructure', infrastructure_dir)
         if os.path.exists(bicep_dir):
@@ -1031,7 +1033,6 @@ def create_bicep_deployment_group_for_sample(sample_name: str, rg_name: str, rg_
     Returns:
         Output: The result of the deployment command.
     """
-    import os
     
     # Get the current working directory
     original_cwd = os.getcwd()
@@ -1309,7 +1310,6 @@ def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str
                 raise ValueError(f'Could not auto-detect sample name. Please provide sample_name parameter explicitly. Error: {e}')
         
         # Construct the full path
-        from apimtypes import _get_project_root
         project_root = _get_project_root()
         policy_xml_filepath = str(project_root / 'samples' / sample_name / policy_xml_filepath_or_filename)
 
@@ -2131,7 +2131,6 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
     """
     
     try:
-        import re
         
         print_message('🧹 Cleaning up old JWT signing keys for the same sample folder...', blank_above = True)
         
@@ -2231,532 +2230,3 @@ def get_json(input: str) -> Any:
 
     # Return the original result if it's not a string or can't be parsed
     return input
-
-
-# ------------------------------
-#    CERTIFICATE INSTALLATION
-# ------------------------------
-
-def install_certificate_for_infrastructure(infrastructure_type: INFRASTRUCTURE, index: int, resource_group_name: Optional[str] = None) -> bool:
-    """
-    Install the self-signed certificate for a specific Application Gateway infrastructure.
-    
-    Args:
-        infrastructure_type (INFRASTRUCTURE): The infrastructure type (AG_APIM_VNET or AG_APIM_PE)
-        index (int): The infrastructure index number
-        resource_group_name (Optional[str]): Optional resource group name. If not provided, will be generated from infrastructure type and index.
-        
-    Returns:
-        bool: True if certificate was installed successfully, False otherwise
-    """
-    
-    if infrastructure_type not in [INFRASTRUCTURE.AG_APIM_VNET, INFRASTRUCTURE.AG_APIM_PE]:
-        print_error(f"Certificate installation is only supported for Application Gateway infrastructures. Got: {infrastructure_type}")
-        return False
-        
-    # Generate resource group name if not provided
-    if not resource_group_name:
-        resource_group_name = get_infra_rg_name(infrastructure_type, index)
-    
-    print_info(f"Installing certificate for {infrastructure_type.value} infrastructure (index {index})")
-    print_info(f"Resource Group: {resource_group_name}")
-    
-    try:
-        # Find the Key Vault in the resource group
-        key_vault_name = _get_key_vault_name(resource_group_name)
-        if not key_vault_name:
-            print_error("No Key Vault found in the resource group")
-            return False
-            
-        # Get the certificate from Key Vault
-        cert_name = "ag-cert"
-        cert_data = _download_certificate_from_key_vault(key_vault_name, cert_name, resource_group_name)
-        if not cert_data:
-            return False
-            
-        # Install the certificate in the local trust store
-        cert_display_name = f"apim-samples-{resource_group_name}"
-        success = _install_certificate_to_trust_store(cert_data, cert_display_name, infrastructure_type, index)
-        
-        if success:
-            print_ok("Certificate installed successfully!")
-            print_info("You can now browse to HTTPS endpoints without SSL warnings")
-            return True
-        else:
-            print_error("Failed to install certificate to trust store")
-            return False
-            
-    except Exception as e:
-        print_error(f"Certificate installation failed: {str(e)}")
-        return False
-
-
-def list_installed_apim_certificates() -> None:
-    """
-    List all APIM-Samples certificates installed in the local trust store.
-    """
-    
-    import platform
-    
-    print_info("Listing installed APIM-Samples certificates...")
-    
-    try:
-        system = platform.system().lower()
-        
-        if system == "windows":
-            _list_certificates_windows()
-        elif system == "darwin":  # macOS
-            _list_certificates_macos()
-        elif system == "linux":
-            _list_certificates_linux()
-        else:
-            print_warning(f"Certificate listing not implemented for {system}")
-            
-    except Exception as e:
-        print_error(f"Failed to list certificates: {str(e)}")
-
-
-def remove_all_apim_certificates() -> bool:
-    """
-    Remove all APIM-Samples certificates from the local trust store.
-    
-    Returns:
-        bool: True if all certificates were removed successfully, False otherwise
-    """
-    
-    import platform
-    
-    print_warning("Removing all APIM-Samples certificates from local trust store...")
-    
-    try:
-        system = platform.system().lower()
-        
-        if system == "windows":
-            return _remove_certificates_windows()
-        elif system == "darwin":  # macOS
-            return _remove_certificates_macos()
-        elif system == "linux":
-            return _remove_certificates_linux()
-        else:
-            print_warning(f"Certificate removal not implemented for {system}")
-            return False
-            
-    except Exception as e:
-        print_error(f"Failed to remove certificates: {str(e)}")
-        return False
-
-
-# ------------------------------
-#    PRIVATE CERTIFICATE HELPERS
-# ------------------------------
-
-def _get_key_vault_name(resource_group_name: str) -> Optional[str]:
-    """Get the Key Vault name from the resource group."""
-    
-    print_message("Looking for Key Vault in resource group...")
-    
-    output = run(f'az keyvault list -g {resource_group_name} --query "[0].name" -o tsv')
-    
-    if output.success and output.text.strip():
-        key_vault_name = output.text.strip()
-        print_ok(f"Found Key Vault: {key_vault_name}")
-        return key_vault_name
-    
-    return None
-
-
-def _download_certificate_from_key_vault(key_vault_name: str, cert_name: str, resource_group_name: str) -> Optional[bytes]:
-    """Download certificate data from Key Vault."""
-    
-    import tempfile
-    import os
-    
-    print_message(f"Downloading certificate '{cert_name}' from Key Vault...")
-    
-    # Download the certificate as PFX
-    with tempfile.NamedTemporaryFile(suffix='.pfx', delete=False) as temp_file:
-        temp_path = temp_file.name
-        
-    try:
-        output = run(f'az keyvault secret download --vault-name {key_vault_name} --name {cert_name} --file {temp_path} --overwrite')
-        
-        if output.success and os.path.exists(temp_path):
-            with open(temp_path, 'rb') as f:
-                cert_data = f.read()
-            print_ok(f"Certificate downloaded ({len(cert_data)} bytes)")
-            return cert_data
-        else:
-            # Check if this is a permission error
-            if "Forbidden" in output.text and "getSecret" in output.text:
-                print_error("Permission denied accessing Key Vault secrets")
-                print_info("Attempting to grant current user access to Key Vault...")
-                
-                # Try to grant permission automatically
-                if _grant_current_user_keyvault_access(key_vault_name, resource_group_name):
-                    print_info("Retrying certificate download...")
-                    # Wait a bit for permission propagation
-                    import time
-                    time.sleep(5)
-                    
-                    # Retry the download
-                    output = run(f'az keyvault secret download --vault-name {key_vault_name} --name {cert_name} --file {temp_path} --overwrite')
-                    if output.success and os.path.exists(temp_path):
-                        with open(temp_path, 'rb') as f:
-                            cert_data = f.read()
-                        print_ok(f"Certificate downloaded ({len(cert_data)} bytes)")
-                        return cert_data
-                
-                print_error("Failed to grant Key Vault access. You may need to manually grant permissions.")
-                print_info("Run this command to grant access:")
-                print_info(f"  az role assignment create --assignee $(az ad signed-in-user show --query id -o tsv) --role 'Key Vault Secrets User' --scope /subscriptions/$(az account show --query id -o tsv)/resourcegroups/{resource_group_name}/providers/Microsoft.KeyVault/vaults/{key_vault_name}")
-            else:
-                print_error("Failed to download certificate from Key Vault")
-            return None
-            
-    finally:
-        # Clean up temp file
-        if os.path.exists(temp_path):
-            os.unlink(temp_path)
-
-
-def _grant_current_user_keyvault_access(key_vault_name: str, resource_group_name: str) -> bool:
-    """Grant the current Azure CLI user access to Key Vault secrets."""
-    
-    try:
-        # Get current user's object ID
-        user_output = run('az ad signed-in-user show --query id -o tsv')
-        if not user_output.success:
-            return False
-            
-        user_object_id = user_output.text.strip()
-        
-        # Get subscription ID
-        sub_output = run('az account show --query id -o tsv')
-        if not sub_output.success:
-            return False
-            
-        subscription_id = sub_output.text.strip()
-        
-        # Construct the Key Vault scope
-        scope = f"/subscriptions/{subscription_id}/resourcegroups/{resource_group_name}/providers/Microsoft.KeyVault/vaults/{key_vault_name}"
-        
-        # Grant Key Vault Secrets User role
-        role_output = run(f'az role assignment create --assignee "{user_object_id}" --role "Key Vault Secrets User" --scope "{scope}"')
-        
-        if role_output.success:
-            print_ok("Successfully granted Key Vault Secrets User access to current user")
-            return True
-        else:
-            print_warning("Failed to grant automatic access (you may need Owner/Contributor permissions)")
-            return False
-            
-    except Exception as e:
-        print_warning(f"Failed to grant automatic access: {str(e)}")
-        return False
-
-
-def _install_certificate_to_trust_store(cert_data: bytes, display_name: str, infrastructure_type: INFRASTRUCTURE, index: int) -> bool:
-    """Install certificate to the platform-specific trust store."""
-    
-    import platform
-    
-    system = platform.system().lower()
-    
-    print_message(f"Installing certificate to {system} trust store...")
-    print_message(f"Certificate name: {display_name}")
-    
-    if system == "windows":
-        return _install_certificate_windows(cert_data, display_name, infrastructure_type, index)
-    elif system == "darwin":  # macOS
-        return _install_certificate_macos(cert_data, display_name, infrastructure_type, index)
-    elif system == "linux":
-        return _install_certificate_linux(cert_data, display_name, infrastructure_type, index)
-    else:
-        print_error(f"Certificate installation not supported on {system}")
-        return False
-
-
-def _install_certificate_windows(cert_data: bytes, display_name: str, infrastructure_type: INFRASTRUCTURE, index: int) -> bool:
-    """Install certificate on Windows using multiple methods."""
-    
-    import tempfile
-    import subprocess
-    import os
-    
-    with tempfile.NamedTemporaryFile(suffix='.pfx', delete=False) as temp_file:
-        temp_file.write(cert_data)
-        temp_path = temp_file.name
-        
-    try:
-        # Method 1: Try PowerShell with current user store (no admin required)
-        powershell_success = _install_certificate_windows_powershell(temp_path, display_name)
-        if powershell_success:
-            return True
-            
-        # Method 2: Try certutil with user store (no admin required)
-        certutil_success = _install_certificate_windows_certutil(temp_path)
-        if certutil_success:
-            return True
-            
-        # Method 3: Provide manual instructions
-        print_warning("Automatic installation failed. Manual installation required.")
-        print_info("To install the certificate manually:")
-        print_info(f"1. Navigate to: {temp_path}")
-        print_info("2. Double-click the certificate file")
-        print_info("3. Click 'Install Certificate...'")
-        print_info("4. Select 'Current User' (no admin required)")
-        print_info("5. Choose 'Place all certificates in the following store'")
-        print_info("6. Click 'Browse' and select 'Trusted Root Certification Authorities'")
-        print_info("7. Click 'OK' and 'Finish'")
-        print_info(f"8. Password when prompted: TempPassword123!")
-        
-        # Don't delete the temp file so user can install manually
-        print_info(f"Certificate file saved at: {temp_path}")
-        return False
-        
-    except Exception as e:
-        print_error(f"Certificate installation error: {str(e)}")
-        if os.path.exists(temp_path):
-            os.unlink(temp_path)
-        return False
-
-
-def _install_certificate_windows_powershell(temp_path: str, display_name: str) -> bool:
-    """Try installing certificate using PowerShell (current user store)."""
-    
-    import subprocess
-    
-    try:
-        # PowerShell command to import to current user's trusted root store
-        ps_script = f'''
-        try {{
-            $cert = Import-PfxCertificate -FilePath "{temp_path}" -CertStoreLocation "Cert:\\CurrentUser\\Root" -Password (ConvertTo-SecureString "TempPassword123!" -AsPlainText -Force)
-            if ($cert) {{
-                Write-Host "SUCCESS: Certificate imported with thumbprint: $($cert.Thumbprint)"
-                exit 0
-            }} else {{
-                Write-Host "FAILED: Certificate import returned null"
-                exit 1
-            }}
-        }} catch {{
-            Write-Host "ERROR: $($_.Exception.Message)"
-            exit 1
-        }}
-        '''
-        
-        result = subprocess.run(['powershell', '-Command', ps_script], capture_output=True, text=True)
-        
-        if result.returncode == 0 and "SUCCESS:" in result.stdout:
-            print_ok("Certificate installed to Windows trusted root store (PowerShell)")
-            return True
-        else:
-            print_message(f"PowerShell method failed: {result.stdout} {result.stderr}")
-            return False
-            
-    except Exception as e:
-        print_message(f"PowerShell method error: {str(e)}")
-        return False
-
-
-def _install_certificate_windows_certutil(temp_path: str) -> bool:
-    """Try installing certificate using certutil (current user store)."""
-    
-    import subprocess
-    
-    try:
-        # Use certutil to install to current user store
-        cmd = f'certutil -f -user -p "TempPassword123!" -importpfx Root "{temp_path}"'
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-        
-        if result.returncode == 0:
-            print_ok("Certificate installed to Windows trusted root store (certutil)")
-            return True
-        else:
-            print_message(f"Certutil method failed: {result.stderr}")
-            return False
-            
-    except Exception as e:
-        print_message(f"Certutil method error: {str(e)}")
-        return False
-
-
-def _install_certificate_macos(cert_data: bytes, display_name: str, infrastructure_type: INFRASTRUCTURE, index: int) -> bool:
-    """Install certificate on macOS using security command."""
-    
-    import tempfile
-    import subprocess
-    import os
-    
-    with tempfile.NamedTemporaryFile(suffix='.pfx', delete=False) as temp_file:
-        temp_file.write(cert_data)
-        temp_path = temp_file.name
-        
-    try:
-        # Extract certificate from PFX first
-        cert_path = temp_path.replace('.pfx', '.crt')
-        
-        # Extract certificate using openssl
-        extract_cmd = f'openssl pkcs12 -in "{temp_path}" -clcerts -nokeys -out "{cert_path}" -passin pass:TempPassword123!'
-        extract_result = subprocess.run(extract_cmd, shell=True, capture_output=True, text=True)
-        
-        if extract_result.returncode != 0:
-            print_error(f"Failed to extract certificate: {extract_result.stderr}")
-            return False
-            
-        # Install the certificate to system keychain
-        install_cmd = f'sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain "{cert_path}"'
-        install_result = subprocess.run(install_cmd, shell=True, capture_output=True, text=True)
-        
-        if install_result.returncode == 0:
-            print_ok("Certificate installed to macOS system keychain")
-            return True
-        else:
-            print_error(f"Failed to install certificate: {install_result.stderr}")
-            return False
-            
-    finally:
-        for path in [temp_path, temp_path.replace('.pfx', '.crt')]:
-            if os.path.exists(path):
-                os.unlink(path)
-
-
-def _install_certificate_linux(cert_data: bytes, display_name: str, infrastructure_type: INFRASTRUCTURE, index: int) -> bool:
-    """Install certificate on Linux."""
-    
-    import tempfile
-    import subprocess
-    import os
-    from pathlib import Path
-    
-    # Linux certificate installation varies by distribution
-    # For now, we'll save to a common location and provide instructions
-    
-    cert_dir = Path.home() / ".local" / "share" / "ca-certificates" / "apim-samples"
-    cert_dir.mkdir(parents=True, exist_ok=True)
-    
-    cert_filename = f"{infrastructure_type.value}-{index}.crt"
-    cert_path = cert_dir / cert_filename
-    
-    try:
-        with tempfile.NamedTemporaryFile(suffix='.pfx', delete=False) as temp_file:
-            temp_file.write(cert_data)
-            temp_path = temp_file.name
-            
-        # Extract certificate from PFX
-        extract_cmd = f'openssl pkcs12 -in "{temp_path}" -clcerts -nokeys -out "{cert_path}" -passin pass:TempPassword123!'
-        extract_result = subprocess.run(extract_cmd, shell=True, capture_output=True, text=True)
-        
-        if extract_result.returncode == 0:
-            print_ok(f"Certificate saved to {cert_path}")
-            print_info("To trust this certificate system-wide on Linux:")
-            print_info(f"  sudo cp '{cert_path}' /usr/local/share/ca-certificates/")
-            print_info("  sudo update-ca-certificates")
-            return True
-        else:
-            print_error(f"Failed to extract certificate: {extract_result.stderr}")
-            return False
-            
-    finally:
-        if os.path.exists(temp_path):
-            os.unlink(temp_path)
-
-
-def _list_certificates_windows() -> None:
-    """List APIM certificates on Windows."""
-    
-    import subprocess
-    
-    cmd = f'certutil -store Root | findstr /C:"apim-samples"'
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-    
-    if result.returncode == 0 and result.stdout.strip():
-        print_ok("Found APIM-Samples certificates:")
-        for line in result.stdout.strip().split('\n'):
-            if "apim-samples" in line:
-                print_info(f"  {line.strip()}")
-    else:
-        print_info("No APIM-Samples certificates found")
-
-
-def _list_certificates_macos() -> None:
-    """List APIM certificates on macOS."""
-    
-    import subprocess
-    
-    cmd = f'security find-certificate -c "apim-samples" /Library/Keychains/System.keychain'
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-    
-    if result.returncode == 0 and result.stdout.strip():
-        print_ok("Found APIM-Samples certificates in system keychain")
-        # Parse and display certificate info
-        lines = result.stdout.strip().split('\n')
-        for line in lines:
-            if 'alis' in line or 'cert' in line:
-                print_info(f"  {line.strip()}")
-    else:
-        print_info("No APIM-Samples certificates found in system keychain")
-
-
-def _list_certificates_linux() -> None:
-    """List APIM certificates on Linux."""
-    
-    from pathlib import Path
-    
-    cert_dir = Path.home() / ".local" / "share" / "ca-certificates" / "apim-samples"
-    
-    if cert_dir.exists():
-        cert_files = list(cert_dir.glob("*.crt"))
-        if cert_files:
-            print_ok("Found APIM-Samples certificates:")
-            for cert_file in cert_files:
-                print_info(f"  {cert_file.name}")
-        else:
-            print_info("No APIM-Samples certificates found")
-    else:
-        print_info("No APIM-Samples certificates directory found")
-
-
-def _remove_certificates_windows() -> bool:
-    """Remove APIM certificates from Windows."""
-    
-    # This is complex on Windows as we need to identify specific certificates
-    # For now, provide instructions
-    print_warning("To remove APIM-Samples certificates on Windows:")
-    print_info("1. Run 'certmgr.msc' as administrator")
-    print_info("2. Navigate to Trusted Root Certification Authorities > Certificates")
-    print_info(f"3. Look for certificates containing 'apim-samples'")
-    print_info("4. Right-click and delete each one")
-    return True
-
-
-def _remove_certificates_macos() -> bool:
-    """Remove APIM certificates from macOS."""
-    
-    import subprocess
-    
-    cmd = f'sudo security delete-certificate -c "apim-samples" /Library/Keychains/System.keychain'
-    result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
-    
-    if result.returncode == 0:
-        print_ok("APIM-Samples certificates removed from macOS system keychain")
-        return True
-    else:
-        print_warning("No APIM-Samples certificates found to remove (or removal failed)")
-        return False
-
-
-def _remove_certificates_linux() -> bool:
-    """Remove APIM certificates from Linux."""
-    
-    import shutil
-    from pathlib import Path
-    
-    cert_dir = Path.home() / ".local" / "share" / "ca-certificates" / "apim-samples"
-    
-    if cert_dir.exists():
-        shutil.rmtree(cert_dir)
-        print_ok("APIM-Samples certificates directory removed")
-        return True
-    else:
-        print_info("No APIM-Samples certificates directory found")
-        return True
