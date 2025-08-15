@@ -190,6 +190,7 @@ param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id
 ### Jupyter Notebook Instructions
 
 - Use these [configuration settings](https://github.com/microsoft/vscode-jupyter/blob/dd568fde/package.nls.json) as a reference for the VS Code Jupyter extension configuration.
+- Notebooks should be succint in their markdown use. For anything more than a few crucial sentences, add to a sibling README.md file.
 
 ### PlantUML Instructions
 

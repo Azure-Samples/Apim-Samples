@@ -79,10 +79,10 @@ class TestInstallCertificateForInfrastructure:
         mock_download.return_value = b"CERT_DATA"
         mock_install.return_value = True
         
-        result = install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_VNET, 1)
+        result = install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_VNET, 1, interactive=False)
         
         assert result is True
-        mock_kv_name.assert_called_once_with("apim-infra-ag-apim-vnet-1")
+        mock_kv_name.assert_called_once_with("apim-infra-ag-apim-vnet-1", True)
         mock_download.assert_called_once_with("kv-test123", "ag-cert", "apim-infra-ag-apim-vnet-1")
         mock_install.assert_called_once_with(b"CERT_DATA", "apim-samples-apim-infra-ag-apim-vnet-1", INFRASTRUCTURE.AG_APIM_VNET, 1)
     
@@ -98,10 +98,10 @@ class TestInstallCertificateForInfrastructure:
         mock_download.return_value = b"CERT_DATA"
         mock_install.return_value = True
         
-        result = install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_PE, 20)
+        result = install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_PE, 20, interactive=False)
         
         assert result is True
-        mock_kv_name.assert_called_once_with("apim-infra-ag-apim-pe-20")
+        mock_kv_name.assert_called_once_with("apim-infra-ag-apim-pe-20", True)
         mock_download.assert_called_once_with("kv-test456", "ag-cert", "apim-infra-ag-apim-pe-20")
         mock_install.assert_called_once_with(b"CERT_DATA", "apim-samples-apim-infra-ag-apim-pe-20", INFRASTRUCTURE.AG_APIM_PE, 20)
 
@@ -110,7 +110,7 @@ class TestInstallCertificateForInfrastructure:
         """Test failure when no Key Vault is found"""
         mock_kv_name.return_value = None
         
-        result = install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_VNET, 1, "test-rg")
+        result = install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_VNET, 1, "test-rg", interactive=False)
         
         assert result is False
 
@@ -121,7 +121,7 @@ class TestInstallCertificateForInfrastructure:
         mock_kv_name.return_value = "kv-test123"
         mock_download.return_value = None
         
-        result = install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_VNET, 1, "test-rg")
+        result = install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_VNET, 1, "test-rg", interactive=False)
         
         assert result is False
 
@@ -134,7 +134,7 @@ class TestInstallCertificateForInfrastructure:
         mock_download.return_value = b"CERT_DATA"
         mock_install.return_value = False
         
-        result = install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_VNET, 1, "test-rg")
+        result = install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_VNET, 1, "test-rg", interactive=False)
         
         assert result is False
 
@@ -143,7 +143,7 @@ class TestInstallCertificateForInfrastructure:
         """Test exception handling"""
         mock_kv_name.side_effect = Exception("Test exception")
         
-        result = install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_VNET, 1, "test-rg")
+        result = install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_VNET, 1, "test-rg", interactive=False)
         
         assert result is False
 
@@ -324,7 +324,7 @@ class TestPerformance:
         """Test early exit when Key Vault is not found"""
         mock_kv_name.return_value = None
         
-        result = install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_VNET, 1, "test-rg")
+        result = install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_VNET, 1, "test-rg", interactive=False)
         
         assert result is False
         # Should exit early without attempting download or installation
@@ -342,7 +342,7 @@ class TestErrorHandling:
         """Test handling of unexpected exceptions"""
         mock_kv_name.side_effect = RuntimeError("Unexpected error")
         
-        result = install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_VNET, 1, "test-rg")
+        result = install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_VNET, 1, "test-rg", interactive=False)
         
         assert result is False
 
