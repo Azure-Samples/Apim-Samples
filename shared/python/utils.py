@@ -725,7 +725,7 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
         return
 
     try:
-        print_info(f'Resource group : {rg_name}')
+        _print_log(f'Resource group : {rg_name}')
 
         # Show the deployment details
         output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False, print_errors = False)
@@ -1377,7 +1377,7 @@ def _cleanup_resources_thread_safe(deployment_name: str, rg_name: str, thread_pr
     """
     try:
         with _print_lock:
-            _print_log(f"{thread_prefix}Starting cleanup for resource group: {rg_name}", '👉🏽 ', thread_color)
+            _print_log(f"{thread_prefix}Starting cleanup for resource group: {rg_name}", '', thread_color)
         
         # Create a modified version of _cleanup_resources that uses thread-safe printing
         _cleanup_resources_with_thread_safe_printing(deployment_name, rg_name, thread_prefix, thread_color)
@@ -1409,7 +1409,7 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
 
     try:
         with _print_lock:
-            _print_log(f"{thread_prefix}Resource group : {rg_name}", '👉🏽 ', thread_color)
+            _print_log(f"{thread_prefix}Resource group : {rg_name}", '', thread_color)
 
         # Show the deployment details
         output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False, print_errors = False)
@@ -1559,7 +1559,7 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
                     
                     with _print_lock:
                         print_ok(f"Completed cleanup for resource group: {task['rg_name']}", blank_above = False)
-                        print_info(f"📊 Progress: {completed_count}/{total_count} completed, {failed_count} failed, {in_progress_count} remaining")
+                        _print_log(f"📊 Progress: {completed_count}/{total_count} completed, {failed_count} failed, {in_progress_count} remaining")
                 else:
                     failed_count += 1
                     # Calculate status counts
@@ -1568,7 +1568,7 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
                     
                     with _print_lock:
                         print_error(f"❌ Failed cleanup for {deployment.value}-{task['index']}: {error_msg}")
-                        print_info(f"📊 Progress: {completed_count}/{total_count} completed, {failed_count} failed, {in_progress_count} remaining")
+                        _print_log(f"📊 Progress: {completed_count}/{total_count} completed, {failed_count} failed, {in_progress_count} remaining")
                         
             except Exception as e:
                 failed_count += 1
@@ -1578,7 +1578,7 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
                 
                 with _print_lock:
                     print_error(f"❌ Exception during cleanup for {deployment.value}-{task['index']}: {str(e)}")
-                    print_info(f"📊 Progress: {completed_count}/{total_count} completed, {failed_count} failed, {in_progress_count} remaining")
+                    _print_log(f"📊 Progress: {completed_count}/{total_count} completed, {failed_count} failed, {in_progress_count} remaining")
 
     # Final summary
     if failed_count == 0:
