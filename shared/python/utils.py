@@ -732,25 +732,25 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
 
         if output.success and output.json_data:
             # Delete and purge CognitiveService accounts
-            output = run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False)
+            output = run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False, print_errors = False)
 
             if output.success and output.json_data:
                 for resource in output.json_data:
                     print_info(f"Deleting and purging Cognitive Service Account '{resource['name']}'...")
-                    output = run(f"az cognitiveservices account delete -g {rg_name} -n {resource['name']}", f"Cognitive Services '{resource['name']}' deleted", f"Failed to delete Cognitive Services '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az cognitiveservices account purge -g {rg_name} -n {resource['name']} --location \"{resource['location']}\"", f"Cognitive Services '{resource['name']}' purged", f"Failed to purge Cognitive Services '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az cognitiveservices account delete -g {rg_name} -n {resource['name']}", f"Cognitive Services '{resource['name']}' deleted", f"Failed to delete Cognitive Services '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az cognitiveservices account purge -g {rg_name} -n {resource['name']} --location \"{resource['location']}\"", f"Cognitive Services '{resource['name']}' purged", f"Failed to purge Cognitive Services '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete and purge APIM resources
-            output = run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False)
+            output = run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False, print_errors = False)
 
             if output.success and output.json_data:
                 for resource in output.json_data:
                     print_info(f"Deleting and purging API Management '{resource['name']}'...")
-                    output = run(f"az apim delete -n {resource['name']} -g {rg_name} -y", f"API Management '{resource['name']}' deleted", f"Failed to delete API Management '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az apim deletedservice purge --service-name {resource['name']} --location \"{resource['location']}\"", f"API Management '{resource['name']}' purged", f"Failed to purge API Management '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az apim delete -n {resource['name']} -g {rg_name} -y", f"API Management '{resource['name']}' deleted", f"Failed to delete API Management '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az apim deletedservice purge --service-name {resource['name']} --location \"{resource['location']}\"", f"API Management '{resource['name']}' purged", f"Failed to purge API Management '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete and purge Key Vault resources
-            output = run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False)
+            output = run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False, print_errors = False)
             
             if output.success and output.json_data:
                 for resource in output.json_data:
@@ -775,12 +775,12 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
                             run(f"az keyvault certificate purge --vault-name {resource['name']} -n {cert_name}", f"Certificate '{cert_name}' purged", f"Failed to purge certificate '{cert_name}'", print_command_to_run = False, print_errors = False)
                     
                     print_info(f"Deleting and purging Key Vault '{resource['name']}'...")
-                    output = run(f"az keyvault delete -n {resource['name']} -g {rg_name}", f"Key Vault '{resource['name']}' deleted", f"Failed to delete Key Vault '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az keyvault purge -n {resource['name']} --location \"{resource['location']}\"", f"Key Vault '{resource['name']}' purged", f"Failed to purge Key Vault '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az keyvault delete -n {resource['name']} -g {rg_name}", f"Key Vault '{resource['name']}' deleted", f"Failed to delete Key Vault '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az keyvault purge -n {resource['name']} --location \"{resource['location']}\"", f"Key Vault '{resource['name']}' purged", f"Failed to purge Key Vault '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete the resource group last
             print_message(f"Deleting resource group '{rg_name}'...")
-            output = run(f'az group delete --name {rg_name} -y', f"Resource group '{rg_name}' deleted', f'Failed to delete resource group '{rg_name}'", print_command_to_run = False)
+            output = run(f'az group delete --name {rg_name} -y', f"Resource group '{rg_name}' deleted", f"Failed to delete resource group '{rg_name}'", print_command_to_run = False, print_errors = False)
 
             print_message('Cleanup completed.')
 
@@ -1416,27 +1416,27 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
 
         if output.success and output.json_data:
             # Delete and purge CognitiveService accounts
-            output = run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False)
+            output = run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False, print_errors = False)
 
             if output.success and output.json_data:
                 for resource in output.json_data:
                     with _print_lock:
                         _print_log(f"{thread_prefix}Deleting and purging Cognitive Service Account '{resource['name']}'...", '👉🏽 ', thread_color)
-                    output = run(f"az cognitiveservices account delete -g {rg_name} -n {resource['name']}", f"Cognitive Services '{resource['name']}' deleted", f"Failed to delete Cognitive Services '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az cognitiveservices account purge -g {rg_name} -n {resource['name']} --location \"{resource['location']}\"", f"Cognitive Services '{resource['name']}' purged", f"Failed to purge Cognitive Services '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az cognitiveservices account delete -g {rg_name} -n {resource['name']}", f"Cognitive Services '{resource['name']}' deleted", f"Failed to delete Cognitive Services '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az cognitiveservices account purge -g {rg_name} -n {resource['name']} --location \"{resource['location']}\"", f"Cognitive Services '{resource['name']}' purged", f"Failed to purge Cognitive Services '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete and purge APIM resources
-            output = run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False)
+            output = run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False, print_errors = False)
 
             if output.success and output.json_data:
                 for resource in output.json_data:
                     with _print_lock:
                         _print_log(f"{thread_prefix}Deleting and purging API Management '{resource['name']}'...", '👉🏽 ', thread_color)
-                    output = run(f"az apim delete -n {resource['name']} -g {rg_name} -y", f"API Management '{resource['name']}' deleted", f"Failed to delete API Management '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az apim deletedservice purge --service-name {resource['name']} --location \"{resource['location']}\"", f"API Management '{resource['name']}' purged", f"Failed to purge API Management '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az apim delete -n {resource['name']} -g {rg_name} -y", f"API Management '{resource['name']}' deleted", f"Failed to delete API Management '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az apim deletedservice purge --service-name {resource['name']} --location \"{resource['location']}\"", f"API Management '{resource['name']}' purged", f"Failed to purge API Management '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete and purge Key Vault resources
-            output = run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False)
+            output = run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False, print_errors = False)
             
             if output.success and output.json_data:
                 for resource in output.json_data:
@@ -1461,13 +1461,13 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
                     
                     with _print_lock:
                         _print_log(f"{thread_prefix}Deleting and purging Key Vault '{resource['name']}'...", '👉🏽 ', thread_color)
-                    output = run(f"az keyvault delete -n {resource['name']} -g {rg_name}", f"Key Vault '{resource['name']}' deleted", f"Failed to delete Key Vault '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az keyvault purge -n {resource['name']} --location \"{resource['location']}\"", f"Key Vault '{resource['name']}' purged", f"Failed to purge Key Vault '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az keyvault delete -n {resource['name']} -g {rg_name}", f"Key Vault '{resource['name']}' deleted", f"Failed to delete Key Vault '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az keyvault purge -n {resource['name']} --location \"{resource['location']}\"", f"Key Vault '{resource['name']}' purged", f"Failed to purge Key Vault '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete the resource group last
             with _print_lock:
                 _print_log(f"{thread_prefix}Deleting resource group '{rg_name}'...", 'ℹ️ ', thread_color, show_time=True)
-            output = run(f'az group delete --name {rg_name} -y', f"Resource group '{rg_name}' deleted', f'Failed to delete resource group '{rg_name}'", print_command_to_run = False)
+            output = run(f'az group delete --name {rg_name} -y', f"Resource group '{rg_name}' deleted", f"Failed to delete resource group '{rg_name}'", print_command_to_run = False, print_errors = False)
 
             with _print_lock:
                 _print_log(f"{thread_prefix}Cleanup completed.", 'ℹ️ ', thread_color, show_time=True)
@@ -1475,7 +1475,6 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
     except Exception as e:
         with _print_lock:
             _print_log(f"{thread_prefix}An error occurred during cleanup: {e}", '⛔ ', BOLD_R)
-            traceback.print_exc()
 
 
 def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[int] | None = None) -> None:
@@ -1868,7 +1867,6 @@ def run(command: str, ok_message: str = '', error_message: str = '', print_outpu
         
         if print_errors:
             print_error(f'Command failed with error: {output_text}', duration = f'[{int((time.time() - start_time) // 60)}m:{int((time.time() - start_time) % 60)}s]')
-            traceback.print_exc()
 
     if print_output:
         print(f'Command output:\n{output_text}')
