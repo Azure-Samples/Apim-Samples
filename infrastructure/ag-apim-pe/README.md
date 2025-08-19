@@ -39,7 +39,7 @@ Use the certificate installation cell in the `create.ipynb` notebook for an inte
 **Option 2: Python Module (Cross-Platform)**
 Run this from the Python REPL:
 ```python
-from certificate_installer import install_certificate_for_infrastructure
+from certificate import install_certificate_for_infrastructure
 from apimtypes import INFRASTRUCTURE
 
 install_certificate_for_infrastructure(INFRASTRUCTURE.AG_APIM_PE, index, resource_group_name)

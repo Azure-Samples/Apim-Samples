@@ -128,6 +128,8 @@ param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id
 ### Python Instructions
 
 - Prefer Python 3.12+ syntax and features unless otherwise specified.
+- Favor creation of classes over utility function files.
+- Always execute unit tests to ensure 100% success rate after significant file changes.
 - When inserting a comment to describe a method, insert a blank line after the comment section.
 - Never leave a blank line at the very top of a Python file. The file must start immediately with the module docstring or code. Always remove any leading blank line at the top.
 - Do not have imports such as `from shared.python import Foo`. The /shared/python directory is covered by a root `.env` file. Just use `import Foo` or `from Foo import Bar` as appropriate.

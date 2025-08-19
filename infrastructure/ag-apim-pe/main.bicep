@@ -37,6 +37,10 @@ param kvCertificateCreatorObjectId string = ''
 @allowed([ 'User', 'ServicePrincipal' ])
 param kvCertificateCreatorPrincipalType string = 'User'
 
+@description('Password used when creating PFX files in deployment scripts. Provide a secure value when deploying (no default is set).')
+@secure()
+param pfxPassword string = ''
+
 // ------------------
 //    RESOURCES
 // ------------------
@@ -118,7 +122,7 @@ resource uami 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
   location: location
 }
 
-// 3.2 Key Vault to store self-signed cert
+// 3.2 Key Vault to store self-signed cert (temporarily accessible during deployment)
 var kvName = 'kv-${resourceSuffix}'
 resource keyVault 'Microsoft.KeyVault/vaults@2024-04-01-preview' = {
   name: kvName
@@ -131,8 +135,17 @@ resource keyVault 'Microsoft.KeyVault/vaults@2024-04-01-preview' = {
     }
     enableRbacAuthorization: true
     softDeleteRetentionInDays: 7
+    enablePurgeProtection: true  // Policy: Key vaults should have deletion protection enabled
+    // Allow public access during deployment for certificate creation, will be restricted after
     publicNetworkAccess: 'Enabled'
+    networkAcls: {
+      defaultAction: 'Allow'  // Allow during deployment
+      bypass: 'AzureServices'  // Allow Azure services like deployment scripts
+    }
   }
+  dependsOn: [
+    vnetModule
+  ]
 }
 
 // 3.3 RBAC: assign Key Vault Secrets User to UAMI
@@ -260,7 +273,7 @@ resource kvCertScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       $serverCsrPath = "/tmp/server.csr"
       $serverCertPath = "/tmp/server.crt"
       $pfxPath = "/tmp/apim.pfx"
-      $password = "TempPassword123!"
+  $password = "${pfxPassword}"
       $commonName = "apim-samples-${resourceGroup().name}"
       
       # Check if APIM Samples Root CA exists in Key Vault
@@ -403,6 +416,12 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
           }
           privateEndpointNetworkPolicies: 'Disabled'
           privateLinkServiceNetworkPolicies: 'Disabled'
+          serviceEndpoints: [
+            {
+              service: 'Microsoft.KeyVault'
+              locations: [ location ]
+            }
+          ]
         }
       }
     ]
@@ -420,7 +439,7 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
     apimSku: apimSku
     appInsightsInstrumentationKey: appInsightsInstrumentationKey
     appInsightsId: appInsightsId
-    publicAccess: true
+    publicAccess: true   // Must be enabled during creation; will be disabled after private endpoint setup
     // No apimSubnetResourceId provided here; we're using Private Endpoint instead
     globalPolicyXml: loadTextContent('../../shared/apim-policies/all-apis.xml')
   }
@@ -442,6 +461,39 @@ module peModule '../../shared/bicep/modules/private-endpoint/v1/private-endpoint
   }
 }
 
+// 6.1 Private Endpoint for Key Vault
+module kvPeModule '../../shared/bicep/modules/private-endpoint/v1/private-endpoint.bicep' = {
+  name: 'kvPrivateEndpoint'
+  params: {
+    privateEndpointName: 'pe-${resourceSuffix}-kv'
+    subnetResourceId: peSubnetResourceId
+    targetResourceId: keyVault.id
+    groupIds: [ 'vault' ]
+    privateDnsZoneName: 'privatelink.vaultcore.azure.net'
+    vnetId: vnetModule.outputs.vnetId
+    vnetLinkName: 'link-kv'
+    dnsZoneGroupName: 'dnsZoneGroup-kv'
+    dnsZoneConfigName: 'config-kv'
+  }
+}
+
+// 6.2 Disable APIM Public Access (after private endpoints are configured)
+module apimPublicAccessUpdate '../../shared/bicep/modules/apim/v1/apim.bicep' = {
+  name: 'apimPublicAccessUpdate'
+  params: {
+    apimName: apimModule.outputs.name
+    apimSku: apimSku
+    appInsightsInstrumentationKey: appInsightsInstrumentationKey
+    appInsightsId: appInsightsId
+    publicAccess: false  // Policy: API Management should disable public network access to the service configuration endpoints
+    globalPolicyXml: loadTextContent('../../shared/apim-policies/all-apis.xml')
+  }
+  dependsOn: [
+    peModule        // Wait for APIM private endpoint
+    kvPeModule      // Wait for Key Vault private endpoint
+  ]
+}
+
 // 7. Application Gateway backend to APIM Private Link FQDN
 // Note: APIM gateway Private Link hostnames resolve under privatelink.azure-api.net to a private IP.
 // We can use the public hostname and rely on DNS override in VNet, or explicitly point to privatelink FQDN.
@@ -453,13 +505,16 @@ module appGwModule '../../shared/bicep/modules/appgw/v1/appgw.bicep' = {
     appGatewayName: 'ag-${resourceSuffix}'
     appGatewaySubnetResourceId: appGwSubnetResourceId
     backendHostname: apimGatewayHostname
-  enableWaf: false
-  requestRoutingRulePriority: 100
-  includeHttpListener: false
-  includeHttpsListener: true
-  sslCertKeyVaultSecretId: sslSecretId
-  userAssignedIdentityResourceId: uami.id
+    requestRoutingRulePriority: 100
+    includeHttpListener: false
+    includeHttpsListener: true
+    sslCertKeyVaultSecretId: sslSecretId
+    userAssignedIdentityResourceId: uami.id
   }
+  dependsOn: [
+    peModule
+    apimModule
+  ]
 }
 
 // 8. APIM Policy Fragments

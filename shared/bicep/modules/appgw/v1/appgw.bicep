@@ -1,7 +1,8 @@
 /**
  * @module appgw-v1
- * @description Minimal Azure Application Gateway (WAF_v2 capable) with a public frontend and a single backend pointing to APIM.
- * Frontend: HTTP on port 80 (no certs per requirement). Backend: HTTPS to APIM with health probe.
+ * @description Azure Application Gateway (WAF_v2) with a public frontend and a single backend pointing to APIM.
+ * WAF is always enabled in Detection mode with OWASP 3.2 rule set for security compliance.
+ * Frontend: HTTPS on port 443 with certificate from Key Vault. Backend: HTTPS to APIM with health probe.
  */
 
 // ------------------------------
@@ -25,9 +26,6 @@ param backendHostname string
 
 @description('Health probe path for APIM. Defaults to status endpoint that requires no subscription key')
 param probePath string = '/status-0123456789abcdef'
-
-@description('Enable WAF. If false, Standard_v2 SKU is used. If true, WAF_v2 is used in Detection mode.')
-param enableWaf bool = false
 
 @description('Priority for the default request routing rule. Required from API version 2021-08-01 and later. Must be unique per rule and between 1 and 20000.')
 param requestRoutingRulePriority int = 100
@@ -74,8 +72,8 @@ resource appGateway 'Microsoft.Network/applicationGateways@2024-07-01' = {
   location: location
   properties: {
     sku: {
-      name: enableWaf ? 'WAF_v2' : 'Standard_v2'
-      tier: enableWaf ? 'WAF_v2' : 'Standard_v2'
+      name: 'WAF_v2'
+      tier: 'WAF_v2'
       capacity: 1
     }
     gatewayIPConfigurations: [
@@ -238,14 +236,12 @@ resource appGateway 'Microsoft.Network/applicationGateways@2024-07-01' = {
         }
       }
     ]
-    webApplicationFirewallConfiguration: enableWaf
-      ? {
-          enabled: true
-          firewallMode: 'Detection'
-          ruleSetType: 'OWASP'
-          ruleSetVersion: '3.2'
-        }
-      : null
+    webApplicationFirewallConfiguration: {
+      enabled: true
+      firewallMode: 'Detection'
+      ruleSetType: 'OWASP'
+      ruleSetVersion: '3.2'
+    }
   }
   identity: includeHttpsListener ? (!empty(userAssignedIdentityResourceId) ? {
     type: 'UserAssigned'

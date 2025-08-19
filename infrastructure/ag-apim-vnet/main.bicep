@@ -37,6 +37,10 @@ param kvCertificateCreatorObjectId string = ''
 @allowed([ 'User', 'ServicePrincipal' ])
 param kvCertificateCreatorPrincipalType string = 'User'
 
+@description('Password used when creating PFX files in deployment scripts. Provide a secure value when deploying (no default is set).')
+@secure()
+param pfxPassword string = ''
+
 // ------------------
 //    RESOURCES
 // ------------------
@@ -279,7 +283,7 @@ resource kvCertScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       $keyPath = "/tmp/apim.key"
       $certPath = "/tmp/apim.crt"
       $pfxPath = "/tmp/apim.pfx"
-      $password = "TempPassword123!"
+  $password = "${pfxPassword}"
       
       # Generate private key
       $keyResult = Invoke-Expression "openssl genrsa -out $keyPath 2048 2>&1"
@@ -393,12 +397,11 @@ module appGwModule '../../shared/bicep/modules/appgw/v1/appgw.bicep' = {
     appGatewayName: 'ag-${resourceSuffix}'
     appGatewaySubnetResourceId: appGwSubnetResourceId
     backendHostname: apimModule.outputs.gatewayUrl == '' ? '${apimName}.azure-api.net' : replace(apimModule.outputs.gatewayUrl, 'https://', '')
-  enableWaf: false
-  requestRoutingRulePriority: 100
-  includeHttpListener: false
-  includeHttpsListener: true
-  sslCertKeyVaultSecretId: sslSecretId
-  userAssignedIdentityResourceId: uami.id
+    requestRoutingRulePriority: 100
+    includeHttpListener: false
+    includeHttpsListener: true
+    sslCertKeyVaultSecretId: sslSecretId
+    userAssignedIdentityResourceId: uami.id
   }
 }
 

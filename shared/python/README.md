@@ -2,9 +2,9 @@
 
 This directory contains shared Python modules used across the APIM-Samples repository.
 
-## Certificate Installer Module
+## Certificate Module
 
-The `certificate_installer.py` module provides cross-platform functionality for downloading and installing self-signed certificates from Azure Key Vault into the local machine's trusted root certificate store.
+The `certificate` module provides cross-platform functionality for downloading and installing self-signed certificates from Azure Key Vault into the local machine's trusted root certificate store.
 
 ### Features
 
@@ -18,7 +18,7 @@ The `certificate_installer.py` module provides cross-platform functionality for 
 #### Install a Certificate
 
 ```python
-from certificate_installer import install_certificate_for_infrastructure
+from certificate import install_certificate_for_infrastructure
 from apimtypes import INFRASTRUCTURE
 
 # Install certificate for AG-APIM-PE infrastructure (index 1)
@@ -32,7 +32,7 @@ success = install_certificate_for_infrastructure(
 #### List Installed Certificates
 
 ```python
-from certificate_installer import list_installed_certificates
+from certificate import list_installed_apim_certificates
 
 list_installed_certificates()
 ```
@@ -40,7 +40,7 @@ list_installed_certificates()
 #### Remove All APIM Certificates
 
 ```python
-from certificate_installer import remove_all_apim_certificates
+from certificate import remove_all_apim_certificates
 
 success = remove_all_apim_certificates()
 ```
