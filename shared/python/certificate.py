@@ -19,17 +19,13 @@ from apimtypes import INFRASTRUCTURE
 from utils import (
     get_infra_rg_name,
     print_error,
-    print_info,
     print_message,
     print_ok,
-    print_success,
     print_warning,
-    run,
 )
 
 import sys
 import secrets
-import string
 
 
 def _resolve(name: str):
@@ -600,23 +596,23 @@ class CertificateManager:
     def _install_certificate_windows_powershell(temp_path: str) -> bool:
         try:
             ps_script = f'''
-        try {{
-            $cert = Import-PfxCertificate -FilePath "{temp_path}" -CertStoreLocation "Cert:\\CurrentUser\\Root" -Password (ConvertTo-SecureString "{DEFAULT_PFX_PASSWORD}" -AsPlainText -Force)
-            if ($cert) {{
                 try {{
-                    $cert.FriendlyName = "APIM Samples Root Certificate"
-                }} catch {{ }}
-                Write-Host "SUCCESS: Certificate imported with thumbprint: $($cert.Thumbprint)"
-                exit 0
-            }} else {{
-                Write-Host "FAILED: Certificate import returned null"
-                exit 1
-            }}
-        }} catch {{
-            Write-Host "ERROR: $($_.Exception.Message)"
-            exit 1
-        }}
-        '''
+                    $cert = Import-PfxCertificate -FilePath "{temp_path}" -CertStoreLocation "Cert:\\CurrentUser\\Root" -Password (ConvertTo-SecureString "{DEFAULT_PFX_PASSWORD}" -AsPlainText -Force)
+                    if ($cert) {{
+                        try {{
+                            $cert.FriendlyName = "APIM Samples Root Certificate"
+                        }} catch {{ }}
+                        Write-Host "SUCCESS: Certificate imported with thumbprint: $($cert.Thumbprint)"
+                        exit 0
+                    }} else {{
+                        Write-Host "FAILED: Certificate import returned null"
+                        exit 1
+                    }}
+                }} catch {{
+                    Write-Host "ERROR: $($_.Exception.Message)"
+                    exit 1
+                }}
+                '''
 
             result = subprocess.run(['powershell', '-Command', ps_script], capture_output=True, text=True)
 
@@ -978,7 +974,7 @@ def upload_root_ca_to_key_vault(key_vault_name: str) -> bool:
         print_error("Missing get_root_ca_paths helper")
         return False
 
-    ca_dir, cert_path, key_path = paths_func()
+    _, cert_path, key_path = paths_func()
 
     # Only download the public Root CA certificate if local files are missing
     if not (getattr(cert_path, 'exists', lambda: False)() and getattr(key_path, 'exists', lambda: False)()):
@@ -1010,7 +1006,7 @@ def upload_root_ca_to_key_vault(key_vault_name: str) -> bool:
             print_error("Missing get_root_ca_paths helper")
             return False
 
-        ca_dir, cert_path, key_path = paths_func()
+        _, cert_path, key_path = paths_func()
 
         # Create a temporary PFX file with both certificate and private key
         with tempfile.NamedTemporaryFile(suffix='.pfx', delete=False) as temp_pfx:
@@ -1081,11 +1077,20 @@ def ensure_apim_samples_root_ca_auto() -> bool:
         if not callable(paths_func):
             return False
 
-        ca_dir, cert_path, key_path = paths_func()
+        _, cert_path, key_path = paths_func()
 
-        # If files exist locally, assume OK
+        # If files exist locally, ensure they're installed to the store
         if cert_path.exists() and key_path.exists():
-            return True
+            # If already installed in store, we're done
+            try:
+                if _is_root_ca_installed():
+                    return True
+            except Exception:
+                # If check fails, fall through to attempt import
+                pass
+
+            # Try to import local cert/key into the OS trust store
+            return _import_local_root_ca_to_store(cert_path, key_path)
 
         # Resolve helpers dynamically so tests can patch them
         is_installed_func = _resolve('_is_root_ca_installed')
@@ -1095,6 +1100,18 @@ def ensure_apim_samples_root_ca_auto() -> bool:
 
         # If Root CA is already installed in store, we may recreate files
         if callable(is_installed_func) and is_installed_func():
+            # If files are missing but the store contains the Root CA, try exporting from store
+            if not (cert_path.exists() and key_path.exists()):
+                export_func = _resolve('_export_root_ca_from_store_to_local')
+                if callable(export_func):
+                    try:
+                        exported = export_func(cert_path, key_path)
+                        if exported:
+                            return True
+                    except Exception:
+                        # ignore export errors and fall back to regenerate
+                        pass
+
             if callable(openssl_func) and openssl_func():
                 if callable(create_func):
                     create_func()
@@ -1162,7 +1179,7 @@ def _is_root_ca_installed() -> bool:
         # Fallback: check local root ca paths
         paths_func = _resolve('get_root_ca_paths')
         if callable(paths_func):
-            ca_dir, cert_path, key_path = paths_func()
+            _, cert_path, _ = paths_func()
             return cert_path.exists()
         return False
 
@@ -1204,6 +1221,194 @@ def _create_root_ca() -> bool:
             key_path.write_text("")
         return True
     except Exception:
+        return False
+
+
+def _import_local_root_ca_to_store(cert_path: Path, key_path: Path) -> bool:
+    """Create a temporary PFX from local cert/key and import into OS trust store.
+
+    This is Windows-focused: it will try the PowerShell import first, then
+    fall back to certutil. On macOS/Linux it will attempt the platform helpers
+    if available; otherwise it prints manual instructions.
+    """
+    try:
+        # Ensure OpenSSL is available
+        if not check_openssl_availability(refresh_path=True):
+            print_error("OpenSSL required to create PFX from local cert/key")
+            return False
+
+        with tempfile.NamedTemporaryFile(suffix='.pfx', delete=False) as temp_pfx:
+            temp_pfx_path = temp_pfx.name
+
+        try:
+            pfx_cmd = [
+                'openssl', 'pkcs12', '-export',
+                '-out', temp_pfx_path,
+                '-inkey', str(key_path),
+                '-in', str(cert_path),
+                '-name', 'APIM Samples Root Certificate',
+                '-passout', f'pass:{DEFAULT_PFX_PASSWORD}'
+            ]
+
+            pfx_result = subprocess.run(pfx_cmd, capture_output=True, text=True)
+            if pfx_result.returncode != 0:
+                print_error(f"Failed to create PFX file: {pfx_result.stderr}")
+                return False
+
+            system = platform.system().lower()
+
+            # Prefer platform-specific helpers where available
+            if system == 'windows':
+                ps_func = _resolve('_install_certificate_windows_powershell')
+                if callable(ps_func):
+                    try:
+                        if ps_func(temp_pfx_path):
+                            return True
+                    except Exception:
+                        pass
+
+                certutil_func = _resolve('_install_certificate_windows_certutil')
+                if callable(certutil_func):
+                    try:
+                        if certutil_func(temp_pfx_path):
+                            return True
+                    except Exception:
+                        pass
+
+                print_message("Automatic Windows import failed. Please import the PFX manually using certmgr.msc or the GUI. PFX path: {0}".format(temp_pfx_path))
+                return False
+
+            elif system == 'darwin':
+                mac_func = _resolve('_install_certificate_macos')
+                if callable(mac_func):
+                    try:
+                        with open(temp_pfx_path, 'rb') as f:
+                            pfx_bytes = f.read()
+                        return mac_func(pfx_bytes, 'APIM Samples Root Certificate')
+                    except Exception as e:
+                        print_message(f"macOS import error: {e}")
+                        return False
+
+            elif system == 'linux':
+                linux_func = _resolve('_install_certificate_linux')
+                if callable(linux_func):
+                    try:
+                        with open(temp_pfx_path, 'rb') as f:
+                            pfx_bytes = f.read()
+                        # pass a placeholder infrastructure and index; helper prints instructions if needed
+                        return linux_func(pfx_bytes, 'APIM Samples Root Certificate', INFRASTRUCTURE.SIMPLE, 0)
+                    except Exception as e:
+                        print_message(f"Linux import error: {e}")
+                        return False
+
+            else:
+                print_warning(f"Unsupported OS for automatic import: {system}")
+                return False
+
+        finally:
+            try:
+                if os.path.exists(temp_pfx_path):
+                    os.unlink(temp_pfx_path)
+            except Exception:
+                pass
+
+    except Exception as e:
+        print_error(f"Error importing local Root CA to store: {str(e)}")
+        return False
+
+
+def _export_root_ca_from_store_to_local(cert_path: Path, key_path: Path) -> bool:
+    """Attempt to export the Root CA (including private key) from the OS store to local files.
+
+    Windows implementation uses certutil to find and export the certificate matching
+    the friendly name or subject. Exportability depends on how the certificate was
+    originally imported (private key must be marked exportable).
+    """
+    system = platform.system().lower()
+    try:
+        if system != 'windows':
+            # Non-Windows platforms: no standard store-export implemented here
+            print_message(f"Export-from-store not implemented for {system}")
+            return False
+
+        # Use certutil to locate the certificate by subject and export as PFX
+        # Try matching the known subject string first
+        find_cmd = 'certutil -store Root'
+        find_result = subprocess.run(find_cmd, shell=True, capture_output=True, text=True)
+        if find_result.returncode != 0:
+            return False
+
+        # Look for APIM Samples Root or fallback to apim-samples
+        stdout = find_result.stdout or ''
+        lines = stdout.splitlines()
+        thumbprint = None
+        for i, line in enumerate(lines):
+            if 'APIM Samples Root' in line or 'apim-samples' in line.lower():
+                # Scan following lines for 'Cert Hash(sha1):' or 'Hash:' which certutil prints
+                # Fallback: find next non-empty line that looks like a hash
+                # certutil output varies; attempt to find a thumbprint-like token
+                # Simplest heuristic: look ahead a few lines for a hex string
+                for j in range(i, min(i+6, len(lines))):
+                    candidate = lines[j].strip()
+                    if candidate:
+                        # thumbprints are hex strings with length >=20
+                        token = ''.join(candidate.split()).replace(':','')
+                        if len(token) >= 20 and all(c in '0123456789ABCDEFabcdef' for c in token):
+                            thumbprint = token
+                            break
+                # Also attempt to capture Subject line if present (not used currently)
+                # Skipping assignment to avoid unused-variable warnings
+                if thumbprint:
+                    break
+
+        if not thumbprint:
+            print_message('Could not locate a suitable APIM Samples Root certificate in the store for export')
+            return False
+
+        # Export thumbprint to a temporary PFX using certutil
+        with tempfile.NamedTemporaryFile(suffix='.pfx', delete=False) as tmp_pfx:
+            tmp_pfx_path = tmp_pfx.name
+
+        export_cmd = f'certutil -exportPFX -user {thumbprint} "{tmp_pfx_path}"'
+        export_result = subprocess.run(export_cmd, shell=True, capture_output=True, text=True)
+        if export_result.returncode != 0:
+            print_message(f"Failed to export PFX from store: {export_result.stdout} {export_result.stderr}")
+            try:
+                if os.path.exists(tmp_pfx_path):
+                    os.unlink(tmp_pfx_path)
+            except Exception:
+                pass
+            return False
+
+        try:
+            # Extract cert and key using OpenSSL
+            if not check_openssl_availability(refresh_path=True):
+                print_error('OpenSSL required to extract cert/key from exported PFX')
+                return False
+
+            # Extract certificate
+            extract_cert_cmd = f'openssl pkcs12 -in "{tmp_pfx_path}" -clcerts -nokeys -out "{cert_path}" -passin pass:{DEFAULT_PFX_PASSWORD}'
+            extract_key_cmd = f'openssl pkcs12 -in "{tmp_pfx_path}" -nocerts -nodes -out "{key_path}" -passin pass:{DEFAULT_PFX_PASSWORD}'
+
+            res1 = subprocess.run(extract_cert_cmd, shell=True, capture_output=True, text=True)
+            res2 = subprocess.run(extract_key_cmd, shell=True, capture_output=True, text=True)
+
+            if res1.returncode != 0 or res2.returncode != 0:
+                print_message(f"OpenSSL extraction failed: {res1.stderr} {res2.stderr}")
+                return False
+
+            print_ok('Exported Root CA from store to local cert/key files')
+            return True
+
+        finally:
+            try:
+                if os.path.exists(tmp_pfx_path):
+                    os.unlink(tmp_pfx_path)
+            except Exception:
+                pass
+
+    except Exception as e:
+        print_error(f"Error exporting Root CA from store: {e}")
         return False
 
 

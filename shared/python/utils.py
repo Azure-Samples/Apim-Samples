@@ -8,18 +8,14 @@ import datetime
 import inspect
 import json
 import os
-import platform
 import re
 import secrets
-import shutil
 import string
 import subprocess
 import sys
-import tempfile
 import textwrap
 import threading
 import time
-import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 

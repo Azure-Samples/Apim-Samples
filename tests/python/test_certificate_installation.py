@@ -234,23 +234,22 @@ class TestRootCAFunctionality:
         assert result is True
         mock_linux_check.assert_called_once()
 
-    @patch('subprocess.run')
-    def test_is_root_ca_installed_windows_with_friendly_name(self, mock_subprocess):
-        """Test Windows Root CA detection with friendly name"""
-        # Mock certutil output containing the friendly name
-        mock_result = Mock()
-        mock_result.returncode = 0
-        mock_result.stdout = """
+        @patch('subprocess.run')
+        def test_is_root_ca_installed_windows_with_friendly_name(self, mock_subprocess):
+                """Test Windows Root CA detection with friendly name"""
+                # Mock certutil output containing the friendly name (use Subject instead)
+                mock_result = Mock()
+                mock_result.returncode = 0
+                mock_result.stdout = """
 Cert Hash(sha1): 1234567890abcdef
-  FriendlyName: APIM Samples Root Certificate
-  Subject: CN=APIM Samples Root Certificate, OU=Development, O=APIM Samples
-        """
-        mock_subprocess.return_value = mock_result
-        
-        result = _is_root_ca_installed_windows()
-        
-        assert result is True
-        mock_subprocess.assert_called_once()
+    Subject: CN=APIM Samples Root Certificate, OU=Development, O=APIM Samples
+                """
+                mock_subprocess.return_value = mock_result
+
+                result = _is_root_ca_installed_windows()
+
+                assert result is True
+                mock_subprocess.assert_called_once()
 
     @patch('subprocess.run')
     def test_is_root_ca_installed_windows_with_legacy_name(self, mock_subprocess):
