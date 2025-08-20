@@ -2,15 +2,16 @@
 Factory for creating authentication tokens or objects for Azure API Management samples.
 """
 
-from typing import Any
-from users import User
-import jwt
 import time
+from typing import Any
 
+import jwt
+from users import User
 
 # ------------------------------
 #    CLASSES
 # ------------------------------
+
 
 class JwtPayload:
     """
@@ -24,18 +25,25 @@ class JwtPayload:
 
     DEFAULT_LIFETIME_SECONDS = 3600 * 24  # Default lifetime of 24 hours
 
-
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, subject: str, name: str, issued_at: int | None = None, expires: int | None = None, roles: dict[str] | None = None) -> None:
+    def __init__(
+        self,
+        subject: str,
+        name: str,
+        issued_at: int | None = None,
+        expires: int | None = None,
+        roles: dict[str] | None = None,
+    ) -> None:
         self.sub = subject
-        self.name = name        
+        self.name = name
         self.iat = issued_at if issued_at is not None else int(time.time())
-        self.exp = expires if expires is not None else self.iat + self.DEFAULT_LIFETIME_SECONDS
+        self.exp = (
+            expires if expires is not None else self.iat + self.DEFAULT_LIFETIME_SECONDS
+        )
         self.roles = roles if roles is not None else []
-
 
     # ------------------------------
     #    PUBLIC METHODS
@@ -46,14 +54,14 @@ class JwtPayload:
         Convert the payload to a dictionary for encoding.
         """
         pl: dict[str, Any] = {
-            'sub': self.sub,
-            'name': self.name,
-            'iat': self.iat,
-            'exp': self.exp
-        } 
+            "sub": self.sub,
+            "name": self.name,
+            "iat": self.iat,
+            "exp": self.exp,
+        }
 
         if bool(self.roles):
-            pl['roles'] = self.roles
+            pl["roles"] = self.roles
 
         return pl
 
@@ -80,7 +88,6 @@ class SymmetricJwtToken:
         self.key = key
         self.payload = payload
 
-
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
@@ -95,9 +102,9 @@ class SymmetricJwtToken:
         Note:
             The key parameter used for signing must be a regular ASCII string, NOT a base64-encoded string. If you have a base64-encoded key, decode it to its ASCII form before using it here. Passing a base64-encoded string directly will result in signature validation errors in APIM or other JWT consumers.
         """
-        return jwt.encode(self.payload.to_dict(), self.key, algorithm = 'HS256')
+        return jwt.encode(self.payload.to_dict(), self.key, algorithm="HS256")
 
-    
+
 class AuthFactory:
     """
     Factory class for creating authentication tokens or objects.
@@ -110,16 +117,16 @@ class AuthFactory:
     @staticmethod
     def create_symmetric_jwt_token_for_user(user: User, jwt_key: str) -> str:
         if not user:
-            raise ValueError('User is required to create a symmetric JWT token.')
-        
-        if not str(jwt_key):
-            raise ValueError('JWT key is required to create a symmetric JWT token.')
+            raise ValueError("User is required to create a symmetric JWT token.")
 
-        jwt_payload = JwtPayload(subject = user.id, name = user.name, roles = user.roles)
+        if not str(jwt_key):
+            raise ValueError("JWT key is required to create a symmetric JWT token.")
+
+        jwt_payload = JwtPayload(subject=user.id, name=user.name, roles=user.roles)
         symmetric_jwt = SymmetricJwtToken(jwt_key, jwt_payload)
-        
+
         return symmetric_jwt.encode()
-    
+
     @staticmethod
     def create_jwt_payload_for_user(user: User) -> Any:
         """
@@ -133,11 +140,6 @@ class AuthFactory:
         """
 
         if not user:
-            raise ValueError('User is required to create JWT payload.')
+            raise ValueError("User is required to create JWT payload.")
 
-        return {
-            'sub': user.id,
-            'name': user.name,
-            'roles': user.roles
-        }
-
+        return {"sub": user.id, "name": user.name, "roles": user.roles}

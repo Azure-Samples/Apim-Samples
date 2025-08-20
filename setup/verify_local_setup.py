@@ -43,7 +43,7 @@ def check_virtual_environment():
     expected_venv_python = venv_path / ("Scripts" if os.name == 'nt' else "bin") / "python"
     
     if not str(current_python).startswith(str(venv_path)):
-        print_status(f"Not using virtual environment Python", False)
+        print_status('Not using virtual environment Python', False)
         print(f"   Current: {current_python}")
         print(f"   Expected: {expected_venv_python}")
         return False

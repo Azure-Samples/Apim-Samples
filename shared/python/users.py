@@ -2,26 +2,27 @@
 Types and constants for authentication and authorization.
 """
 
-from typing import List
-from enum import StrEnum
 import random
-from apimtypes import Role
+from enum import StrEnum
+from typing import List
 
+from apimtypes import Role
 
 # ------------------------------
 #    CLASSES
 # ------------------------------
+
 
 class UserName(StrEnum):
     """
     Predefined user names for testing purposes.
     """
 
-    DYLAN_WILLIAMS = 'Dylan Williams'
-    ELIZABETH_MOORE = 'Elizabeth Moore'
-    MARIO_ROGERS = 'Mario Rogers'
-    ELLIS_TURNER = 'Ellis Turner'
-    HARRY_SMITH = 'Harry Smith'
+    DYLAN_WILLIAMS = "Dylan Williams"
+    ELIZABETH_MOORE = "Elizabeth Moore"
+    MARIO_ROGERS = "Mario Rogers"
+    ELLIS_TURNER = "Ellis Turner"
+    HARRY_SMITH = "Harry Smith"
 
 
 class User:
@@ -47,7 +48,6 @@ class User:
         self.name = name
         self.roles = roles if roles is not None else []
 
-
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
@@ -65,12 +65,29 @@ class User:
 
 # Predefined users
 Users: List[User] = [
-    User('4ea76b2c-6cea-4b8f-b81e-b242ae10c040', UserName.DYLAN_WILLIAMS),
-    User('e461f19b-4795-4153-a0c4-77e4561b1d0e', UserName.ELIZABETH_MOORE, [Role.HR_MEMBER]),
-    User('5b873099-8d4b-4563-846e-6c591e660a8f', UserName.MARIO_ROGERS, [Role.HR_MEMBER, Role.HR_ASSOCIATE]),
-    User('236af317-ef1e-4a37-918a-f58f51ce421a', UserName.ELLIS_TURNER, [Role.HR_MEMBER, Role.HR_ADMINISTRATOR]),
-    User('d1f8b2c3-4e5f-6a7b-8c9d-e0f1a2b3c4d5', UserName.HARRY_SMITH, [Role.MARKETING_MEMBER])
+    User("4ea76b2c-6cea-4b8f-b81e-b242ae10c040", UserName.DYLAN_WILLIAMS),
+    User(
+        "e461f19b-4795-4153-a0c4-77e4561b1d0e",
+        UserName.ELIZABETH_MOORE,
+        [Role.HR_MEMBER],
+    ),
+    User(
+        "5b873099-8d4b-4563-846e-6c591e660a8f",
+        UserName.MARIO_ROGERS,
+        [Role.HR_MEMBER, Role.HR_ASSOCIATE],
+    ),
+    User(
+        "236af317-ef1e-4a37-918a-f58f51ce421a",
+        UserName.ELLIS_TURNER,
+        [Role.HR_MEMBER, Role.HR_ADMINISTRATOR],
+    ),
+    User(
+        "d1f8b2c3-4e5f-6a7b-8c9d-e0f1a2b3c4d5",
+        UserName.HARRY_SMITH,
+        [Role.MARKETING_MEMBER],
+    ),
 ]
+
 
 class UserHelper:
     """
@@ -82,7 +99,7 @@ class UserHelper:
     # ------------------------------
 
     @staticmethod
-    def get_user(username: 'str | UserName') -> 'User | None':
+    def get_user(username: "str | UserName") -> "User | None":
         """
         Retrieves a user by their username (string or UserName enum).
 
@@ -93,12 +110,12 @@ class UserHelper:
             User | None: The user if found, otherwise None.
         """
 
-        name = username.value if hasattr(username, 'value') else username
+        name = username.value if hasattr(username, "value") else username
 
         return next((user for user in Users if user.name == name), None)
 
     @staticmethod
-    def get_user_by_role(role_or_roles: str | list[str]) -> 'User | None':
+    def get_user_by_role(role_or_roles: str | list[str]) -> "User | None":
         """
         Retrieves a random user who has any of the specified roles.
 
@@ -110,8 +127,6 @@ class UserHelper:
         Returns:
             User | None: A random user with one of the given roles, or a user with no roles if Role.NONE is specified, or None if no match.
         """
-
-        from apimtypes import Role
 
         if isinstance(role_or_roles, str):
             roles = [role_or_roles]

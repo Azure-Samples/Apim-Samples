@@ -1,0 +1,44 @@
+[MESSAGES CONTROL]
+disable =
+    C0103,  # Variable name doesn't conform to snake_case
+    C0116,
+    C0200,
+    C0301,  # Line too long
+    C0302,  # Too many lines in module
+    E0606,
+    E1101,
+    R0205,
+    R0801,
+    R0902,
+    R0903,  # Too few public methods
+    R0911,  # Too many return statements
+    R0912,  # Too many branches
+    R0913,  # Too many arguments
+    R0914,  # Too many local variables
+    R0915,  # Too many statements
+    R0916,  # Too many nested blocks
+    R0917,  # Too many boolean expressions
+    R1702,  # Too many nested blocks
+    R1705,  
+    R1710,
+    R1724,  # Redundant comparison with None
+    R1732,
+    W0201,
+    W0603,  # Using the global statement
+    W0127,
+    W0212,
+    W0511,
+    W0702,
+    W0613,
+    W0621,
+    W0622,
+    W0707,  
+    W0718,   # Unused variable
+    W0719,
+    W1514
+
+[MASTER]
+# Ensure pylint can import in-repo modules that live under shared/python by
+# adding that directory to sys.path when pylint runs from the repository root.
+# This mirrors how the project's test runner configures PYTHONPATH.
+init-hook='import sys, os; sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "shared", "python")))'

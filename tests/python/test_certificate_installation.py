@@ -334,6 +334,53 @@ Cert Hash(sha1): 1234567890abcdef
 
     @patch('certificate.get_root_ca_paths')
     @patch('certificate._is_root_ca_installed')
+    @patch('certificate._import_local_root_ca_to_store')
+    def test_ensure_apim_samples_root_ca_auto_local_files_but_not_installed(self, mock_import, mock_installed, mock_paths):
+        """Scenario 2: Local files exist but Root CA not installed -> import should be attempted"""
+        from pathlib import Path
+        from unittest.mock import MagicMock
+
+        # Mock existing certificate files
+        mock_cert_path = MagicMock()
+        mock_cert_path.exists.return_value = True
+        mock_key_path = MagicMock()
+        mock_key_path.exists.return_value = True
+        mock_paths.return_value = (Path("/mock"), mock_cert_path, mock_key_path)
+
+        # Indicate Root CA not installed in store
+        mock_installed.return_value = False
+        mock_import.return_value = True
+
+        result = ensure_apim_samples_root_ca_auto()
+
+        assert result is True
+        mock_import.assert_called_once_with(mock_cert_path, mock_key_path)
+
+    @patch('certificate.get_root_ca_paths')
+    @patch('certificate._is_root_ca_installed')
+    @patch('certificate._export_root_ca_from_store_to_local')
+    def test_ensure_apim_samples_root_ca_auto_export_from_store_success(self, mock_export, mock_installed, mock_paths):
+        """Scenario 3: Files missing but store contains Root CA -> export should be attempted"""
+        from pathlib import Path
+        from unittest.mock import MagicMock
+
+        # Mock missing certificate files
+        mock_cert_path = MagicMock()
+        mock_cert_path.exists.return_value = False
+        mock_key_path = MagicMock()
+        mock_key_path.exists.return_value = False
+        mock_paths.return_value = (Path("/mock"), mock_cert_path, mock_key_path)
+
+        mock_installed.return_value = True
+        mock_export.return_value = True
+
+        result = ensure_apim_samples_root_ca_auto()
+
+        assert result is True
+        mock_export.assert_called_once_with(mock_cert_path, mock_key_path)
+
+    @patch('certificate.get_root_ca_paths')
+    @patch('certificate._is_root_ca_installed')
     @patch('certificate.check_openssl_availability')
     def test_ensure_apim_samples_root_ca_auto_no_openssl(self, mock_openssl, mock_installed, mock_paths):
         """Test automatic Root CA setup when OpenSSL is not available"""

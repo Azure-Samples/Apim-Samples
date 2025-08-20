@@ -114,8 +114,8 @@ SPOTIFY_CLIENT_SECRET=
     print(f"Generated .env file   : {env_file_path}")
     print(f"PROJECT_ROOT          : {project_root}")
     print(f"PYTHONPATH            : {shared_python_path}")
-    print(f"SPOTIFY_CLIENT_ID     : ")
-    print(f"SPOTIFY_CLIENT_SECRET : \n")
+    print('SPOTIFY_CLIENT_ID     : ')
+    print('SPOTIFY_CLIENT_SECRET : \n')
 
 
 def install_jupyter_kernel():
@@ -152,13 +152,13 @@ def install_jupyter_kernel():
             f'--name={kernel_name}', 
             f'--display-name={display_name}'
         ], check=True, capture_output=True, text=True)
-        
-        print(f"✅ Jupyter kernel registered successfully:")
+
+        print('✅ Jupyter kernel registered successfully:')
         print(f"   Name         : {kernel_name}")
         print(f"   Display Name : {display_name}")
-        
+
         return True
-        
+
     except subprocess.CalledProcessError as e:
         print(f"❌ Failed to register Jupyter kernel: {e}")
         if e.stderr:
@@ -251,11 +251,11 @@ def create_vscode_settings():
             print("   - Python interpreter configured for .venv")
             
         except (json.JSONDecodeError, IOError) as e:
-            print(f"⚠️  Existing settings.json has comments or formatting issues")
-            print(f"   Please manually add these settings to preserve your existing configuration:")
-            print(f"   - \"jupyter.defaultKernel\": \"apim-samples\"")
-            print(f"   - \"python.defaultInterpreterPath\": \"{required_settings['python.defaultInterpreterPath']}\"")
-            print(f"   - \"python.pythonPath\": \"{required_settings['python.pythonPath']}\"")
+            print('⚠️  Existing settings.json has comments or formatting issues')
+            print('   Please manually add these settings to preserve your existing configuration:')
+            print('   - "jupyter.defaultKernel": "apim-samples"')
+            print(f'   - "python.defaultInterpreterPath": "{required_settings["python.defaultInterpreterPath"]}"')
+            print(f'   - "python.pythonPath": "{required_settings["python.pythonPath"]}"')
             return False
     else:
         # Create new settings file
@@ -417,7 +417,7 @@ def setup_complete_environment():
     # Summary
     print("\n" + "="*50)
     print("📋 Setup Summary:")
-    print(f"   ✅ Python path configuration: Complete")
+    print('   ✅ Python path configuration: Complete')
     print(f"   {'✅' if kernel_success else '❌'} Jupyter kernel registration: {'Complete' if kernel_success else 'Failed'}")
     print(f"   {'✅' if vscode_success else '❌'} VS Code settings: {'Complete' if vscode_success else 'Failed'}")
     print(f"   {'✅' if consistency_success else '❌'} Kernel consistency enforcement: {'Complete' if consistency_success else 'Failed'}")
