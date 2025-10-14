@@ -98,26 +98,29 @@ class Output(object):
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, success: bool, text: str):
+    def __init__(self, success: bool, text: str = "", json_data: Any = None):
         """
         Initialize the Output object with command success status and output text.
         Attempts to parse JSON from the output text.
         """
-
         self.success = success
         self.text = text
         self.jsonParseException = None
 
-        # Check if the exact string is JSON.
-        if is_string_json(text):
-            try:
-                self.json_data = json.loads(text)
-            except json.JSONDecodeError as e:
-                self.jsonParseException = e
-                self.json_data = extract_json(text)
+        # If caller provided parsed json_data directly, prefer that.
+        if json_data is not None:
+            self.json_data = json_data
         else:
-            # Check if a substring in the string is JSON.
-            self.json_data = extract_json(text)
+            # Check if the exact string is JSON.
+            if is_string_json(text):
+                try:
+                    self.json_data = json.loads(text)
+                except json.JSONDecodeError as e:
+                    self.jsonParseException = e
+                    self.json_data = extract_json(text)
+            else:
+                # Check if a substring in the string is JSON.
+                self.json_data = extract_json(text)
 
         self.is_json = self.json_data is not None
 

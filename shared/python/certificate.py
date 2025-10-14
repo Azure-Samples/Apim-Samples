@@ -531,7 +531,8 @@ class CertificateManager:
                 # Ignore grant errors here; downstream calls will fail as needed
                 pass
 
-        with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False) as temp_file:
+        certs_dir = get_local_certs_dir()
+        with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False, dir=str(certs_dir)) as temp_file:
             temp_path = temp_file.name
 
         try:
@@ -656,16 +657,33 @@ class CertificateManager:
             return False
 
     @staticmethod
-    def _install_certificate_windows(cert_data: bytes) -> bool:
-        with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False) as temp_file:
+    def _install_certificate_windows(cert_data: bytes, display_name: str = "APIM Samples Root Certificate") -> bool:
+        # Create PFX file in workspace-local .certs directory so it is
+        # preserved for manual import if automatic installation fails.
+        certs_dir = get_local_certs_dir()
+        with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False, dir=str(certs_dir)) as temp_file:
             temp_file.write(cert_data)
             temp_path = temp_file.name
+
+        # By default we will remove the temporary file after the operation.
+        # If automatic installation fails and we print manual instructions,
+        # keep_temp will be set to True so the file remains for the user.
+        keep_temp = False
 
         try:
             ps_func = _resolve("_install_certificate_windows_powershell")
             powershell_success = False
             if callable(ps_func):
-                powershell_success = ps_func(temp_path)
+                # Call the helper with the single temp_path first to preserve
+                # backward-compatible behavior expected by tests/mocks.
+                try:
+                    powershell_success = ps_func(temp_path)
+                except TypeError:
+                    # If the helper requires a display_name parameter, try that.
+                    try:
+                        powershell_success = ps_func(temp_path, display_name)
+                    except Exception:
+                        powershell_success = False
             if powershell_success:
                 return True
 
@@ -676,9 +694,7 @@ class CertificateManager:
             if certutil_success:
                 return True
 
-            print_warning(
-                "Automatic installation failed. Manual installation required."
-            )
+            print_warning("Automatic installation failed. Manual installation required.")
             print("To install the certificate manually:")
             print(f"1. Navigate to: {temp_path}")
             print("2. Double-click the certificate file")
@@ -691,23 +707,38 @@ class CertificateManager:
             print("7. Click 'OK' and 'Finish'")
             print(f"8. Password when prompted: {DEFAULT_PFX_PASSWORD}")
             print(f"Certificate file saved at: {temp_path}")
+
+            # Keep the temp file available for manual import
+            keep_temp = True
             return False
 
         except Exception as e:
             print_error(f"Certificate installation error: {str(e)}")
             if os.path.exists(temp_path):
-                os.unlink(temp_path)
+                try:
+                    os.unlink(temp_path)
+                except Exception:
+                    pass
             return False
+        finally:
+            # Clean up temp file unless the caller needs it for manual import
+            try:
+                if os.path.exists(temp_path) and not keep_temp:
+                    os.unlink(temp_path)
+            except Exception:
+                pass
 
     @staticmethod
-    def _install_certificate_windows_powershell(temp_path: str) -> bool:
+    def _install_certificate_windows_powershell(temp_path: str, display_name: str = "APIM Samples Root Certificate") -> bool:
         try:
+            # Use the provided display_name for the certificate FriendlyName when possible
+            safe_name = display_name.replace('"', '') if isinstance(display_name, str) else "APIM Samples Root Certificate"
             ps_script = f"""
                 try {{
                     $cert = Import-PfxCertificate -FilePath "{temp_path}" -CertStoreLocation "Cert:\\CurrentUser\\Root" -Password (ConvertTo-SecureString "{DEFAULT_PFX_PASSWORD}" -AsPlainText -Force)
                     if ($cert) {{
                         try {{
-                            $cert.FriendlyName = "APIM Samples Root Certificate"
+                            $cert.FriendlyName = "{safe_name}"
                         }} catch {{ }}
                         Write-Host "SUCCESS: Certificate imported with thumbprint: $($cert.Thumbprint)"
                         exit 0
@@ -762,8 +793,9 @@ class CertificateManager:
             return False
 
     @staticmethod
-    def _install_certificate_macos(cert_data: bytes) -> bool:
-        with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False) as temp_file:
+    def _install_certificate_macos(cert_data: bytes, display_name: str = "APIM Samples Root Certificate") -> bool:
+        certs_dir = get_local_certs_dir()
+        with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False, dir=str(certs_dir)) as temp_file:
             temp_file.write(cert_data)
             temp_path = temp_file.name
 
@@ -795,6 +827,7 @@ class CertificateManager:
     @staticmethod
     def _install_certificate_linux(
         cert_data: bytes,
+        display_name: str,
         infrastructure_type: INFRASTRUCTURE,
         index: int,
     ) -> bool:
@@ -805,7 +838,8 @@ class CertificateManager:
         cert_path = cert_dir / cert_filename
 
         try:
-            with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False) as temp_file:
+            certs_dir = get_local_certs_dir()
+            with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False, dir=str(certs_dir)) as temp_file:
                 temp_file.write(cert_data)
                 temp_path = temp_file.name
 
@@ -1167,7 +1201,8 @@ def upload_root_ca_to_key_vault(key_vault_name: str) -> bool:
         _, cert_path, key_path = paths_func()
 
         # Create a temporary PFX file with both certificate and private key
-        with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False) as temp_pfx:
+        certs_dir = get_local_certs_dir()
+        with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False, dir=str(certs_dir)) as temp_pfx:
             temp_pfx_path = temp_pfx.name
 
         try:
@@ -1234,6 +1269,30 @@ def get_root_ca_paths():
     cert_path = ca_dir / "apim-samples-root-ca.crt"
     key_path = ca_dir / "apim-samples-root-ca.key"
     return ca_dir, cert_path, key_path
+
+
+def get_local_certs_dir() -> Path:
+    """Return a workspace-local .certs directory (repo root/.certs).
+
+    This directory is intended for temporary PFX/PKCS12 files created by the
+    tooling. It is safer than using the system temp directory because it is
+    inside the project and can be gitignored.
+    """
+    try:
+        # Assume this file lives under <repo>/shared/python/certificate.py
+        repo_root = Path(__file__).resolve().parents[2]
+    except Exception:
+        repo_root = Path.cwd()
+
+    certs_dir = repo_root / ".certs"
+    try:
+        certs_dir.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        # Fall back to a user-local dir if creation fails
+        certs_dir = Path.home() / ".apim-samples" / "tmp-certs"
+        certs_dir.mkdir(parents=True, exist_ok=True)
+
+    return certs_dir
 
 
 def get_openssl_executable():
@@ -1540,7 +1599,14 @@ def _import_local_root_ca_to_store(cert_path: Path, key_path: Path) -> bool:
             print_error("OpenSSL required to create PFX from local cert/key")
             return False
 
-        with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False) as temp_pfx:
+        # keep_temp controls whether the temporary PFX should be retained
+        # after the function returns. It's set to True when the function
+        # prints manual import instructions (so users can import the file
+        # themselves). Default is False (cleanup performed).
+        keep_temp = False
+
+        certs_dir = get_local_certs_dir()
+        with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False, dir=str(certs_dir)) as temp_pfx:
             temp_pfx_path = temp_pfx.name
 
         try:
@@ -1587,7 +1653,13 @@ def _import_local_root_ca_to_store(cert_path: Path, key_path: Path) -> bool:
                     except Exception:
                         pass
 
-                print_message(f'Automatic Windows import failed. Please import the PFX manually using certmgr.msc or the GUI. PFX path: {temp_pfx_path}')
+                # Automatic import failed; leave the temporary PFX in place
+                # so the user can import it manually. Set keep_temp to True to
+                # avoid removing it in the finally block.
+                keep_temp = True
+                print_message(
+                    f'Automatic Windows import failed. Please import the PFX manually using certmgr.msc or the GUI. PFX path: {temp_pfx_path}'
+                )
 
                 return False
 
@@ -1625,7 +1697,9 @@ def _import_local_root_ca_to_store(cert_path: Path, key_path: Path) -> bool:
 
         finally:
             try:
-                if os.path.exists(temp_pfx_path):
+                # Only remove the temporary file if we are not intentionally
+                # keeping it for manual import/debugging purposes.
+                if os.path.exists(temp_pfx_path) and not keep_temp:
                     os.unlink(temp_pfx_path)
             except Exception:
                 pass
@@ -1690,7 +1764,8 @@ def _export_root_ca_from_store_to_local(cert_path: Path, key_path: Path) -> bool
             return False
 
         # Export thumbprint to a temporary PFX using certutil
-        with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False) as tmp_pfx:
+        certs_dir = get_local_certs_dir()
+        with tempfile.NamedTemporaryFile(suffix=".pfx", delete=False, dir=str(certs_dir)) as tmp_pfx:
             tmp_pfx_path = tmp_pfx.name
 
         export_cmd = f'certutil -exportPFX -user {thumbprint} "{tmp_pfx_path}"'

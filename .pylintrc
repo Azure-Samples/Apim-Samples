@@ -1,6 +1,7 @@
 [MESSAGES CONTROL]
 disable =
     C0103,  # Variable name doesn't conform to snake_case
+    C0115,
     C0116,
     C0200,
     C0301,  # Line too long

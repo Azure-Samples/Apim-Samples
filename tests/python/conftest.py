@@ -1,3 +1,4 @@
+# pylint: disable=import-outside-toplevel
 """
 Shared test configuration and fixtures for pytest.
 """

@@ -403,7 +403,8 @@ class ApimRequests:
         runs: int,
         data=None,
         msg: str | None = None,
-        sleep_ms: int | None = None,
+    print_response: bool = True,
+    sleep_ms: int | None = None,
     ) -> list[dict[str, Any]]:
         """
         Perform multiple GET requests to the APIM endpoint.
@@ -530,7 +531,8 @@ class ApimRequests:
         runs: int,
         data=None,
         msg: str | None = None,
-        sleepMs: int | None = None,
+    printResponse: bool = True,
+    sleepMs: int | None = None,
     ) -> list[dict[str, Any]]:
         """
         Make multiple GET requests to the Azure API Management service.
