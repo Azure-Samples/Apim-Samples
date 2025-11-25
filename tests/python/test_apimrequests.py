@@ -222,10 +222,10 @@ def test_request_with_custom_headers(mock_request, apim):
     mock_response.json.return_value = {'result': 'ok'}
     mock_response.raise_for_status.return_value = None
     mock_request.return_value = mock_response
-    
+
     custom_headers = {'Custom': 'value'}
     result = apim.singleGet(default_path, headers=custom_headers)
-    
+
     # Verify custom headers were merged with default headers
     call_kwargs = mock_request.call_args[1]
     assert 'Custom' in call_kwargs['headers']
@@ -236,9 +236,9 @@ def test_request_with_custom_headers(mock_request, apim):
 def test_request_timeout_error(mock_request, apim):
     """Test request with timeout error."""
     mock_request.side_effect = requests.exceptions.Timeout()
-    
+
     result = apim.singleGet(default_path)
-    
+
     assert result is None
 
 @pytest.mark.unit
@@ -246,9 +246,9 @@ def test_request_timeout_error(mock_request, apim):
 def test_request_connection_error(mock_request, apim):
     """Test request with connection error."""
     mock_request.side_effect = requests.exceptions.ConnectionError()
-    
+
     result = apim.singleGet(default_path)
-    
+
     assert result is None
 
 @pytest.mark.unit
@@ -307,7 +307,7 @@ def test_request_with_data(mock_request, apim):
 def test_apim_requests_without_subscription_key():
     """Test ApimRequests initialization without subscription key."""
     apim = ApimRequests(default_url)
-    
+
     assert apim.url == default_url
     assert apim.apimSubscriptionKey is None
     assert SUBSCRIPTION_KEY_PARAMETER_NAME not in apim.headers
@@ -371,7 +371,7 @@ def test_multi_request_with_message(mock_print_info, mock_print_message, mock_se
     """Test _multiRequest method with message parameter."""
     mock_session = MagicMock()
     mock_session_class.return_value = mock_session
-    
+
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.headers = {'Content-Type': 'application/json'}
@@ -393,7 +393,7 @@ def test_multi_request_path_without_leading_slash(mock_print_info, mock_session_
     """Test _multiRequest method with path without leading slash."""
     mock_session = MagicMock()
     mock_session_class.return_value = mock_session
-    
+
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.headers = {'Content-Type': 'application/json'}
@@ -418,7 +418,7 @@ def test_multi_request_non_json_response(mock_print_info, mock_session_class, ap
     """Test _multiRequest method with non-JSON response."""
     mock_session = MagicMock()
     mock_session_class.return_value = mock_session
-    
+
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.headers = {'Content-Type': 'text/plain'}
@@ -524,7 +524,7 @@ def test_poll_async_operation_timeout(mock_sleep, mock_time, mock_print_error, m
     """Test _poll_async_operation method with timeout."""
     # Mock time to simulate timeout
     mock_time.side_effect = [0, 30, 61]  # start, first check, timeout check
-    
+
     mock_response = MagicMock()
     mock_response.status_code = 202
     mock_get.return_value = mock_response
@@ -545,14 +545,14 @@ def test_single_post_async_success_with_location(mock_print_info, mock_print_mes
     initial_response = MagicMock()
     initial_response.status_code = 202
     initial_response.headers = {'Location': 'http://example.com/operation/123'}
-    
+
     # Mock final 200 response
     final_response = MagicMock()
     final_response.status_code = 200
     final_response.headers = {'Content-Type': 'application/json'}
     final_response.json.return_value = {'result': 'completed'}
     final_response.text = '{"result": "completed"}'
-    
+
     mock_request.return_value = initial_response
 
     with patch.object(apim, '_poll_async_operation', return_value=final_response) as mock_poll:

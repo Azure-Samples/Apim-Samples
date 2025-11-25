@@ -3,7 +3,7 @@
 
 set -e
 
-TARGET="${1:-../../shared/python}"
+TARGET="${1:-../../infrastructure ../../samples ../../setup ../../shared ../../tests}"
 REPORT_DIR="pylint/reports"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
@@ -12,7 +12,7 @@ mkdir -p "$REPORT_DIR"
 
 echo ""
 echo "🔍 Running pylint analysis..."
-echo "   Target:  $TARGET"
+echo "   Target:  All repository Python files"
 echo "   Reports: $REPORT_DIR"
 echo ""
 

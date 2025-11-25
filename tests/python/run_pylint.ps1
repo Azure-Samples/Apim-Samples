@@ -11,14 +11,14 @@
     - Statistics summary
 
 .PARAMETER Target
-    Path to analyze. Defaults to all Python files in shared/python.
+    Path to analyze. Defaults to all Python files in infrastructure, samples, setup, shared, and tests.
 
 .PARAMETER ShowReport
     Display the full text report after completion.
 
 .EXAMPLE
     .\run_pylint.ps1
-    Run pylint on shared/python with default settings
+    Run pylint on all repository Python files with default settings
 
 .EXAMPLE
     .\run_pylint.ps1 -Target "../../samples" -ShowReport
@@ -26,7 +26,7 @@
 #>
 
 param(
-    [string]$Target = "../../shared/python",
+    [string]$Target = "../../infrastructure ../../samples ../../setup ../../shared ../../tests",
     [switch]$ShowReport
 )
 
@@ -72,7 +72,7 @@ Write-Host "   Text report: $TextReport" -ForegroundColor Gray
 if (Test-Path $JsonReport) {
     $Issues = Get-Content $JsonReport | ConvertFrom-Json
     $GroupedIssues = $Issues | Group-Object -Property symbol | Sort-Object Count -Descending | Select-Object -First 10
-    
+
     if ($GroupedIssues) {
         Write-Host "`n🔝 Top 10 Issues:" -ForegroundColor Cyan
         foreach ($Group in $GroupedIssues) {

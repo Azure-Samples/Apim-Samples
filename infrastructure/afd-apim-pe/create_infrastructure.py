@@ -13,15 +13,15 @@ def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU, no_aca:
     try:
         # Check if infrastructure already exists to determine messaging
         infrastructure_exists = utils.does_resource_group_exist(utils.get_infra_rg_name(utils.INFRASTRUCTURE.AFD_APIM_PE, index))
-        
+
         # Create custom APIs for AFD-APIM-PE with optional Container Apps backends
         custom_apis = _create_afd_specific_apis(not no_aca)
-        
+
         infra = AfdApimAcaInfrastructure(location, index, apim_sku, infra_apis = custom_apis)
         result = infra.deploy_infrastructure(infrastructure_exists)
-        
+
         sys.exit(0 if result.success else 1)
-            
+
     except Exception as e:
         print(f'\n💥 Error: {str(e)}')
         sys.exit(1)
@@ -30,14 +30,14 @@ def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU, no_aca:
 def _create_afd_specific_apis(use_aca: bool = True) -> list[API]:
     """
     Create AFD-APIM-PE specific APIs with optional Container Apps backends.
-    
+
     Args:
         use_aca (bool): Whether to include Azure Container Apps backends. Defaults to true.
-        
+
     Returns:
         list[API]: List of AFD-specific APIs.
     """
-    
+
     # If Container Apps is enabled, create the ACA APIs in APIM
     if use_aca:
         pol_backend          = utils.read_policy_xml(BACKEND_XML_POLICY_PATH)
@@ -58,13 +58,13 @@ def _create_afd_specific_apis(use_aca: bool = True) -> list[API]:
         api_hwaca_pool       = API('hello-world-aca-pool', 'Hello World (ACA Pool)', '/aca-pool', 'This is the ACA API for Backend Pool', pol_aca_backend_pool, [api_hwaca_pool_get])
 
         return [api_hwaca_1, api_hwaca_2, api_hwaca_pool]
-    
+
     return []
 def main():
     """
     Main entry point for command-line usage.
     """
-        
+
     parser = argparse.ArgumentParser(description = 'Create AFD-APIM-PE infrastructure')
     parser.add_argument('--location', default = 'eastus2', help = 'Azure region (default: eastus2)')
     parser.add_argument('--index', type = int, help = 'Infrastructure index')

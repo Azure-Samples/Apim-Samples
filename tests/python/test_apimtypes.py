@@ -152,7 +152,7 @@ def test_api_with_both_tags_and_product_names():
     )
     assert api.tags == tags
     assert api.productNames == product_names
-    
+
     d = api.to_dict()
     assert d['tags'] == tags
     assert d['productNames'] == product_names
@@ -451,7 +451,7 @@ def test_product_to_dict():
         policyXml = custom_policy
     )
     d = product.to_dict()
-    
+
     assert d['name'] == 'hr'
     assert d['displayName'] == 'Human Resources'
     assert d['description'] == 'HR product'
@@ -471,7 +471,7 @@ def test_product_to_dict_includes_approval_required():
         approvalRequired = True
     )
     d = product.to_dict()
-    
+
     assert d['name'] == 'premium-hr'
     assert d['displayName'] == 'Premium Human Resources'
     assert d['description'] == 'Premium HR product'
@@ -489,7 +489,7 @@ def test_product_approval_required_default_false():
         displayName = 'Basic Human Resources',
         description = 'Basic HR product'
     )
-    
+
     assert product.approvalRequired == False
     d = product.to_dict()
     assert d['approvalRequired'] == False
@@ -635,10 +635,10 @@ def test_api_equality_with_subscription_required():
         operations = None,
         subscriptionRequired = False
     )
-    
+
     # Same subscriptionRequired values should be equal
     assert api1 == api2
-    
+
     # Different subscriptionRequired values should not be equal
     assert api1 != api3
 
@@ -658,7 +658,7 @@ def test_api_with_all_properties():
         productNames = product_names,
         subscriptionRequired = True
     )
-    
+
     assert api.name == EXAMPLE_NAME
     assert api.displayName == EXAMPLE_DISPLAY_NAME
     assert api.path == EXAMPLE_PATH
@@ -668,7 +668,7 @@ def test_api_with_all_properties():
     assert api.tags == tags
     assert api.productNames == product_names
     assert api.subscriptionRequired == True
-    
+
     d = api.to_dict()
     assert d['name'] == EXAMPLE_NAME
     assert d['displayName'] == EXAMPLE_DISPLAY_NAME
@@ -694,7 +694,7 @@ def test_named_value_creation():
     assert nv.name == 'test-nv'
     assert nv.value == 'test-value'
     assert nv.isSecret is True
-    
+
     # Test to_dict method
     d = nv.to_dict()
     assert d['name'] == 'test-nv'
@@ -715,7 +715,7 @@ def test_policy_fragment_creation():
     assert pf.name == 'test-fragment'
     assert pf.description == 'Test fragment'
     assert pf.policyXml == '<policy/>'
-    
+
     # Test to_dict method
     d = pf.to_dict()
     assert d['name'] == 'test-fragment'
@@ -774,7 +774,7 @@ def test_api_operation_equality():
         description='Test op',
         policyXml='<xml/>'
     )
-    
+
     assert op1 == op2
     assert op1 != op3
 
@@ -822,7 +822,7 @@ def test_get_project_root_functionality():
     """Test _get_project_root function comprehensively."""
     import os
     from pathlib import Path
-    
+
     # This function should return the project root
     root = apimtypes._get_project_root()
     assert isinstance(root, Path)
@@ -837,11 +837,11 @@ def test_api_edge_cases():
     assert api.operations == []
     assert api.tags == []
     assert api.productNames == []
-    
+
     # Test subscription required variations
     api_sub_true = apimtypes.API('test', 'Test', '/test', 'desc', 'policy', subscriptionRequired=True)
     assert api_sub_true.subscriptionRequired is True
-    
+
     api_sub_false = apimtypes.API('test', 'Test', '/test', 'desc', 'policy', subscriptionRequired=False)
     assert api_sub_false.subscriptionRequired is False
 
@@ -858,10 +858,10 @@ def test_product_edge_cases():
     assert product.approvalRequired is False
     # Policy XML should contain some content, not be empty
     assert product.policyXml is not None and len(product.policyXml) > 0
-    
+
     # Test with all parameters
     product_full = apimtypes.Product(
-        'full', 'Full Product', 'Description', 'notPublished', 
+        'full', 'Full Product', 'Description', 'notPublished',
         True, True, '<policy/>'
     )
     assert product_full.state == 'notPublished'
@@ -877,7 +877,7 @@ def test_named_value_edge_cases():
     assert nv.name == 'key'
     assert nv.value == 'value'
     assert nv.isSecret is False  # Use correct attribute name
-    
+
     # Test with secret
     nv_secret = apimtypes.NamedValue('secret-key', 'secret-value', True)
     assert nv_secret.isSecret is True  # Use correct attribute name
@@ -890,7 +890,7 @@ def test_policy_fragment_edge_cases():
     assert pf.name == 'frag'
     assert pf.policyXml == '<fragment/>'  # Use correct attribute name
     assert pf.description == ''
-    
+
     # Test with description
     pf_desc = apimtypes.PolicyFragment('frag', '<fragment/>', 'Test fragment')
     assert pf_desc.description == 'Test fragment'
@@ -901,7 +901,7 @@ def test_api_operation_comprehensive():
     # Test invalid HTTP method
     with pytest.raises(ValueError, match='Invalid HTTP_VERB'):
         apimtypes.APIOperation('test', 'Test', '/test', 'INVALID', 'Test description', '<policy/>')
-    
+
     # Test all valid methods
     for method in ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS']:
         # Get HTTP_VERB enum value
@@ -918,7 +918,7 @@ def test_convenience_functions():
     assert get_op.method == apimtypes.HTTP_VERB.GET
     assert get_op.displayName == 'GET'  # displayName is set to 'GET', not the description
     assert get_op.description == 'Get data'  # description parameter goes to description field
-    
+
     post_op = apimtypes.POST_APIOperation('Post data', '<post-policy/>')
     assert post_op.method == apimtypes.HTTP_VERB.POST
     assert post_op.displayName == 'POST'  # displayName is set to 'POST', not the description
@@ -931,15 +931,15 @@ def test_enum_edge_cases():
     assert hasattr(apimtypes.INFRASTRUCTURE, 'SIMPLE_APIM')
     assert hasattr(apimtypes.INFRASTRUCTURE, 'AFD_APIM_PE')
     assert hasattr(apimtypes.INFRASTRUCTURE, 'APIM_ACA')
-    
+
     assert hasattr(apimtypes.APIM_SKU, 'DEVELOPER')
     assert hasattr(apimtypes.APIM_SKU, 'BASIC')
     assert hasattr(apimtypes.APIM_SKU, 'STANDARD')
     assert hasattr(apimtypes.APIM_SKU, 'PREMIUM')
-    
+
     assert hasattr(apimtypes.APIMNetworkMode, 'EXTERNAL_VNET')  # Correct enum name
     assert hasattr(apimtypes.APIMNetworkMode, 'INTERNAL_VNET')  # Correct enum name
-    
+
     assert hasattr(apimtypes.HTTP_VERB, 'GET')
     assert hasattr(apimtypes.HTTP_VERB, 'POST')
 
@@ -961,7 +961,7 @@ def test_to_dict_comprehensive():
         operations=[op], tags=['tag1', 'tag2'], productNames=['prod1'],
         subscriptionRequired=True
     )
-    
+
     api_dict = api.to_dict()
     assert api_dict['name'] == 'test-api'
     assert api_dict['displayName'] == 'Test API'
@@ -972,7 +972,7 @@ def test_to_dict_comprehensive():
     assert api_dict['tags'] == ['tag1', 'tag2']
     assert api_dict['productNames'] == ['prod1']
     assert api_dict['subscriptionRequired'] is True
-    
+
     # Test Product to_dict
     product = apimtypes.Product('prod', 'Product', 'Desc', 'published', True, True, '<prod-policy/>')
     prod_dict = product.to_dict()
@@ -983,14 +983,14 @@ def test_to_dict_comprehensive():
     assert prod_dict['subscriptionRequired'] is True
     assert prod_dict['approvalRequired'] is True
     assert prod_dict['policyXml'] == '<prod-policy/>'
-    
+
     # Test NamedValue to_dict
     nv = apimtypes.NamedValue('key', 'value', True)
     nv_dict = nv.to_dict()
     assert nv_dict['name'] == 'key'
     assert nv_dict['value'] == 'value'
     assert nv_dict['isSecret'] is True  # Use correct key name
-    
+
     # Test PolicyFragment to_dict
     pf = apimtypes.PolicyFragment('frag', '<frag/>', 'Fragment desc')
     pf_dict = pf.to_dict()
@@ -1004,38 +1004,38 @@ def test_equality_and_repr_comprehensive():
     api1 = apimtypes.API('test', 'Test', '/test', 'desc', 'policy')
     api2 = apimtypes.API('test', 'Test', '/test', 'desc', 'policy')
     api3 = apimtypes.API('different', 'Different', '/diff', 'desc', 'policy')
-    
+
     assert api1 == api2
     assert api1 != api3
     assert api1 != 'not an api'
-    
+
     # Test repr
     repr_str = repr(api1)
     assert 'API' in repr_str
     assert 'test' in repr_str
-    
+
     # Test Product equality and repr
     prod1 = apimtypes.Product('prod', 'Product', 'Product description')
     prod2 = apimtypes.Product('prod', 'Product', 'Product description')
     prod3 = apimtypes.Product('other', 'Other', 'Other description')
-    
+
     assert prod1 == prod2
     assert prod1 != prod3
     assert prod1 != 'not a product'
-    
+
     repr_str = repr(prod1)
     assert 'Product' in repr_str
     assert 'prod' in repr_str
-    
+
     # Test APIOperation equality and repr
     op1 = apimtypes.GET_APIOperation('Get', '<get/>')
     op2 = apimtypes.GET_APIOperation('Get', '<get/>')
     op3 = apimtypes.POST_APIOperation('Post', '<post/>')
-    
+
     assert op1 == op2
     assert op1 != op3
     assert op1 != 'not an operation'
-    
+
     repr_str = repr(op1)
     assert 'APIOperation' in repr_str
     assert 'GET' in repr_str
@@ -1048,7 +1048,7 @@ def test_constants_accessibility():
     assert isinstance(apimtypes.HELLO_WORLD_XML_POLICY_PATH, str)
     assert isinstance(apimtypes.REQUEST_HEADERS_XML_POLICY_PATH, str)
     assert isinstance(apimtypes.BACKEND_XML_POLICY_PATH, str)
-    
+
     # Test other constants
     assert isinstance(apimtypes.SUBSCRIPTION_KEY_PARAMETER_NAME, str)
     assert isinstance(apimtypes.SLEEP_TIME_BETWEEN_REQUESTS_MS, int)

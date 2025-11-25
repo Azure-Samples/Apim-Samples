@@ -1,4 +1,11 @@
 {
+    // Whitespace and formatting
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "files.trimFinalNewlines": true,
+    "editor.renderWhitespace": "trailing",
+
+    // PlantUML
     "plantuml.diagramsRoot": "assets/diagrams/src",
     "plantuml.exportFormat": "svg",
     "plantuml.exportOutDir": "assets/diagrams/out",
