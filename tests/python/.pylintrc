@@ -1,4 +1,9 @@
+[MASTER]
+jobs = 0
+persistent = no
+
 [MESSAGES CONTROL]
+enable = all
 disable =
     C0305,  # Trailing newlines
     C0114,  # Missing module docstring
@@ -8,3 +13,14 @@ disable =
     R0903,  # Too few public methods
     R0913,  # Too many arguments
     W0621,  # Redefining name from outer scope
+    W0511,  # TODO/FIXME comments
+
+[REPORTS]
+output-format = colorized
+reports = yes
+score = yes
+msg-template = {path}:{line}:{column}: [{msg_id}({symbol}), {obj}] {msg}
+
+[FORMAT]
+max-line-length = 120
+expected-line-ending-format = LF

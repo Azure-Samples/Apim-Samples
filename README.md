@@ -217,7 +217,35 @@ As you work with this repo, you will likely want to make your own customizations
 
 The repo uses the bicep linter and has rules defined in `bicepconfig.json`. See the [bicep linter documentation][bicep-linter-docs] for details.
 
-**We welcome contributions!** Please consider forking the repo and creating issues and pull requests to share your samples. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details. Thank you! 
+**We welcome contributions!** Please consider forking the repo and creating issues and pull requests to share your samples. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details. Thank you!
+
+### 🔍 Code Quality & Linting
+
+The repository uses [pylint][pylint-docs] to maintain Python code quality standards. Configuration is located in `tests/python/.pylintrc`.
+
+#### Running Pylint
+
+**Using the convenience script (recommended):**
+```powershell
+# From tests/python directory
+.\run_pylint.ps1                          # Run with default settings
+.\run_pylint.ps1 -ShowReport              # Include full detailed report
+.\run_pylint.ps1 -Target "../../samples"  # Analyze a different directory
+```
+
+**Manual execution:**
+```powershell
+pylint --rcfile tests/python/.pylintrc shared/python
+```
+
+#### Pylint Reports
+
+All pylint runs generate timestamped reports in `tests/python/pylint/reports/`:
+- **JSON format**: Machine-readable for CI/CD integration
+- **Text format**: Human-readable detailed analysis
+- **Latest symlinks**: `latest.json` and `latest.txt` always point to the most recent run
+
+The script automatically displays a **Top 10 Issues Summary** showing the most frequent code quality issues to help prioritize improvements. 
 
 ### ➕ Adding a Sample
 
@@ -310,6 +338,7 @@ The original author of this project is [Simon Kurtz][simon-kurtz].
 [badge-python-tests]: https://github.com/Azure-Samples/Apim-Samples/actions/workflows/python-tests.yml/badge.svg?branch=main
 [bicep-linter-docs]: https://learn.microsoft.com/azure/azure-resource-manager/bicep/bicep-config-linter
 [houssem-dellai]: https://github.com/HoussemDellai
+[pylint-docs]: https://pylint.pycqa.org/
 [import-troubleshooting]: .devcontainer/IMPORT-TROUBLESHOOTING.md
 [infra-afd-apim-pe]: ./infrastructure/afd-apim-pe
 [infra-apim-aca]: ./infrastructure/apim-aca
