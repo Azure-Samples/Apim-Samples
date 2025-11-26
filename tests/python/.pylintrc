@@ -13,6 +13,7 @@ disable =
     C0116,  # Missing function or method docstring
     W0212,  # Access to a protected member _ of a client class
     R0903,  # Too few public methods
+    R0911,  # Too many return statements
     R0913,  # Too many arguments
     W0621,  # Redefining name from outer scope
     W0511,  # TODO/FIXME comments
