@@ -395,7 +395,7 @@ def test_product_creation():
     assert product.displayName == 'Human Resources'
     assert product.description == 'HR product description'
     assert product.state == 'published'  # default value
-    assert product.subscriptionRequired == True  # default value
+    assert product.subscriptionRequired is True  # default value
     assert product.policyXml is not None  # should have default policy
 
 
@@ -416,7 +416,7 @@ def test_product_creation_with_custom_values():
     assert product.displayName == 'Test Product'
     assert product.description == 'Test description'
     assert product.state == 'notPublished'
-    assert product.subscriptionRequired == False
+    assert product.subscriptionRequired is False
     assert product.policyXml == custom_policy
 
 
@@ -435,8 +435,8 @@ def test_product_creation_with_approval_required():
     assert product.displayName == 'Premium Human Resources'
     assert product.description == 'Premium HR product requiring approval'
     assert product.state == 'published'  # default value
-    assert product.subscriptionRequired == True
-    assert product.approvalRequired == True
+    assert product.subscriptionRequired is True
+    assert product.approvalRequired is True
     assert product.policyXml is not None  # should have default policy
 
 
@@ -458,7 +458,7 @@ def test_product_to_dict():
     assert d['displayName'] == 'Human Resources'
     assert d['description'] == 'HR product'
     assert d['state'] == 'published'
-    assert d['subscriptionRequired'] == True
+    assert d['subscriptionRequired'] is True
     assert d['policyXml'] == custom_policy
 
 
@@ -478,8 +478,8 @@ def test_product_to_dict_includes_approval_required():
     assert d['displayName'] == 'Premium Human Resources'
     assert d['description'] == 'Premium HR product'
     assert d['state'] == 'published'
-    assert d['subscriptionRequired'] == True
-    assert d['approvalRequired'] == True
+    assert d['subscriptionRequired'] is True
+    assert d['approvalRequired'] is True
     assert 'policyXml' in d
 
 
@@ -492,9 +492,9 @@ def test_product_approval_required_default_false():
         description = 'Basic HR product'
     )
 
-    assert product.approvalRequired == False
+    assert product.approvalRequired is False
     d = product.to_dict()
-    assert d['approvalRequired'] == False
+    assert d['approvalRequired'] is False
 
 
 @pytest.mark.unit
@@ -545,7 +545,7 @@ def test_api_subscription_required_default():
         policyXml = EXAMPLE_POLICY_XML,
         operations = None
     )
-    assert api.subscriptionRequired == True
+    assert api.subscriptionRequired is True
 
 @pytest.mark.unit
 def test_api_subscription_required_explicit_false():
@@ -559,7 +559,7 @@ def test_api_subscription_required_explicit_false():
         operations = None,
         subscriptionRequired = False
     )
-    assert api.subscriptionRequired == False
+    assert api.subscriptionRequired is False
 
 @pytest.mark.unit
 def test_api_subscription_required_explicit_true():
@@ -573,7 +573,7 @@ def test_api_subscription_required_explicit_true():
         operations = None,
         subscriptionRequired = True
     )
-    assert api.subscriptionRequired == True
+    assert api.subscriptionRequired is True
 
 @pytest.mark.unit
 def test_api_to_dict_includes_subscription_required_when_true():
@@ -589,7 +589,7 @@ def test_api_to_dict_includes_subscription_required_when_true():
     )
     d = api.to_dict()
     assert 'subscriptionRequired' in d
-    assert d['subscriptionRequired'] == True
+    assert d['subscriptionRequired'] is True
 
 @pytest.mark.unit
 def test_api_to_dict_includes_subscription_required_when_false():
@@ -605,7 +605,7 @@ def test_api_to_dict_includes_subscription_required_when_false():
     )
     d = api.to_dict()
     assert 'subscriptionRequired' in d
-    assert d['subscriptionRequired'] == False
+    assert d['subscriptionRequired'] is False
 
 @pytest.mark.unit
 def test_api_equality_with_subscription_required():
@@ -669,7 +669,7 @@ def test_api_with_all_properties():
     assert api.operations == []
     assert api.tags == tags
     assert api.productNames == product_names
-    assert api.subscriptionRequired == True
+    assert api.subscriptionRequired is True
 
     d = api.to_dict()
     assert d['name'] == EXAMPLE_NAME
@@ -679,7 +679,7 @@ def test_api_with_all_properties():
     assert d['policyXml'] == EXAMPLE_POLICY_XML
     assert d['tags'] == tags
     assert d['productNames'] == product_names
-    assert d['subscriptionRequired'] == True
+    assert d['subscriptionRequired'] is True
 
 
 # ------------------------------
