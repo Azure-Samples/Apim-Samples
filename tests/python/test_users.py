@@ -138,8 +138,8 @@ def test_user_edge_cases():
     """Test User class with edge cases."""
     # Test with empty/None values
     user_empty = User('', '', [])
-    assert user_empty.id == ''
-    assert user_empty.name == ''
+    assert not user_empty.id
+    assert not user_empty.name
     assert user_empty.roles == []
 
     user_none_roles = User('test', 'Test', None)

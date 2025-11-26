@@ -726,7 +726,7 @@ def test_policy_fragment_creation():
 def test_policy_fragment_defaults():
     """Test PolicyFragment default values."""
     pf = apimtypes.PolicyFragment(name='test', policyXml='<policy/>')
-    assert pf.description == ''  # default value
+    assert not pf.description  # default value
 
 def test_product_defaults():
     """Test Product default values."""
@@ -826,7 +826,7 @@ def test_api_edge_cases():
     """Test API class with edge cases and full coverage."""
     # Test with all None/empty values
     api = apimtypes.API('', '', '', '', '', operations=None, tags=None, productNames=None)
-    assert api.name == ''
+    assert not api.name
     assert api.operations == []
     assert api.tags == []
     assert api.productNames == []
@@ -882,7 +882,7 @@ def test_policy_fragment_edge_cases():
     pf = apimtypes.PolicyFragment('frag', '<fragment/>')
     assert pf.name == 'frag'
     assert pf.policyXml == '<fragment/>'  # Use correct attribute name
-    assert pf.description == ''
+    assert not pf.description
 
     # Test with description
     pf_desc = apimtypes.PolicyFragment('frag', '<fragment/>', 'Test fragment')

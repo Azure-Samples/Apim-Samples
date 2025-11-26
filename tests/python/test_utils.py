@@ -166,7 +166,7 @@ def test_read_policy_xml_empty_file(monkeypatch):
     m = mock_open(read_data='')
     monkeypatch.setattr(builtins, 'open', m)
     result = utils.read_policy_xml('/path/to/empty.xml')
-    assert result == ''
+    assert not result
 
 def test_read_policy_xml_with_named_values(monkeypatch):
     """Test reading policy XML with named values formatting."""
@@ -494,7 +494,7 @@ def test_cleanup_resources_thread_safe_success(monkeypatch):
     )
 
     assert success is True
-    assert error_msg == ""
+    assert not error_msg
     assert len(original_calls) == 1
     assert original_calls[0] == ('test-deployment', 'test-rg')
 

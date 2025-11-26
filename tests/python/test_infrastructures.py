@@ -199,7 +199,7 @@ def test_infrastructure_base_apis_creation(mock_utils):
     hello_world_api = infra.base_apis[0]
     assert hello_world_api.name == 'hello-world'
     assert hello_world_api.displayName == 'Hello World'
-    assert hello_world_api.path == ''
+    assert not hello_world_api.path
     assert len(hello_world_api.operations) == 1
     assert hello_world_api.operations[0].method == HTTP_VERB.GET
 
