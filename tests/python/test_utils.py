@@ -1142,12 +1142,13 @@ def test_check_apim_blob_permissions_success(monkeypatch):
     def mock_run_success(cmd, **kwargs):
         if 'az apim show' in cmd and 'identity.principalId' in cmd:
             return utils.Output(success=True, text='12345678-1234-1234-1234-123456789012')
-        elif 'az storage account show' in cmd and '--query id' in cmd:
+        if 'az storage account show' in cmd and '--query id' in cmd:
             return utils.Output(success=True, text='/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/test-rg/providers/Microsoft.Storage/storageAccounts/test-storage')
-        elif 'az role assignment list' in cmd:
+        if 'az role assignment list' in cmd:
             return utils.Output(success=True, text='/subscriptions/12345678-1234-1234-1234-123456789012/resourceGroups/test-rg/providers/Microsoft.Authorization/roleAssignments/test-assignment')
-        elif 'az storage blob list' in cmd:
+        if 'az storage blob list' in cmd:
             return utils.Output(success=True, text='test-blob.txt')
+
         return utils.Output(success=True, text='{}')
 
     monkeypatch.setattr(utils, 'run', mock_run_success)
@@ -1734,7 +1735,7 @@ def test_query_and_select_infrastructure_multiple_options(monkeypatch):
     def mock_find_instances(infra):
         if infra == INFRASTRUCTURE.SIMPLE_APIM:
             return [(INFRASTRUCTURE.SIMPLE_APIM, 1), (INFRASTRUCTURE.SIMPLE_APIM, 2)]
-        elif infra == INFRASTRUCTURE.APIM_ACA:
+        if infra == INFRASTRUCTURE.APIM_ACA:
             return [(INFRASTRUCTURE.APIM_ACA, None)]
         return []
 
@@ -1917,10 +1918,10 @@ def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch)
         # Parse index from resource group name
         if 'simple-apim-1' in rg_name:
             return True  # Index 1 exists
-        elif 'simple-apim-2' in rg_name:
+        if 'simple-apim-2' in rg_name:
             return True  # Index 2 also exists
-        else:
-            return False  # Index 3 doesn't exist
+
+        return False  # Index 3 doesn't exist
 
     # Mock the prompt to first return index 2, then index 3
     prompt_calls = 0
@@ -1929,8 +1930,8 @@ def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch)
         prompt_calls += 1
         if prompt_calls == 1:
             return (False, 2)  # First retry with index 2
-        else:
-            return (False, 3)  # Second retry with index 3
+
+        return (False, 3)  # Second retry with index 3
 
     monkeypatch.setattr(utils, '_prompt_for_infrastructure_update', mock_prompt)
     monkeypatch.setattr(utils, 'does_resource_group_exist', mock_rg_exists)
@@ -2159,10 +2160,11 @@ def test_infrastructure_sorting_in_query_and_select(monkeypatch):
     def mock_find_instances(infra):
         if infra == INFRASTRUCTURE.SIMPLE_APIM:
             return [(INFRASTRUCTURE.SIMPLE_APIM, 3), (INFRASTRUCTURE.SIMPLE_APIM, 1)]
-        elif infra == INFRASTRUCTURE.APIM_ACA:
+        if infra == INFRASTRUCTURE.APIM_ACA:
             return [(INFRASTRUCTURE.APIM_ACA, None), (INFRASTRUCTURE.APIM_ACA, 2)]
-        elif infra == INFRASTRUCTURE.AFD_APIM_PE:
+        if infra == INFRASTRUCTURE.AFD_APIM_PE:
             return [(INFRASTRUCTURE.AFD_APIM_PE, 1)]
+
         return []
 
     # Mock the infrastructure creation to succeed
