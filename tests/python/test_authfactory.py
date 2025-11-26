@@ -1,8 +1,8 @@
 """
 Unit tests for authfactory.py.
 """
-import pytest
 import time
+import pytest
 from authfactory import JwtPayload, SymmetricJwtToken, AuthFactory
 from users import User
 

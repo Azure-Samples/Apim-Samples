@@ -1,9 +1,10 @@
-import pytest
-from apimtypes import INFRASTRUCTURE
 import os
 import builtins
 from pathlib import Path
 from unittest.mock import MagicMock, mock_open
+import json
+import pytest
+from apimtypes import INFRASTRUCTURE
 import utils
 from apimtypes import INFRASTRUCTURE
 
@@ -1566,8 +1567,6 @@ def test_cleanup_resources_malformed_responses(monkeypatch):
     # Should handle malformed responses gracefully without raising exceptions
     utils._cleanup_resources('test-deployment', 'test-rg')
 
-
-import json
 
 
 # ------------------------------

@@ -2,10 +2,10 @@
 Unit tests for the ApimTesting module.
 """
 
-import pytest
 from unittest.mock import patch, MagicMock
 import sys
 import os
+import pytest
 
 # Add the shared/python directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'shared', 'python'))

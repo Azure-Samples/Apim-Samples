@@ -2,8 +2,8 @@
 Unit tests for the User class in users.py.
 """
 
-import pytest
 import random
+import pytest
 from users import User, Users, UserHelper
 from apimtypes import Role
 

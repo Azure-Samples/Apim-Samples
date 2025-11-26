@@ -2,11 +2,11 @@
 Unit tests for infrastructures.py.
 """
 
-import pytest
 from unittest.mock import Mock, patch, call, MagicMock
 import json
 import os
 from pathlib import Path
+import pytest
 
 import infrastructures
 from apimtypes import INFRASTRUCTURE, APIM_SKU, APIMNetworkMode, API, PolicyFragment, HTTP_VERB, GET_APIOperation
