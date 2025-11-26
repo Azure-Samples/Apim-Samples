@@ -183,6 +183,10 @@ def create_vscode_settings():
 
     # Settings to update for kernel and Python configuration
     required_settings = {
+        "files.trimTrailingWhitespace": True,
+        "files.insertFinalNewline": True,
+        "files.trimFinalNewlines": True,
+        "editor.renderWhitespace": "trailing",
         "python.defaultInterpreterPath": "./.venv/Scripts/python.exe" if os.name == 'nt' else "./.venv/bin/python",
         "python.pythonPath": "./.venv/Scripts/python.exe" if os.name == 'nt' else "./.venv/bin/python",
         "python.envFile": "${workspaceFolder}/.env",
