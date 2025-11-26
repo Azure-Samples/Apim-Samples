@@ -6,31 +6,31 @@ from apimrequests import ApimRequests
 from apimtypes import SUBSCRIPTION_KEY_PARAMETER_NAME, HTTP_VERB
 
 # Sample values for tests
-default_url = 'https://example.com/apim/'
-default_key = 'test-key'
-default_path = '/test'
-default_headers = {'Custom-Header': 'Value'}
-default_data = {'foo': 'bar'}
+DEFAULT_URL = 'https://example.com/apim/'
+DEFAULT_KEY = 'test-KEY'
+DEFAULT_PATH = '/test'
+DEFAULT_HEADERS = {'Custom-Header': 'Value'}
+DEFAULT_DATA = {'foo': 'bar'}
 
 @pytest.fixture
 def apim():
-    return ApimRequests(default_url, default_key)
+    return ApimRequests(DEFAULT_URL, DEFAULT_KEY)
 
 
 @pytest.mark.unit
 def test_init_sets_headers():
-    """Test that headers are set correctly when subscription key is provided."""
-    apim = ApimRequests(default_url, default_key)
-    assert apim.url == default_url
-    assert apim.apimSubscriptionKey == default_key
-    assert apim.headers[SUBSCRIPTION_KEY_PARAMETER_NAME] == default_key
+    """Test that headers are set correctly when subscription KEY is provided."""
+    apim = ApimRequests(DEFAULT_URL, DEFAULT_KEY)
+    assert apim.url == DEFAULT_URL
+    assert apim.apimSubscriptionKey == DEFAULT_KEY
+    assert apim.headers[SUBSCRIPTION_KEY_PARAMETER_NAME] == DEFAULT_KEY
 
 
 @pytest.mark.unit
 def test_init_no_key():
-    """Test that headers are set correctly when no subscription key is provided."""
-    apim = ApimRequests(default_url)
-    assert apim.url == default_url
+    """Test that headers are set correctly when no subscription KEY is provided."""
+    apim = ApimRequests(DEFAULT_URL)
+    assert apim.url == DEFAULT_URL
     assert apim.apimSubscriptionKey is None
     assert 'Ocp-Apim-Subscription-Key' not in apim.headers
     assert apim.headers['Accept'] == 'application/json'
@@ -50,7 +50,7 @@ def test_single_get_success(mock_print_error, mock_print_info, mock_print_messag
     mock_request.return_value = mock_response
 
     with patch.object(apim, '_print_response') as mock_print_response:
-        result = apim.singleGet(default_path, printResponse=True)
+        result = apim.singleGet(DEFAULT_PATH, printResponse=True)
         assert result == '{\n    "result": "ok"\n}'
         mock_print_response.assert_called_once_with(mock_response)
         mock_print_error.assert_not_called()
@@ -62,7 +62,7 @@ def test_single_get_success(mock_print_error, mock_print_info, mock_print_messag
 @patch('apimrequests.utils.print_error')
 def test_single_get_error(mock_print_error, mock_print_info, mock_print_message, mock_request, apim):
     mock_request.side_effect = requests.exceptions.RequestException('fail')
-    result = apim.singleGet(default_path, printResponse=True)
+    result = apim.singleGet(DEFAULT_PATH, printResponse=True)
     assert result is None
     mock_print_error.assert_called_once()
 
@@ -81,7 +81,7 @@ def test_single_post_success(mock_print_error, mock_print_info, mock_print_messa
     mock_request.return_value = mock_response
 
     with patch.object(apim, '_print_response') as mock_print_response:
-        result = apim.singlePost(default_path, data=default_data, printResponse=True)
+        result = apim.singlePost(DEFAULT_PATH, data=DEFAULT_DATA, printResponse=True)
         assert result == '{\n    "created": true\n}'
         mock_print_response.assert_called_once_with(mock_response)
         mock_print_error.assert_not_called()
@@ -102,7 +102,7 @@ def test_multi_get_success(mock_print_info, mock_print_message, mock_session, ap
     mock_session.return_value = mock_sess
 
     with patch.object(apim, '_print_response_code') as mock_print_code:
-        result = apim.multiGet(default_path, runs=2, printResponse=True)
+        result = apim.multiGet(DEFAULT_PATH, runs=2, printResponse=True)
         assert len(result) == 2
         for run in result:
             assert run['status_code'] == 200
@@ -121,16 +121,16 @@ def test_multi_get_error(mock_print_info, mock_print_message, mock_session, apim
     with patch.object(apim, '_print_response_code'):
         # Should raise inside the loop and propagate the exception, ensuring the session is closed
         with pytest.raises(requests.exceptions.RequestException):
-            apim.multiGet(default_path, runs=1, printResponse=True)
+            apim.multiGet(DEFAULT_PATH, runs=1, printResponse=True)
 
 
 # Sample values for tests
-url = 'https://example.com/apim/'
-key = 'test-key'
-path = '/test'
+URL = 'https://example.com/apim/'
+KEY = 'test-KEY'
+PATH = '/test'
 
 def make_apim():
-    return ApimRequests(url, key)
+    return ApimRequests(URL, KEY)
 
 @pytest.mark.http
 def test_single_post_error():
@@ -139,7 +139,7 @@ def test_single_post_error():
          patch('apimrequests.utils.print_error') as mock_print_error:
         import requests
         mock_request.side_effect = requests.RequestException('fail')
-        result = apim.singlePost(path, data={'foo': 'bar'}, printResponse=True)
+        result = apim.singlePost(PATH, data={'foo': 'bar'}, printResponse=True)
         assert result is None
         mock_print_error.assert_called()
 
@@ -156,7 +156,7 @@ def test_multi_get_non_json():
         mock_sess.request.return_value = mock_response
         mock_session.return_value = mock_sess
         with patch.object(apim, '_print_response_code'):
-            result = apim.multiGet(path, runs=1, printResponse=True)
+            result = apim.multiGet(PATH, runs=1, printResponse=True)
             assert result[0]['response'] == 'not json'
 
 @pytest.mark.http
@@ -173,7 +173,7 @@ def test_request_header_merging():
         # Custom header should override default
         custom_headers = {'Accept': 'application/xml', 'X-Test': '1'}
         with patch.object(apim, '_print_response'):
-            apim.singleGet(path, headers=custom_headers, printResponse=True)
+            apim.singleGet(PATH, headers=custom_headers, printResponse=True)
             called_headers = mock_request.call_args[1]['headers']
             assert called_headers['Accept'] == 'application/xml'
             assert called_headers['X-Test'] == '1'
@@ -199,12 +199,12 @@ def test_print_response_code_edge():
 # ------------------------------
 
 def test_headers_property_allows_external_modification():
-    apim = ApimRequests(default_url, default_key)
+    apim = ApimRequests(DEFAULT_URL, DEFAULT_KEY)
     apim.headers['X-Test'] = 'value'
     assert apim.headers['X-Test'] == 'value'
 
 def test_headers_property_is_dict_reference():
-    apim = ApimRequests(default_url, default_key)
+    apim = ApimRequests(DEFAULT_URL, DEFAULT_KEY)
     h = apim.headers
     h['X-Ref'] = 'ref'
     assert apim.headers['X-Ref'] == 'ref'
@@ -224,7 +224,7 @@ def test_request_with_custom_headers(mock_request, apim):
     mock_request.return_value = mock_response
 
     custom_headers = {'Custom': 'value'}
-    result = apim.singleGet(default_path, headers=custom_headers)
+    result = apim.singleGet(DEFAULT_PATH, headers=custom_headers)
 
     # Verify custom headers were merged with default headers
     call_kwargs = mock_request.call_args[1]
@@ -237,7 +237,7 @@ def test_request_timeout_error(mock_request, apim):
     """Test request with timeout error."""
     mock_request.side_effect = requests.exceptions.Timeout()
 
-    result = apim.singleGet(default_path)
+    result = apim.singleGet(DEFAULT_PATH)
 
     assert result is None
 
@@ -247,7 +247,7 @@ def test_request_connection_error(mock_request, apim):
     """Test request with connection error."""
     mock_request.side_effect = requests.exceptions.ConnectionError()
 
-    result = apim.singleGet(default_path)
+    result = apim.singleGet(DEFAULT_PATH)
 
     assert result is None
 
@@ -262,7 +262,7 @@ def test_request_http_error(mock_request, apim):
     mock_response.text = 'Resource not found'
     mock_request.return_value = mock_response
 
-    result = apim.singleGet(default_path)
+    result = apim.singleGet(DEFAULT_PATH)
 
     # The method returns the response body even for error status codes
     assert result == 'Resource not found'
@@ -278,7 +278,7 @@ def test_request_non_json_response(mock_request, apim):
     mock_response.text = 'Plain text response'
     mock_request.return_value = mock_response
 
-    result = apim.singleGet(default_path)
+    result = apim.singleGet(DEFAULT_PATH)
 
     # Should return text response when JSON parsing fails
     assert result == 'Plain text response'
@@ -295,7 +295,7 @@ def test_request_with_data(mock_request, apim):
     mock_request.return_value = mock_response
 
     data = {'name': 'test', 'value': 'data'}
-    result = apim.singlePost(default_path, data=data)
+    result = apim.singlePost(DEFAULT_PATH, data=data)
 
     # Verify data was passed correctly
     call_kwargs = mock_request.call_args[1]
@@ -305,10 +305,10 @@ def test_request_with_data(mock_request, apim):
 
 @pytest.mark.unit
 def test_apim_requests_without_subscription_key():
-    """Test ApimRequests initialization without subscription key."""
-    apim = ApimRequests(default_url)
+    """Test ApimRequests initialization without subscription KEY."""
+    apim = ApimRequests(DEFAULT_URL)
 
-    assert apim.url == default_url
+    assert apim.url == DEFAULT_URL
     assert apim.apimSubscriptionKey is None
     assert SUBSCRIPTION_KEY_PARAMETER_NAME not in apim.headers
     assert apim.headers['Accept'] == 'application/json'
@@ -345,7 +345,7 @@ def test_request_with_message(mock_print_info, mock_print_message, mock_request,
 @patch('apimrequests.requests.request')
 @patch('apimrequests.utils.print_info')
 def test_request_path_without_leading_slash(mock_print_info, mock_request, apim):
-    """Test _request method with path without leading slash."""
+    """Test _request method with PATH without leading slash."""
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.headers = {'Content-Type': 'application/json'}
@@ -357,7 +357,7 @@ def test_request_path_without_leading_slash(mock_print_info, mock_request, apim)
         apim._request(HTTP_VERB.GET, 'test')
 
     # Should call with the corrected URL
-    expected_url = default_url + '/test'
+    expected_url = DEFAULT_URL + '/test'
     mock_request.assert_called_once()
     args, kwargs = mock_request.call_args
     assert args[1] == expected_url
@@ -390,7 +390,7 @@ def test_multi_request_with_message(mock_print_info, mock_print_message, mock_se
 @patch('apimrequests.requests.Session')
 @patch('apimrequests.utils.print_info')
 def test_multi_request_path_without_leading_slash(mock_print_info, mock_session_class, apim):
-    """Test _multiRequest method with path without leading slash."""
+    """Test _multiRequest method with PATH without leading slash."""
     mock_session = MagicMock()
     mock_session_class.return_value = mock_session
 
@@ -405,7 +405,7 @@ def test_multi_request_path_without_leading_slash(mock_print_info, mock_session_
         apim._multiRequest(HTTP_VERB.GET, 'test', 1)
 
     # Should call with the corrected URL
-    expected_url = default_url + '/test'
+    expected_url = DEFAULT_URL + '/test'
     mock_session.request.assert_called_once()
     args, kwargs = mock_session.request.call_args
     assert args[1] == expected_url
@@ -638,7 +638,7 @@ def test_single_post_async_failed_polling(mock_print_error, mock_request, apim):
 @patch('apimrequests.requests.request')
 @patch('apimrequests.utils.print_info')
 def test_single_post_async_path_without_leading_slash(mock_print_info, mock_request, apim):
-    """Test singlePostAsync method with path without leading slash."""
+    """Test singlePostAsync method with PATH without leading slash."""
     mock_response = MagicMock()
     mock_response.status_code = 200
     mock_response.headers = {'Content-Type': 'application/json'}
@@ -650,7 +650,7 @@ def test_single_post_async_path_without_leading_slash(mock_print_info, mock_requ
         apim.singlePostAsync('test')
 
     # Should call with the corrected URL
-    expected_url = default_url + '/test'
+    expected_url = DEFAULT_URL + '/test'
     mock_request.assert_called_once()
     args, kwargs = mock_request.call_args
     assert args[1] == expected_url
