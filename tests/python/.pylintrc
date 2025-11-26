@@ -15,6 +15,7 @@ disable =
     R0903,  # Too few public methods
     R0911,  # Too many return statements
     R0913,  # Too many arguments
+    R0917,  # Too many nested blocks
     W0511,  # TODO/FIXME comments
     W0621,  # Redefining name from outer scope
     W0718,  # Exception arguments are of wrong type
