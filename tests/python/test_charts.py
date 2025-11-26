@@ -441,7 +441,7 @@ def test_backend_index_edge_cases():
         call_args = mock_dataframe.call_args[0][0]
 
         # Check backend index assignments
-        assert call_args[0]['Backend Index'] == 0    # Valid index 0
+        assert not call_args[0]['Backend Index']    # Valid index 0
         assert call_args[1]['Backend Index'] == 99   # Missing index field
         assert call_args[2]['Backend Index'] == 99   # Empty JSON
         assert call_args[3]['Backend Index'] == 99   # Non-200 status

@@ -24,9 +24,9 @@ def test_apimtesting_init_default():
     assert testing.test_suite_name == 'APIM Tests'
     assert testing.sample_name is None
     assert testing.deployment is None
-    assert testing.tests_passed == 0
-    assert testing.tests_failed == 0
-    assert testing.total_tests == 0
+    assert not testing.tests_passed
+    assert not testing.tests_failed
+    assert not testing.total_tests
     assert testing.errors == []
 
 
@@ -41,9 +41,9 @@ def test_apimtesting_init_with_parameters():
     assert testing.test_suite_name == 'Custom Tests'
     assert testing.sample_name == 'test-sample'
     assert testing.deployment == INFRASTRUCTURE.SIMPLE_APIM
-    assert testing.tests_passed == 0
-    assert testing.tests_failed == 0
-    assert testing.total_tests == 0
+    assert not testing.tests_passed
+    assert not testing.tests_failed
+    assert not testing.total_tests
     assert testing.errors == []
 
 
@@ -60,9 +60,9 @@ def test_verify_success():
 
         assert result is True
         assert testing.tests_passed == 1
-        assert testing.tests_failed == 0
+        assert not testing.tests_failed
         assert testing.total_tests == 1
-        assert len(testing.errors) == 0
+        assert not len(testing.errors)
         mock_print.assert_called_with('✅ Test 1: PASS')
 
 
@@ -74,7 +74,7 @@ def test_verify_failure():
         result = testing.verify(5, 10)
 
         assert result is False
-        assert testing.tests_passed == 0
+        assert not testing.tests_passed
         assert testing.tests_failed == 1
         assert testing.total_tests == 1
         assert len(testing.errors) == 1
@@ -122,7 +122,7 @@ def test_verify_different_types():
         assert testing.verify(None, None) is True
 
         assert testing.tests_passed == 6
-        assert testing.tests_failed == 0
+        assert not testing.tests_failed
 
 
 def test_verify_none_vs_empty():
@@ -137,7 +137,7 @@ def test_verify_none_vs_empty():
         # Empty string vs empty list should fail
         assert testing.verify('', []) is False
 
-        assert testing.tests_passed == 0
+        assert not testing.tests_passed
         assert testing.tests_failed == 3
 
 
@@ -300,4 +300,4 @@ def test_edge_cases():
         assert testing.verify('测试', '测试') is True
 
         assert testing.tests_passed == 5
-        assert testing.tests_failed == 0
+        assert not testing.tests_failed
