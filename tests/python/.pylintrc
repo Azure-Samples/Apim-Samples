@@ -5,6 +5,7 @@ persistent = no
 [MESSAGES CONTROL]
 enable = all
 disable =
+    C0301,  # Line too long
     C0305,  # Trailing newlines
     C0114,  # Missing module docstring
     C0115,  # Missing class docstring
