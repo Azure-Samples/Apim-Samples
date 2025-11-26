@@ -6,6 +6,7 @@ persistent = no
 enable = all
 disable =
     C0301,  # Line too long
+    C0302,  # Too many lines in module
     C0305,  # Trailing newlines
     C0114,  # Missing module docstring
     C0115,  # Missing class docstring
