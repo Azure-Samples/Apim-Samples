@@ -222,7 +222,7 @@ def test_request_with_custom_headers(mock_request, apim):
     mock_request.return_value = mock_response
 
     custom_headers = {'Custom': 'value'}
-    result = apim.singleGet(DEFAULT_PATH, headers=custom_headers)
+    apim.singleGet(DEFAULT_PATH, headers=custom_headers)
 
     # Verify custom headers were merged with default headers
     call_kwargs = mock_request.call_args[1]
@@ -357,7 +357,7 @@ def test_request_path_without_leading_slash(mock_print_info, mock_request, apim)
     # Should call with the corrected URL
     expected_url = DEFAULT_URL + '/test'
     mock_request.assert_called_once()
-    args, kwargs = mock_request.call_args
+    args, _kwargs = mock_request.call_args
     assert args[1] == expected_url
 
 
@@ -405,7 +405,7 @@ def test_multi_request_path_without_leading_slash(mock_print_info, mock_session_
     # Should call with the corrected URL
     expected_url = DEFAULT_URL + '/test'
     mock_session.request.assert_called_once()
-    args, kwargs = mock_session.request.call_args
+    args, _kwargs = mock_session.request.call_args
     assert args[1] == expected_url
 
 
@@ -650,7 +650,7 @@ def test_single_post_async_path_without_leading_slash(mock_print_info, mock_requ
     # Should call with the corrected URL
     expected_url = DEFAULT_URL + '/test'
     mock_request.assert_called_once()
-    args, kwargs = mock_request.call_args
+    args, _kwargs = mock_request.call_args
     assert args[1] == expected_url
 
 

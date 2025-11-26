@@ -441,7 +441,7 @@ def test_cleanup_infra_deployments_parallel_mode(monkeypatch):
     assert set(actual_rgs) == set(expected_rgs)
 
     # Check that thread prefixes contain the correct infrastructure and index info
-    for deployment_name, rg_name, thread_prefix, thread_color in cleanup_calls:
+    for deployment_name, _rg_name, thread_prefix, thread_color in cleanup_calls:
         assert deployment_name == 'simple-apim'
         assert 'simple-apim' in thread_prefix
         assert thread_color in utils.THREAD_COLORS
@@ -550,7 +550,7 @@ def test_cleanup_infra_deployments_max_workers_limit(monkeypatch):
 
     # Test that thread prefixes and colors are assigned properly
     for call in cleanup_calls:
-        deployment_name, rg_name, thread_prefix, thread_color = call
+        deployment_name, _rg_name, thread_prefix, thread_color = call
         assert deployment_name == 'simple-apim'
         assert 'simple-apim' in thread_prefix
         assert thread_color in utils.THREAD_COLORS
@@ -582,9 +582,6 @@ def test_cleanup_infra_deployments_thread_color_assignment(monkeypatch):
     test_indexes = list(range(1, num_colors + 3))  # More than available colors
 
     utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, test_indexes)
-
-    # Verify colors were assigned and cycled correctly
-    assigned_colors = [call[3] for call in cleanup_calls]
 
     # Sort the calls by the index extracted from the rg_name to check in deterministic order
     cleanup_calls_sorted = sorted(cleanup_calls, key=lambda x: int(x[1].split('-')[-1]))
@@ -1916,7 +1913,6 @@ def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch)
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
 
     # Mock resource group existence for multiple indexes
-    rg_checks = {}
     def mock_rg_exists(rg_name):
         # Parse index from resource group name
         if 'simple-apim-1' in rg_name:
