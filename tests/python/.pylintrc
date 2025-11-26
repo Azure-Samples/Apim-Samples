@@ -1,10 +1,34 @@
+[MASTER]
+jobs = 0
+persistent = no
+
 [MESSAGES CONTROL]
+enable = all
 disable =
+    C0301,  # Line too long
+    C0302,  # Too many lines in module
     C0305,  # Trailing newlines
     C0114,  # Missing module docstring
     C0115,  # Missing class docstring
     C0116,  # Missing function or method docstring
+    E0401,  # Import error
     W0212,  # Access to a protected member _ of a client class
     R0903,  # Too few public methods
+    R0911,  # Too many return statements
     R0913,  # Too many arguments
+    R0917,  # Too many nested blocks
+    W0511,  # TODO/FIXME comments
+    W0613,  # Unused argument
     W0621,  # Redefining name from outer scope
+    W0718,  # Exception arguments are of wrong type
+    W0719   # Exception raised is not a subclass of BaseException
+
+[REPORTS]
+output-format = colorized
+reports = yes
+score = yes
+msg-template = {path}:{line}:{column}: [{msg_id}({symbol}), {obj}] {msg}
+
+[FORMAT]
+max-line-length = 120
+expected-line-ending-format = LF

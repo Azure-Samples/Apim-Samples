@@ -31,7 +31,7 @@ class JwtPayload:
 
     def __init__(self, subject: str, name: str, issued_at: int | None = None, expires: int | None = None, roles: dict[str] | None = None) -> None:
         self.sub = subject
-        self.name = name        
+        self.name = name
         self.iat = issued_at if issued_at is not None else int(time.time())
         self.exp = expires if expires is not None else self.iat + self.DEFAULT_LIFETIME_SECONDS
         self.roles = roles if roles is not None else []
@@ -50,7 +50,7 @@ class JwtPayload:
             'name': self.name,
             'iat': self.iat,
             'exp': self.exp
-        } 
+        }
 
         if bool(self.roles):
             pl['roles'] = self.roles
@@ -97,7 +97,7 @@ class SymmetricJwtToken:
         """
         return jwt.encode(self.payload.to_dict(), self.key, algorithm = 'HS256')
 
-    
+
 class AuthFactory:
     """
     Factory class for creating authentication tokens or objects.
@@ -111,15 +111,15 @@ class AuthFactory:
     def create_symmetric_jwt_token_for_user(user: User, jwt_key: str) -> str:
         if not user:
             raise ValueError('User is required to create a symmetric JWT token.')
-        
+
         if not str(jwt_key):
             raise ValueError('JWT key is required to create a symmetric JWT token.')
 
         jwt_payload = JwtPayload(subject = user.id, name = user.name, roles = user.roles)
         symmetric_jwt = SymmetricJwtToken(jwt_key, jwt_payload)
-        
+
         return symmetric_jwt.encode()
-    
+
     @staticmethod
     def create_jwt_payload_for_user(user: User) -> Any:
         """
@@ -140,4 +140,3 @@ class AuthFactory:
             'name': user.name,
             'roles': user.roles
         }
-

@@ -1,15 +1,19 @@
 # This is a comprehensive requirements.txt file to ensure that one installation covers everything.
 
+# Core dependencies
 requests
 setuptools
 pandas
 matplotlib
 pyjwt
-pytest
-pytest-cov
 azure.storage.blob
 azure.identity
 jupyter
 ipykernel
 notebook
 python-dotenv
+
+# Dev tools for linting, formatting, testing, etc.
+pylint
+pytest
+pytest-cov

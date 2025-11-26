@@ -1,8 +1,8 @@
 """
 Unit tests for authfactory.py.
 """
-import pytest
 import time
+import pytest
 from authfactory import JwtPayload, SymmetricJwtToken, AuthFactory
 from users import User
 
@@ -59,8 +59,7 @@ def test_create_jwt_payload_for_user_no_user():
 
 def test_jwt_payload_edge_cases():
     """Test JwtPayload with edge cases."""
-    import time
-    
+
     # Test with empty roles
     payload = JwtPayload('test-user', 'Test User', roles=[])
     payload_dict = payload.to_dict()
@@ -69,12 +68,12 @@ def test_jwt_payload_edge_cases():
     assert payload_dict['name'] == 'Test User'
     assert 'iat' in payload_dict
     assert 'exp' in payload_dict
-    
+
     # Test with None roles
     payload_none = JwtPayload('test-user', 'Test User', roles=None)
     payload_dict_none = payload_none.to_dict()
     assert 'roles' not in payload_dict_none
-    
+
     # Test expiration time
     current_time = int(time.time())
     payload = JwtPayload('test', 'Test', roles=['role1'])
@@ -88,18 +87,18 @@ def test_symmetric_jwt_token_edge_cases():
     """Test SymmetricJwtToken with edge cases."""
     # Test with valid payload and different keys
     payload = JwtPayload('test', 'Test', roles=['role1'])
-    
+
     # Test that different keys produce different tokens
     token1 = SymmetricJwtToken('key1', payload)
     token2 = SymmetricJwtToken('key2', payload)
-    
+
     encoded1 = token1.encode()
     encoded2 = token2.encode()
-    
+
     assert encoded1 != encoded2  # Different keys should produce different tokens
     assert isinstance(encoded1, str)
     assert isinstance(encoded2, str)
-    
+
     # Test with same key should produce same token
     token3 = SymmetricJwtToken('key1', payload)
     encoded3 = token3.encode()
@@ -109,11 +108,11 @@ def test_symmetric_jwt_token_edge_cases():
 def test_auth_factory_edge_cases():
     """Test AuthFactory with various edge cases."""
     user = User('test', 'Test User', ['role1', 'role2'])
-    
+
     # Test with empty key
     with pytest.raises(ValueError):
         AuthFactory.create_symmetric_jwt_token_for_user(user, '')
-    
+
     # Test with None user
     with pytest.raises(ValueError):
         AuthFactory.create_symmetric_jwt_token_for_user(None, 'test-key')
@@ -122,12 +121,12 @@ def test_auth_factory_edge_cases():
 def test_create_jwt_payload_for_user():
     """Test create_jwt_payload_for_user method."""
     user = User('test-id', 'Test User', ['admin', 'user'])
-    
+
     payload = AuthFactory.create_jwt_payload_for_user(user)
     assert payload['sub'] == 'test-id'
     assert payload['name'] == 'Test User'
     assert payload['roles'] == ['admin', 'user']
-    
+
     # Test with None user
     with pytest.raises(ValueError):
         AuthFactory.create_jwt_payload_for_user(None)
@@ -137,25 +136,24 @@ def test_jwt_token_structure():
     """Test that generated JWT tokens have correct structure."""
     user = User('test', 'Test User', ['role1'])
     token = AuthFactory.create_symmetric_jwt_token_for_user(user, 'test-secret-key')
-    
+
     # JWT should have 3 parts separated by dots
     parts = token.split('.')
     assert len(parts) == 3
-    
+
 
 def test_jwt_payload_time_handling():
     """Test JwtPayload time handling."""
-    import time
-    
+
     before_time = int(time.time())
     payload = JwtPayload('test', 'Test', roles=['role'])
     after_time = int(time.time())
-    
+
     payload_dict = payload.to_dict()
-    
+
     # iat should be around current time
     assert payload_dict['iat'] >= before_time
     assert payload_dict['iat'] <= after_time
-    
+
     # exp should be iat + 86400 (24 hours)
     assert payload_dict['exp'] == payload_dict['iat'] + 86400
