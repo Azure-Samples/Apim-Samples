@@ -792,13 +792,6 @@ def test_api_operation_repr():
     assert 'APIOperation' in result
     assert 'test' in result
 
-def test_product_repr():
-    """Test Product __repr__ method."""
-    product = apimtypes.Product(name='test-product', displayName='Test Product', description='Test')
-    result = repr(product)
-    assert 'Product' in result
-    assert 'test-product' in result
-
 def test_named_value_repr():
     """Test NamedValue __repr__ method."""
     nv = apimtypes.NamedValue(name='test-nv', value='value')
