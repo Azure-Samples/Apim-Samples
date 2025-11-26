@@ -820,7 +820,6 @@ def test_policy_fragment_repr():
 
 def test_get_project_root_functionality():
     """Test _get_project_root function comprehensively."""
-    import os
     from pathlib import Path
 
     # This function should return the project root

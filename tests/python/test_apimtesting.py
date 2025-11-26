@@ -2,10 +2,9 @@
 Unit tests for the ApimTesting module.
 """
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 import sys
 import os
-import pytest
 from apimtesting import ApimTesting
 from apimtypes import INFRASTRUCTURE
 

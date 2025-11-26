@@ -2,10 +2,9 @@
 Unit tests for the Charts module.
 """
 
-from unittest.mock import patch, MagicMock, call
+from unittest.mock import patch, MagicMock
 import sys
 import os
-import json
 import pytest
 from charts import BarChart
 
