@@ -137,7 +137,6 @@ def test_single_post_error():
     apim = make_apim()
     with patch('apimrequests.requests.request') as mock_request, \
          patch('apimrequests.utils.print_error') as mock_print_error:
-        import requests
         mock_request.side_effect = requests.RequestException('fail')
         result = apim.singlePost(PATH, data={'foo': 'bar'}, printResponse=True)
         assert result is None

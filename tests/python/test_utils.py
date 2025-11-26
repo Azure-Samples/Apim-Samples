@@ -4,9 +4,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, mock_open
 import json
 import pytest
-from apimtypes import INFRASTRUCTURE
+from apimtypes import INFRASTRUCTURE, APIM_SKU
 import utils
-from apimtypes import INFRASTRUCTURE
 
 # ------------------------------
 #    is_string_json
@@ -738,7 +737,6 @@ def test_extract_json_edge_cases(input_val, expected):
 def test_extract_json_large_object():
     """Test extract_json with a large JSON object."""
     large_obj = {'a': list(range(1000)), 'b': {'c': 'x' * 1000}}
-    import json
     s = json.dumps(large_obj)
     assert utils.extract_json(s) == large_obj
 
@@ -1007,7 +1005,6 @@ def test_create_bicep_deployment_group_params_file_written(monkeypatch):
 
     # Verify the correct JSON structure was written
     written_content = ''.join(call.args[0] for call in mock_open_func().write.call_args_list)
-    import json
     written_data = json.loads(written_content)
 
     assert written_data['$schema'] == 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#'
@@ -1114,7 +1111,6 @@ def test_test_url_preflight_check_no_frontdoor(monkeypatch):
 def test_determine_policy_path_filename_mode(monkeypatch):
     """Test determine_policy_path with filename mode."""
     import inspect
-    from pathlib import Path
 
     # Mock the project root
     mock_project_root = Path('/mock/project/root')
@@ -1205,7 +1201,6 @@ def test_wait_for_apim_blob_permissions_failure(monkeypatch):
 
 def test_read_policy_xml_with_sample_name_explicit(monkeypatch):
     """Test read_policy_xml with explicit sample name."""
-    from pathlib import Path
     mock_project_root = Path('/mock/project/root')
     monkeypatch.setattr('apimtypes._get_project_root', lambda: mock_project_root)
 
@@ -1246,7 +1241,6 @@ def test_get_infra_rg_name_different_types(infra_type, expected_suffix, monkeypa
 
 def test_create_bicep_deployment_group_for_sample_success(monkeypatch):
     """Test create_bicep_deployment_group_for_sample success case."""
-    import os
     mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
 
     def mock_create_bicep(rg_name, rg_location, deployment, bicep_parameters, bicep_parameters_file='params.json', rg_tags=None, is_debug=False):
@@ -1414,7 +1408,6 @@ def test_cleanup_functions_comprehensive(monkeypatch):
     utils._cleanup_resources('test-deployment', 'test-rg')  # Should not raise
 
     # Test cleanup_infra_deployments with INFRASTRUCTURE enum (correct function name and parameter type)
-    from apimtypes import INFRASTRUCTURE
 
     # Test with all infrastructure types
     utils.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM)
@@ -1882,7 +1875,6 @@ def test_prompt_for_infrastructure_update_invalid_choice_then_valid(monkeypatch)
 
 def test_infrastructure_notebook_helper_create_with_index_retry(monkeypatch):
     """Test InfrastructureNotebookHelper.create_infrastructure with option 2 (different index) retry."""
-    from apimtypes import INFRASTRUCTURE, APIM_SKU
 
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
 
@@ -1920,7 +1912,6 @@ def test_infrastructure_notebook_helper_create_with_index_retry(monkeypatch):
 
 def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch):
     """Test InfrastructureNotebookHelper.create_infrastructure with multiple recursive retries."""
-    from apimtypes import INFRASTRUCTURE, APIM_SKU
 
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
 
@@ -1968,8 +1959,6 @@ def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch)
 
 def test_infrastructure_notebook_helper_create_user_cancellation(monkeypatch):
     """Test InfrastructureNotebookHelper.create_infrastructure when user cancels during retry."""
-    from apimtypes import INFRASTRUCTURE, APIM_SKU
-    import pytest
 
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
 
@@ -1988,8 +1977,6 @@ def test_infrastructure_notebook_helper_create_user_cancellation(monkeypatch):
 
 def test_infrastructure_notebook_helper_create_keyboard_interrupt_during_prompt(monkeypatch):
     """Test InfrastructureNotebookHelper.create_infrastructure when KeyboardInterrupt occurs during prompt."""
-    from apimtypes import INFRASTRUCTURE, APIM_SKU
-    import pytest
 
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
 
@@ -2011,8 +1998,6 @@ def test_infrastructure_notebook_helper_create_keyboard_interrupt_during_prompt(
 
 def test_infrastructure_notebook_helper_create_eof_error_during_prompt(monkeypatch):
     """Test InfrastructureNotebookHelper.create_infrastructure when EOFError occurs during prompt."""
-    from apimtypes import INFRASTRUCTURE, APIM_SKU
-    import pytest
 
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
 

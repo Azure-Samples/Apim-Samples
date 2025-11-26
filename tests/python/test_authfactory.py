@@ -59,7 +59,6 @@ def test_create_jwt_payload_for_user_no_user():
 
 def test_jwt_payload_edge_cases():
     """Test JwtPayload with edge cases."""
-    import time
 
     # Test with empty roles
     payload = JwtPayload('test-user', 'Test User', roles=[])
@@ -145,7 +144,6 @@ def test_jwt_token_structure():
 
 def test_jwt_payload_time_handling():
     """Test JwtPayload time handling."""
-    import time
 
     before_time = int(time.time())
     payload = JwtPayload('test', 'Test', roles=['role'])

@@ -161,7 +161,6 @@ def test_user_helper_edge_cases():
     assert result is None
 
     # Test with multiple users having the same role
-    from users import Users
     users_with_same_role = [u for u in Users if 'hr_member' in u.roles]
     if len(users_with_same_role) > 1:
         # Should return one of them (random selection)
@@ -182,7 +181,6 @@ def test_user_helper_role_variations():
 
 def test_user_helper_users_list_integrity():
     """Test that Users list has expected structure."""
-    from users import Users
     assert isinstance(Users, list)
     assert len(Users) > 0
 
@@ -223,18 +221,15 @@ def test_user_repr_completeness():
 def test_get_user_by_role_with_none_handling():
     """Test get_user_by_role with None handling for users with no roles."""
     # First, check if there's a user with no roles
-    from users import Users
     users_with_no_roles = [u for u in Users if not u.roles]
 
     if users_with_no_roles:
         # Test getting user with None role using Role.NONE
-        from apimtypes import Role
         result = UserHelper.get_user_by_role(Role.NONE)
         assert result is not None
         assert not result.roles  # Should have empty roles list
     else:
         # If no users with empty roles, test should return None
-        from apimtypes import Role
         result = UserHelper.get_user_by_role(Role.NONE)
         assert result is None
 
@@ -252,7 +247,6 @@ def test_user_helper_randomness_distribution():
 
     # If there are multiple users with the same role, we might get different results
     # This is a probabilistic test, so we can't assert definitively
-    from users import Users
     if len([u for u in Users if matching_role in u.roles]) > 1:
         # With randomness, we might get different users
         pass  # Can't assert much here due to randomness
