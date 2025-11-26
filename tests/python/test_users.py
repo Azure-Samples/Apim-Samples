@@ -37,9 +37,6 @@ def test_user_repr():
     # __repr__ is not defined, so fallback to default, but check type
     assert isinstance(repr(user), str)
 
-"""
-Unit tests for User.get_user_by_role in users.py.
-"""
 
 # ------------------------------
 #    CONSTANTS
