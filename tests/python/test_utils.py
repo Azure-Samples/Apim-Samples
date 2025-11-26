@@ -1,5 +1,10 @@
 import os
+import io
+import sys
 import builtins
+import inspect
+import base64
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, mock_open
 import json
@@ -1059,8 +1064,6 @@ def test_create_bicep_deployment_group_deployment_failure(monkeypatch):
 
 def test_print_functions_comprehensive():
     """Test all print utility functions for coverage."""
-    import io
-    import sys
 
     # Capture stdout
     captured_output = io.StringIO()
@@ -1107,7 +1110,6 @@ def test_test_url_preflight_check_no_frontdoor(monkeypatch):
 
 def test_determine_policy_path_filename_mode(monkeypatch):
     """Test determine_policy_path with filename mode."""
-    import inspect
 
     # Mock the project root
     mock_project_root = Path('/mock/project/root')
@@ -1281,7 +1283,7 @@ def test_generate_signing_key_format():
 
     # Base64 key should be valid base64
     assert isinstance(b64_key, str)
-    import base64
+
     try:
         decoded = base64.b64decode(b64_key)
         assert len(decoded) == len(key)  # Decoded should match original length
@@ -1307,7 +1309,6 @@ def test_run_command_with_error_suppression(monkeypatch):
     """Test run command with error output suppression."""
     def mock_subprocess_check_output(cmd, **kwargs):
         # Simulate a CalledProcessError with bytes output
-        import subprocess
         error = subprocess.CalledProcessError(1, cmd)
         error.output = b'test output'  # Return bytes, as subprocess would
         raise error

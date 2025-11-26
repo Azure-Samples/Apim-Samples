@@ -2,8 +2,10 @@
 Unit tests for apimtypes.py.
 """
 
+from pathlib import Path
 import pytest
 import apimtypes
+
 
 
 # ------------------------------
@@ -813,7 +815,6 @@ def test_policy_fragment_repr():
 
 def test_get_project_root_functionality():
     """Test _get_project_root function comprehensively."""
-    from pathlib import Path
 
     # This function should return the project root
     root = apimtypes._get_project_root()
