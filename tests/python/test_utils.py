@@ -1122,7 +1122,6 @@ def test_determine_policy_path_filename_mode(monkeypatch):
 
     def mock_currentframe():
         frame = MockFrame()
-        frame.f_back = frame
         return frame
 
     monkeypatch.setattr(inspect, 'currentframe', mock_currentframe)
