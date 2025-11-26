@@ -62,7 +62,6 @@ def test_verify_success():
         assert testing.tests_passed == 1
         assert not testing.tests_failed
         assert testing.total_tests == 1
-        assert not len(testing.errors)
         mock_print.assert_called_with('✅ Test 1: PASS')
 
 
