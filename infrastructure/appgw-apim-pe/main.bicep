@@ -66,6 +66,13 @@ var CERT_NAME = 'appgw-cert'
 var DOMAIN_NAME = 'api.apim-samples.contoso.com'
 
 
+// ------------------------------
+//    VARIABLES
+// ------------------------------
+
+var azureRoles = loadJsonContent('../../shared/azure-roles.json')
+
+
 // ------------------
 //    RESOURCES
 // ------------------
@@ -95,6 +102,7 @@ resource nsgDefault 'Microsoft.Network/networkSecurityGroups@2024-05-01' = {
   location: location
 }
 
+// App Gateway needs a specific NSG
 resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2024-05-01' = {
   name: 'nsg-appgw'
   location: location
@@ -213,12 +221,13 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
   }
 }
 
-var apimSubnetResourceId           = '${vnetModule.outputs.vnetId}/subnets/${apimSubnetName}'
-var acaSubnetResourceId            = '${vnetModule.outputs.vnetId}/subnets/${acaSubnetName}'
-var appgwSubnetResourceId          = '${vnetModule.outputs.vnetId}/subnets/${appgwSubnetName}'
+var apimSubnetResourceId            = '${vnetModule.outputs.vnetId}/subnets/${apimSubnetName}'
+var acaSubnetResourceId             = '${vnetModule.outputs.vnetId}/subnets/${acaSubnetName}'
+var appgwSubnetResourceId           = '${vnetModule.outputs.vnetId}/subnets/${appgwSubnetName}'
 var privateEndpointSubnetResourceId = '${vnetModule.outputs.vnetId}/subnets/${privateEndpointSubnetName}'
 
 // 4. User Assigned Managed Identity
+// https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/managed-identity/user-assigned-identity
 module uamiModule 'br/public:avm/res/managed-identity/user-assigned-identity:0.4.2' = {
   name: 'uamiModule'
   params: {
@@ -229,9 +238,10 @@ module uamiModule 'br/public:avm/res/managed-identity/user-assigned-identity:0.4
 
 // 5. Key Vault
 // https://learn.microsoft.com/azure/templates/microsoft.keyvault/vaults
+// This assignment is helpful for testing to allow you to examine and administer the Key Vault. Adjust accordingly for real workloads!
 var keyVaultAdminRoleAssignment = setCurrentUserAsKeyVaultAdmin && !empty(currentUserId) ? [
   {
-    roleDefinitionIdOrName: '00482a5a-887f-4fb3-b363-3b7fe8e74483' // Key Vault Administrator
+    roleDefinitionIdOrName: azureRoles.KeyVaultAdministrator
     principalId: currentUserId
     principalType: 'User'
   }
@@ -239,14 +249,8 @@ var keyVaultAdminRoleAssignment = setCurrentUserAsKeyVaultAdmin && !empty(curren
 
 var keyVaultServiceRoleAssignments = [
   {
-    // Key Vault Secrets User (for App Gateway to read certificate secrets)
-    roleDefinitionIdOrName: '4633458b-17de-408a-b874-0445c86b69e6'
-    principalId: uamiModule.outputs.principalId
-    principalType: 'ServicePrincipal'
-  }
-  {
     // Key Vault Certificate User (for App Gateway to read certificates)
-    roleDefinitionIdOrName: 'db79e9a7-68ee-4b58-9aeb-b90e7c24fcba'
+    roleDefinitionIdOrName: azureRoles.KeyVaultCertificateUser
     principalId: uamiModule.outputs.principalId
     principalType: 'ServicePrincipal'
   }
@@ -303,11 +307,7 @@ resource wafPolicy 'Microsoft.Network/ApplicationGatewayWebApplicationFirewallPo
   }
 }
 
-
-
-
-
-// 7. Azure Container App Environment (ACAE)
+// 8. Azure Container App Environment (ACAE)
 module acaEnvModule '../../shared/bicep/modules/aca/v1/environment.bicep' = if (useACA) {
   name: 'acaEnvModule'
   params: {
@@ -318,7 +318,7 @@ module acaEnvModule '../../shared/bicep/modules/aca/v1/environment.bicep' = if (
   }
 }
 
-// 8. Azure Container Apps (ACA) for Mock Web API
+// 9. Azure Container Apps (ACA) for Mock Web API
 module acaModule1 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (useACA) {
   name: 'acaModule-1'
   params: {
@@ -336,7 +336,7 @@ module acaModule2 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (u
   }
 }
 
-// 9. API Management
+// 10. API Management
 module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
   name: 'apimModule'
   params: {
@@ -349,7 +349,7 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
   }
 }
 
-// 10. APIM Policy Fragments
+// 11. APIM Policy Fragments
 module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.bicep' = [for pf in policyFragments: {
   name: 'pf-${pf.name}'
   params:{
@@ -363,7 +363,7 @@ module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.
   ]
 }]
 
-// 11. APIM Backends for ACA
+// 12. APIM Backends for ACA
 module backendModule1 '../../shared/bicep/modules/apim/v1/backend.bicep' = if (useACA) {
   name: 'aca-backend-1'
   params: {
@@ -412,7 +412,7 @@ module backendPoolModule '../../shared/bicep/modules/apim/v1/backend-pool.bicep'
   ]
 }
 
-// 12. APIM APIs
+// 13. APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(length(apis) > 0) {
   name: 'api-${api.name}'
   params: {
@@ -429,7 +429,7 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   ]
 }]
 
-// 13. Private Endpoint for APIM
+// 14. Private Endpoint for APIM
 // https://learn.microsoft.com/azure/templates/microsoft.network/privateendpoints
 resource apimPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
   name: 'pe-apim-${resourceSuffix}'
@@ -452,7 +452,7 @@ resource apimPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
   }
 }
 
-// 14. Private DNS Zone Group for APIM Private Endpoint
+// 15. Private DNS Zone Group for APIM Private Endpoint
 // https://learn.microsoft.com/azure/templates/microsoft.network/privateendpoints/privatednszoneegroups
 resource apimPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = {
   name: 'apim-dns-zone-group'
@@ -469,7 +469,7 @@ resource apimPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZ
   }
 }
 
-// 15. APIM Private DNS Zone, VNet Link
+// 16. APIM Private DNS Zone, VNet Link
 module apimDnsPrivateLinkModule '../../shared/bicep/modules/dns/v1/dns-private-link.bicep' = {
   name: 'apimDnsPrivateLinkModule'
   params: {
@@ -482,7 +482,7 @@ module apimDnsPrivateLinkModule '../../shared/bicep/modules/dns/v1/dns-private-l
   }
 }
 
-// 14. ACA Private DNS Zone
+// 17. ACA Private DNS Zone
 module acaDnsPrivateZoneModule '../../shared/bicep/modules/dns/v1/aca-dns-private-zone.bicep' = if (useACA) {
   name: 'acaDnsPrivateZoneModule'
   params: {
@@ -492,7 +492,7 @@ module acaDnsPrivateZoneModule '../../shared/bicep/modules/dns/v1/aca-dns-privat
   }
 }
 
-// 15. Application Gateway
+// 18. Application Gateway
 // https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/application-gateway
 module appgwModule 'br/public:avm/res/network/application-gateway:0.7.2' = {
   name: 'appgwModule'
