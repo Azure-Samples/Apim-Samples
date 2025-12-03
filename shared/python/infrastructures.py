@@ -286,7 +286,6 @@ class Infrastructure:
             os.chdir(original_cwd)
             print(f'📁 Restored working directory to: {original_cwd}')
 
-
 class SimpleApimInfrastructure(Infrastructure):
     """
     Represents a simple API Management infrastructure.
@@ -294,7 +293,6 @@ class SimpleApimInfrastructure(Infrastructure):
 
     def __init__(self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2, infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
         super().__init__(INFRASTRUCTURE.SIMPLE_APIM, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis)
-
 
 class ApimAcaInfrastructure(Infrastructure):
     """
@@ -329,7 +327,6 @@ class ApimAcaInfrastructure(Infrastructure):
         except Exception as e:
             print(f'⚠️  Container Apps verification failed with error: {str(e)}')
             return False
-
 
 class AfdApimAcaInfrastructure(Infrastructure):
     """
@@ -611,7 +608,6 @@ class AfdApimAcaInfrastructure(Infrastructure):
             print(f'⚠️  AFD-APIM-PE verification failed with error: {str(e)}')
             return False
 
-
 class AppGwApimPeInfrastructure(Infrastructure):
     """
     Represents an Application Gateway with API Management and Azure Container Apps infrastructure.
@@ -636,10 +632,10 @@ class AppGwApimPeInfrastructure(Infrastructure):
         Returns:
             bool: True if certificate was created or already exists, False on failure.
         """
-        print(f'\n🔐 Creating self-signed certificate in Key Vault...')
+        print(f'\n🔐 Creating self-signed certificate in Key Vault...\n')
         print(f'   Key Vault   : {key_vault_name}')
         print(f'   Certificate : {self.CERT_NAME}')
-        print(f'   Domain      : {self.DOMAIN_NAME}')
+        print(f'   Domain      : {self.DOMAIN_NAME}\n')
 
         # Check if certificate already exists
         check_output = utils.run(
@@ -940,6 +936,8 @@ class AppGwApimPeInfrastructure(Infrastructure):
 
         apim_service_id = output.get('apimServiceId', 'APIM Service ID', suppress_logging = True)
         apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM Gateway URL', suppress_logging = True)
+        self.appgw_domain_name = output.get('appGatewayDomainName', 'App Gateway Domain Name', suppress_logging = True)
+        self.appgw_public_ip = output.get('appgwPublicIpAddress', 'App Gateway Public IP', suppress_logging = True)
 
         if not apim_service_id or not apim_gateway_url:
             print('❌ Required APIM information not found in deployment output')
@@ -965,6 +963,11 @@ class AppGwApimPeInfrastructure(Infrastructure):
         print('   ✅ Private link connections approved')
         print('   ✅ Public access to APIM disabled')
         print('   ℹ️  Traffic now flows: Internet → Application Gateway → Private Endpoint → APIM')
+
+        print('\n\n 🧪 TESTING\n')
+        print('As we are using a self-signed certificate (please see README.md for details), we need to test differently. A simple curl command suffices.' +
+              'This tests ingress through App Gateway and a response from API Management\'s health endpoint. If an HTTP 200 response is received, the test was successful.\n')
+        print(f'curl -v -k -H "Host: ${self.appgw_domain_name}" https://${self.appgw_public_ip}/status-0123456789abcdef')
 
         return output
 
