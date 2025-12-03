@@ -132,6 +132,7 @@ class INFRASTRUCTURE(StrEnum):
     SIMPLE_APIM  = 'simple-apim'   # Simple API Management with no dependencies
     APIM_ACA     = 'apim-aca'      # Azure API Management connected to Azure Container Apps
     AFD_APIM_PE  = 'afd-apim-pe'   # Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
+    APPGW_APIM_PE = 'appgw-apim-pe' # Application Gateway connected to Azure API Management (Standard V2) via Private Link
 
 
 # ------------------------------

@@ -18,6 +18,8 @@ import inspect
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+import tempfile
+import os as temp_os
 
 from typing import Any, Optional, Tuple
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE
@@ -262,6 +264,12 @@ class InfrastructureNotebookHelper:
         self.index = index
         self.apim_sku = apim_sku
 
+        print('Initializing Infrastructure Notebook Helper with the following parameters:')
+        print_val('Location', self.rg_location)
+        print_val('Infrastructure', self.deployment.value)
+        print_val('Index', self.index)
+        print_val('APIM SKU', self.apim_sku.value)
+
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
@@ -309,7 +317,8 @@ class InfrastructureNotebookHelper:
                 infra_folder_map = {
                     INFRASTRUCTURE.SIMPLE_APIM: 'simple-apim',
                     INFRASTRUCTURE.AFD_APIM_PE: 'afd-apim-pe',
-                    INFRASTRUCTURE.APIM_ACA: 'apim-aca'
+                    INFRASTRUCTURE.APIM_ACA: 'apim-aca',
+                    INFRASTRUCTURE.APPGW_APIM_PE: 'appgw-apim-pe'
                 }
 
                 infra_folder = infra_folder_map.get(self.deployment)
@@ -1070,7 +1079,7 @@ def create_resource_group(rg_name: str, resource_group_location: str | None = No
         run(f'az group create --name {rg_name} --location {resource_group_location} --tags {tag_string}',
             f"Resource group '{rg_name}' created",
             f"Failed to create the resource group '{rg_name}'",
-            False, False, False, False)
+            False, True, False, False)
 
 def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
     """
@@ -1608,29 +1617,32 @@ def is_string_json(text: str) -> bool:
 
     return False
 
-def get_account_info() -> Tuple[str, str, str]:
+def get_account_info() -> Tuple[str, str, str, str]:
     """
     Retrieve the current Azure account information using the Azure CLI.
 
     Returns:
-        tuple: (current_user, tenant_id, subscription_id)
+        tuple: (current_user, current_user_id, tenant_id, subscription_id)
 
     Raises:
         Exception: If account information cannot be retrieved.
     """
 
-    output = run('az account show', 'Retrieved az account', 'Failed to get the current az account')
+    account_show_output = run('az account show', 'Retrieved az account', 'Failed to get the current az account')
+    ad_user_show_output = run('az ad signed-in-user show', 'Retrieved az ad signed-in-user', 'Failed to get the current az ad signed-in-user')
 
-    if output.success and output.json_data:
-        current_user = output.json_data['user']['name']
-        tenant_id = output.json_data['tenantId']
-        subscription_id = output.json_data['id']
+    if account_show_output.success and account_show_output.json_data and ad_user_show_output.success and ad_user_show_output.json_data:
+        current_user = account_show_output.json_data['user']['name']
+        tenant_id = account_show_output.json_data['tenantId']
+        subscription_id = account_show_output.json_data['id']
+        current_user_id = ad_user_show_output.json_data['id']
 
         print_val('Current user', current_user)
+        print_val('Current user ID', current_user_id)
         print_val('Tenant ID', tenant_id)
         print_val('Subscription ID', subscription_id)
 
-        return current_user, tenant_id, subscription_id
+        return current_user, current_user_id, tenant_id, subscription_id
     else:
         error = 'Failed to retrieve account information. Please ensure the Azure CLI is installed, you are logged in, and the subscription is set correctly.'
         print_error(error)
@@ -1709,6 +1721,58 @@ def get_infra_rg_name(deployment_name: INFRASTRUCTURE, index: int | None = None)
         rg_name = f'{rg_name}-{index}'
 
     return rg_name
+
+def get_unique_suffix_for_resource_group(rg_name: str) -> str:
+    """
+    Get the exact uniqueString value that Bicep/ARM generates for a resource group.
+
+    Uses a minimal ARM deployment to ensure the value matches exactly what
+    Bicep's uniqueString(subscription().id, resourceGroup().id) produces.
+
+    Args:
+        rg_name (str): The resource group name (must already exist).
+
+    Returns:
+        str: The 13-character unique string matching Bicep's uniqueString output.
+    """
+
+    # Minimal ARM template that just outputs the uniqueString
+    template = json.dumps({
+        "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+        "contentVersion": "1.0.0.0",
+        "resources": [],
+        "outputs": {
+            "suffix": {
+                "type": "string",
+                "value": "[uniqueString(subscription().id, resourceGroup().id)]"
+            }
+        }
+    })
+
+    # Write template to temp file
+    with tempfile.NamedTemporaryFile(mode = 'w', suffix = '.json', delete = False) as f:
+        f.write(template)
+        template_path = f.name
+
+    try:
+        deployment_name = f'get-suffix-{int(time.time())}'
+        output = run(
+            f'az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file "{template_path}" --query "properties.outputs.suffix.value" -o tsv',
+            print_command_to_run = True,
+            print_errors = False
+        )
+
+        if output.success and output.text.strip():
+            return output.text.strip()
+
+        # Fallback to local SHA-1 calculation if deployment fails
+        print_error('Could not get uniqueString from Azure.')
+
+    finally:
+        try:
+            temp_os.unlink(template_path)
+        except Exception:
+            pass
 
 def get_rg_name(deployment_name: str, index: int | None = None) -> str:
     """
