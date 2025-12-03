@@ -26,7 +26,6 @@ def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU, no_aca:
         print(f'\n💥 Error: {str(e)}')
         sys.exit(1)
 
-
 def _create_appgw_specific_apis(use_aca: bool = True) -> list[API]:
     """
     Create APPGW-APIM-PE specific APIs with optional Container Apps backends.
@@ -60,6 +59,7 @@ def _create_appgw_specific_apis(use_aca: bool = True) -> list[API]:
         return [api_hwaca_1, api_hwaca_2, api_hwaca_pool]
 
     return []
+
 def main():
     """
     Main entry point for command-line usage.
