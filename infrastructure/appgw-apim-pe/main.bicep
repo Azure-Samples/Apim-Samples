@@ -14,6 +14,7 @@ param vnetName string = 'vnet-${resourceSuffix}'
 param apimSubnetName string = 'snet-apim'
 param acaSubnetName string = 'snet-aca'
 param appgwSubnetName string = 'snet-appgw'
+param privateEndpointSubnetName string = 'snet-pe'
 
 @description('The address prefixes for the VNet.')
 param vnetAddressPrefixes array = [ '10.0.0.0/16' ]
@@ -26,6 +27,9 @@ param acaSubnetPrefix string = '10.0.2.0/23'
 
 @description('The address prefix for the Application Gateway subnet.')
 param appgwSubnetPrefix string = '10.0.4.0/24'
+
+@description('The address prefix for the Private Endpoint subnet.')
+param privateEndpointSubnetPrefix string = '10.0.5.0/24'
 
 // API Management
 param apimName string = 'apim-${resourceSuffix}'
@@ -194,13 +198,25 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
           }
         }
       }
+      // Private Endpoint Subnet
+      {
+        name: privateEndpointSubnetName
+        properties: {
+          addressPrefix: privateEndpointSubnetPrefix
+          networkSecurityGroup: {
+            id: nsgDefault.id
+          }
+          privateEndpointNetworkPolicies: 'Disabled'
+        }
+      }
     ]
   }
 }
 
-var apimSubnetResourceId  = '${vnetModule.outputs.vnetId}/subnets/${apimSubnetName}'
-var acaSubnetResourceId   = '${vnetModule.outputs.vnetId}/subnets/${acaSubnetName}'
-var appgwSubnetResourceId = '${vnetModule.outputs.vnetId}/subnets/${appgwSubnetName}'
+var apimSubnetResourceId           = '${vnetModule.outputs.vnetId}/subnets/${apimSubnetName}'
+var acaSubnetResourceId            = '${vnetModule.outputs.vnetId}/subnets/${acaSubnetName}'
+var appgwSubnetResourceId          = '${vnetModule.outputs.vnetId}/subnets/${appgwSubnetName}'
+var privateEndpointSubnetResourceId = '${vnetModule.outputs.vnetId}/subnets/${privateEndpointSubnetName}'
 
 // 4. User Assigned Managed Identity
 module uamiModule 'br/public:avm/res/managed-identity/user-assigned-identity:0.4.0' = {
@@ -413,7 +429,47 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   ]
 }]
 
-// 13. APIM Private DNS Zone, VNet Link
+// 13. Private Endpoint for APIM
+// https://learn.microsoft.com/azure/templates/microsoft.network/privateendpoints
+resource apimPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
+  name: 'pe-apim-${resourceSuffix}'
+  location: location
+  properties: {
+    subnet: {
+      id: privateEndpointSubnetResourceId
+    }
+    privateLinkServiceConnections: [
+      {
+        name: 'apim-connection'
+        properties: {
+          privateLinkServiceId: apimModule.outputs.id
+          groupIds: [
+            'Gateway'
+          ]
+        }
+      }
+    ]
+  }
+}
+
+// 14. Private DNS Zone Group for APIM Private Endpoint
+// https://learn.microsoft.com/azure/templates/microsoft.network/privateendpoints/privatednszoneegroups
+resource apimPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = {
+  name: 'apim-dns-zone-group'
+  parent: apimPrivateEndpoint
+  properties: {
+    privateDnsZoneConfigs: [
+      {
+        name: 'privatelink-azure-api-net'
+        properties: {
+          privateDnsZoneId: apimDnsPrivateLinkModule.outputs.privateDnsZoneId
+        }
+      }
+    ]
+  }
+}
+
+// 15. APIM Private DNS Zone, VNet Link
 module apimDnsPrivateLinkModule '../../shared/bicep/modules/dns/v1/dns-private-link.bicep' = {
   name: 'apimDnsPrivateLinkModule'
   params: {
@@ -568,6 +624,9 @@ module appgwModule 'br/public:avm/res/network/application-gateway:0.5.0' = {
       }
     ]
   }
+  dependsOn: [
+    apimPrivateDnsZoneGroup
+  ]
 }
 
 
@@ -581,8 +640,10 @@ output logAnalyticsWorkspaceId string = lawModule.outputs.customerId
 output apimServiceId string = apimModule.outputs.id
 output apimServiceName string = apimModule.outputs.name
 output apimResourceGatewayURL string = apimModule.outputs.gatewayUrl
+output apimPrivateEndpointId string = apimPrivateEndpoint.id
 output appGatewayName string = appgwModule.outputs.name
 output appGatewayFrontendUrl string = 'https://${DOMAIN_NAME}'
+output appgwPublicIpAddress string = appgwPipModule.outputs.ipAddress
 
 // API outputs
 output apiOutputs array = [for i in range(0, length(apis)): {
