@@ -615,7 +615,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
 
     # Class constants for certificate configuration
     CERT_NAME = 'appgw-cert'
-    DOMAIN_NAME = 'api.apimsamples.contoso.com'
+    DOMAIN_NAME = 'api.apim-samples.contoso.com'
 
     def __init__(self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2, infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
         super().__init__(INFRASTRUCTURE.APPGW_APIM_PE, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis)
@@ -859,11 +859,11 @@ class AppGwApimPeInfrastructure(Infrastructure):
         if not check_kv.success:
             # Create Key Vault via Azure CLI with RBAC authorization (consistent with Bicep module)
             print(f'   Creating Key Vault: {key_vault_name}')
-            kv_output = utils.run(
+            utils.run(
                 f'az keyvault create --name {key_vault_name} --resource-group {self.rg_name} --location {self.rg_location} --enable-rbac-authorization true',
                 f'✅ Key Vault created: {key_vault_name}',
                 f'❌ Failed to create Key Vault',
-                print_command_to_run = True
+                print_command_to_run = False
             )
 
             #Assign Key Vault Certificates Officer role to current user for certificate creation
@@ -871,7 +871,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
             # Key Vault Certificates Officer role
             assign_kv_role = utils.run(
                 f'az role assignment create --role "Key Vault Certificates Officer" --assignee {self.current_user_id} --scope /subscriptions/{self.subscription_id}/resourceGroups/{self.rg_name}/providers/Microsoft.KeyVault/vaults/{key_vault_name}',
-                print_command_to_run = True,
+                print_command_to_run = False,
                 print_errors = False
             )
             if not assign_kv_role.success:
@@ -965,9 +965,10 @@ class AppGwApimPeInfrastructure(Infrastructure):
         print('   ℹ️  Traffic now flows: Internet → Application Gateway → Private Endpoint → APIM')
 
         print('\n\n 🧪 TESTING\n')
-        print('As we are using a self-signed certificate (please see README.md for details), we need to test differently. A simple curl command suffices.' +
-              'This tests ingress through App Gateway and a response from API Management\'s health endpoint. If an HTTP 200 response is received, the test was successful.\n')
-        print(f'curl -v -k -H "Host: ${self.appgw_domain_name}" https://${self.appgw_public_ip}/status-0123456789abcdef')
+        print('As we are using a self-signed certificate (please see README.md for details), we need to test differently.\n' +
+              'A curl command using flags for verbose (v), ignoring cert issues (k), and supplying a host header (h) works to verify connectivity.\n' +
+              'This tests ingress through App Gateway and a response from API Management\'s health endpoint. An "HTTP 200 Service Operational" response indicates success.\n')
+        print(f'curl -v -k -H "Host: {self.appgw_domain_name}" https://{self.appgw_public_ip}/status-0123456789abcdef')
 
         return output
 

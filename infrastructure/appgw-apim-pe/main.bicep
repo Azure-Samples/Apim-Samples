@@ -63,7 +63,7 @@ param currentUserId string = ''
 var IMG_HELLO_WORLD = 'simonkurtzmsft/helloworld:latest'
 var IMG_MOCK_WEB_API = 'simonkurtzmsft/mockwebapi:1.0.0-alpha.1'
 var CERT_NAME = 'appgw-cert'
-var DOMAIN_NAME = 'api.apimsamples.contoso.com'
+var DOMAIN_NAME = 'api.apim-samples.contoso.com'
 
 
 // ------------------
