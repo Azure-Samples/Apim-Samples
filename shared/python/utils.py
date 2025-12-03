@@ -270,6 +270,7 @@ class InfrastructureNotebookHelper:
         print_val('Infrastructure', self.deployment.value)
         print_val('Index', self.index)
         print_val('APIM SKU', self.apim_sku.value)
+        print('')
 
     # ------------------------------
     #    PUBLIC METHODS
@@ -727,39 +728,39 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
         print_info(f'Resource group : {rg_name}')
 
         # Show the deployment details
-        output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False)
+        output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False, print_errors = False)
 
         if output.success and output.json_data:
             # Delete and purge CognitiveService accounts
-            output = run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False)
+            output = run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False, print_errors = False)
 
             if output.success and output.json_data:
                 for resource in output.json_data:
                     print_info(f"Deleting and purging Cognitive Service Account '{resource['name']}'...")
-                    output = run(f"az cognitiveservices account delete -g {rg_name} -n {resource['name']}", f"Cognitive Services '{resource['name']}' deleted", f"Failed to delete Cognitive Services '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az cognitiveservices account purge -g {rg_name} -n {resource['name']} --location \"{resource['location']}\"", f"Cognitive Services '{resource['name']}' purged", f"Failed to purge Cognitive Services '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az cognitiveservices account delete -g {rg_name} -n {resource['name']}", f"Cognitive Services '{resource['name']}' deleted", f"Failed to delete Cognitive Services '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az cognitiveservices account purge -g {rg_name} -n {resource['name']} --location \"{resource['location']}\"", f"Cognitive Services '{resource['name']}' purged", f"Failed to purge Cognitive Services '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete and purge APIM resources
-            output = run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False)
+            output = run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False, print_errors = False)
 
             if output.success and output.json_data:
                 for resource in output.json_data:
                     print_info(f"Deleting and purging API Management '{resource['name']}'...")
-                    output = run(f"az apim delete -n {resource['name']} -g {rg_name} -y", f"API Management '{resource['name']}' deleted", f"Failed to delete API Management '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az apim deletedservice purge --service-name {resource['name']} --location \"{resource['location']}\"", f"API Management '{resource['name']}' purged", f"Failed to purge API Management '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az apim delete -n {resource['name']} -g {rg_name} -y", f"API Management '{resource['name']}' deleted", f"Failed to delete API Management '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az apim deletedservice purge --service-name {resource['name']} --location \"{resource['location']}\"", f"API Management '{resource['name']}' purged", f"Failed to purge API Management '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete and purge Key Vault resources
-            output = run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False)
+            output = run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False, print_errors = False)
 
             if output.success and output.json_data:
                 for resource in output.json_data:
                     print_info(f"Deleting and purging Key Vault '{resource['name']}'...")
-                    output = run(f"az keyvault delete -n {resource['name']} -g {rg_name}", f"Key Vault '{resource['name']}' deleted", f"Failed to delete Key Vault '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az keyvault purge -n {resource['name']} --location \"{resource['location']}\"", f"Key Vault '{resource['name']}' purged", f"Failed to purge Key Vault '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az keyvault delete -n {resource['name']} -g {rg_name}", f"Key Vault '{resource['name']}' deleted", f"Failed to delete Key Vault '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az keyvault purge -n {resource['name']} --location \"{resource['location']}\"", f"Key Vault '{resource['name']}' purged", f"Failed to purge Key Vault '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete the resource group last
             print_message(f"Deleting resource group '{rg_name}'...")
-            output = run(f'az group delete --name {rg_name} -y', f"Resource group '{rg_name}' deleted', f'Failed to delete resource group '{rg_name}'", print_command_to_run = False)
+            output = run(f'az group delete --name {rg_name} -y', f"Resource group '{rg_name}' deleted', f'Failed to delete resource group '{rg_name}'", print_command_to_run = False, print_errors = False)
 
             print_message('Cleanup completed.')
 
@@ -1063,8 +1064,6 @@ def create_resource_group(rg_name: str, resource_group_location: str | None = No
     """
 
     if not does_resource_group_exist(rg_name):
-        print_info(f'Creating the resource group now...')
-
         # Build the tags string for the Azure CLI command
         tag_string = 'source=apim-sample'
         if tags:
@@ -1395,43 +1394,43 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
             _print_log(f"{thread_prefix}Resource group : {rg_name}", '👉🏽 ', thread_color)
 
         # Show the deployment details
-        output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False)
+        output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False, print_errors = False)
 
         if output.success and output.json_data:
             # Delete and purge CognitiveService accounts
-            output = run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False)
+            output = run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False, print_errors = False)
 
             if output.success and output.json_data:
                 for resource in output.json_data:
                     with _print_lock:
                         _print_log(f"{thread_prefix}Deleting and purging Cognitive Service Account '{resource['name']}'...", '👉🏽 ', thread_color)
-                    output = run(f"az cognitiveservices account delete -g {rg_name} -n {resource['name']}", f"Cognitive Services '{resource['name']}' deleted", f"Failed to delete Cognitive Services '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az cognitiveservices account purge -g {rg_name} -n {resource['name']} --location \"{resource['location']}\"", f"Cognitive Services '{resource['name']}' purged", f"Failed to purge Cognitive Services '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az cognitiveservices account delete -g {rg_name} -n {resource['name']}", f"Cognitive Services '{resource['name']}' deleted", f"Failed to delete Cognitive Services '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az cognitiveservices account purge -g {rg_name} -n {resource['name']} --location \"{resource['location']}\"", f"Cognitive Services '{resource['name']}' purged", f"Failed to purge Cognitive Services '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete and purge APIM resources
-            output = run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False)
+            output = run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False, print_errors = False)
 
             if output.success and output.json_data:
                 for resource in output.json_data:
                     with _print_lock:
                         _print_log(f"{thread_prefix}Deleting and purging API Management '{resource['name']}'...", '👉🏽 ', thread_color)
-                    output = run(f"az apim delete -n {resource['name']} -g {rg_name} -y", f"API Management '{resource['name']}' deleted", f"Failed to delete API Management '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az apim deletedservice purge --service-name {resource['name']} --location \"{resource['location']}\"", f"API Management '{resource['name']}' purged", f"Failed to purge API Management '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az apim delete -n {resource['name']} -g {rg_name} -y", f"API Management '{resource['name']}' deleted", f"Failed to delete API Management '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az apim deletedservice purge --service-name {resource['name']} --location \"{resource['location']}\"", f"API Management '{resource['name']}' purged", f"Failed to purge API Management '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete and purge Key Vault resources
-            output = run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False)
+            output = run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False, print_errors = False)
 
             if output.success and output.json_data:
                 for resource in output.json_data:
                     with _print_lock:
                         _print_log(f"{thread_prefix}Deleting and purging Key Vault '{resource['name']}'...", '👉🏽 ', thread_color)
-                    output = run(f"az keyvault delete -n {resource['name']} -g {rg_name}", f"Key Vault '{resource['name']}' deleted", f"Failed to delete Key Vault '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az keyvault purge -n {resource['name']} --location \"{resource['location']}\"", f"Key Vault '{resource['name']}' purged", f"Failed to purge Key Vault '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az keyvault delete -n {resource['name']} -g {rg_name}", f"Key Vault '{resource['name']}' deleted", f"Failed to delete Key Vault '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az keyvault purge -n {resource['name']} --location \"{resource['location']}\"", f"Key Vault '{resource['name']}' purged", f"Failed to purge Key Vault '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete the resource group last
             with _print_lock:
                 _print_log(f"{thread_prefix}Deleting resource group '{rg_name}'...", 'ℹ️ ', thread_color, show_time=True)
-            output = run(f'az group delete --name {rg_name} -y', f"Resource group '{rg_name}' deleted', f'Failed to delete resource group '{rg_name}'", print_command_to_run = False)
+            output = run(f'az group delete --name {rg_name} -y', f"Resource group '{rg_name}' deleted', f'Failed to delete resource group '{rg_name}'", print_command_to_run = False, print_errors = False)
 
             with _print_lock:
                 _print_log(f"{thread_prefix}Cleanup completed.", 'ℹ️ ', thread_color, show_time=True)
@@ -1623,8 +1622,8 @@ def get_account_info() -> Tuple[str, str, str, str]:
         Exception: If account information cannot be retrieved.
     """
 
-    account_show_output = run('az account show', 'Retrieved az account', 'Failed to get the current az account')
-    ad_user_show_output = run('az ad signed-in-user show', 'Retrieved az ad signed-in-user', 'Failed to get the current az ad signed-in-user')
+    account_show_output = run('az account show', 'Retrieved az account', 'Failed to get the current az account', print_command_to_run = False)
+    ad_user_show_output = run('az ad signed-in-user show', 'Retrieved az ad signed-in-user', 'Failed to get the current az ad signed-in-user', print_command_to_run = False)
 
     if account_show_output.success and account_show_output.json_data and ad_user_show_output.success and ad_user_show_output.json_data:
         current_user = account_show_output.json_data['user']['name']
