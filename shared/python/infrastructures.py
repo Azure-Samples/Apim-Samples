@@ -632,10 +632,10 @@ class AppGwApimPeInfrastructure(Infrastructure):
         Returns:
             bool: True if certificate was created or already exists, False on failure.
         """
-        print(f'\n🔐 Creating self-signed certificate in Key Vault...\n')
+        print(f'\n   🔐 Creating self-signed certificate in Key Vault...\n')
         print(f'   Key Vault   : {key_vault_name}')
         print(f'   Certificate : {self.CERT_NAME}')
-        print(f'   Domain      : {self.DOMAIN_NAME}\n')
+        print(f'   Domain      : {self.DOMAIN_NAME}')
 
         # Check if certificate already exists
         check_output = utils.run(
@@ -899,15 +899,14 @@ class AppGwApimPeInfrastructure(Infrastructure):
         action_verb = "Updating" if is_update else "Starting"
         print(f'\n🚀 {action_verb} APPGW-APIM-PE infrastructure deployment...\n')
         print('   This deployment requires multiple steps:\n')
-        print('   0. Create Key Vault and self-signed certificate')
-        print('   1. Initial deployment with public access enabled')
-        print('   2. Approve private link connections')
-        print('   3. Verify connectivity')
-        print('   4. Disable public access to APIM')
-        print('   5. Final verification\n')
+        print('   1. Create Key Vault and self-signed certificate')
+        print('   2. Initial deployment with public access enabled')
+        print('   3. Approve private link connections')
+        print('   4. Verify connectivity')
+        print('   5. Disable public access to APIM')
 
-        # Step 0: Create Key Vault and certificate before main deployment
-        print('\n📋 Step 0: Creating Key Vault and certificate...')
+        # Step 1: Create Key Vault and certificate before main deployment
+        print('\n📋 Step 1: Creating Key Vault and certificate...\n')
         key_vault_name = f'kv-{self.resource_suffix}'
 
         # Create the Key Vault
@@ -918,16 +917,18 @@ class AppGwApimPeInfrastructure(Infrastructure):
         if not self._create_keyvault_certificate(key_vault_name):
             return utils.Output(False, 'Failed to create certificate in Key Vault')
 
-        print('\n✅ Step 0: Key Vault and certificate creation completed')
+        print('\n✅ Step 1: Key Vault and certificate creation completed')
 
-        # Step 1 & 2: Initial deployment using base class method
+        # Step 2: Initial deployment using base class method
+        print('\n📋 Step 2: Initial infrastructure deploying...\n')
+
         output = super().deploy_infrastructure(is_update)
 
         if not output.success:
             print('❌ Initial deployment failed!')
             return output
 
-        print('\n✅ Step 1 & 2: Initial infrastructure deployment completed')
+        print('\n✅ Step 2: Initial infrastructure deployment completed')
 
         # Extract required values from deployment output
         if not output.json_data:
@@ -944,14 +945,17 @@ class AppGwApimPeInfrastructure(Infrastructure):
             return output
 
         # Step 3: Approve private link connections
+        print('\n📋 Step 3: Approve private link connection...\n')
         if not self._approve_private_link_connections(apim_service_id):
             print('❌ Private link approval failed!')
             return utils.Output(False, 'Private link approval failed')
 
         # Step 4: Verify connectivity (optional - continues on failure)
+        print('\n📋 Step 4: Approving private link connection...\n')
         self._verify_apim_connectivity(apim_gateway_url)
 
         # Step 5: Disable public access
+        print('\n📋 Step 5: Disabling public access...\n')
         if not self._disable_apim_public_access():
             print('❌ Failed to disable public access!')
             return utils.Output(False, 'Failed to disable public access')
