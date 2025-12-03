@@ -501,6 +501,7 @@ module appgwModule 'br/public:avm/res/network/application-gateway:0.7.2' = {
     location: location
     sku: 'WAF_v2'
     firewallPolicyResourceId: wafPolicy.id
+    enableHttp2: true
     // Use minimal AZs for cost savings. Adjust accordingly for production workloads.
     availabilityZones: [
       1
