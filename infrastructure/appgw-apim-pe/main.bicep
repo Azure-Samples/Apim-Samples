@@ -219,7 +219,7 @@ var appgwSubnetResourceId          = '${vnetModule.outputs.vnetId}/subnets/${app
 var privateEndpointSubnetResourceId = '${vnetModule.outputs.vnetId}/subnets/${privateEndpointSubnetName}'
 
 // 4. User Assigned Managed Identity
-module uamiModule 'br/public:avm/res/managed-identity/user-assigned-identity:0.4.0' = {
+module uamiModule 'br/public:avm/res/managed-identity/user-assigned-identity:0.4.2' = {
   name: 'uamiModule'
   params: {
     name: uamiName
@@ -253,7 +253,7 @@ var keyVaultServiceRoleAssignments = [
 ]
 
 // https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/key-vault/vault
-module keyVaultModule 'br/public:avm/res/key-vault/vault:0.11.0' = {
+module keyVaultModule 'br/public:avm/res/key-vault/vault:0.13.3' = {
   name: 'keyVaultModule'
   params: {
     name: keyVaultName
@@ -267,7 +267,7 @@ module keyVaultModule 'br/public:avm/res/key-vault/vault:0.11.0' = {
 
 // 6. Public IP for Application Gateway
 // https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/public-ip-address
-module appgwPipModule 'br/public:avm/res/network/public-ip-address:0.8.0' = {
+module appgwPipModule 'br/public:avm/res/network/public-ip-address:0.9.1' = {
   name: 'appgwPipModule'
   params: {
     name: 'pip-${appgwName}'
@@ -494,13 +494,17 @@ module acaDnsPrivateZoneModule '../../shared/bicep/modules/dns/v1/aca-dns-privat
 
 // 15. Application Gateway
 // https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/application-gateway
-module appgwModule 'br/public:avm/res/network/application-gateway:0.5.0' = {
+module appgwModule 'br/public:avm/res/network/application-gateway:0.7.2' = {
   name: 'appgwModule'
   params: {
     name: appgwName
     location: location
     sku: 'WAF_v2'
     firewallPolicyResourceId: wafPolicy.id
+    // Use minimal AZs for cost savings. Adjust accordingly for production workloads.
+    availabilityZones: [
+      1
+    ]
     gatewayIPConfigurations: [
       {
         name: 'appGatewayIpConfig'
@@ -513,7 +517,7 @@ module appgwModule 'br/public:avm/res/network/application-gateway:0.5.0' = {
     ]
     frontendIPConfigurations: [
       {
-        name: 'appGatewayFrontendIP'
+        name: 'appGatewayFrontendPublicIP'
         properties: {
           publicIPAddress: {
             id: appgwPipModule.outputs.resourceId
@@ -533,12 +537,7 @@ module appgwModule 'br/public:avm/res/network/application-gateway:0.5.0' = {
       {
         name: CERT_NAME
         properties: {
-          // keyVaultSecretId: 'https://${keyVaultName}${environment().suffixes.keyvaultDns}/secrets/${CERT_NAME}'
           keyVaultSecretId: '${keyVaultModule.outputs.uri}secrets/${CERT_NAME}'
-          //keyVaultSecretId: 'https://kv-gvedcb4ficmha.vault.azure.net/secrets/appgw-cert/4d4031d7b4924dfeb1ecae890efd2d78'
-          //https://{keyvaultname}.{keyvaultdomain}/secrets/{secretname}.
-          // URI is https://kv-m2473sknx656e.vault.azure.net/
-
         }
       }
     ]
@@ -579,7 +578,7 @@ module appgwModule 'br/public:avm/res/network/application-gateway:0.5.0' = {
         name: 'https-listener'
         properties: {
           frontendIPConfiguration: {
-            id: resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', appgwName, 'appGatewayFrontendIP')
+            id: resourceId('Microsoft.Network/applicationGateways/frontendIPConfigurations', appgwName, 'appGatewayFrontendPublicIP')
           }
           frontendPort: {
             id: resourceId('Microsoft.Network/applicationGateways/frontendPorts', appgwName, 'port_443')
@@ -642,6 +641,7 @@ output apimServiceName string = apimModule.outputs.name
 output apimResourceGatewayURL string = apimModule.outputs.gatewayUrl
 output apimPrivateEndpointId string = apimPrivateEndpoint.id
 output appGatewayName string = appgwModule.outputs.name
+output appGatewayDomainName string = DOMAIN_NAME
 output appGatewayFrontendUrl string = 'https://${DOMAIN_NAME}'
 output appgwPublicIpAddress string = appgwPipModule.outputs.ipAddress
 
