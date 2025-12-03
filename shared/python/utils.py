@@ -5,6 +5,7 @@ Module providing utility functions.
 import ast
 import datetime
 import json
+import sys
 import os
 import re
 import subprocess
@@ -22,7 +23,7 @@ import tempfile
 import os as temp_os
 
 from typing import Any, Optional, Tuple
-from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE
+from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, _get_project_root
 
 
 # ------------------------------
@@ -264,7 +265,7 @@ class InfrastructureNotebookHelper:
         self.index = index
         self.apim_sku = apim_sku
 
-        print('Initializing Infrastructure Notebook Helper with the following parameters:')
+        print('Initializing Infrastructure Notebook Helper with the following parameters:\n')
         print_val('Location', self.rg_location)
         print_val('Infrastructure', self.deployment.value)
         print_val('Index', self.index)
@@ -287,8 +288,6 @@ class InfrastructureNotebookHelper:
         """
 
         try:
-            import sys
-
             # For infrastructure notebooks, check if update is allowed and handle user choice
             if allow_update:
                 rg_name = get_infra_rg_name(self.deployment, self.index)
@@ -847,7 +846,6 @@ def _determine_bicep_directory(infrastructure_dir: str) -> str:
 
     # Try to find the project root and construct the path from there
     try:
-        from apimtypes import _get_project_root
         project_root = _get_project_root()
         bicep_dir = os.path.join(str(project_root), 'infrastructure', infrastructure_dir)
         if os.path.exists(bicep_dir):
@@ -1015,7 +1013,6 @@ def create_bicep_deployment_group_for_sample(sample_name: str, rg_name: str, rg_
     Returns:
         Output: The result of the deployment command.
     """
-    import os
 
     # Get the current working directory
     original_cwd = os.getcwd()
@@ -1079,7 +1076,7 @@ def create_resource_group(rg_name: str, resource_group_location: str | None = No
         run(f'az group create --name {rg_name} --location {resource_group_location} --tags {tag_string}',
             f"Resource group '{rg_name}' created",
             f"Failed to create the resource group '{rg_name}'",
-            False, True, False, False)
+            False, False, False, False)
 
 def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
     """
@@ -1101,7 +1098,7 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
     print('   • Update existing infrastructure components to match the template')
     print('   • Preserve manually added samples and configurations\n')
 
-    print('ℹ️  Choose an option:')
+    print('ℹ️ Choose an option (input box at the top of the screen):')
     print('     1. Update the existing infrastructure (recommended)')
     print('     2. Use a different index')
     print('     3. Delete the existing resource group first using the clean-up notebook\n')
@@ -1162,7 +1159,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
             print('   • Update existing infrastructure components to match the template')
             print('   • Preserve manually added samples and configurations\n')
 
-            print('ℹ️  Choose an option:\n')
+            print('ℹ️ Choose an option (input box at the top of the screen):')
             print('     1. Update the existing infrastructure (recommended and not destructive if samples already exist)')
             print('     2. Use a different index')
             print('     3. Exit, then delete the existing resource group separately via the clean-up notebook\n')
@@ -1293,7 +1290,6 @@ def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str
                 raise ValueError(f'Could not auto-detect sample name. Please provide sample_name parameter explicitly. Error: {e}')
 
         # Construct the full path
-        from apimtypes import _get_project_root
         project_root = _get_project_root()
         policy_xml_filepath = str(project_root / 'samples' / sample_name / policy_xml_filepath_or_filename)
 
@@ -1470,7 +1466,6 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
         print_info(f'Cleaning up resources for {deployment.value} - {idx}', True)
         rg_name = get_infra_rg_name(deployment, idx)
         _cleanup_resources(deployment.value, rg_name)
-        print_ok('Cleanup completed!')
         return
 
     # For multiple indexes, run in parallel
@@ -1758,16 +1753,14 @@ def get_unique_suffix_for_resource_group(rg_name: str) -> str:
         deployment_name = f'get-suffix-{int(time.time())}'
         output = run(
             f'az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file "{template_path}" --query "properties.outputs.suffix.value" -o tsv',
-            print_command_to_run = True,
+            print_command_to_run = False,
             print_errors = False
         )
 
         if output.success and output.text.strip():
             return output.text.strip()
 
-        # Fallback to local SHA-1 calculation if deployment fails
         print_error('Could not get uniqueString from Azure.')
-
     finally:
         try:
             temp_os.unlink(template_path)
@@ -2076,8 +2069,6 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
     """
 
     try:
-        import re
-
         print_message('🧹 Cleaning up old JWT signing keys for the same sample folder...', blank_above = True)
 
         # Extract sample folder name from current JWT key using regex
