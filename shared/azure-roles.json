@@ -1,7 +1,10 @@
 {
     "__source": "https://learn.microsoft.com/azure/role-based-access-control/built-in-roles",
-    "StorageBlobDataContributor": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
-    "StorageBlobDataReader": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1",
+    "AzureMapsContributor": "dba33070-676a-4fb0-87fa-064dc56ff7fb",
     "AzureMapsSearchAndRenderDataReader": "6be48352-4f82-47c9-ad5e-0acacefdb005",
-    "AzureMapsContributor": "dba33070-676a-4fb0-87fa-064dc56ff7fb"
+    "KeyVaultAdministrator": "00482a5a-887f-4fb3-b363-3b7fe8e74483",
+    "KeyVaultCertificateUser": "db79e9a7-68ee-4b58-9aeb-b90e7c24fcba",
+    "KeyVaultSecretsUser": "4633458b-17de-408a-b874-0445c86b69e6",
+    "StorageBlobDataContributor": "ba92f5b4-2d11-453d-a403-e96b0029c9fe",
+    "StorageBlobDataReader": "2a2b9908-6ea1-4ae2-8e65-a410df84e7d1"
 }
