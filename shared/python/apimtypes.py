@@ -135,6 +135,25 @@ class INFRASTRUCTURE(StrEnum):
     APPGW_APIM_PE = 'appgw-apim-pe' # Application Gateway connected to Azure API Management (Standard V2) via Private Link
 
 
+class Endpoints(object):
+
+
+    """
+    Represents a set of endpoints to call
+    """
+
+    afd_endpoint_url: str | None
+    apim_endpoint_url: str | None
+    appgw_hostname: str | None
+    appgw_public_ip: str | None
+
+    # ------------------------------
+    #    CONSTRUCTOR
+    # ------------------------------
+
+    def __init__(self, deployment: INFRASTRUCTURE):
+        self.deployment = deployment
+
 # ------------------------------
 #    CLASSES
 # ------------------------------

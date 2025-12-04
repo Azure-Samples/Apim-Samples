@@ -23,7 +23,7 @@ import tempfile
 import os as temp_os
 
 from typing import Any, Optional, Tuple
-from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, _get_project_root
+from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, _get_project_root
 
 
 # ------------------------------
@@ -1697,6 +1697,87 @@ def get_frontdoor_url(deployment_name: INFRASTRUCTURE, rg_name: str) -> str | No
 
     return afd_endpoint_url
 
+
+def get_apim_url(rg_name: str) -> str | None:
+    """
+    Retrieve the gateway URL for the API Management service in the specified resource group.
+
+    Args:
+        rg_name (str): The name of the resource group containing the APIM service.
+
+    Returns:
+        str | None: The gateway URL (https) of the APIM service if found, otherwise None.
+    """
+
+    apim_endpoint_url: str | None = None
+
+    output = run(f'az apim list -g {rg_name} -o json')
+
+    if output.success and output.json_data:
+        apim_gateway_url = output.json_data[0]['gatewayUrl']
+        print_ok(f'APIM Service Name: {output.json_data[0]["name"]}', blank_above = False)
+
+        if apim_gateway_url:
+            apim_endpoint_url = apim_gateway_url
+
+    if apim_endpoint_url:
+        print_ok(f'APIM Gateway URL: {apim_endpoint_url}', blank_above = False)
+    else:
+        print_warning('No APIM gateway URL found.')
+
+    return apim_endpoint_url
+
+
+def get_appgw_endpoint(rg_name: str) -> tuple[str | None, str | None]:
+    """
+    Retrieve the hostname and public IP address for the Application Gateway in the specified resource group.
+
+    Args:
+        rg_name (str): The name of the resource group containing the Application Gateway.
+
+    Returns:
+        tuple[str | None, str | None]: A tuple containing (hostname, public_ip) if found, otherwise (None, None).
+    """
+
+    hostname: str | None = None
+    public_ip: str | None = None
+
+    # Get Application Gateway details
+    output = run(f'az network application-gateway list -g {rg_name} -o json')
+
+    if output.success and output.json_data:
+        appgw_name = output.json_data[0]['name']
+        print_ok(f'Application Gateway Name: {appgw_name}', blank_above = False)
+
+        # Get hostname
+        http_listeners = output.json_data[0].get('httpListeners', [])
+
+        for listener in http_listeners:
+            # Assume that only a single hostname is used, not the hostnames array
+            if listener.get('hostName'):
+                hostname = listener['hostName']
+
+        # Get frontend IP configuration to find public IP reference
+        frontend_ip_configs = output.json_data[0].get('frontendIPConfigurations', [])
+        public_ip_id = None
+
+        for config in frontend_ip_configs:
+            if config.get('publicIPAddress'):
+                public_ip_id = config['publicIPAddress']['id']
+                break
+
+        if public_ip_id:
+            # Extract public IP name from the resource ID
+            public_ip_name = public_ip_id.split('/')[-1]
+
+            # Get public IP details
+            ip_output = run(f'az network public-ip show -g {rg_name} -n {public_ip_name} -o json')
+
+            if ip_output.success and ip_output.json_data:
+                public_ip = ip_output.json_data.get('ipAddress')
+
+    return hostname, public_ip
+
 def get_infra_rg_name(deployment_name: INFRASTRUCTURE, index: int | None = None) -> str:
     """
     Generate a resource group name for infrastructure deployments, optionally with an index.
@@ -2051,6 +2132,18 @@ def test_url_preflight_check(deployment: INFRASTRUCTURE, rg_name: str, apim_gate
         print_message(f'Using APIM Gateway URL: {apim_gateway_url}', blank_above = True)
 
     return endpoint_url
+
+def get_endpoints(deployment: INFRASTRUCTURE, rg_name: str) -> Endpoints:
+    print_message(f'Identifying possible endpoints for infrastructure {deployment}...')
+
+    endpoints = Endpoints(deployment)
+
+    try:
+        endpoints.afd_endpoint_url = get_frontdoor_url(deployment, rg_name)
+        endpoints.apim_endpoint_url = get_apim_url(rg_name)
+        endpoints.appgw_hostname, endpoints.appgw_public_ip = get_appgw_endpoint(rg_name)
+    finally:
+        return endpoints
 
 def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, current_jwt_key_name: str) -> bool:
     """
