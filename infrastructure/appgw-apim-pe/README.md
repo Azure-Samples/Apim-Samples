@@ -2,8 +2,7 @@
 
 Secure architecture that takes all traffic off the public Internet once Azure Application (App) Gateway is traversed. Traffic behind the App Gateway is subsequently inaccessible to the public. This is due to App Gateways's use of a private link to Azure API Management.
 
-<!-- TODO: Add Architecture Diagram-->
-<!-- <img src="./Azure App Gateway, API Management & Container Apps Architecture.svg" alt="Diagram showing Azure Application Gateway, API Management, and Container Apps architecture. Azure Application Gateway routes traffic to API Management, which then routes to Container Apps. Telemetry is sent to Azure Monitor." title="Azure Application Gateway, API Management & Container Apps Architecture" width="1000" /> -->
+<img src="./Azure Application Gateway, API Management & Container Apps Architecture.svg" alt="Diagram showing Azure Application Gateway, API Management, and Container Apps architecture. Azure Application Gateway routes traffic to API Management, which then routes to Container Apps. Telemetry is sent to Azure Monitor." title="Azure Application Gateway, API Management & Container Apps Architecture" width="1000" />
 
 ## 🎯 Objectives
 

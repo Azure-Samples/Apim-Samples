@@ -19,5 +19,10 @@
     "python.envFile": "${workspaceFolder}/.env",
     "notebook.defaultLanguage": "python",
     "notebook.kernelPickerType": "mru",
-    "terminal.integrated.defaultProfile.windows": "PowerShell"
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "plantuml.render": "Local",
+    "plantuml.exportFormat": "svg",
+    "plantuml.java": "C:\\Program Files\\OpenJDK\\jdk-22.0.2\\bin\\java.exe",
+    "plantuml.diagramsRoot": "assets/diagrams/src",
+    "plantuml.exportOutDir": "assets/diagrams/out"
 }

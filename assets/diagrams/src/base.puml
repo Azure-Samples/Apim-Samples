@@ -9,6 +9,7 @@
 !includeurl AzurePuml/Analytics/AzureLogAnalyticsWorkspace.puml
 !includeurl AzurePuml/Containers/AzureContainerApp.puml
 !includeurl AzurePuml/Networking/AzureFrontDoor.puml
+!includeurl AzurePuml/Networking/AzureApplicationGateway.puml
 
 skinparam titleFontSize 24
 left to right direction
