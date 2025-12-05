@@ -1711,7 +1711,7 @@ def get_apim_url(rg_name: str) -> str | None:
 
     apim_endpoint_url: str | None = None
 
-    output = run(f'az apim list -g {rg_name} -o json')
+    output = run(f'az apim list -g {rg_name} -o json', print_command_to_run = False)
 
     if output.success and output.json_data:
         apim_gateway_url = output.json_data[0]['gatewayUrl']
@@ -1743,7 +1743,7 @@ def get_appgw_endpoint(rg_name: str) -> tuple[str | None, str | None]:
     public_ip: str | None = None
 
     # Get Application Gateway details
-    output = run(f'az network application-gateway list -g {rg_name} -o json')
+    output = run(f'az network application-gateway list -g {rg_name} -o json', print_command_to_run = False)
 
     if output.success and output.json_data:
         appgw_name = output.json_data[0]['name']
@@ -1771,7 +1771,7 @@ def get_appgw_endpoint(rg_name: str) -> tuple[str | None, str | None]:
             public_ip_name = public_ip_id.split('/')[-1]
 
             # Get public IP details
-            ip_output = run(f'az network public-ip show -g {rg_name} -n {public_ip_name} -o json')
+            ip_output = run(f'az network public-ip show -g {rg_name} -n {public_ip_name} -o json', print_command_to_run = False)
 
             if ip_output.success and ip_output.json_data:
                 public_ip = ip_output.json_data.get('ipAddress')
