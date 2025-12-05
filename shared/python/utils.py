@@ -5,6 +5,7 @@ Module providing utility functions.
 import ast
 import datetime
 import json
+import sys
 import os
 import re
 import subprocess
@@ -18,9 +19,12 @@ import inspect
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+import apimtypes
+import tempfile
+import os as temp_os
 
 from typing import Any, Optional, Tuple
-from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE
+from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, _get_project_root
 
 
 # ------------------------------
@@ -53,7 +57,7 @@ _print_lock = threading.Lock()
 
 def build_infrastructure_tags(infrastructure: str | INFRASTRUCTURE, custom_tags: dict | None = None) -> dict:
     """
-    Build standard tags for infrastructure resource groups, including required 'infrastructure' and infrastructure name tags.
+    Build standard tags for infrastructure resource groups, including required 'infrastructure' tag.
 
     Args:
         infrastructure (str | INFRASTRUCTURE): The infrastructure type/name.
@@ -69,16 +73,14 @@ def build_infrastructure_tags(infrastructure: str | INFRASTRUCTURE, custom_tags:
     else:
         infra_name = str(infrastructure)
 
-    # Build standard tags
-    standard_tags = {
-        'infrastructure': infra_name
-    }
+    # Build standard tags - only include infrastructure tag
+    tags = {'infrastructure': infra_name}
 
     # Add custom tags if provided
     if custom_tags:
-        standard_tags.update(custom_tags)
+        tags.update(custom_tags)
 
-    return standard_tags
+    return tags
 
 
 # ------------------------------
@@ -262,6 +264,13 @@ class InfrastructureNotebookHelper:
         self.index = index
         self.apim_sku = apim_sku
 
+        print('Initializing Infrastructure Notebook Helper with the following parameters:\n')
+        print_val('Location', self.rg_location)
+        print_val('Infrastructure', self.deployment.value)
+        print_val('Index', self.index)
+        print_val('APIM SKU', self.apim_sku.value)
+        print('')
+
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
@@ -279,8 +288,6 @@ class InfrastructureNotebookHelper:
         """
 
         try:
-            import sys
-
             # For infrastructure notebooks, check if update is allowed and handle user choice
             if allow_update:
                 rg_name = get_infra_rg_name(self.deployment, self.index)
@@ -309,7 +316,8 @@ class InfrastructureNotebookHelper:
                 infra_folder_map = {
                     INFRASTRUCTURE.SIMPLE_APIM: 'simple-apim',
                     INFRASTRUCTURE.AFD_APIM_PE: 'afd-apim-pe',
-                    INFRASTRUCTURE.APIM_ACA: 'apim-aca'
+                    INFRASTRUCTURE.APIM_ACA: 'apim-aca',
+                    INFRASTRUCTURE.APPGW_APIM_PE: 'appgw-apim-pe'
                 }
 
                 infra_folder = infra_folder_map.get(self.deployment)
@@ -719,39 +727,39 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
         print_info(f'Resource group : {rg_name}')
 
         # Show the deployment details
-        output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False)
+        output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False, print_errors = False)
 
         if output.success and output.json_data:
             # Delete and purge CognitiveService accounts
-            output = run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False)
+            output = run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False, print_errors = False)
 
             if output.success and output.json_data:
                 for resource in output.json_data:
                     print_info(f"Deleting and purging Cognitive Service Account '{resource['name']}'...")
-                    output = run(f"az cognitiveservices account delete -g {rg_name} -n {resource['name']}", f"Cognitive Services '{resource['name']}' deleted", f"Failed to delete Cognitive Services '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az cognitiveservices account purge -g {rg_name} -n {resource['name']} --location \"{resource['location']}\"", f"Cognitive Services '{resource['name']}' purged", f"Failed to purge Cognitive Services '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az cognitiveservices account delete -g {rg_name} -n {resource['name']}", f"Cognitive Services '{resource['name']}' deleted", f"Failed to delete Cognitive Services '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az cognitiveservices account purge -g {rg_name} -n {resource['name']} --location \"{resource['location']}\"", f"Cognitive Services '{resource['name']}' purged", f"Failed to purge Cognitive Services '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete and purge APIM resources
-            output = run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False)
+            output = run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False, print_errors = False)
 
             if output.success and output.json_data:
                 for resource in output.json_data:
                     print_info(f"Deleting and purging API Management '{resource['name']}'...")
-                    output = run(f"az apim delete -n {resource['name']} -g {rg_name} -y", f"API Management '{resource['name']}' deleted", f"Failed to delete API Management '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az apim deletedservice purge --service-name {resource['name']} --location \"{resource['location']}\"", f"API Management '{resource['name']}' purged", f"Failed to purge API Management '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az apim delete -n {resource['name']} -g {rg_name} -y", f"API Management '{resource['name']}' deleted", f"Failed to delete API Management '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az apim deletedservice purge --service-name {resource['name']} --location \"{resource['location']}\"", f"API Management '{resource['name']}' purged", f"Failed to purge API Management '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete and purge Key Vault resources
-            output = run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False)
+            output = run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False, print_errors = False)
 
             if output.success and output.json_data:
                 for resource in output.json_data:
                     print_info(f"Deleting and purging Key Vault '{resource['name']}'...")
-                    output = run(f"az keyvault delete -n {resource['name']} -g {rg_name}", f"Key Vault '{resource['name']}' deleted", f"Failed to delete Key Vault '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az keyvault purge -n {resource['name']} --location \"{resource['location']}\"", f"Key Vault '{resource['name']}' purged", f"Failed to purge Key Vault '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az keyvault delete -n {resource['name']} -g {rg_name}", f"Key Vault '{resource['name']}' deleted", f"Failed to delete Key Vault '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az keyvault purge -n {resource['name']} --location \"{resource['location']}\"", f"Key Vault '{resource['name']}' purged", f"Failed to purge Key Vault '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete the resource group last
             print_message(f"Deleting resource group '{rg_name}'...")
-            output = run(f'az group delete --name {rg_name} -y', f"Resource group '{rg_name}' deleted', f'Failed to delete resource group '{rg_name}'", print_command_to_run = False)
+            output = run(f'az group delete --name {rg_name} -y', f"Resource group '{rg_name}' deleted', f'Failed to delete resource group '{rg_name}'", print_command_to_run = False, print_errors = False)
 
             print_message('Cleanup completed.')
 
@@ -838,7 +846,6 @@ def _determine_bicep_directory(infrastructure_dir: str) -> str:
 
     # Try to find the project root and construct the path from there
     try:
-        from apimtypes import _get_project_root
         project_root = _get_project_root()
         bicep_dir = os.path.join(str(project_root), 'infrastructure', infrastructure_dir)
         if os.path.exists(bicep_dir):
@@ -1006,7 +1013,6 @@ def create_bicep_deployment_group_for_sample(sample_name: str, rg_name: str, rg_
     Returns:
         Output: The result of the deployment command.
     """
-    import os
 
     # Get the current working directory
     original_cwd = os.getcwd()
@@ -1057,8 +1063,6 @@ def create_resource_group(rg_name: str, resource_group_location: str | None = No
     """
 
     if not does_resource_group_exist(rg_name):
-        print_info(f'Creating the resource group now...')
-
         # Build the tags string for the Azure CLI command
         tag_string = 'source=apim-sample'
         if tags:
@@ -1092,7 +1096,7 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
     print('   • Update existing infrastructure components to match the template')
     print('   • Preserve manually added samples and configurations\n')
 
-    print('ℹ️  Choose an option:')
+    print('ℹ️ Choose an option (input box at the top of the screen):')
     print('     1. Update the existing infrastructure (recommended)')
     print('     2. Use a different index')
     print('     3. Delete the existing resource group first using the clean-up notebook\n')
@@ -1153,7 +1157,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
             print('   • Update existing infrastructure components to match the template')
             print('   • Preserve manually added samples and configurations\n')
 
-            print('ℹ️  Choose an option:\n')
+            print('ℹ️ Choose an option (input box at the top of the screen):')
             print('     1. Update the existing infrastructure (recommended and not destructive if samples already exist)')
             print('     2. Use a different index')
             print('     3. Exit, then delete the existing resource group separately via the clean-up notebook\n')
@@ -1284,9 +1288,8 @@ def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str
                 raise ValueError(f'Could not auto-detect sample name. Please provide sample_name parameter explicitly. Error: {e}')
 
         # Construct the full path
-        from apimtypes import _get_project_root
-        project_root = _get_project_root()
-        policy_xml_filepath = str(project_root / 'samples' / sample_name / policy_xml_filepath_or_filename)
+        project_root = apimtypes._get_project_root()
+        policy_xml_filepath = str(Path(project_root) / 'samples' / sample_name / policy_xml_filepath_or_filename)
 
     return policy_xml_filepath
 
@@ -1390,43 +1393,43 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
             _print_log(f"{thread_prefix}Resource group : {rg_name}", '👉🏽 ', thread_color)
 
         # Show the deployment details
-        output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False)
+        output = run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False, print_errors = False)
 
         if output.success and output.json_data:
             # Delete and purge CognitiveService accounts
-            output = run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False)
+            output = run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False, print_errors = False)
 
             if output.success and output.json_data:
                 for resource in output.json_data:
                     with _print_lock:
                         _print_log(f"{thread_prefix}Deleting and purging Cognitive Service Account '{resource['name']}'...", '👉🏽 ', thread_color)
-                    output = run(f"az cognitiveservices account delete -g {rg_name} -n {resource['name']}", f"Cognitive Services '{resource['name']}' deleted", f"Failed to delete Cognitive Services '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az cognitiveservices account purge -g {rg_name} -n {resource['name']} --location \"{resource['location']}\"", f"Cognitive Services '{resource['name']}' purged", f"Failed to purge Cognitive Services '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az cognitiveservices account delete -g {rg_name} -n {resource['name']}", f"Cognitive Services '{resource['name']}' deleted", f"Failed to delete Cognitive Services '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az cognitiveservices account purge -g {rg_name} -n {resource['name']} --location \"{resource['location']}\"", f"Cognitive Services '{resource['name']}' purged", f"Failed to purge Cognitive Services '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete and purge APIM resources
-            output = run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False)
+            output = run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False, print_errors = False)
 
             if output.success and output.json_data:
                 for resource in output.json_data:
                     with _print_lock:
                         _print_log(f"{thread_prefix}Deleting and purging API Management '{resource['name']}'...", '👉🏽 ', thread_color)
-                    output = run(f"az apim delete -n {resource['name']} -g {rg_name} -y", f"API Management '{resource['name']}' deleted", f"Failed to delete API Management '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az apim deletedservice purge --service-name {resource['name']} --location \"{resource['location']}\"", f"API Management '{resource['name']}' purged", f"Failed to purge API Management '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az apim delete -n {resource['name']} -g {rg_name} -y", f"API Management '{resource['name']}' deleted", f"Failed to delete API Management '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az apim deletedservice purge --service-name {resource['name']} --location \"{resource['location']}\"", f"API Management '{resource['name']}' purged", f"Failed to purge API Management '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete and purge Key Vault resources
-            output = run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False)
+            output = run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False, print_errors = False)
 
             if output.success and output.json_data:
                 for resource in output.json_data:
                     with _print_lock:
                         _print_log(f"{thread_prefix}Deleting and purging Key Vault '{resource['name']}'...", '👉🏽 ', thread_color)
-                    output = run(f"az keyvault delete -n {resource['name']} -g {rg_name}", f"Key Vault '{resource['name']}' deleted", f"Failed to delete Key Vault '{resource['name']}'", print_command_to_run = False)
-                    output = run(f"az keyvault purge -n {resource['name']} --location \"{resource['location']}\"", f"Key Vault '{resource['name']}' purged", f"Failed to purge Key Vault '{resource['name']}'", print_command_to_run = False)
+                    output = run(f"az keyvault delete -n {resource['name']} -g {rg_name}", f"Key Vault '{resource['name']}' deleted", f"Failed to delete Key Vault '{resource['name']}'", print_command_to_run = False, print_errors = False)
+                    output = run(f"az keyvault purge -n {resource['name']} --location \"{resource['location']}\"", f"Key Vault '{resource['name']}' purged", f"Failed to purge Key Vault '{resource['name']}'", print_command_to_run = False, print_errors = False)
 
             # Delete the resource group last
             with _print_lock:
                 _print_log(f"{thread_prefix}Deleting resource group '{rg_name}'...", 'ℹ️ ', thread_color, show_time=True)
-            output = run(f'az group delete --name {rg_name} -y', f"Resource group '{rg_name}' deleted', f'Failed to delete resource group '{rg_name}'", print_command_to_run = False)
+            output = run(f'az group delete --name {rg_name} -y', f"Resource group '{rg_name}' deleted', f'Failed to delete resource group '{rg_name}'", print_command_to_run = False, print_errors = False)
 
             with _print_lock:
                 _print_log(f"{thread_prefix}Cleanup completed.", 'ℹ️ ', thread_color, show_time=True)
@@ -1461,7 +1464,6 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
         print_info(f'Cleaning up resources for {deployment.value} - {idx}', True)
         rg_name = get_infra_rg_name(deployment, idx)
         _cleanup_resources(deployment.value, rg_name)
-        print_ok('Cleanup completed!')
         return
 
     # For multiple indexes, run in parallel
@@ -1608,29 +1610,32 @@ def is_string_json(text: str) -> bool:
 
     return False
 
-def get_account_info() -> Tuple[str, str, str]:
+def get_account_info() -> Tuple[str, str, str, str]:
     """
     Retrieve the current Azure account information using the Azure CLI.
 
     Returns:
-        tuple: (current_user, tenant_id, subscription_id)
+        tuple: (current_user, current_user_id, tenant_id, subscription_id)
 
     Raises:
         Exception: If account information cannot be retrieved.
     """
 
-    output = run('az account show', 'Retrieved az account', 'Failed to get the current az account')
+    account_show_output = run('az account show', 'Retrieved az account', 'Failed to get the current az account', print_command_to_run = False)
+    ad_user_show_output = run('az ad signed-in-user show', 'Retrieved az ad signed-in-user', 'Failed to get the current az ad signed-in-user', print_command_to_run = False)
 
-    if output.success and output.json_data:
-        current_user = output.json_data['user']['name']
-        tenant_id = output.json_data['tenantId']
-        subscription_id = output.json_data['id']
+    if account_show_output.success and account_show_output.json_data and ad_user_show_output.success and ad_user_show_output.json_data:
+        current_user = account_show_output.json_data['user']['name']
+        tenant_id = account_show_output.json_data['tenantId']
+        subscription_id = account_show_output.json_data['id']
+        current_user_id = ad_user_show_output.json_data['id']
 
         print_val('Current user', current_user)
+        print_val('Current user ID', current_user_id)
         print_val('Tenant ID', tenant_id)
         print_val('Subscription ID', subscription_id)
 
-        return current_user, tenant_id, subscription_id
+        return current_user, current_user_id, tenant_id, subscription_id
     else:
         error = 'Failed to retrieve account information. Please ensure the Azure CLI is installed, you are logged in, and the subscription is set correctly.'
         print_error(error)
@@ -1691,6 +1696,87 @@ def get_frontdoor_url(deployment_name: INFRASTRUCTURE, rg_name: str) -> str | No
 
     return afd_endpoint_url
 
+
+def get_apim_url(rg_name: str) -> str | None:
+    """
+    Retrieve the gateway URL for the API Management service in the specified resource group.
+
+    Args:
+        rg_name (str): The name of the resource group containing the APIM service.
+
+    Returns:
+        str | None: The gateway URL (https) of the APIM service if found, otherwise None.
+    """
+
+    apim_endpoint_url: str | None = None
+
+    output = run(f'az apim list -g {rg_name} -o json', print_command_to_run = False)
+
+    if output.success and output.json_data:
+        apim_gateway_url = output.json_data[0]['gatewayUrl']
+        print_ok(f'APIM Service Name: {output.json_data[0]["name"]}', blank_above = False)
+
+        if apim_gateway_url:
+            apim_endpoint_url = apim_gateway_url
+
+    if apim_endpoint_url:
+        print_ok(f'APIM Gateway URL: {apim_endpoint_url}', blank_above = False)
+    else:
+        print_warning('No APIM gateway URL found.')
+
+    return apim_endpoint_url
+
+
+def get_appgw_endpoint(rg_name: str) -> tuple[str | None, str | None]:
+    """
+    Retrieve the hostname and public IP address for the Application Gateway in the specified resource group.
+
+    Args:
+        rg_name (str): The name of the resource group containing the Application Gateway.
+
+    Returns:
+        tuple[str | None, str | None]: A tuple containing (hostname, public_ip) if found, otherwise (None, None).
+    """
+
+    hostname: str | None = None
+    public_ip: str | None = None
+
+    # Get Application Gateway details
+    output = run(f'az network application-gateway list -g {rg_name} -o json', print_command_to_run = False)
+
+    if output.success and output.json_data:
+        appgw_name = output.json_data[0]['name']
+        print_ok(f'Application Gateway Name: {appgw_name}', blank_above = False)
+
+        # Get hostname
+        http_listeners = output.json_data[0].get('httpListeners', [])
+
+        for listener in http_listeners:
+            # Assume that only a single hostname is used, not the hostnames array
+            if listener.get('hostName'):
+                hostname = listener['hostName']
+
+        # Get frontend IP configuration to find public IP reference
+        frontend_ip_configs = output.json_data[0].get('frontendIPConfigurations', [])
+        public_ip_id = None
+
+        for config in frontend_ip_configs:
+            if config.get('publicIPAddress'):
+                public_ip_id = config['publicIPAddress']['id']
+                break
+
+        if public_ip_id:
+            # Extract public IP name from the resource ID
+            public_ip_name = public_ip_id.split('/')[-1]
+
+            # Get public IP details
+            ip_output = run(f'az network public-ip show -g {rg_name} -n {public_ip_name} -o json', print_command_to_run = False)
+
+            if ip_output.success and ip_output.json_data:
+                public_ip = ip_output.json_data.get('ipAddress')
+
+    return hostname, public_ip
+
 def get_infra_rg_name(deployment_name: INFRASTRUCTURE, index: int | None = None) -> str:
     """
     Generate a resource group name for infrastructure deployments, optionally with an index.
@@ -1709,6 +1795,56 @@ def get_infra_rg_name(deployment_name: INFRASTRUCTURE, index: int | None = None)
         rg_name = f'{rg_name}-{index}'
 
     return rg_name
+
+def get_unique_suffix_for_resource_group(rg_name: str) -> str:
+    """
+    Get the exact uniqueString value that Bicep/ARM generates for a resource group.
+
+    Uses a minimal ARM deployment to ensure the value matches exactly what
+    Bicep's uniqueString(subscription().id, resourceGroup().id) produces.
+
+    Args:
+        rg_name (str): The resource group name (must already exist).
+
+    Returns:
+        str: The 13-character unique string matching Bicep's uniqueString output.
+    """
+
+    # Minimal ARM template that just outputs the uniqueString
+    template = json.dumps({
+        "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+        "contentVersion": "1.0.0.0",
+        "resources": [],
+        "outputs": {
+            "suffix": {
+                "type": "string",
+                "value": "[uniqueString(subscription().id, resourceGroup().id)]"
+            }
+        }
+    })
+
+    # Write template to temp file
+    with tempfile.NamedTemporaryFile(mode = 'w', suffix = '.json', delete = False) as f:
+        f.write(template)
+        template_path = f.name
+
+    try:
+        deployment_name = f'get-suffix-{int(time.time())}'
+        output = run(
+            f'az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file "{template_path}" --query "properties.outputs.suffix.value" -o tsv',
+            print_command_to_run = False,
+            print_errors = False
+        )
+
+        if output.success and output.text.strip():
+            return output.text.strip()
+
+        print_error('Could not get uniqueString from Azure.')
+    finally:
+        try:
+            temp_os.unlink(template_path)
+        except Exception:
+            pass
 
 def get_rg_name(deployment_name: str, index: int | None = None) -> str:
     """
@@ -1996,6 +2132,19 @@ def test_url_preflight_check(deployment: INFRASTRUCTURE, rg_name: str, apim_gate
 
     return endpoint_url
 
+
+
+def get_endpoints(deployment: INFRASTRUCTURE, rg_name: str) -> Endpoints:
+    print_message(f'Identifying possible endpoints for infrastructure {deployment}...')
+
+    endpoints = Endpoints(deployment)
+
+    endpoints.afd_endpoint_url = get_frontdoor_url(deployment, rg_name)
+    endpoints.apim_endpoint_url = get_apim_url(rg_name)
+    endpoints.appgw_hostname, endpoints.appgw_public_ip = get_appgw_endpoint(rg_name)
+
+    return endpoints
+
 def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, current_jwt_key_name: str) -> bool:
     """
     Clean up old JWT signing keys from APIM named values for the same sample folder, keeping only the current key.
@@ -2012,8 +2161,6 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
     """
 
     try:
-        import re
-
         print_message('🧹 Cleaning up old JWT signing keys for the same sample folder...', blank_above = True)
 
         # Extract sample folder name from current JWT key using regex

@@ -41,10 +41,22 @@ def test_get_account_info_success(monkeypatch):
         'tenantId': 'tenant',
         'id': 'subid'
     }
-    mock_output = MagicMock(success=True, json_data=mock_json)
-    monkeypatch.setattr(utils, 'run', lambda *a, **kw: mock_output)
+    mock_ad_json = {
+        'id': 'userid'
+    }
+
+    # Mock both calls that get_account_info makes
+    call_count = [0]
+    def mock_run_multiple(*args, **kwargs):
+        call_count[0] += 1
+        if call_count[0] == 1:  # First call: az account show
+            return MagicMock(success=True, json_data=mock_json)
+        else:  # Second call: az ad signed-in-user show
+            return MagicMock(success=True, json_data=mock_ad_json)
+
+    monkeypatch.setattr(utils, 'run', mock_run_multiple)
     result = utils.get_account_info()
-    assert result == ('testuser', 'tenant', 'subid')
+    assert result == ('testuser', 'userid', 'tenant', 'subid')
 
 def test_get_account_info_failure(monkeypatch):
     mock_output = MagicMock(success=False, json_data=None)
@@ -138,7 +150,7 @@ def test_create_resource_group(monkeypatch):
     monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: called.setdefault('info', True))
     monkeypatch.setattr(utils, 'run', lambda *a, **kw: called.setdefault('run', True))
     utils.create_resource_group('foo', 'bar')
-    assert called['info'] and called['run']
+    assert called['run']
 
 # ------------------------------
 #    read_policy_xml

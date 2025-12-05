@@ -3,7 +3,7 @@
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11057/badge)](https://www.bestpractices.dev/projects/11057)
 [![Python Tests][badge-python-tests]][workflow-python-tests]
 
-This repository provides a playground to safely experiment with and learn Azure API Management (APIM) policies in various architectures.  
+This repository provides a playground to safely experiment with and learn Azure API Management (APIM) policies in various architectures.
 
 _If you are interested in APIM & Azure OpenAI integrations, please check out the excellent [AI Gateway][ai-gateway] GitHub repository._
 
@@ -19,11 +19,13 @@ _Try it out, learn from it, apply it in your setups._
 
 ## 📁 List of Infrastructures
 
-| Infrastructure Name                                                         | Description                                                                                                                                                           |
-|:----------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Simple API Management][infra-simple-apim]                                  | Just the basics with a publicly accessible API Management instance fronting your APIs. This is the innermost way to experience and experiment with the APIM policies. |
-| [API Management & Container Apps][infra-apim-aca]                           | APIs are often implemented in containers running in Azure Container Apps. This architecture accesses the container apps publicly. It's beneficial to test both APIM and container app URLs to contrast and compare experiences of API calls through and bypassing APIM. It is not intended to be a security baseline.    |
-| [Secure Front Door & API Management & Container Apps][infra-afd-apim-pe]  | A higher-fidelity implementation of a secured setup in which Azure Front Door connects to APIM via the new private link integration. This traffic, once it traverses through Front Door, rides entirely on Microsoft-owned and operated networks. Similarly, the connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). APIM Standard V2 is used here to accept a private link from Front Door. |
+| Infrastructure Name                                                | Description                                                                                                                                                           |
+|:-------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [Simple API Management][infra-simple-apim]                         | Just the basics with a publicly accessible API Management instance fronting your APIs. This is the innermost way to experience and experiment with the APIM policies. |
+| [API Management & Container Apps][infra-apim-aca]                  | APIs are often implemented in containers running in Azure Container Apps. This architecture accesses the container apps publicly. It's beneficial to test both APIM and container app URLs to contrast and compare experiences of API calls through and bypassing APIM. It is not intended to be a security baseline.    |
+| [Front Door & API Management & Container Apps][infra-afd-apim-pe]  | A secure implementation of Azure Front Door connecting to APIM via the new private link integration. This traffic, once it traverses through Front Door, rides entirely on Microsoft-owned and operated networks. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). APIM Standard V2 is used here to accept a private link from Front Door. |
+| [Application Gateway (Private Endpoint) & API Management & Container Apps][infra-appgw-apim-pe]  | A secure implementation of Azure Application Gateway connecting to APIM via the new private link integration. This traffic, once it traverses through App Gateway, uses a private endpoint set up in the VNet's private endpoint subnet. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). APIM Standard V2 is used here to accept a private link from App Gateway. |
+| Application Gateway (VNet) & API Management & Container Apps       | *ETA TBD - Stay tuned!* |
 
 ## 📁 List of Samples
 
@@ -49,8 +51,8 @@ The fastest way to get started is using our pre-configured development environme
 
 - **GitHub Codespaces**: Click the green "Code" button → "Codespaces" → "Create codespace on main"
 - **VS Code Dev Containers**: Install the [Dev Containers extension][vscode-devcontainers], then "Reopen in Container"
-
-All prerequisites are automatically installed and configured. 
+*
+All prerequisites are automatically installed and configured.
 
 📖 **For detailed setup information, troubleshooting, and optimization details, see [Dev Container Documentation](.devcontainer/README.md)**
 
@@ -61,7 +63,7 @@ All prerequisites are automatically installed and configured.
 These prerequisites apply broadly across all infrastructure and samples. If there are specific deviations, expect them to be noted there.
 
 - [Python 3.12][python] installed
-  - Python 3.13 may not have all dependencies ready yet. There have been issues during installs.
+  - Python 3.13 and 3.14 should work as well, but have not been verified extensively
 - [VS Code][vscode] installed with the [Jupyter notebook extension][vscode-jupyter] enabled
 - [Azure CLI][azure-cli-install] installed
 - [An Azure Subscription][azure-free] with Owner or Contributor+UserAccessAdministrator permissions. Execute [Verify Azure Account][verify-az-account-notebook] to verify.
@@ -109,7 +111,7 @@ If you're setting up locally without the dev container:
 
 That's it! Your local environment now matches the dev container experience with:
 - ✅ Standardized "APIM Samples Python 3.12" Jupyter kernel
-- ✅ Automatic notebook kernel selection  
+- ✅ Automatic notebook kernel selection
 - ✅ Python path configured for shared modules
 - ✅ VS Code optimized for the project
 
@@ -131,7 +133,7 @@ If you prefer manual setup or the automated script doesn't work:
 1. Set up the project environment:
    ```bash
    python setup/setup_python_path.py --generate-env
-   python setup/setup_python_path.py --setup-kernel  
+   python setup/setup_python_path.py --setup-kernel
    python setup/setup_python_path.py --setup-vscode
    ```
 1. **Restart VS Code** to ensure all environment settings are loaded properly.
@@ -177,7 +179,7 @@ Now that infrastructure and sample have been stood up, you can experiment with t
 Encountering issues? Check our comprehensive **[Troubleshooting Guide](TROUBLESHOOTING.md)** which covers:
 
 - **Deployment Errors** - Including the common "content already consumed" error and parameter mismatches
-- **Authentication Issues** - Azure CLI login problems and permission errors  
+- **Authentication Issues** - Azure CLI login problems and permission errors
 - **Notebook & Development Environment Issues** - Module import errors and Python path problems
 - **Azure CLI Issues** - Rate limiting and API version compatibility
 - **Resource Management Issues** - Resource group and APIM service problems
@@ -192,10 +194,10 @@ For immediate help with common errors, diagnostic commands, and step-by-step sol
 
 - All _samples_ can be found in the `samples` folder. Samples showcase functionality and provide a baseline for your experimentation.
 - All _infrastructures_ can be found in the `infrastructure` folder. They provide the architectural underpinnings.
-- All shared code, modules, functionality, policies, etc. can be found in the `shared` folder. 
+- All shared code, modules, functionality, policies, etc. can be found in the `shared` folder.
   - Bicep _modules_ are versioned in the `bicep/modules` folder. Major changes require versioning.
-  - Python _modules_ are found in the `python` folder. _They are not versioned yet but may be in the future._ 
-  - Reusable _APIM policies_ are found in the `apim-policies` folder. 
+  - Python _modules_ are found in the `python` folder. _They are not versioned yet but may be in the future._
+  - Reusable _APIM policies_ are found in the `apim-policies` folder.
   - Reusable Jupyter notebooks are found in the `jupyter` folder.
 
 ### ⚙️ Sample Setup
@@ -245,7 +247,7 @@ All pylint runs generate timestamped reports in `tests/python/pylint/reports/`:
 - **Text format**: Human-readable detailed analysis
 - **Latest symlinks**: `latest.json` and `latest.txt` always point to the most recent run
 
-The script automatically displays a **Top 10 Issues Summary** showing the most frequent code quality issues to help prioritize improvements. 
+The script automatically displays a **Top 10 Issues Summary** showing the most frequent code quality issues to help prioritize improvements.
 
 ### ➕ Adding a Sample
 

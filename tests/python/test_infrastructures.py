@@ -33,6 +33,8 @@ def mock_utils():
         mock_utils.determine_shared_policy_path.return_value = '/mock/path/policy.xml'
         mock_utils.create_resource_group.return_value = None
         mock_utils.verify_infrastructure.return_value = True
+        mock_utils.get_account_info.return_value = ('test_user', 'test_user_id', 'test_tenant', 'test_subscription')
+        mock_utils.get_unique_suffix_for_resource_group.return_value = 'abc123def456'
 
         # Mock the run command with proper return object
         mock_output = Mock()

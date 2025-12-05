@@ -20,8 +20,8 @@ def apim():
 def test_init_sets_headers():
     """Test that headers are set correctly when subscription KEY is provided."""
     apim = ApimRequests(DEFAULT_URL, DEFAULT_KEY)
-    assert apim.url == DEFAULT_URL
-    assert apim.apimSubscriptionKey == DEFAULT_KEY
+    assert apim._url == DEFAULT_URL
+    assert apim.subscriptionKey == DEFAULT_KEY
     assert apim.headers[SUBSCRIPTION_KEY_PARAMETER_NAME] == DEFAULT_KEY
 
 
@@ -29,8 +29,8 @@ def test_init_sets_headers():
 def test_init_no_key():
     """Test that headers are set correctly when no subscription KEY is provided."""
     apim = ApimRequests(DEFAULT_URL)
-    assert apim.url == DEFAULT_URL
-    assert apim.apimSubscriptionKey is None
+    assert apim._url == DEFAULT_URL
+    assert apim.subscriptionKey is None
     assert 'Ocp-Apim-Subscription-Key' not in apim.headers
     assert apim.headers['Accept'] == 'application/json'
 
@@ -306,8 +306,8 @@ def test_apim_requests_without_subscription_key():
     """Test ApimRequests initialization without subscription KEY."""
     apim = ApimRequests(DEFAULT_URL)
 
-    assert apim.url == DEFAULT_URL
-    assert apim.apimSubscriptionKey is None
+    assert apim._url == DEFAULT_URL
+    assert apim.subscriptionKey is None
     assert SUBSCRIPTION_KEY_PARAMETER_NAME not in apim.headers
     assert apim.headers['Accept'] == 'application/json'
 

@@ -5,9 +5,13 @@ Module for making requests to Azure API Management endpoints with consistent log
 import json
 import time
 import requests
+import urllib3
 import utils
 from typing import Any
 from apimtypes import HTTP_VERB, SUBSCRIPTION_KEY_PARAMETER_NAME, SLEEP_TIME_BETWEEN_REQUESTS_MS
+
+# Disable SSL warnings for self-signed certificates
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 # ------------------------------
@@ -25,21 +29,19 @@ class ApimRequests:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, url: str, apimSubscriptionKey: str | None = None) -> None:
+    def __init__(self, url: str, apimSubscriptionKey: str | None = None, headers: dict[str, str] | None = None) -> None:
         """
         Initialize the ApimRequests object.
 
         Args:
             url: The base URL for the APIM endpoint.
             apimSubscriptionKey: Optional subscription key for APIM.
+            headers: Optional additional headers to include in requests.
         """
 
-        self.url = url
-        self.apimSubscriptionKey = apimSubscriptionKey
-        self._headers: dict[str, str] = {}
-
-        if self.apimSubscriptionKey:
-            self._headers[SUBSCRIPTION_KEY_PARAMETER_NAME] = self.apimSubscriptionKey
+        self._url = url
+        self._headers: dict[str, str] = headers.copy() if headers else {}
+        self.subscriptionKey = apimSubscriptionKey
 
         self._headers['Accept'] = 'application/json'
 
@@ -47,6 +49,35 @@ class ApimRequests:
     #    PROPERTIES
     # ------------------------------
 
+    # apimSubscriptionKey
+    @property
+    def subscriptionKey(self) -> str | None:
+        """
+        Gets the APIM subscription key, if defined.
+
+        Returns:
+            str | None: The APIM subscrption key, if defined; otherwise None.
+        """
+        return self._subscriptionKey
+
+    @subscriptionKey.setter
+    def subscriptionKey(self, value: str | None) -> None:
+        """
+        Sets the APIM subscription key for the request to use.
+
+        Args:
+            value: The APIM subscription key to use or None to not use any key for the request
+        """
+
+        self._subscriptionKey = value
+
+        if self._subscriptionKey:
+            self._headers[SUBSCRIPTION_KEY_PARAMETER_NAME] = self._subscriptionKey
+        else:
+            # Remove subscription key from headers if it exists
+            self._headers.pop(SUBSCRIPTION_KEY_PARAMETER_NAME, None)
+
+    # headers
     @property
     def headers(self) -> dict[str, str]:
         """
@@ -94,7 +125,7 @@ class ApimRequests:
             if not path.startswith('/'):
                 path = '/' + path
 
-            url = self.url + path
+            url = self._url + path
             utils.print_info(f'{method.value} {url}')
 
             merged_headers = self.headers.copy()
@@ -102,7 +133,9 @@ class ApimRequests:
             if headers:
                 merged_headers.update(headers)
 
-            response = requests.request(method.value, url, headers = merged_headers, json = data)
+            utils.print_info(merged_headers)
+
+            response = requests.request(method.value, url, headers = merged_headers, json = data, verify = False)
 
             content_type = response.headers.get('Content-Type')
 
@@ -142,6 +175,7 @@ class ApimRequests:
         api_runs = []
 
         session = requests.Session()
+
         session.headers.update(self.headers.copy())
 
         try:
@@ -152,14 +186,14 @@ class ApimRequests:
             if not path.startswith('/'):
                 path = '/' + path
 
-            url = self.url + path
+            url = self._url + path
             utils.print_info(f'{method.value} {url}')
 
             for i in range(runs):
                 utils.print_info(f'▶️ Run {i + 1}/{runs}:')
 
                 start_time = time.time()
-                response = session.request(method.value, url, json = data)
+                response = session.request(method.value, url, json = data, verify = False)
                 response_time = time.time() - start_time
                 utils.print_info(f'⌚ {response_time:.2f} seconds')
 
@@ -237,7 +271,9 @@ class ApimRequests:
 
         while time.time() - start_time < timeout:
             try:
-                response = requests.get(location_url, headers=headers or {})
+                utils.print_info(f'GET {location_url}', True)
+                utils.print_info(headers)
+                response = requests.get(location_url, headers = headers or {}, verify = False)
 
                 utils.print_info(f'Polling operation - Status: {response.status_code}')
 
@@ -336,7 +372,7 @@ class ApimRequests:
             if not path.startswith('/'):
                 path = '/' + path
 
-            url = self.url + path
+            url = self._url + path
             utils.print_info(f'POST {url}')
 
             merged_headers = self.headers.copy()
@@ -344,23 +380,21 @@ class ApimRequests:
             if headers:
                 merged_headers.update(headers)
 
+            utils.print_info(merged_headers)
+
             # Make the initial async request
-            response = requests.request(HTTP_VERB.POST.value, url, headers = merged_headers, json = data)
+            response = requests.request(HTTP_VERB.POST.value, url, headers = merged_headers, json = data, verify = False)
 
             utils.print_info(f'Initial response status: {response.status_code}')
 
             if response.status_code == 202:  # Accepted - async operation started
                 location_header = response.headers.get('Location')
+
                 if location_header:
                     utils.print_info(f'Found Location header: {location_header}')
 
                     # Poll the location URL until completion
-                    final_response = self._poll_async_operation(
-                        location_header,
-                        headers=merged_headers,
-                        timeout=timeout,
-                        poll_interval=poll_interval
-                    )
+                    final_response = self._poll_async_operation(location_header, timeout = timeout, poll_interval = poll_interval )
 
                     if final_response and final_response.status_code == 200:
                         if printResponse:

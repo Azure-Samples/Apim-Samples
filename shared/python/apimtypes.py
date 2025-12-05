@@ -132,7 +132,27 @@ class INFRASTRUCTURE(StrEnum):
     SIMPLE_APIM  = 'simple-apim'   # Simple API Management with no dependencies
     APIM_ACA     = 'apim-aca'      # Azure API Management connected to Azure Container Apps
     AFD_APIM_PE  = 'afd-apim-pe'   # Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
+    APPGW_APIM_PE = 'appgw-apim-pe' # Application Gateway connected to Azure API Management (Standard V2) via Private Link
 
+
+class Endpoints(object):
+
+
+    """
+    Represents a set of endpoints to call
+    """
+
+    afd_endpoint_url: str | None
+    apim_endpoint_url: str | None
+    appgw_hostname: str | None
+    appgw_public_ip: str | None
+
+    # ------------------------------
+    #    CONSTRUCTOR
+    # ------------------------------
+
+    def __init__(self, deployment: INFRASTRUCTURE):
+        self.deployment = deployment
 
 # ------------------------------
 #    CLASSES
