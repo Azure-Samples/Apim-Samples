@@ -28,6 +28,11 @@ labs-in-progress/
 .coverage
 tests/python/htmlcov/
 
+# Pylint reports
+tests/python/pylint/reports/
+tests/python/$JsonReport
+tests/python/$TextReport
+
 shared/bicep/modules/**/*.json
 main.json
 

@@ -1,9 +1,10 @@
 """
-Infrastructure Types 
+Infrastructure Types
 """
 
 import json
 import os
+import time
 from pathlib import Path
 from apimtypes import *
 import utils
@@ -23,7 +24,7 @@ class Infrastructure:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, infra: INFRASTRUCTURE, index: int, rg_location: str, apim_sku: APIM_SKU = APIM_SKU.BASICV2, networkMode: APIMNetworkMode = APIMNetworkMode.PUBLIC, 
+    def __init__(self, infra: INFRASTRUCTURE, index: int, rg_location: str, apim_sku: APIM_SKU = APIM_SKU.BASICV2, networkMode: APIMNetworkMode = APIMNetworkMode.PUBLIC,
                  infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
         self.infra = infra
         self.index = index
@@ -33,24 +34,34 @@ class Infrastructure:
         self.infra_apis = infra_apis
         self.infra_pfs = infra_pfs
 
+        # Define and create the resource group
         self.rg_name = utils.get_infra_rg_name(infra, index)
         self.rg_tags = utils.build_infrastructure_tags(infra)
+        utils.create_resource_group(self.rg_name, self.rg_location, self.rg_tags)
+
+        # Some infrastructure deployments require knowing the resource suffix that bicep will use prior to the main deployment.
+        # Uses subscription ID and resource group name hashing to generate the suffix.
+        self.resource_suffix = utils.get_unique_suffix_for_resource_group(self.rg_name)
+
+        self.current_user, self.current_user_id, self.tenant_id, self.subscription_id = utils.get_account_info()
+
 
 
     # ------------------------------
     #    PRIVATE METHODS
-    # ------------------------------  
+    # ------------------------------
 
     def _define_bicep_parameters(self) -> dict:
         # Define the Bicep parameters with serialized APIs
         self.bicep_parameters = {
+            'resourceSuffix'  : {'value': self.resource_suffix},
             'apimSku'         : {'value': self.apim_sku.value},
             'apis'            : {'value': [api.to_dict() for api in self.apis]},
             'policyFragments' : {'value': [pf.to_dict() for pf in self.pfs]}
         }
 
         return self.bicep_parameters
-    
+
 
     def _define_policy_fragments(self) -> List[PolicyFragment]:
         """
@@ -77,7 +88,7 @@ class Infrastructure:
         Define APIs for the infrastructure.
         """
 
-        # The base APIs common to all infrastructures 
+        # The base APIs common to all infrastructures
         # Hello World API
         pol_hello_world = utils.read_policy_xml(HELLO_WORLD_XML_POLICY_PATH)
         api_hwroot_get = GET_APIOperation('Gets a Hello World message', pol_hello_world)
@@ -92,52 +103,52 @@ class Infrastructure:
     def _verify_infrastructure(self, rg_name: str) -> bool:
         """
         Verify that the infrastructure was created successfully.
-        
+
         Args:
             rg_name (str): Resource group name.
-            
+
         Returns:
             bool: True if verification passed, False otherwise.
         """
-        
+
         print('\n🔍 Verifying infrastructure...')
-        
+
         try:
             # Check if the resource group exists
             if not utils.does_resource_group_exist(rg_name):
                 print('❌ Resource group does not exist!')
                 return False
-            
+
             print('✅ Resource group verified')
-            
+
             # Get APIM service details
             output = utils.run(f'az apim list -g {rg_name} --query "[0]" -o json', print_command_to_run = False, print_errors = False)
-            
+
             if output.success and output.json_data:
                 apim_name = output.json_data.get('name')
-                
+
                 print(f'✅ APIM Service verified: {apim_name}')
-                
+
                 # Get API count
-                api_output = utils.run(f'az apim api list --service-name {apim_name} -g {rg_name} --query "length(@)"', 
+                api_output = utils.run(f'az apim api list --service-name {apim_name} -g {rg_name} --query "length(@)"',
                                     print_command_to_run = False, print_errors = False)
-                
+
                 if api_output.success:
                     api_count = int(api_output.text.strip())
                     print(f'✅ APIs verified: {api_count} API(s) created')
-                    
+
                     # Test basic connectivity (optional)
                     if api_count > 0:
                         try:
                             # Get subscription key for testing
-                            sub_output = utils.run(f'az apim subscription list --service-name {apim_name} -g {rg_name} --query "[0].primaryKey" -o tsv', 
+                            sub_output = utils.run(f'az apim subscription list --service-name {apim_name} -g {rg_name} --query "[0].primaryKey" -o tsv',
                                                 print_command_to_run = False, print_errors = False)
-                            
+
                             if sub_output.success and sub_output.text.strip():
                                 print('✅ Subscription key available for API testing')
                         except:
                             pass
-                
+
                 # Call infrastructure-specific verification
                 if self._verify_infrastructure_specific(rg_name):
                     print('\n🎉 Infrastructure verification completed successfully!')
@@ -145,11 +156,11 @@ class Infrastructure:
                 else:
                     print('\n❌ Infrastructure-specific verification failed!')
                     return False
-                
+
             else:
                 print('\n❌ APIM service not found!')
                 return False
-                
+
         except Exception as e:
             print(f'\n⚠️  Verification failed with error: {str(e)}')
             return False
@@ -158,10 +169,10 @@ class Infrastructure:
         """
         Verify infrastructure-specific components.
         This is a virtual method that can be overridden by subclasses for specific verification logic.
-        
+
         Args:
             rg_name (str): Resource group name.
-            
+
         Returns:
             bool: True if verification passed, False otherwise.
         """
@@ -170,17 +181,17 @@ class Infrastructure:
 
     # ------------------------------
     #    PUBLIC METHODS
-    # ------------------------------   
+    # ------------------------------
 
     def deploy_infrastructure(self, is_update: bool = False) -> 'utils.Output':
         """
         Deploy the infrastructure using the defined Bicep parameters.
         This method should be implemented in subclasses to handle specific deployment logic.
-        
+
         Args:
             is_update (bool): Whether this is an update to existing infrastructure or a new deployment.
         """
-        
+
         action_verb = "Updating" if is_update else "Creating"
         print(f'\n🚀 {action_verb} infrastructure...\n')
         print(f'   Infrastructure : {self.infra.value}')
@@ -190,24 +201,25 @@ class Infrastructure:
         print(f'   APIM SKU       : {self.apim_sku.value}\n')
 
         self._define_policy_fragments()
-        self._define_apis() 
+        self._define_apis()
         self._define_bicep_parameters()
 
         # Determine the correct infrastructure directory based on the infrastructure type
         original_cwd = os.getcwd()
-        
+
         # Map infrastructure types to their directory names
         infra_dir_map = {
             INFRASTRUCTURE.SIMPLE_APIM: 'simple-apim',
-            INFRASTRUCTURE.APIM_ACA: 'apim-aca', 
-            INFRASTRUCTURE.AFD_APIM_PE: 'afd-apim-pe'
+            INFRASTRUCTURE.APIM_ACA: 'apim-aca',
+            INFRASTRUCTURE.AFD_APIM_PE: 'afd-apim-pe',
+            INFRASTRUCTURE.APPGW_APIM_PE: 'appgw-apim-pe'
         }
-        
+
         # Get the infrastructure directory
         infra_dir_name = infra_dir_map.get(self.infra)
         if not infra_dir_name:
             raise ValueError(f"Unknown infrastructure type: {self.infra}")
-            
+
         # Navigate to the correct infrastructure directory
         # From shared/python -> ../../infrastructure/{infra_type}/
         shared_dir = Path(__file__).parent
@@ -216,67 +228,63 @@ class Infrastructure:
         try:
             os.chdir(infra_dir)
             print(f'📁 Changed working directory to: {infra_dir}')
-            
+
             # Prepare deployment parameters and run directly to avoid path detection issues
             bicep_parameters_format = {
                 '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
                 'contentVersion': '1.0.0.0',
                 'parameters': self.bicep_parameters
             }
-            
+
             # Write the parameters file
             params_file_path = infra_dir / 'params.json'
 
-            with open(params_file_path, 'w') as file:            
+            with open(params_file_path, 'w') as file:
                 file.write(json.dumps(bicep_parameters_format))
-            
+
             print(f"📝 Updated the policy XML in the bicep parameters file 'params.json'")
-            
+
             # ------------------------------
             #    EXECUTE DEPLOYMENT
             # ------------------------------
-            
-            # Create the resource group if it doesn't exist
-            utils.create_resource_group(self.rg_name, self.rg_location, self.rg_tags)
-            
+
             # Run the deployment directly
             main_bicep_path = infra_dir / 'main.bicep'
             output = utils.run(
                 f'az deployment group create --name {self.infra.value} --resource-group {self.rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
-                f"Deployment '{self.infra.value}' succeeded", 
+                f"Deployment '{self.infra.value}' succeeded",
                 f"Deployment '{self.infra.value}' failed.",
                 print_command_to_run = False
             )
-            
+
             # ------------------------------
             #    VERIFY DEPLOYMENT RESULTS
             # ------------------------------
-            
+
             if output.success:
                 print('\n✅ Infrastructure creation completed successfully!')
                 if output.json_data:
                     apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM API Gateway URL', suppress_logging = True)
                     apim_apis = output.getJson('apiOutputs', 'APIs', suppress_logging = True)
-                    
+
                     print(f'\n📋 Infrastructure Details:')
                     print(f'   Resource Group : {self.rg_name}')
                     print(f'   Location       : {self.rg_location}')
                     print(f'   APIM SKU       : {self.apim_sku.value}')
                     print(f'   Gateway URL    : {apim_gateway_url}')
                     print(f'   APIs Created   : {len(apim_apis)}')
-                    
+
                     # TODO: Perform basic verification
                     self._verify_infrastructure(self.rg_name)
             else:
                 print('❌ Infrastructure creation failed!')
-                
+
             return output
-            
+
         finally:
             # Always restore the original working directory
             os.chdir(original_cwd)
             print(f'📁 Restored working directory to: {original_cwd}')
-
 
 class SimpleApimInfrastructure(Infrastructure):
     """
@@ -285,7 +293,6 @@ class SimpleApimInfrastructure(Infrastructure):
 
     def __init__(self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2, infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
         super().__init__(INFRASTRUCTURE.SIMPLE_APIM, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis)
-
 
 class ApimAcaInfrastructure(Infrastructure):
     """
@@ -298,17 +305,17 @@ class ApimAcaInfrastructure(Infrastructure):
     def _verify_infrastructure_specific(self, rg_name: str) -> bool:
         """
         Verify APIM-ACA specific components.
-        
+
         Args:
             rg_name (str): Resource group name.
-            
+
         Returns:
             bool: True if verification passed, False otherwise.
         """
         try:
             # Get Container Apps count
             aca_output = utils.run(f'az containerapp list -g {rg_name} --query "length(@)"', print_command_to_run = False, print_errors = False)
-            
+
             if aca_output.success:
                 aca_count = int(aca_output.text.strip())
                 print(f'✅ Container Apps verified: {aca_count} app(s) created')
@@ -316,11 +323,10 @@ class ApimAcaInfrastructure(Infrastructure):
             else:
                 print('❌ Container Apps verification failed!')
                 return False
-                
+
         except Exception as e:
             print(f'⚠️  Container Apps verification failed with error: {str(e)}')
             return False
-
 
 class AfdApimAcaInfrastructure(Infrastructure):
     """
@@ -336,13 +342,13 @@ class AfdApimAcaInfrastructure(Infrastructure):
         """
         # Get base parameters
         base_params = super()._define_bicep_parameters()
-        
+
         # Add AFD-specific parameters
         afd_params = {
             'apimPublicAccess': {'value': True},  # Initially true for private link approval
             'useACA': {'value': len(self.infra_apis) > 0 if self.infra_apis else False}  # Enable ACA if custom APIs are provided
         }
-        
+
         # Merge with base parameters
         base_params.update(afd_params)
         return base_params
@@ -350,15 +356,15 @@ class AfdApimAcaInfrastructure(Infrastructure):
     def _approve_private_link_connections(self, apim_service_id: str) -> bool:
         """
         Approve pending private link connections from AFD to APIM.
-        
+
         Args:
             apim_service_id (str): APIM service resource ID.
-            
+
         Returns:
             bool: True if all connections were approved successfully, False otherwise.
         """
         print('\n🔗 Step 3: Approving Front Door private link connection to APIM...')
-        
+
         try:
             # Get all pending private endpoint connections
             output = utils.run(
@@ -366,43 +372,43 @@ class AfdApimAcaInfrastructure(Infrastructure):
                 print_command_to_run = False,
                 print_errors = False
             )
-            
+
             if not output.success:
                 print('❌ Failed to retrieve private endpoint connections')
                 return False
-                
+
             pending_connections = output.json_data if output.is_json else []
-            
+
             # Handle both single object and list
             if isinstance(pending_connections, dict):
                 pending_connections = [pending_connections]
-            
+
             total = len(pending_connections)
             print(f'   Found {total} pending private link service connection(s)')
-            
+
             if total == 0:
                 print('   ✅ No pending connections found - may already be approved')
                 return True
-                
+
             # Approve each pending connection
             for i, conn in enumerate(pending_connections, 1):
                 conn_id = conn.get('id')
                 conn_name = conn.get('name', '<unknown>')
                 print(f'   Approving {i}/{total}: {conn_name}')
-                
+
                 approve_result = utils.run(
                     f'az network private-endpoint-connection approve --id {conn_id} --description "Approved by infrastructure deployment"',
                     f'✅ Private Link Connection approved: {conn_name}',
                     f'❌ Failed to approve Private Link Connection: {conn_name}',
                     print_command_to_run = False
                 )
-                
+
                 if not approve_result.success:
                     return False
-            
+
             print('   ✅ All private link connections approved successfully')
             return True
-            
+
         except Exception as e:
             print(f'   ❌ Error during private link approval: {str(e)}')
             return False
@@ -410,36 +416,36 @@ class AfdApimAcaInfrastructure(Infrastructure):
     def _disable_apim_public_access(self) -> bool:
         """
         Disable public network access to APIM by redeploying with updated parameters.
-        
+
         Returns:
             bool: True if deployment succeeded, False otherwise.
         """
         print('\n🔒 Step 5: Disabling API Management public network access...')
-        
+
         try:
             # Update parameters to disable public access
             self.bicep_parameters['apimPublicAccess']['value'] = False
-            
+
             # Write updated parameters file
             original_cwd = os.getcwd()
             shared_dir = Path(__file__).parent
             infra_dir = shared_dir.parent.parent / 'infrastructure' / 'afd-apim-pe'
-            
+
             try:
                 os.chdir(infra_dir)
-                
+
                 bicep_parameters_format = {
                     '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
                     'contentVersion': '1.0.0.0',
                     'parameters': self.bicep_parameters
                 }
-                
+
                 params_file_path = infra_dir / 'params.json'
                 with open(params_file_path, 'w') as file:
                     file.write(json.dumps(bicep_parameters_format))
-                
+
                 print('   📝 Updated parameters to disable public access')
-                
+
                 # Run the second deployment
                 main_bicep_path = infra_dir / 'main.bicep'
                 output = utils.run(
@@ -448,12 +454,12 @@ class AfdApimAcaInfrastructure(Infrastructure):
                     '❌ Failed to disable public access',
                     print_command_to_run = False
                 )
-                
+
                 return output.success
-                
+
             finally:
                 os.chdir(original_cwd)
-                
+
         except Exception as e:
             print(f'   ❌ Error during public access disable: {str(e)}')
             return False
@@ -461,31 +467,31 @@ class AfdApimAcaInfrastructure(Infrastructure):
     def _verify_apim_connectivity(self, apim_gateway_url: str) -> bool:
         """
         Verify APIM connectivity before disabling public access using the health check endpoint.
-        
+
         Args:
             apim_gateway_url (str): APIM gateway URL.
-            
+
         Returns:
             bool: True if connectivity test passed, False otherwise.
         """
         print('\n✅ Step 4: Verifying API request success via API Management...')
-        
+
         try:
             # Use the health check endpoint which doesn't require a subscription key
             import requests
-            
+
             healthcheck_url = f'{apim_gateway_url}/status-0123456789abcdef'
             print(f'   Testing connectivity to health check endpoint: {healthcheck_url}')
-            
+
             response = requests.get(healthcheck_url, timeout=30)
-            
+
             if response.status_code == 200:
                 print('   ✅ APIM connectivity verified - Health check returned 200')
                 return True
             else:
                 print(f'   ⚠️  APIM health check returned status code {response.status_code} (expected 200)')
                 return True  # Continue anyway as this might be expected during deployment
-                
+
         except Exception as e:
             print(f'   ⚠️  APIM connectivity test failed: {str(e)}')
             print('   ℹ️  Continuing deployment - this may be expected during infrastructure setup')
@@ -494,10 +500,10 @@ class AfdApimAcaInfrastructure(Infrastructure):
     def deploy_infrastructure(self, is_update: bool = False) -> Output:
         """
         Deploy the AFD-APIM-PE infrastructure with the required multi-step process.
-        
+
         Args:
             is_update (bool): Whether this is an update to existing infrastructure or a new deployment.
-            
+
         Returns:
             utils.Output: The deployment result.
         """
@@ -505,53 +511,45 @@ class AfdApimAcaInfrastructure(Infrastructure):
         print(f'\n🚀 {action_verb} AFD-APIM-PE infrastructure deployment...\n')
         print('   This deployment requires multiple steps:\n')
         print('   1. Initial deployment with public access enabled')
-        print('   2. Approve private link connections')  
+        print('   2. Approve private link connections')
         print('   3. Verify connectivity')
         print('   4. Disable public access to APIM')
         print('   5. Final verification\n')
-        
+
         # Step 1 & 2: Initial deployment using base class method
         output = super().deploy_infrastructure(is_update)
-        
+
         if not output.success:
             print('❌ Initial deployment failed!')
             return output
-            
+
         print('\n✅ Step 1 & 2: Initial infrastructure deployment completed')
-        
+
         # Extract required values from deployment output
         if not output.json_data:
             print('❌ No deployment output data available')
             return output
-            
+
         apim_service_id = output.get('apimServiceId', 'APIM Service ID', suppress_logging = True)
         apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM Gateway URL', suppress_logging = True)
-        
+
         if not apim_service_id or not apim_gateway_url:
             print('❌ Required APIM information not found in deployment output')
             return output
-        
+
         # Step 3: Approve private link connections
         if not self._approve_private_link_connections(apim_service_id):
             print('❌ Private link approval failed!')
-            # Create a failed output object
-            failed_output = utils.Output()
-            failed_output.success = False
-            failed_output.text = 'Private link approval failed'
-            return failed_output
-        
+            return utils.Output(False, 'Private link approval failed')
+
         # Step 4: Verify connectivity (optional - continues on failure)
         self._verify_apim_connectivity(apim_gateway_url)
-        
+
         # Step 5: Disable public access
         if not self._disable_apim_public_access():
             print('❌ Failed to disable public access!')
-            # Create a failed output object
-            failed_output = utils.Output()
-            failed_output.success = False
-            failed_output.text = 'Failed to disable public access'
-            return failed_output
-        
+            return utils.Output(False, 'Failed to disable public access')
+
         print('\n🎉 AFD-APIM-PE infrastructure deployment completed successfully!\n')
         print('\n📋 Final Configuration:\n')
         print('   ✅ Azure Front Door deployed')
@@ -559,35 +557,35 @@ class AfdApimAcaInfrastructure(Infrastructure):
         print('   ✅ Private link connections approved')
         print('   ✅ Public access to APIM disabled')
         print('   ℹ️  Traffic now flows: Internet → AFD → Private Endpoint → APIM')
-        
+
         return output
 
     def _verify_infrastructure_specific(self, rg_name: str) -> bool:
         """
         Verify AFD-APIM-PE specific components.
-        
+
         Args:
             rg_name (str): Resource group name.
-            
+
         Returns:
             bool: True if verification passed, False otherwise.
         """
         try:
             # Check Front Door
             afd_output = utils.run(f'az afd profile list -g {rg_name} --query "[0]" -o json', print_command_to_run = False, print_errors = False)
-            
+
             if afd_output.success and afd_output.json_data:
                 afd_name = afd_output.json_data.get('name')
                 print(f'✅ Azure Front Door verified: {afd_name}')
-                
+
                 # Check Container Apps if they exist (optional for this infrastructure)
                 aca_output = utils.run(f'az containerapp list -g {rg_name} --query "length(@)"', print_command_to_run = False, print_errors = False)
-                
+
                 if aca_output.success:
                     aca_count = int(aca_output.text.strip())
                     if aca_count > 0:
                         print(f'✅ Container Apps verified: {aca_count} app(s) created')
-                
+
                 # Verify private endpoint connections (optional - don't fail if it errors)
                 try:
                     apim_output = utils.run(f'az apim list -g {rg_name} --query "[0].id" -o tsv', print_command_to_run = False, print_errors = False)
@@ -600,12 +598,428 @@ class AfdApimAcaInfrastructure(Infrastructure):
                 except:
                     # Don't fail verification if private endpoint check fails
                     pass
-                
+
                 return True
             else:
                 print('❌ Azure Front Door verification failed!')
                 return False
-                
+
         except Exception as e:
             print(f'⚠️  AFD-APIM-PE verification failed with error: {str(e)}')
+            return False
+
+class AppGwApimPeInfrastructure(Infrastructure):
+    """
+    Represents an Application Gateway with API Management and Azure Container Apps infrastructure.
+    """
+
+    # Class constants for certificate configuration
+    CERT_NAME = 'appgw-cert'
+    DOMAIN_NAME = 'api.apim-samples.contoso.com'
+
+    def __init__(self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2, infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
+        super().__init__(INFRASTRUCTURE.APPGW_APIM_PE, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis)
+
+    def _create_keyvault_certificate(self, key_vault_name: str) -> bool:
+        """
+        Create a self-signed certificate in Key Vault for Application Gateway TLS.
+        This is done via Azure CLI because deployment scripts require storage accounts with
+        shared key access enabled, which may be blocked by Azure Policy.
+
+        Args:
+            key_vault_name (str): Name of the Key Vault.
+
+        Returns:
+            bool: True if certificate was created or already exists, False on failure.
+        """
+        print(f'\n   🔐 Creating self-signed certificate in Key Vault...\n')
+        print(f'   Key Vault   : {key_vault_name}')
+        print(f'   Certificate : {self.CERT_NAME}')
+        print(f'   Domain      : {self.DOMAIN_NAME}')
+
+        # Check if certificate already exists
+        check_output = utils.run(
+            f'az keyvault certificate show --vault-name {key_vault_name} --name {self.CERT_NAME} -o json',
+            print_command_to_run = False,
+            print_errors = False
+        )
+
+        if check_output.success:
+            print(f'   ✅ Certificate already exists in Key Vault')
+            return True
+
+        # Build the certificate policy JSON for Azure CLI
+        cert_policy = json.dumps({
+            "issuerParameters": {
+                "name": "Self"
+            },
+            "keyProperties": {
+                "exportable": True,
+                "keySize": 2048,
+                "keyType": "RSA",
+                "reuseKey": True
+            },
+            "secretProperties": {
+                "contentType": "application/x-pkcs12"
+            },
+            "x509CertificateProperties": {
+                "keyUsage": [
+                    "digitalSignature",
+                    "keyEncipherment"
+                ],
+                "subject": f"CN={self.DOMAIN_NAME}",
+                "validityInMonths": 12
+            }
+        })
+
+        # Create the certificate using Azure CLI
+        # Use escaped double quotes for Windows PowerShell compatibility
+        escaped_policy = cert_policy.replace('"', '\\"')
+        create_output = utils.run(
+            f'az keyvault certificate create --vault-name {key_vault_name} --name {self.CERT_NAME} --policy "{escaped_policy}"',
+            f'✅ Certificate created successfully in Key Vault',
+            f'❌ Failed to create certificate in Key Vault',
+            print_command_to_run = False
+        )
+
+        return create_output.success
+
+    def _define_bicep_parameters(self) -> dict:
+        """
+        Define APPGW-APIM-PE specific Bicep parameters.
+        """
+        # Get base parameters
+        base_params = super()._define_bicep_parameters()
+
+        # Add AppGw-specific parameters
+        appgw_params = {
+            'apimPublicAccess': {'value': True},  # Initially true for private link approval
+            'useACA': {'value': len(self.infra_apis) > 0 if self.infra_apis else False},  # Enable ACA if custom APIs are provided
+            'setCurrentUserAsKeyVaultAdmin': {'value': True},
+            'currentUserId': {'value': self.current_user_id}
+        }
+
+        # Merge with base parameters
+        base_params.update(appgw_params)
+        return base_params
+
+    def _approve_private_link_connections(self, apim_service_id: str) -> bool:
+        """
+        Approve pending private link connections from App Gateway to APIM.
+
+        Args:
+            apim_service_id (str): APIM service resource ID.
+
+        Returns:
+            bool: True if all connections were approved successfully, False otherwise.
+        """
+        print('\n🔗 Step 3: Approving App Gateway private link connection to APIM...')
+
+        try:
+            # Get all pending private endpoint connections
+            output = utils.run(
+                f'az network private-endpoint-connection list --id {apim_service_id} --query "[?contains(properties.privateLinkServiceConnectionState.status, \'Pending\')]" -o json',
+                print_command_to_run = False,
+                print_errors = False
+            )
+
+            if not output.success:
+                print('❌ Failed to retrieve private endpoint connections')
+                return False
+
+            pending_connections = output.json_data if output.is_json else []
+
+            # Handle both single object and list
+            if isinstance(pending_connections, dict):
+                pending_connections = [pending_connections]
+
+            total = len(pending_connections)
+            print(f'   Found {total} pending private link service connection(s)')
+
+            if total == 0:
+                print('   ✅ No pending connections found - this is normal for VNet integration scenarios')
+                print('   ℹ️  Application Gateway will access APIM through VNet integration')
+                return True
+
+            # Approve each pending connection
+            for i, conn in enumerate(pending_connections, 1):
+                conn_id = conn.get('id')
+                conn_name = conn.get('name', '<unknown>')
+                print(f'   Approving {i}/{total}: {conn_name}')
+
+                approve_result = utils.run(
+                    f'az network private-endpoint-connection approve --id {conn_id} --description "Approved by infrastructure deployment"',
+                    f'✅ Private Link Connection approved: {conn_name}',
+                    f'❌ Failed to approve Private Link Connection: {conn_name}',
+                    print_command_to_run = False
+                )
+
+                if not approve_result.success:
+                    return False
+
+            print('   ✅ All private link connections approved successfully')
+            return True
+
+        except Exception as e:
+            print(f'   ❌ Error during private link approval: {str(e)}')
+            return False
+
+    def _disable_apim_public_access(self) -> bool:
+        """
+        Disable public network access to APIM by redeploying with updated parameters.
+
+        Returns:
+            bool: True if deployment succeeded, False otherwise.
+        """
+        print('\n🔒 Step 5: Disabling API Management public network access...')
+
+        try:
+            # Update parameters to disable public access
+            self.bicep_parameters['apimPublicAccess']['value'] = False
+
+            # Write updated parameters file
+            original_cwd = os.getcwd()
+            shared_dir = Path(__file__).parent
+            infra_dir = shared_dir.parent.parent / 'infrastructure' / 'appgw-apim-pe'
+
+            try:
+                os.chdir(infra_dir)
+
+                bicep_parameters_format = {
+                    '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
+                    'contentVersion': '1.0.0.0',
+                    'parameters': self.bicep_parameters
+                }
+
+                params_file_path = infra_dir / 'params.json'
+                with open(params_file_path, 'w') as file:
+                    file.write(json.dumps(bicep_parameters_format))
+
+                print('   📝 Updated parameters to disable public access')
+
+                # Run the second deployment
+                main_bicep_path = infra_dir / 'main.bicep'
+                output = utils.run(
+                    f'az deployment group create --name {self.infra.value}-lockdown --resource-group {self.rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
+                    '✅ Public access disabled successfully',
+                    '❌ Failed to disable public access',
+                    print_command_to_run = False
+                )
+
+                return output.success
+
+            finally:
+                os.chdir(original_cwd)
+
+        except Exception as e:
+            print(f'   ❌ Error during public access disable: {str(e)}')
+            return False
+
+    def _verify_apim_connectivity(self, apim_gateway_url: str) -> bool:
+        """
+        Verify APIM connectivity before disabling public access using the health check endpoint.
+
+        Args:
+            apim_gateway_url (str): APIM gateway URL.
+
+        Returns:
+            bool: True if connectivity test passed, False otherwise.
+        """
+        print('\n✅ Step 4: Verifying API request success via API Management...')
+
+        try:
+            # Use the health check endpoint which doesn't require a subscription key
+            import requests
+
+            healthcheck_url = f'{apim_gateway_url}/status-0123456789abcdef'
+            print(f'   Testing connectivity to health check endpoint: {healthcheck_url}')
+
+            response = requests.get(healthcheck_url, timeout=30)
+
+            if response.status_code == 200:
+                print('   ✅ APIM connectivity verified - Health check returned 200')
+                return True
+            else:
+                print(f'   ⚠️  APIM health check returned status code {response.status_code} (expected 200)')
+                return True  # Continue anyway as this might be expected during deployment
+
+        except Exception as e:
+            print(f'   ⚠️  APIM connectivity test failed: {str(e)}')
+            print('   ℹ️  Continuing deployment - this may be expected during infrastructure setup')
+            return True  # Continue anyway
+
+    def _create_keyvault(self, key_vault_name: str) -> bool:
+        # Check if Key Vault already exists
+        check_kv = utils.run(
+            f'az keyvault show --name {key_vault_name} --resource-group {self.rg_name} -o json',
+            print_command_to_run = False,
+            print_errors = False
+        )
+
+        if not check_kv.success:
+            # Create Key Vault via Azure CLI with RBAC authorization (consistent with Bicep module)
+            print(f'   Creating Key Vault: {key_vault_name}')
+            utils.run(
+                f'az keyvault create --name {key_vault_name} --resource-group {self.rg_name} --location {self.rg_location} --enable-rbac-authorization true',
+                f'✅ Key Vault created: {key_vault_name}',
+                f'❌ Failed to create Key Vault',
+                print_command_to_run = False
+            )
+
+            #Assign Key Vault Certificates Officer role to current user for certificate creation
+
+            # Key Vault Certificates Officer role
+            assign_kv_role = utils.run(
+                f'az role assignment create --role "Key Vault Certificates Officer" --assignee {self.current_user_id} --scope /subscriptions/{self.subscription_id}/resourceGroups/{self.rg_name}/providers/Microsoft.KeyVault/vaults/{key_vault_name}',
+                print_command_to_run = False,
+                print_errors = False
+            )
+            if not assign_kv_role.success:
+                print(f'   ❌ Failed to assign Key Vault Certificates Officer role to current user')
+                return False
+
+            print('   ✅ Assigned Key Vault Certificates Officer role to current user')
+
+            # Brief wait for role assignment propagation
+            print('   ⏳ Waiting for role assignment propagation (15 seconds)...')
+            time.sleep(15)
+
+        return True
+
+    def deploy_infrastructure(self, is_update: bool = False) -> Output:
+        """
+        Deploy the APPGW-APIM-PE infrastructure with the required multi-step process.
+
+        Args:
+            is_update (bool): Whether this is an update to existing infrastructure or a new deployment.
+
+        Returns:
+            utils.Output: The deployment result.
+        """
+        action_verb = "Updating" if is_update else "Starting"
+        print(f'\n🚀 {action_verb} APPGW-APIM-PE infrastructure deployment...\n')
+        print('   This deployment requires multiple steps:\n')
+        print('   1. Create Key Vault and self-signed certificate')
+        print('   2. Initial deployment with public access enabled')
+        print('   3. Approve private link connections')
+        print('   4. Verify connectivity')
+        print('   5. Disable public access to APIM')
+
+        # Step 1: Create Key Vault and certificate before main deployment
+        print('\n📋 Step 1: Creating Key Vault and certificate...\n')
+        key_vault_name = f'kv-{self.resource_suffix}'
+
+        # Create the Key Vault
+        if not self._create_keyvault(key_vault_name):
+            return utils.Output(False, 'Failed to create Key Vault')
+
+        # Create the certificate
+        if not self._create_keyvault_certificate(key_vault_name):
+            return utils.Output(False, 'Failed to create certificate in Key Vault')
+
+        print('\n✅ Step 1: Key Vault and certificate creation completed')
+
+        # Step 2: Initial deployment using base class method
+        print('\n📋 Step 2: Initial infrastructure deploying...\n')
+
+        output = super().deploy_infrastructure(is_update)
+
+        if not output.success:
+            print('❌ Initial deployment failed!')
+            return output
+
+        print('\n✅ Step 2: Initial infrastructure deployment completed')
+
+        # Extract required values from deployment output
+        if not output.json_data:
+            print('❌ No deployment output data available')
+            return output
+
+        apim_service_id = output.get('apimServiceId', 'APIM Service ID', suppress_logging = True)
+        apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM Gateway URL', suppress_logging = True)
+        self.appgw_domain_name = output.get('appGatewayDomainName', 'App Gateway Domain Name', suppress_logging = True)
+        self.appgw_public_ip = output.get('appgwPublicIpAddress', 'App Gateway Public IP', suppress_logging = True)
+
+        if not apim_service_id or not apim_gateway_url:
+            print('❌ Required APIM information not found in deployment output')
+            return output
+
+        # Step 3: Approve private link connections
+        print('\n📋 Step 3: Approve private link connection...\n')
+        if not self._approve_private_link_connections(apim_service_id):
+            print('❌ Private link approval failed!')
+            return utils.Output(False, 'Private link approval failed')
+
+        # Step 4: Verify connectivity (optional - continues on failure)
+        print('\n📋 Step 4: Approving private link connection...\n')
+        self._verify_apim_connectivity(apim_gateway_url)
+
+        # Step 5: Disable public access
+        print('\n📋 Step 5: Disabling public access...\n')
+        if not self._disable_apim_public_access():
+            print('❌ Failed to disable public access!')
+            return utils.Output(False, 'Failed to disable public access')
+
+        print('\n🎉 APPGW-APIM-PE infrastructure deployment completed successfully!\n')
+        print('\n📋 Final Configuration:\n')
+        print('   ✅ Application Gateway deployed')
+        print('   ✅ API Management deployed with private endpoints')
+        print('   ✅ Private link connections approved')
+        print('   ✅ Public access to APIM disabled')
+        print('   ℹ️  Traffic now flows: Internet → Application Gateway → Private Endpoint → APIM')
+
+        print('\n\n 🧪 TESTING\n')
+        print('As we are using a self-signed certificate (please see README.md for details), we need to test differently.\n' +
+              'A curl command using flags for verbose (v), ignoring cert issues (k), and supplying a host header (h) works to verify connectivity.\n' +
+              'This tests ingress through App Gateway and a response from API Management\'s health endpoint. An "HTTP 200 Service Operational" response indicates success.\n')
+        print(f'curl -v -k -H "Host: {self.appgw_domain_name}" https://{self.appgw_public_ip}/status-0123456789abcdef')
+
+        return output
+
+    def _verify_infrastructure_specific(self, rg_name: str) -> bool:
+        """
+        Verify APPGW-APIM-PE specific components.
+
+        Args:
+            rg_name (str): Resource group name.
+
+        Returns:
+            bool: True if verification passed, False otherwise.
+        """
+        try:
+            # Check Application Gateway
+            appgw_output = utils.run(f'az network application-gateway list -g {rg_name} --query "[0]" -o json', print_command_to_run = False, print_errors = False)
+
+            if appgw_output.success and appgw_output.json_data:
+                appgw_name = appgw_output.json_data.get('name')
+                print(f'✅ Application Gateway verified: {appgw_name}')
+
+                # Check Container Apps if they exist (optional for this infrastructure)
+                aca_output = utils.run(f'az containerapp list -g {rg_name} --query "length(@)"', print_command_to_run = False, print_errors = False)
+
+                if aca_output.success:
+                    aca_count = int(aca_output.text.strip())
+                    if aca_count > 0:
+                        print(f'✅ Container Apps verified: {aca_count} app(s) created')
+
+                # Verify private endpoint connections (optional - don't fail if it errors)
+                try:
+                    apim_output = utils.run(f'az apim list -g {rg_name} --query "[0].id" -o tsv', print_command_to_run = False, print_errors = False)
+                    if apim_output.success and apim_output.text.strip():
+                        apim_id = apim_output.text.strip()
+                        pe_output = utils.run(f'az network private-endpoint-connection list --id {apim_id} --query "length(@)"', print_command_to_run = False, print_errors = False)
+                        if pe_output.success:
+                            pe_count = int(pe_output.text.strip())
+                            print(f'✅ Private endpoint connections: {pe_count}')
+                except:
+                    # Don't fail verification if private endpoint check fails
+                    pass
+
+                return True
+            else:
+                print('❌ Application Gateway verification failed!')
+                return False
+
+        except Exception as e:
+            print(f'⚠️  APPGW-APIM-PE verification failed with error: {str(e)}')
             return False

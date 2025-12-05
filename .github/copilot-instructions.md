@@ -6,7 +6,7 @@ applyTo: "**"
 
 ## Purpose
 
-This instructions file is designed to guide GitHub Copilot's behavior specifically for this repository. It is intended to provide clear, general, and maintainable guidelines for code generation, style, and collaboration. 
+This instructions file is designed to guide GitHub Copilot's behavior specifically for this repository. It is intended to provide clear, general, and maintainable guidelines for code generation, style, and collaboration.
 
 **In case of any conflict, instructions from other individualized or project-specific files (such as `my-copilot.instructions.md`) take precedence over this file.**
 
@@ -24,7 +24,7 @@ In case of any conflicting instructions, the following hierarchy shall apply. If
   1. Individualized instructions (e.g. a developer's or an organization's instruction file(s)), if present
   2. This repository's `.github/.copilot-instructions.md`
   3. General best practices and guidelines from sources such as [Microsoft Learn](https://learn.microsoft.com/docs/)
-    This includes the [Microsoft Cloud Adoption Framework](https://learn.microsoft.com/azure/cloud-adoption-framework/). 
+    This includes the [Microsoft Cloud Adoption Framework](https://learn.microsoft.com/azure/cloud-adoption-framework/).
   4. Official [GitHub Copilot best practices documentation](https://docs.github.com/enterprise-cloud@latest/copilot/using-github-copilot/coding-agent/best-practices-for-using-copilot-to-work-on-tasks)
 
 ## Copilot Personality Behavior
@@ -58,11 +58,11 @@ In case of any conflicting instructions, the following hierarchy shall apply. If
 - `/`: Root directory containing the main files and folders. Bicep configuration is stored in `bicepconfig.json`.
 - The following folders are all at the root level:
     - `assets/`: PlantUML diagrams and images. Static assets such as these should be placed here. Any diagrams should be placed in the /diagrams/src subfolder.
-    - `infrastructure/`: Contains Jupyter notebooks for setting up various API Management infrastructures. When modifying samples, these notebooks should not need to be modified. 
+    - `infrastructure/`: Contains Jupyter notebooks for setting up various API Management infrastructures. When modifying samples, these notebooks should not need to be modified.
     - `samples/`: Various policy and scenario samples that can be applied to the infrastructures.
     - `setup/`: General setup scripts and configurations for the repository and dev environment setup.
     - `shared/`: Shared resources, such as Bicep modules, Python libraries, and other reusable components.
-    - `tests/`: Contains unit tests for Python code and Bicep modules. This folder should contain all tests for all code in the repository. 
+    - `tests/`: Contains unit tests for Python code and Bicep modules. This folder should contain all tests for all code in the repository.
 
 ## Formatting and Style
 
@@ -109,14 +109,14 @@ param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id
 
 - Overall layout of a Bicep file should be:
     - Visible sections of code with the following format should be used:
-        
+
         ```bicep
         // ------------------------------
         //    <SECTION HEADER>
         // ------------------------------
         ```
 
-    - <SECTION HEADER> should be indented three spaces and be in all caps. 
+    - <SECTION HEADER> should be indented three spaces and be in all caps.
     - Section headers should have only two blank lines before and only one blank line after.
     - Top-to-bottom, the following comma-separated section headers should be inserted unless the section is empty:
         - Parameters
@@ -128,11 +128,12 @@ param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id
 ### Python Instructions
 
 - Prefer Python 3.12+ syntax and features unless otherwise specified.
+- Respect the repository's `.pylintrc` file for linting rules. The file is found in the `tests/python/` folder.
 - When inserting a comment to describe a method, insert a blank line after the comment section.
 - Never leave a blank line at the very top of a Python file. The file must start immediately with the module docstring or code. Always remove any leading blank line at the top.
 - Do not have imports such as `from shared.python import Foo`. The /shared/python directory is covered by a root `.env` file. Just use `import Foo` or `from Foo import Bar` as appropriate.
 - After the module docstring, all import statements must come before any section headers (e.g., CONSTANTS, VARIABLES, etc.). Section headers should only appear after the imports. Here is a more explicit example:
-    
+
     ```python
     """
     Module docstring.
@@ -140,7 +141,7 @@ param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id
 
     import ...
     ...
-    
+
 
     # ------------------------------
     #    CONSTANTS
@@ -150,14 +151,14 @@ param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id
 
 - Overall layout of a Python file should be:
     - Visible sections of code with the following format should be used:
-        
+
         ```python
         # ------------------------------
         #    <SECTION HEADER>
         # ------------------------------
         ```
 
-    - <SECTION HEADER> should be indented three spaces and be in all caps. 
+    - <SECTION HEADER> should be indented three spaces and be in all caps.
     - Section headers should have only two blank lines before and only one blank line after.
     - Top-to-bottom, the following comma-separated section headers should be inserted unless the section is empty:
         - Constants
@@ -173,7 +174,7 @@ param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id
             - Private Methods
             - Public Methods
 
-- Python Docstring/Class Formatting Rule: 
+- Python Docstring/Class Formatting Rule:
     - Always insert a single blank line after a class docstring and before any class attributes or methods.
     - Never place class attributes or decorators on the same line as the docstring. Example:
 
@@ -186,7 +187,7 @@ param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id
             attribute: str
             ...
         ```
-        
+
 ### Jupyter Notebook Instructions
 
 - Use these [configuration settings](https://github.com/microsoft/vscode-jupyter/blob/dd568fde/package.nls.json) as a reference for the VS Code Jupyter extension configuration.
@@ -195,7 +196,7 @@ param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id
 
 - Ensure you verify that all include links are correct and up to date. This link provides a starting point: https://github.com/plantuml-stdlib/Azure-PlantUML/blob/master/AzureSymbols.md
 - Keep diagrams simple. For Azure, include major components, not individual aspects of components. For example, there is no need for individual policies in WAFs or APIs in API Management, Smart Detector Alert Rules, etc.
-- Less is more. Don't be too verbose in the diagrams. 
+- Less is more. Don't be too verbose in the diagrams.
 - Never include subscription IDs, resource group names, or any other sensitive information in the diagrams. That data is not relevant.
 - Don't use the "legend" command if the information is relatively obvious.
 

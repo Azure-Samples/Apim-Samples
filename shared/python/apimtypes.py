@@ -18,16 +18,16 @@ def _get_project_root() -> Path:
     # Try to get from environment variable first (set by .env file)
     if 'PROJECT_ROOT' in os.environ:
         return Path(os.environ['PROJECT_ROOT'])
-    
+
     # Fallback: detect project root by walking up from this file
     current_path = Path(__file__).resolve().parent.parent.parent  # Go up from shared/python/
     indicators = ['README.md', 'requirements.txt', 'bicepconfig.json']
-    
+
     while current_path != current_path.parent:
         if all((current_path / indicator).exists() for indicator in indicators):
             return current_path
         current_path = current_path.parent
-    
+
     # Ultimate fallback
     return Path(__file__).resolve().parent.parent.parent
 
@@ -132,7 +132,27 @@ class INFRASTRUCTURE(StrEnum):
     SIMPLE_APIM  = 'simple-apim'   # Simple API Management with no dependencies
     APIM_ACA     = 'apim-aca'      # Azure API Management connected to Azure Container Apps
     AFD_APIM_PE  = 'afd-apim-pe'   # Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
+    APPGW_APIM_PE = 'appgw-apim-pe' # Application Gateway connected to Azure API Management (Standard V2) via Private Link
 
+
+class Endpoints(object):
+
+
+    """
+    Represents a set of endpoints to call
+    """
+
+    afd_endpoint_url: str | None
+    apim_endpoint_url: str | None
+    appgw_hostname: str | None
+    appgw_public_ip: str | None
+
+    # ------------------------------
+    #    CONSTRUCTOR
+    # ------------------------------
+
+    def __init__(self, deployment: INFRASTRUCTURE):
+        self.deployment = deployment
 
 # ------------------------------
 #    CLASSES
@@ -159,7 +179,7 @@ class API:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, displayName: str, path: str, description: str, policyXml: Optional[str] = None, operations: Optional[List['APIOperation']] = None, tags: Optional[List[str]] = None, 
+    def __init__(self, name: str, displayName: str, path: str, description: str, policyXml: Optional[str] = None, operations: Optional[List['APIOperation']] = None, tags: Optional[List[str]] = None,
                  productNames: Optional[List[str]] = None, subscriptionRequired: bool = True, serviceUrl: Optional[str] = None):
         self.name = name
         self.displayName = displayName
@@ -222,12 +242,12 @@ class APIOperation:
         self.urlTemplate = urlTemplate
         self.description = description
         self.policyXml = policyXml if policyXml is not None else _read_policy_xml(DEFAULT_XML_POLICY_PATH)
-        self.templateParameters = templateParameters if templateParameters is not None else []    
-        
+        self.templateParameters = templateParameters if templateParameters is not None else []
+
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
-    
+
     def to_dict(self) -> dict:
         return {
             'name': self.name,
@@ -277,7 +297,7 @@ class POST_APIOperation(APIOperation):
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
-    
+
     def __init__(self, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None) -> None:
         super().__init__('POST', 'POST', '/', HTTP_VERB.POST, description, policyXml, templateParameters)
 
@@ -315,7 +335,7 @@ class NamedValue:
 
         return nv_dict
 
-    
+
 @dataclass
 class PolicyFragment:
     """
@@ -344,7 +364,7 @@ class PolicyFragment:
         pf_dict = {
             'name': self.name,
             'policyXml': self.policyXml,
-            'description': self.description 
+            'description': self.description
         }
 
         return pf_dict
@@ -357,7 +377,7 @@ class Product:
     Products in APIM are logical groupings of APIs with associated policies,
     terms of use, and rate limits. They are used to manage API access control.
     """
-    
+
     name: str
     displayName: str
     description: str
@@ -365,11 +385,11 @@ class Product:
     subscriptionRequired: bool = True
     approvalRequired: bool = False
     policyXml: Optional[str] = None
-    
+
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
-    
+
     def __init__(self, name: str, displayName: str, description: str, state: str = 'published', subscriptionRequired: bool = True, approvalRequired: bool = False, policyXml: Optional[str] = None) -> None:
         self.name = name
         self.displayName = displayName

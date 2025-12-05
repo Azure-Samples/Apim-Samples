@@ -198,6 +198,29 @@ The api-version '...' is invalid
 
 2. Check for newer API versions in the Bicep templates
 
+### Invalid Win32 application
+
+This is a bit cryptic. It's helpful to execute the `az` command from the error separately in the terminal and supply the `--debug` flag. You might then see errors such as this one:
+
+**Error Message:**
+```
+cli.azure.cli.core.azclierror: [WinError 193] %1 is not a valid Win32 application
+az_command_data_logger: [WinError 193] %1 is not a valid Win32 application
+```
+
+Scroll up to see what is executed.
+
+**Solution:**
+
+#### Bicep
+
+In one case, `%USERPROFILE%\.azure\bin` contained a `bicep.exe` file but with a zero-length. The CLI would recognize that the file is there but fail on execution. 
+
+1. Verify that bicep is indeed failing: `az bicep version`
+2. Delete `%USERPROFILE%\.azure\bin\bicep.exe`.
+3. (Re)install bicep: `az bicep install`.
+4. Verify bicep: `az bicep version`
+
 ## Resource Management Issues
 
 ### Resource Group Does Not Exist
