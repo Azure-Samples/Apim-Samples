@@ -19,6 +19,7 @@ import inspect
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
+import apimtypes
 import tempfile
 import os as temp_os
 
@@ -56,7 +57,7 @@ _print_lock = threading.Lock()
 
 def build_infrastructure_tags(infrastructure: str | INFRASTRUCTURE, custom_tags: dict | None = None) -> dict:
     """
-    Build standard tags for infrastructure resource groups, including required 'infrastructure' and infrastructure name tags.
+    Build standard tags for infrastructure resource groups, including required 'infrastructure' tag.
 
     Args:
         infrastructure (str | INFRASTRUCTURE): The infrastructure type/name.
@@ -72,16 +73,14 @@ def build_infrastructure_tags(infrastructure: str | INFRASTRUCTURE, custom_tags:
     else:
         infra_name = str(infrastructure)
 
-    # Build standard tags
-    standard_tags = {
-        'infrastructure': infra_name
-    }
+    # Build standard tags - only include infrastructure tag
+    tags = {'infrastructure': infra_name}
 
     # Add custom tags if provided
     if custom_tags:
-        standard_tags.update(custom_tags)
+        tags.update(custom_tags)
 
-    return standard_tags
+    return tags
 
 
 # ------------------------------
@@ -1289,8 +1288,8 @@ def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str
                 raise ValueError(f'Could not auto-detect sample name. Please provide sample_name parameter explicitly. Error: {e}')
 
         # Construct the full path
-        project_root = _get_project_root()
-        policy_xml_filepath = str(project_root / 'samples' / sample_name / policy_xml_filepath_or_filename)
+        project_root = apimtypes._get_project_root()
+        policy_xml_filepath = str(Path(project_root) / 'samples' / sample_name / policy_xml_filepath_or_filename)
 
     return policy_xml_filepath
 
@@ -2133,17 +2132,18 @@ def test_url_preflight_check(deployment: INFRASTRUCTURE, rg_name: str, apim_gate
 
     return endpoint_url
 
+
+
 def get_endpoints(deployment: INFRASTRUCTURE, rg_name: str) -> Endpoints:
     print_message(f'Identifying possible endpoints for infrastructure {deployment}...')
 
     endpoints = Endpoints(deployment)
 
-    try:
-        endpoints.afd_endpoint_url = get_frontdoor_url(deployment, rg_name)
-        endpoints.apim_endpoint_url = get_apim_url(rg_name)
-        endpoints.appgw_hostname, endpoints.appgw_public_ip = get_appgw_endpoint(rg_name)
-    finally:
-        return endpoints
+    endpoints.afd_endpoint_url = get_frontdoor_url(deployment, rg_name)
+    endpoints.apim_endpoint_url = get_apim_url(rg_name)
+    endpoints.appgw_hostname, endpoints.appgw_public_ip = get_appgw_endpoint(rg_name)
+
+    return endpoints
 
 def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, current_jwt_key_name: str) -> bool:
     """

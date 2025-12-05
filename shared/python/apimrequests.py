@@ -36,10 +36,11 @@ class ApimRequests:
         Args:
             url: The base URL for the APIM endpoint.
             apimSubscriptionKey: Optional subscription key for APIM.
+            headers: Optional additional headers to include in requests.
         """
 
         self._url = url
-        self._headers: dict[str, str] = headers
+        self._headers: dict[str, str] = headers.copy() if headers else {}
         self.subscriptionKey = apimSubscriptionKey
 
         self._headers['Accept'] = 'application/json'
@@ -72,6 +73,9 @@ class ApimRequests:
 
         if self._subscriptionKey:
             self._headers[SUBSCRIPTION_KEY_PARAMETER_NAME] = self._subscriptionKey
+        else:
+            # Remove subscription key from headers if it exists
+            self._headers.pop(SUBSCRIPTION_KEY_PARAMETER_NAME, None)
 
     # headers
     @property
@@ -129,6 +133,8 @@ class ApimRequests:
             if headers:
                 merged_headers.update(headers)
 
+            utils.print_info(merged_headers)
+
             response = requests.request(method.value, url, headers = merged_headers, json = data, verify = False)
 
             content_type = response.headers.get('Content-Type')
@@ -169,6 +175,7 @@ class ApimRequests:
         api_runs = []
 
         session = requests.Session()
+
         session.headers.update(self.headers.copy())
 
         try:
@@ -264,7 +271,9 @@ class ApimRequests:
 
         while time.time() - start_time < timeout:
             try:
-                response = requests.get(location_url, headers=headers or {}, verify = False)
+                utils.print_info(f'GET {location_url}', True)
+                utils.print_info(headers)
+                response = requests.get(location_url, headers = headers or {}, verify = False)
 
                 utils.print_info(f'Polling operation - Status: {response.status_code}')
 
@@ -371,6 +380,8 @@ class ApimRequests:
             if headers:
                 merged_headers.update(headers)
 
+            utils.print_info(merged_headers)
+
             # Make the initial async request
             response = requests.request(HTTP_VERB.POST.value, url, headers = merged_headers, json = data, verify = False)
 
@@ -378,16 +389,12 @@ class ApimRequests:
 
             if response.status_code == 202:  # Accepted - async operation started
                 location_header = response.headers.get('Location')
+
                 if location_header:
                     utils.print_info(f'Found Location header: {location_header}')
 
                     # Poll the location URL until completion
-                    final_response = self._poll_async_operation(
-                        location_header,
-                        headers=merged_headers,
-                        timeout=timeout,
-                        poll_interval=poll_interval
-                    )
+                    final_response = self._poll_async_operation(location_header, timeout = timeout, poll_interval = poll_interval )
 
                     if final_response and final_response.status_code == 200:
                         if printResponse:
