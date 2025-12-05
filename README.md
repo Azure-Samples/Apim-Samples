@@ -344,6 +344,7 @@ The original author of this project is [Simon Kurtz][simon-kurtz].
 [import-troubleshooting]: .devcontainer/IMPORT-TROUBLESHOOTING.md
 [infra-afd-apim-pe]: ./infrastructure/afd-apim-pe
 [infra-apim-aca]: ./infrastructure/apim-aca
+[infra-appgw-apim-pe]: ./infrastructure/appgw-apim-pe/
 [infra-simple-apim]: ./infrastructure/simple-apim
 [pytest-docs]: https://docs.pytest.org/
 [pytest-docs-versioned]: https://docs.pytest.org/en/8.2.x/
