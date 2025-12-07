@@ -4,7 +4,7 @@ Unit tests for the User class in users.py.
 
 import random
 import pytest
-from users import User, Users, UserHelper
+from users import User, UserName, Users, UserHelper
 from apimtypes import Role
 
 # ------------------------------
@@ -74,6 +74,30 @@ def test_get_user_by_role_single_match():
     user = UserHelper.get_user_by_role(Role.HR_MEMBER)
     assert user is not None
     assert Role.HR_MEMBER in user.roles
+
+
+def test_get_user_by_exact_name():
+    """Direct string lookups should find the matching user."""
+
+    user = UserHelper.get_user('Dylan Williams')
+
+    assert user is not None
+    assert user.name == 'Dylan Williams'
+
+
+def test_get_user_by_enum_name():
+    """Enum members can be used to locate users."""
+
+    user = UserHelper.get_user(UserName.ELIZABETH_MOORE)
+
+    assert user is not None
+    assert user.name == UserName.ELIZABETH_MOORE
+
+
+def test_get_user_missing_returns_none():
+    """Unknown user names should return None."""
+
+    assert UserHelper.get_user('Nonexistent User') is None
 
 def test_get_user_by_role_multiple_roles():
     """
