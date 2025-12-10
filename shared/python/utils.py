@@ -628,7 +628,6 @@ def get_azure_role_guid(role_name: str) -> Optional[str]:
 
         return None
 
-
 def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: str | INFRASTRUCTURE, bicep_parameters: dict, bicep_parameters_file: str = 'params.json', rg_tags: dict | None = None, is_debug: bool = False) -> Output:
     """
     Create a Bicep deployment in a resource group, writing parameters to a file and running the deployment.
@@ -693,7 +692,6 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
     print('\nDeploying bicep...\n')
     return run(cmd, f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.", print_command_to_run = False)
 
-
 # TODO: Reconcile this with apimtypes.py _get_project_root
 def find_project_root() -> str:
     """
@@ -719,7 +717,6 @@ def find_project_root() -> str:
 
     # If we can't find the project root, raise an error
     raise FileNotFoundError('Could not determine project root directory')
-
 
 def create_bicep_deployment_group_for_sample(sample_name: str, rg_name: str, rg_location: str, bicep_parameters: dict, bicep_parameters_file: str = 'params.json', rg_tags: dict | None = None, is_debug: bool = False) -> Output:
     """
@@ -773,7 +770,6 @@ def create_bicep_deployment_group_for_sample(sample_name: str, rg_name: str, rg_
         # Always restore the original working directory
         os.chdir(original_cwd)
         print(f'📁 Restored working directory to: {original_cwd}')
-
 
 def create_resource_group(rg_name: str, resource_group_location: str | None = None, tags: dict | None = None) -> None:
     """
@@ -1065,80 +1061,6 @@ def read_policy_xml(policy_xml_filepath_or_filename: str, named_values: dict[str
 
     return policy_template_xml
 
-def extract_json(text: str) -> Any:
-    """
-    Extract the first valid JSON object or array from a string and return it as a Python object.
-
-    This function searches the input string for the first occurrence of a JSON object or array (delimited by '{' or '['),
-    and attempts to decode it using json.JSONDecoder().raw_decode. If the input is already valid JSON, it is returned as a Python object.
-    If no valid JSON is found, None is returned.
-
-    Args:
-        text (str): The string to search for a JSON object or array.
-
-    Returns:
-        Any | None: The extracted JSON as a Python object (dict or list), or None if not found or not valid.
-    """
-
-    if not isinstance(text, str):
-        return None
-
-    # If the string is already valid JSON, parse and return it as a Python object.
-    if is_string_json(text):
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError:
-            # If JSON parsing fails despite is_string_json returning True,
-            # fall through to substring search
-            pass
-
-    decoder = json.JSONDecoder()
-
-    for start in range(len(text)):
-        if text[start] in ('{', '['):
-            try:
-                obj, _ = decoder.raw_decode(text[start:])
-                return obj
-            except Exception:
-                continue
-
-    return None
-
-def is_string_json(text: str) -> bool:
-    """
-    Check if the provided string is a valid JSON object or array.
-
-    Args:
-        text (str): The string to check.
-
-    Returns:
-        bool: True if the string is valid JSON, False otherwise.
-    """
-
-    # Accept only str, bytes, or bytearray as valid input for JSON parsing.
-    if not isinstance(text, (str, bytes, bytearray)):
-        return False
-
-    # Skip empty or whitespace-only strings
-    if not text or not text.strip():
-        return False
-
-    # First try JSON parsing (handles double quotes)
-    try:
-        json.loads(text)
-        return True
-    except json.JSONDecodeError:
-        pass
-
-    # If JSON fails, try Python literal evaluation (handles single quotes)
-    try:
-        ast.literal_eval(text)
-        return True
-    except (ValueError, SyntaxError):
-        pass
-
-    return False
-
 def get_account_info() -> Tuple[str, str, str, str]:
     """
     Retrieve the current Azure account information using the Azure CLI.
@@ -1225,7 +1147,6 @@ def get_frontdoor_url(deployment_name: INFRASTRUCTURE, rg_name: str) -> str | No
 
     return afd_endpoint_url
 
-
 def get_apim_url(rg_name: str) -> str | None:
     """
     Retrieve the gateway URL for the API Management service in the specified resource group.
@@ -1254,7 +1175,6 @@ def get_apim_url(rg_name: str) -> str | None:
         print_warning('No APIM gateway URL found.')
 
     return apim_endpoint_url
-
 
 def get_appgw_endpoint(rg_name: str) -> tuple[str | None, str | None]:
     """
@@ -1660,8 +1580,6 @@ def test_url_preflight_check(deployment: INFRASTRUCTURE, rg_name: str, apim_gate
         print_message(f'Using APIM Gateway URL: {apim_gateway_url}', blank_above = True)
 
     return endpoint_url
-
-
 
 def get_endpoints(deployment: INFRASTRUCTURE, rg_name: str) -> Endpoints:
     print_message(f'Identifying possible endpoints for infrastructure {deployment}...')
