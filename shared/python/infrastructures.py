@@ -1,14 +1,20 @@
 """
-Infrastructure Types
+Infrastructure Types and Cleanup Utilities
 """
 
 import json
 import os
 import time
+import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from apimtypes import *
 import utils
 from utils import Output
+from console import (
+    BOLD_R, BOLD_Y, RESET, THREAD_COLORS, _print_lock, _print_log,
+    print_error, print_info, print_message, print_ok, print_success, print_warning
+)
 
 
 # ------------------------------
@@ -1023,3 +1029,461 @@ class AppGwApimPeInfrastructure(Infrastructure):
         except Exception as e:
             print(f'⚠️  APPGW-APIM-PE verification failed with error: {str(e)}')
             return False
+
+
+# ------------------------------
+#    INFRASTRUCTURE CLEANUP FUNCTIONS
+# ------------------------------
+
+def _cleanup_single_resource(resource: dict) -> tuple[bool, str]:
+    """
+    Delete and purge a single Azure resource (worker function for parallel cleanup).
+
+    This is the atomic unit of work that deletes and purges one resource.
+    Called by _cleanup_resources_parallel() which manages multiple resources concurrently.
+
+    Args:
+        resource (dict): Resource information with keys: type, name, location, rg_name
+
+    Returns:
+        tuple[bool, str]: (success, error_message)
+    """
+    try:
+        resource_type = resource['type']
+        resource_name = resource['name']
+        rg_name = resource['rg_name']
+        location = resource['location']
+
+        print_info(f"Deleting and purging {resource_type} '{resource_name}'...")
+
+        # Delete the resource
+        if resource_type == 'cognitiveservices':
+            delete_cmd = f"az cognitiveservices account delete -g {rg_name} -n {resource_name}"
+            purge_cmd = f"az cognitiveservices account purge -g {rg_name} -n {resource_name} --location \"{location}\""
+        elif resource_type == 'apim':
+            delete_cmd = f"az apim delete -n {resource_name} -g {rg_name} -y"
+            purge_cmd = f"az apim deletedservice purge --service-name {resource_name} --location \"{location}\""
+        elif resource_type == 'keyvault':
+            delete_cmd = f"az keyvault delete -n {resource_name} -g {rg_name}"
+            purge_cmd = f"az keyvault purge -n {resource_name} --location \"{location}\""
+        else:
+            return False, f"Unknown resource type: {resource_type}"
+
+        # Execute delete
+        output = utils.run(delete_cmd, f"{resource_type} '{resource_name}' deleted", f"Failed to delete {resource_type} '{resource_name}'", print_command_to_run = False, print_errors = False)
+        if not output.success:
+            return False, f"Delete failed for {resource_name}"
+
+        # Execute purge
+        output = utils.run(purge_cmd, f"{resource_type} '{resource_name}' purged", f"Failed to purge {resource_type} '{resource_name}'", print_command_to_run = False, print_errors = False)
+        if not output.success:
+            return False, f"Purge failed for {resource_name}"
+
+        return True, ""
+
+    except Exception as e:
+        return False, str(e)
+
+
+def _cleanup_resources_parallel(resources: list[dict], thread_prefix: str = '', thread_color: str = '') -> None:
+    """
+    Clean up multiple resources in parallel using ThreadPoolExecutor (orchestrator function).
+
+    This function manages concurrent deletion and purging of Azure resources within a single resource group.
+    Can operate in two modes: regular printing or thread-safe printing (for when multiple RGs are being cleaned in parallel).
+
+    Args:
+        resources (list[dict]): List of resources to clean up, each with keys: type, name, location, rg_name
+        thread_prefix (str, optional): Prefix for thread-safe logging (empty = regular printing)
+        thread_color (str, optional): ANSI color code for thread-safe logging
+    """
+    if not resources:
+        return
+
+    # Limit concurrent operations to avoid overwhelming Azure APIs
+    max_workers = min(len(resources), 5)
+
+    # Determine if we need thread-safe printing
+    use_thread_safe_printing = bool(thread_prefix)
+
+    # Helper function for thread-safe or regular printing
+    def log_info(msg):
+        if use_thread_safe_printing:
+            with _print_lock:
+                _print_log(f"{thread_prefix}{msg}", '👉🏽 ', thread_color)
+        else:
+            print_info(msg)
+
+    def log_success(msg):
+        if use_thread_safe_printing:
+            with _print_lock:
+                _print_log(f"{thread_prefix}{msg}", '✅ ', thread_color, show_time=True)
+        else:
+            print_success(msg)
+
+    def log_error(msg):
+        if use_thread_safe_printing:
+            with _print_lock:
+                _print_log(f"{thread_prefix}{msg}", '⛔ ', BOLD_R)
+        else:
+            print_error(msg)
+
+    def log_ok(msg):
+        if use_thread_safe_printing:
+            with _print_lock:
+                _print_log(f"{thread_prefix}{msg}", '✅ ', thread_color)
+        else:
+            print_ok(msg)
+
+    def log_warning(msg):
+        if use_thread_safe_printing:
+            with _print_lock:
+                _print_log(f"{thread_prefix}{msg}", '⚠️ ', BOLD_Y)
+        else:
+            print_warning(msg)
+
+    log_info(f'Starting parallel cleanup of {len(resources)} resource(s) with {max_workers} worker(s)...')
+
+    completed_count = 0
+    failed_count = 0
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all cleanup tasks
+        future_to_resource = {
+            executor.submit(_cleanup_single_resource, resource): resource
+            for resource in resources
+        }
+
+        # Wait for completion and track results
+        for future in as_completed(future_to_resource):
+            resource = future_to_resource[future]
+            try:
+                success, error_msg = future.result()
+                completed_count += 1
+
+                if success:
+                    log_success(f"✓ Cleaned up {resource['type']} '{resource['name']}' ({completed_count}/{len(resources)})")
+                else:
+                    failed_count += 1
+                    log_error(f"✗ Failed to clean up {resource['type']} '{resource['name']}': {error_msg}")
+
+            except Exception as e:
+                failed_count += 1
+                log_error(f"✗ Exception cleaning up {resource['type']} '{resource['name']}': {str(e)}")
+
+    # Summary
+    if failed_count == 0:
+        log_ok(f'All {len(resources)} resource(s) cleaned up successfully!')
+    else:
+        log_warning(f'Completed with {failed_count} failure(s) out of {len(resources)} total resources.')
+        if completed_count - failed_count > 0:
+            log_info(f'{completed_count - failed_count} resource(s) cleaned up successfully.')
+
+
+def _cleanup_resources_parallel_thread_safe(resources: list[dict], thread_prefix: str, thread_color: str) -> None:
+    """
+    Convenience wrapper for parallel cleanup with thread-safe printing.
+
+    Args:
+        resources (list[dict]): List of resources to clean up
+        thread_prefix (str): Thread prefix for output formatting
+        thread_color (str): ANSI color code for this thread
+    """
+    _cleanup_resources_parallel(resources, thread_prefix, thread_color)
+
+
+def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
+    """
+    Clean up resources in a single resource group (main cleanup entry point for sequential mode).
+
+    Lists all Azure resources (APIM, Key Vault, Cognitive Services) in a resource group,
+    then deletes and purges them in parallel before removing the resource group itself.
+
+    Args:
+        deployment_name (str): The deployment name (string).
+        rg_name (str): The resource group name.
+
+    Returns:
+        None
+
+    Raises:
+        Exception: If an error occurs during cleanup.
+    """
+    if not deployment_name:
+        print_error('Missing deployment name parameter.')
+        return
+
+    if not rg_name:
+        print_error('Missing resource group name parameter.')
+        return
+
+    try:
+        print_info(f'Resource group : {rg_name}')
+
+        # Show the deployment details (if it exists)
+        output = utils.run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Deployment not found (may be empty resource group)', print_command_to_run = False, print_errors = False)
+
+        # Collect all resources that need to be deleted and purged
+        resources_to_cleanup = []
+
+        # List CognitiveService accounts
+        output = utils.run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False, print_errors = False)
+        if output.success and output.json_data:
+            for resource in output.json_data:
+                resources_to_cleanup.append({
+                    'type': 'cognitiveservices',
+                    'name': resource['name'],
+                    'location': resource['location'],
+                    'rg_name': rg_name
+                })
+
+        # List APIM resources
+        output = utils.run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False, print_errors = False)
+        if output.success and output.json_data:
+            for resource in output.json_data:
+                resources_to_cleanup.append({
+                    'type': 'apim',
+                    'name': resource['name'],
+                    'location': resource['location'],
+                    'rg_name': rg_name
+                })
+
+        # List Key Vault resources
+        output = utils.run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False, print_errors = False)
+        if output.success and output.json_data:
+            for resource in output.json_data:
+                resources_to_cleanup.append({
+                    'type': 'keyvault',
+                    'name': resource['name'],
+                    'location': resource['location'],
+                    'rg_name': rg_name
+                })
+
+        # Delete and purge resources in parallel if there are any
+        if resources_to_cleanup:
+            print_info(f'Found {len(resources_to_cleanup)} resource(s) to clean up. Processing in parallel...')
+            _cleanup_resources_parallel(resources_to_cleanup)
+        else:
+            print_info('No resources found to clean up.')
+
+        # Delete the resource group last (always attempt this, even if deployment doesn't exist)
+        print_message(f"Deleting resource group '{rg_name}'...")
+        output = utils.run(f'az group delete --name {rg_name} -y', f"Resource group '{rg_name}' deleted', f'Failed to delete resource group '{rg_name}'", print_command_to_run = False, print_errors = False)
+
+        print_message('Cleanup completed.')
+
+    except Exception as e:
+        print(f'An error occurred during cleanup: {e}')
+        traceback.print_exc()
+
+
+def _cleanup_resources_thread_safe(deployment_name: str, rg_name: str, thread_prefix: str, thread_color: str) -> tuple[bool, str]:
+    """
+    Thread-safe wrapper for _cleanup_resources with formatted output.
+
+    Args:
+        deployment_name (str): The deployment name (string).
+        rg_name (str): The resource group name.
+        thread_prefix (str): The thread prefix for output formatting.
+        thread_color (str): ANSI color code for this thread.
+
+    Returns:
+        tuple[bool, str]: (success, error_message)
+    """
+    try:
+        with _print_lock:
+            _print_log(f"{thread_prefix}Starting cleanup for resource group: {rg_name}", '👉🏽 ', thread_color)
+
+        # Create a modified version of _cleanup_resources that uses thread-safe printing
+        _cleanup_resources_with_thread_safe_printing(deployment_name, rg_name, thread_prefix, thread_color)
+
+        with _print_lock:
+            _print_log(f"{thread_prefix}Completed cleanup for resource group: {rg_name}", '👉🏽 ', thread_color)
+
+        return True, ""
+
+    except Exception as e:
+        error_msg = f'An error occurred during cleanup of {rg_name}: {str(e)}'
+        with _print_lock:
+            _print_log(f"{thread_prefix}{error_msg}", '⛔ ', BOLD_R, show_time=True)
+            traceback.print_exc()
+        return False, error_msg
+
+
+def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: str, thread_prefix: str, thread_color: str) -> None:
+    """
+    Clean up resources with thread-safe printing (internal implementation for parallel execution).
+    This is a modified version of _cleanup_resources that uses thread-safe output and parallel resource cleanup.
+    """
+    if not deployment_name:
+        with _print_lock:
+            _print_log(f"{thread_prefix}Missing deployment name parameter.", '⛔ ', BOLD_R)
+        return
+
+    if not rg_name:
+        with _print_lock:
+            _print_log(f"{thread_prefix}Missing resource group name parameter.", '⛔ ', BOLD_R)
+        return
+
+    try:
+        with _print_lock:
+            _print_log(f"{thread_prefix}Resource group : {rg_name}", '👉🏽 ', thread_color)
+
+        # Show the deployment details
+        output = utils.run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment', print_command_to_run = False, print_errors = False)
+
+        if output.success and output.json_data:
+            # Collect all resources that need to be deleted and purged
+            resources_to_cleanup = []
+
+            # List CognitiveService accounts
+            output = utils.run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False, print_errors = False)
+            if output.success and output.json_data:
+                for resource in output.json_data:
+                    resources_to_cleanup.append({
+                        'type': 'cognitiveservices',
+                        'name': resource['name'],
+                        'location': resource['location'],
+                        'rg_name': rg_name
+                    })
+
+            # List APIM resources
+            output = utils.run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False, print_errors = False)
+            if output.success and output.json_data:
+                for resource in output.json_data:
+                    resources_to_cleanup.append({
+                        'type': 'apim',
+                        'name': resource['name'],
+                        'location': resource['location'],
+                        'rg_name': rg_name
+                    })
+
+            # List Key Vault resources
+            output = utils.run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False, print_errors = False)
+            if output.success and output.json_data:
+                for resource in output.json_data:
+                    resources_to_cleanup.append({
+                        'type': 'keyvault',
+                        'name': resource['name'],
+                        'location': resource['location'],
+                        'rg_name': rg_name
+                    })
+
+            # Delete and purge resources in parallel if there are any
+            if resources_to_cleanup:
+                with _print_lock:
+                    _print_log(f"{thread_prefix}Found {len(resources_to_cleanup)} resource(s) to clean up. Processing in parallel...", '👉🏽 ', thread_color)
+                _cleanup_resources_parallel_thread_safe(resources_to_cleanup, thread_prefix, thread_color)
+            else:
+                with _print_lock:
+                    _print_log(f"{thread_prefix}No resources found to clean up.", '👉🏽 ', thread_color)
+
+            # Delete the resource group last
+            with _print_lock:
+                _print_log(f"{thread_prefix}Deleting resource group '{rg_name}'...", 'ℹ️ ', thread_color, show_time=True)
+            output = utils.run(f'az group delete --name {rg_name} -y', f"Resource group '{rg_name}' deleted', f'Failed to delete resource group '{rg_name}'", print_command_to_run = False, print_errors = False)
+
+            with _print_lock:
+                _print_log(f"{thread_prefix}Cleanup completed.", 'ℹ️ ', thread_color, show_time=True)
+
+    except Exception as e:
+        with _print_lock:
+            _print_log(f"{thread_prefix}An error occurred during cleanup: {e}", '⛔ ', BOLD_R)
+            traceback.print_exc()
+
+
+def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[int] | None = None) -> None:
+    """
+    Clean up infrastructure deployments by deployment enum and index/indexes.
+    Obtains the infra resource group name for each index and calls the private cleanup method.
+    For multiple indexes, runs cleanup operations in parallel for better performance.
+
+    Args:
+        deployment (INFRASTRUCTURE): The infrastructure deployment enum value.
+        indexes (int | list[int] | None): A single index, a list of indexes, or None for no index.
+    """
+
+    if indexes is None:
+        indexes_list = [None]
+    elif isinstance(indexes, (list, tuple)):
+        indexes_list = list(indexes)
+    else:
+        indexes_list = [indexes]
+
+    # If only one index, run sequentially (no need for threading overhead)
+    if len(indexes_list) <= 1:
+        idx = indexes_list[0] if indexes_list else None
+        print_info(f'Cleaning up resources for {deployment.value} - {idx}', True)
+        rg_name = utils.get_infra_rg_name(deployment, idx)
+        _cleanup_resources(deployment.value, rg_name)
+        return
+
+    # For multiple indexes, run in parallel
+    print_info(f'Starting parallel cleanup for {len(indexes_list)} infrastructure instances', True)
+    print_info(f'Infrastructure: {deployment.value}')
+    print_info(f'Indexes: {indexes_list}')
+    print()
+
+    # Determine max workers (reasonable limit to avoid overwhelming the system)
+    max_workers = min(len(indexes_list), 4)  # Cap at 4 concurrent threads
+
+    cleanup_tasks = []
+    for i, idx in enumerate(indexes_list):
+        rg_name = utils.get_infra_rg_name(deployment, idx)
+        thread_color = THREAD_COLORS[i % len(THREAD_COLORS)]
+        thread_prefix = f"{thread_color}[{deployment.value}-{idx}]{RESET}: "
+
+        cleanup_tasks.append({
+            'deployment_name': deployment.value,
+            'rg_name': rg_name,
+            'thread_prefix': thread_prefix,
+            'thread_color': thread_color,
+            'index': idx
+        })
+
+    # Execute cleanup tasks in parallel
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all tasks
+        future_to_task = {
+            executor.submit(
+                _cleanup_resources_thread_safe,
+                task['deployment_name'],
+                task['rg_name'],
+                task['thread_prefix'],
+                task['thread_color']
+            ): task for task in cleanup_tasks
+        }
+
+        # Track results
+        completed_count = 0
+        failed_count = 0
+
+        # Wait for completion and handle results
+        for future in as_completed(future_to_task):
+            task = future_to_task[future]
+            try:
+                success, error_msg = future.result()
+                completed_count += 1
+
+                if success:
+                    with _print_lock:
+                        print_ok(f"Completed cleanup for {deployment.value}-{task['index']} ({completed_count}/{len(indexes_list)})")
+                else:
+                    failed_count += 1
+                    with _print_lock:
+                        print_error(f"❌ Failed cleanup for {deployment.value}-{task['index']}: {error_msg}")
+
+            except Exception as e:
+                failed_count += 1
+                with _print_lock:
+                    print_error(f"❌ Exception during cleanup for {deployment.value}-{task['index']}: {str(e)}")
+
+    # Final summary
+    if failed_count == 0:
+        print_ok(f'All {len(indexes_list)} infrastructure cleanups completed successfully!')
+    else:
+        print_warning(f'Completed with {failed_count} failures out of {len(indexes_list)} total cleanups.')
+        if completed_count > 0:
+            print_info(f'{completed_count} cleanups succeeded.')
+
+    print_ok('All done!')

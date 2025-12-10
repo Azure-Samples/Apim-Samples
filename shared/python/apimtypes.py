@@ -3,10 +3,14 @@ Types and constants for Azure API Management automation and deployment.
 """
 
 import os
+import json
+import ast
 from enum import StrEnum
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional, Any
+from console import (print_error, print_val)
+from json_utils import is_string_json, extract_json
 
 
 # ------------------------------
@@ -154,9 +158,157 @@ class Endpoints(object):
     def __init__(self, deployment: INFRASTRUCTURE):
         self.deployment = deployment
 
-# ------------------------------
-#    CLASSES
-# ------------------------------
+
+class Output(object):
+    """
+    Represents the output of a command or deployment, including success status, raw text, and parsed JSON data.
+    """
+
+    # ------------------------------
+    #    CONSTRUCTOR
+    # ------------------------------
+
+    def __init__(self, success: bool, text: str):
+        """
+        Initialize the Output object with command success status and output text.
+        Attempts to parse JSON from the output text.
+        """
+
+        self.success = success
+        self.text = text
+        self.jsonParseException = None
+
+        # Check if the exact string is JSON.
+        if (is_string_json(text)):
+            try:
+                self.json_data = json.loads(text)
+            except json.JSONDecodeError as e:
+                self.jsonParseException = e
+                self.json_data = extract_json(text)
+        else:
+            # Check if a substring in the string is JSON.
+            self.json_data = extract_json(text)
+
+        self.is_json = self.json_data is not None
+
+    def get(self, key: str, label: str = '', secure: bool = False, suppress_logging: bool = False) -> str | None:
+        """
+        Retrieve a deployment output property by key, with optional label and secure masking.
+
+        Args:
+            key (str): The output key to retrieve.
+            label (str, optional): Optional label for logging.
+            secure (bool, optional): If True, masks the value in logs.
+
+        Returns:
+            str | None: The value as a string, or None if not found.
+        """
+
+        try:
+            if not isinstance(self.json_data, dict):
+                raise KeyError('json_data is not a dict')
+
+            if 'properties' in self.json_data:
+                properties = self.json_data.get('properties')
+                if not isinstance(properties, dict):
+                    raise KeyError("'properties' is not a dict in deployment result")
+
+                outputs = properties.get('outputs')
+                if not isinstance(outputs, dict):
+                    raise KeyError("'outputs' is missing or not a dict in deployment result")
+
+                output_entry = outputs.get(key)
+                if not isinstance(output_entry, dict) or 'value' not in output_entry:
+                    raise KeyError(f"Output key '{key}' not found in deployment outputs")
+
+                deployment_output = output_entry['value']
+            elif key in self.json_data:
+                deployment_output = self.json_data[key]['value']
+
+            if not suppress_logging and label:
+                if secure and isinstance(deployment_output, str) and len(deployment_output) >= 4:
+                    print_val(label, f'****{deployment_output[-4:]}')
+                else:
+                    print_val(label, deployment_output)
+
+            return str(deployment_output)
+
+        except Exception as e:
+            error = f"Failed to retrieve output property: '{key}'\nError: {e}"
+            print_error(error)
+
+            if label:
+                raise Exception(error)
+
+            return None
+
+    def getJson(self, key: str, label: str = '', secure: bool = False, suppress_logging: bool = False) -> Any:
+        """
+        Retrieve a deployment output property by key and return it as a JSON object.
+        This method is independent from get() and retrieves the raw deployment output value.
+
+        Args:
+            key (str): The output key to retrieve.
+            label (str, optional): Optional label for logging.
+            secure (bool, optional): If True, masks the value in logs.
+
+        Returns:
+            Any: The value as a JSON object (dict, list, etc.), or the original value if not JSON, or None if not found.
+        """
+
+        try:
+            if not isinstance(self.json_data, dict):
+                raise KeyError('json_data is not a dict')
+
+            if 'properties' in self.json_data:
+                properties = self.json_data.get('properties')
+                if not isinstance(properties, dict):
+                    raise KeyError("'properties' is not a dict in deployment result")
+
+                outputs = properties.get('outputs')
+                if not isinstance(outputs, dict):
+                    raise KeyError("'outputs' is missing or not a dict in deployment result")
+
+                output_entry = outputs.get(key)
+                if not isinstance(output_entry, dict) or 'value' not in output_entry:
+                    raise KeyError(f"Output key '{key}' not found in deployment outputs")
+
+                deployment_output = output_entry['value']
+            elif key in self.json_data:
+                deployment_output = self.json_data[key]['value']
+
+            if not suppress_logging and label:
+                if secure and isinstance(deployment_output, str) and len(deployment_output) >= 4:
+                    print_val(label, f'****{deployment_output[-4:]}')
+                else:
+                    print_val(label, deployment_output)
+
+            # If the result is a string, try to parse it as JSON
+            if isinstance(deployment_output, str):
+                # First try JSON parsing (handles double quotes)
+                try:
+                    return json.loads(deployment_output)
+                except json.JSONDecodeError:
+                    pass
+
+                # If JSON fails, try Python literal evaluation (handles single quotes)
+                try:
+                    return ast.literal_eval(deployment_output)
+                except (ValueError, SyntaxError) as e:
+                    print_error(f'Failed to parse deployment output as Python literal. Error: {e}')
+                    pass
+
+            # Return the original result if it's not a string or can't be parsed
+            return deployment_output
+
+        except Exception as e:
+            error = f"Failed to retrieve output property: '{key}'\nError: {e}"
+            print_error(error)
+
+            if label:
+                raise Exception(error)
+
+            return None
 
 @dataclass
 class API:
