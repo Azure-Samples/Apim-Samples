@@ -3,13 +3,11 @@ Module providing utility functions.
 """
 
 import ast
-import datetime
 import json
 import sys
 import os
 import re
 import subprocess
-import textwrap
 import time
 import traceback
 import string
@@ -26,29 +24,25 @@ import os as temp_os
 from typing import Any, Optional, Tuple
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, _get_project_root
 
-
 # ------------------------------
-#    DECLARATIONS
+#    RE-EXPORTS (BACKWARD COMPATIBILITY)
 # ------------------------------
-
-
-# Define ANSI escape code constants for clarity in the print commands below
-BOLD_B = '\x1b[1;34m'   # blue
-BOLD_G = '\x1b[1;32m'   # green
-BOLD_R = '\x1b[1;31m'   # red
-BOLD_Y = '\x1b[1;33m'   # yellow
-BOLD_C = '\x1b[1;36m'   # cyan
-BOLD_M = '\x1b[1;35m'   # magenta
-BOLD_W = '\x1b[1;37m'   # white
-RESET  = '\x1b[0m'
-
-# Thread colors for parallel operations
-THREAD_COLORS = [BOLD_B, BOLD_G, BOLD_Y, BOLD_C, BOLD_M, BOLD_W]
-
-CONSOLE_WIDTH = 175
-
-# Thread-safe print lock
-_print_lock = threading.Lock()
+#
+# The following imports are re-exported from the console module to maintain
+# backward compatibility with existing code. This allows files that currently
+# use `utils.print_*()` to continue working without modification.
+#
+# For new code, consider importing directly from the console module:
+#   from console import print_info, print_error
+#
+# This re-export pattern allows for gradual migration while keeping the codebase
+# functional during refactoring.
+#
+from console import (
+    BOLD_B, BOLD_C, BOLD_G, BOLD_M, BOLD_R, BOLD_W, BOLD_Y,
+    CONSOLE_WIDTH, RESET, THREAD_COLORS, _print_lock, _print_log,
+    print_command, print_error, print_header, print_info, print_message, print_ok, print_success, print_val, print_warning
+)
 
 
 # ------------------------------
@@ -978,145 +972,6 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
         traceback.print_exc()
 
 
-def _print_log(message: str, prefix: str = '', color: str = '', output: str = '', duration: str = '', show_time: bool = False, blank_above: bool = False, blank_below: bool = False, wrap_lines: bool = False) -> None:
-    """
-    Print a formatted log message with optional prefix, color, output, duration, and time.
-    Handles blank lines above and below the message for readability.
-
-    Args:
-        message (str): The message to print.
-        prefix (str, optional): Prefix for the message.
-        color (str, optional): ANSI color code.
-        output (str, optional): Additional output to append.
-        duration (str, optional): Duration string to append.
-        show_time (bool, optional): Whether to show the current time.
-        blank_above (bool, optional): Whether to print a blank line above.
-        blank_below (bool, optional): Whether to print a blank line below.
-        wrap_lines (bool, optional): Whether to wrap lines to fit console width.
-    """
-    time_str    = f' ⌚ {datetime.datetime.now().time()}' if show_time else ''
-    output_str  = f' {output}' if output else ''
-
-    if blank_above:
-        return
-
-    # Limit concurrent operations to avoid overwhelming Azure APIs
-    max_workers = min(len(resources), 5)
-
-    # Determine if we need thread-safe printing
-    use_thread_safe_printing = bool(thread_prefix)
-
-    # Helper function for thread-safe or regular printing
-    def log_info(msg):
-        if use_thread_safe_printing:
-            with _print_lock:
-                _print_log(f"{thread_prefix}{msg}", '👉🏽 ', thread_color)
-        else:
-            print_info(msg)
-
-    def log_success(msg):
-        if use_thread_safe_printing:
-            with _print_lock:
-                _print_log(f"{thread_prefix}{msg}", '✅ ', thread_color, show_time=True)
-        else:
-            print_success(msg)
-
-    def log_error(msg):
-        if use_thread_safe_printing:
-            with _print_lock:
-                _print_log(f"{thread_prefix}{msg}", '⛔ ', BOLD_R)
-        else:
-            print_error(msg)
-
-    def log_ok(msg):
-        if use_thread_safe_printing:
-            with _print_lock:
-                _print_log(f"{thread_prefix}{msg}", '✅ ', thread_color)
-        else:
-            print_ok(msg)
-
-    def log_warning(msg):
-        if use_thread_safe_printing:
-            with _print_lock:
-                _print_log(f"{thread_prefix}{msg}", '⚠️ ', BOLD_Y)
-        else:
-            print_warning(msg)
-
-    log_info(f'Starting parallel cleanup of {len(resources)} resources with {max_workers} workers...')
-
-    completed_count = 0
-    failed_count = 0
-
-    with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Submit all cleanup tasks
-        future_to_resource = {
-            executor.submit(_cleanup_single_resource, resource): resource
-            for resource in resources
-        }
-
-        # Wait for completion and track results
-        for future in as_completed(future_to_resource):
-            resource = future_to_resource[future]
-            try:
-                success, error_msg = future.result()
-                completed_count += 1
-
-                if success:
-                    log_success(f"✓ Cleaned up {resource['type']} '{resource['name']}' ({completed_count}/{len(resources)})")
-                else:
-                    failed_count += 1
-                    log_error(f"✗ Failed to clean up {resource['type']} '{resource['name']}': {error_msg}")
-
-            except Exception as e:
-                failed_count += 1
-                log_error(f"✗ Exception cleaning up {resource['type']} '{resource['name']}': {str(e)}")
-
-    # Summary
-    if failed_count == 0:
-        log_ok(f'All {len(resources)} resources cleaned up successfully!')
-    else:
-        log_warning(f'Completed with {failed_count} failures out of {len(resources)} total resources.')
-        if completed_count - failed_count > 0:
-            log_info(f'{completed_count - failed_count} resources cleaned up successfully.')
-
-def _print_log(message: str, prefix: str = '', color: str = '', output: str = '', duration: str = '', show_time: bool = False, blank_above: bool = False, blank_below: bool = False, wrap_lines: bool = False) -> None:
-    """
-    Print a formatted log message with optional prefix, color, output, duration, and time.
-    Handles blank lines above and below the message for readability.
-
-    Args:
-        message (str): The message to print.
-        prefix (str, optional): Prefix for the message.
-        color (str, optional): ANSI color code.
-        output (str, optional): Additional output to append.
-        duration (str, optional): Duration string to append.
-        show_time (bool, optional): Whether to show the current time.
-        blank_above (bool, optional): Whether to print a blank line above.
-        blank_below (bool, optional): Whether to print a blank line below.
-        wrap_lines (bool, optional): Whether to wrap lines to fit console width.
-    """
-    time_str    = f' ⌚ {datetime.datetime.now().time()}' if show_time else ''
-    output_str  = f' {output}' if output else ''
-
-    if blank_above:
-        print()
-
-    # To preserve explicit newlines in the message (e.g., from print_val with val_below=True),
-    # split the message on actual newlines and wrap each line separately, preserving blank lines and indentation.
-    full_message = f'{prefix}{color}{message}{RESET}{time_str} {duration}{output_str}'
-    lines = full_message.splitlines(keepends = False)
-
-    for line in lines:
-        if (wrap_lines):
-            wrapped = textwrap.fill(line, width = CONSOLE_WIDTH)
-            print(wrapped)
-        else:
-            print(line)
-
-    if blank_below:
-        print()
-
-
 def _determine_bicep_directory(infrastructure_dir: str) -> str:
     """
     Determine the correct Bicep directory based on the current working directory and infrastructure directory name.
@@ -1172,17 +1027,6 @@ def _determine_bicep_directory(infrastructure_dir: str) -> str:
 # ------------------------------
 #    PUBLIC METHODS
 # ------------------------------
-
-print_command   = lambda cmd = ''                                               : _print_log(cmd, '⚙️ ', BOLD_B)
-print_error     = lambda msg, output = '', duration = ''                        : _print_log(msg, '⛔ ', BOLD_R, output, duration, True)
-print_info      = lambda msg, blank_above = False                               : _print_log(msg, '👉🏽 ', BOLD_B, blank_above = blank_above)
-print_message   = lambda msg, output = '', duration = '', blank_above = False   : _print_log(msg, 'ℹ️ ', BOLD_G, output, duration, True, blank_above)
-print_ok        = lambda msg, output = '', duration = '', blank_above = True    : _print_log(msg, '✅ ', BOLD_G, output, duration, True, blank_above)
-print_success   = lambda msg, output = '', duration = '', blank_above = False   : _print_log(msg, '✅ ', BOLD_G, output, duration, True, blank_above)
-print_warning   = lambda msg, output = '', duration = ''                        : _print_log(msg, '⚠️ ', BOLD_Y, output, duration, True)
-print_val       = lambda name, value, val_below = False                         : _print_log(f"{name:<25}:{'\n' if val_below else ' '}{value}", '👉🏽 ', BOLD_B)
-print_header    = lambda msg                                                    : _print_log(f"\n{'=' * len(msg)}\n{msg}\n{'=' * len(msg)}", '', BOLD_G, blank_above=True, blank_below=True)
-
 
 def get_azure_role_guid(role_name: str) -> Optional[str]:
     """
