@@ -1484,7 +1484,7 @@ def test_cleanup_edge_cases_comprehensive(monkeypatch):
 
 
 def test_cleanup_resources_partial_failures(monkeypatch):
-    """Test _cleanup_resources when some operations fail."""
+    """Test _cleanup_resources when some operations fail with parallel cleanup."""
     run_commands = []
 
     def mock_run(command, ok_message='', error_message='', print_command_to_run=True, print_errors=True, print_warnings=True):
@@ -1518,27 +1518,36 @@ def test_cleanup_resources_partial_failures(monkeypatch):
     monkeypatch.setattr(utils, 'run', mock_run)
     monkeypatch.setattr(utils, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(utils, 'print_message', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_success', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_error', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_warning', lambda *a, **kw: None)
+    monkeypatch.setattr(utils, 'print_ok', lambda *a, **kw: None)
 
     # Should not raise exception even when individual operations fail
     utils._cleanup_resources('test-deployment', 'test-rg')
 
-    # Verify all expected commands were attempted despite failures
+    # Verify all listing and group operations were attempted
+    # Note: With parallel cleanup, if delete fails, purge is not attempted (expected behavior)
     expected_patterns = [
         'deployment group show',
         'cognitiveservices account list',
-        'cognitiveservices account delete',
-        'cognitiveservices account purge',
         'apim list',
-        'apim delete',
-        'apim deletedservice purge',
         'keyvault list',
-        'keyvault delete',
-        'keyvault purge',
         'group delete'
     ]
 
     for pattern in expected_patterns:
         assert any(pattern in cmd for cmd in run_commands), f"Expected command pattern not found: {pattern}"
+
+    # Verify delete attempts were made (even though they failed)
+    delete_patterns = [
+        'cognitiveservices account delete',
+        'apim delete',
+        'keyvault delete'
+    ]
+
+    for pattern in delete_patterns:
+        assert any(pattern in cmd for cmd in run_commands), f"Expected delete command pattern not found: {pattern}"
 
 
 def test_cleanup_resources_malformed_responses(monkeypatch):
