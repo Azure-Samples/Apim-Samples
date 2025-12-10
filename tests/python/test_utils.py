@@ -51,8 +51,9 @@ def test_get_account_info_success(monkeypatch):
         call_count[0] += 1
         if call_count[0] == 1:  # First call: az account show
             return MagicMock(success=True, json_data=mock_json)
-        else:  # Second call: az ad signed-in-user show
-            return MagicMock(success=True, json_data=mock_ad_json)
+
+        # Second call: az ad signed-in-user show
+        return MagicMock(success=True, json_data=mock_ad_json)
 
     monkeypatch.setattr(utils, 'run', mock_run_multiple)
     result = utils.get_account_info()
