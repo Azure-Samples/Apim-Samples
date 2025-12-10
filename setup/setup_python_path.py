@@ -186,6 +186,7 @@ def create_vscode_settings():
         "files.trimTrailingWhitespace": True,
         "files.insertFinalNewline": True,
         "files.trimFinalNewlines": True,
+        "files.eol": "\n",
         "editor.renderWhitespace": "trailing",
         "python.defaultInterpreterPath": "./.venv/Scripts/python.exe" if os.name == 'nt' else "./.venv/bin/python",
         "python.pythonPath": "./.venv/Scripts/python.exe" if os.name == 'nt' else "./.venv/bin/python",

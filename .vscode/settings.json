@@ -13,6 +13,7 @@
     "files.trimTrailingWhitespace": true,
     "files.insertFinalNewline": true,
     "files.trimFinalNewlines": true,
+    "files.eol": "\n",
     "editor.renderWhitespace": "trailing",
     "python.defaultInterpreterPath": "./.venv/Scripts/python.exe",
     "python.pythonPath": "./.venv/Scripts/python.exe",
