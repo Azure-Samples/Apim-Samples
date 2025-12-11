@@ -2,8 +2,8 @@
 Unit tests for test_utils.py.
 """
 
-import pytest
 import json
+import pytest
 import json_utils
 
 

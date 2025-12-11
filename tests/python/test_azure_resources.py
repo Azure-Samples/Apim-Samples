@@ -3,10 +3,10 @@ Tests for azure_resources module.
 """
 
 import json
-import pytest
 from unittest.mock import Mock, patch, mock_open, call
+import pytest
 
-from azure_resources import*
+import azure_resources as az
 from apimtypes import INFRASTRUCTURE, Endpoints, Output
 
 
@@ -20,7 +20,7 @@ def test_get_azure_role_guid_success():
     mock_data = {'Contributor': 'role-guid-12345', 'Reader': 'role-guid-67890'}
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_data))):
-        result = get_azure_role_guid('Contributor')
+        result = az.get_azure_role_guid('Contributor')
 
         assert result == 'role-guid-12345'
 
@@ -29,7 +29,7 @@ def test_get_azure_role_guid_failure():
     """Test get_azure_role_guid returns None when file not found."""
 
     with patch('builtins.open', side_effect=FileNotFoundError('File not found')):
-        result = get_azure_role_guid('NonExistentRole')
+        result = az.get_azure_role_guid('NonExistentRole')
 
         assert result is None
 
@@ -43,7 +43,7 @@ def test_does_resource_group_exist_true():
     with patch('azure_resources._run') as mock_run:
         mock_run.return_value = Output(True, '{"name": "test-rg"}')
 
-        result = does_resource_group_exist('test-rg')
+        result = az.does_resource_group_exist('test-rg')
 
         assert result is True
         mock_run.assert_called_once_with(
@@ -59,7 +59,7 @@ def test_does_resource_group_exist_false():
     with patch('azure_resources._run') as mock_run:
         mock_run.return_value = Output(False, 'ResourceGroupNotFound')
 
-        result = does_resource_group_exist('nonexistent-rg')
+        result = az.does_resource_group_exist('nonexistent-rg')
 
         assert result is False
 
@@ -70,7 +70,7 @@ def test_get_resource_group_location_success():
     with patch('azure_resources._run') as mock_run:
         mock_run.return_value = Output(True, 'eastus2\n')
 
-        result = get_resource_group_location('test-rg')
+        result = az.get_resource_group_location('test-rg')
 
         assert result == 'eastus2'
         mock_run.assert_called_once_with(
@@ -86,7 +86,7 @@ def test_get_resource_group_location_failure():
     with patch('azure_resources._run') as mock_run:
         mock_run.return_value = Output(False, 'error message')
 
-        result = get_resource_group_location('nonexistent-rg')
+        result = az.get_resource_group_location('nonexistent-rg')
 
         assert result is None
 
@@ -97,7 +97,7 @@ def test_get_resource_group_location_empty():
     with patch('azure_resources._run') as mock_run:
         mock_run.return_value = Output(True, '')
 
-        result = get_resource_group_location('test-rg')
+        result = az.get_resource_group_location('test-rg')
 
         assert result is None
 
@@ -122,7 +122,7 @@ def test_get_account_info_success():
 
         mock_run.side_effect = [account_output, ad_user_output]
 
-        current_user, current_user_id, tenant_id, subscription_id = get_account_info()
+        current_user, current_user_id, tenant_id, subscription_id = az.get_account_info()
 
         assert current_user == 'test.user@example.com'
         assert current_user_id == 'user-id-12345'
@@ -137,7 +137,7 @@ def test_get_account_info_failure():
         mock_run.return_value = Output(False, 'authentication error')
 
         with pytest.raises(Exception) as exc_info:
-            get_account_info()
+            az.get_account_info()
 
         assert 'Failed to retrieve account information' in str(exc_info.value)
 
@@ -151,7 +151,7 @@ def test_get_account_info_no_json():
         mock_run.return_value = output
 
         with pytest.raises(Exception) as exc_info:
-            get_account_info()
+            az.get_account_info()
 
         assert 'Failed to retrieve account information' in str(exc_info.value)
 
@@ -167,7 +167,7 @@ def test_get_deployment_name_with_directory(mock_getcwd, mock_basename, mock_tim
 
     mock_time.return_value = 1234567890
 
-    result = get_deployment_name('my-sample')
+    result = az.get_deployment_name('my-sample')
 
     assert result == 'deploy-my-sample-1234567890'
     mock_getcwd.assert_not_called()
@@ -184,7 +184,7 @@ def test_get_deployment_name_current_directory(mock_getcwd, mock_basename, mock_
     mock_getcwd.return_value = '/path/to/current-folder'
     mock_basename.return_value = 'current-folder'
 
-    result = get_deployment_name()
+    result = az.get_deployment_name()
 
     assert result == 'deploy-current-folder-1234567890'
     mock_getcwd.assert_called_once()
@@ -208,7 +208,7 @@ def test_get_frontdoor_url_afd_success():
 
         mock_run.side_effect = [profile_output, endpoint_output]
 
-        result = get_frontdoor_url(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg')
+        result = az.get_frontdoor_url(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg')
 
         assert result == 'https://test.azurefd.net'
 
@@ -223,7 +223,7 @@ def test_get_frontdoor_url_wrong_infrastructure():
     """Test Front Door URL with wrong infrastructure type."""
 
     with patch('azure_resources._run') as mock_run:
-        result = get_frontdoor_url(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg')
+        result = az.get_frontdoor_url(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg')
 
         assert result is None
         mock_run.assert_not_called()
@@ -235,7 +235,7 @@ def test_get_frontdoor_url_no_profile():
     with patch('azure_resources._run') as mock_run:
         mock_run.return_value = Output(False, 'No profiles found')
 
-        result = get_frontdoor_url(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg')
+        result = az.get_frontdoor_url(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg')
 
         assert result is None
 
@@ -249,7 +249,7 @@ def test_get_frontdoor_url_no_endpoints():
         endpoint_output = Output(False, 'No endpoints found')
         mock_run.side_effect = [profile_output, endpoint_output]
 
-        result = get_frontdoor_url(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg')
+        result = az.get_frontdoor_url(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg')
 
         assert result is None
 
@@ -265,7 +265,7 @@ def test_get_apim_url_success():
         mock_run.return_value = Output(True, '')
         mock_run.return_value.json_data = [{'name': 'test-apim', 'gatewayUrl': 'https://test-apim.azure-api.net'}]
 
-        result = get_apim_url('test-rg')
+        result = az.get_apim_url('test-rg')
 
         assert result == 'https://test-apim.azure-api.net'
         mock_run.assert_called_once_with(
@@ -280,7 +280,7 @@ def test_get_apim_url_failure():
     with patch('azure_resources._run') as mock_run:
         mock_run.return_value = Output(False, 'No APIM services found')
 
-        result = get_apim_url('test-rg')
+        result = az.get_apim_url('test-rg')
 
         assert result is None
 
@@ -292,7 +292,7 @@ def test_get_apim_url_no_gateway():
         mock_run.return_value = Output(True, '')
         mock_run.return_value.json_data = [{'name': 'test-apim', 'gatewayUrl': None}]
 
-        result = get_apim_url('test-rg')
+        result = az.get_apim_url('test-rg')
 
         assert result is None
 
@@ -317,7 +317,7 @@ def test_get_appgw_endpoint_success():
         ip_output.json_data = {'ipAddress': '1.2.3.4'}
         mock_run.side_effect = [appgw_output, ip_output]
 
-        hostname, ip = get_appgw_endpoint('test-rg')
+        hostname, ip = az.get_appgw_endpoint('test-rg')
 
         assert hostname == 'api.contoso.com'
         assert ip == '1.2.3.4'
@@ -335,7 +335,7 @@ def test_get_appgw_endpoint_no_gateway():
     with patch('azure_resources._run') as mock_run:
         mock_run.return_value = Output(False, 'No gateways found')
 
-        hostname, ip = get_appgw_endpoint('test-rg')
+        hostname, ip = az.get_appgw_endpoint('test-rg')
 
         assert hostname is None
         assert ip is None
@@ -352,7 +352,7 @@ def test_get_appgw_endpoint_no_listeners():
             'frontendIPConfigurations': []
         }]
 
-        hostname, ip = get_appgw_endpoint('test-rg')
+        hostname, ip = az.get_appgw_endpoint('test-rg')
 
         assert hostname is None
         assert ip is None
@@ -365,7 +365,7 @@ def test_get_appgw_endpoint_no_listeners():
 def test_get_infra_rg_name_without_index():
     """Test infrastructure resource group name generation without index."""
 
-    result = get_infra_rg_name(INFRASTRUCTURE.SIMPLE_APIM)
+    result = az.get_infra_rg_name(INFRASTRUCTURE.SIMPLE_APIM)
 
     assert result == 'apim-infra-simple-apim'
 
@@ -373,7 +373,7 @@ def test_get_infra_rg_name_without_index():
 def test_get_infra_rg_name_with_index():
     """Test infrastructure resource group name generation with index."""
 
-    result = get_infra_rg_name(INFRASTRUCTURE.AFD_APIM_PE, 42)
+    result = az.get_infra_rg_name(INFRASTRUCTURE.AFD_APIM_PE, 42)
 
     assert result == 'apim-infra-afd-apim-pe-42'
 
@@ -381,7 +381,7 @@ def test_get_infra_rg_name_with_index():
 def test_get_rg_name_without_index():
     """Test sample resource group name generation without index."""
 
-    result = get_rg_name('test-sample')
+    result = az.get_rg_name('test-sample')
 
     assert result == 'apim-sample-test-sample'
 
@@ -389,7 +389,7 @@ def test_get_rg_name_without_index():
 def test_get_rg_name_with_index():
     """Test sample resource group name generation with index."""
 
-    result = get_rg_name('test-sample', 5)
+    result = az.get_rg_name('test-sample', 5)
 
     assert result == 'apim-sample-test-sample-5'
 
@@ -412,7 +412,7 @@ def test_get_unique_suffix_for_resource_group_success(mock_unlink, mock_time, mo
     with patch('azure_resources._run') as mock_run:
         mock_run.return_value = Output(True, 'abc123def456\n')
 
-        result = get_unique_suffix_for_resource_group('test-rg')
+        result = az.get_unique_suffix_for_resource_group('test-rg')
 
         assert result == 'abc123def456'
         mock_run.assert_called_once()
@@ -433,9 +433,9 @@ def test_get_unique_suffix_for_resource_group_failure(mock_unlink, mock_time, mo
     with patch('azure_resources._run') as mock_run:
         mock_run.return_value = Output(False, 'Deployment failed')
 
-        result = get_unique_suffix_for_resource_group('test-rg')
+        result = az.get_unique_suffix_for_resource_group('test-rg')
 
-        assert result == ''
+        assert not result
         mock_unlink.assert_called_once_with('/tmp/template.json')
 
 
@@ -453,7 +453,7 @@ def test_get_endpoints_success(mock_appgw, mock_apim, mock_afd):
     mock_apim.return_value = 'https://test-apim.azure-api.net'
     mock_appgw.return_value = ('api.contoso.com', '1.2.3.4')
 
-    result = get_endpoints(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg')
+    result = az.get_endpoints(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg')
 
     assert isinstance(result, Endpoints)
     assert result.afd_endpoint_url == 'https://test.azurefd.net'
