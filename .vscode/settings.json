@@ -18,6 +18,13 @@
     "python.defaultInterpreterPath": "./.venv/Scripts/python.exe",
     "python.pythonPath": "./.venv/Scripts/python.exe",
     "python.envFile": "${workspaceFolder}/.env",
+    "[python]": {
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit",
+            "source.unusedImports": "explicit"
+        },
+        "editor.formatOnSave": true
+    },
     "notebook.defaultLanguage": "python",
     "notebook.kernelPickerType": "mru",
     "terminal.integrated.defaultProfile.windows": "PowerShell",
