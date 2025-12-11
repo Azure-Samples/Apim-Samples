@@ -128,7 +128,6 @@ def test_read_policy_xml_auto_detection_failure(monkeypatch):
     with pytest.raises(ValueError, match='Could not auto-detect sample name'):
         utils.read_policy_xml('policy.xml', {'key': 'value'})
 
-
 # ------------------------------
 #    validate_infrastructure
 # ------------------------------
@@ -156,7 +155,6 @@ def test_generate_signing_key():
     s, b64 = utils.generate_signing_key()
     assert isinstance(s, str)
     assert isinstance(b64, str)
-
 
 # ------------------------------
 #    build_infrastructure_tags
@@ -203,7 +201,6 @@ def test_build_infrastructure_tags_none_custom_tags():
     result = utils.build_infrastructure_tags(INFRASTRUCTURE.APIM_ACA, None)
     expected = {'infrastructure': 'apim-aca'}
     assert result == expected
-
 
 # ------------------------------
 #    create_bicep_deployment_group
@@ -608,7 +605,6 @@ def test_create_resource_group_edge_cases(monkeypatch):
 
     utils.create_resource_group('test-rg', 'eastus', {})  # Empty dict, function doesn't return anything
 
-
 # ------------------------------
 #    ROLE AND PERMISSION TESTS
 # ------------------------------
@@ -635,7 +631,6 @@ def test_get_azure_role_guid_comprehensive(monkeypatch):
     # Test invalid role
     result = utils.get_azure_role_guid('Nonexistent Role')
     assert result is None
-
 
 # ------------------------------
 #    INFRASTRUCTURE SELECTION TESTS
@@ -699,7 +694,6 @@ def test_prompt_for_infrastructure_update_invalid_choice_then_valid(monkeypatch)
 
     result = utils._prompt_for_infrastructure_update('test-rg')
     assert result == (True, None)
-
 
 # ------------------------------
 #    TESTS FOR InfrastructureNotebookHelper.create_infrastructure WITH INDEX RETRY
