@@ -10,7 +10,7 @@ import urllib3
 
 # APIM Samples imports
 from apimtypes import HTTP_VERB, SUBSCRIPTION_KEY_PARAMETER_NAME, SLEEP_TIME_BETWEEN_REQUESTS_MS
-import console
+from console import BOLD_G, BOLD_R, RESET, print_error, print_info, print_message, print_ok, print_val
 
 # Disable SSL warnings for self-signed certificates
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -124,21 +124,21 @@ class ApimRequests:  # pylint: disable=invalid-name
 
         try:
             if msg:
-                console.print_message(msg, blank_above = True)
+                print_message(msg, blank_above = True)
 
             # Ensure path has a leading slash
             if not path.startswith('/'):
                 path = '/' + path
 
             url = self._url + path
-            console.print_info(f'{method.value} {url}')
+            print_info(f'{method.value} {url}')
 
             merged_headers = self.headers.copy()
 
             if headers:
                 merged_headers.update(headers)
 
-            console.print_info(merged_headers)
+            print_info(merged_headers)
 
             response = requests.request(method.value, url, headers = merged_headers, json = data, verify = False, timeout = 30)
 
@@ -157,7 +157,7 @@ class ApimRequests:  # pylint: disable=invalid-name
             return responseBody
 
         except requests.exceptions.RequestException as e:
-            console.print_error(f'Error making request: {e}')
+            print_error(f'Error making request: {e}')
             return None
 
     def _multiRequest(self, method: HTTP_VERB, path: str, runs: int, headers: list[any] = None, data: any = None, msg: str | None = None, printResponse: bool = True, sleepMs: int | None = None) -> list[dict[str, Any]]:  # pylint: disable=invalid-name,too-many-locals
@@ -185,22 +185,22 @@ class ApimRequests:  # pylint: disable=invalid-name
 
         try:
             if msg:
-                console.print_message(msg, blank_above = True)
+                print_message(msg, blank_above = True)
 
             # Ensure path has a leading slash
             if not path.startswith('/'):
                 path = '/' + path
 
             url = self._url + path
-            console.print_info(f'{method.value} {url}')
+            print_info(f'{method.value} {url}')
 
             for i in range(runs):
-                console.print_info(f'▶️ Run {i + 1}/{runs}:')
+                print_info(f'▶️ Run {i + 1}/{runs}:')
 
                 start_time = time.time()
                 response = session.request(method.value, url, json = data, verify = False)
                 response_time = time.time() - start_time
-                console.print_info(f'⌚ {response_time:.2f} seconds')
+                print_info(f'⌚ {response_time:.2f} seconds')
 
                 self._print_response_code(response)
 
@@ -234,16 +234,16 @@ class ApimRequests:  # pylint: disable=invalid-name
         """
 
         self._print_response_code(response)
-        console.print_val('Response headers', response.headers, True)
+        print_val('Response headers', response.headers, True)
 
         if response.status_code == 200:
             try:
                 data = json.loads(response.text)
-                console.print_val('Response body', json.dumps(data, indent = 4), True)
+                print_val('Response body', json.dumps(data, indent = 4), True)
             except Exception:
-                console.print_val('Response body', response.text, True)
+                print_val('Response body', response.text, True)
         else:
-            console.print_val('Response body', response.text, True)
+            print_val('Response body', response.text, True)
 
     def _print_response_code(self, response) -> None:
         """
@@ -251,13 +251,13 @@ class ApimRequests:  # pylint: disable=invalid-name
         """
 
         if 200 <= response.status_code < 300:
-            status_code_str = f'{console.BOLD_G}{response.status_code} - {response.reason}{console.RESET}'
+            status_code_str = f'{BOLD_G}{response.status_code} - {response.reason}{RESET}'
         elif response.status_code >= 400:
-            status_code_str = f'{console.BOLD_R}{response.status_code} - {response.reason}{console.RESET}'
+            status_code_str = f'{BOLD_R}{response.status_code} - {response.reason}{RESET}'
         else:
             status_code_str = str(response.status_code)
 
-        console.print_val('Response status', status_code_str)
+        print_val('Response status', status_code_str)
 
     def _poll_async_operation(self, location_url: str, headers: dict = None, timeout: int = 60, poll_interval: int = 2) -> requests.Response | None:
         """
@@ -276,28 +276,28 @@ class ApimRequests:  # pylint: disable=invalid-name
 
         while time.time() - start_time < timeout:
             try:
-                console.print_info(f'GET {location_url}', True)
-                console.print_info(headers)
+                print_info(f'GET {location_url}', True)
+                print_info(headers)
                 response = requests.get(location_url, headers = headers or {}, verify = False, timeout = 30)
 
-                console.print_info(f'Polling operation - Status: {response.status_code}')
+                print_info(f'Polling operation - Status: {response.status_code}')
 
                 if response.status_code == 200:
-                    console.print_ok('Async operation completed successfully!')
+                    print_ok('Async operation completed successfully!')
                     return response
 
                 if response.status_code == 202:
-                    console.print_info(f'Operation still in progress, waiting {poll_interval} seconds...')
+                    print_info(f'Operation still in progress, waiting {poll_interval} seconds...')
                     time.sleep(poll_interval)
                 else:
-                    console.print_error(f'Unexpected status code during polling: {response.status_code}')
+                    print_error(f'Unexpected status code during polling: {response.status_code}')
                     return response
 
             except requests.exceptions.RequestException as e:
-                console.print_error(f'Error polling operation: {e}')
+                print_error(f'Error polling operation: {e}')
                 return None
 
-        console.print_error(f'Async operation timeout reached after {timeout} seconds')
+        print_error(f'Async operation timeout reached after {timeout} seconds')
         return None
 
     # ------------------------------
@@ -372,32 +372,32 @@ class ApimRequests:  # pylint: disable=invalid-name
 
         try:
             if msg:
-                console.print_message(msg, blank_above = True)
+                print_message(msg, blank_above = True)
 
             # Ensure path has a leading slash
             if not path.startswith('/'):
                 path = '/' + path
 
             url = self._url + path
-            console.print_info(f'POST {url}')
+            print_info(f'POST {url}')
 
             merged_headers = self.headers.copy()
 
             if headers:
                 merged_headers.update(headers)
 
-            console.print_info(merged_headers)
+            print_info(merged_headers)
 
             # Make the initial async request
             response = requests.request(HTTP_VERB.POST.value, url, headers = merged_headers, json = data, verify = False, timeout = 30)
 
-            console.print_info(f'Initial response status: {response.status_code}')
+            print_info(f'Initial response status: {response.status_code}')
 
             if response.status_code == 202:  # Accepted - async operation started
                 location_header = response.headers.get('Location')
 
                 if location_header:
-                    console.print_info(f'Found Location header: {location_header}')
+                    print_info(f'Found Location header: {location_header}')
 
                     # Poll the location URL until completion
                     final_response = self._poll_async_operation(location_header, timeout = timeout, poll_interval = poll_interval )
@@ -416,10 +416,10 @@ class ApimRequests:  # pylint: disable=invalid-name
 
                         return responseBody
 
-                    console.print_error('Async operation failed or timed out')
+                    print_error('Async operation failed or timed out')
                     return None
 
-                console.print_error('No Location header found in 202 response')
+                print_error('No Location header found in 202 response')
                 if printResponse:
                     self._print_response(response)
                 return None
@@ -439,5 +439,5 @@ class ApimRequests:  # pylint: disable=invalid-name
             return responseBody
 
         except requests.exceptions.RequestException as e:
-            console.print_error(f'Error making request: {e}')
+            print_error(f'Error making request: {e}')
             return None

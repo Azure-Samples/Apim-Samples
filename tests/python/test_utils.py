@@ -94,7 +94,7 @@ def test_read_policy_xml_with_named_values(monkeypatch):
         return frame
 
     monkeypatch.setattr('inspect.currentframe', mock_inspect_currentframe)
-    monkeypatch.setattr('apimtypes._get_project_root', lambda: Path('/project'))
+    monkeypatch.setattr('utils.get_project_root', lambda: Path('/project'))
 
     named_values = {
         'jwt_signing_key': 'JwtSigningKey123'
@@ -414,7 +414,7 @@ def test_determine_policy_path_filename_mode(monkeypatch):
 
     # Mock the project root
     mock_project_root = Path('/mock/project/root')
-    monkeypatch.setattr('apimtypes._get_project_root', lambda: mock_project_root)
+    monkeypatch.setattr('utils.get_project_root', lambda: mock_project_root)
 
     # Mock current frame to simulate being in samples/test-sample
     class MockFrame:
@@ -464,7 +464,7 @@ def test_wait_for_apim_blob_permissions_failure(monkeypatch):
 def test_read_policy_xml_with_sample_name_explicit(monkeypatch):
     """Test read_policy_xml with explicit sample name."""
     mock_project_root = Path('/mock/project/root')
-    monkeypatch.setattr('apimtypes._get_project_root', lambda: mock_project_root)
+    monkeypatch.setattr('utils.get_project_root', lambda: mock_project_root)
 
     xml_content = '<policies><inbound><base /></inbound></policies>'
     m = mock_open(read_data=xml_content)

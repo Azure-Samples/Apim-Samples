@@ -814,11 +814,11 @@ def test_policy_fragment_repr():
 #    ADDITIONAL COVERAGE TESTS
 # ------------------------------
 
-def test_get_project_root_functionality():
-    """Test _get_project_root function comprehensively."""
+def testget_project_root_functionality():
+    """Test get_project_root function comprehensively."""
 
     # This function should return the project root
-    root = apimtypes._get_project_root()
+    root = apimtypes.get_project_root()
     assert isinstance(root, Path)
     assert root.exists()
 

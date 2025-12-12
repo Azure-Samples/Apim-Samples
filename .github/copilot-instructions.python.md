@@ -19,11 +19,22 @@ applyTo: "**/*.py"
 
 - Prefer Python 3.12+ features unless otherwise required.
 - Keep all imports at the top of the file.
-- Imports from this repo should be grouped, be specific (e.g. `from X import Y, Z`) be imported last, and have a comment header called `# APIM Samples imports`
 - Use type hints and concise docstrings (PEP 257).
 - Use 4-space indentation and PEP 8 conventions.
 - Use only straight quotes (U+0027 and U+0022), not typographic quotes.
 - Use whitespace to separate logical sections and add a blank line before `return` statements.
+
+## Import Style Guidelines
+
+- Imports from this repo should be grouped, be imported last, and have a group header called `# APIM Samples imports`
+- **Prefer specific imports** over module imports for clarity: `from module import Class, function`
+- **Use aliases for frequently-used modules**: `import azure_resources as az`
+- **Console module**: Always use specific imports: `from console import print_error, print_info, ...`
+- **Avoid mixing patterns**: Don't use both `import module` and `from module import ...` for the same module
+- **Order within APIM Samples imports section**:
+  1. Module imports with aliases (e.g., `import azure_resources as az`)
+  2. Specific type/constant imports (e.g., `from apimtypes import INFRASTRUCTURE`)
+  3. Specific function imports (e.g., `from console import print_error`)
 
 ## Linting (pylint)
 

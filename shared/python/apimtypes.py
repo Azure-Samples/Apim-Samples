@@ -15,11 +15,7 @@ from console import (print_error, print_val)
 from json_utils import is_string_json, extract_json
 
 
-# ------------------------------
-#    PRIVATE METHODS
-# ------------------------------
-
-def _get_project_root() -> Path:
+def get_project_root() -> Path:
     """Get the project root directory path."""
     # Try to get from environment variable first (set by .env file)
     if 'PROJECT_ROOT' in os.environ:
@@ -38,7 +34,7 @@ def _get_project_root() -> Path:
     return Path(__file__).resolve().parent.parent.parent
 
 # Get project root and construct absolute paths to policy files
-_PROJECT_ROOT = _get_project_root()
+_PROJECT_ROOT = get_project_root()
 _SHARED_XML_POLICY_BASE_PATH = _PROJECT_ROOT / 'shared' / 'apim-policies'
 
 # Policy file paths (now absolute and platform-independent)
@@ -79,7 +75,7 @@ __all__ = [
     'PolicyFragment',
     'Product',
     # Functions
-    '_get_project_root',
+    'get_project_root',
 ]
 
 

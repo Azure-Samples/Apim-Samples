@@ -38,9 +38,9 @@ def test_init_no_key():
 
 @pytest.mark.http
 @patch('apimrequests.requests.request')
-@patch('apimrequests.console.print_message')
-@patch('apimrequests.console.print_info')
-@patch('apimrequests.console.print_error')
+@patch('apimrequests.print_message')
+@patch('apimrequests.print_info')
+@patch('apimrequests.print_error')
 def test_single_get_success(mock_print_error, mock_print_info, mock_print_message, mock_request, apim):
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -58,9 +58,9 @@ def test_single_get_success(mock_print_error, mock_print_info, mock_print_messag
 
 @pytest.mark.http
 @patch('apimrequests.requests.request')
-@patch('apimrequests.console.print_message')
-@patch('apimrequests.console.print_info')
-@patch('apimrequests.console.print_error')
+@patch('apimrequests.print_message')
+@patch('apimrequests.print_info')
+@patch('apimrequests.print_error')
 def test_single_get_error(mock_print_error, mock_print_info, mock_print_message, mock_request, apim):
     mock_request.side_effect = requests.exceptions.RequestException('fail')
     result = apim.singleGet(DEFAULT_PATH, printResponse=True)
@@ -69,9 +69,9 @@ def test_single_get_error(mock_print_error, mock_print_info, mock_print_message,
 
 @pytest.mark.http
 @patch('apimrequests.requests.request')
-@patch('apimrequests.console.print_message')
-@patch('apimrequests.console.print_info')
-@patch('apimrequests.console.print_error')
+@patch('apimrequests.print_message')
+@patch('apimrequests.print_info')
+@patch('apimrequests.print_error')
 def test_single_post_success(mock_print_error, mock_print_info, mock_print_message, mock_request, apim):
     mock_response = MagicMock()
     mock_response.status_code = 201
@@ -89,8 +89,8 @@ def test_single_post_success(mock_print_error, mock_print_info, mock_print_messa
 
 @pytest.mark.http
 @patch('apimrequests.requests.Session')
-@patch('apimrequests.console.print_message')
-@patch('apimrequests.console.print_info')
+@patch('apimrequests.print_message')
+@patch('apimrequests.print_info')
 def test_multi_get_success(mock_print_info, mock_print_message, mock_session, apim):
     mock_sess = MagicMock()
     mock_response = MagicMock()
@@ -113,8 +113,8 @@ def test_multi_get_success(mock_print_info, mock_print_message, mock_session, ap
 
 @pytest.mark.http
 @patch('apimrequests.requests.Session')
-@patch('apimrequests.console.print_message')
-@patch('apimrequests.console.print_info')
+@patch('apimrequests.print_message')
+@patch('apimrequests.print_info')
 def test_multi_get_error(mock_print_info, mock_print_message, mock_session, apim):
     mock_sess = MagicMock()
     mock_sess.request.side_effect = requests.exceptions.RequestException('fail')
@@ -137,7 +137,7 @@ def make_apim():
 def test_single_post_error():
     apim = make_apim()
     with patch('apimrequests.requests.request') as mock_request, \
-         patch('apimrequests.console.print_error') as mock_print_error:
+         patch('apimrequests.print_error') as mock_print_error:
         mock_request.side_effect = requests.RequestException('fail')
         result = apim.singlePost(PATH, data={'foo': 'bar'}, printResponse=True)
         assert result is None
@@ -190,7 +190,7 @@ def test_print_response_code_edge():
     class DummyResponse:
         status_code = 302
         reason = 'Found'
-    with patch('apimrequests.console.print_val') as mock_print_val:
+    with patch('apimrequests.print_val') as mock_print_val:
         apim._print_response_code(DummyResponse())
         mock_print_val.assert_called_with('Response status', '302')
 
@@ -324,8 +324,8 @@ def test_headers_setter(apim):
 
 @pytest.mark.unit
 @patch('apimrequests.requests.request')
-@patch('apimrequests.console.print_message')
-@patch('apimrequests.console.print_info')
+@patch('apimrequests.print_message')
+@patch('apimrequests.print_info')
 def test_request_with_message(mock_print_info, mock_print_message, mock_request, apim):
     """Test _request method with message parameter."""
     mock_response = MagicMock()
@@ -343,7 +343,7 @@ def test_request_with_message(mock_print_info, mock_print_message, mock_request,
 
 @pytest.mark.unit
 @patch('apimrequests.requests.request')
-@patch('apimrequests.console.print_info')
+@patch('apimrequests.print_info')
 def test_request_path_without_leading_slash(mock_print_info, mock_request, apim):
     """Test _request method with PATH without leading slash."""
     mock_response = MagicMock()
@@ -365,8 +365,8 @@ def test_request_path_without_leading_slash(mock_print_info, mock_request, apim)
 
 @pytest.mark.unit
 @patch('apimrequests.requests.Session')
-@patch('apimrequests.console.print_message')
-@patch('apimrequests.console.print_info')
+@patch('apimrequests.print_message')
+@patch('apimrequests.print_info')
 def test_multi_request_with_message(mock_print_info, mock_print_message, mock_session_class, apim):
     """Test _multiRequest method with message parameter."""
     mock_session = MagicMock()
@@ -388,7 +388,7 @@ def test_multi_request_with_message(mock_print_info, mock_print_message, mock_se
 
 @pytest.mark.unit
 @patch('apimrequests.requests.Session')
-@patch('apimrequests.console.print_info')
+@patch('apimrequests.print_info')
 def test_multi_request_path_without_leading_slash(mock_print_info, mock_session_class, apim):
     """Test _multiRequest method with PATH without leading slash."""
     mock_session = MagicMock()
@@ -413,7 +413,7 @@ def test_multi_request_path_without_leading_slash(mock_print_info, mock_session_
 
 @pytest.mark.unit
 @patch('apimrequests.requests.Session')
-@patch('apimrequests.console.print_info')
+@patch('apimrequests.print_info')
 def test_multi_request_non_json_response(mock_print_info, mock_session_class, apim):
     """Test _multiRequest method with non-JSON response."""
     mock_session = MagicMock()
@@ -433,7 +433,7 @@ def test_multi_request_non_json_response(mock_print_info, mock_session_class, ap
 
 
 @pytest.mark.unit
-@patch('apimrequests.console.print_val')
+@patch('apimrequests.print_val')
 def test_print_response_non_200_status(mock_print_val, apim):
     """Test _print_response method with non-200 status code."""
     mock_response = MagicMock()
@@ -451,8 +451,8 @@ def test_print_response_non_200_status(mock_print_val, apim):
 
 @pytest.mark.unit
 @patch('apimrequests.requests.get')
-@patch('apimrequests.console.print_info')
-@patch('apimrequests.console.print_ok')
+@patch('apimrequests.print_info')
+@patch('apimrequests.print_ok')
 @patch('apimrequests.time.sleep')
 def test_poll_async_operation_success(mock_sleep, mock_print_ok, mock_print_info, mock_get, apim):
     """Test _poll_async_operation method with successful completion."""
@@ -468,8 +468,8 @@ def test_poll_async_operation_success(mock_sleep, mock_print_ok, mock_print_info
 
 @pytest.mark.unit
 @patch('apimrequests.requests.get')
-@patch('apimrequests.console.print_info')
-@patch('apimrequests.console.print_error')
+@patch('apimrequests.print_info')
+@patch('apimrequests.print_error')
 @patch('apimrequests.time.sleep')
 def test_poll_async_operation_in_progress_then_success(mock_sleep, mock_print_error, mock_print_info, mock_get, apim):
     """Test _poll_async_operation method with in-progress then success."""
@@ -489,7 +489,7 @@ def test_poll_async_operation_in_progress_then_success(mock_sleep, mock_print_er
 
 @pytest.mark.unit
 @patch('apimrequests.requests.get')
-@patch('apimrequests.console.print_error')
+@patch('apimrequests.print_error')
 def test_poll_async_operation_unexpected_status(mock_print_error, mock_get, apim):
     """Test _poll_async_operation method with unexpected status code."""
     mock_response = MagicMock()
@@ -504,7 +504,7 @@ def test_poll_async_operation_unexpected_status(mock_print_error, mock_get, apim
 
 @pytest.mark.unit
 @patch('apimrequests.requests.get')
-@patch('apimrequests.console.print_error')
+@patch('apimrequests.print_error')
 def test_poll_async_operation_request_exception(mock_print_error, mock_get, apim):
     """Test _poll_async_operation method with request exception."""
     mock_get.side_effect = requests.exceptions.RequestException('Connection error')
@@ -517,7 +517,7 @@ def test_poll_async_operation_request_exception(mock_print_error, mock_get, apim
 
 @pytest.mark.unit
 @patch('apimrequests.requests.get')
-@patch('apimrequests.console.print_error')
+@patch('apimrequests.print_error')
 @patch('apimrequests.time.time')
 @patch('apimrequests.time.sleep')
 def test_poll_async_operation_timeout(mock_sleep, mock_time, mock_print_error, mock_get, apim):
@@ -537,8 +537,8 @@ def test_poll_async_operation_timeout(mock_sleep, mock_time, mock_print_error, m
 
 @pytest.mark.unit
 @patch('apimrequests.requests.request')
-@patch('apimrequests.console.print_message')
-@patch('apimrequests.console.print_info')
+@patch('apimrequests.print_message')
+@patch('apimrequests.print_info')
 def test_single_post_async_success_with_location(mock_print_info, mock_print_message, mock_request, apim):
     """Test singlePostAsync method with successful async operation."""
     # Mock initial 202 response with Location header
@@ -567,8 +567,8 @@ def test_single_post_async_success_with_location(mock_print_info, mock_print_mes
 
 @pytest.mark.unit
 @patch('apimrequests.requests.request')
-@patch('apimrequests.console.print_info')
-@patch('apimrequests.console.print_error')
+@patch('apimrequests.print_info')
+@patch('apimrequests.print_error')
 def test_single_post_async_no_location_header(mock_print_error, mock_print_info, mock_request, apim):
     """Test singlePostAsync method with 202 response but no Location header."""
     mock_response = MagicMock()
@@ -586,7 +586,7 @@ def test_single_post_async_no_location_header(mock_print_error, mock_print_info,
 
 @pytest.mark.unit
 @patch('apimrequests.requests.request')
-@patch('apimrequests.console.print_info')
+@patch('apimrequests.print_info')
 def test_single_post_async_non_async_response(mock_print_info, mock_request, apim):
     """Test singlePostAsync method with non-async (immediate) response."""
     mock_response = MagicMock()
@@ -605,7 +605,7 @@ def test_single_post_async_non_async_response(mock_print_info, mock_request, api
 
 @pytest.mark.unit
 @patch('apimrequests.requests.request')
-@patch('apimrequests.console.print_error')
+@patch('apimrequests.print_error')
 def test_single_post_async_request_exception(mock_print_error, mock_request, apim):
     """Test singlePostAsync method with request exception."""
     mock_request.side_effect = requests.exceptions.RequestException('Connection error')
@@ -618,7 +618,7 @@ def test_single_post_async_request_exception(mock_print_error, mock_request, api
 
 @pytest.mark.unit
 @patch('apimrequests.requests.request')
-@patch('apimrequests.console.print_error')
+@patch('apimrequests.print_error')
 def test_single_post_async_failed_polling(mock_print_error, mock_request, apim):
     """Test singlePostAsync method with failed async operation polling."""
     initial_response = MagicMock()
@@ -636,7 +636,7 @@ def test_single_post_async_failed_polling(mock_print_error, mock_request, apim):
 
 @pytest.mark.unit
 @patch('apimrequests.requests.request')
-@patch('apimrequests.console.print_info')
+@patch('apimrequests.print_info')
 def test_single_post_async_path_without_leading_slash(mock_print_info, mock_request, apim):
     """Test singlePostAsync method with PATH without leading slash."""
     mock_response = MagicMock()
@@ -658,7 +658,7 @@ def test_single_post_async_path_without_leading_slash(mock_print_info, mock_requ
 
 @pytest.mark.unit
 @patch('apimrequests.requests.request')
-@patch('apimrequests.console.print_info')
+@patch('apimrequests.print_info')
 def test_single_post_async_non_json_response(mock_print_info, mock_request, apim):
     """Test singlePostAsync method with non-JSON response."""
     mock_response = MagicMock()
@@ -671,3 +671,4 @@ def test_single_post_async_non_json_response(mock_print_info, mock_request, apim
         result = apim.singlePostAsync('/test')
 
     assert result == 'Plain text result'
+

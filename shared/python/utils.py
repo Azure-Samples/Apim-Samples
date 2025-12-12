@@ -17,8 +17,7 @@ from typing import Any
 
 # APIM Samples imports
 import azure_resources as az
-import apimtypes
-from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, _get_project_root
+from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, get_project_root
 
 # ------------------------------
 #    RE-EXPORTS (BACKWARD COMPATIBILITY)
@@ -550,7 +549,7 @@ def _determine_bicep_directory(infrastructure_dir: str) -> str:
 
     # Try to find the project root and construct the path from there
     try:
-        project_root = _get_project_root()
+        project_root = get_project_root()
         bicep_dir = os.path.join(str(project_root), 'infrastructure', infrastructure_dir)
         if os.path.exists(bicep_dir):
             return bicep_dir
@@ -629,7 +628,7 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
     print('\nDeploying bicep...\n')
     return run(cmd, f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.", print_command_to_run = False)
 
-# TODO: Reconcile this with apimtypes.py _get_project_root
+# TODO: Reconcile this with apimtypes.py get_project_root
 def find_project_root() -> str:
     """
     Find the project root directory by looking for specific marker files.
@@ -894,7 +893,7 @@ def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str
                 raise ValueError(f'Could not auto-detect sample name. Please provide sample_name parameter explicitly. Error: {e}') from e
 
         # Construct the full path
-        project_root = apimtypes._get_project_root()
+        project_root = get_project_root()
         policy_xml_filepath = str(Path(project_root) / 'samples' / sample_name / policy_xml_filepath_or_filename)
 
     return policy_xml_filepath
