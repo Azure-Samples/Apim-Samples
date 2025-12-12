@@ -4,9 +4,10 @@ Factory for creating authentication tokens or objects for Azure API Management s
 
 from typing import Any
 import time
-from users import User
 import jwt
 
+# APIM Samples imports
+from users import User
 
 # ------------------------------
 #    CLASSES

@@ -27,11 +27,20 @@ applyTo: "**/*.py"
 ## Import Style Guidelines
 
 - Imports from this repo should be grouped, be imported last, and have a group header called `# APIM Samples imports`
-- **Prefer specific imports** over module imports for clarity: `from module import Class, function`
-- **Use aliases for frequently-used modules**: `import azure_resources as az`
-- **Console module**: Always use specific imports: `from console import print_error, print_info, ...`
-- **Avoid mixing patterns**: Don't use both `import module` and `from module import ...` for the same module
-- **Order within APIM Samples imports section**:
+- Only use multi-line imports when a single-line is too long
+- Avoid mixing patterns: Don't use both `import module` and `from module import ...` for the same module
+- Parentheses in imports: Only use parentheses for multi-line imports, not for single-line imports:
+  - Good: `from console import print_error, print_val`
+  - Bad: `from console import (print_error, print_val)`
+  - Good (multi-line):
+    ```python
+    from console import (
+        print_error,
+        print_info,
+        print_ok
+    )
+    ```
+- Order within APIM Samples imports section:
   1. Module imports with aliases (e.g., `import azure_resources as az`)
   2. Specific type/constant imports (e.g., `from apimtypes import INFRASTRUCTURE`)
   3. Specific function imports (e.g., `from console import print_error`)

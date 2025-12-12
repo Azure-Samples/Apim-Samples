@@ -23,9 +23,8 @@ import azure_resources as az
 def test_get_infra_rg_name(monkeypatch):
     class DummyInfra:
         value = 'foo'
-    monkeypatch.setattr(utils, 'validate_infrastructure', lambda x: x)
-    assert utils.get_infra_rg_name(DummyInfra) == 'apim-infra-foo'
-    assert utils.get_infra_rg_name(DummyInfra, 2) == 'apim-infra-foo-2'
+    assert az.get_infra_rg_name(DummyInfra) == 'apim-infra-foo'
+    assert az.get_infra_rg_name(DummyInfra, 2) == 'apim-infra-foo-2'
 
 def test_get_rg_name():
     assert az.get_rg_name('foo') == 'apim-sample-foo'
@@ -37,7 +36,7 @@ def test_get_rg_name():
 
 def test_run_success(monkeypatch):
     monkeypatch.setattr('subprocess.check_output', lambda *a, **kw: b'{"a": 1}')
-    out = utils.run('echo', print_command_to_run=False)
+    out = az.run('echo', print_command_to_run=False)
     assert out.success is True
     assert out.json_data == {'a': 1}
 
@@ -47,7 +46,7 @@ def test_run_failure(monkeypatch):
     def fail(*a, **kw):
         raise DummyErr()
     monkeypatch.setattr('subprocess.check_output', fail)
-    out = utils.run('bad', print_command_to_run=False)
+    out = az.run('bad', print_command_to_run=False)
     assert out.success is False
     assert isinstance(out.text, str)
 
@@ -212,9 +211,9 @@ def test_build_infrastructure_tags_none_custom_tags():
 def test_create_bicep_deployment_group_with_enum(monkeypatch):
     """Test create_bicep_deployment_group with INFRASTRUCTURE enum."""
     mock_create_rg = MagicMock()
-    monkeypatch.setattr(utils, 'create_resource_group', mock_create_rg)
+    monkeypatch.setattr(az, 'create_resource_group', mock_create_rg)
     mock_run = MagicMock(return_value=MagicMock(success=True))
-    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(az, 'run', mock_run)
     mock_open_func = mock_open()
     monkeypatch.setattr(builtins, 'open', mock_open_func)
     monkeypatch.setattr(builtins, 'print', MagicMock())
@@ -243,9 +242,9 @@ def test_create_bicep_deployment_group_with_enum(monkeypatch):
 def test_create_bicep_deployment_group_with_string(monkeypatch):
     """Test create_bicep_deployment_group with string deployment name."""
     mock_create_rg = MagicMock()
-    monkeypatch.setattr(utils, 'create_resource_group', mock_create_rg)
+    monkeypatch.setattr(az, 'create_resource_group', mock_create_rg)
     mock_run = MagicMock(return_value=MagicMock(success=True))
-    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(az, 'run', mock_run)
     mock_open_func = mock_open()
     monkeypatch.setattr(builtins, 'open', mock_open_func)
     monkeypatch.setattr(builtins, 'print', MagicMock())
@@ -271,9 +270,9 @@ def test_create_bicep_deployment_group_with_string(monkeypatch):
 def test_create_bicep_deployment_group_params_file_written(monkeypatch):
     """Test that bicep parameters are correctly written to file."""
     mock_create_rg = MagicMock()
-    monkeypatch.setattr(utils, 'create_resource_group', mock_create_rg)
+    monkeypatch.setattr(az, 'create_resource_group', mock_create_rg)
     mock_run = MagicMock(return_value=MagicMock(success=True))
-    monkeypatch.setattr(az, '_run', mock_run)
+    monkeypatch.setattr(az, 'run', mock_run)
     mock_open_func = mock_open()
     monkeypatch.setattr(builtins, 'open', mock_open_func)
     monkeypatch.setattr(builtins, 'print', MagicMock())
@@ -317,9 +316,9 @@ def test_create_bicep_deployment_group_params_file_written(monkeypatch):
 def test_create_bicep_deployment_group_no_tags(monkeypatch):
     """Test create_bicep_deployment_group without tags."""
     mock_create_rg = MagicMock()
-    monkeypatch.setattr(utils, 'create_resource_group', mock_create_rg)
+    monkeypatch.setattr(az, 'create_resource_group', mock_create_rg)
     mock_run = MagicMock(return_value=MagicMock(success=True))
-    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(az, 'run', mock_run)
     mock_open_func = mock_open()
     monkeypatch.setattr(builtins, 'open', mock_open_func)
     monkeypatch.setattr(builtins, 'print', MagicMock())
@@ -338,9 +337,9 @@ def test_create_bicep_deployment_group_no_tags(monkeypatch):
 def test_create_bicep_deployment_group_deployment_failure(monkeypatch):
     """Test create_bicep_deployment_group when deployment fails."""
     mock_create_rg = MagicMock()
-    monkeypatch.setattr(utils, 'create_resource_group', mock_create_rg)
+    monkeypatch.setattr(az, 'create_resource_group', mock_create_rg)
     mock_run = MagicMock(return_value=MagicMock(success=False))
-    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(az, 'run', mock_run)
     mock_open_func = mock_open()
     monkeypatch.setattr(builtins, 'open', mock_open_func)
     monkeypatch.setattr(builtins, 'print', MagicMock())
@@ -393,8 +392,8 @@ def test_print_functions_comprehensive():
 
 def test_test_url_preflight_check_with_frontdoor(monkeypatch):
     """Test URL preflight check when Front Door is available."""
-    monkeypatch.setattr(utils, 'get_frontdoor_url', lambda x, y: 'https://test.azurefd.net')
-    monkeypatch.setattr(utils, 'print_message', lambda x, **kw: None)
+    monkeypatch.setattr(az, 'get_frontdoor_url', lambda x, y: 'https://test.azurefd.net')
+    monkeypatch.setattr('console.print_message', lambda x, **kw: None)
 
     result = utils.test_url_preflight_check(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim.com')
     assert result == 'https://test.azurefd.net'
@@ -402,8 +401,8 @@ def test_test_url_preflight_check_with_frontdoor(monkeypatch):
 
 def test_test_url_preflight_check_no_frontdoor(monkeypatch):
     """Test URL preflight check when Front Door is not available."""
-    monkeypatch.setattr(utils, 'get_frontdoor_url', lambda x, y: None)
-    monkeypatch.setattr(utils, 'print_message', lambda x, **kw: None)
+    monkeypatch.setattr(az, 'get_frontdoor_url', lambda x, y: None)
+    monkeypatch.setattr('console.print_message', lambda x, **kw: None)
 
     result = utils.test_url_preflight_check(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg', 'https://apim.com')
     assert result == 'https://apim.com'
@@ -441,10 +440,10 @@ def test_determine_policy_path_full_path():
 
 def test_wait_for_apim_blob_permissions_success(monkeypatch):
     """Test wait_for_apim_blob_permissions with successful wait."""
-    monkeypatch.setattr(utils, 'check_apim_blob_permissions', lambda *args: True)
-    monkeypatch.setattr(utils, 'print_info', lambda x: None)
-    monkeypatch.setattr(utils, 'print_success', lambda x: None)
-    monkeypatch.setattr(utils, 'print_error', lambda x: None)
+    monkeypatch.setattr(az, 'check_apim_blob_permissions', lambda *args: True)
+    monkeypatch.setattr('console.print_info', lambda x: None)
+    monkeypatch.setattr('console.print_success', lambda x: None)
+    monkeypatch.setattr('console.print_error', lambda x: None)
 
     result = utils.wait_for_apim_blob_permissions('test-apim', 'test-storage', 'test-rg', 1)
     assert result is True
@@ -452,10 +451,10 @@ def test_wait_for_apim_blob_permissions_success(monkeypatch):
 
 def test_wait_for_apim_blob_permissions_failure(monkeypatch):
     """Test wait_for_apim_blob_permissions with failed wait."""
-    monkeypatch.setattr(utils, 'check_apim_blob_permissions', lambda *args: False)
-    monkeypatch.setattr(utils, 'print_info', lambda x: None)
-    monkeypatch.setattr(utils, 'print_success', lambda x: None)
-    monkeypatch.setattr(utils, 'print_error', lambda x: None)
+    monkeypatch.setattr(az, 'check_apim_blob_permissions', lambda *args: False)
+    monkeypatch.setattr('console.print_info', lambda x: None)
+    monkeypatch.setattr('console.print_success', lambda x: None)
+    monkeypatch.setattr('console.print_error', lambda x: None)
 
     result = utils.wait_for_apim_blob_permissions('test-apim', 'test-storage', 'test-rg', 1)
     assert result is False
@@ -494,10 +493,9 @@ def test_read_policy_xml_with_named_values_formatting(monkeypatch):
         (INFRASTRUCTURE.APIM_ACA, 'apim-aca'),
     ]
 )
-def test_get_infra_rg_name_different_types(infra_type, expected_suffix, monkeypatch):
+def test_get_infra_rg_name_different_types(infra_type, expected_suffix):
     """Test get_infra_rg_name with different infrastructure types."""
-    monkeypatch.setattr(utils, 'validate_infrastructure', lambda x: x)
-    result = utils.get_infra_rg_name(infra_type)
+    result = az.get_infra_rg_name(infra_type)
     assert result == f'apim-infra-{expected_suffix}'
 
 
@@ -577,7 +575,7 @@ def test_run_command_with_error_suppression(monkeypatch):
 
     monkeypatch.setattr('subprocess.check_output', mock_subprocess_check_output)
 
-    output = utils.run('test command', print_errors=False, print_output=False)
+    output = az.run('test command', print_errors=False, print_command_to_run=False)
     assert output.success is False
     assert output.text == 'test output'
 
@@ -605,9 +603,9 @@ def test_create_resource_group_edge_cases(monkeypatch):
         assert '--tags' in cmd  # Should include tags (with default source=apim-sample)
         return utils.Output(success=True, text='{}')
 
-    monkeypatch.setattr(utils, 'run', mock_run_with_tags)
+    monkeypatch.setattr(az, 'run', mock_run_with_tags)
 
-    utils.create_resource_group('test-rg', 'eastus', {})  # Empty dict, function doesn't return anything
+    az.create_resource_group('test-rg', 'eastus', {})  # Empty dict, function doesn't return anything
 
 # ------------------------------
 #    ROLE AND PERMISSION TESTS
@@ -880,11 +878,11 @@ def test_deploy_sample_with_infrastructure_selection(monkeypatch):
                        lambda *args, **kwargs: mock_output)
 
     # Mock utility functions
-    monkeypatch.setattr(utils, 'get_infra_rg_name',
+    monkeypatch.setattr(az, 'get_infra_rg_name',
                        lambda infra, idx: f'apim-infra-{infra.value}-{idx}')
-    monkeypatch.setattr(utils, 'print_error', lambda *args, **kwargs: None)
-    monkeypatch.setattr(utils, 'print_success', lambda *args, **kwargs: None)
-    monkeypatch.setattr(utils, 'print_val', lambda *args, **kwargs: None)
+    monkeypatch.setattr('console.print_error', lambda *args, **kwargs: None)
+    monkeypatch.setattr('console.print_success', lambda *args, **kwargs: None)
+    monkeypatch.setattr('console.print_val', lambda *args, **kwargs: None)
 
     # Test the deployment
     result = nb_helper.deploy_sample({'test': {'value': 'param'}})

@@ -18,35 +18,12 @@ from typing import Tuple, Optional
 from apimtypes import INFRASTRUCTURE, Endpoints, Output
 from console import print_ok, print_warning, print_error, print_val, print_message, print_info, print_command, print_success
 
-# Explicitly define what is exported with 'from azure_resources import *'
-__all__ = [
-    # Public functions
-    'cleanup_old_jwt_signing_keys',
-    'check_apim_blob_permissions',
-    'find_infrastructure_instances',
-    'create_resource_group',
-    'get_azure_role_guid',
-    'does_resource_group_exist',
-    'get_resource_group_location',
-    'get_account_info',
-    'get_deployment_name',
-    'get_frontdoor_url',
-    'get_apim_url',
-    'get_appgw_endpoint',
-    'get_infra_rg_name',
-    'get_unique_suffix_for_resource_group',
-    'get_rg_name',
-    'get_endpoints',
-    # Private functions (exported for backward compatibility)
-    '_run',
-]
-
 
 # ------------------------------
 #    PRIVATE FUNCTIONS
 # ------------------------------
 
-def _run(command: str, ok_message: str = '', error_message: str = '', print_output: bool = False, print_command_to_run: bool = True, print_errors: bool = True, print_warnings: bool = True) -> Output:
+def run(command: str, ok_message: str = '', error_message: str = '', print_output: bool = False, print_command_to_run: bool = True, print_errors: bool = True, print_warnings: bool = True) -> Output:
     """
     Execute a shell command, log the command and its output, and attempt to extract JSON from the output.
 
@@ -151,7 +128,7 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
         # Get all named values that start with 'JwtSigningKey'
         print_info(f"Getting all JWT signing key named values from APIM '{apim_name}'...")
 
-        output = _run(
+        output = run(
             f'az apim nv list --service-name "{apim_name}" --resource-group "{resource_group_name}" --query "[?contains(name, \'JwtSigningKey\')].name" -o tsv',
             'Retrieved JWT signing keys',
             'Failed to retrieve JWT signing keys'
@@ -186,7 +163,7 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
                 kept_count += 1
             else:
                 print_info(f'Deleting old JWT key: {jwt_key}')
-                delete_output = _run(
+                delete_output = run(
                     f'az apim nv delete --service-name "{apim_name}" --resource-group "{resource_group_name}" --named-value-id "{jwt_key}" --yes',
                     f'Deleted old JWT key: {jwt_key}',
                     f'Failed to delete JWT key: {jwt_key}',
@@ -226,7 +203,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
 
     # Get APIM's managed identity principal ID
     print_info('Getting APIM managed identity...')
-    apim_identity_output = _run(
+    apim_identity_output = run(
         f'az apim show --name {apim_name} --resource-group {resource_group_name} --query identity.principalId -o tsv',
         error_message='Failed to get APIM managed identity',
         print_command_to_run=True
@@ -239,7 +216,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
     principal_id = apim_identity_output.text.strip()
     print_info(f'APIM managed identity principal ID: {principal_id}')    # Get storage account resource ID
     # Remove suppression flags to get raw output, then extract resource ID with regex
-    storage_account_output = _run(
+    storage_account_output = run(
         f'az storage account show --name {storage_account_name} --resource-group {resource_group_name} --query id -o tsv',
         error_message='Failed to get storage account resource ID',
         print_command_to_run=True
@@ -268,7 +245,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
 
     while elapsed_time < max_wait_seconds:
         # Check if role assignment exists
-        role_assignment_output = _run(
+        role_assignment_output = run(
             f"az role assignment list --assignee {principal_id} --scope {storage_account_id} --role {blob_reader_role_id} --query '[0].id' -o tsv",
             error_message='Failed to check role assignment',
             print_command_to_run=True,
@@ -280,7 +257,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
 
             # Additional check: try to test blob access using the managed identity
             print_info('Testing actual blob access...')
-            test_access_output = _run(
+            test_access_output = run(
                 f"az storage blob list --account-name {storage_account_name} --container-name samples --auth-mode login --only-show-errors --query '[0].name' -o tsv 2>/dev/null || echo 'access-test-failed'",
                 error_message='',
                 print_command_to_run=True,
@@ -327,7 +304,7 @@ def find_infrastructure_instances(infrastructure: INFRASTRUCTURE) -> list[tuple[
 
     # Query Azure for resource groups with the infrastructure tag
     query_cmd = f'az group list --tag infrastructure={infrastructure.value} --query "[].name" -o tsv'
-    output = _run(query_cmd, print_command_to_run = False, print_errors = False)
+    output = run(query_cmd, print_command_to_run = False, print_errors = False)
 
     if output.success and output.text.strip():
         rg_names = [name.strip() for name in output.text.strip().split('\n') if name.strip()]
@@ -374,7 +351,7 @@ def create_resource_group(rg_name: str, resource_group_location: str | None = No
                 escaped_value = value.replace('"', '\\"') if isinstance(value, str) else str(value)
                 tag_string += f' {key}=\"{escaped_value}\"'
 
-        _run(f'az group create --name {rg_name} --location {resource_group_location} --tags {tag_string}',
+        run(f'az group create --name {rg_name} --location {resource_group_location} --tags {tag_string}',
             f"Resource group '{rg_name}' created",
             f"Failed to create the resource group '{rg_name}'",
             False, False, False, False)
@@ -420,7 +397,7 @@ def does_resource_group_exist(resource_group_name: str) -> bool:
         bool: True if the resource group exists, False otherwise.
     """
 
-    output = _run(f'az group show --name {resource_group_name} -o json', print_command_to_run = False, print_errors = False)
+    output = run(f'az group show --name {resource_group_name} -o json', print_command_to_run = False, print_errors = False)
 
     return output.success
 
@@ -435,7 +412,7 @@ def get_resource_group_location(resource_group_name: str) -> str | None:
         str | None: The location of the resource group if found, otherwise None.
     """
 
-    output = _run(f'az group show --name {resource_group_name} --query "location" -o tsv', print_command_to_run = False, print_errors = False)
+    output = run(f'az group show --name {resource_group_name} --query "location" -o tsv', print_command_to_run = False, print_errors = False)
 
     if output.success and output.text.strip():
         return output.text.strip()
@@ -453,8 +430,8 @@ def get_account_info() -> Tuple[str, str, str, str]:
         Exception: If account information cannot be retrieved.
     """
 
-    account_show_output = _run('az account show', 'Retrieved az account', 'Failed to get the current az account', print_command_to_run = False)
-    ad_user_show_output = _run('az ad signed-in-user show', 'Retrieved az ad signed-in-user', 'Failed to get the current az ad signed-in-user', print_command_to_run = False)
+    account_show_output = run('az account show', 'Retrieved az account', 'Failed to get the current az account', print_command_to_run = False)
+    ad_user_show_output = run('az ad signed-in-user show', 'Retrieved az ad signed-in-user', 'Failed to get the current az ad signed-in-user', print_command_to_run = False)
 
     if account_show_output.success and account_show_output.json_data and ad_user_show_output.success and ad_user_show_output.json_data:
         current_user = account_show_output.json_data['user']['name']
@@ -507,14 +484,14 @@ def get_frontdoor_url(deployment_name: INFRASTRUCTURE, rg_name: str) -> str | No
     afd_endpoint_url: str | None = None
 
     if deployment_name == INFRASTRUCTURE.AFD_APIM_PE:
-        output = _run(f'az afd profile list -g {rg_name} -o json')
+        output = run(f'az afd profile list -g {rg_name} -o json')
 
         if output.success and output.json_data:
             afd_profile_name = output.json_data[0]['name']
             print_ok(f'Front Door Profile Name: {afd_profile_name}', blank_above = False)
 
             if afd_profile_name:
-                output = _run(f'az afd endpoint list -g {rg_name} --profile-name {afd_profile_name} -o json')
+                output = run(f'az afd endpoint list -g {rg_name} --profile-name {afd_profile_name} -o json')
 
                 if output.success and output.json_data:
                     afd_hostname = output.json_data[0]['hostName']
@@ -542,7 +519,7 @@ def get_apim_url(rg_name: str) -> str | None:
 
     apim_endpoint_url: str | None = None
 
-    output = _run(f'az apim list -g {rg_name} -o json', print_command_to_run = False)
+    output = run(f'az apim list -g {rg_name} -o json', print_command_to_run = False)
 
     if output.success and output.json_data:
         apim_gateway_url = output.json_data[0]['gatewayUrl']
@@ -573,7 +550,7 @@ def get_appgw_endpoint(rg_name: str) -> Tuple[str | None, str | None]:
     public_ip: str | None = None
 
     # Get Application Gateway details
-    output = _run(f'az network application-gateway list -g {rg_name} -o json', print_command_to_run = False)
+    output = run(f'az network application-gateway list -g {rg_name} -o json', print_command_to_run = False)
 
     if output.success and output.json_data:
         appgw_name = output.json_data[0]['name']
@@ -601,7 +578,7 @@ def get_appgw_endpoint(rg_name: str) -> Tuple[str | None, str | None]:
             public_ip_name = public_ip_id.split('/')[-1]
 
             # Get public IP details
-            ip_output = _run(f'az network public-ip show -g {rg_name} -n {public_ip_name} -o json', print_command_to_run = False)
+            ip_output = run(f'az network public-ip show -g {rg_name} -n {public_ip_name} -o json', print_command_to_run = False)
 
             if ip_output.success and ip_output.json_data:
                 public_ip = ip_output.json_data.get('ipAddress')
@@ -661,7 +638,7 @@ def get_unique_suffix_for_resource_group(rg_name: str) -> str:
 
     try:
         deployment_name = f'get-suffix-{int(time.time())}'
-        output = _run(
+        output = run(
             f'az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file "{template_path}" --query "properties.outputs.suffix.value" -o tsv',
             print_command_to_run = False,
             print_errors = False

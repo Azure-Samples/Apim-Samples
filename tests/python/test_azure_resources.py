@@ -41,7 +41,7 @@ def test_get_azure_role_guid_failure():
 def test_does_resource_group_exist_true():
     """Test checking if resource group exists - returns True."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         mock_run.return_value = Output(True, '{"name": "test-rg"}')
 
         result = az.does_resource_group_exist('test-rg')
@@ -57,7 +57,7 @@ def test_does_resource_group_exist_true():
 def test_does_resource_group_exist_false():
     """Test checking if resource group exists - returns False."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         mock_run.return_value = Output(False, 'ResourceGroupNotFound')
 
         result = az.does_resource_group_exist('nonexistent-rg')
@@ -68,7 +68,7 @@ def test_does_resource_group_exist_false():
 def test_get_resource_group_location_success():
     """Test successful retrieval of resource group location."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         mock_run.return_value = Output(True, 'eastus2\n')
 
         result = az.get_resource_group_location('test-rg')
@@ -84,7 +84,7 @@ def test_get_resource_group_location_success():
 def test_get_resource_group_location_failure():
     """Test get_resource_group_location returns None on failure."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         mock_run.return_value = Output(False, 'error message')
 
         result = az.get_resource_group_location('nonexistent-rg')
@@ -95,7 +95,7 @@ def test_get_resource_group_location_failure():
 def test_get_resource_group_location_empty():
     """Test get_resource_group_location returns None on empty response."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         mock_run.return_value = Output(True, '')
 
         result = az.get_resource_group_location('test-rg')
@@ -110,7 +110,7 @@ def test_get_resource_group_location_empty():
 def test_get_account_info_success():
     """Test successful retrieval of account information."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         account_output = Output(True, '{}')
         account_output.json_data = {
             'user': {'name': 'test.user@example.com'},
@@ -134,7 +134,7 @@ def test_get_account_info_success():
 def test_get_account_info_failure():
     """Test get_account_info raises exception on failure."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         mock_run.return_value = Output(False, 'authentication error')
 
         with pytest.raises(Exception) as exc_info:
@@ -146,7 +146,7 @@ def test_get_account_info_failure():
 def test_get_account_info_no_json():
     """Test get_account_info raises exception when no JSON data."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         output = Output(True, 'some text')
         output.json_data = None
         mock_run.return_value = output
@@ -199,7 +199,7 @@ def test_get_deployment_name_current_directory(mock_getcwd, mock_basename, mock_
 def test_get_frontdoor_url_afd_success():
     """Test successful Front Door URL retrieval."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         # Create mock outputs
         profile_output = Output(True, '')
         profile_output.json_data = [{"name": "test-afd"}]
@@ -223,7 +223,7 @@ def test_get_frontdoor_url_afd_success():
 def test_get_frontdoor_url_wrong_infrastructure():
     """Test Front Door URL with wrong infrastructure type."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         result = az.get_frontdoor_url(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg')
 
         assert result is None
@@ -233,7 +233,7 @@ def test_get_frontdoor_url_wrong_infrastructure():
 def test_get_frontdoor_url_no_profile():
     """Test Front Door URL when no profile found."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         mock_run.return_value = Output(False, 'No profiles found')
 
         result = az.get_frontdoor_url(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg')
@@ -244,7 +244,7 @@ def test_get_frontdoor_url_no_profile():
 def test_get_frontdoor_url_no_endpoints():
     """Test Front Door URL when profile exists but no endpoints."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         profile_output = Output(True, '')
         profile_output.json_data = [{'name': 'test-afd'}]
         endpoint_output = Output(False, 'No endpoints found')
@@ -262,7 +262,7 @@ def test_get_frontdoor_url_no_endpoints():
 def test_get_apim_url_success():
     """Test successful APIM URL retrieval."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         mock_run.return_value = Output(True, '')
         mock_run.return_value.json_data = [{'name': 'test-apim', 'gatewayUrl': 'https://test-apim.azure-api.net'}]
 
@@ -278,7 +278,7 @@ def test_get_apim_url_success():
 def test_get_apim_url_failure():
     """Test APIM URL retrieval failure."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         mock_run.return_value = Output(False, 'No APIM services found')
 
         result = az.get_apim_url('test-rg')
@@ -289,7 +289,7 @@ def test_get_apim_url_failure():
 def test_get_apim_url_no_gateway():
     """Test APIM URL when service exists but no gateway URL."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         mock_run.return_value = Output(True, '')
         mock_run.return_value.json_data = [{'name': 'test-apim', 'gatewayUrl': None}]
 
@@ -305,7 +305,7 @@ def test_get_apim_url_no_gateway():
 def test_get_appgw_endpoint_success():
     """Test successful Application Gateway endpoint retrieval."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         appgw_output = Output(True, '')
         appgw_output.json_data = [{
             'name': 'test-appgw',
@@ -333,7 +333,7 @@ def test_get_appgw_endpoint_success():
 def test_get_appgw_endpoint_no_gateway():
     """Test Application Gateway endpoint when no gateway found."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         mock_run.return_value = Output(False, 'No gateways found')
 
         hostname, ip = az.get_appgw_endpoint('test-rg')
@@ -345,7 +345,7 @@ def test_get_appgw_endpoint_no_gateway():
 def test_get_appgw_endpoint_no_listeners():
     """Test Application Gateway endpoint with no HTTP listeners."""
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         mock_run.return_value = Output(True, '')
         mock_run.return_value.json_data = [{
             'name': 'test-appgw',
@@ -410,7 +410,7 @@ def test_get_unique_suffix_for_resource_group_success(mock_unlink, mock_time, mo
     mock_file.name = '/tmp/template.json'
     mock_tempfile.return_value.__enter__.return_value = mock_file
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         mock_run.return_value = Output(True, 'abc123def456\n')
 
         result = az.get_unique_suffix_for_resource_group('test-rg')
@@ -431,7 +431,7 @@ def test_get_unique_suffix_for_resource_group_failure(mock_unlink, mock_time, mo
     mock_file.name = '/tmp/template.json'
     mock_tempfile.return_value.__enter__.return_value = mock_file
 
-    with patch('azure_resources._run') as mock_run:
+    with patch('azure_resources.run') as mock_run:
         mock_run.return_value = Output(False, 'Deployment failed')
 
         result = az.get_unique_suffix_for_resource_group('test-rg')

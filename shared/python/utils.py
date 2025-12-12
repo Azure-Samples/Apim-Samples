@@ -18,37 +18,8 @@ from typing import Any
 # APIM Samples imports
 import azure_resources as az
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, get_project_root
+from console import print_error, print_info, print_message, print_success, print_warning, print_val
 
-# ------------------------------
-#    RE-EXPORTS (BACKWARD COMPATIBILITY)
-# ------------------------------
-#
-# The following imports are re-exported from the modules that are now split out from utils.
-# The re-exports are in place to maintain backward compatibility with existing code.
-# For new code, please import directly from the relevant modules.
-from console import (
-    print_error,
-    print_info,
-    print_message,
-    print_success,
-    print_warning,
-    print_val,
-)
-from azure_resources import (
-    check_apim_blob_permissions,
-    cleanup_old_jwt_signing_keys,
-    create_resource_group,
-    find_infrastructure_instances,
-    get_apim_url,
-    get_appgw_endpoint,
-    get_frontdoor_url,
-    get_infra_rg_name,
-    get_resource_group_location,
-    _run as run
-)
-
-
-does_resource_group_exist = az.does_resource_group_exist
 
 # ------------------------------
 #    HELPER FUNCTIONS
@@ -138,7 +109,7 @@ class InfrastructureNotebookHelper:
         try:
             # For infrastructure notebooks, check if update is allowed and handle user choice
             if allow_update:
-                rg_name = get_infra_rg_name(self.deployment, self.index)
+                rg_name = az.get_infra_rg_name(self.deployment, self.index)
                 if az.does_resource_group_exist(rg_name):
                     # Infrastructure exists, show update dialog
                     try:
@@ -157,7 +128,7 @@ class InfrastructureNotebookHelper:
                         raise SystemExit("User cancelled deployment") from exc
 
             # Check infrastructure existence for the normal flow
-            infrastructure_exists = az.does_resource_group_exist(get_infra_rg_name(self.deployment, self.index)) if not allow_update else False
+            infrastructure_exists = az.does_resource_group_exist(az.get_infra_rg_name(self.deployment, self.index)) if not allow_update else False
 
             if bypass_infrastructure_check or not infrastructure_exists:
                 # Map infrastructure types to their folder names
@@ -288,7 +259,7 @@ class NotebookHelper:
         """Clean up old JWT signing keys after successful deployment."""
 
         # Clean up old JWT signing keys after successful deployment
-        if not cleanup_old_jwt_signing_keys(apim_name, self.rg_name, self.jwt_key_name):
+        if not az.cleanup_old_jwt_signing_keys(apim_name, self.rg_name, self.jwt_key_name):
             print_warning('JWT key cleanup failed, but deployment was successful. Old keys may need manual cleanup.')
 
     def _query_and_select_infrastructure(self) -> tuple[INFRASTRUCTURE | None, int | None]:
@@ -309,13 +280,13 @@ class NotebookHelper:
         available_options = []
 
         for infra in self.supported_infrastructures:
-            infra_options = find_infrastructure_instances(infra)
+            infra_options = az.find_infrastructure_instances(infra)
             available_options.extend(infra_options)
 
         # Check if the desired infrastructure/index combination exists
-        desired_rg_name = get_infra_rg_name(self.deployment, self._get_current_index())
+        desired_rg_name = az.get_infra_rg_name(self.deployment, self._get_current_index())
         desired_exists = any(
-            get_infra_rg_name(infra, idx) == desired_rg_name
+            az.get_infra_rg_name(infra, idx) == desired_rg_name
             for infra, idx in available_options
         )
 
@@ -364,10 +335,10 @@ class NotebookHelper:
 
             for infra, index in available_options:
                 index_str = index if index is not None else 'N/A'
-                rg_name = get_infra_rg_name(infra, index)
+                rg_name = az.get_infra_rg_name(infra, index)
 
                 if QUERY_RG_LOCATION:
-                    rg_location = get_resource_group_location(rg_name)
+                    rg_location = az.get_resource_group_location(rg_name)
                     print(f'     {option_counter:>3} {infra.value:<20} {index_str:>8} {rg_name:<35} {rg_location:<15}')
                 else:
                     print(f'     {option_counter:>3} {infra.value:<20} {index_str:>8} {rg_name:<35}')
@@ -470,7 +441,7 @@ class NotebookHelper:
                 # Update the notebook helper with the selected infrastructure
                 self.deployment = selected_deployment
                 self.index = selected_index
-                self.rg_name = get_infra_rg_name(self.deployment, self.index)
+                self.rg_name = az.get_infra_rg_name(self.deployment, self.index)
 
                 # Verify the updates were applied correctly
                 print('📝 Updated infrastructure variables')
@@ -583,7 +554,7 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
     """
 
     # Create the resource group if doesn't exist
-    create_resource_group(rg_name, rg_location, rg_tags)
+    az.create_resource_group(rg_name, rg_location, rg_tags)
 
     if hasattr(deployment, 'value'):
         deployment_name = deployment.value
@@ -626,7 +597,7 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
         cmd += ' --debug'
 
     print('\nDeploying bicep...\n')
-    return run(cmd, f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.", print_command_to_run = False)
+    return az.run(cmd, f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.", print_command_to_run = False)
 
 # TODO: Reconcile this with apimtypes.py get_project_root
 def find_project_root() -> str:
@@ -776,7 +747,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
     print(f'� Debug: does_infrastructure_exist called with allow_update_option={allow_update_option}')
     print('�🔍 Checking if infrastructure already exists...')
 
-    rg_name = get_infra_rg_name(infrastructure, index)
+    rg_name = az.get_infra_rg_name(infrastructure, index)
 
     if az.does_resource_group_exist(rg_name):
         print(f'✅ Infrastructure already exists: {rg_name}\n')
@@ -1013,7 +984,7 @@ def wait_for_apim_blob_permissions(apim_name: str, storage_account_name: str, re
 
     print_info('Azure role assignments can take several minutes to propagate across Azure AD. This check will verify that APIM can access the blob storage before proceeding with tests.\n')
 
-    success = check_apim_blob_permissions(apim_name, storage_account_name, resource_group_name, max_wait_minutes)
+    success = az.check_apim_blob_permissions(apim_name, storage_account_name, resource_group_name, max_wait_minutes)
 
     if success:
         print_success('Permission check passed! Ready to proceed with secure blob access tests.')
@@ -1030,7 +1001,7 @@ def test_url_preflight_check(deployment: INFRASTRUCTURE, rg_name: str, apim_gate
 
     print_message('Checking if the infrastructure architecture deployment uses Azure Front Door.', blank_above = True)
 
-    afd_endpoint_url = get_frontdoor_url(deployment, rg_name)
+    afd_endpoint_url = az.get_frontdoor_url(deployment, rg_name)
 
     if afd_endpoint_url:
         endpoint_url = afd_endpoint_url
@@ -1046,9 +1017,9 @@ def get_endpoints(deployment: INFRASTRUCTURE, rg_name: str) -> Endpoints:
 
     endpoints = Endpoints(deployment)
 
-    endpoints.afd_endpoint_url = get_frontdoor_url(deployment, rg_name)
-    endpoints.apim_endpoint_url = get_apim_url(rg_name)
-    endpoints.appgw_hostname, endpoints.appgw_public_ip = get_appgw_endpoint(rg_name)
+    endpoints.afd_endpoint_url = az.get_frontdoor_url(deployment, rg_name)
+    endpoints.apim_endpoint_url = az.get_apim_url(rg_name)
+    endpoints.appgw_hostname, endpoints.appgw_public_ip = az.get_appgw_endpoint(rg_name)
 
     return endpoints
 

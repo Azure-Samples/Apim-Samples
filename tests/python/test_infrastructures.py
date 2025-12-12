@@ -9,7 +9,6 @@ import pytest
 import console
 import infrastructures
 from apimtypes import INFRASTRUCTURE, APIM_SKU, APIMNetworkMode, API, PolicyFragment, HTTP_VERB, Output
-import utils
 
 
 # ------------------------------
@@ -35,14 +34,6 @@ def mock_utils():
         mock_utils.determine_shared_policy_path.return_value = '/mock/path/policy.xml'
         mock_utils.verify_infrastructure.return_value = True
 
-        # Mock the run command with proper return object
-        mock_output = Mock()
-        mock_output.success = True
-        mock_output.json_data = {'outputs': 'test'}
-        mock_output.get.return_value = 'https://test-apim.azure-api.net'
-        mock_output.getJson.return_value = ['api1', 'api2']
-        mock_utils.run.return_value = mock_output
-
         yield mock_utils
 
 
@@ -56,6 +47,14 @@ def mock_az():
         mock_az.does_resource_group_exist.return_value = True
         mock_az.get_account_info.return_value = ('test_user', 'test_user_id', 'test_tenant', 'test_subscription')
         mock_az.get_unique_suffix_for_resource_group.return_value = 'abc123def456'
+
+        # Mock the run command with proper return object
+        mock_output = Mock()
+        mock_output.success = True
+        mock_output.json_data = {'outputs': 'test'}
+        mock_output.get.return_value = 'https://test-apim.azure-api.net'
+        mock_output.getJson.return_value = ['api1', 'api2']
+        mock_az.run.return_value = mock_output
 
         yield mock_az
 
@@ -365,13 +364,13 @@ def test_base_infrastructure_verification_success(mock_utils, mock_az):
     mock_sub_output.success = True
     mock_sub_output.text = 'test-subscription-key'
 
-    mock_utils.run.side_effect = [mock_apim_output, mock_api_output, mock_sub_output]
+    mock_az.run.side_effect = [mock_apim_output, mock_api_output, mock_sub_output]
 
     result = infra._verify_infrastructure('test-rg')
 
     assert result is True
     mock_az.does_resource_group_exist.assert_called_once_with('test-rg')
-    assert mock_utils.run.call_count >= 2  # At least APIM list and API count
+    assert mock_az.run.call_count >= 2  # At least APIM list and API count
 
 @pytest.mark.unit
 def test_base_infrastructure_verification_missing_rg(mock_utils, mock_az):
@@ -407,7 +406,7 @@ def test_base_infrastructure_verification_missing_apim(mock_utils, mock_az):
     mock_apim_output.success = False
     mock_apim_output.json_data = None
 
-    mock_utils.run.return_value = mock_apim_output
+    mock_az.run.return_value = mock_apim_output
 
     result = infra._verify_infrastructure('test-rg')
 
@@ -432,7 +431,7 @@ def test_infrastructure_specific_verification_base(mock_utils):
 # ------------------------------
 
 @pytest.mark.unit
-def test_apim_aca_infrastructure_verification_success(mock_utils):
+def test_apim_aca_infrastructure_verification_success(mock_az):
     """Test APIM-ACA infrastructure-specific verification success."""
     infra = infrastructures.ApimAcaInfrastructure(
         rg_location=TEST_LOCATION,
@@ -445,19 +444,19 @@ def test_apim_aca_infrastructure_verification_success(mock_utils):
     mock_aca_output.success = True
     mock_aca_output.text = '3'  # 3 Container Apps
 
-    mock_utils.run.return_value = mock_aca_output
+    mock_az.run.return_value = mock_aca_output
 
     result = infra._verify_infrastructure_specific('test-rg')
 
     assert result is True
-    mock_utils.run.assert_called_once_with(
+    mock_az.run.assert_called_once_with(
         'az containerapp list -g test-rg --query "length(@)"',
         print_command_to_run=False,
         print_errors=False
     )
 
 @pytest.mark.unit
-def test_apim_aca_infrastructure_verification_failure(mock_utils):
+def test_apim_aca_infrastructure_verification_failure(mock_az):
     """Test APIM-ACA infrastructure-specific verification failure."""
     infra = infrastructures.ApimAcaInfrastructure(
         rg_location=TEST_LOCATION,
@@ -469,7 +468,7 @@ def test_apim_aca_infrastructure_verification_failure(mock_utils):
     mock_aca_output = Mock()
     mock_aca_output.success = False
 
-    mock_utils.run.return_value = mock_aca_output
+    mock_az.run.return_value = mock_aca_output
 
     result = infra._verify_infrastructure_specific('test-rg')
 
@@ -481,7 +480,7 @@ def test_apim_aca_infrastructure_verification_failure(mock_utils):
 # ------------------------------
 
 @pytest.mark.unit
-def test_afd_apim_infrastructure_verification_success(mock_utils):
+def test_afd_apim_infrastructure_verification_success(mock_az):
     """Test AFD-APIM-PE infrastructure-specific verification success."""
     infra = infrastructures.AfdApimAcaInfrastructure(
         rg_location=TEST_LOCATION,
@@ -504,16 +503,16 @@ def test_afd_apim_infrastructure_verification_success(mock_utils):
     mock_apim_output.success = True
     mock_apim_output.text = 'apim-resource-id'
 
-    mock_utils.run.side_effect = [mock_afd_output, mock_aca_output, mock_apim_output]
+    mock_az.run.side_effect = [mock_afd_output, mock_aca_output, mock_apim_output]
 
     result = infra._verify_infrastructure_specific('test-rg')
 
     assert result is True
     # Allow for 2-3 calls (3rd call is optional for private endpoint verification)
-    assert mock_utils.run.call_count >= 2
+    assert mock_az.run.call_count >= 2
 
 @pytest.mark.unit
-def test_afd_apim_infrastructure_verification_no_afd(mock_utils):
+def test_afd_apim_infrastructure_verification_no_afd(mock_az):
     """Test AFD-APIM-PE infrastructure-specific verification with missing AFD."""
     infra = infrastructures.AfdApimAcaInfrastructure(
         rg_location=TEST_LOCATION,
@@ -526,7 +525,7 @@ def test_afd_apim_infrastructure_verification_no_afd(mock_utils):
     mock_afd_output.success = False
     mock_afd_output.json_data = None
 
-    mock_utils.run.return_value = mock_afd_output
+    mock_az.run.return_value = mock_afd_output
 
     result = infra._verify_infrastructure_specific('test-rg')
 
@@ -637,10 +636,7 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
 
     # Verify the deployment process
     mock_az.create_resource_group.assert_called_once()
-    # The utils.run method is now called multiple times (deployment + verification steps)
-    assert mock_utils.run.call_count >= 1  # At least one call for deployment
-    # Note: utils.verify_infrastructure is currently commented out in the actual code
-    # mock_utils.verify_infrastructure.assert_called_once()
+    assert mock_az.run.call_count >= 1  # At least one call for deployment
 
     # Verify directory changes - just check that chdir was called twice (to infra dir and back)
     assert mock_chdir.call_count == 2
@@ -669,7 +665,7 @@ def test_deploy_infrastructure_failure(mock_path_class, mock_chdir, mock_getcwd,
     # Mock failed deployment
     mock_output = Mock()
     mock_output.success = False
-    mock_utils.run.return_value = mock_output
+    mock_az.run.return_value = mock_output
 
     # Create a concrete subclass for testing
     class TestInfrastructure(infrastructures.Infrastructure):
@@ -690,7 +686,7 @@ def test_deploy_infrastructure_failure(mock_path_class, mock_chdir, mock_getcwd,
 
     # Verify the deployment process was attempted
     mock_az.create_resource_group.assert_called_once()
-    mock_utils.run.assert_called_once()
+    mock_az.run.assert_called_once()
     # Note: utils.verify_infrastructure is currently commented out in the actual code
     # mock_utils.verify_infrastructure.assert_not_called()  # Should not be called on failure
 
@@ -967,7 +963,7 @@ def test_policy_fragment_creation_robustness(mock_utils):
 # ------------------------------
 
 def test_cleanup_resources_smoke(monkeypatch):
-    monkeypatch.setattr(utils, 'run', lambda *a, **kw: MagicMock(success=True, json_data={}))
+    monkeypatch.setattr(infrastructures.az, 'run', lambda *a, **kw: MagicMock(success=True, json_data={}))
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_error', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
@@ -1033,7 +1029,7 @@ def test_cleanup_resources_with_resources(monkeypatch):
         # Default successful response for delete/purge operations
         return Output(success=True, text='Operation completed')
 
-    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
     monkeypatch.setattr(console, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(console, 'print_message', lambda *a, **kw: None)
 
@@ -1083,7 +1079,7 @@ def test_cleanup_resources_no_resources(monkeypatch):
         # Default successful response
         return Output(success=True, text='Operation completed')
 
-    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
 
@@ -1119,7 +1115,7 @@ def test_cleanup_resources_command_failures(monkeypatch):
         # All other commands succeed
         return Output(success=True, json_data=[])
 
-    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
 
@@ -1137,7 +1133,7 @@ def test_cleanup_resources_exception_handling(monkeypatch):
     def mock_print(message):
         exception_caught.append(message)
 
-    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
     monkeypatch.setattr('builtins.print', mock_print)
@@ -1274,7 +1270,7 @@ def test_cleanup_infra_deployments_max_workers_limit(monkeypatch):
 
     monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
     monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
-    monkeypatch.setattr(utils, 'run', mock_run)  # Mock Azure CLI calls
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)  # Mock Azure CLI calls
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)
 
@@ -1319,8 +1315,8 @@ def test_cleanup_infra_deployments_thread_color_assignment(monkeypatch):
         return Output(success=True, text='{}')
 
     monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
-    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
-    monkeypatch.setattr(utils, 'run', mock_run)  # Mock Azure CLI calls
+    monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)  # Mock Azure CLI calls
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)
 
@@ -1392,7 +1388,7 @@ def test_cleanup_infra_deployments_index_scenarios(monkeypatch):
     monkeypatch.setattr(infrastructures, '_cleanup_resources', mock_cleanup_resources)
     monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
     monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
-    monkeypatch.setattr(utils, 'run', mock_run)  # Mock Azure CLI calls
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)  # Mock Azure CLI calls
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)
 
@@ -1460,7 +1456,7 @@ def test_cleanup_functions_comprehensive(monkeypatch):
     def mock_get_infra_rg_name(deployment, index):
         return f'test-rg-{deployment.value}-{index}' if index else f'test-rg-{deployment.value}'
 
-    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
     monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
@@ -1503,7 +1499,7 @@ def test_cleanup_edge_cases_comprehensive(monkeypatch):
     monkeypatch.setattr(infrastructures, '_cleanup_resources', mock_cleanup_resources)
     monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
     monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
-    monkeypatch.setattr(utils, 'run', mock_run)  # Mock Azure CLI calls
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)  # Mock Azure CLI calls
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)
 
@@ -1566,7 +1562,7 @@ def test_cleanup_resources_partial_failures(monkeypatch):
         # Resource group deletion succeeds
         return Output(success=True, text='Operation completed')
 
-    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
     monkeypatch.setattr(console, 'print_success', lambda *a, **kw: None)
@@ -1623,7 +1619,7 @@ def test_cleanup_resources_malformed_responses(monkeypatch):
         # Default response for delete/purge operations
         return Output(success=True, text='Operation completed')
 
-    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
 

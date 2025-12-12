@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List, Optional, Any
 
 # APIM Samples imports
-from console import (print_error, print_val)
+from console import print_error, print_val
 from json_utils import is_string_json, extract_json
 
 
@@ -46,37 +46,6 @@ API_ID_XML_POLICY_PATH          = str(_SHARED_XML_POLICY_BASE_PATH / 'api-id.xml
 
 SUBSCRIPTION_KEY_PARAMETER_NAME = 'api-key'
 SLEEP_TIME_BETWEEN_REQUESTS_MS  = 50
-
-# Explicitly define what is exported with 'from apimtypes import *'
-__all__ = [
-    # Constants
-    'DEFAULT_XML_POLICY_PATH',
-    'HELLO_WORLD_XML_POLICY_PATH',
-    'REQUEST_HEADERS_XML_POLICY_PATH',
-    'BACKEND_XML_POLICY_PATH',
-    'API_ID_XML_POLICY_PATH',
-    'SUBSCRIPTION_KEY_PARAMETER_NAME',
-    'SLEEP_TIME_BETWEEN_REQUESTS_MS',
-    # Enums
-    'Role',
-    'APIMNetworkMode',
-    'APIM_SKU',
-    'HTTP_VERB',
-    'INFRASTRUCTURE',
-    # Data classes and regular classes
-    'Endpoints',
-    'Output',
-    'API',
-    'APIOperation',
-    'GET_APIOperation',
-    'GET_APIOperation2',
-    'POST_APIOperation',
-    'NamedValue',
-    'PolicyFragment',
-    'Product',
-    # Functions
-    'get_project_root',
-]
 
 
 # ------------------------------

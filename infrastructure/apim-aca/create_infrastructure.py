@@ -7,10 +7,9 @@ import argparse
 
 # APIM Samples imports
 import azure_resources as az
-from apimtypes import APIM_SKU, API, GET_APIOperation, BACKEND_XML_POLICY_PATH
-from apimtypes import INFRASTRUCTURE
+from apimtypes import APIM_SKU, API, GET_APIOperation, BACKEND_XML_POLICY_PATH, INFRASTRUCTURE
 from infrastructures import ApimAcaInfrastructure
-import utils
+from utils import read_policy_xml
 
 
 def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU) -> None:
@@ -40,7 +39,7 @@ def _create_aca_specific_apis() -> list[API]:
     """
 
     # Define the APIs with Container Apps backends
-    pol_backend          = utils.read_policy_xml(BACKEND_XML_POLICY_PATH)
+    pol_backend          = read_policy_xml(BACKEND_XML_POLICY_PATH)
     pol_aca_backend_1    = pol_backend.format(backend_id = 'aca-backend-1')
     pol_aca_backend_2    = pol_backend.format(backend_id = 'aca-backend-2')
     pol_aca_backend_pool = pol_backend.format(backend_id = 'aca-backend-pool')
