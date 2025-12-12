@@ -14,8 +14,9 @@ import base64
 import inspect
 from pathlib import Path
 from typing import Any
-import azure_resources as az
 
+# APIM Samples imports
+import azure_resources as az
 import apimtypes
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, _get_project_root
 
@@ -48,14 +49,7 @@ from azure_resources import (
 )
 
 
-def does_resource_group_exist(rg_name: str) -> bool:
-    """Check whether an Azure resource group exists.
-
-    This wrapper keeps `utils.does_resource_group_exist` monkeypatchable while
-    still delegating to the underlying `azure_resources` implementation.
-    """
-
-    return az.does_resource_group_exist(rg_name)
+does_resource_group_exist = az.does_resource_group_exist
 
 # ------------------------------
 #    HELPER FUNCTIONS
@@ -146,7 +140,7 @@ class InfrastructureNotebookHelper:
             # For infrastructure notebooks, check if update is allowed and handle user choice
             if allow_update:
                 rg_name = get_infra_rg_name(self.deployment, self.index)
-                if does_resource_group_exist(rg_name):
+                if az.does_resource_group_exist(rg_name):
                     # Infrastructure exists, show update dialog
                     try:
                         should_proceed, new_index = _prompt_for_infrastructure_update(rg_name)
@@ -164,7 +158,7 @@ class InfrastructureNotebookHelper:
                         raise SystemExit("User cancelled deployment") from exc
 
             # Check infrastructure existence for the normal flow
-            infrastructure_exists = does_resource_group_exist(get_infra_rg_name(self.deployment, self.index)) if not allow_update else False
+            infrastructure_exists = az.does_resource_group_exist(get_infra_rg_name(self.deployment, self.index)) if not allow_update else False
 
             if bypass_infrastructure_check or not infrastructure_exists:
                 # Map infrastructure types to their folder names
@@ -460,7 +454,7 @@ class NotebookHelper:
         print(f'   Resource group : {self.rg_name}\n')
 
         # Call the resource group existence check only once
-        rg_exists = does_resource_group_exist(self.rg_name)
+        rg_exists = az.does_resource_group_exist(self.rg_name)
 
         # If the desired infrastructure doesn't exist, use the interactive selection process
         if not rg_exists:
@@ -785,7 +779,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
 
     rg_name = get_infra_rg_name(infrastructure, index)
 
-    if does_resource_group_exist(rg_name):
+    if az.does_resource_group_exist(rg_name):
         print(f'✅ Infrastructure already exists: {rg_name}\n')
 
         if allow_update_option:

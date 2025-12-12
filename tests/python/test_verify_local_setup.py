@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from typing import Any, TYPE_CHECKING, cast
-
 import pytest
 
 # Ensure the setup folder is on sys.path so the verification script is importable.

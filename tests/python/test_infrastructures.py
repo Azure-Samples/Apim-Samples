@@ -4,6 +4,8 @@ Unit tests for infrastructures.py.
 
 from unittest.mock import Mock, patch, MagicMock
 import pytest
+
+# APIM Samples imports
 import console
 import infrastructures
 from apimtypes import INFRASTRUCTURE, APIM_SKU, APIMNetworkMode, API, PolicyFragment, HTTP_VERB, Output
@@ -28,14 +30,10 @@ TEST_NETWORK_MODE = APIMNetworkMode.PUBLIC
 def mock_utils():
     """Mock the utils module to avoid external dependencies."""
     with patch('infrastructures.utils') as mock_utils:
-        mock_utils.get_infra_rg_name.return_value = 'rg-test-infrastructure-01'
         mock_utils.build_infrastructure_tags.return_value = {'environment': 'test', 'project': 'apim-samples'}
         mock_utils.read_policy_xml.return_value = '<policies><inbound><base /></inbound></policies>'
         mock_utils.determine_shared_policy_path.return_value = '/mock/path/policy.xml'
-        mock_utils.create_resource_group.return_value = None
         mock_utils.verify_infrastructure.return_value = True
-        mock_utils.get_account_info.return_value = ('test_user', 'test_user_id', 'test_tenant', 'test_subscription')
-        mock_utils.get_unique_suffix_for_resource_group.return_value = 'abc123def456'
 
         # Mock the run command with proper return object
         mock_output = Mock()
@@ -46,6 +44,20 @@ def mock_utils():
         mock_utils.run.return_value = mock_output
 
         yield mock_utils
+
+
+@pytest.fixture(autouse = True)
+def mock_az():
+    """Mock the azure_resources module used by infrastructures."""
+
+    with patch('infrastructures.az') as mock_az:
+        mock_az.get_infra_rg_name.return_value = 'rg-test-infrastructure-01'
+        mock_az.create_resource_group.return_value = None
+        mock_az.does_resource_group_exist.return_value = True
+        mock_az.get_account_info.return_value = ('test_user', 'test_user_id', 'test_tenant', 'test_subscription')
+        mock_az.get_unique_suffix_for_resource_group.return_value = 'abc123def456'
+
+        yield mock_az
 
 @pytest.fixture
 def mock_policy_fragments():
@@ -141,7 +153,7 @@ def test_infrastructure_creation_with_custom_apis(mock_utils, mock_apis):
     assert any(api.name == 'hello-world' for api in apis)
 
 @pytest.mark.unit
-def test_infrastructure_creation_calls_utils_functions(mock_utils):
+def test_infrastructure_creation_calls_utils_functions(mock_utils, mock_az):
     """Test that Infrastructure creation calls expected utility functions."""
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
@@ -149,7 +161,7 @@ def test_infrastructure_creation_calls_utils_functions(mock_utils):
         rg_location=TEST_LOCATION
     )
 
-    mock_utils.get_infra_rg_name.assert_called_once_with(INFRASTRUCTURE.SIMPLE_APIM, TEST_INDEX)
+    mock_az.get_infra_rg_name.assert_called_once_with(INFRASTRUCTURE.SIMPLE_APIM, TEST_INDEX)
     mock_utils.build_infrastructure_tags.assert_called_once_with(INFRASTRUCTURE.SIMPLE_APIM)
 
     # Initialize policy fragments to trigger utils calls
@@ -327,7 +339,7 @@ def test_define_bicep_parameters(mock_utils):
 # ------------------------------
 
 @pytest.mark.unit
-def test_base_infrastructure_verification_success(mock_utils):
+def test_base_infrastructure_verification_success(mock_utils, mock_az):
     """Test base infrastructure verification success."""
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
@@ -336,7 +348,7 @@ def test_base_infrastructure_verification_success(mock_utils):
     )
 
     # Mock successful resource group check
-    mock_utils.does_resource_group_exist.return_value = True
+    mock_az.does_resource_group_exist.return_value = True
 
     # Mock successful APIM service check
     mock_apim_output = Mock()
@@ -358,11 +370,11 @@ def test_base_infrastructure_verification_success(mock_utils):
     result = infra._verify_infrastructure('test-rg')
 
     assert result is True
-    mock_utils.does_resource_group_exist.assert_called_once_with('test-rg')
+    mock_az.does_resource_group_exist.assert_called_once_with('test-rg')
     assert mock_utils.run.call_count >= 2  # At least APIM list and API count
 
 @pytest.mark.unit
-def test_base_infrastructure_verification_missing_rg(mock_utils):
+def test_base_infrastructure_verification_missing_rg(mock_utils, mock_az):
     """Test base infrastructure verification with missing resource group."""
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
@@ -371,15 +383,15 @@ def test_base_infrastructure_verification_missing_rg(mock_utils):
     )
 
     # Mock missing resource group
-    mock_utils.does_resource_group_exist.return_value = False
+    mock_az.does_resource_group_exist.return_value = False
 
     result = infra._verify_infrastructure('test-rg')
 
     assert result is False
-    mock_utils.does_resource_group_exist.assert_called_once_with('test-rg')
+    mock_az.does_resource_group_exist.assert_called_once_with('test-rg')
 
 @pytest.mark.unit
-def test_base_infrastructure_verification_missing_apim(mock_utils):
+def test_base_infrastructure_verification_missing_apim(mock_utils, mock_az):
     """Test base infrastructure verification with missing APIM service."""
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.SIMPLE_APIM,
@@ -388,7 +400,7 @@ def test_base_infrastructure_verification_missing_apim(mock_utils):
     )
 
     # Mock successful resource group check
-    mock_utils.does_resource_group_exist.return_value = True
+    mock_az.does_resource_group_exist.return_value = True
 
     # Mock failed APIM service check
     mock_apim_output = Mock()
@@ -595,7 +607,7 @@ def test_all_concrete_infrastructure_classes_have_verification(mock_utils):
 @patch('os.getcwd')
 @patch('os.chdir')
 @patch('pathlib.Path')
-def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd, mock_utils):
+def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd, mock_utils, mock_az):
     """Test successful infrastructure deployment."""
     # Setup mocks
     mock_getcwd.return_value = '/original/path'
@@ -624,7 +636,7 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
         result = infra.deploy_infrastructure()
 
     # Verify the deployment process
-    mock_utils.create_resource_group.assert_called_once()
+    mock_az.create_resource_group.assert_called_once()
     # The utils.run method is now called multiple times (deployment + verification steps)
     assert mock_utils.run.call_count >= 1  # At least one call for deployment
     # Note: utils.verify_infrastructure is currently commented out in the actual code
@@ -645,7 +657,7 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
 @patch('os.getcwd')
 @patch('os.chdir')
 @patch('pathlib.Path')
-def test_deploy_infrastructure_failure(mock_path_class, mock_chdir, mock_getcwd, mock_utils):
+def test_deploy_infrastructure_failure(mock_path_class, mock_chdir, mock_getcwd, mock_utils, mock_az):
     """Test infrastructure deployment failure."""
     # Setup mocks for failure scenario
     mock_getcwd.return_value = '/original/path'
@@ -677,7 +689,7 @@ def test_deploy_infrastructure_failure(mock_path_class, mock_chdir, mock_getcwd,
         result = infra.deploy_infrastructure()
 
     # Verify the deployment process was attempted
-    mock_utils.create_resource_group.assert_called_once()
+    mock_az.create_resource_group.assert_called_once()
     mock_utils.run.assert_called_once()
     # Note: utils.verify_infrastructure is currently commented out in the actual code
     # mock_utils.verify_infrastructure.assert_not_called()  # Should not be called on failure
@@ -1156,7 +1168,7 @@ def test_cleanup_infra_deployments_parallel_mode(monkeypatch):
         return f'apim-infra-{deployment.value}-{index}' if index else f'apim-infra-{deployment.value}'
 
     monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
-    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)
 
@@ -1197,7 +1209,7 @@ def test_cleanup_infra_deployments_parallel_with_failures(monkeypatch):
         return f'apim-infra-{deployment.value}-{index}'
 
     monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
-    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_error', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_warning', lambda *a, **kw: None)
@@ -1261,7 +1273,7 @@ def test_cleanup_infra_deployments_max_workers_limit(monkeypatch):
         return Output(success=True, text='{}')
 
     monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
-    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
     monkeypatch.setattr(utils, 'run', mock_run)  # Mock Azure CLI calls
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)
@@ -1344,7 +1356,7 @@ def test_cleanup_infra_deployments_all_infrastructure_types(monkeypatch):
         return f'apim-infra-{deployment.value}-{index}' if index else f'apim-infra-{deployment.value}'
 
     monkeypatch.setattr(infrastructures, '_cleanup_resources', mock_cleanup_resources)
-    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
 
     # Test all infrastructure types
@@ -1379,7 +1391,7 @@ def test_cleanup_infra_deployments_index_scenarios(monkeypatch):
 
     monkeypatch.setattr(infrastructures, '_cleanup_resources', mock_cleanup_resources)
     monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
-    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
     monkeypatch.setattr(utils, 'run', mock_run)  # Mock Azure CLI calls
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)
@@ -1449,7 +1461,7 @@ def test_cleanup_functions_comprehensive(monkeypatch):
         return f'test-rg-{deployment.value}-{index}' if index else f'test-rg-{deployment.value}'
 
     monkeypatch.setattr(utils, 'run', mock_run)
-    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
 
@@ -1490,7 +1502,7 @@ def test_cleanup_edge_cases_comprehensive(monkeypatch):
 
     monkeypatch.setattr(infrastructures, '_cleanup_resources', mock_cleanup_resources)
     monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
-    monkeypatch.setattr(utils, 'get_infra_rg_name', mock_get_infra_rg_name)
+    monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
     monkeypatch.setattr(utils, 'run', mock_run)  # Mock Azure CLI calls
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)

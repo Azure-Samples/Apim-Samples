@@ -97,6 +97,19 @@ Write-Host ""
 $LintStatus = if ($LintExitCode -eq 0) { "✅ PASSED" } else { "⚠️  ISSUES FOUND" }
 $TestStatus = if ($TestExitCode -eq 0) { "✅ PASSED" } else { "❌ FAILED" }
 
+$PylintScore = $null
+$LatestPylintText = Join-Path $ScriptDir "pylint/reports/latest.txt"
+if (Test-Path $LatestPylintText) {
+    $ScoreMatch = Select-String -Path $LatestPylintText -Pattern 'rated at (\d+(?:\.\d+)?/10)' | Select-Object -First 1
+    if ($ScoreMatch -and $ScoreMatch.Matches.Count -gt 0) {
+        $PylintScore = $ScoreMatch.Matches[0].Groups[1].Value
+    }
+}
+
+if ($PylintScore) {
+    $LintStatus = "$LintStatus ($PylintScore)"
+}
+
 $LintColor = if ($LintExitCode -eq 0) { "Green" } else { "Yellow" }
 $TestColor = if ($TestExitCode -eq 0) { "Green" } else { "Red" }
 

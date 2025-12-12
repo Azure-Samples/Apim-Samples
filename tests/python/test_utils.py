@@ -9,6 +9,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, mock_open
 import json
 import pytest
+
+# APIM Samples imports
 from apimtypes import INFRASTRUCTURE, APIM_SKU
 import utils
 import json_utils
@@ -596,7 +598,7 @@ def test_bicep_directory_determination_edge_cases(monkeypatch, tmp_path):
 def test_create_resource_group_edge_cases(monkeypatch):
     """Test create resource group with edge cases."""
     # Test with empty tags
-    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda x: False)
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda x: False)
 
     def mock_run_with_tags(*args, **kwargs):
         cmd = args[0]
@@ -770,7 +772,7 @@ def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch)
         return (False, 3)  # Second retry with index 3
 
     monkeypatch.setattr(utils, '_prompt_for_infrastructure_update', mock_prompt)
-    monkeypatch.setattr(utils, 'does_resource_group_exist', mock_rg_exists)
+    monkeypatch.setattr(az, 'does_resource_group_exist', mock_rg_exists)
 
     # Mock subprocess execution to succeed
     class MockProcess:
@@ -802,7 +804,7 @@ def test_infrastructure_notebook_helper_create_user_cancellation(monkeypatch):
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
 
     # Mock resource group to exist (triggering prompt)
-    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda rg_name: True)
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg_name: True)
 
     # Mock the prompt to return cancellation (option 3)
     monkeypatch.setattr(utils, '_prompt_for_infrastructure_update', lambda rg_name: (False, None))
@@ -820,7 +822,7 @@ def test_infrastructure_notebook_helper_create_keyboard_interrupt_during_prompt(
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
 
     # Mock resource group to exist (triggering prompt)
-    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda rg_name: True)
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg_name: True)
 
     # Mock the prompt to raise KeyboardInterrupt
     def mock_prompt(rg_name):
@@ -841,7 +843,7 @@ def test_infrastructure_notebook_helper_create_eof_error_during_prompt(monkeypat
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
 
     # Mock resource group to exist (triggering prompt)
-    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda rg_name: True)
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg_name: True)
 
     # Mock the prompt to raise EOFError
     def mock_prompt(rg_name):
@@ -864,7 +866,7 @@ def test_deploy_sample_with_infrastructure_selection(monkeypatch):
     )
 
     # Mock does_resource_group_exist to return False for original, triggering selection
-    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda rg: False)
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: False)
 
     # Mock infrastructure selection to return a valid infrastructure
     selected_infra = INFRASTRUCTURE.APIM_ACA
@@ -900,7 +902,7 @@ def test_deploy_sample_no_infrastructure_found(monkeypatch):
     )
 
     # Mock does_resource_group_exist to return False for original
-    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda rg: False)
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: False)
 
     # Mock infrastructure selection to return None (no infrastructure found)
     monkeypatch.setattr(nb_helper, '_query_and_select_infrastructure',
@@ -921,7 +923,7 @@ def test_deploy_sample_existing_infrastructure(monkeypatch):
     )
 
     # Mock does_resource_group_exist to return True (infrastructure exists)
-    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda rg: True)
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: True)
 
     # Mock successful deployment
     mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
@@ -947,7 +949,7 @@ def test_deploy_sample_deployment_failure(monkeypatch):
     )
 
     # Mock does_resource_group_exist to return True
-    monkeypatch.setattr(utils, 'does_resource_group_exist', lambda rg: True)
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: True)
 
     # Mock failed deployment
     mock_output = utils.Output(success=False, text='Deployment failed')

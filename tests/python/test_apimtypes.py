@@ -4,8 +4,9 @@ Unit tests for apimtypes.py.
 
 from pathlib import Path
 import pytest
-import apimtypes
 
+# APIM Samples imports
+import apimtypes
 
 
 # ------------------------------

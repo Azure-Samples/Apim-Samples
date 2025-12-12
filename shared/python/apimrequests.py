@@ -5,10 +5,10 @@ Module for making requests to Azure API Management endpoints with consistent log
 import json
 import time
 from typing import Any
-
 import requests
 import urllib3
 
+# APIM Samples imports
 from apimtypes import HTTP_VERB, SUBSCRIPTION_KEY_PARAMETER_NAME, SLEEP_TIME_BETWEEN_REQUESTS_MS
 import console
 

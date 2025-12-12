@@ -4,7 +4,11 @@ This module provides a reusable way to create API Management with Azure Containe
 
 import sys
 import argparse
+
+# APIM Samples imports
+import azure_resources as az
 from apimtypes import APIM_SKU, API, GET_APIOperation, BACKEND_XML_POLICY_PATH
+from apimtypes import INFRASTRUCTURE
 from infrastructures import ApimAcaInfrastructure
 import utils
 
@@ -12,7 +16,7 @@ import utils
 def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU) -> None:
     try:
         # Check if infrastructure already exists to determine messaging
-        infrastructure_exists = utils.does_resource_group_exist(utils.get_infra_rg_name(utils.INFRASTRUCTURE.APIM_ACA, index))
+        infrastructure_exists = az.does_resource_group_exist(az.get_infra_rg_name(INFRASTRUCTURE.APIM_ACA, index))
 
         # Create custom APIs for APIM-ACA with Container Apps backends
         custom_apis = _create_aca_specific_apis()

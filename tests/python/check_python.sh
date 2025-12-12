@@ -17,6 +17,8 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SHOW_REPORT=""
 TARGET="${1:-infrastructure samples setup shared tests}"
 
+PYLINT_SCORE=""
+
 # Parse arguments
 if [ "$1" = "--show-report" ]; then
     SHOW_REPORT="--show-report"
@@ -45,6 +47,12 @@ set +e
 "$SCRIPT_DIR/run_pylint.sh" "$TARGET" $SHOW_REPORT
 LINT_EXIT_CODE=$?
 set -e
+
+# Extract pylint score from the latest report, if available
+PYLINT_LATEST_TEXT="$SCRIPT_DIR/pylint/reports/latest.txt"
+if [ -f "$PYLINT_LATEST_TEXT" ]; then
+    PYLINT_SCORE=$(grep -Eo 'rated at [0-9]+(\.[0-9]+)?/10' "$PYLINT_LATEST_TEXT" | head -n 1 | awk '{print $3}')
+fi
 
 echo ""
 
@@ -76,9 +84,17 @@ echo "╚═══════════════════════�
 echo ""
 
 if [ $LINT_EXIT_CODE -eq 0 ]; then
-    echo "   Pylint:  ✅ PASSED"
+    if [ -n "$PYLINT_SCORE" ]; then
+        echo "   Pylint:  ✅ PASSED ($PYLINT_SCORE)"
+    else
+        echo "   Pylint:  ✅ PASSED"
+    fi
 else
-    echo "   Pylint:  ⚠️  ISSUES FOUND"
+    if [ -n "$PYLINT_SCORE" ]; then
+        echo "   Pylint:  ⚠️  ISSUES FOUND ($PYLINT_SCORE)"
+    else
+        echo "   Pylint:  ⚠️  ISSUES FOUND"
+    fi
 fi
 
 if [ $TEST_EXIT_CODE -eq 0 ]; then

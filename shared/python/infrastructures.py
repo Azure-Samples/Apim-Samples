@@ -11,6 +11,7 @@ from typing import List
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 
+# APIM Samples imports
 from apimtypes import (
     API,
     APIM_SKU,
@@ -24,6 +25,7 @@ from console import (
     BOLD_R, BOLD_Y, RESET, THREAD_COLORS, _print_lock, _print_log,
     print_error, print_info, print_message, print_ok, print_success, print_warning
 )
+import azure_resources as az
 import utils
 from utils import Output
 
@@ -52,15 +54,15 @@ class Infrastructure:
         self.infra_pfs = infra_pfs
 
         # Define and create the resource group
-        self.rg_name = utils.get_infra_rg_name(infra, index)
+        self.rg_name = az.get_infra_rg_name(infra, index)
         self.rg_tags = utils.build_infrastructure_tags(infra)
-        utils.create_resource_group(self.rg_name, self.rg_location, self.rg_tags)
+        az.create_resource_group(self.rg_name, self.rg_location, self.rg_tags)
 
         # Some infrastructure deployments require knowing the resource suffix that bicep will use prior to the main deployment.
         # Uses subscription ID and resource group name hashing to generate the suffix.
-        self.resource_suffix = utils.get_unique_suffix_for_resource_group(self.rg_name)
+        self.resource_suffix = az.get_unique_suffix_for_resource_group(self.rg_name)
 
-        self.current_user, self.current_user_id, self.tenant_id, self.subscription_id = utils.get_account_info()
+        self.current_user, self.current_user_id, self.tenant_id, self.subscription_id = az.get_account_info()
 
 
 
@@ -132,7 +134,7 @@ class Infrastructure:
 
         try:
             # Check if the resource group exists
-            if not utils.does_resource_group_exist(rg_name):
+            if not az.does_resource_group_exist(rg_name):
                 print('❌ Resource group does not exist!')
                 return False
 
@@ -1420,7 +1422,7 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
     if len(indexes_list) <= 1:
         idx = indexes_list[0] if indexes_list else None
         print_info(f'Cleaning up resources for {deployment.value} - {idx}', True)
-        rg_name = utils.get_infra_rg_name(deployment, idx)
+        rg_name = az.get_infra_rg_name(deployment, idx)
         _cleanup_resources(deployment.value, rg_name)
         return
 
@@ -1435,7 +1437,7 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
 
     cleanup_tasks = []
     for i, idx in enumerate(indexes_list):
-        rg_name = utils.get_infra_rg_name(deployment, idx)
+        rg_name = az.get_infra_rg_name(deployment, idx)
         thread_color = THREAD_COLORS[i % len(THREAD_COLORS)]
         thread_prefix = f"{thread_color}[{deployment.value}-{idx}]{RESET}: "
 

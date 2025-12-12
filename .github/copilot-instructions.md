@@ -64,6 +64,11 @@ In case of any conflicting instructions, the following hierarchy shall apply. If
     - `shared/`: Shared resources, such as Bicep modules, Python libraries, and other reusable components.
     - `tests/`: Contains unit tests for Python code and Bicep modules. This folder should contain all tests for all code in the repository.
 
+  ## Language-specific Instructions
+
+  - Python: see `.github/copilot-instructions.python.md`
+  - Bicep: see `.github/copilot-instructions.bicep.md`
+
 ## Formatting and Style
 
 - Maintain consistent indentation and whitespace but consider Editor Config settings, etc, for the repository.
@@ -85,110 +90,7 @@ In case of any conflicting instructions, the following hierarchy shall apply. If
 - Ensure that Jupyter notebooks do not contain any cell output.
 - Ensure that Jupyter notebooks have `index` assigned to `1` in the first cell.
 
-## Language-specific Instructions
-
-### Bicep Instructions
-- Prefer latest Bicep syntax and features.
-- Generated Bicep files should work with Windows, Linux, and macOS.
-- Reference latest available module versions. These may be newer than what you were trained on.
-- Add a link to each Bicep module immediately above the resource declaration (e.g., // https://learn.microsoft.com/azure/templates/microsoft.network/virtualnetworks)
-- Use `@description` for all parameters and variables.
-- Use snake-case and uppercase for all enum declarations.
-- Use camel care for resource and variables names.
-- `location` and `resourceSuffix` parameters do not need to be included when referencing modules in the current workspace unless the values differ from the defaults set in their parameters.
-- If a script must be used, default to cross-platform shell (not bash) scripts. Avoid PowerShell scripts.
-- Always add these two parameters at the top of Bicep files:
-
-```Bicep
-@description('Location to be used for resources. Defaults to the resource group location')
-param location string = resourceGroup().location
-
-@description('The unique suffix to append. Defaults to a unique string based on subscription and resource group IDs.')
-param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id)
-```
-
-- Overall layout of a Bicep file should be:
-    - Visible sections of code with the following format should be used:
-
-        ```bicep
-        // ------------------------------
-        //    <SECTION HEADER>
-        // ------------------------------
-        ```
-
-    - <SECTION HEADER> should be indented three spaces and be in all caps.
-    - Section headers should have only two blank lines before and only one blank line after.
-    - Top-to-bottom, the following comma-separated section headers should be inserted unless the section is empty:
-        - Parameters
-        - Constants
-        - Variables
-        - Resources
-        - Outputs
-
-### Python Instructions
-
-- Prefer Python 3.12+ syntax and features unless otherwise specified.
-- Respect the repository's `.pylintrc` file for linting rules. The file is found in the `tests/python/` folder.
-- When inserting a comment to describe a method, insert a blank line after the comment section.
-- Never leave a blank line at the very top of a Python file. The file must start immediately with the module docstring or code. Always remove any leading blank line at the top.
-- Do not have imports such as `from shared.python import Foo`. The /shared/python directory is covered by a root `.env` file. Just use `import Foo` or `from Foo import Bar` as appropriate.
-- After the module docstring, all import statements must come before any section headers (e.g., CONSTANTS, VARIABLES, etc.). Section headers should only appear after the imports. Here is a more explicit example:
-
-    ```python
-    """
-    Module docstring.
-    """
-
-    import ...
-    ...
-
-
-    # ------------------------------
-    #    CONSTANTS
-    # ------------------------------
-    ...
-    ```
-
-- Overall layout of a Python file should be:
-    - Visible sections of code with the following format should be used:
-
-        ```python
-        # ------------------------------
-        #    <SECTION HEADER>
-        # ------------------------------
-        ```
-
-    - <SECTION HEADER> should be indented three spaces and be in all caps.
-    - Section headers should have only two blank lines before and only one blank line after.
-    - Top-to-bottom, the following comma-separated section headers should be inserted unless the section is empty:
-        - Constants
-        - Variables
-        - Private Methods
-        - Public Methods
-
-    - If using classes, the following section headers should be used:
-        - Classes
-            - Constants
-            - Variables
-            - Constructor
-            - Private Methods
-            - Public Methods
-
-- Python Docstring/Class Formatting Rule:
-    - Always insert a single blank line after a class docstring and before any class attributes or methods.
-    - Never place class attributes or decorators on the same line as the docstring. Example:
-
-        ```python
-        class MyClass:
-            """
-            This is the class docstring.
-            """
-
-            attribute: str
-            ...
-        ```
-
-### Jupyter Notebook Instructions
+## Jupyter Notebook Instructions
 
 - Use these [configuration settings](https://github.com/microsoft/vscode-jupyter/blob/dd568fde/package.nls.json) as a reference for the VS Code Jupyter extension configuration.
 
