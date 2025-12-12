@@ -7,8 +7,7 @@ import argparse
 
 # APIM Samples imports
 import azure_resources as az
-from apimtypes import APIM_SKU, API, GET_APIOperation, BACKEND_XML_POLICY_PATH
-from apimtypes import INFRASTRUCTURE
+from apimtypes import APIM_SKU, API, GET_APIOperation, BACKEND_XML_POLICY_PATH, INFRASTRUCTURE
 from infrastructures import AppGwApimPeInfrastructure
 import utils
 

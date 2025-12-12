@@ -15,6 +15,7 @@ from apimtypes import INFRASTRUCTURE, APIM_SKU
 import utils
 import json_utils
 import azure_resources as az
+from console import print_error, print_info, print_message, print_success, print_val, print_warning
 
 # ------------------------------
 #    get_infra_rg_name & get_rg_name
@@ -371,12 +372,12 @@ def test_print_functions_comprehensive():
 
     try:
         # Test all print functions
-        utils.print_info('Test info message')
-        utils.print_success('Test success message')
-        utils.print_warning('Test warning message')
-        utils.print_error('Test error message')
-        utils.print_message('Test message')
-        utils.print_val('Test key', 'Test value')
+        print_info('Test info message')
+        print_success('Test success message')
+        print_warning('Test warning message')
+        print_error('Test error message')
+        print_message('Test message')
+        print_val('Test key', 'Test value')
 
         output = captured_output.getvalue()
         assert 'Test info message' in output
