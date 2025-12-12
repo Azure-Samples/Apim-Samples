@@ -37,3 +37,6 @@ shared/bicep/modules/**/*.json
 main.json
 
 Test-Matrix.html
+
+$JsonReport
+$TextReport

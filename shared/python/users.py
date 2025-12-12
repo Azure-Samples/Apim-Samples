@@ -33,17 +33,17 @@ class User:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, id: str, name: str, roles: list[str] = None) -> None:
+    def __init__(self, user_id: str, name: str, roles: list[str] = None) -> None:
         """
         Initializes a User instance with a unique ID, name, and roles.
 
         Args:
-            id (str): The user's unique ID.
+            user_id (str): The user's unique ID.
             name (str): The user's name.
             roles (list, optional): The user's roles. Defaults to empty list.
         """
 
-        self.id = id
+        self.id = user_id
         self.name = name
         self.roles = roles if roles is not None else []
 
@@ -110,8 +110,6 @@ class UserHelper:
         Returns:
             User | None: A random user with one of the given roles, or a user with no roles if Role.NONE is specified, or None if no match.
         """
-
-        from apimtypes import Role
 
         if isinstance(role_or_roles, str):
             roles = [role_or_roles]

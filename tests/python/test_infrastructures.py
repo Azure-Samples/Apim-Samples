@@ -961,7 +961,7 @@ def test_cleanup_resources_smoke(monkeypatch):
     monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_warning', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_val', lambda *a, **kw: None)
+    monkeypatch.setattr(console, 'print_val', lambda *a, **kw: None)
     # Direct private method call for legacy test (should still work)
     infrastructures._cleanup_resources(INFRASTRUCTURE.SIMPLE_APIM.value, 'rg')
 
@@ -1022,8 +1022,8 @@ def test_cleanup_resources_with_resources(monkeypatch):
         return Output(success=True, text='Operation completed')
 
     monkeypatch.setattr(utils, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
+    monkeypatch.setattr(console, 'print_info', lambda *a, **kw: None)
+    monkeypatch.setattr(console, 'print_message', lambda *a, **kw: None)
 
     # Execute cleanup
     infrastructures._cleanup_resources('test-deployment', 'test-rg')

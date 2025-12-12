@@ -13,27 +13,27 @@ from apimtypes import Role
 
 @pytest.mark.unit
 def test_user_init_with_roles():
-    user = User(id='123', name='Alice', roles=['admin', 'user'])
+    user = User(user_id='123', name='Alice', roles=['admin', 'user'])
     assert user.id == '123'
     assert user.name == 'Alice'
     assert user.roles == ['admin', 'user']
 
 @pytest.mark.unit
 def test_user_init_without_roles():
-    user = User(id='456', name='Bob')
+    user = User(user_id='456', name='Bob')
     assert user.id == '456'
     assert user.name == 'Bob'
     assert user.roles == []
 
 @pytest.mark.unit
 def test_user_role_mutability():
-    user = User(id='789', name='Charlie')
+    user = User(user_id='789', name='Charlie')
     user.roles.append('editor')
     assert user.roles == ['editor']
 
 @pytest.mark.unit
 def test_user_repr():
-    user = User(id='abc', name='Dana', roles=['guest'])
+    user = User(user_id='abc', name='Dana', roles=['guest'])
     # __repr__ is not defined, so fallback to default, but check type
     assert isinstance(repr(user), str)
 

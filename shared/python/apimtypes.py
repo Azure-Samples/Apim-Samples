@@ -49,6 +49,37 @@ API_ID_XML_POLICY_PATH          = str(_SHARED_XML_POLICY_BASE_PATH / 'api-id.xml
 SUBSCRIPTION_KEY_PARAMETER_NAME = 'api-key'
 SLEEP_TIME_BETWEEN_REQUESTS_MS  = 50
 
+# Explicitly define what is exported with 'from apimtypes import *'
+__all__ = [
+    # Constants
+    'DEFAULT_XML_POLICY_PATH',
+    'HELLO_WORLD_XML_POLICY_PATH',
+    'REQUEST_HEADERS_XML_POLICY_PATH',
+    'BACKEND_XML_POLICY_PATH',
+    'API_ID_XML_POLICY_PATH',
+    'SUBSCRIPTION_KEY_PARAMETER_NAME',
+    'SLEEP_TIME_BETWEEN_REQUESTS_MS',
+    # Enums
+    'Role',
+    'APIMNetworkMode',
+    'APIM_SKU',
+    'HTTP_VERB',
+    'INFRASTRUCTURE',
+    # Data classes and regular classes
+    'Endpoints',
+    'Output',
+    'API',
+    'APIOperation',
+    'GET_APIOperation',
+    'GET_APIOperation2',
+    'POST_APIOperation',
+    'NamedValue',
+    'PolicyFragment',
+    'Product',
+    # Functions
+    '_get_project_root',
+]
+
 
 # ------------------------------
 #    PRIVATE METHODS
@@ -139,9 +170,7 @@ class INFRASTRUCTURE(StrEnum):
     APPGW_APIM_PE = 'appgw-apim-pe' # Application Gateway connected to Azure API Management (Standard V2) via Private Link
 
 
-class Endpoints(object):
-
-
+class Endpoints:
     """
     Represents a set of endpoints to call
     """
@@ -159,7 +188,7 @@ class Endpoints(object):
         self.deployment = deployment
 
 
-class Output(object):
+class Output:
     """
     Represents the output of a command or deployment, including success status, raw text, and parsed JSON data.
     """
@@ -179,7 +208,7 @@ class Output(object):
         self.jsonParseException = None
 
         # Check if the exact string is JSON.
-        if (is_string_json(text)):
+        if is_string_json(text):
             try:
                 self.json_data = json.loads(text)
             except json.JSONDecodeError as e:
@@ -205,6 +234,8 @@ class Output(object):
         """
 
         try:
+            deployment_output: Any
+
             if not isinstance(self.json_data, dict):
                 raise KeyError('json_data is not a dict')
 
@@ -224,6 +255,8 @@ class Output(object):
                 deployment_output = output_entry['value']
             elif key in self.json_data:
                 deployment_output = self.json_data[key]['value']
+            else:
+                raise KeyError(f"Output key '{key}' not found in deployment outputs")
 
             if not suppress_logging and label:
                 if secure and isinstance(deployment_output, str) and len(deployment_output) >= 4:
@@ -238,7 +271,7 @@ class Output(object):
             print_error(error)
 
             if label:
-                raise Exception(error)
+                raise Exception(error) from e
 
             return None
 
@@ -257,6 +290,8 @@ class Output(object):
         """
 
         try:
+            deployment_output: Any
+
             if not isinstance(self.json_data, dict):
                 raise KeyError('json_data is not a dict')
 
@@ -276,6 +311,8 @@ class Output(object):
                 deployment_output = output_entry['value']
             elif key in self.json_data:
                 deployment_output = self.json_data[key]['value']
+            else:
+                raise KeyError(f"Output key '{key}' not found in deployment outputs")
 
             if not suppress_logging and label:
                 if secure and isinstance(deployment_output, str) and len(deployment_output) >= 4:
@@ -296,7 +333,6 @@ class Output(object):
                     return ast.literal_eval(deployment_output)
                 except (ValueError, SyntaxError) as e:
                     print_error(f'Failed to parse deployment output as Python literal. Error: {e}')
-                    pass
 
             # Return the original result if it's not a string or can't be parsed
             return deployment_output
@@ -306,7 +342,7 @@ class Output(object):
             print_error(error)
 
             if label:
-                raise Exception(error)
+                raise Exception(error) from e
 
             return None
 
@@ -385,8 +421,8 @@ class APIOperation:
         if not isinstance(method, HTTP_VERB):
             try:
                 method = HTTP_VERB(method).value
-            except Exception:
-                raise ValueError(f'Invalid HTTP_VERB: {method}')
+            except Exception as exc:
+                raise ValueError(f'Invalid HTTP_VERB: {method}') from exc
 
         self.name = name
         self.displayName = displayName

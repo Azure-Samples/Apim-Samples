@@ -43,7 +43,7 @@ def check_virtual_environment():
     expected_venv_python = venv_path / ("Scripts" if os.name == 'nt' else "bin") / "python"
 
     if not str(current_python).startswith(str(venv_path)):
-        print_status(f"Not using virtual environment Python", False)
+        print_status("Not using virtual environment Python", False)
         print(f"   Current: {current_python}")
         print(f"   Expected: {expected_venv_python}")
         return False
@@ -72,7 +72,7 @@ def check_required_packages():
             print_status(f"{package_name} is missing", False)
             missing_packages.append(package_name)
 
-    return len(missing_packages) == 0
+    return not missing_packages
 
 
 def check_shared_modules():
@@ -85,11 +85,12 @@ def check_shared_modules():
         if str(shared_python_path) not in sys.path:
             sys.path.insert(0, str(shared_python_path))
 
-        # Try importing shared modules
-        import utils
-        import apimtypes
-        import authfactory
-        import apimrequests
+        # Try importing shared modules to verify they're accessible
+        # These imports are intentional for verification purposes
+        __import__('utils')
+        __import__('apimtypes')
+        __import__('authfactory')
+        __import__('apimrequests')
 
         print_status("All shared modules can be imported")
         return True
@@ -109,9 +110,9 @@ def check_jupyter_kernel():
         if 'apim-samples' in result.stdout:
             print_status("APIM Samples Jupyter kernel is registered")
             return True
-        else:
-            print_status("APIM Samples Jupyter kernel not found", False)
-            return False
+
+        print_status("APIM Samples Jupyter kernel not found", False)
+        return False
 
     except (subprocess.CalledProcessError, FileNotFoundError):
         print_status("Could not check Jupyter kernel registration", False)
@@ -146,8 +147,8 @@ def check_vscode_settings():
         if all_found:
             print_status("VS Code settings are configured correctly")
             return True
-        else:
-            return False
+
+        return False
 
     except Exception as e:
         print_status(f"Could not read VS Code settings: {e}", False)
@@ -169,9 +170,9 @@ def check_env_file():
         if 'PYTHONPATH=' in content and 'PROJECT_ROOT=' in content:
             print_status(".env file is configured correctly")
             return True
-        else:
-            print_status(".env file missing required configuration", False)
-            return False
+
+        print_status(".env file missing required configuration", False)
+        return False
 
     except Exception as e:
         print_status(f"Could not read .env file: {e}", False)

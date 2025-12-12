@@ -8,15 +8,15 @@ import sys
 import os
 import subprocess
 import time
-import traceback
 import string
 import secrets
 import base64
 import inspect
 from pathlib import Path
-import apimtypes
-
 from typing import Any
+import azure_resources as az
+
+import apimtypes
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, _get_project_root
 
 # ------------------------------
@@ -26,8 +26,36 @@ from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, _g
 # The following imports are re-exported from the modules that are now split out from utils.
 # The re-exports are in place to maintain backward compatibility with existing code.
 # For new code, please import directly from the relevant modules.
-from console import *
-from azure_resources import *
+from console import (
+    print_error,
+    print_info,
+    print_message,
+    print_success,
+    print_warning,
+    print_val,
+)
+from azure_resources import (
+    check_apim_blob_permissions,
+    cleanup_old_jwt_signing_keys,
+    create_resource_group,
+    find_infrastructure_instances,
+    get_apim_url,
+    get_appgw_endpoint,
+    get_frontdoor_url,
+    get_infra_rg_name,
+    get_resource_group_location,
+    _run as run
+)
+
+
+def does_resource_group_exist(rg_name: str) -> bool:
+    """Check whether an Azure resource group exists.
+
+    This wrapper keeps `utils.does_resource_group_exist` monkeypatchable while
+    still delegating to the underlying `azure_resources` implementation.
+    """
+
+    return az.does_resource_group_exist(rg_name)
 
 # ------------------------------
 #    HELPER FUNCTIONS
@@ -131,9 +159,9 @@ class InfrastructureNotebookHelper:
                         elif not should_proceed:
                             print('❌ Infrastructure deployment cancelled by user.')
                             raise SystemExit("User cancelled deployment")
-                    except (KeyboardInterrupt, EOFError):
+                    except (KeyboardInterrupt, EOFError) as exc:
                         print('\n❌ Infrastructure deployment cancelled by user (Escape/Ctrl+C pressed).')
-                        raise SystemExit("User cancelled deployment")
+                        raise SystemExit("User cancelled deployment") from exc
 
             # Check infrastructure existence for the normal flow
             infrastructure_exists = does_resource_group_exist(get_infra_rg_name(self.deployment, self.index)) if not allow_update else False
@@ -162,33 +190,33 @@ class InfrastructureNotebookHelper:
                 ]
 
                 # Execute the infrastructure creation script with real-time output streaming and UTF-8 encoding to handle Unicode characters properly
-                process = subprocess.Popen(cmd_args, stdout = subprocess.PIPE, stderr = subprocess.STDOUT, text = True,
-                                        bufsize = 1, universal_newlines = True, encoding = 'utf-8', errors = 'replace')
+                with subprocess.Popen(cmd_args, stdout = subprocess.PIPE, stderr = subprocess.STDOUT, text = True,
+                                        bufsize = 1, universal_newlines = True, encoding = 'utf-8', errors = 'replace') as process:
 
-                try:
-                    # Stream output in real-time
-                    for line in process.stdout:
-                        print(line.rstrip())
-                except Exception as e:
-                    print(f'Error reading subprocess output: {e}')
+                    try:
+                        # Stream output in real-time
+                        for line in process.stdout:
+                            print(line.rstrip())
+                    except Exception as e:
+                        print(f'Error reading subprocess output: {e}')
 
-                # Wait for process to complete
-                process.wait()
+                    # Wait for process to complete
+                    process.wait()
 
-                if process.returncode != 0:
-                    print("❌ Infrastructure creation failed!")
-                    raise SystemExit(1)
+                    if process.returncode:
+                        print("❌ Infrastructure creation failed!")
+                        raise SystemExit(1)
 
                 return True
 
             return True
 
-        except KeyboardInterrupt:
+        except KeyboardInterrupt as exc:
             print("\n🚫 Infrastructure deployment cancelled by user.")
-            raise SystemExit("User cancelled deployment")
+            raise SystemExit("User cancelled deployment") from exc
         except Exception as e:
             print(f"❌ Infrastructure deployment failed with error: {e}")
-            raise SystemExit(1)
+            raise SystemExit(1) from e
 
 class NotebookHelper:
     """
@@ -318,7 +346,7 @@ class NotebookHelper:
             desired_index_str = self._get_current_index() if self._get_current_index() is not None else 'N/A'
             desired_location = self.rg_location
 
-            print(f'\n   Create a NEW infrastructure:\n')
+            print('\n   Create a NEW infrastructure:\n')
             # Column headers
             if QUERY_RG_LOCATION:
                 print(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35} {'Location':<15}')
@@ -332,7 +360,7 @@ class NotebookHelper:
             display_options.append(('create_new', self.deployment, self._get_current_index()))
             option_counter += 1
 
-            print(f'\n   Or select an EXISTING infrastructure:\n')
+            print('\n   Or select an EXISTING infrastructure:\n')
             # Column headers
             if QUERY_RG_LOCATION:
                 print(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35} {'Location':<15}')
@@ -426,7 +454,7 @@ class NotebookHelper:
         """
 
         # Check infrastructure availability and let user select or create
-        print(f'Checking desired infrastructure availability...\n')
+        print('Checking desired infrastructure availability...\n')
         print(f'   Infrastructure : {self.deployment.value}')
         print(f'   Index          : {self.index}')
         print(f'   Resource group : {self.rg_name}\n')
@@ -452,16 +480,16 @@ class NotebookHelper:
                 self.rg_name = get_infra_rg_name(self.deployment, self.index)
 
                 # Verify the updates were applied correctly
-                print(f'📝 Updated infrastructure variables')
+                print('📝 Updated infrastructure variables')
             else:
                 print('✅ Infrastructure selection already completed in this session')
         else:
             print('✅ Desired infrastructure already exists, proceeding with sample deployment')
 
         # Deploy the sample APIs to the selected infrastructure
-        print(f'\n------------------------------------------------')
-        print(f'\nSAMPLE DEPLOYMENT')
-        print(f'\nDeploying sample to:\n')
+        print('\n------------------------------------------------')
+        print('\nSAMPLE DEPLOYMENT')
+        print('\nDeploying sample to:\n')
         print(f'   Infrastructure : {self.deployment.value}')
         print(f'   Index          : {self.index}')
         print(f'   Resource group : {self.rg_name}\n')
@@ -590,7 +618,7 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
     params_file_path = os.path.join(bicep_dir, bicep_parameters_file)
 
     # Write the updated bicep parameters to the specified parameters file
-    with open(params_file_path, 'w') as file:
+    with open(params_file_path, 'w', encoding='utf-8') as file:
         file.write(json.dumps(bicep_parameters_format))
 
     print(f'📝 Updated the policy XML in the bicep parameters file {bicep_parameters_file}')
@@ -753,7 +781,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
     """
 
     print(f'� Debug: does_infrastructure_exist called with allow_update_option={allow_update_option}')
-    print(f'�🔍 Checking if infrastructure already exists...')
+    print('�🔍 Checking if infrastructure already exists...')
 
     rg_name = get_infra_rg_name(infrastructure, index)
 
@@ -831,7 +859,9 @@ def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str
 
     # Legacy mode check: if named_values is None, always treat as legacy (backwards compatibility)
     # OR if it looks like a path (contains separators or is absolute)
+    # Note: Check for leading slash to handle POSIX paths on Windows
     if (path_obj.is_absolute() or
+        policy_xml_filepath_or_filename.startswith('/') or
         '/' in policy_xml_filepath_or_filename or
         '\\' in policy_xml_filepath_or_filename):
         # Legacy mode: treat as full path
@@ -867,7 +897,7 @@ def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str
                     raise ValueError('Not running from within a samples directory')
 
             except Exception as e:
-                raise ValueError(f'Could not auto-detect sample name. Please provide sample_name parameter explicitly. Error: {e}')
+                raise ValueError(f'Could not auto-detect sample name. Please provide sample_name parameter explicitly. Error: {e}') from e
 
         # Construct the full path
         project_root = apimtypes._get_project_root()
@@ -921,76 +951,15 @@ def read_policy_xml(policy_xml_filepath_or_filename: str, named_values: dict[str
 
     return policy_template_xml
 
-def run(command: str, ok_message: str = '', error_message: str = '', print_output: bool = False, print_command_to_run: bool = True, print_errors: bool = True, print_warnings: bool = True) -> Output:
-    """
-    Execute a shell command, log the command and its output, and attempt to extract JSON from the output.
-
-    Args:
-        command (str): The shell command to execute.
-        ok_message (str, optional): Message to print if the command succeeds. Defaults to ''.
-        error_message (str, optional): Message to print if the command fails. Defaults to ''.
-        print_output (bool, optional): Whether to print the command output on failure. Defaults to False.
-        print_command_to_run (bool, optional): Whether to print the command before running it. Defaults to True.
-        print_errors (bool, optional): Whether to log error lines from the output. Defaults to True.
-        print_warnings (bool, optional): Whether to log warning lines from the output. Defaults to True.
-
-    Returns:
-        Output: An Output object containing:
-            - success (bool): True if the command succeeded, False otherwise.
-            - text (str): The raw output from the command.
-            - json_data (any, optional): Parsed JSON object or array if found in the output, else None.
-    """
-
-    if print_command_to_run:
-        print_command(command)
-
-    start_time = time.time()
-
-    # Execute the command and capture the output
-
-    try:
-        output_text = subprocess.check_output(command, shell = True, stderr = subprocess.STDOUT).decode('utf-8')
-        success = True
-    except Exception as e:
-        # Handles both CalledProcessError and any custom/other exceptions (for test mocks)
-        output_text = getattr(e, 'output', b'').decode('utf-8') if hasattr(e, 'output') and isinstance(e.output, (bytes, bytearray)) else str(e)
-        success = False
-
-        if print_errors:
-            print_error(f'Command failed with error: {output_text}', duration = f'[{int((time.time() - start_time) // 60)}m:{int((time.time() - start_time) % 60)}s]')
-            traceback.print_exc()
-
-    if print_output:
-        print(f'Command output:\n{output_text}')
-
-    minutes, seconds = divmod(time.time() - start_time, 60)
-
-    # Only print failures, warnings, or errors if print_output is True
-    if print_output:
-        for line in output_text.splitlines():
-            l = line.strip()
-
-            # Only log and skip lines that start with 'warning' or 'error' (case-insensitive)
-            if l.lower().startswith('warning'):
-                if l and print_warnings:
-                    print_warning(l)
-                continue
-            elif l.lower().startswith('error'):
-                if l and print_errors:
-                    print_error(l)
-                continue
-
-        print_message = print_ok if success else print_error
-
-        if (ok_message or error_message):
-            print_message(ok_message if success else error_message, output_text if not success or print_output else '', f'[{int(minutes)}m:{int(seconds)}s]')
-
-    return Output(success, output_text)
-
 # Validation functions will raise ValueError if the value is not valid
 
-validate_http_verb      = lambda val: HTTP_VERB(val)
-validate_sku            = lambda val: APIM_SKU(val)
+def validate_http_verb(val):
+    """Validate HTTP verb value."""
+    return HTTP_VERB(val)
+
+def validate_sku(val):
+    """Validate APIM SKU value."""
+    return APIM_SKU(val)
 
 def validate_infrastructure(infra: INFRASTRUCTURE, supported_infras: list[INFRASTRUCTURE]) -> None:
     """
@@ -1090,31 +1059,30 @@ def get_endpoints(deployment: INFRASTRUCTURE, rg_name: str) -> Endpoints:
 
     return endpoints
 
-def get_json(input: str) -> Any:
+def get_json(json_str: str) -> Any:
     """
     Safely parse a JSON string or file content into a Python object.
 
     Args:
-        input (str): The JSON string or file content to parse.
+        json_str (str): The JSON string or file content to parse.
 
     Returns:
         Any: The parsed JSON object, or None if parsing fails.
     """
 
     # If the result is a string, try to parse it as JSON
-    if isinstance(input, str):
+    if isinstance(json_str, str):
         # First try JSON parsing (handles double quotes)
         try:
-            return json.loads(input)
+            return json.loads(json_str)
         except json.JSONDecodeError:
             pass
 
         # If JSON fails, try Python literal evaluation (handles single quotes)
         try:
-            return ast.literal_eval(input)
+            return ast.literal_eval(json_str)
         except (ValueError, SyntaxError) as e:
             print_error(f'Failed to parse deployment output as Python literal. Error: {e}')
-            pass
 
     # Return the original result if it's not a string or can't be parsed
-    return input
+    return json_str

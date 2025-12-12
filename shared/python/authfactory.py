@@ -3,9 +3,9 @@ Factory for creating authentication tokens or objects for Azure API Management s
 """
 
 from typing import Any
+import time
 from users import User
 import jwt
-import time
 
 
 # ------------------------------

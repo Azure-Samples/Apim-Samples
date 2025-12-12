@@ -17,6 +17,29 @@ from typing import Tuple, Optional
 from apimtypes import INFRASTRUCTURE, Endpoints, Output
 from console import print_ok, print_warning, print_error, print_val, print_message, print_info, print_command, print_success
 
+# Explicitly define what is exported with 'from azure_resources import *'
+__all__ = [
+    # Public functions
+    'cleanup_old_jwt_signing_keys',
+    'check_apim_blob_permissions',
+    'find_infrastructure_instances',
+    'create_resource_group',
+    'get_azure_role_guid',
+    'does_resource_group_exist',
+    'get_resource_group_location',
+    'get_account_info',
+    'get_deployment_name',
+    'get_frontdoor_url',
+    'get_apim_url',
+    'get_appgw_endpoint',
+    'get_infra_rg_name',
+    'get_unique_suffix_for_resource_group',
+    'get_rg_name',
+    'get_endpoints',
+    # Private functions (exported for backward compatibility)
+    '_run',
+]
+
 
 # ------------------------------
 #    PRIVATE FUNCTIONS
@@ -48,9 +71,13 @@ def _run(command: str, ok_message: str = '', error_message: str = '', print_outp
     try:
         output_text = subprocess.check_output(command, shell = True, stderr = subprocess.STDOUT).decode('utf-8')
         success = True
+    except subprocess.CalledProcessError as e:
+        output_bytes = e.output if isinstance(e.output, (bytes, bytearray)) else b''
+        output_text = output_bytes.decode('utf-8')
+        success = False
     except Exception as e:
-        # Handles both CalledProcessError and any custom/other exceptions (for test mocks)
-        output_text = getattr(e, 'output', b'').decode('utf-8') if hasattr(e, 'output') and isinstance(e.output, (bytes, bytearray)) else str(e)
+        # Covers unexpected errors (and test mocks) without assuming an 'output' attribute exists.
+        output_text = str(e)
         success = False
 
         if print_errors:
@@ -72,7 +99,8 @@ def _run(command: str, ok_message: str = '', error_message: str = '', print_outp
                 if l and print_warnings:
                     print_warning(l)
                 continue
-            elif l.lower().startswith('error'):
+
+            if l.lower().startswith('error'):
                 if l and print_errors:
                     print_error(l)
                 continue
@@ -247,7 +275,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
         )
 
         if role_assignment_output.success and role_assignment_output.text.strip():
-            print_success(f'Role assignment found! APIM managed identity has Storage Blob Data Reader permissions.')
+            print_success('Role assignment found! APIM managed identity has Storage Blob Data Reader permissions.')
 
             # Additional check: try to test blob access using the managed identity
             print_info('Testing actual blob access...')
@@ -264,8 +292,8 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
             else:
                 print_warning('Role assignment exists but blob access test failed. Permissions may still be propagating...')
 
-        if elapsed_time == 0:
-            print_info(f'Role assignment not found yet. Waiting for Azure AD propagation...')
+        if not elapsed_time:
+            print_info('Role assignment not found yet. Waiting for Azure AD propagation...')
         else:
             print_info(f'Still waiting... ({elapsed_time // 60}m {elapsed_time % 60}s elapsed)')
 

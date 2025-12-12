@@ -12,6 +12,7 @@ import pytest
 from apimtypes import INFRASTRUCTURE, APIM_SKU
 import utils
 import json_utils
+import azure_resources as az
 
 # ------------------------------
 #    get_infra_rg_name & get_rg_name
@@ -25,8 +26,8 @@ def test_get_infra_rg_name(monkeypatch):
     assert utils.get_infra_rg_name(DummyInfra, 2) == 'apim-infra-foo-2'
 
 def test_get_rg_name():
-    assert utils.get_rg_name('foo') == 'apim-sample-foo'
-    assert utils.get_rg_name('foo', 3) == 'apim-sample-foo-3'
+    assert az.get_rg_name('foo') == 'apim-sample-foo'
+    assert az.get_rg_name('foo', 3) == 'apim-sample-foo-3'
 
 # ------------------------------
 #    run
@@ -270,7 +271,7 @@ def test_create_bicep_deployment_group_params_file_written(monkeypatch):
     mock_create_rg = MagicMock()
     monkeypatch.setattr(utils, 'create_resource_group', mock_create_rg)
     mock_run = MagicMock(return_value=MagicMock(success=True))
-    monkeypatch.setattr(utils, 'run', mock_run)
+    monkeypatch.setattr(az, '_run', mock_run)
     mock_open_func = mock_open()
     monkeypatch.setattr(builtins, 'open', mock_open_func)
     monkeypatch.setattr(builtins, 'print', MagicMock())
@@ -281,7 +282,8 @@ def test_create_bicep_deployment_group_params_file_written(monkeypatch):
 
     def mock_exists(path):
         # Only return True for the main.bicep in the infrastructure directory, not in current dir
-        if path.endswith('main.bicep') and 'infrastructure' in path:
+        path_str = str(path)  # Convert Path objects to strings
+        if path_str.endswith('main.bicep') and 'infrastructure' in path_str:
             return True
         return False
 
@@ -300,7 +302,7 @@ def test_create_bicep_deployment_group_params_file_written(monkeypatch):
     # With our new logic, when current directory name matches infrastructure_dir,
     # it should use the current directory
     expected_path = os.path.join('/test/dir/infrastructure/apim-aca', 'custom-params.json')
-    mock_open_func.assert_called_once_with(expected_path, 'w')
+    mock_open_func.assert_called_once_with(expected_path, 'w', encoding='utf-8')
 
     # Verify the correct JSON structure was written
     written_content = ''.join(call.args[0] for call in mock_open_func().write.call_args_list)
@@ -621,15 +623,15 @@ def test_get_azure_role_guid_comprehensive(monkeypatch):
     monkeypatch.setattr(builtins, 'open', m)
 
     # Test valid role
-    result = utils.get_azure_role_guid('Storage Blob Data Reader')
+    result = az.get_azure_role_guid('Storage Blob Data Reader')
     assert result == '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
 
     # Test case sensitivity - function is case sensitive, so this should return None
-    result = utils.get_azure_role_guid('storage blob data reader')
+    result = az.get_azure_role_guid('storage blob data reader')
     assert result is None
 
     # Test invalid role
-    result = utils.get_azure_role_guid('Nonexistent Role')
+    result = az.get_azure_role_guid('Nonexistent Role')
     assert result is None
 
 # ------------------------------
@@ -714,7 +716,7 @@ def test_infrastructure_notebook_helper_create_with_index_retry(monkeypatch):
 
     # Mock the prompt to return option 2 with index 3
     monkeypatch.setattr(utils, '_prompt_for_infrastructure_update', lambda rg_name: (False, 3))
-    monkeypatch.setattr(utils, 'does_resource_group_exist', mock_rg_exists)
+    monkeypatch.setattr(az, 'does_resource_group_exist', mock_rg_exists)
 
     # Mock subprocess execution to succeed
     class MockProcess:
@@ -723,6 +725,12 @@ def test_infrastructure_notebook_helper_create_with_index_retry(monkeypatch):
             self.stdout = iter(['Mock deployment output\n', 'Success!\n'])
 
         def wait(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
             pass
 
     monkeypatch.setattr('subprocess.Popen', MockProcess)
@@ -771,6 +779,12 @@ def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch)
             self.stdout = iter(['Mock deployment output\n'])
 
         def wait(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
             pass
 
     monkeypatch.setattr('subprocess.Popen', MockProcess)

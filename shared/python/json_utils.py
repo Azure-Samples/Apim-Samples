@@ -66,8 +66,8 @@ def extract_json(text: str) -> Any:
 
     decoder = json.JSONDecoder()
 
-    for start in range(len(text)):
-        if text[start] in ('{', '['):
+    for start, char in enumerate(text):
+        if char in ('{', '['):
             try:
                 obj, _ = decoder.raw_decode(text[start:])
                 return obj

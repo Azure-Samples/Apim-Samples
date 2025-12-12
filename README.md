@@ -225,17 +225,41 @@ The repo uses the bicep linter and has rules defined in `bicepconfig.json`. See 
 
 The repository uses [pylint][pylint-docs] to maintain Python code quality standards. Configuration is located in `tests/python/.pylintrc`.
 
-#### Running Pylint
+#### Running Code Quality Checks
 
-**Using the convenience script (recommended):**
+**Using the combined check script (recommended):**
+
+This is the preferred method as it runs both linting and testing in a single command:
+
 ```powershell
-# From tests/python directory
-.\run_pylint.ps1                          # Run with default settings
-.\run_pylint.ps1 -ShowReport              # Include full detailed report
-.\run_pylint.ps1 -Target "../../samples"  # Analyze a different directory
+# From repository root
+.\tests\python\check_python.ps1                 # Run both pylint and pytest
+.\tests\python\check_python.ps1 -ShowLintReport # Include detailed pylint report
+```
+
+```bash
+# From repository root
+./tests/python/check_python.sh                   # Run both pylint and pytest
+./tests/python/check_python.sh --show-report     # Include detailed pylint report
+```
+
+**Running pylint only:**
+
+```powershell
+# From repository root
+.\tests\python\run_pylint.ps1                   # Run with default settings
+.\tests\python\run_pylint.ps1 -ShowReport       # Include full detailed report
+.\tests\python\run_pylint.ps1 -Target "samples" # Analyze specific directory
+```
+
+```bash
+# From repository root
+./tests/python/run_pylint.sh                     # Run with default settings
+./tests/python/run_pylint.sh samples --show-report # Analyze specific directory with report
 ```
 
 **Manual execution:**
+
 ```powershell
 pylint --rcfile tests/python/.pylintrc shared/python
 ```
@@ -267,10 +291,26 @@ Python modules in `shared/python` are covered by comprehensive unit tests locate
 
 #### 🚀 Running Tests Locally
 
+**Using the combined check script (recommended):**
+
+This is the preferred method as it runs both linting and testing:
+
+```powershell
+# From repository root
+.\tests\python\check_python.ps1
+```
+
+```bash
+# From repository root
+./tests/python/check_python.sh
+```
+
+**Running tests only:**
+
 - **PowerShell (Windows):**
-  - Run all tests with coverage: `./tests/python/run_tests.ps1`
+  - Run all tests with coverage: `.\tests\python\run_tests.ps1` (from repository root)
 - **Shell (Linux/macOS):**
-  - Run all tests with coverage: `./tests/python/run_tests.sh`
+  - Run all tests with coverage: `./tests/python/run_tests.sh` (from repository root)
 
 Both scripts:
 - Run all tests in `tests/python` using pytest

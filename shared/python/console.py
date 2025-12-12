@@ -32,6 +32,18 @@ CONSOLE_WIDTH = 175
 # Thread-safe print lock
 _print_lock = threading.Lock()
 
+# Explicitly define what is exported with 'from console import *'
+__all__ = [
+    # Constants
+    'BOLD_B', 'BOLD_G', 'BOLD_R', 'BOLD_Y', 'BOLD_C', 'BOLD_M', 'BOLD_W', 'RESET',
+    'THREAD_COLORS', 'CONSOLE_WIDTH',
+    # Private (but re-exported for backward compatibility)
+    '_print_lock', '_print_log',
+    # Public functions
+    'print_command', 'print_error', 'print_info', 'print_message',
+    'print_ok', 'print_success', 'print_warning', 'print_val', 'print_header',
+]
+
 
 # ------------------------------
 #    PRIVATE METHODS

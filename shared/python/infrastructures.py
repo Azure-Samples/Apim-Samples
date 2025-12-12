@@ -6,15 +6,26 @@ import json
 import os
 import time
 import traceback
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from apimtypes import *
-import utils
-from utils import Output
+from typing import List
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import requests
+
+from apimtypes import (
+    API,
+    APIM_SKU,
+    APIMNetworkMode,
+    GET_APIOperation,
+    HELLO_WORLD_XML_POLICY_PATH,
+    INFRASTRUCTURE,
+    PolicyFragment,
+)
 from console import (
     BOLD_R, BOLD_Y, RESET, THREAD_COLORS, _print_lock, _print_log,
     print_error, print_info, print_message, print_ok, print_success, print_warning
 )
+import utils
+from utils import Output
 
 
 # ------------------------------
@@ -159,13 +170,12 @@ class Infrastructure:
                 if self._verify_infrastructure_specific(rg_name):
                     print('\n🎉 Infrastructure verification completed successfully!')
                     return True
-                else:
-                    print('\n❌ Infrastructure-specific verification failed!')
-                    return False
 
-            else:
-                print('\n❌ APIM service not found!')
+                print('\n❌ Infrastructure-specific verification failed!')
                 return False
+
+            print('\n❌ APIM service not found!')
+            return False
 
         except Exception as e:
             print(f'\n⚠️  Verification failed with error: {str(e)}')
@@ -245,10 +255,10 @@ class Infrastructure:
             # Write the parameters file
             params_file_path = infra_dir / 'params.json'
 
-            with open(params_file_path, 'w') as file:
+            with open(params_file_path, 'w', encoding='utf-8') as file:
                 file.write(json.dumps(bicep_parameters_format))
 
-            print(f"📝 Updated the policy XML in the bicep parameters file 'params.json'")
+            print("📝 Updated the policy XML in the bicep parameters file 'params.json'")
 
             # ------------------------------
             #    EXECUTE DEPLOYMENT
@@ -273,7 +283,7 @@ class Infrastructure:
                     apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM API Gateway URL', suppress_logging = True)
                     apim_apis = output.getJson('apiOutputs', 'APIs', suppress_logging = True)
 
-                    print(f'\n📋 Infrastructure Details:')
+                    print('\n📋 Infrastructure Details:')
                     print(f'   Resource Group : {self.rg_name}')
                     print(f'   Location       : {self.rg_location}')
                     print(f'   APIM SKU       : {self.apim_sku.value}')
@@ -392,7 +402,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
             total = len(pending_connections)
             print(f'   Found {total} pending private link service connection(s)')
 
-            if total == 0:
+            if not total:
                 print('   ✅ No pending connections found - may already be approved')
                 return True
 
@@ -447,7 +457,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
                 }
 
                 params_file_path = infra_dir / 'params.json'
-                with open(params_file_path, 'w') as file:
+                with open(params_file_path, 'w', encoding='utf-8') as file:
                     file.write(json.dumps(bicep_parameters_format))
 
                 print('   📝 Updated parameters to disable public access')
@@ -484,8 +494,6 @@ class AfdApimAcaInfrastructure(Infrastructure):
 
         try:
             # Use the health check endpoint which doesn't require a subscription key
-            import requests
-
             healthcheck_url = f'{apim_gateway_url}/status-0123456789abcdef'
             print(f'   Testing connectivity to health check endpoint: {healthcheck_url}')
 
@@ -638,7 +646,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
         Returns:
             bool: True if certificate was created or already exists, False on failure.
         """
-        print(f'\n   🔐 Creating self-signed certificate in Key Vault...\n')
+        print('\n   🔐 Creating self-signed certificate in Key Vault...\n')
         print(f'   Key Vault   : {key_vault_name}')
         print(f'   Certificate : {self.CERT_NAME}')
         print(f'   Domain      : {self.DOMAIN_NAME}')
@@ -651,7 +659,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
         )
 
         if check_output.success:
-            print(f'   ✅ Certificate already exists in Key Vault')
+            print('   ✅ Certificate already exists in Key Vault')
             return True
 
         # Build the certificate policy JSON for Azure CLI
@@ -683,8 +691,8 @@ class AppGwApimPeInfrastructure(Infrastructure):
         escaped_policy = cert_policy.replace('"', '\\"')
         create_output = utils.run(
             f'az keyvault certificate create --vault-name {key_vault_name} --name {self.CERT_NAME} --policy "{escaped_policy}"',
-            f'✅ Certificate created successfully in Key Vault',
-            f'❌ Failed to create certificate in Key Vault',
+            '✅ Certificate created successfully in Key Vault',
+            '❌ Failed to create certificate in Key Vault',
             print_command_to_run = False
         )
 
@@ -742,7 +750,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
             total = len(pending_connections)
             print(f'   Found {total} pending private link service connection(s)')
 
-            if total == 0:
+            if not total:
                 print('   ✅ No pending connections found - this is normal for VNet integration scenarios')
                 print('   ℹ️  Application Gateway will access APIM through VNet integration')
                 return True
@@ -798,7 +806,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
                 }
 
                 params_file_path = infra_dir / 'params.json'
-                with open(params_file_path, 'w') as file:
+                with open(params_file_path, 'w', encoding='utf-8') as file:
                     file.write(json.dumps(bicep_parameters_format))
 
                 print('   📝 Updated parameters to disable public access')
@@ -835,8 +843,6 @@ class AppGwApimPeInfrastructure(Infrastructure):
 
         try:
             # Use the health check endpoint which doesn't require a subscription key
-            import requests
-
             healthcheck_url = f'{apim_gateway_url}/status-0123456789abcdef'
             print(f'   Testing connectivity to health check endpoint: {healthcheck_url}')
 
@@ -868,7 +874,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
             utils.run(
                 f'az keyvault create --name {key_vault_name} --resource-group {self.rg_name} --location {self.rg_location} --enable-rbac-authorization true',
                 f'✅ Key Vault created: {key_vault_name}',
-                f'❌ Failed to create Key Vault',
+                '❌ Failed to create Key Vault',
                 print_command_to_run = False
             )
 
@@ -881,7 +887,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
                 print_errors = False
             )
             if not assign_kv_role.success:
-                print(f'   ❌ Failed to assign Key Vault Certificates Officer role to current user')
+                print('   ❌ Failed to assign Key Vault Certificates Officer role to current user')
                 return False
 
             print('   ✅ Assigned Key Vault Certificates Officer role to current user')
@@ -1172,7 +1178,7 @@ def _cleanup_resources_parallel(resources: list[dict], thread_prefix: str = '', 
                 log_error(f"✗ Exception cleaning up {resource['type']} '{resource['name']}': {str(e)}")
 
     # Summary
-    if failed_count == 0:
+    if not failed_count:
         log_ok(f'All {len(resources)} resource(s) cleaned up successfully!')
     else:
         log_warning(f'Completed with {failed_count} failure(s) out of {len(resources)} total resources.')
@@ -1227,7 +1233,7 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
         resources_to_cleanup = []
 
         # List CognitiveService accounts
-        output = utils.run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False, print_errors = False)
+        output = utils.run(f' az cognitiveservices account list -g {rg_name}', 'Listed CognitiveService accounts', 'Failed to list CognitiveService accounts', print_command_to_run = False, print_errors = False)
         if output.success and output.json_data:
             for resource in output.json_data:
                 resources_to_cleanup.append({
@@ -1238,7 +1244,7 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
                 })
 
         # List APIM resources
-        output = utils.run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False, print_errors = False)
+        output = utils.run(f' az apim list -g {rg_name}', 'Listed APIM resources', 'Failed to list APIM resources', print_command_to_run = False, print_errors = False)
         if output.success and output.json_data:
             for resource in output.json_data:
                 resources_to_cleanup.append({
@@ -1249,7 +1255,7 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
                 })
 
         # List Key Vault resources
-        output = utils.run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False, print_errors = False)
+        output = utils.run(f' az keyvault list -g {rg_name}', 'Listed Key Vault resources', 'Failed to list Key Vault resources', print_command_to_run = False, print_errors = False)
         if output.success and output.json_data:
             for resource in output.json_data:
                 resources_to_cleanup.append({
@@ -1337,7 +1343,7 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
             resources_to_cleanup = []
 
             # List CognitiveService accounts
-            output = utils.run(f' az cognitiveservices account list -g {rg_name}', f'Listed CognitiveService accounts', f'Failed to list CognitiveService accounts', print_command_to_run = False, print_errors = False)
+            output = utils.run(f' az cognitiveservices account list -g {rg_name}', 'Listed CognitiveService accounts', 'Failed to list CognitiveService accounts', print_command_to_run = False, print_errors = False)
             if output.success and output.json_data:
                 for resource in output.json_data:
                     resources_to_cleanup.append({
@@ -1348,7 +1354,7 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
                     })
 
             # List APIM resources
-            output = utils.run(f' az apim list -g {rg_name}', f'Listed APIM resources', f'Failed to list APIM resources', print_command_to_run = False, print_errors = False)
+            output = utils.run(f' az apim list -g {rg_name}', 'Listed APIM resources', 'Failed to list APIM resources', print_command_to_run = False, print_errors = False)
             if output.success and output.json_data:
                 for resource in output.json_data:
                     resources_to_cleanup.append({
@@ -1359,7 +1365,7 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
                     })
 
             # List Key Vault resources
-            output = utils.run(f' az keyvault list -g {rg_name}', f'Listed Key Vault resources', f'Failed to list Key Vault resources', print_command_to_run = False, print_errors = False)
+            output = utils.run(f' az keyvault list -g {rg_name}', 'Listed Key Vault resources', 'Failed to list Key Vault resources', print_command_to_run = False, print_errors = False)
             if output.success and output.json_data:
                 for resource in output.json_data:
                     resources_to_cleanup.append({
@@ -1479,7 +1485,7 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
                     print_error(f"❌ Exception during cleanup for {deployment.value}-{task['index']}: {str(e)}")
 
     # Final summary
-    if failed_count == 0:
+    if not failed_count:
         print_ok(f'All {len(indexes_list)} infrastructure cleanups completed successfully!')
     else:
         print_warning(f'Completed with {failed_count} failures out of {len(indexes_list)} total cleanups.')

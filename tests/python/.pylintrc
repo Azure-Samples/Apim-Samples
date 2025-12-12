@@ -5,6 +5,7 @@ persistent = no
 [MESSAGES CONTROL]
 enable = all
 disable =
+    C0103,  # Invalid name
     C0301,  # Line too long
     C0302,  # Too many lines in module
     C0305,  # Trailing newlines
@@ -12,15 +13,26 @@ disable =
     C0115,  # Missing class docstring
     C0116,  # Missing function or method docstring
     E0401,  # Import error
+    I0011,  # Locally disabling (informational)
+    I0020,  # Suppressed message (informational)
     W0212,  # Access to a protected member _ of a client class
     W0401,  # Wildcard import (allow for backwards compatibility)
+    R0801,  # Duplicate code
+    R0902,  # Too many instance attributes
     R0903,  # Too few public methods
     R0911,  # Too many return statements
+    R0912,  # Too many branches
     R0913,  # Too many arguments
+    R0914,  # Too many locals
+    R0915,  # Too many statements
     R0917,  # Too many nested blocks
+    R1702,  # Too many nested blocks
+    R1705,  # No else return
+    W0201,  # Attribute assigned outside init
     W0511,  # TODO/FIXME comments
     W0613,  # Unused argument
     W0621,  # Redefining name from outer scope
+    W0702,  # bare except
     W0718,  # Exception arguments are of wrong type
     W0719   # Exception raised is not a subclass of BaseException
 
