@@ -3,17 +3,27 @@
 
 set -e
 
-TARGET="${1:-../../infrastructure ../../samples ../../setup ../../shared ../../tests}"
-REPORT_DIR="pylint/reports"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+TARGET="${1:-infrastructure samples setup shared tests}"
+REPORT_DIR="$SCRIPT_DIR/pylint/reports"
+PYLINT_RC="$SCRIPT_DIR/.pylintrc"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+
+# Set UTF-8 encoding for Python and console output
+export PYTHONIOENCODING=utf-8
+export LC_ALL=C.UTF-8
+export LANG=C.UTF-8
 
 # Ensure report directory exists
 mkdir -p "$REPORT_DIR"
 
 echo ""
 echo "🔍 Running pylint analysis..."
-echo "   Target:  All repository Python files"
-echo "   Reports: $REPORT_DIR"
+echo ""
+echo "   Target            : $TARGET"
+echo "   Reports           : $REPORT_DIR"
+echo "   Working Directory : $REPO_ROOT"
 echo ""
 
 # Run pylint with multiple output formats
@@ -22,11 +32,12 @@ TEXT_REPORT="$REPORT_DIR/pylint_${TIMESTAMP}.txt"
 LATEST_JSON="$REPORT_DIR/latest.json"
 LATEST_TEXT="$REPORT_DIR/latest.txt"
 
-# Execute pylint (allow non-zero exit for reporting)
+# Change to repository root and execute pylint (allow non-zero exit for reporting)
+cd "$REPO_ROOT"
 set +e
-pylint --rcfile .pylintrc \
+pylint --rcfile "$PYLINT_RC" \
     --output-format=json:"$JSON_REPORT",colorized,text:"$TEXT_REPORT" \
-    "$TARGET"
+    $TARGET
 EXIT_CODE=$?
 set -e
 

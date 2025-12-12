@@ -26,6 +26,9 @@
 # Markdown files should use LF
 *.md text eol=lf
 
+# Python files should use LF
+*.py text eol=lf
+
 # Windows batch files should use CRLF
 *.bat text eol=crlf
 *.cmd text eol=crlf

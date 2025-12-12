@@ -33,7 +33,7 @@ ERROR: The content for this response was already consumed
    The following parameters were supplied, but do not correspond to any parameters defined in the template: 'parameterName'
    ```
 
-3. Check that all parameters in your notebook's `bicep_parameters` dictionary match the parameters defined in the `main.bicep` file. 
+3. Check that all parameters in your notebook's `bicep_parameters` dictionary match the parameters defined in the `main.bicep` file.
 
 **Example Fix:**
 If the error mentions `apimSku` parameter not found:
@@ -44,7 +44,7 @@ bicep_parameters = {
     'apimSku': { 'value': 'Developer' }  # This parameter doesn't exist
 }
 
-# ✅ Correct - only includes defined parameters  
+# ✅ Correct - only includes defined parameters
 bicep_parameters = {
     'apis': { 'value': [api.to_dict() for api in apis] }
 }
@@ -214,7 +214,7 @@ Scroll up to see what is executed.
 
 #### Bicep
 
-In one case, `%USERPROFILE%\.azure\bin` contained a `bicep.exe` file but with a zero-length. The CLI would recognize that the file is there but fail on execution. 
+In one case, `%USERPROFILE%\.azure\bin` contained a `bicep.exe` file but with a zero-length. The CLI would recognize that the file is there but fail on execution.
 
 1. Verify that bicep is indeed failing: `az bicep version`
 2. Delete `%USERPROFILE%\.azure\bin\bicep.exe`.
@@ -234,7 +234,7 @@ Resource group 'name' could not be found
 1. Create the infrastructure first by running the appropriate infrastructure deployment from the `/infrastructure/` folder
 2. Verify the resource group name matches the expected pattern:
    ```python
-   rg_name = utils.get_infra_rg_name(deployment, index)
+   rg_name = get_infra_rg_name(deployment, index)
    ```
 
 ### APIM Service Not Found

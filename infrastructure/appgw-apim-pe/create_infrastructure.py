@@ -4,7 +4,10 @@ This module provides a reusable way to create Application Gateway with API Manag
 
 import sys
 import argparse
-from apimtypes import APIM_SKU, API, GET_APIOperation, BACKEND_XML_POLICY_PATH
+
+# APIM Samples imports
+import azure_resources as az
+from apimtypes import APIM_SKU, API, GET_APIOperation, BACKEND_XML_POLICY_PATH, INFRASTRUCTURE
 from infrastructures import AppGwApimPeInfrastructure
 import utils
 
@@ -12,7 +15,7 @@ import utils
 def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU, no_aca: bool = False) -> None:
     try:
         # Check if infrastructure already exists to determine messaging
-        infrastructure_exists = utils.does_resource_group_exist(utils.get_infra_rg_name(utils.INFRASTRUCTURE.APPGW_APIM_PE, index))
+        infrastructure_exists = az.does_resource_group_exist(az.get_infra_rg_name(INFRASTRUCTURE.APPGW_APIM_PE, index))
 
         # Create custom APIs for APPGW-APIM-PE with optional Container Apps backends
         custom_apis = _create_appgw_specific_apis(not no_aca)

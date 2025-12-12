@@ -4,15 +4,17 @@ This module provides a reusable way to create Simple APIM infrastructure that ca
 
 import sys
 import argparse
-from apimtypes import APIM_SKU
+
+# APIM Samples imports
+import azure_resources as az
+from apimtypes import APIM_SKU, INFRASTRUCTURE
 from infrastructures import SimpleApimInfrastructure
-import utils
 
 
 def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU) -> None:
     try:
         # Check if infrastructure already exists to determine messaging
-        infrastructure_exists = utils.does_resource_group_exist(utils.get_infra_rg_name(utils.INFRASTRUCTURE.SIMPLE_APIM, index))
+        infrastructure_exists = az.does_resource_group_exist(az.get_infra_rg_name(INFRASTRUCTURE.SIMPLE_APIM, index))
 
         result = SimpleApimInfrastructure(location, index, apim_sku).deploy_infrastructure(infrastructure_exists)
         sys.exit(0 if result.success else 1)

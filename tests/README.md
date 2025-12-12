@@ -1,10 +1,123 @@
-# APIM Samples Test Matrix
+# APIM Samples Testing
 
-This document outlines the compatibility between samples and infrastructure types, providing a comprehensive test matrix to ensure all components work correctly in both local development and Codespaces environments. The format allows for manual check-off during testing sessions.
+This directory contains all testing infrastructure and code quality tools for the APIM Samples repository.
 
-## Printable Test Checklist
+## Quick Start
 
-A printable checklist is maintained in the [Test-Matrix.md](./Test-Matrix.md) file.
+### Run All Checks (Recommended)
+
+The fastest way to validate your code changes:
+
+```powershell
+# From repository root
+.\tests\python\check_python.ps1
+```
+
+```bash
+# From repository root
+./tests/python/check_python.sh
+```
+
+This runs both pylint (code linting) and pytest (unit tests) with a single command.
+
+## Code Quality Tools
+
+### Combined Checks (check_python)
+
+**Preferred method** - Runs both linting and testing:
+
+```powershell
+# Windows
+.\tests\python\check_python.ps1                 # Run all checks
+.\tests\python\check_python.ps1 -ShowLintReport # Include detailed pylint report
+```
+
+```bash
+# Linux/macOS
+./tests/python/check_python.sh                  # Run all checks
+./tests/python/check_python.sh --show-report    # Include detailed pylint report
+```
+
+### Linting Only (pylint)
+
+Run pylint separately when you only need linting:
+
+```powershell
+# Windows - from repository root
+.\tests\python\run_pylint.ps1                   # Default: all Python code
+.\tests\python\run_pylint.ps1 -ShowReport       # Show detailed report
+.\tests\python\run_pylint.ps1 -Target "samples" # Lint specific folder
+```
+
+```bash
+# Linux/macOS - from repository root
+./tests/python/run_pylint.sh                    # Default: all Python code
+./tests/python/run_pylint.sh samples --show-report # Lint specific folder with report
+```
+
+#### Pylint Reports
+
+All pylint runs generate timestamped reports in `tests/python/pylint/reports/`:
+- **JSON format**: Machine-readable for CI/CD integration
+- **Text format**: Human-readable detailed analysis
+- **Latest symlinks**: `latest.json` and `latest.txt` always point to the most recent run
+
+The script automatically displays a **Top 10 Issues Summary** showing the most frequent code quality issues.
+
+### Testing Only (pytest)
+
+Run tests separately when you only need test execution:
+
+```powershell
+# Windows - from repository root
+.\tests\python\run_tests.ps1
+```
+
+```bash
+# Linux/macOS - from repository root
+./tests/python/run_tests.sh
+```
+
+Both scripts:
+- Run all tests in `tests/python` using pytest
+- Generate a code coverage report (HTML output in `tests/python/htmlcov`)
+- Store the raw coverage data in `tests/python/.coverage`
+
+#### Viewing Coverage Reports
+
+After running tests, open `tests/python/htmlcov/index.html` in your browser to view detailed coverage information.
+
+## Test Infrastructure
+
+### Configuration Files
+
+- `.pylintrc` - Pylint configuration and rules
+- `.coveragerc` - Coverage.py configuration
+- `pytest.ini` - Pytest configuration and markers
+- `conftest.py` - Shared pytest fixtures
+
+### Test Files
+
+All test files follow the pattern `test_*.py` and test corresponding modules in `shared/python`.
+
+### Pytest Markers
+
+- `@pytest.mark.unit` - Unit tests
+- `@pytest.mark.http` - Tests involving HTTP/mocking
+
+Markers are registered in `pytest.ini`.
+
+## Continuous Integration
+
+On every push or pull request, GitHub Actions will:
+- Install dependencies
+- Run all Python tests with coverage
+- Run pylint on all Python code
+- Upload coverage reports as artifacts
+
+## Sample Test Matrix
+
+A comprehensive compatibility test matrix for samples and infrastructure types is maintained in [Test-Matrix.md](./Test-Matrix.md).
 
 ## Infrastructure Types
 
@@ -27,7 +140,7 @@ To ensure robust functionality across environments, all samples should:
 1. Print this document for manual tracking or use markdown checkboxes in digital form
 2. For each combination of sample, infrastructure, and environment:
    - Deploy the infrastructure and sample
-   - Run tests 
+   - Run tests
    - Mark the corresponding checkbox when tests pass
 3. Document any issues encountered in the "Test Notes" section below
 

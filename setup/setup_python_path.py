@@ -17,6 +17,7 @@ is achieved by:
 import sys
 import subprocess
 import os
+import json
 from pathlib import Path  # Cross-platform path handling (Windows: \, Unix: /)
 
 
@@ -114,8 +115,8 @@ SPOTIFY_CLIENT_SECRET=
     print(f"Generated .env file   : {env_file_path}")
     print(f"PROJECT_ROOT          : {project_root}")
     print(f"PYTHONPATH            : {shared_python_path}")
-    print(f"SPOTIFY_CLIENT_ID     : ")
-    print(f"SPOTIFY_CLIENT_SECRET : \n")
+    print("SPOTIFY_CLIENT_ID     : ")
+    print("SPOTIFY_CLIENT_SECRET : \n")
 
 
 def install_jupyter_kernel():
@@ -146,14 +147,14 @@ def install_jupyter_kernel():
 
     try:
         # Install the kernel for the current user
-        result = subprocess.run([
+        subprocess.run([
             sys.executable, '-m', 'ipykernel', 'install',
             '--user',
             f'--name={kernel_name}',
             f'--display-name={display_name}'
         ], check=True, capture_output=True, text=True)
 
-        print(f"✅ Jupyter kernel registered successfully:")
+        print("✅ Jupyter kernel registered successfully:")
         print(f"   Name         : {kernel_name}")
         print(f"   Display Name : {display_name}")
 
@@ -186,6 +187,7 @@ def create_vscode_settings():
         "files.trimTrailingWhitespace": True,
         "files.insertFinalNewline": True,
         "files.trimFinalNewlines": True,
+        "files.eol": "\n",
         "editor.renderWhitespace": "trailing",
         "python.defaultInterpreterPath": "./.venv/Scripts/python.exe" if os.name == 'nt' else "./.venv/bin/python",
         "python.pythonPath": "./.venv/Scripts/python.exe" if os.name == 'nt' else "./.venv/bin/python",
@@ -239,7 +241,6 @@ def create_vscode_settings():
                 content = f.read()
 
             # Try to parse as JSON (will fail if it has comments)
-            import json
             existing_settings = json.loads(content)
 
             # Merge required settings with existing ones
@@ -254,17 +255,16 @@ def create_vscode_settings():
             print("   - Default kernel set to 'apim-samples'")
             print("   - Python interpreter configured for .venv")
 
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"⚠️  Existing settings.json has comments or formatting issues")
-            print(f"   Please manually add these settings to preserve your existing configuration:")
-            print(f"   - \"jupyter.defaultKernel\": \"apim-samples\"")
+        except (json.JSONDecodeError, IOError):
+            print("⚠️  Existing settings.json has comments or formatting issues")
+            print("   Please manually add these settings to preserve your existing configuration:")
+            print("   - \"jupyter.defaultKernel\": \"apim-samples\"")
             print(f"   - \"python.defaultInterpreterPath\": \"{required_settings['python.defaultInterpreterPath']}\"")
             print(f"   - \"python.pythonPath\": \"{required_settings['python.pythonPath']}\"")
             return False
     else:
         # Create new settings file
         try:
-            import json
             with open(settings_file, 'w', encoding='utf-8') as f:
                 json.dump(required_settings, f, indent=4)
 
@@ -295,9 +295,9 @@ def validate_kernel_setup():
         if 'apim-samples' in result.stdout:
             print("✅ APIM Samples kernel found in kernelspec list")
             return True
-        else:
-            print("❌ APIM Samples kernel not found in kernelspec list")
-            return False
+
+        print("❌ APIM Samples kernel not found in kernelspec list")
+        return False
 
     except subprocess.CalledProcessError as e:
         print(f"❌ Failed to check kernel list: {e}")
@@ -366,8 +366,6 @@ def force_kernel_consistency():
     }
 
     try:
-        import json
-
         # Read existing settings or create new ones
         existing_settings = {}
         if settings_file.exists():
@@ -421,7 +419,7 @@ def setup_complete_environment():
     # Summary
     print("\n" + "="*50)
     print("📋 Setup Summary:")
-    print(f"   ✅ Python path configuration: Complete")
+    print("   ✅ Python path configuration: Complete")
     print(f"   {'✅' if kernel_success else '❌'} Jupyter kernel registration: {'Complete' if kernel_success else 'Failed'}")
     print(f"   {'✅' if vscode_success else '❌'} VS Code settings: {'Complete' if vscode_success else 'Failed'}")
     print(f"   {'✅' if consistency_success else '❌'} Kernel consistency enforcement: {'Complete' if consistency_success else 'Failed'}")

@@ -160,22 +160,22 @@ Our devcontainer uses two key lifecycle commands optimized for prebuild:
 #### `onCreateCommand` (Container Creation)
 ```bash
 # Creates Python virtual environment and registers Jupyter kernel
-echo '🚀 Creating Python virtual environment in workspace...' && 
-/usr/local/bin/python3.12 -m venv /workspaces/Apim-Samples/.venv --copies && 
-source /workspaces/Apim-Samples/.venv/bin/activate && 
-pip install --upgrade pip setuptools wheel ipykernel && 
+echo '🚀 Creating Python virtual environment in workspace...' &&
+/usr/local/bin/python3.12 -m venv /workspaces/Apim-Samples/.venv --copies &&
+source /workspaces/Apim-Samples/.venv/bin/activate &&
+pip install --upgrade pip setuptools wheel ipykernel &&
 python -m ipykernel install --user --name=apim-samples --display-name='APIM Samples Python 3.12'
 ```
 
 #### `updateContentCommand` (Content Updates)
 ```bash
 # Installs Python packages and configures environment
-source /workspaces/Apim-Samples/.venv/bin/activate && 
-pip install -r requirements.txt && 
-pip install pytest pytest-cov coverage && 
-python setup/setup_python_path.py --generate-env && 
-az config set core.login_experience_v2=off && 
-az extension add --name containerapp --only-show-errors && 
+source /workspaces/Apim-Samples/.venv/bin/activate &&
+pip install -r requirements.txt &&
+pip install pytest pytest-cov coverage &&
+python setup/setup_python_path.py --generate-env &&
+az config set core.login_experience_v2=off &&
+az extension add --name containerapp --only-show-errors &&
 az extension add --name front-door --only-show-errors
 ```
 

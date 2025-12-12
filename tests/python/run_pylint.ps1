@@ -26,22 +26,31 @@
 #>
 
 param(
-    [string]$Target = "../../infrastructure ../../samples ../../setup ../../shared ../../tests",
+    [string]$Target = "infrastructure samples setup shared tests",
     [switch]$ShowReport
 )
 
 $ErrorActionPreference = "Continue"
-$ReportDir = "pylint/reports"
+$ScriptDir = $PSScriptRoot
+$RepoRoot = Split-Path (Split-Path $ScriptDir -Parent) -Parent
+$ReportDir = Join-Path $ScriptDir "pylint/reports"
+$PylintRc = Join-Path $ScriptDir ".pylintrc"
 $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+
+# Set UTF-8 encoding for Python and console output
+$env:PYTHONIOENCODING = "utf-8"
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 # Ensure report directory exists
 if (-not (Test-Path $ReportDir)) {
     New-Item -ItemType Directory -Path $ReportDir -Force | Out-Null
 }
 
-Write-Host "`n🔍 Running pylint analysis..." -ForegroundColor Cyan
-Write-Host "   Target:  $Target" -ForegroundColor Gray
-Write-Host "   Reports: $ReportDir`n" -ForegroundColor Gray
+Write-Host "`n🔍 Running pylint analysis...`n" -ForegroundColor Cyan
+Write-Host "   Target            : $Target" -ForegroundColor Gray
+Write-Host "   Reports           : $ReportDir" -ForegroundColor Gray
+Write-Host "   Working Directory : $RepoRoot" -ForegroundColor Gray
+Write-Host "   Pylint Config     : $PylintRc`n" -ForegroundColor Gray
 
 # Run pylint with multiple output formats
 $JsonReport = "$ReportDir/pylint_${Timestamp}.json"
@@ -49,12 +58,16 @@ $TextReport = "$ReportDir/pylint_${Timestamp}.txt"
 $LatestJson = "$ReportDir/latest.json"
 $LatestText = "$ReportDir/latest.txt"
 
-# Execute pylint
-pylint --rcfile .pylintrc `
-    --output-format=json:$JsonReport,colorized,text:$TextReport `
-    $Target
-
-$ExitCode = $LASTEXITCODE
+# Change to repository root and execute pylint
+Push-Location $RepoRoot
+try {
+    pylint --rcfile "$PylintRc" `
+        --output-format=json:$JsonReport,colorized,text:$TextReport `
+        $Target.Split(' ')
+    $ExitCode = $LASTEXITCODE
+} finally {
+    Pop-Location
+}
 
 # Create symlinks to latest reports
 if (Test-Path $JsonReport) {

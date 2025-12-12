@@ -2,6 +2,7 @@
 Rudimentary test framework to offload validations from the Jupyter notebooks.
 """
 
+# APIM Samples imports
 from apimtypes import INFRASTRUCTURE
 
 # ------------------------------
@@ -93,17 +94,17 @@ class ApimTesting:
         print(f' Deployment  : {self.deployment.name if self.deployment else 'N/A'}\n')
 
         # Test statistics with visual indicators
-        print(f'📊 Test Execution Statistics:')
+        print('📊 Test Execution Statistics:')
         print(f'    • Total Tests  : {self.total_tests:>5}')
         print(f'    • Tests Passed : {self.tests_passed:>5}')
         print(f'    • Tests Failed : {self.tests_failed:>5} {'❌' if self.tests_failed > 0 else ''}')
         print(f'    • Success Rate : {success_rate:>5.1f}%\n')
 
         # Overall result
-        if self.tests_failed == 0 and self.total_tests > 0:
+        if not self.tests_failed and self.total_tests > 0:
             print('🎉 OVERALL RESULT: ALL TESTS PASSED! 🎉')
             print('✨ Congratulations! Your APIM deployment is working flawlessly! ✨')
-        elif self.total_tests == 0:
+        elif not self.total_tests:
             print('⚠️  OVERALL RESULT: NO TESTS EXECUTED')
             print('🤔 Consider adding some tests to validate your deployment.')
         else:

@@ -3,6 +3,8 @@ Unit tests for authfactory.py.
 """
 import time
 import pytest
+
+# APIM Samples imports
 from authfactory import JwtPayload, SymmetricJwtToken, AuthFactory
 from users import User
 
@@ -11,7 +13,7 @@ from users import User
 # ------------------------------
 
 TEST_KEY = 'test-secret-key'
-TEST_USER = User(id = 'u1', name = 'Test User', roles = ['role1', 'role2'])
+TEST_USER = User(user_id = 'u1', name = 'Test User', roles = ['role1', 'role2'])
 
 # ------------------------------
 #    PUBLIC METHODS

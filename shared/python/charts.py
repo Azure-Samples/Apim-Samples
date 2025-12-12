@@ -4,11 +4,11 @@ Module providing charting functions.
 This module will likely be moved to the /shared/python directory in the future once it's more generic.
 """
 
+import json
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle as pltRectangle
 import matplotlib as mpl
-import json
 
 
 # ------------------------------
@@ -17,7 +17,7 @@ import json
 
 # TODO: A specialized barchart for multi-request scenarios should be created and use a more generic base class barchart.
 # TODO: BarChart should be a base class for other chart types once it's more generic.
-class BarChart(object):
+class BarChart:
     """
     Class for creating bar charts with colored bars based on backend indexes.
     """

@@ -4,7 +4,9 @@ Unit tests for the User class in users.py.
 
 import random
 import pytest
-from users import User, Users, UserHelper
+
+# APIM Samples imports
+from users import User, UserName, Users, UserHelper
 from apimtypes import Role
 
 # ------------------------------
@@ -13,27 +15,27 @@ from apimtypes import Role
 
 @pytest.mark.unit
 def test_user_init_with_roles():
-    user = User(id='123', name='Alice', roles=['admin', 'user'])
+    user = User(user_id='123', name='Alice', roles=['admin', 'user'])
     assert user.id == '123'
     assert user.name == 'Alice'
     assert user.roles == ['admin', 'user']
 
 @pytest.mark.unit
 def test_user_init_without_roles():
-    user = User(id='456', name='Bob')
+    user = User(user_id='456', name='Bob')
     assert user.id == '456'
     assert user.name == 'Bob'
     assert user.roles == []
 
 @pytest.mark.unit
 def test_user_role_mutability():
-    user = User(id='789', name='Charlie')
+    user = User(user_id='789', name='Charlie')
     user.roles.append('editor')
     assert user.roles == ['editor']
 
 @pytest.mark.unit
 def test_user_repr():
-    user = User(id='abc', name='Dana', roles=['guest'])
+    user = User(user_id='abc', name='Dana', roles=['guest'])
     # __repr__ is not defined, so fallback to default, but check type
     assert isinstance(repr(user), str)
 
@@ -74,6 +76,30 @@ def test_get_user_by_role_single_match():
     user = UserHelper.get_user_by_role(Role.HR_MEMBER)
     assert user is not None
     assert Role.HR_MEMBER in user.roles
+
+
+def test_get_user_by_exact_name():
+    """Direct string lookups should find the matching user."""
+
+    user = UserHelper.get_user('Dylan Williams')
+
+    assert user is not None
+    assert user.name == 'Dylan Williams'
+
+
+def test_get_user_by_enum_name():
+    """Enum members can be used to locate users."""
+
+    user = UserHelper.get_user(UserName.ELIZABETH_MOORE)
+
+    assert user is not None
+    assert user.name == UserName.ELIZABETH_MOORE
+
+
+def test_get_user_missing_returns_none():
+    """Unknown user names should return None."""
+
+    assert UserHelper.get_user('Nonexistent User') is None
 
 def test_get_user_by_role_multiple_roles():
     """
