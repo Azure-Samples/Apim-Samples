@@ -861,12 +861,19 @@ class AppGwApimPeInfrastructure(Infrastructure):
         if not check_kv.success:
             # Create Key Vault via Azure CLI with RBAC authorization (consistent with Bicep module)
             print(f'   Creating Key Vault: {key_vault_name}')
-            az.run(
+            create_kv = az.run(
                 f'az keyvault create --name {key_vault_name} --resource-group {self.rg_name} --location {self.rg_location} --enable-rbac-authorization true',
-                f'✅ Key Vault created: {key_vault_name}',
-                '❌ Failed to create Key Vault',
-                print_command_to_run = False
+                print_command_to_run = False,
+                print_errors = False
             )
+
+            if not create_kv.success:
+                print(f'   ❌ Failed to create Key Vault: {key_vault_name}')
+                print('      This may be caused by a soft-deleted Key Vault with the same name.')
+                print('      Check for soft-deleted resources: python shared/python/show_soft_deleted_resources.py\n')
+                return False
+
+            print(f'   ✅ Key Vault created: {key_vault_name}')
 
             #Assign Key Vault Certificates Officer role to current user for certificate creation
 
@@ -878,6 +885,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
             )
             if not assign_kv_role.success:
                 print('   ❌ Failed to assign Key Vault Certificates Officer role to current user')
+                print('      This is an RBAC permission issue - verify your account has sufficient permissions.')
                 return False
 
             print('   ✅ Assigned Key Vault Certificates Officer role to current user')

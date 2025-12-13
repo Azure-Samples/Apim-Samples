@@ -23,6 +23,7 @@ applyTo: "**/*.py"
 - Use 4-space indentation and PEP 8 conventions.
 - Use only straight quotes (U+0027 and U+0022), not typographic quotes.
 - Use whitespace to separate logical sections and add a blank line before `return` statements.
+- Use f-strings unless there is no interpolation.
 
 ## Import Style Guidelines
 

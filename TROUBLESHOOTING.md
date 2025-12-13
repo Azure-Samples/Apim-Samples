@@ -223,6 +223,99 @@ In one case, `%USERPROFILE%\.azure\bin` contained a `bicep.exe` file but with a 
 
 ## Resource Management Issues
 
+### Soft-Deleted Resources (APIM and Key Vault)
+
+When you delete Azure API Management services or Key Vaults, they are soft-deleted and remain recoverable for a period of time (typically 48 days for APIM, 90 days for Key Vault). These soft-deleted resources continue to reserve their names and can cause deployment conflicts.
+
+**Common Issues:**
+- Deployment fails with "Name already exists" even though resource appears deleted
+- Cannot reuse the same name for a new APIM service or Key Vault
+- Key Vault creation fails during infrastructure deployment
+- Subscription quotas are affected by soft-deleted resources
+
+**Error During Infrastructure Deployment:**
+```
+Creating Key Vault: kv-sbfc4encghfag
+❌ Failed to create Key Vault: kv-sbfc4encghfag
+   This may be caused by a soft-deleted Key Vault with the same name.
+   Check for soft-deleted resources: python shared/python/show_soft_deleted_resources.py
+```
+
+**Check for Soft-Deleted Resources:**
+```bash
+# Using Python script (recommended)
+python shared/python/show_soft_deleted_resources.py
+
+# Manual check
+az apim deletedservice list
+az keyvault list-deleted
+```
+
+**Purge Soft-Deleted Resources:**
+
+⚠️ **WARNING:** Purging is permanent and irreversible. Resources cannot be recovered after purging.
+
+```bash
+# Purge all soft-deleted resources with confirmation
+python shared/python/show_soft_deleted_resources.py --purge
+
+# Purge without confirmation (use with caution!)
+python shared/python/show_soft_deleted_resources.py --purge --yes
+
+# Manual purge
+az apim deletedservice purge --service-name <name> --location <location>
+az keyvault purge --name <name> --location <location>
+```
+
+**Best Practices:**
+1. Check for soft-deleted resources before deploying with the same name
+2. Use unique names for resources to avoid conflicts
+3. Purge soft-deleted resources if you need to reuse the name immediately
+4. Consider using timestamps or random suffixes in resource names during development
+
+#### Understanding Key Vault Purge Protection
+
+Key Vaults can have **purge protection** enabled, which prevents them from being manually purged before their scheduled purge date. This is a security feature that cannot be disabled once enabled.
+
+**Error When Purging Protected Key Vaults:**
+```
+(MethodNotAllowed) Operation 'DeletedVaultPurge' is not allowed.
+Code: MethodNotAllowed
+Message: Operation 'DeletedVaultPurge' is not allowed.
+```
+
+**Identifying Purge Protection:**
+The `show_soft_deleted_resources.py` script automatically detects and displays purge protection status:
+```bash
+python shared/python/show_soft_deleted_resources.py
+```
+
+Sample output:
+```
+1/2:
+    Vault Name       : kv-glgoiqn66pbnu
+    Location         : eastus2
+    Deletion Date    : 2025-12-13 10:30:00 UTC
+    Purge Date       : 2026-03-12 10:30:00 UTC
+    Purge Protection : 🔒 ENABLED
+    Vault ID         : /subscriptions/.../vaults/kv-glgoiqn66pbnu
+
+⚠️  1 vault(s) have PURGE PROTECTION enabled and cannot be manually purged.
+   These vaults will be automatically purged on their scheduled purge date.
+```
+
+**Handling Purge-Protected Key Vaults:**
+- ✅ **Recoverable:** You can still recover the vault before the scheduled purge date
+- ❌ **Cannot purge manually:** The vault cannot be purged until its scheduled purge date
+- 💡 **Use different names:** Deploy new Key Vaults with different names
+- 🔒 **Security feature:** This is by design to prevent accidental data loss
+
+**Recovery Option:**
+```bash
+# Recover a soft-deleted Key Vault (even with purge protection)
+az keyvault recover --name <vault-name>
+```
+
 ### Resource Group Does Not Exist
 
 **Error Message:**
