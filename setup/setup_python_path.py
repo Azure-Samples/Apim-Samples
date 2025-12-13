@@ -21,6 +21,75 @@ import json
 from pathlib import Path  # Cross-platform path handling (Windows: \, Unix: /)
 
 
+DEFAULT_VSCODE_SEARCH_EXCLUDE = {
+    "**/.venv": True,
+    "**/.venv/**": True,
+}
+
+DEFAULT_VSCODE_FILES_WATCHER_EXCLUDE = {
+    "**/.venv/**": True,
+}
+
+DEFAULT_VSCODE_FILES_EXCLUDE = {
+    "**/.venv": True,
+}
+
+DEFAULT_PYTHON_ANALYSIS_EXCLUDE = [
+    "**/node_modules",
+    "**/__pycache__",
+    ".git",
+    "**/build",
+    "env/**",
+    "**/.venv/**",
+]
+
+
+def _merge_bool_map(existing: object, required: dict[str, bool]) -> dict[str, bool]:
+    """Merge boolean map settings while enforcing required keys.
+
+    For VS Code exclude maps, required keys are forced to True.
+    """
+
+    if isinstance(existing, dict):
+        merged: dict[str, bool] = {str(k): bool(v) for k, v in existing.items()}
+    else:
+        merged = {}
+
+    for key in required:
+        merged[key] = True
+
+    return merged
+
+
+def _normalize_string_list(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return [str(item) for item in value if str(item).strip()]
+    if isinstance(value, str) and value.strip():
+        return [value]
+    return []
+
+
+def _merge_string_list(existing: object, required: list[str]) -> list[str]:
+    """Merge lists while preserving order and avoiding duplicates.
+
+    Required items come first, followed by any existing items.
+    """
+
+    existing_list = _normalize_string_list(existing)
+    merged: list[str] = []
+
+    for item in required:
+        if item not in merged:
+            merged.append(item)
+    for item in existing_list:
+        if item not in merged:
+            merged.append(item)
+
+    return merged
+
+
 def get_project_root() -> Path:
     """
     Get the absolute path to the project root directory.
@@ -183,6 +252,8 @@ def create_vscode_settings():
     vscode_dir.mkdir(exist_ok=True)
 
     # Settings to update for kernel and Python configuration
+    # Note: exclude settings (search/files watcher/Pylance) are merged separately
+    # to avoid clobbering any user customizations.
     required_settings = {
         "files.trimTrailingWhitespace": True,
         "files.insertFinalNewline": True,
@@ -246,6 +317,24 @@ def create_vscode_settings():
             # Merge required settings with existing ones
             existing_settings.update(required_settings)
 
+            # Merge performance excludes without overwriting other patterns
+            existing_settings["search.exclude"] = _merge_bool_map(
+                existing_settings.get("search.exclude"),
+                DEFAULT_VSCODE_SEARCH_EXCLUDE,
+            )
+            existing_settings["files.watcherExclude"] = _merge_bool_map(
+                existing_settings.get("files.watcherExclude"),
+                DEFAULT_VSCODE_FILES_WATCHER_EXCLUDE,
+            )
+            existing_settings["files.exclude"] = _merge_bool_map(
+                existing_settings.get("files.exclude"),
+                DEFAULT_VSCODE_FILES_EXCLUDE,
+            )
+            existing_settings["python.analysis.exclude"] = _merge_string_list(
+                existing_settings.get("python.analysis.exclude"),
+                DEFAULT_PYTHON_ANALYSIS_EXCLUDE,
+            )
+
             # Write back the merged settings
             with open(settings_file, 'w', encoding='utf-8') as f:
                 json.dump(existing_settings, f, indent=4)
@@ -254,6 +343,7 @@ def create_vscode_settings():
             print("   - Existing settings preserved")
             print("   - Default kernel set to 'apim-samples'")
             print("   - Python interpreter configured for .venv")
+            print("   - .venv excluded from search/watcher/Pylance indexing")
 
         except (json.JSONDecodeError, IOError):
             print("⚠️  Existing settings.json has comments or formatting issues")
@@ -265,12 +355,18 @@ def create_vscode_settings():
     else:
         # Create new settings file
         try:
+            required_settings["search.exclude"] = DEFAULT_VSCODE_SEARCH_EXCLUDE
+            required_settings["files.watcherExclude"] = DEFAULT_VSCODE_FILES_WATCHER_EXCLUDE
+            required_settings["files.exclude"] = DEFAULT_VSCODE_FILES_EXCLUDE
+            required_settings["python.analysis.exclude"] = DEFAULT_PYTHON_ANALYSIS_EXCLUDE
+
             with open(settings_file, 'w', encoding='utf-8') as f:
                 json.dump(required_settings, f, indent=4)
 
             print(f"✅ VS Code settings created: {settings_file}")
             print("   - Default kernel set to 'apim-samples'")
             print("   - Python interpreter configured for .venv")
+            print("   - .venv excluded from search/watcher/Pylance indexing")
         except (ImportError, IOError) as e:
             print(f"❌ Failed to create VS Code settings: {e}")
             return False
@@ -365,6 +461,13 @@ def force_kernel_consistency():
         ]
     }
 
+    performance_exclude_settings = {
+        "search.exclude": DEFAULT_VSCODE_SEARCH_EXCLUDE,
+        "files.watcherExclude": DEFAULT_VSCODE_FILES_WATCHER_EXCLUDE,
+        "files.exclude": DEFAULT_VSCODE_FILES_EXCLUDE,
+        "python.analysis.exclude": DEFAULT_PYTHON_ANALYSIS_EXCLUDE,
+    }
+
     try:
         # Read existing settings or create new ones
         existing_settings = {}
@@ -377,6 +480,24 @@ def force_kernel_consistency():
 
         # Merge settings, with our strict kernel settings taking priority
         existing_settings.update(strict_kernel_settings)
+
+        # Merge performance excludes without clobbering user patterns
+        existing_settings["search.exclude"] = _merge_bool_map(
+            existing_settings.get("search.exclude"),
+            performance_exclude_settings["search.exclude"],
+        )
+        existing_settings["files.watcherExclude"] = _merge_bool_map(
+            existing_settings.get("files.watcherExclude"),
+            performance_exclude_settings["files.watcherExclude"],
+        )
+        existing_settings["files.exclude"] = _merge_bool_map(
+            existing_settings.get("files.exclude"),
+            performance_exclude_settings["files.exclude"],
+        )
+        existing_settings["python.analysis.exclude"] = _merge_string_list(
+            existing_settings.get("python.analysis.exclude"),
+            performance_exclude_settings["python.analysis.exclude"],
+        )
 
         # Write updated settings
         with open(settings_file, 'w', encoding='utf-8') as f:
