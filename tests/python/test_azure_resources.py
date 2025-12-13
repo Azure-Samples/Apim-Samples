@@ -29,10 +29,14 @@ def test_get_azure_role_guid_success():
 def test_get_azure_role_guid_failure():
     """Test get_azure_role_guid returns None when file not found."""
 
-    with patch('builtins.open', side_effect=FileNotFoundError('File not found')):
-        result = az.get_azure_role_guid('NonExistentRole')
+    # Mock os.path functions to return a non-existent path
+    with patch('azure_resources.os.path.abspath', return_value='/nonexistent/path'):
+        with patch('azure_resources.os.path.dirname', return_value='/nonexistent'):
+            with patch('azure_resources.os.path.join', return_value='/nonexistent/azure-roles.json'):
+                with patch('azure_resources.os.path.normpath', return_value='/nonexistent/azure-roles.json'):
+                    result = az.get_azure_role_guid('NonExistentRole')
 
-        assert result is None
+                    assert result is None
 
 # ------------------------------
 #    RESOURCE GROUP TESTS
