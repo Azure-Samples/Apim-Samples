@@ -10,6 +10,7 @@ import azure_resources as az
 from apimtypes import APIM_SKU, API, GET_APIOperation, BACKEND_XML_POLICY_PATH, INFRASTRUCTURE
 from infrastructures import ApimAcaInfrastructure
 from utils import read_policy_xml
+from console import print_plain
 
 
 def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU) -> None:
@@ -25,10 +26,8 @@ def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU) -> None
 
         sys.exit(0 if result.success else 1)
 
-    except Exception as e:
-        print(f'\n💥 Error: {str(e)}')
+    except:
         sys.exit(1)
-
 
 def _create_aca_specific_apis() -> list[API]:
     """

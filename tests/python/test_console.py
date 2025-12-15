@@ -6,7 +6,7 @@ thread safety, and various output options.
 """
 
 import io
-import sys
+import logging
 import threading
 import console
 
@@ -17,7 +17,7 @@ import console
 
 def capture_output(func, *args, **kwargs):
     """
-    Capture stdout from a function call.
+    Capture console logging output from a function call.
 
     Args:
         func: Function to call
@@ -28,12 +28,27 @@ def capture_output(func, *args, **kwargs):
         str: Captured output
     """
     captured_output = io.StringIO()
-    sys.stdout = captured_output
+
+    logger = logging.getLogger('console')
+    previous_level = logger.level
+    previous_handlers = list(logger.handlers)
+    previous_propagate = logger.propagate
+
+    handler = logging.StreamHandler(captured_output)
+    handler.setFormatter(logging.Formatter('%(message)s'))
+
+    # Route console messages only to our in-memory stream for deterministic tests.
+    logger.handlers = [handler]
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = False
+
     try:
         func(*args, **kwargs)
         return captured_output.getvalue()
     finally:
-        sys.stdout = sys.__stdout__
+        logger.handlers = previous_handlers
+        logger.setLevel(previous_level)
+        logger.propagate = previous_propagate
 
 
 # ------------------------------
@@ -139,7 +154,7 @@ def test_print_error_with_all_options():
 def test_print_info_basic():
     """Test print_info with basic message."""
     output = capture_output(console.print_info, 'Information message')
-    assert '👉🏽' in output
+    assert 'ℹ️' in output
     assert 'Information message' in output
     assert console.BOLD_B in output
 
@@ -206,10 +221,9 @@ def test_print_ok_basic():
 
 
 def test_print_ok_default_blank_above():
-    """Test print_ok has blank line above by default."""
+    """Test print_ok has no blank line above by default."""
     output = capture_output(console.print_ok, 'OK')
-    lines = output.split('\n')
-    assert not lines[0]  # Default blank_above=True
+    assert not output.startswith('\n')
 
 
 def test_print_ok_no_blank_above():
@@ -226,37 +240,7 @@ def test_print_ok_with_output_and_duration():
     assert '1.2s' in output
 
 
-# ------------------------------
-#    print_success TESTS
-# ------------------------------
-
-def test_print_success_basic():
-    """Test print_success with basic message."""
-    output = capture_output(console.print_success, 'Success!')
-    assert '✅' in output
-    assert 'Success!' in output
-    assert console.BOLD_G in output
-
-
-def test_print_success_no_blank_above_default():
-    """Test print_success has no blank line above by default."""
-    output = capture_output(console.print_success, 'Success')
-    assert not output.startswith('\n')
-
-
-def test_print_success_with_blank_above():
-    """Test print_success with blank line above."""
-    output = capture_output(console.print_success, 'Success', blank_above=True)
-    lines = output.split('\n')
-    assert not lines[0]
-
-
-def test_print_success_with_all_options():
-    """Test print_success with all optional parameters."""
-    output = capture_output(console.print_success, 'Deployed', output='url', duration='30s', blank_above=True)
-    assert 'Deployed' in output
-    assert 'url' in output
-    assert '30s' in output
+# NOTE: `print_success` was removed; `print_ok` covers success output.
 
 
 # ------------------------------
@@ -322,43 +306,6 @@ def test_print_val_empty_value():
     """Test print_val with empty value."""
     output = capture_output(console.print_val, 'Empty', '')
     assert 'Empty' in output
-
-
-# ------------------------------
-#    print_header TESTS
-# ------------------------------
-
-def test_print_header_basic():
-    """Test print_header with basic message."""
-    output = capture_output(console.print_header, 'SECTION HEADER')
-    assert 'SECTION HEADER' in output
-    assert console.BOLD_G in output
-    # Should have equal signs above and below
-    assert '=' * len('SECTION HEADER') in output
-
-
-def test_print_header_blank_lines():
-    """Test print_header includes blank lines above and below."""
-    output = capture_output(console.print_header, 'TEST')
-    lines = output.split('\n')
-    # Should have blank line at start (blank_above=True)
-    # Then newline in the message itself
-    assert not lines[0]
-
-
-def test_print_header_equals_length():
-    """Test print_header equals signs match message length."""
-    msg = 'CONFIGURATION'
-    output = capture_output(console.print_header, msg)
-    equals_line = '=' * len(msg)
-    assert output.count(equals_line) == 2  # Above and below
-
-
-def test_print_header_short_message():
-    """Test print_header with very short message."""
-    output = capture_output(console.print_header, 'X')
-    assert 'X' in output
-    assert '=' in output
 
 
 # ------------------------------
@@ -450,7 +397,7 @@ def test_concurrent_prints():
     def concurrent_print():
         console.print_command('command')
         console.print_info('info')
-        console.print_success('success')
+        console.print_ok('success')
 
     threads = [threading.Thread(target=concurrent_print) for _ in range(5)]
     for thread in threads:
@@ -512,37 +459,30 @@ def test_null_duration_and_output():
 
 def test_mixed_function_calls():
     """Test calling multiple different print functions in sequence."""
-    output = io.StringIO()
-    sys.stdout = output
-    try:
-        console.print_header('TEST SUITE')
+    def run_all():
         console.print_command('az login')
         console.print_info('Starting test')
-        console.print_success('Step 1 complete')
+        console.print_ok('Step 1 complete')
         console.print_warning('Slow operation')
         console.print_error('Step 2 failed')
         console.print_ok('Recovery successful')
         console.print_val('Result', 'PASS')
 
-        result = output.getvalue()
-        assert 'TEST SUITE' in result
-        assert 'az login' in result
-        assert 'Starting test' in result
-        assert 'complete' in result
-        assert 'PASS' in result
-    finally:
-        sys.stdout = sys.__stdout__
-
-
-def test_all_colors_present():
-    """Test that different functions use different colors."""
+    output_str = capture_output(run_all)
+    assert 'az login' in output_str
+    assert 'Starting test' in output_str
+    assert 'Step 1 complete' in output_str
+    assert 'Slow operation' in output_str
+    assert 'Step 2 failed' in output_str
+    assert 'Recovery successful' in output_str
+    assert 'Result' in output_str
+    assert 'PASS' in output_str
     functions_and_colors = [
         (console.print_command, console.BOLD_B),
         (console.print_error, console.BOLD_R),
         (console.print_info, console.BOLD_B),
         (console.print_message, console.BOLD_G),
         (console.print_ok, console.BOLD_G),
-        (console.print_success, console.BOLD_G),
         (console.print_warning, console.BOLD_Y),
     ]
 

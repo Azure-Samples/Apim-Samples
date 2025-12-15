@@ -25,8 +25,7 @@ def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU, no_aca:
 
         sys.exit(0 if result.success else 1)
 
-    except Exception as e:
-        print(f'\n💥 Error: {str(e)}')
+    except:
         sys.exit(1)
 
 def _create_afd_specific_apis(use_aca: bool = True) -> list[API]:

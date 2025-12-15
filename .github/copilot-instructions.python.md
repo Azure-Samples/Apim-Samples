@@ -21,6 +21,7 @@ applyTo: "**/*.py"
 - Keep all imports at the top of the file.
 - Use type hints and concise docstrings (PEP 257).
 - Use 4-space indentation and PEP 8 conventions.
+- Surround an equal sign by a space on each side.
 - Use only straight quotes (U+0027 and U+0022), not typographic quotes.
 - Use whitespace to separate logical sections and add a blank line before `return` statements.
 - Use f-strings unless there is no interpolation.

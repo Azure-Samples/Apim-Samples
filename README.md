@@ -160,6 +160,16 @@ If you encounter import errors (e.g., `ModuleNotFoundError: No module named 'req
 
 For detailed troubleshooting of setup issues, see [Import Troubleshooting Guide][import-troubleshooting].
 
+---
+
+## 🔎 Logging and Output
+
+The Python helpers in this repo use standard-library `logging` (not ad-hoc `print()`), so you can control verbosity via environment variables.
+
+- `APIM_SAMPLES_LOG_LEVEL`: Controls the overall verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`). Default: `INFO`.
+   - When set to `DEBUG`, the Azure CLI runner in [shared/python/azure_resources.py](shared/python/azure_resources.py) will also add `--debug` to simple `az ...` commands.
+- `APIM_SAMPLES_CONSOLE_WIDTH`: Optional wrap width for long lines (defaults to `120`).
+
 📘 **For comprehensive troubleshooting including deployment errors, authentication issues, and more, see our main [Troubleshooting Guide][troubleshooting].**
 
 ## 🚀 Running a Sample

@@ -51,11 +51,7 @@ def test_does_resource_group_exist_true():
         result = az.does_resource_group_exist('test-rg')
 
         assert result is True
-        mock_run.assert_called_once_with(
-            'az group show --name test-rg -o json',
-            print_command_to_run = False,
-            print_errors = False
-        )
+        mock_run.assert_called_once_with('az group show --name test-rg -o json')
 
 
 def test_does_resource_group_exist_false():
@@ -78,11 +74,7 @@ def test_get_resource_group_location_success():
         result = az.get_resource_group_location('test-rg')
 
         assert result == 'eastus2'
-        mock_run.assert_called_once_with(
-            'az group show --name test-rg --query "location" -o tsv',
-            print_command_to_run = False,
-            print_errors = False
-        )
+        mock_run.assert_called_once_with('az group show --name test-rg --query "location" -o tsv')
 
 
 def test_get_resource_group_location_failure():
@@ -176,7 +168,8 @@ def test_get_deployment_name_with_directory(mock_getcwd, mock_basename, mock_tim
 
     assert result == 'deploy-my-sample-1234567890'
     mock_getcwd.assert_not_called()
-    mock_basename.assert_not_called()
+    # Note: patching `os.path.basename` affects the shared `os.path` module, which is also
+    # used by stdlib logging internals. Avoid strict call-count assertions here.
 
 
 @patch('azure_resources.time.time')
@@ -193,7 +186,7 @@ def test_get_deployment_name_current_directory(mock_getcwd, mock_basename, mock_
 
     assert result == 'deploy-current-folder-1234567890'
     mock_getcwd.assert_called_once()
-    mock_basename.assert_called_once_with('/path/to/current-folder')
+    assert any(call_args.args == ('/path/to/current-folder',) for call_args in mock_basename.call_args_list)
 
 
 # ------------------------------
@@ -273,10 +266,7 @@ def test_get_apim_url_success():
         result = az.get_apim_url('test-rg')
 
         assert result == 'https://test-apim.azure-api.net'
-        mock_run.assert_called_once_with(
-            'az apim list -g test-rg -o json',
-            print_command_to_run = False
-        )
+        mock_run.assert_called_once_with('az apim list -g test-rg -o json')
 
 
 def test_get_apim_url_failure():
@@ -328,8 +318,8 @@ def test_get_appgw_endpoint_success():
         assert ip == '1.2.3.4'
 
         expected_calls = [
-            call('az network application-gateway list -g test-rg -o json', print_command_to_run = False),
-            call('az network public-ip show -g test-rg -n test-pip -o json', print_command_to_run = False)
+            call('az network application-gateway list -g test-rg -o json'),
+            call('az network public-ip show -g test-rg -n test-pip -o json')
         ]
         mock_run.assert_has_calls(expected_calls)
 

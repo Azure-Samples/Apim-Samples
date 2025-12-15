@@ -18,7 +18,7 @@ from typing import Any
 # APIM Samples imports
 import azure_resources as az
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, get_project_root
-from console import print_error, print_info, print_message, print_success, print_warning, print_val
+from console import print_error, print_info, print_message, print_ok, print_plain, print_warning, print_val
 
 
 # ------------------------------
@@ -83,12 +83,12 @@ class InfrastructureNotebookHelper:
         self.index = index
         self.apim_sku = apim_sku
 
-        print('Initializing Infrastructure Notebook Helper with the following parameters:\n')
+        print_message('Initializing Infrastructure Notebook Helper with the following parameters:', blank_above=True)
         print_val('Location', self.rg_location)
         print_val('Infrastructure', self.deployment.value)
         print_val('Index', self.index)
         print_val('APIM SKU', self.apim_sku.value)
-        print('')
+        print_plain('')
 
     # ------------------------------
     #    PUBLIC METHODS
@@ -116,15 +116,15 @@ class InfrastructureNotebookHelper:
                         should_proceed, new_index = _prompt_for_infrastructure_update(rg_name)
                         if new_index is not None:
                             # User selected option 2: Use a different index
-                            print(f'🔄 Retrying infrastructure creation with index {new_index}...')
+                            print_plain(f'🔄 Retrying infrastructure creation with index {new_index}...')
                             self.index = new_index
                             # Recursively call create_infrastructure with the new index
                             return self.create_infrastructure(bypass_infrastructure_check, allow_update)
                         elif not should_proceed:
-                            print('❌ Infrastructure deployment cancelled by user.')
+                            print_plain('❌ Infrastructure deployment cancelled by user.')
                             raise SystemExit("User cancelled deployment")
                     except (KeyboardInterrupt, EOFError) as exc:
-                        print('\n❌ Infrastructure deployment cancelled by user (Escape/Ctrl+C pressed).')
+                        print_plain('\n❌ Infrastructure deployment cancelled by user (Escape/Ctrl+C pressed).')
                         raise SystemExit("User cancelled deployment") from exc
 
             # Check infrastructure existence for the normal flow
@@ -141,7 +141,7 @@ class InfrastructureNotebookHelper:
 
                 infra_folder = infra_folder_map.get(self.deployment)
                 if not infra_folder:
-                    print(f'❌ Unsupported infrastructure type: {self.deployment.value}')
+                    print_plain(f'❌ Unsupported infrastructure type: {self.deployment.value}')
                     raise SystemExit(1)
 
                 # Build the command to call the infrastructure creation script
@@ -160,15 +160,15 @@ class InfrastructureNotebookHelper:
                     try:
                         # Stream output in real-time
                         for line in process.stdout:
-                            print(line.rstrip())
+                            print_plain(line.rstrip())
                     except Exception as e:
-                        print(f'Error reading subprocess output: {e}')
+                        print_plain(f'Error reading subprocess output: {e}')
 
                     # Wait for process to complete
                     process.wait()
 
                     if process.returncode:
-                        print("❌ Infrastructure creation failed!")
+                        print_plain('❌ Infrastructure creation failed!')
                         raise SystemExit(1)
 
                 return True
@@ -176,10 +176,10 @@ class InfrastructureNotebookHelper:
             return True
 
         except KeyboardInterrupt as exc:
-            print("\n🚫 Infrastructure deployment cancelled by user.")
+            print_plain('\n🚫 Infrastructure deployment cancelled by user.')
             raise SystemExit("User cancelled deployment") from exc
         except Exception as e:
-            print(f"❌ Infrastructure deployment failed with error: {e}")
+            print_plain(f'❌ Infrastructure deployment failed with error: {e}')
             raise SystemExit(1) from e
 
 class NotebookHelper:
@@ -274,7 +274,7 @@ class NotebookHelper:
         # I'm leaving the code here, but may revisit it later.
         QUERY_RG_LOCATION = False
 
-        print('Querying for available infrastructures...\n')
+        print_plain('Querying for available infrastructures...\n')
 
         # Get all resource groups that match the infrastructure pattern
         available_options = []
@@ -292,7 +292,7 @@ class NotebookHelper:
 
         if desired_exists:
             # Scenario 1: Desired infrastructure exists, use it directly
-            print_success(f'Found desired infrastructure: {self.deployment.value} with resource group {desired_rg_name}')
+            print_ok(f'Found desired infrastructure: {self.deployment.value} with resource group {desired_rg_name}')
             return self.deployment, self._get_current_index()
 
         # Sort available options by infrastructure type, then by index
@@ -310,28 +310,28 @@ class NotebookHelper:
             desired_index_str = self._get_current_index() if self._get_current_index() is not None else 'N/A'
             desired_location = self.rg_location
 
-            print('\n   Create a NEW infrastructure:\n')
+            print_plain('\n   Create a NEW infrastructure:\n')
             # Column headers
             if QUERY_RG_LOCATION:
-                print(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35} {'Location':<15}')
-                print(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35} {'-'*15:<15}')
-                print(f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35} {desired_location:<15}')
+                print_plain(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35} {'Location':<15}')
+                print_plain(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35} {'-'*15:<15}')
+                print_plain(f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35} {desired_location:<15}')
             else:
-                print(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35}')
-                print(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35}')
-                print(f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35}')
+                print_plain(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35}')
+                print_plain(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35}')
+                print_plain(f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35}')
 
             display_options.append(('create_new', self.deployment, self._get_current_index()))
             option_counter += 1
 
-            print('\n   Or select an EXISTING infrastructure:\n')
+            print_plain('\n   Or select an EXISTING infrastructure:\n')
             # Column headers
             if QUERY_RG_LOCATION:
-                print(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35} {'Location':<15}')
-                print(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35} {'-'*15:<15}')
+                print_plain(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35} {'Location':<15}')
+                print_plain(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35} {'-'*15:<15}')
             else:
-                print(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35}')
-                print(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35}')
+                print_plain(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35}')
+                print_plain(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35}')
 
             for infra, index in available_options:
                 index_str = index if index is not None else 'N/A'
@@ -339,9 +339,9 @@ class NotebookHelper:
 
                 if QUERY_RG_LOCATION:
                     rg_location = az.get_resource_group_location(rg_name)
-                    print(f'     {option_counter:>3} {infra.value:<20} {index_str:>8} {rg_name:<35} {rg_location:<15}')
+                    print_plain(f'     {option_counter:>3} {infra.value:<20} {index_str:>8} {rg_name:<35} {rg_location:<15}')
                 else:
-                    print(f'     {option_counter:>3} {infra.value:<20} {index_str:>8} {rg_name:<35}')
+                    print_plain(f'     {option_counter:>3} {infra.value:<20} {index_str:>8} {rg_name:<35}')
 
                 display_options.append(('existing', infra, index))
                 option_counter += 1
@@ -358,13 +358,13 @@ class NotebookHelper:
             success = inb_helper.create_infrastructure(True)  # Bypass infrastructure check to force creation
 
             if success:
-                print_success(f'Successfully created infrastructure: {self.deployment.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
+                print_ok(f'Successfully created infrastructure: {self.deployment.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
                 return self.deployment, selected_index
             else:
                 print_error('Failed to create infrastructure.')
                 return None, None
 
-        print('')
+        print_plain('')
 
         # Get user selection
         while True:
@@ -380,7 +380,7 @@ class NotebookHelper:
                     option_type, selected_infra, selected_index = display_options[choice_idx]
 
                     if option_type == 'existing':
-                        print_success(f'Selected existing: {selected_infra.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
+                        print_ok(f'Selected existing: {selected_infra.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
                         return selected_infra, selected_index
                     elif option_type == 'create_new':
                         print_info(f'Creating new infrastructure: {selected_infra.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
@@ -390,7 +390,7 @@ class NotebookHelper:
                         success = inb_helper.create_infrastructure(True)  # Bypass infrastructure check to force creation
 
                         if success:
-                            print_success(f'Successfully created infrastructure: {selected_infra.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
+                            print_ok(f'Successfully created infrastructure: {selected_infra.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
                             return selected_infra, selected_index
                         else:
                             print_error('Failed to create infrastructure.')
@@ -418,10 +418,10 @@ class NotebookHelper:
         """
 
         # Check infrastructure availability and let user select or create
-        print('Checking desired infrastructure availability...\n')
-        print(f'   Infrastructure : {self.deployment.value}')
-        print(f'   Index          : {self.index}')
-        print(f'   Resource group : {self.rg_name}\n')
+        print_plain('Checking desired infrastructure availability...\n')
+        print_plain(f'   Infrastructure : {self.deployment.value}')
+        print_plain(f'   Index          : {self.index}')
+        print_plain(f'   Resource group : {self.rg_name}\n')
 
         # Call the resource group existence check only once
         rg_exists = az.does_resource_group_exist(self.rg_name)
@@ -444,19 +444,19 @@ class NotebookHelper:
                 self.rg_name = az.get_infra_rg_name(self.deployment, self.index)
 
                 # Verify the updates were applied correctly
-                print('📝 Updated infrastructure variables')
+                print_plain('📝 Updated infrastructure variables')
             else:
-                print('✅ Infrastructure selection already completed in this session')
+                print_plain('✅ Infrastructure selection already completed in this session')
         else:
-            print('✅ Desired infrastructure already exists, proceeding with sample deployment')
+            print_plain('✅ Desired infrastructure already exists, proceeding with sample deployment')
 
         # Deploy the sample APIs to the selected infrastructure
-        print('\n------------------------------------------------')
-        print('\nSAMPLE DEPLOYMENT')
-        print('\nDeploying sample to:\n')
-        print(f'   Infrastructure : {self.deployment.value}')
-        print(f'   Index          : {self.index}')
-        print(f'   Resource group : {self.rg_name}\n')
+        print_plain('\n------------------------------------------------')
+        print_plain('\nSAMPLE DEPLOYMENT')
+        print_plain('\nDeploying sample to:\n')
+        print_plain(f'   Infrastructure : {self.deployment.value}')
+        print_plain(f'   Index          : {self.index}')
+        print_plain(f'   Resource group : {self.rg_name}\n')
 
         # Execute the deployment using the utility function that handles working directory management
         output = create_bicep_deployment_group_for_sample(self.sample_folder, self.rg_name, self.rg_location, bicep_parameters, is_debug = self.is_debug)
@@ -467,7 +467,7 @@ class NotebookHelper:
                 apim_name = output.get('apimServiceName')
                 self._clean_up_jwt(apim_name)
 
-            print_success('Deployment succeeded', blank_above = True)
+            print_ok('Deployment succeeded', blank_above = True)
         else:
             raise SystemExit('Deployment failed')
 
@@ -585,7 +585,7 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
     with open(params_file_path, 'w', encoding='utf-8') as file:
         file.write(json.dumps(bicep_parameters_format))
 
-    print(f'📝 Updated the policy XML in the bicep parameters file {bicep_parameters_file}')
+    print_plain(f'📝 Updated the policy XML in the bicep parameters file {bicep_parameters_file}')
 
     # Verify that main.bicep exists in the infrastructure directory
     if not os.path.exists(main_bicep_path):
@@ -596,8 +596,8 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
     if is_debug:
         cmd += ' --debug'
 
-    print('\nDeploying bicep...\n')
-    return az.run(cmd, f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.", print_command_to_run = False)
+    print_plain('\nDeploying bicep...\n')
+    return az.run(cmd, f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.", log_command=False)
 
 # TODO: Reconcile this with apimtypes.py get_project_root
 def find_project_root() -> str:
@@ -668,7 +668,7 @@ def create_bicep_deployment_group_for_sample(sample_name: str, rg_name: str, rg_
 
         # Change to the sample directory to ensure params.json is written there
         os.chdir(sample_dir)
-        print(f'📁 Changed working directory to: {sample_dir}')
+        print_plain(f'📁 Changed working directory to: {sample_dir}')
 
         # Call the original deployment function
         return create_bicep_deployment_group(rg_name, rg_location, sample_name, bicep_parameters, bicep_parameters_file, rg_tags, is_debug)
@@ -676,7 +676,7 @@ def create_bicep_deployment_group_for_sample(sample_name: str, rg_name: str, rg_
     finally:
         # Always restore the original working directory
         os.chdir(original_cwd)
-        print(f'📁 Restored working directory to: {original_cwd}')
+        print_plain(f'📁 Restored working directory to: {original_cwd}')
 
 def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
     """
@@ -690,18 +690,18 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
             - proceed_with_update: True if user wants to proceed with update, False to cancel
             - new_index: None if no index change, integer if user selected option 2
     """
-    print(f'✅ Infrastructure already exists: {rg_name}\n')
-    print('🔄 Infrastructure Update Options:\n')
-    print('   This infrastructure notebook can update the existing infrastructure.')
-    print('   Updates are additive and will:')
-    print('   • Add new APIs and policy fragments defined in the infrastructure')
-    print('   • Update existing infrastructure components to match the template')
-    print('   • Preserve manually added samples and configurations\n')
+    print_plain(f'✅ Infrastructure already exists: {rg_name}\n')
+    print_plain('🔄 Infrastructure Update Options:\n')
+    print_plain('   This infrastructure notebook can update the existing infrastructure.')
+    print_plain('   Updates are additive and will:')
+    print_plain('   • Add new APIs and policy fragments defined in the infrastructure')
+    print_plain('   • Update existing infrastructure components to match the template')
+    print_plain('   • Preserve manually added samples and configurations\n')
 
-    print('ℹ️ Choose an option (input box at the top of the screen):')
-    print('     1. Update the existing infrastructure (recommended)')
-    print('     2. Use a different index')
-    print('     3. Delete the existing resource group first using the clean-up notebook\n')
+    print_plain('ℹ️ Choose an option (input box at the top of the screen):')
+    print_plain('     1. Update the existing infrastructure (recommended)')
+    print_plain('     2. Use a different index')
+    print_plain('     3. Delete the existing resource group first using the clean-up notebook\n')
 
     while True:
         choice = input('\nEnter your choice (1, 2, or 3): ').strip()
@@ -715,21 +715,21 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
                 try:
                     new_index_str = input('\nEnter the desired index for the infrastructure: ').strip()
                     if not new_index_str:
-                        print('❌ Please enter a valid index number.')
+                        print_plain('❌ Please enter a valid index number.')
                         continue
 
                     new_index = int(new_index_str)
                     if new_index <= 0:
-                        print('❌ Index must be a positive integer.')
+                        print_plain('❌ Index must be a positive integer.')
                         continue
 
                     return False, new_index
                 except ValueError:
-                    print('❌ Please enter a valid integer for the index.')
+                    print_plain('❌ Please enter a valid integer for the index.')
         elif choice == '3':
             return False, None
         else:
-            print('❌ Invalid choice. Please enter 1, 2, or 3.')
+            print_plain('❌ Invalid choice. Please enter 1, 2, or 3.')
 
 def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_update_option: bool = False) -> bool:
     """
@@ -744,25 +744,25 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
         bool: True if the infrastructure exists and no update is desired, False if infrastructure doesn't exist or update is confirmed.
     """
 
-    print(f'� Debug: does_infrastructure_exist called with allow_update_option={allow_update_option}')
-    print('�🔍 Checking if infrastructure already exists...')
+    print_plain(f'� Debug: does_infrastructure_exist called with allow_update_option={allow_update_option}')
+    print_plain('�🔍 Checking if infrastructure already exists...')
 
     rg_name = az.get_infra_rg_name(infrastructure, index)
 
     if az.does_resource_group_exist(rg_name):
-        print(f'✅ Infrastructure already exists: {rg_name}\n')
+        print_plain(f'✅ Infrastructure already exists: {rg_name}\n')
 
         if allow_update_option:
-            print('🔄 Infrastructure Update Options:\n')
-            print('   This infrastructure notebook can update the existing infrastructure. Updates are additive and will:\n')
-            print('   • Add new APIs and policy fragments defined in the infrastructure')
-            print('   • Update existing infrastructure components to match the template')
-            print('   • Preserve manually added samples and configurations\n')
+            print_plain('🔄 Infrastructure Update Options:\n')
+            print_plain('   This infrastructure notebook can update the existing infrastructure. Updates are additive and will:\n')
+            print_plain('   • Add new APIs and policy fragments defined in the infrastructure')
+            print_plain('   • Update existing infrastructure components to match the template')
+            print_plain('   • Preserve manually added samples and configurations\n')
 
-            print('ℹ️ Choose an option (input box at the top of the screen):')
-            print('     1. Update the existing infrastructure (recommended and not destructive if samples already exist)')
-            print('     2. Use a different index')
-            print('     3. Exit, then delete the existing resource group separately via the clean-up notebook\n')
+            print_plain('ℹ️ Choose an option (input box at the top of the screen):')
+            print_plain('     1. Update the existing infrastructure (recommended and not destructive if samples already exist)')
+            print_plain('     2. Use a different index')
+            print_plain('     3. Exit, then delete the existing resource group separately via the clean-up notebook\n')
 
             while True:
                 choice = input('\nEnter your choice (1, 2, or 3): ').strip()
@@ -773,15 +773,15 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
                 elif not choice or choice in('2', '3'):
                     return True  # Block deployment
                 else:
-                    print('❌ Invalid choice. Please enter 1, 2, or 3.')
+                    print_plain('❌ Invalid choice. Please enter 1, 2, or 3.')
         else:
-            print('ℹ️  To redeploy, either:')
-            print('     1. Use a different index, or')
-            print('     2. Exit, then delete the existing resource group separately via the clean-up notebook\n')
+            print_plain('ℹ️  To redeploy, either:')
+            print_plain('     1. Use a different index, or')
+            print_plain('     2. Exit, then delete the existing resource group separately via the clean-up notebook\n')
 
         return True
     else:
-        print('   Infrastructure does not yet exist.')
+        print_plain('   Infrastructure does not yet exist.')
         return False
 
 def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str, str], sample_name: str = None) -> str:
@@ -987,12 +987,12 @@ def wait_for_apim_blob_permissions(apim_name: str, storage_account_name: str, re
     success = az.check_apim_blob_permissions(apim_name, storage_account_name, resource_group_name, max_wait_minutes)
 
     if success:
-        print_success('Permission check passed! Ready to proceed with secure blob access tests.')
+        print_ok('Permission check passed! Ready to proceed with secure blob access tests.')
     else:
         print_error('Permission check failed. Please check the deployment and try again later.')
         print_info('Tip: You can also run the verify-permissions.ps1 script to manually check role assignments.')
 
-    print('')
+    print_plain('')
 
     return success
 

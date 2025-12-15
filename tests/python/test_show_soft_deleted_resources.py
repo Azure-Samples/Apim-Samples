@@ -1,19 +1,8 @@
-"""
-Tests for show_soft_deleted_resources module.
-"""
+"""Tests for show_soft_deleted_resources module."""
 
-from unittest.mock import patch, MagicMock
-from datetime import datetime
-import pytest
+from unittest.mock import MagicMock, patch
 
-# Import the module we're testing
-import sys
-from pathlib import Path
-
-# Add shared/python to path
-shared_python_path = Path(__file__).parent.parent.parent / 'shared' / 'python'
-sys.path.insert(0, str(shared_python_path))
-
+# APIM Samples imports
 import show_soft_deleted_resources as sdr
 
 
@@ -130,7 +119,7 @@ def test_purge_apim_services_success():
 def test_purge_apim_services_empty_list():
     """Test purging with empty services list."""
     result = sdr.purge_apim_services([])
-    assert result == 0
+    assert not result
 
 
 def test_purge_key_vaults_with_purge_protection():
@@ -161,7 +150,7 @@ def test_purge_key_vaults_all_protected():
     with patch('builtins.print'):
         success_count, skipped_count = sdr.purge_key_vaults(vaults)
 
-        assert success_count == 0
+        assert not success_count
         assert skipped_count == 2
 
 
@@ -272,7 +261,7 @@ def test_purge_key_vaults_missing_properties():
 
             # Both should be treated as not protected
             assert success_count == 2
-            assert skipped_count == 0
+            assert not skipped_count
 
 
 def test_parse_date_with_plus_offset():

@@ -1,10 +1,10 @@
 import os
 import io
-import sys
 import builtins
 import inspect
 import base64
 import subprocess
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock, mock_open
 import json
@@ -15,7 +15,7 @@ from apimtypes import INFRASTRUCTURE, APIM_SKU
 import utils
 import json_utils
 import azure_resources as az
-from console import print_error, print_info, print_message, print_success, print_val, print_warning
+from console import print_error, print_info, print_message, print_ok, print_val, print_warning
 
 # ------------------------------
 #    get_infra_rg_name & get_rg_name
@@ -37,7 +37,7 @@ def test_get_rg_name():
 
 def test_run_success(monkeypatch):
     monkeypatch.setattr('subprocess.check_output', lambda *a, **kw: b'{"a": 1}')
-    out = az.run('echo', print_command_to_run=False)
+    out = az.run('echo')
     assert out.success is True
     assert out.json_data == {'a': 1}
 
@@ -47,7 +47,7 @@ def test_run_failure(monkeypatch):
     def fail(*a, **kw):
         raise DummyErr()
     monkeypatch.setattr('subprocess.check_output', fail)
-    out = az.run('bad', print_command_to_run=False)
+    out = az.run('bad')
     assert out.success is False
     assert isinstance(out.text, str)
 
@@ -366,14 +366,23 @@ def test_create_bicep_deployment_group_deployment_failure(monkeypatch):
 def test_print_functions_comprehensive():
     """Test all print utility functions for coverage."""
 
-    # Capture stdout
+    # Capture console logger output (console functions emit via stdlib logging)
     captured_output = io.StringIO()
-    sys.stdout = captured_output
+    logger = logging.getLogger('console')
+    previous_level = logger.level
+    previous_handlers = list(logger.handlers)
+    previous_propagate = logger.propagate
+
+    handler = logging.StreamHandler(captured_output)
+    handler.setFormatter(logging.Formatter('%(message)s'))
+
+    logger.handlers = [handler]
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = False
 
     try:
-        # Test all print functions
         print_info('Test info message')
-        print_success('Test success message')
+        print_ok('Test success message')
         print_warning('Test warning message')
         print_error('Test error message')
         print_message('Test message')
@@ -388,7 +397,9 @@ def test_print_functions_comprehensive():
         assert 'Test key' in output
         assert 'Test value' in output
     finally:
-        sys.stdout = sys.__stdout__
+        logger.handlers = previous_handlers
+        logger.setLevel(previous_level)
+        logger.propagate = previous_propagate
 
 
 def test_test_url_preflight_check_with_frontdoor(monkeypatch):
@@ -443,7 +454,7 @@ def test_wait_for_apim_blob_permissions_success(monkeypatch):
     """Test wait_for_apim_blob_permissions with successful wait."""
     monkeypatch.setattr(az, 'check_apim_blob_permissions', lambda *args: True)
     monkeypatch.setattr('console.print_info', lambda x: None)
-    monkeypatch.setattr('console.print_success', lambda x: None)
+    monkeypatch.setattr('console.print_ok', lambda x: None)
     monkeypatch.setattr('console.print_error', lambda x: None)
 
     result = utils.wait_for_apim_blob_permissions('test-apim', 'test-storage', 'test-rg', 1)
@@ -454,7 +465,7 @@ def test_wait_for_apim_blob_permissions_failure(monkeypatch):
     """Test wait_for_apim_blob_permissions with failed wait."""
     monkeypatch.setattr(az, 'check_apim_blob_permissions', lambda *args: False)
     monkeypatch.setattr('console.print_info', lambda x: None)
-    monkeypatch.setattr('console.print_success', lambda x: None)
+    monkeypatch.setattr('console.print_ok', lambda x: None)
     monkeypatch.setattr('console.print_error', lambda x: None)
 
     result = utils.wait_for_apim_blob_permissions('test-apim', 'test-storage', 'test-rg', 1)
@@ -576,7 +587,7 @@ def test_run_command_with_error_suppression(monkeypatch):
 
     monkeypatch.setattr('subprocess.check_output', mock_subprocess_check_output)
 
-    output = az.run('test command', print_errors=False, print_command_to_run=False)
+    output = az.run('test command')
     assert output.success is False
     assert output.text == 'test output'
 
@@ -882,7 +893,7 @@ def test_deploy_sample_with_infrastructure_selection(monkeypatch):
     monkeypatch.setattr(az, 'get_infra_rg_name',
                        lambda infra, idx: f'apim-infra-{infra.value}-{idx}')
     monkeypatch.setattr('console.print_error', lambda *args, **kwargs: None)
-    monkeypatch.setattr('console.print_success', lambda *args, **kwargs: None)
+    monkeypatch.setattr('console.print_ok', lambda *args, **kwargs: None)
     monkeypatch.setattr('console.print_val', lambda *args, **kwargs: None)
 
     # Test the deployment
@@ -930,7 +941,7 @@ def test_deploy_sample_existing_infrastructure(monkeypatch):
                        lambda *args, **kwargs: mock_output)
 
     # Mock utility functions
-    monkeypatch.setattr(utils, 'print_success', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'print_ok', lambda *args, **kwargs: None)
 
     # Test the deployment - should not call infrastructure selection
     result = nb_helper.deploy_sample({'test': {'value': 'param'}})
