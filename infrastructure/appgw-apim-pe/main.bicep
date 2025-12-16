@@ -146,7 +146,7 @@ resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2024-05-01' = {
           sourceAddressPrefix: 'AzureLoadBalancer'
           destinationAddressPrefix: '*'
           access: 'Allow'
-          priority: 130
+          priority: 120
           direction: 'Inbound'
         }
       }
@@ -221,10 +221,10 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
   }
 }
 
-var apimSubnetResourceId            = '${vnetModule.outputs.vnetId}/subnets/${apimSubnetName}'
-var acaSubnetResourceId             = '${vnetModule.outputs.vnetId}/subnets/${acaSubnetName}'
-var appgwSubnetResourceId           = '${vnetModule.outputs.vnetId}/subnets/${appgwSubnetName}'
-var privateEndpointSubnetResourceId = '${vnetModule.outputs.vnetId}/subnets/${privateEndpointSubnetName}'
+var apimSubnetResourceId  = '${vnetModule.outputs.vnetId}/subnets/${apimSubnetName}'
+var acaSubnetResourceId   = '${vnetModule.outputs.vnetId}/subnets/${acaSubnetName}'
+var appgwSubnetResourceId = '${vnetModule.outputs.vnetId}/subnets/${appgwSubnetName}'
+var peSubnetResourceId    = '${vnetModule.outputs.vnetId}/subnets/${privateEndpointSubnetName}'
 
 // 4. User Assigned Managed Identity
 // https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/managed-identity/user-assigned-identity
@@ -436,7 +436,7 @@ resource apimPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
   location: location
   properties: {
     subnet: {
-      id: privateEndpointSubnetResourceId
+      id: peSubnetResourceId
     }
     privateLinkServiceConnections: [
       {
