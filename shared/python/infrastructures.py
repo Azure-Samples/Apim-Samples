@@ -198,7 +198,7 @@ class Infrastructure:
         """
 
         action_verb = "Updating" if is_update else "Creating"
-        print_plain(f'\n🚀 {action_verb} infrastructure...\n')
+        print_plain(f'🚀 {action_verb} infrastructure...\n')
         print_plain(f'   Infrastructure : {self.infra.value}')
         print_plain(f'   Index          : {self.index}')
         print_plain(f'   Resource group : {self.rg_name}')
@@ -389,7 +389,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
             print_plain(f'   Found {total} pending private link service connection(s)')
 
             if not total:
-                print_ok(' No pending connections found - may already be approved')
+                print_ok('No pending connections found - may already be approved')
                 return True
 
             # Approve each pending connection
@@ -421,7 +421,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
         Returns:
             bool: True if deployment succeeded, False otherwise.
         """
-        print_plain('\n🔒 Step 5: Disabling API Management public network access...')
+        print_plain('🔒 Disabling API Management public network access...')
 
         try:
             # Update parameters to disable public access
@@ -474,7 +474,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
         Returns:
             bool: True if connectivity test passed, False otherwise.
         """
-        print_ok(' Step 4: Verifying API request success via API Management...')
+        print_plain('Verifying API request success via API Management...')
 
         try:
             # Use the health check endpoint which doesn't require a subscription key
@@ -506,7 +506,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
             utils.Output: The deployment result.
         """
         action_verb = "Updating" if is_update else "Starting"
-        print_plain(f'\n🚀 {action_verb} AFD-APIM-PE infrastructure deployment...\n')
+        print_plain(f'🚀 {action_verb} AFD-APIM-PE infrastructure deployment...\n')
         print_plain('   This deployment requires multiple steps:\n')
         print_plain('   1. Initial deployment with public access enabled')
         print_plain('   2. Approve private link connections')
@@ -727,10 +727,10 @@ class AppGwApimPeInfrastructure(Infrastructure):
                 pending_connections = [pending_connections]
 
             total = len(pending_connections)
-            print_plain(f'   Found {total} pending private link service connection(s)')
+            print_plain(f'Found {total} pending private link service connection(s)')
 
             if not total:
-                print_ok(' No pending connections found - this is normal for VNet integration scenarios')
+                print_ok('No pending connections found - this is normal for VNet integration scenarios')
                 print_info('Application Gateway will access APIM through VNet integration')
                 return True
 
@@ -753,7 +753,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
             return True
 
         except Exception as e:
-            print_error(f'    Error during private link approval: {str(e)}')
+            print_error(f'Error during private link approval: {str(e)}')
             return False
 
     def _disable_apim_public_access(self) -> bool:
@@ -763,7 +763,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
         Returns:
             bool: True if deployment succeeded, False otherwise.
         """
-        print_plain('\n🔒 Step 5: Disabling API Management public network access...')
+        print_plain('🔒 Disabling API Management public network access...')
 
         try:
             # Update parameters to disable public access
@@ -816,7 +816,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
         Returns:
             bool: True if connectivity test passed, False otherwise.
         """
-        print_ok(' Step 4: Verifying API request success via API Management...')
+        print_plain('Verifying API request success via API Management...')
 
         try:
             # Use the health check endpoint which doesn't require a subscription key
@@ -865,7 +865,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
                 f'az role assignment create --role "Key Vault Certificates Officer" --assignee {self.current_user_id} --scope /subscriptions/{self.subscription_id}/resourceGroups/{self.rg_name}/providers/Microsoft.KeyVault/vaults/{key_vault_name}'
             )
             if not assign_kv_role.success:
-                print_error('Failed to assign Key Vault Certificates Officer role to current user.\nThis is an RBAC permission issue - verify your account has sufficient permissions.')
+                print_error('   Failed to assign Key Vault Certificates Officer role to current user.\nThis is an RBAC permission issue - verify your account has sufficient permissions.')
                 return False
 
             print_ok(' Assigned Key Vault Certificates Officer role to current user')
@@ -887,7 +887,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
             utils.Output: The deployment result.
         """
         action_verb = "Updating" if is_update else "Starting"
-        print_plain(f'\n🚀 {action_verb} APPGW-APIM-PE infrastructure deployment...\n')
+        print_plain(f'🚀 {action_verb} APPGW-APIM-PE infrastructure deployment...\n')
         print_plain('   This deployment requires multiple steps:\n')
         print_plain('   1. Create Key Vault and self-signed certificate')
         print_plain('   2. Initial deployment with public access enabled')
@@ -896,7 +896,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
         print_plain('   5. Disable public access to APIM')
 
         # Step 1: Create Key Vault and certificate before main deployment
-        print_plain('\n📋 Step 1: Creating Key Vault and certificate...\n')
+        print_plain('\n📋 Step 1: Creating Key Vault and certificate...')
         key_vault_name = f'kv-{self.resource_suffix}'
 
         # Create the Key Vault
@@ -910,7 +910,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
         print_ok('Step 1: Key Vault and certificate creation completed', blank_above = True)
 
         # Step 2: Initial deployment using base class method
-        print_plain('\n📋 Step 2: Initial infrastructure deploying...\n')
+        print_plain('\n📋 Step 2: Deploying initial infrastructure...\n')
 
         output = super().deploy_infrastructure(is_update)
 
@@ -935,7 +935,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
             return output
 
         # Step 3: Approve private link connections
-        print_plain('\n📋 Step 3: Approve private link connection...\n')
+        print_plain('\n📋 Step 3: Approving private link connection...\n')
         if not self._approve_private_link_connections(apim_service_id):
             print_error('Private link approval failed!')
             return utils.Output(False, 'Private link approval failed')
