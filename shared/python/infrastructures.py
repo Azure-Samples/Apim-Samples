@@ -1264,7 +1264,7 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
 
         # List CognitiveService accounts
         output = az.run(
-            f' az cognitiveservices account list -g {rg_name}',
+            f'az cognitiveservices account list -g {rg_name}',
             'Listed CognitiveService accounts',
             'Failed to list CognitiveService accounts'
         )
@@ -1280,7 +1280,7 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
 
         # List APIM resources
         output = az.run(
-            f' az apim list -g {rg_name}',
+            f'az apim list -g {rg_name}',
             'Listed APIM resources',
             'Failed to list APIM resources'
         )
@@ -1296,7 +1296,7 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
 
         # List Key Vault resources
         output = az.run(
-            f' az keyvault list -g {rg_name}',
+            f'az keyvault list -g {rg_name}',
             'Listed Key Vault resources',
             'Failed to list Key Vault resources'
         )
@@ -1402,7 +1402,7 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
 
         # List CognitiveService accounts
         output = az.run(
-            f' az cognitiveservices account list -g {rg_name}',
+            f'az cognitiveservices account list -g {rg_name}',
             'Listed CognitiveService accounts',
             'Failed to list CognitiveService accounts'
         )
@@ -1417,7 +1417,7 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
 
         # List APIM resources
         output = az.run(
-            f' az apim list -g {rg_name}',
+            f'az apim list -g {rg_name}',
             'Listed APIM resources',
             'Failed to list APIM resources'
         )
@@ -1432,7 +1432,7 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
 
         # List Key Vault resources
         output = az.run(
-            f' az keyvault list -g {rg_name}',
+            f'az keyvault list -g {rg_name}',
             'Listed Key Vault resources',
             'Failed to list Key Vault resources'
         )
