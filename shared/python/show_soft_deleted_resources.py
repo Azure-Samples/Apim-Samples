@@ -6,9 +6,23 @@ These resources are in a recoverable state and can be restored or purged.
 import sys
 import argparse
 from datetime import datetime
+from pathlib import Path
 
 # APIM Samples imports
 import azure_resources as az
+
+
+def _get_suggested_purge_command() -> str:
+    """Return a purge command that works from the current working directory."""
+
+    script_path = Path(__file__).resolve()
+    cwd_path = Path.cwd().resolve()
+
+    try:
+        rel_path = script_path.relative_to(cwd_path)
+        return f'python {rel_path.as_posix()} --purge'
+    except ValueError:
+        return f'python "{script_path}" --purge'
 
 
 def parse_date(date_str: str) -> str:
@@ -349,7 +363,7 @@ def main():
             print('\n❌ Purge operation cancelled')
     else:
         print('\n💡 To purge all these resources, run:')
-        print('   python shared/python/show_soft_deleted_resources.py --purge')
+        print(f'   {_get_suggested_purge_command()}')
 
     print()
     return 0
