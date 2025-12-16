@@ -13,15 +13,11 @@ from console import print_plain
 
 
 def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU) -> None:
-    try:
-        # Check if infrastructure already exists to determine messaging
-        infrastructure_exists = az.does_resource_group_exist(az.get_infra_rg_name(INFRASTRUCTURE.SIMPLE_APIM, index))
+    # Check if infrastructure already exists to determine messaging
+    infrastructure_exists = az.does_resource_group_exist(az.get_infra_rg_name(INFRASTRUCTURE.SIMPLE_APIM, index))
 
-        result = SimpleApimInfrastructure(location, index, apim_sku).deploy_infrastructure(infrastructure_exists)
-        sys.exit(0 if result.success else 1)
-
-    except:
-        sys.exit(1)
+    result = SimpleApimInfrastructure(location, index, apim_sku).deploy_infrastructure(infrastructure_exists)
+    raise SystemExit(0 if result.success else 1)
 
 def main():
     """

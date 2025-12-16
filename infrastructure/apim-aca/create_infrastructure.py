@@ -13,20 +13,16 @@ from utils import read_policy_xml
 
 
 def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU) -> None:
-    try:
-        # Check if infrastructure already exists to determine messaging
-        infrastructure_exists = az.does_resource_group_exist(az.get_infra_rg_name(INFRASTRUCTURE.APIM_ACA, index))
+    # Check if infrastructure already exists to determine messaging
+    infrastructure_exists = az.does_resource_group_exist(az.get_infra_rg_name(INFRASTRUCTURE.APIM_ACA, index))
 
-        # Create custom APIs for APIM-ACA with Container Apps backends
-        custom_apis = _create_aca_specific_apis()
+    # Create custom APIs for APIM-ACA with Container Apps backends
+    custom_apis = _create_aca_specific_apis()
 
-        infra = ApimAcaInfrastructure(location, index, apim_sku, infra_apis = custom_apis)
-        result = infra.deploy_infrastructure(infrastructure_exists)
+    infra = ApimAcaInfrastructure(location, index, apim_sku, infra_apis = custom_apis)
+    result = infra.deploy_infrastructure(infrastructure_exists)
 
-        sys.exit(0 if result.success else 1)
-
-    except:
-        sys.exit(1)
+    raise SystemExit(0 if result.success else 1)
 
 def _create_aca_specific_apis() -> list[API]:
     """
