@@ -1,5 +1,6 @@
 ---
-applyTo: "**/*.bicep"
+description: 'Infrastructure as Code with Bicep'
+applyTo: '**/*.bicep'
 ---
 
 # Copilot Instructions (Bicep)

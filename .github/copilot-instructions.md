@@ -19,6 +19,11 @@ This instructions file is designed to guide GitHub Copilot's behavior specifical
 
 ## Instruction Hierarchy
 
+- When the user asks about **Python**, prefer guidance and examples from [python instructions](./python.instructions.md).
+- When the user asks about **Bicep**, prefer guidance and examples from [bicep instructions](./bicep.instructions.md).
+- When other languages are used, look for a relevant instructions file to be included. The format is `./[language].instructions.md` where `[language]` acts as a placeholder. Also consider synonyms
+  such as `JavaScript`, `JScript`, etc.
+
 In case of any conflicting instructions, the following hierarchy shall apply. If a conflict cannot be resolved by this hierarchy, please prompt the user and ask for their situational preference.
 
   1. Individualized instructions (e.g. a developer's or an organization's instruction file(s)), if present

@@ -1,5 +1,6 @@
 ---
-applyTo: "**/*.py"
+description: 'Python coding conventions and guidelines'
+applyTo: '**/*.py'
 ---
 
 # Copilot Instructions (Python)
