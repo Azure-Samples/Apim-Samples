@@ -1143,6 +1143,28 @@ def test_cleanup_resources_exception_handling(monkeypatch):
     # Verify exception was caught and printed
     assert any('An error occurred during cleanup:' in msg for msg in exception_caught)
 
+
+def test_cleanup_resources_always_attempts_rg_delete_on_exception(monkeypatch):
+    """Ensure RG delete is attempted even when an earlier az call raises."""
+    run_commands = []
+
+    def mock_run(command, ok_message=None, error_message=None, **kwargs):
+        run_commands.append(command)
+        # Simulate a hard failure early during cleanup.
+        if 'deployment group show' in command:
+            raise Exception('Simulated Azure CLI error')
+        return Output(success=True, text='{}')
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
+    monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
+    monkeypatch.setattr(infrastructures, 'print_plain', lambda *a, **kw: None)
+    monkeypatch.setattr('traceback.print_exc', lambda: None)
+
+    infrastructures._cleanup_resources('test-deployment', 'test-rg')
+
+    assert any('az group delete --name test-rg -y' in cmd for cmd in run_commands)
+
 def test_cleanup_infra_deployment_single(monkeypatch):
     monkeypatch.setattr(infrastructures, '_cleanup_resources', lambda deployment_name, rg_name: None)
     infrastructures.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, None)
@@ -1249,6 +1271,33 @@ def test_cleanup_resources_thread_safe_failure(monkeypatch):
 
     assert success is False
     assert "Simulated cleanup failure" in error_msg
+
+
+def test_cleanup_resources_with_thread_safe_printing_always_attempts_rg_delete(monkeypatch):
+    """Ensure the thread-safe cleanup path still attempts RG delete if deployment show fails."""
+    run_commands = []
+
+    def mock_run(command, ok_message=None, error_message=None, **kwargs):
+        run_commands.append(command)
+        # Simulate deployment show failure (previously caused RG delete to be skipped).
+        if 'deployment group show' in command:
+            return Output(success=False, text='Deployment not found')
+        # Default empty lists for resource queries.
+        if any(x in command for x in ['cognitiveservices account list', 'az apim list', 'az keyvault list']):
+            return Output(success=True, json_data=[])
+        return Output(success=True, text='{}')
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, 'should_print_traceback', lambda: False)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing(
+        'test-deployment',
+        'test-rg',
+        '[TEST]: ',
+        console.BOLD_G
+    )
+
+    assert any('az group delete --name test-rg -y' in cmd for cmd in run_commands)
 
 
 def test_cleanup_infra_deployments_max_workers_limit(monkeypatch):

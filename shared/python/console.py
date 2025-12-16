@@ -66,13 +66,13 @@ def _infer_level_from_message(message: str, default: int = logging.INFO) -> int:
         return default
 
     # Heuristic mappings for existing emoji/prefix styles.
-    if stripped.startswith(('❌', '⛔', '💥')):
+    if stripped.startswith('❌'):
         return logging.ERROR
-    if stripped.startswith(('⚠️',)):
+    if stripped.startswith('⚠️'):
         return logging.WARNING
     if stripped.startswith(('✅', '🎉')):
         return logging.INFO
-    if stripped.lower().startswith('debug') or stripped.startswith(('🐞',)):
+    if stripped.lower().startswith('debug') or stripped.startswith(('🐞')):
         return logging.DEBUG
 
     lowered = stripped.lower()
@@ -157,31 +157,31 @@ def _print_log(message: str, prefix: str = '', color: str = '', output: str = ''
 
 def print_command(cmd: str = '') -> None:
     """Print a command message."""
-    _print_log(cmd, '⚙️ ', BOLD_B, level=logging.INFO)
+    _print_log(cmd, '⚙️ ', BOLD_B, blank_above = True, blank_below = True, level = logging.INFO)
 
 def print_error(msg: str, output: str = '', duration: str = '') -> None:
     """Print an error message."""
-    _print_log(msg, '⛔ ', BOLD_R, output, duration, True, wrap_lines=True, level=logging.ERROR)
+    _print_log(msg, '❌ ', BOLD_R, output, duration, True, True, True, wrap_lines = True, level = logging.ERROR)
 
 def print_info(msg: str, blank_above: bool = False) -> None:
     """Print an informational message."""
-    _print_log(msg, 'ℹ️ ', BOLD_B, blank_above = blank_above, level=logging.INFO)
+    _print_log(msg, 'ℹ️ ', BOLD_B, blank_above = blank_above, level = logging.INFO)
 
 def print_message(msg: str, output: str = '', duration: str = '', blank_above: bool = False) -> None:
     """Print a general message."""
-    _print_log(msg, 'ℹ️ ', BOLD_G, output, duration, True, blank_above, level=logging.INFO)
+    _print_log(msg, 'ℹ️ ', BOLD_G, output, duration, True, blank_above, level = logging.INFO)
 
 def print_ok(msg: str, output: str = '', duration: str = '', blank_above: bool = False) -> None:
     """Print an OK/success message."""
-    _print_log(msg, '✅ ', BOLD_G, output, duration, True, blank_above, level=logging.INFO)
+    _print_log(msg, '✅ ', BOLD_G, output, duration, True, blank_above, level = logging.INFO)
 
 def print_warning(msg: str, output: str = '', duration: str = '') -> None:
     """Print a warning message."""
-    _print_log(msg, '⚠️ ', BOLD_Y, output, duration, True, wrap_lines=True, level=logging.WARNING)
+    _print_log(msg, '⚠️ ', BOLD_Y, output, duration, True, wrap_lines = True, level = logging.WARNING)
 
 def print_val(name: str, value: str, val_below: bool = False) -> None:
     """Print a key-value pair."""
-    _print_log(f"{name:<25}:{'\n' if val_below else ' '}{value}", '👉🏽 ', BOLD_B, wrap_lines=True, level=logging.INFO)
+    _print_log(f"{name:<25}:{'\n' if val_below else ' '}{value}", '👉🏽 ', BOLD_B, wrap_lines = True, level = logging.INFO)
 
 def print_plain(msg: str = '', *, level: int | None = None, wrap_lines: bool = True, blank_above: bool = False, blank_below: bool = False) -> None:
     """Log a message without any icon/prefix.
@@ -191,9 +191,9 @@ def print_plain(msg: str = '', *, level: int | None = None, wrap_lines: bool = T
     """
 
     resolved_level = level if level is not None else _infer_level_from_message(msg, default=logging.INFO)
-    _print_log(msg, prefix='', color='', blank_above=blank_above, blank_below=blank_below, wrap_lines=wrap_lines, level=resolved_level)
+    _print_log(msg, prefix='', color = '', blank_above = blank_above, blank_below=blank_below, wrap_lines = wrap_lines, level = resolved_level)
 
 def print_debug(msg: str = '', *, wrap_lines: bool = True, blank_above: bool = False, blank_below: bool = False) -> None:
     """Log a debug message."""
 
-    _print_log(msg, prefix='🐞 ', color='', blank_above=blank_above, blank_below=blank_below, wrap_lines=wrap_lines, level=logging.DEBUG)
+    _print_log(msg, prefix='🐞 ', color = '', blank_above = blank_above, blank_below=blank_below, wrap_lines = wrap_lines, level = logging.DEBUG)

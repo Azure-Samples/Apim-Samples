@@ -121,10 +121,10 @@ class InfrastructureNotebookHelper:
                             # Recursively call create_infrastructure with the new index
                             return self.create_infrastructure(bypass_infrastructure_check, allow_update)
                         elif not should_proceed:
-                            print_plain('❌ Infrastructure deployment cancelled by user.')
+                            print_error('Infrastructure deployment cancelled by user.')
                             raise SystemExit("User cancelled deployment")
                     except (KeyboardInterrupt, EOFError) as exc:
-                        print_plain('\n❌ Infrastructure deployment cancelled by user (Escape/Ctrl+C pressed).')
+                        print_error('Infrastructure deployment cancelled by user (Escape/Ctrl+C pressed).')
                         raise SystemExit("User cancelled deployment") from exc
 
             # Check infrastructure existence for the normal flow
@@ -141,7 +141,7 @@ class InfrastructureNotebookHelper:
 
                 infra_folder = infra_folder_map.get(self.deployment)
                 if not infra_folder:
-                    print_plain(f'❌ Unsupported infrastructure type: {self.deployment.value}')
+                    print_error(f'Unsupported infrastructure type: {self.deployment.value}')
                     raise SystemExit(1)
 
                 # Build the command to call the infrastructure creation script
@@ -168,7 +168,7 @@ class InfrastructureNotebookHelper:
                     process.wait()
 
                     if process.returncode:
-                        print_plain('❌ Infrastructure creation failed!')
+                        print_error('Infrastructure creation failed!')
                         raise SystemExit(1)
 
                 return True
@@ -176,10 +176,10 @@ class InfrastructureNotebookHelper:
             return True
 
         except KeyboardInterrupt as exc:
-            print_plain('\n🚫 Infrastructure deployment cancelled by user.')
+            print_error('\nInfrastructure deployment cancelled by user.')
             raise SystemExit("User cancelled deployment") from exc
         except Exception as e:
-            print_plain(f'❌ Infrastructure deployment failed with error: {e}')
+            print_error(f'Infrastructure deployment failed with error: {e}')
             raise SystemExit(1) from e
 
 class NotebookHelper:
@@ -446,9 +446,9 @@ class NotebookHelper:
                 # Verify the updates were applied correctly
                 print_plain('📝 Updated infrastructure variables')
             else:
-                print_plain('✅ Infrastructure selection already completed in this session')
+                print_ok('Infrastructure selection already completed in this session')
         else:
-            print_plain('✅ Desired infrastructure already exists, proceeding with sample deployment')
+            print_ok('Desired infrastructure already exists, proceeding with sample deployment')
 
         # Deploy the sample APIs to the selected infrastructure
         print_plain('\n------------------------------------------------')
@@ -597,7 +597,7 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
         cmd += ' --debug'
 
     print_plain('\nDeploying bicep...\n')
-    return az.run(cmd, f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.", log_command=False)
+    return az.run(cmd, f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.")
 
 # TODO: Reconcile this with apimtypes.py get_project_root
 def find_project_root() -> str:
@@ -690,7 +690,7 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
             - proceed_with_update: True if user wants to proceed with update, False to cancel
             - new_index: None if no index change, integer if user selected option 2
     """
-    print_plain(f'✅ Infrastructure already exists: {rg_name}\n')
+    print_ok(f'Infrastructure already exists: {rg_name}\n')
     print_plain('🔄 Infrastructure Update Options:\n')
     print_plain('   This infrastructure notebook can update the existing infrastructure.')
     print_plain('   Updates are additive and will:')
@@ -750,7 +750,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
     rg_name = az.get_infra_rg_name(infrastructure, index)
 
     if az.does_resource_group_exist(rg_name):
-        print_plain(f'✅ Infrastructure already exists: {rg_name}\n')
+        print_ok(f'Infrastructure already exists: {rg_name}\n')
 
         if allow_update_option:
             print_plain('🔄 Infrastructure Update Options:\n')
@@ -759,7 +759,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
             print_plain('   • Update existing infrastructure components to match the template')
             print_plain('   • Preserve manually added samples and configurations\n')
 
-            print_plain('ℹ️ Choose an option (input box at the top of the screen):')
+            print_info('Choose an option (input box at the top of the screen):')
             print_plain('     1. Update the existing infrastructure (recommended and not destructive if samples already exist)')
             print_plain('     2. Use a different index')
             print_plain('     3. Exit, then delete the existing resource group separately via the clean-up notebook\n')

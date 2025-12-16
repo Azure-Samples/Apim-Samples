@@ -11,6 +11,7 @@ import tempfile
 import os
 import re
 import subprocess
+import threading
 from typing import Tuple, Optional
 
 import logging
@@ -38,6 +39,12 @@ _SECRET_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
 
 _ANSI_ESCAPE_RE = re.compile(r'\x1b\[[0-9;]*m')
 _AZ_COMMAND_RE = re.compile(r'^\s*az(\s|$)')
+
+# Azure CLI uses shared on-disk state (e.g., token cache under the user's profile).
+# Running multiple `az ...` commands concurrently from threads can lead to intermittent
+# failures and corrupted/partial output. Serialize `az` invocations to keep multi-index
+# cleanups reliable.
+_AZ_CLI_LOCK = threading.Lock()
 
 
 def _strip_ansi(text: str) -> str:
@@ -161,6 +168,17 @@ def _format_duration(start_time: float) -> str:
     minutes, seconds = divmod(time.time() - start_time, 60)
     return f'[{int(minutes)}m:{int(seconds)}s]'
 
+
+def _looks_like_json(text: str) -> bool:
+    stripped = text.lstrip()
+    if not stripped or stripped[0] not in '{[':
+        return False
+    try:
+        json.loads(text)
+        return True
+    except json.JSONDecodeError:
+        return False
+
 def run(
     command: str,
     ok_message: str | None = None,
@@ -179,7 +197,6 @@ def run(
     """
 
     command_to_run = _maybe_add_az_debug_flag(command)
-
     normalized_ok_message = ok_message or ''
     normalized_error_message = error_message or ''
 
@@ -191,40 +208,76 @@ def run(
     elif is_debug_enabled():
         print_plain(command_to_run, level=logging.DEBUG)
 
-    if is_debug_enabled() and command_to_run != command and _is_az_command(command):
-        print_plain('Azure CLI: added --debug based on APIM_SAMPLES_LOG_LEVEL=DEBUG', level=logging.DEBUG)
-
     start_time = time.time()
 
     try:
-        output_text = subprocess.check_output(
-            command_to_run,
-            shell=True,
-            stderr=subprocess.STDOUT,
-        ).decode('utf-8', errors='replace')
-        success = True
-    except subprocess.CalledProcessError as e:
-        output_bytes = e.output if isinstance(e.output, (bytes, bytearray)) else b''
-        output_text = output_bytes.decode('utf-8', errors='replace')
-        success = False
+        lock = _AZ_CLI_LOCK if _is_az_command(command_to_run) else None
+
+        if lock is None:
+            completed = subprocess.run(
+                command_to_run,
+                shell=True,
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+            )
+        else:
+            with lock:
+                completed = subprocess.run(
+                    command_to_run,
+                    shell=True,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    encoding='utf-8',
+                    errors='replace',
+                )
+        stdout_text = completed.stdout or ''
+        stderr_text = completed.stderr or ''
+        success = not completed.returncode
     except Exception as e:
-        output_text = str(e)
+        stdout_text = ''
+        stderr_text = str(e)
         success = False
+
+    # Preserve programmatic output as stdout only when successful, so JSON parsing isn't
+    # contaminated by Azure CLI debug noise (which commonly writes to stderr).
+    #
+    # For failures, return the combined text so callers can still see the error details.
+    output_text = stdout_text if success else ''
 
     duration = _format_duration(start_time)
 
+    combined_text = stdout_text
+    if stderr_text:
+        combined_text = f'{combined_text}\n{stderr_text}' if combined_text else stderr_text
+
+    if not success:
+        output_text = combined_text
+
     display_error = ''
     if not success and _is_az_command(command_to_run):
-        display_error = _extract_az_cli_error_message(output_text)
+        display_error = _extract_az_cli_error_message(combined_text)
 
-    if is_debug_enabled() and output_text.strip():
-        print_plain(_redact_secrets(output_text.rstrip()), level=logging.DEBUG)
+    if is_debug_enabled():
+        # Azure CLI debug output is commonly written to stderr; log it at DEBUG without
+        # polluting captured stdout used for JSON parsing.
+        if stderr_text.strip():
+            print_plain(_redact_secrets(stderr_text.rstrip()), level=logging.DEBUG)
+
+        # Only log stdout when it doesn't look like JSON (otherwise it tends to be noisy
+        # while also being the main programmatic output we're returning).
+        if stdout_text.strip() and not _looks_like_json(stdout_text):
+            print_plain(_redact_secrets(stdout_text.rstrip()), level=logging.DEBUG)
 
     if success:
         if normalized_ok_message:
             print_ok(normalized_ok_message, duration=duration)
     else:
-        summary_output = (display_error or output_text).strip()
+        summary_output = (display_error or combined_text).strip()
+
         if normalized_error_message:
             print_error(normalized_error_message, summary_output, duration)
         elif summary_output and is_debug_enabled():
@@ -308,8 +361,7 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
                 delete_output = run(
                     f'az apim nv delete --service-name "{apim_name}" --resource-group "{resource_group_name}" --named-value-id "{jwt_key}" --yes',
                     f'Deleted old JWT key: {jwt_key}',
-                    f'Failed to delete JWT key: {jwt_key}',
-                    log_command=False
+                    f'Failed to delete JWT key: {jwt_key}'
                 )
 
                 if delete_output.success:
@@ -350,8 +402,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
     print_info('Getting APIM managed identity...')
     apim_identity_output = run(
         f'az apim show --name {apim_name} --resource-group {resource_group_name} --query identity.principalId -o tsv',
-        error_message='Failed to get APIM managed identity',
-        log_command=True
+        error_message='Failed to get APIM managed identity'
     )
 
     if not apim_identity_output.success or not apim_identity_output.text.strip():
@@ -363,8 +414,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
     # Remove suppression flags to get raw output, then extract resource ID with regex
     storage_account_output = run(
         f'az storage account show --name {storage_account_name} --resource-group {resource_group_name} --query id -o tsv',
-        error_message='Failed to get storage account resource ID',
-        log_command=True
+        error_message='Failed to get storage account resource ID'
     )
 
     if not storage_account_output.success:
@@ -392,8 +442,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
         # Check if role assignment exists
         role_assignment_output = run(
             f"az role assignment list --assignee {principal_id} --scope {storage_account_id} --role {blob_reader_role_id} --query '[0].id' -o tsv",
-            error_message='Failed to check role assignment',
-            log_command=False
+            error_message='Failed to check role assignment'
         )
 
         if role_assignment_output.success and role_assignment_output.text.strip():
@@ -403,8 +452,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
             print_info('Testing actual blob access...')
             test_access_output = run(
                 f"az storage blob list --account-name {storage_account_name} --container-name samples --auth-mode login --only-show-errors --query '[0].name' -o tsv 2>/dev/null || echo 'access-test-failed'",
-                error_message='',
-                log_command=True
+                error_message=''
             )
 
             if test_access_output.success and test_access_output.text.strip() != 'access-test-failed':
@@ -497,8 +545,7 @@ def create_resource_group(rg_name: str, resource_group_location: str | None = No
         run(
             f'az group create --name {rg_name} --location {resource_group_location} --tags {tag_string}',
             f"Resource group '{rg_name}' created",
-            f"Failed to create the resource group '{rg_name}'",
-            log_command=False,
+            f"Failed to create the resource group '{rg_name}'"
         )
 
 def get_azure_role_guid(role_name: str) -> Optional[str]:
@@ -575,20 +622,25 @@ def get_account_info() -> Tuple[str, str, str, str]:
         Exception: If account information cannot be retrieved.
     """
 
-    account_show_output = run('az account show', 'Retrieved az account', 'Failed to get the current az account', log_command=False)
-    ad_user_show_output = run('az ad signed-in-user show', 'Retrieved az ad signed-in-user', 'Failed to get the current az ad signed-in-user', log_command=False)
+    current_user = tenant_id = subscription_id = current_user_id = ''
 
-    if account_show_output.success and account_show_output.json_data and ad_user_show_output.success and ad_user_show_output.json_data:
+    account_show_output = run('az account show', 'Retrieved az account', 'Failed to get the current az account')
+
+    if account_show_output.success and account_show_output.json_data:
         current_user = account_show_output.json_data['user']['name']
-        tenant_id = account_show_output.json_data['tenantId']
-        subscription_id = account_show_output.json_data['id']
-        current_user_id = ad_user_show_output.json_data['id']
-
         print_val('Current user', current_user)
-        print_val('Current user ID', current_user_id)
+        tenant_id = account_show_output.json_data['tenantId']
         print_val('Tenant ID', tenant_id)
+        subscription_id = account_show_output.json_data['id']
         print_val('Subscription ID', subscription_id)
 
+    ad_user_show_output = run('az ad signed-in-user show', 'Retrieved az ad signed-in-user', 'Failed to get the current az ad signed-in-user')
+
+    if ad_user_show_output.success and ad_user_show_output.json_data:
+        current_user_id = ad_user_show_output.json_data['id']
+        print_val('Current user ID', current_user_id)
+
+    if account_show_output.success and account_show_output.json_data and ad_user_show_output.success and ad_user_show_output.json_data:
         return current_user, current_user_id, tenant_id, subscription_id
     else:
         error = 'Failed to retrieve account information. Please ensure the Azure CLI is installed, you are logged in, and the subscription is set correctly.'
@@ -610,8 +662,8 @@ def get_deployment_name(directory_name: str | None = None) -> str:
         directory_name = os.path.basename(os.getcwd())
 
     deployment_name = f'deploy-{directory_name}-{int(time.time())}'
-
     print_val('Deployment name', deployment_name)
+
     return deployment_name
 
 def get_frontdoor_url(deployment_name: INFRASTRUCTURE, rg_name: str) -> str | None:
@@ -784,8 +836,7 @@ def get_unique_suffix_for_resource_group(rg_name: str) -> str:
     try:
         deployment_name = f'get-suffix-{int(time.time())}'
         output = run(
-            f'az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file "{template_path}" --query "properties.outputs.suffix.value" -o tsv',
-            log_command=False
+            f'az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file "{template_path}" --query "properties.outputs.suffix.value" -o tsv'
         )
 
         if output.success and output.text.strip():
@@ -817,6 +868,7 @@ def get_rg_name(deployment_name: str, index: int | None = None) -> str:
         rg_name = f'{rg_name}-{str(index)}'
 
     print_val('Resource group name', rg_name)
+
     return rg_name
 
 def get_endpoints(deployment: INFRASTRUCTURE, rg_name: str) -> Endpoints:

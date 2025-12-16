@@ -36,17 +36,19 @@ def test_get_rg_name():
 # ------------------------------
 
 def test_run_success(monkeypatch):
-    monkeypatch.setattr('subprocess.check_output', lambda *a, **kw: b'{"a": 1}')
+    monkeypatch.setattr(
+        'subprocess.run',
+        lambda *a, **kw: subprocess.CompletedProcess(a[0], 0, stdout='{"a": 1}', stderr=''),
+    )
     out = az.run('echo')
     assert out.success is True
     assert out.json_data == {'a': 1}
 
 def test_run_failure(monkeypatch):
-    class DummyErr(Exception):
-        output = b'fail'
-    def fail(*a, **kw):
-        raise DummyErr()
-    monkeypatch.setattr('subprocess.check_output', fail)
+    monkeypatch.setattr(
+        'subprocess.run',
+        lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stdout='', stderr='fail'),
+    )
     out = az.run('bad')
     assert out.success is False
     assert isinstance(out.text, str)
@@ -59,23 +61,51 @@ def test_read_policy_xml_success(monkeypatch):
     """Test reading a valid XML file returns its contents."""
     xml_content = '<policies><inbound><base /></inbound></policies>'
     m = mock_open(read_data=xml_content)
-    monkeypatch.setattr(builtins, 'open', m)
+
+    real_open = builtins.open
+
+    def open_selector(file, *args, **kwargs):
+        mode = kwargs.get('mode', args[0] if args else 'r')
+        file_str = str(file)
+        if file_str == '/path/to/dummy.xml' and 'b' not in mode:
+            return m(file, *args, **kwargs)
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, 'open', open_selector)
     # Use full path to avoid sample name auto-detection
     result = utils.read_policy_xml('/path/to/dummy.xml')
     assert result == xml_content
 
 def test_read_policy_xml_file_not_found(monkeypatch):
     """Test reading a missing XML file raises FileNotFoundError."""
-    def raise_fnf(*args, **kwargs):
-        raise FileNotFoundError('File not found')
-    monkeypatch.setattr(builtins, 'open', raise_fnf)
+
+    real_open = builtins.open
+
+    def open_selector(file, *args, **kwargs):
+        mode = kwargs.get('mode', args[0] if args else 'r')
+        file_str = str(file)
+        if file_str == '/path/to/missing.xml' and 'b' not in mode:
+            raise FileNotFoundError('File not found')
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, 'open', open_selector)
     with pytest.raises(FileNotFoundError):
         utils.read_policy_xml('/path/to/missing.xml')
 
 def test_read_policy_xml_empty_file(monkeypatch):
     """Test reading an empty XML file returns an empty string."""
     m = mock_open(read_data='')
-    monkeypatch.setattr(builtins, 'open', m)
+
+    real_open = builtins.open
+
+    def open_selector(file, *args, **kwargs):
+        mode = kwargs.get('mode', args[0] if args else 'r')
+        file_str = str(file)
+        if file_str == '/path/to/empty.xml' and 'b' not in mode:
+            return m(file, *args, **kwargs)
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, 'open', open_selector)
     result = utils.read_policy_xml('/path/to/empty.xml')
     assert not result
 
@@ -83,7 +113,17 @@ def test_read_policy_xml_with_named_values(monkeypatch):
     """Test reading policy XML with named values formatting."""
     xml_content = '<policy><validate-jwt><issuer-signing-keys><key>{jwt_signing_key}</key></issuer-signing-keys></validate-jwt></policy>'
     m = mock_open(read_data=xml_content)
-    monkeypatch.setattr(builtins, 'open', m)
+
+    real_open = builtins.open
+
+    def open_selector(file, *args, **kwargs):
+        mode = kwargs.get('mode', args[0] if args else 'r')
+        file_str = str(file)
+        if file_str.endswith('hr_all_operations.xml') and 'b' not in mode:
+            return m(file, *args, **kwargs)
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, 'open', open_selector)
 
     # Mock the auto-detection to return 'authX'
     def mock_inspect_currentframe():
@@ -108,15 +148,23 @@ def test_read_policy_xml_legacy_mode(monkeypatch):
     """Test that legacy mode (full path) still works."""
     xml_content = '<policies><inbound><base /></inbound></policies>'
     m = mock_open(read_data=xml_content)
-    monkeypatch.setattr(builtins, 'open', m)
+
+    real_open = builtins.open
+
+    def open_selector(file, *args, **kwargs):
+        mode = kwargs.get('mode', args[0] if args else 'r')
+        file_str = str(file)
+        if file_str == '/full/path/to/policy.xml' and 'b' not in mode:
+            return m(file, *args, **kwargs)
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, 'open', open_selector)
     result = utils.read_policy_xml('/full/path/to/policy.xml')
     assert result == xml_content
 
 def test_read_policy_xml_auto_detection_failure(monkeypatch):
     """Test that auto-detection failure provides helpful error."""
-    xml_content = '<policy></policy>'
-    m = mock_open(read_data=xml_content)
-    monkeypatch.setattr(builtins, 'open', m)
+    # Avoid patching builtins.open here, since the failure should happen before any file IO.
 
     # Mock the auto-detection to fail
     def mock_inspect_currentframe():
@@ -579,13 +627,10 @@ def test_output_class_functionality():
 
 def test_run_command_with_error_suppression(monkeypatch):
     """Test run command with error output suppression."""
-    def mock_subprocess_check_output(cmd, **kwargs):
-        # Simulate a CalledProcessError with bytes output
-        error = subprocess.CalledProcessError(1, cmd)
-        error.output = b'test output'  # Return bytes, as subprocess would
-        raise error
-
-    monkeypatch.setattr('subprocess.check_output', mock_subprocess_check_output)
+    monkeypatch.setattr(
+        'subprocess.run',
+        lambda *a, **kw: subprocess.CompletedProcess(a[0], 1, stdout='', stderr='test output'),
+    )
 
     output = az.run('test command')
     assert output.success is False

@@ -10,7 +10,6 @@ import azure_resources as az
 from apimtypes import APIM_SKU, API, GET_APIOperation, BACKEND_XML_POLICY_PATH, INFRASTRUCTURE
 from infrastructures import ApimAcaInfrastructure
 from utils import read_policy_xml
-from console import print_plain
 
 
 def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU) -> None:

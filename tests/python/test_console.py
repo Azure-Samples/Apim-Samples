@@ -119,7 +119,7 @@ def test_print_command_multiline():
 def test_print_error_basic():
     """Test print_error with basic message."""
     output = capture_output(console.print_error, 'Error occurred')
-    assert '⛔' in output
+    assert '❌' in output
     assert 'Error occurred' in output
     assert console.BOLD_R in output
     assert '⌚' in output  # time should be shown
