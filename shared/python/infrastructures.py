@@ -1406,6 +1406,7 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
             'Listed CognitiveService accounts',
             'Failed to list CognitiveService accounts'
         )
+
         if output.success and output.json_data:
             for resource in output.json_data:
                 resources_to_cleanup.append({
@@ -1421,6 +1422,7 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
             'Listed APIM resources',
             'Failed to list APIM resources'
         )
+
         if output.success and output.json_data:
             for resource in output.json_data:
                 resources_to_cleanup.append({
@@ -1436,6 +1438,7 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
             'Listed Key Vault resources',
             'Failed to list Key Vault resources'
         )
+
         if output.success and output.json_data:
             for resource in output.json_data:
                 resources_to_cleanup.append({
