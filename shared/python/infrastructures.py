@@ -1191,7 +1191,7 @@ def _delete_resource_group_best_effort(
     if not rg_name:
         return
 
-    delete_cmd = f'az group delete --name {rg_name} -y'
+    delete_cmd = f'az group delete --name {rg_name} -y --no-wait'
 
     if thread_prefix:
         with _print_lock:
@@ -1199,12 +1199,12 @@ def _delete_resource_group_best_effort(
         try:
             az.run(
                 delete_cmd,
-                f"Resource group '{rg_name}' deleted",
-                f"Failed to delete resource group '{rg_name}'"
+                f"Initiated deletion of resource group '{rg_name}'",
+                f"Failed to initiate deletion of resource group '{rg_name}'"
             )
         except Exception as e:
             with _print_lock:
-                _print_log(f"{thread_prefix}Failed to delete resource group '{rg_name}': {e}", '❌ ', BOLD_R, show_time=True)
+                _print_log(f"{thread_prefix}Failed to initiate deletion of resource group '{rg_name}': {e}", '❌ ', BOLD_R, show_time=True)
                 if should_print_traceback():
                     traceback.print_exc()
         return
@@ -1213,11 +1213,11 @@ def _delete_resource_group_best_effort(
     try:
         az.run(
             delete_cmd,
-            f"Resource group '{rg_name}' deleted",
-            f"Failed to delete resource group '{rg_name}'"
+            f"Initiated deletion of resource group '{rg_name}'",
+            f"Failed to initiate deletion of resource group '{rg_name}'"
         )
     except Exception as e:
-        print_plain(f"Failed to delete resource group '{rg_name}': {e}")
+        print_plain(f"Failed to initiate deletion of resource group '{rg_name}': {e}")
         if should_print_traceback():
             traceback.print_exc()
 
