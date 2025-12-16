@@ -34,10 +34,10 @@ RESET  = '\x1b[0m'
 # Thread colors for parallel operations
 THREAD_COLORS = [BOLD_B, BOLD_G, BOLD_Y, BOLD_C, BOLD_M, BOLD_W]
 
-CONSOLE_WIDTH = 175
+CONSOLE_WIDTH = 220
 
 _CONSOLE_WIDTH_ENV = 'APIM_SAMPLES_CONSOLE_WIDTH'
-_DEFAULT_CONSOLE_WIDTH = 120
+_DEFAULT_CONSOLE_WIDTH = 220
 
 # Thread-safe print lock
 _print_lock = threading.Lock()
