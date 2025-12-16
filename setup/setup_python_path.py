@@ -199,6 +199,7 @@ def generate_env_file() -> None:
     lines: list[str] = [
         "# Auto-generated environment for VS Code and local tooling",
         "# Run 'python setup/setup_python_path.py --generate-env' to regenerate",
+        "# Good to set console width to 220, 221 - whatever it takes"
         "",
         f"APIM_SAMPLES_CONSOLE_WIDTH={managed_keys['APIM_SAMPLES_CONSOLE_WIDTH']}",
         f"APIM_SAMPLES_LOG_LEVEL={managed_keys['APIM_SAMPLES_LOG_LEVEL']}",
