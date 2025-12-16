@@ -71,11 +71,12 @@ def show_deleted_apim_services(services: list):
         service_id = service.get('serviceId', 'N/A')
 
         print(f'{i}/{len(services)}:')
-        print(f'    Service Name   : {service_name}')
-        print(f'    Location       : {location}')
-        print(f'    Deletion Date  : {deletion_date}')
-        print(f'    Purge Date     : {scheduled_purge}')
-        print(f'    Service ID     : {service_id}')
+        print(f'    Service Name     : {service_name}')
+        print(f'    Location         : {location}')
+        print(f'    Deletion Date    : {deletion_date}')
+        print(f'    Purge Date       : {scheduled_purge}')
+        print(f'    Service ID       : {service_id}')
+        print(f'    Purge AZ CLI     : az apim deletedservice purge --service-name {service_name} --location "{location}"')
         print()
 
     print('To purge an APIM service:')
@@ -132,6 +133,7 @@ def show_deleted_key_vaults(vaults: list):
         print(f'    Purge Date       : {scheduled_purge}')
         print(f'    Purge Protection : {"🔒 ENABLED" if purge_protection else "❌ Disabled"}')
         print(f'    Vault ID         : {vault_id}')
+        print(f'    Purge AZ CLI     : az keyvault purge --name {vault_name} --location "{location}"')
         print()
 
     if protected_vaults:
