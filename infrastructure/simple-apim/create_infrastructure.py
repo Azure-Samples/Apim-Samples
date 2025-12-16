@@ -9,19 +9,15 @@ import argparse
 import azure_resources as az
 from apimtypes import APIM_SKU, INFRASTRUCTURE
 from infrastructures import SimpleApimInfrastructure
+from console import print_plain
 
 
 def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU) -> None:
-    try:
-        # Check if infrastructure already exists to determine messaging
-        infrastructure_exists = az.does_resource_group_exist(az.get_infra_rg_name(INFRASTRUCTURE.SIMPLE_APIM, index))
+    # Check if infrastructure already exists to determine messaging
+    infrastructure_exists = az.does_resource_group_exist(az.get_infra_rg_name(INFRASTRUCTURE.SIMPLE_APIM, index))
 
-        result = SimpleApimInfrastructure(location, index, apim_sku).deploy_infrastructure(infrastructure_exists)
-        sys.exit(0 if result.success else 1)
-
-    except Exception as e:
-        print(f'\n💥 Error: {str(e)}')
-        sys.exit(1)
+    result = SimpleApimInfrastructure(location, index, apim_sku).deploy_infrastructure(infrastructure_exists)
+    raise SystemExit(0 if result.success else 1)
 
 def main():
     """
@@ -38,7 +34,7 @@ def main():
     try:
         apim_sku = APIM_SKU(args.sku)
     except ValueError:
-        print(f"Error: Invalid SKU '{args.sku}'. Valid options are: {', '.join([sku.value for sku in APIM_SKU])}")
+        print_plain(f"Error: Invalid SKU '{args.sku}'. Valid options are: {', '.join([sku.value for sku in APIM_SKU])}")
         sys.exit(1)
 
     create_infrastructure(args.location, args.index, apim_sku)

@@ -169,7 +169,6 @@ class Output:
         Initialize the Output object with command success status and output text.
         Attempts to parse JSON from the output text.
         """
-
         self.success = success
         self.text = text
         self.jsonParseException = None

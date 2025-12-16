@@ -113,3 +113,51 @@ def test_force_kernel_consistency_merges_excludes(temp_project_root: Path, monke
 
     assert settings["python.analysis.exclude"][: len(sps.DEFAULT_PYTHON_ANALYSIS_EXCLUDE)] == sps.DEFAULT_PYTHON_ANALYSIS_EXCLUDE
     assert "custom3/**" in settings["python.analysis.exclude"]
+
+
+def _read_env(project_root: Path) -> dict[str, str]:
+    env_path = project_root / ".env"
+    data: dict[str, str] = {}
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if "=" not in stripped:
+            continue
+        key, value = stripped.split("=", 1)
+        data[key.strip()] = value
+    return data
+
+
+def test_generate_env_file_adds_logging_defaults(temp_project_root: Path) -> None:
+    sps.generate_env_file()
+
+    env = _read_env(temp_project_root)
+    assert env["APIM_SAMPLES_LOG_LEVEL"] == "INFO"
+    assert env["APIM_SAMPLES_CONSOLE_WIDTH"] == "180"
+    assert "PROJECT_ROOT" in env
+    assert "PYTHONPATH" in env
+
+
+def test_generate_env_file_preserves_existing_values(temp_project_root: Path) -> None:
+    (temp_project_root / ".env").write_text(
+        "\n".join(
+            [
+                "# user config",
+                "APIM_SAMPLES_LOG_LEVEL=DEBUG",
+                "APIM_SAMPLES_CONSOLE_WIDTH=200",
+                "SPOTIFY_CLIENT_ID=abc",
+                "CUSTOM_X=1",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    sps.generate_env_file()
+    env = _read_env(temp_project_root)
+
+    assert env["APIM_SAMPLES_LOG_LEVEL"] == "DEBUG"
+    assert env["APIM_SAMPLES_CONSOLE_WIDTH"] == "200"
+    assert env["SPOTIFY_CLIENT_ID"] == "abc"
+    assert env["CUSTOM_X"] == "1"

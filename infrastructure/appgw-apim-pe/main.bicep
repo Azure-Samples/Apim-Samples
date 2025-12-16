@@ -146,7 +146,7 @@ resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2024-05-01' = {
           sourceAddressPrefix: 'AzureLoadBalancer'
           destinationAddressPrefix: '*'
           access: 'Allow'
-          priority: 130
+          priority: 120
           direction: 'Inbound'
         }
       }
@@ -221,10 +221,10 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
   }
 }
 
-var apimSubnetResourceId            = '${vnetModule.outputs.vnetId}/subnets/${apimSubnetName}'
-var acaSubnetResourceId             = '${vnetModule.outputs.vnetId}/subnets/${acaSubnetName}'
-var appgwSubnetResourceId           = '${vnetModule.outputs.vnetId}/subnets/${appgwSubnetName}'
-var privateEndpointSubnetResourceId = '${vnetModule.outputs.vnetId}/subnets/${privateEndpointSubnetName}'
+var apimSubnetResourceId  = '${vnetModule.outputs.vnetId}/subnets/${apimSubnetName}'
+var acaSubnetResourceId   = '${vnetModule.outputs.vnetId}/subnets/${acaSubnetName}'
+var appgwSubnetResourceId = '${vnetModule.outputs.vnetId}/subnets/${appgwSubnetName}'
+var peSubnetResourceId    = '${vnetModule.outputs.vnetId}/subnets/${privateEndpointSubnetName}'
 
 // 4. User Assigned Managed Identity
 // https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/managed-identity/user-assigned-identity
@@ -340,6 +340,7 @@ module acaModule2 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (u
 module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
   name: 'apimModule'
   params: {
+    apimName: apimName
     apimSku: apimSku
     appInsightsInstrumentationKey: appInsightsInstrumentationKey
     appInsightsId: appInsightsId
@@ -421,11 +422,13 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
     appInsightsId: appInsightsId
     api: api
   }
-  dependsOn: [
+  dependsOn: useACA ? [
     apimModule
     backendModule1
     backendModule2
     backendPoolModule
+  ] : [
+    apimModule
   ]
 }]
 
@@ -436,7 +439,7 @@ resource apimPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
   location: location
   properties: {
     subnet: {
-      id: privateEndpointSubnetResourceId
+      id: peSubnetResourceId
     }
     privateLinkServiceConnections: [
       {
@@ -476,7 +479,7 @@ module apimDnsPrivateLinkModule '../../shared/bicep/modules/dns/v1/dns-private-l
     dnsZoneName: 'privatelink.azure-api.net'
     vnetId: vnetModule.outputs.vnetId
     vnetLinkName: 'link-apim'
-    enableDnsZoneGroup: true
+    enableDnsZoneGroup: false
     dnsZoneGroupName: 'dnsZoneGroup-apim'
     dnsZoneConfigName: 'config-apim'
   }
@@ -553,7 +556,7 @@ module appgwModule 'br/public:avm/res/network/application-gateway:0.7.2' = {
         properties: {
           backendAddresses: [
             {
-              fqdn: replace(apimModule.outputs.gatewayUrl, 'https://', '')
+              fqdn: '${apimName}.azure-api.net'
             }
           ]
         }
@@ -624,9 +627,6 @@ module appgwModule 'br/public:avm/res/network/application-gateway:0.7.2' = {
       }
     ]
   }
-  dependsOn: [
-    apimPrivateDnsZoneGroup
-  ]
 }
 
 

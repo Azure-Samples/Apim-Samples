@@ -164,28 +164,64 @@ def generate_env_file() -> None:
     project_root = get_project_root()
     shared_python_path = project_root / 'shared' / 'python'
 
+    env_file_path = project_root / '.env'
+
+    existing_vars: dict[str, str] = {}
+    if env_file_path.exists():
+        try:
+            for line in env_file_path.read_text(encoding='utf-8').splitlines():
+                stripped = line.strip()
+                if not stripped or stripped.startswith('#'):
+                    continue
+                if '=' not in stripped:
+                    continue
+                key, value = stripped.split('=', 1)
+                existing_vars[key.strip()] = value
+        except OSError:
+            existing_vars = {}
+
+    # Keys we manage (and may default). If present already, keep the user's value.
+    managed_keys = {
+        'APIM_SAMPLES_CONSOLE_WIDTH': existing_vars.get('APIM_SAMPLES_CONSOLE_WIDTH', '180'),
+        'APIM_SAMPLES_LOG_LEVEL': existing_vars.get('APIM_SAMPLES_LOG_LEVEL', 'INFO'),
+        'PROJECT_ROOT': str(project_root),
+        'PYTHONPATH': str(shared_python_path),
+        'SPOTIFY_CLIENT_ID': existing_vars.get('SPOTIFY_CLIENT_ID', ''),
+        'SPOTIFY_CLIENT_SECRET': existing_vars.get('SPOTIFY_CLIENT_SECRET', ''),
+    }
+
+    preserved_extras = {
+        k: v for k, v in existing_vars.items() if k not in managed_keys
+    }
+
     # Create .env file content with absolute paths
     # These paths will be automatically correct for the current platform
-    env_content = f"""# Auto-generated PYTHONPATH for VS Code - Run 'python setup/setup_python_path.py' to regenerate
-PROJECT_ROOT={project_root}
-PYTHONPATH={shared_python_path}
-SPOTIFY_CLIENT_ID=
-SPOTIFY_CLIENT_SECRET=
-"""
+    lines: list[str] = [
+        "# Auto-generated environment for VS Code and local tooling",
+        "# Run 'python setup/setup_python_path.py --generate-env' to regenerate",
+        "# Good to set console width to 220, 221 - whatever it takes"
+        "",
+        f"APIM_SAMPLES_CONSOLE_WIDTH={managed_keys['APIM_SAMPLES_CONSOLE_WIDTH']}",
+        f"APIM_SAMPLES_LOG_LEVEL={managed_keys['APIM_SAMPLES_LOG_LEVEL']}",
+        f"PROJECT_ROOT={managed_keys['PROJECT_ROOT']}",
+        f"PYTHONPATH={managed_keys['PYTHONPATH']}",
+        f"SPOTIFY_CLIENT_ID={managed_keys['SPOTIFY_CLIENT_ID']}",
+        f"SPOTIFY_CLIENT_SECRET={managed_keys['SPOTIFY_CLIENT_SECRET']}",
+    ]
 
-    env_file_path = project_root / '.env'
+    if preserved_extras:
+        lines.extend(["", "# Preserved custom variables (not managed by the generator)"])
+        for key in sorted(preserved_extras):
+            lines.append(f"{key}={preserved_extras[key]}")
+
+    env_content = "\n".join(lines) + "\n"
 
     # Use explicit UTF-8 encoding for cross-platform text file compatibility
     # This ensures the file reads correctly on all operating systems
     with open(env_file_path, 'w', encoding='utf-8') as f:
         f.write(env_content)
 
-    print()
-    print(f"Generated .env file   : {env_file_path}")
-    print(f"PROJECT_ROOT          : {project_root}")
-    print(f"PYTHONPATH            : {shared_python_path}")
-    print("SPOTIFY_CLIENT_ID     : ")
-    print("SPOTIFY_CLIENT_SECRET : \n")
+    print(f"\nSuccessfully generated .env file: {env_file_path}\n")
 
 
 def install_jupyter_kernel():

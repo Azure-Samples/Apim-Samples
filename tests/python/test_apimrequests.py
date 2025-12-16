@@ -522,8 +522,17 @@ def test_poll_async_operation_request_exception(mock_print_error, mock_get, apim
 @patch('apimrequests.time.sleep')
 def test_poll_async_operation_timeout(mock_sleep, mock_time, mock_print_error, mock_get, apim):
     """Test _poll_async_operation method with timeout."""
-    # Mock time to simulate timeout
-    mock_time.side_effect = [0, 30, 61]  # start, first check, timeout check
+    # Mock time to simulate timeout.
+    # Note: patching `time.time` affects the shared `time` module, which is also
+    # used by the stdlib logging module. Make this mock tolerant of extra calls.
+    times = [0, 30, 61]  # start, first check, timeout check
+
+    def time_side_effect():
+        if len(times) > 1:
+            return times.pop(0)
+        return times[0]
+
+    mock_time.side_effect = time_side_effect
 
     mock_response = MagicMock()
     mock_response.status_code = 202
@@ -671,4 +680,3 @@ def test_single_post_async_non_json_response(mock_print_info, mock_request, apim
         result = apim.singlePostAsync('/test')
 
     assert result == 'Plain text result'
-

@@ -24,11 +24,7 @@ def parse_date(date_str: str) -> str:
 
 def get_deleted_apim_services() -> list:
     """Get all soft-deleted API Management services."""
-    output = az.run(
-        'az apim deletedservice list -o json',
-        print_command_to_run=False,
-        print_errors=False
-    )
+    output = az.run('az apim deletedservice list -o json')
 
     if not output.success:
         print('❌ Failed to retrieve deleted APIM services')
@@ -78,11 +74,7 @@ def show_deleted_apim_services(services: list):
 
 def get_deleted_key_vaults() -> list:
     """Get all soft-deleted Key Vaults."""
-    output = az.run(
-        'az keyvault list-deleted -o json',
-        print_command_to_run=False,
-        print_errors=False
-    )
+    output = az.run('az keyvault list-deleted -o json')
 
     if not output.success:
         print('❌ Failed to retrieve deleted Key Vaults')
@@ -162,8 +154,7 @@ def purge_apim_services(services: list) -> int:
         output = az.run(
             f'az apim deletedservice purge --service-name {service_name} --location {location} --no-wait',
             'Successfully initiated purge',
-            'Failed to initiate purge',
-            print_command_to_run=True
+            'Failed to initiate purge'
         )
 
         if output.success:
@@ -219,8 +210,7 @@ def purge_key_vaults(vaults: list) -> tuple[int, int]:
         output = az.run(
             f'az keyvault purge --name {vault_name} --location {location} --no-wait',
             'Successfully initiated purge',
-            'Failed to initiage purge',
-            print_command_to_run=True
+            'Failed to initiage purge'
         )
 
         if output.success:
@@ -282,7 +272,7 @@ def main():
     print('\nChecking for soft-deleted resources in the current subscription...')
 
     # Get current subscription info
-    output = az.run('az account show -o json', print_command_to_run=False, print_errors=False)
+    output = az.run('az account show -o json')
     if output.success and output.is_json and output.json_data:
         print(f"\nSubscription    : {output.json_data.get('name', 'Unknown')}")
         print(f"Subscription ID : {output.json_data.get('id', 'Unknown')}\n")

@@ -450,9 +450,7 @@ def test_apim_aca_infrastructure_verification_success(mock_az):
 
     assert result is True
     mock_az.run.assert_called_once_with(
-        'az containerapp list -g test-rg --query "length(@)"',
-        print_command_to_run=False,
-        print_errors=False
+        'az containerapp list -g test-rg --query "length(@)"'
     )
 
 @pytest.mark.unit
@@ -1007,7 +1005,7 @@ def test_cleanup_resources_with_resources(monkeypatch):
     """Test _cleanup_resources with various resource types present."""
     run_commands = []
 
-    def mock_run(command, ok_message='', error_message='', print_command_to_run=True, print_errors=True, print_warnings=True):
+    def mock_run(command, ok_message=None, error_message=None, **kwargs):
         run_commands.append(command)
 
         # Mock deployment show response
@@ -1065,7 +1063,7 @@ def test_cleanup_resources_no_resources(monkeypatch):
     """Test _cleanup_resources when no resources exist."""
     run_commands = []
 
-    def mock_run(command, ok_message='', error_message='', print_command_to_run=True, print_errors=True, print_warnings=True):
+    def mock_run(command, ok_message=None, error_message=None, **kwargs):
         run_commands.append(command)
 
         # Mock deployment show response
@@ -1107,7 +1105,7 @@ def test_cleanup_resources_no_resources(monkeypatch):
 def test_cleanup_resources_command_failures(monkeypatch):
     """Test _cleanup_resources when commands fail."""
 
-    def mock_run(command, ok_message='', error_message='', print_command_to_run=True, print_errors=True, print_warnings=True):
+    def mock_run(command, ok_message=None, error_message=None, **kwargs):
         # Mock deployment show failure
         if 'deployment group show' in command:
             return Output(success=False, text='Deployment not found')
@@ -1127,7 +1125,7 @@ def test_cleanup_resources_exception_handling(monkeypatch):
     """Test _cleanup_resources exception handling."""
     exception_caught = []
 
-    def mock_run(command, ok_message='', error_message='', print_command_to_run=True, print_errors=True, print_warnings=True):
+    def mock_run(command, ok_message=None, error_message=None, **kwargs):
         raise Exception("Simulated Azure CLI error")
 
     def mock_print(message):
@@ -1136,7 +1134,7 @@ def test_cleanup_resources_exception_handling(monkeypatch):
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
-    monkeypatch.setattr('builtins.print', mock_print)
+    monkeypatch.setattr(infrastructures, 'print_plain', mock_print)
     monkeypatch.setattr('traceback.print_exc', lambda: None)
 
     # Should handle exception gracefully
@@ -1144,6 +1142,28 @@ def test_cleanup_resources_exception_handling(monkeypatch):
 
     # Verify exception was caught and printed
     assert any('An error occurred during cleanup:' in msg for msg in exception_caught)
+
+
+def test_cleanup_resources_always_attempts_rg_delete_on_exception(monkeypatch):
+    """Ensure RG delete is attempted even when an earlier az call raises."""
+    run_commands = []
+
+    def mock_run(command, ok_message=None, error_message=None, **kwargs):
+        run_commands.append(command)
+        # Simulate a hard failure early during cleanup.
+        if 'deployment group show' in command:
+            raise Exception('Simulated Azure CLI error')
+        return Output(success=True, text='{}')
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
+    monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
+    monkeypatch.setattr(infrastructures, 'print_plain', lambda *a, **kw: None)
+    monkeypatch.setattr('traceback.print_exc', lambda: None)
+
+    infrastructures._cleanup_resources('test-deployment', 'test-rg')
+
+    assert any('az group delete --name test-rg -y' in cmd for cmd in run_commands)
 
 def test_cleanup_infra_deployment_single(monkeypatch):
     monkeypatch.setattr(infrastructures, '_cleanup_resources', lambda deployment_name, rg_name: None)
@@ -1251,6 +1271,33 @@ def test_cleanup_resources_thread_safe_failure(monkeypatch):
 
     assert success is False
     assert "Simulated cleanup failure" in error_msg
+
+
+def test_cleanup_resources_with_thread_safe_printing_always_attempts_rg_delete(monkeypatch):
+    """Ensure the thread-safe cleanup path still attempts RG delete if deployment show fails."""
+    run_commands = []
+
+    def mock_run(command, ok_message=None, error_message=None, **kwargs):
+        run_commands.append(command)
+        # Simulate deployment show failure (previously caused RG delete to be skipped).
+        if 'deployment group show' in command:
+            return Output(success=False, text='Deployment not found')
+        # Default empty lists for resource queries.
+        if any(x in command for x in ['cognitiveservices account list', 'az apim list', 'az keyvault list']):
+            return Output(success=True, json_data=[])
+        return Output(success=True, text='{}')
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, 'should_print_traceback', lambda: False)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing(
+        'test-deployment',
+        'test-rg',
+        '[TEST]: ',
+        console.BOLD_G
+    )
+
+    assert any('az group delete --name test-rg -y' in cmd for cmd in run_commands)
 
 
 def test_cleanup_infra_deployments_max_workers_limit(monkeypatch):
@@ -1438,7 +1485,7 @@ def test_cleanup_functions_comprehensive(monkeypatch):
     """Test cleanup functions with various scenarios."""
     run_commands = []
 
-    def mock_run(command, ok_message='', error_message='', print_output=False, print_command_to_run=True, print_errors=True, print_warnings=True):
+    def mock_run(command, ok_message=None, error_message=None, **kwargs):
         run_commands.append(command)
 
         # Return appropriate mock responses
@@ -1534,7 +1581,7 @@ def test_cleanup_resources_partial_failures(monkeypatch):
     """Test _cleanup_resources when some operations fail with parallel cleanup."""
     run_commands = []
 
-    def mock_run(command, ok_message='', error_message='', print_command_to_run=True, print_errors=True, print_warnings=True):
+    def mock_run(command, ok_message=None, error_message=None, **kwargs):
         run_commands.append(command)
 
         # Mock deployment show response
@@ -1565,7 +1612,7 @@ def test_cleanup_resources_partial_failures(monkeypatch):
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
     monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
-    monkeypatch.setattr(console, 'print_success', lambda *a, **kw: None)
+    monkeypatch.setattr(console, 'print_ok', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_error', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_warning', lambda *a, **kw: None)
     monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)
@@ -1600,7 +1647,7 @@ def test_cleanup_resources_partial_failures(monkeypatch):
 def test_cleanup_resources_malformed_responses(monkeypatch):
     """Test _cleanup_resources with malformed API responses."""
 
-    def mock_run(command, ok_message='', error_message='', print_command_to_run=True, print_errors=True, print_warnings=True):
+    def mock_run(command, ok_message=None, error_message=None, **kwargs):
 
         # Mock deployment show with missing properties
         if 'deployment group show' in command:
