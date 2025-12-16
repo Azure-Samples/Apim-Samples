@@ -154,9 +154,7 @@ class InfrastructureNotebookHelper:
                 ]
 
                 # Execute the infrastructure creation script with real-time output streaming and UTF-8 encoding to handle Unicode characters properly
-                with subprocess.Popen(cmd_args, stdout = subprocess.PIPE, stderr = subprocess.STDOUT, text = True,
-                                        bufsize = 1, universal_newlines = True, encoding = 'utf-8', errors = 'replace') as process:
-
+                with subprocess.Popen(cmd_args, stdout = subprocess.PIPE, stderr = subprocess.STDOUT, text = True, bufsize = 1, universal_newlines = True, encoding = 'utf-8', errors = 'replace') as process:
                     try:
                         # Stream output in real-time
                         for line in process.stdout:
@@ -690,7 +688,7 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
             - proceed_with_update: True if user wants to proceed with update, False to cancel
             - new_index: None if no index change, integer if user selected option 2
     """
-    print_ok(f'Infrastructure already exists: {rg_name}\n')
+    print_ok(f'Infrastructure already exists: {rg_name}')
     print_plain('🔄 Infrastructure Update Options:\n')
     print_plain('   This infrastructure notebook can update the existing infrastructure.')
     print_plain('   Updates are additive and will:')
@@ -750,7 +748,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
     rg_name = az.get_infra_rg_name(infrastructure, index)
 
     if az.does_resource_group_exist(rg_name):
-        print_ok(f'Infrastructure already exists: {rg_name}\n')
+        print_ok(f'Infrastructure already exists: {rg_name}')
 
         if allow_update_option:
             print_plain('🔄 Infrastructure Update Options:\n')

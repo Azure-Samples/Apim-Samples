@@ -203,10 +203,8 @@ def run(
     if log_command is None:
         log_command = bool(normalized_ok_message or normalized_error_message)
 
-    if log_command:
+    if log_command or is_debug_enabled():
         print_command(command_to_run)
-    elif is_debug_enabled():
-        print_plain(command_to_run, level=logging.DEBUG)
 
     start_time = time.time()
 

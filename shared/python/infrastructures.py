@@ -188,7 +188,7 @@ class Infrastructure:
     #    PUBLIC METHODS
     # ------------------------------
 
-    def deploy_infrastructure(self, is_update: bool = False) -> 'utils.Output':
+    def deploy_infrastructure(self, is_update: bool = False) -> utils.Output:
         """
         Deploy the infrastructure using the defined Bicep parameters.
         This method should be implemented in subclasses to handle specific deployment logic.
@@ -389,7 +389,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
             print_plain(f'   Found {total} pending private link service connection(s)')
 
             if not total:
-                print_ok('    No pending connections found - may already be approved')
+                print_ok(' No pending connections found - may already be approved')
                 return True
 
             # Approve each pending connection
@@ -407,7 +407,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
                 if not approve_result.success:
                     return False
 
-            print_ok('    All private link connections approved successfully')
+            print_ok(' All private link connections approved successfully')
             return True
 
         except Exception as e:
@@ -484,15 +484,15 @@ class AfdApimAcaInfrastructure(Infrastructure):
             response = requests.get(healthcheck_url, timeout=30)
 
             if response.status_code == 200:
-                print_ok('    APIM connectivity verified - Health check returned 200')
+                print_ok('APIM connectivity verified - Health check returned 200')
                 return True
             else:
                 print_warning(f'   APIM health check returned status code {response.status_code} (expected 200)')
                 return True  # Continue anyway as this might be expected during deployment
 
         except Exception as e:
-            print_warning(f'   APIM connectivity test failed: {str(e)}')
-            print_info('   Continuing deployment - this may be expected during infrastructure setup')
+            print_warning(f'APIM connectivity test failed: {str(e)}')
+            print_info('Continuing deployment - this may be expected during infrastructure setup')
             return True  # Continue anyway
 
     def deploy_infrastructure(self, is_update: bool = False) -> utils.Output:
@@ -550,11 +550,11 @@ class AfdApimAcaInfrastructure(Infrastructure):
 
         print_plain('\n🎉 AFD-APIM-PE infrastructure deployment completed successfully!\n')
         print_plain('\n📋 Final Configuration:\n')
-        print_ok('    Azure Front Door deployed')
-        print_ok('    API Management deployed with private endpoints')
-        print_ok('    Private link connections approved')
-        print_ok('    Public access to APIM disabled')
-        print_info('   Traffic now flows: Internet → AFD → Private Endpoint → APIM')
+        print_ok(' Azure Front Door deployed')
+        print_ok(' API Management deployed with private endpoints')
+        print_ok(' Private link connections approved')
+        print_ok(' Public access to APIM disabled')
+        print_info('Traffic now flows: Internet → AFD → Private Endpoint → APIM')
 
         return output
 
@@ -641,7 +641,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
         )
 
         if check_output.success:
-            print_ok('   Certificate already exists in Key Vault')
+            print_ok('Certificate already exists in Key Vault')
             return True
 
         # Build the certificate policy JSON for Azure CLI
@@ -730,8 +730,8 @@ class AppGwApimPeInfrastructure(Infrastructure):
             print_plain(f'   Found {total} pending private link service connection(s)')
 
             if not total:
-                print_ok('    No pending connections found - this is normal for VNet integration scenarios')
-                print_info('   Application Gateway will access APIM through VNet integration')
+                print_ok(' No pending connections found - this is normal for VNet integration scenarios')
+                print_info('Application Gateway will access APIM through VNet integration')
                 return True
 
             # Approve each pending connection
@@ -749,7 +749,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
                 if not approve_result.success:
                     return False
 
-            print_ok('    All private link connections approved successfully')
+            print_ok(' All private link connections approved successfully')
             return True
 
         except Exception as e:
@@ -826,7 +826,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
             response = requests.get(healthcheck_url, timeout=30)
 
             if response.status_code == 200:
-                print_ok('    APIM connectivity verified - Health check returned 200')
+                print_ok('APIM connectivity verified - Health check returned 200')
                 return True
             else:
                 print_warning(f'   APIM health check returned status code {response.status_code} (expected 200)')
@@ -834,7 +834,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
 
         except Exception as e:
             print_warning(f'   APIM connectivity test failed: {str(e)}')
-            print_info('   Continuing deployment - this may be expected during infrastructure setup')
+            print_info('Continuing deployment - this may be expected during infrastructure setup')
             return True  # Continue anyway
 
     def _create_keyvault(self, key_vault_name: str) -> bool:
@@ -865,10 +865,10 @@ class AppGwApimPeInfrastructure(Infrastructure):
                 f'az role assignment create --role "Key Vault Certificates Officer" --assignee {self.current_user_id} --scope /subscriptions/{self.subscription_id}/resourceGroups/{self.rg_name}/providers/Microsoft.KeyVault/vaults/{key_vault_name}'
             )
             if not assign_kv_role.success:
-                print_error('   Failed to assign Key Vault Certificates Officer role to current user.\nThis is an RBAC permission issue - verify your account has sufficient permissions.')
+                print_error('Failed to assign Key Vault Certificates Officer role to current user.\nThis is an RBAC permission issue - verify your account has sufficient permissions.')
                 return False
 
-            print_ok('    Assigned Key Vault Certificates Officer role to current user')
+            print_ok(' Assigned Key Vault Certificates Officer role to current user')
 
             # Brief wait for role assignment propagation
             print_plain('   ⏳ Waiting for role assignment propagation (15 seconds)...')
@@ -907,7 +907,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
         if not self._create_keyvault_certificate(key_vault_name):
             return utils.Output(False, 'Failed to create certificate in Key Vault')
 
-        print_ok(' Step 1: Key Vault and certificate creation completed', blank_above = True)
+        print_ok('Step 1: Key Vault and certificate creation completed', blank_above = True)
 
         # Step 2: Initial deployment using base class method
         print_plain('\n📋 Step 2: Initial infrastructure deploying...\n')
@@ -918,7 +918,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
             print_error('Initial deployment failed!')
             return output
 
-        print_ok(' Step 2: Initial infrastructure deployment completed', blank_above = True)
+        print_ok('Step 2: Initial infrastructure deployment completed', blank_above = True)
 
         # Extract required values from deployment output
         if not output.json_data:
@@ -940,13 +940,13 @@ class AppGwApimPeInfrastructure(Infrastructure):
             print_error('Private link approval failed!')
             return utils.Output(False, 'Private link approval failed')
 
-        print_ok(' Step 3: Private link connection approval completed', blank_above = True)
+        print_ok('Step 3: Private link connection approval completed', blank_above = True)
 
         # Step 4: Verify connectivity (optional - continues on failure)
         print_plain('\n📋 Step 4: Verifying API Management connectivity...\n')
         self._verify_apim_connectivity(apim_gateway_url)
 
-        print_ok(' Step 4: API Management connectivity verification completed', blank_above = True)
+        print_ok('Step 4: API Management connectivity verification completed', blank_above = True)
 
         # Step 5: Disable public access
         print_plain('\n📋 Step 5: Disabling public access...\n')
@@ -954,17 +954,17 @@ class AppGwApimPeInfrastructure(Infrastructure):
             print_error('Failed to disable public access!')
             return utils.Output(False, 'Failed to disable public access')
 
-        print_ok(' Step 5: Public access disabling completed', blank_above = True)
+        print_ok('Step 5: Public access disabling completed', blank_above = True)
 
         print_plain('\n🎉 APPGW-APIM-PE infrastructure deployment completed successfully!\n')
         print_plain('\n📋 Final Configuration:\n')
-        print_ok('    Application Gateway deployed')
-        print_ok('    API Management deployed with private endpoints')
-        print_ok('    Private link connections approved')
-        print_ok('    Public access to APIM disabled')
-        print_info('   Traffic now flows: Internet → Application Gateway → Private Endpoint → APIM')
+        print_ok('Application Gateway deployed')
+        print_ok('API Management deployed with private endpoints')
+        print_ok('Private link connections approved')
+        print_ok('Public access to APIM disabled')
+        print_info('Traffic now flows: Internet → Application Gateway → Private Endpoint → APIM')
 
-        print_plain('\n\n 🧪 TESTING\n')
+        print_plain('\n\n🧪 TESTING\n')
         print_plain('As we are using a self-signed certificate (please see README.md for details), we need to test differently.\n' +
               'A curl command using flags for verbose (v), ignoring cert issues (k), and supplying a host header (h) works to verify connectivity.\n' +
               'This tests ingress through App Gateway and a response from API Management\'s health endpoint. An "HTTP 200 Service Operational" response indicates success.\n')
