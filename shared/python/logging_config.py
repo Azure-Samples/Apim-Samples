@@ -15,7 +15,6 @@ import logging
 import logging.config
 import os
 import threading
-import warnings
 from pathlib import Path
 from typing import Final
 
@@ -31,28 +30,7 @@ _DEFAULT_LEVEL: Final[str] = 'INFO'
 _ENV_FILE_NAME: Final[str] = '.env'
 
 _config_lock = threading.Lock()
-_state: dict[str, bool] = {'configured': False, 'dotenv_loaded': False, 'warnings_configured': False}
-
-
-def _configure_warnings_once() -> None:
-    """Configure global warning filters once per process.
-
-    This keeps notebook output clean while remaining surgical: we only suppress a
-    single, well-known IPython message that is frequently triggered when a
-    `SystemExit` is raised in an interactive context.
-    """
-
-    with _config_lock:
-        if _state['warnings_configured']:
-            return
-        _state['warnings_configured'] = True
-
-    warnings.filterwarnings(
-        'ignore',
-        message=r"To exit: use 'exit', 'quit', or Ctrl-D\.",
-        category=UserWarning,
-        module=r'IPython\\.core\\.interactiveshell',
-    )
+_state: dict[str, bool] = {'configured': False, 'dotenv_loaded': False}
 
 
 def _find_env_file() -> Path | None:
@@ -177,13 +155,6 @@ def configure_logging(*, level: str | None = None, force: bool = False) -> None:
         )
 
         _state['configured'] = True
-
-
-def ensure_configured() -> None:
-    """Ensure logging is configured (idempotent)."""
-
-    configure_logging(force=False)
-    _configure_warnings_once()
 
 
 def is_debug_enabled(logger: logging.Logger | None = None) -> bool:

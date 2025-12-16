@@ -12,6 +12,7 @@ import string
 import secrets
 import base64
 import inspect
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -19,11 +20,39 @@ from typing import Any
 import azure_resources as az
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, get_project_root
 from console import print_error, print_info, print_message, print_ok, print_plain, print_warning, print_val
+from logging_config import get_configured_level_name
+
+# Configure warning filter to suppress IPython exit warnings
+warnings.filterwarnings(
+    'ignore',
+    message = r"To exit: use 'exit', 'quit', or Ctrl-D\.",
+    category = UserWarning,
+    module = r'IPython\.core\.interactiveshell',
+)
 
 
 # ------------------------------
 #    HELPER FUNCTIONS
 # ------------------------------
+
+def get_deployment_failure_message(deployment_name: str) -> str:
+    """
+    Generate a deployment failure message that conditionally includes debug instruction.
+
+    Args:
+        deployment_name (str): The name of the failed deployment.
+
+    Returns:
+        str: Appropriate failure message based on current logging level.
+    """
+    base_message = f"Deployment '{deployment_name}' failed. View deployment details in Azure Portal."
+
+    # Only suggest enabling DEBUG logging if it's not already enabled
+    current_level = get_configured_level_name()
+    if current_level != 'DEBUG':
+        return f"{base_message} Enable DEBUG logging in workspace root .env file, then rerun to see details."
+
+    return base_message
 
 def build_infrastructure_tags(infrastructure: str | INFRASTRUCTURE, custom_tags: dict | None = None) -> dict:
     """
@@ -83,7 +112,7 @@ class InfrastructureNotebookHelper:
         self.index = index
         self.apim_sku = apim_sku
 
-        print_message('Initializing Infrastructure Notebook Helper with the following parameters:', blank_above=True)
+        print_message('Initializing Infrastructure Notebook Helper with the following parameters:', blank_above = True, blank_below = True)
         print_val('Location', self.rg_location)
         print_val('Infrastructure', self.deployment.value)
         print_val('Index', self.index)
@@ -166,7 +195,6 @@ class InfrastructureNotebookHelper:
                     process.wait()
 
                     if process.returncode:
-                        print_error('Infrastructure creation failed!')
                         raise SystemExit(1)
 
                 return True
@@ -595,7 +623,7 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
         cmd += ' --debug'
 
     print_plain('\nDeploying bicep...\n')
-    return az.run(cmd, f"Deployment '{deployment_name}' succeeded", f"Deployment '{deployment_name}' failed.")
+    return az.run(cmd, f"Deployment '{deployment_name}' succeeded", get_deployment_failure_message(deployment_name))
 
 # TODO: Reconcile this with apimtypes.py get_project_root
 def find_project_root() -> str:
@@ -689,7 +717,7 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
             - new_index: None if no index change, integer if user selected option 2
     """
     print_ok(f'Infrastructure already exists: {rg_name}')
-    print_plain('🔄 Infrastructure Update Options:\n')
+    print_plain('🔄 Infrastructure Update Options:\n', blank_above = True)
     print_plain('   This infrastructure notebook can update the existing infrastructure.')
     print_plain('   Updates are additive and will:')
     print_plain('   • Add new APIs and policy fragments defined in the infrastructure')
@@ -751,7 +779,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
         print_ok(f'Infrastructure already exists: {rg_name}')
 
         if allow_update_option:
-            print_plain('🔄 Infrastructure Update Options:\n')
+            print_plain('🔄 Infrastructure Update Options:\n', blank_above = True)
             print_plain('   This infrastructure notebook can update the existing infrastructure. Updates are additive and will:\n')
             print_plain('   • Add new APIs and policy fragments defined in the infrastructure')
             print_plain('   • Update existing infrastructure components to match the template')

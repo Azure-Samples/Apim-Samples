@@ -14,8 +14,8 @@ import os
 import textwrap
 import threading
 
-from logging_config import ensure_configured
-
+from logging_config import configure_logging
+configure_logging()
 
 # ------------------------------
 #    CONSTANTS
@@ -122,7 +122,6 @@ def _print_log(message: str, prefix: str = '', color: str = '', output: str = ''
         blank_below (bool, optional): Whether to print a blank line below.
         wrap_lines (bool, optional): Whether to wrap lines to fit console width.
     """
-    ensure_configured()
 
     time_str = f' ⌚ {datetime.datetime.now().time()}' if show_time else ''
     output_str = f' {output}' if output else ''
@@ -167,9 +166,9 @@ def print_info(msg: str, blank_above: bool = False) -> None:
     """Print an informational message."""
     _print_log(msg, 'ℹ️ ', BOLD_B, blank_above = blank_above, level = logging.INFO)
 
-def print_message(msg: str, output: str = '', duration: str = '', blank_above: bool = False) -> None:
+def print_message(msg: str, output: str = '', duration: str = '', blank_above: bool = False, blank_below: bool = False) -> None:
     """Print a general message."""
-    _print_log(msg, 'ℹ️ ', BOLD_G, output, duration, True, blank_above, level = logging.INFO)
+    _print_log(msg, 'ℹ️ ', BOLD_G, output, duration, True, blank_above, blank_below, level = logging.INFO)
 
 def print_ok(msg: str, output: str = '', duration: str = '', blank_above: bool = False) -> None:
     """Print an OK/success message."""

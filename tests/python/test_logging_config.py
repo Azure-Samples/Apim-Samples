@@ -95,13 +95,3 @@ def test_should_print_traceback_from_env(level: str, expected: bool, monkeypatch
     monkeypatch.setenv('APIM_SAMPLES_LOG_LEVEL', level)
 
     assert logging_config.should_print_traceback() is expected
-
-
-def test_configure_warnings_once_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:
-    mock_filter = Mock()
-    monkeypatch.setattr(logging_config.warnings, 'filterwarnings', mock_filter)
-
-    logging_config._configure_warnings_once()
-    logging_config._configure_warnings_once()
-
-    mock_filter.assert_called_once()

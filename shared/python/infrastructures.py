@@ -258,7 +258,7 @@ class Infrastructure:
             output = az.run(
                 f'az deployment group create --name {self.infra.value} --resource-group {self.rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
                 f"Deployment '{self.infra.value}' succeeded",
-                f"Deployment '{self.infra.value}' failed."
+                utils.get_deployment_failure_message(self.infra.value)
             )
 
             # ------------------------------
