@@ -83,14 +83,8 @@ jobs:
           if [ -f "$TEXT_REPORT" ]; then
             PYLINT_SCORE=$(grep -Eo 'Your code has been rated at [0-9.]+/10' "$TEXT_REPORT" | grep -Eo '[0-9.]+/10' | head -n 1)
             echo "pylint_score=$PYLINT_SCORE" >> "$GITHUB_OUTPUT"
-            {
-              echo 'pylint_summary<<EOF'
-              tail -n 20 "$TEXT_REPORT"
-              echo EOF
-            } >> "$GITHUB_OUTPUT"
           else
             echo "pylint_score=N/A" >> "$GITHUB_OUTPUT"
-            echo "pylint_summary=No report found" >> "$GITHUB_OUTPUT"
           fi
 
           # Coverage Percentage
@@ -115,14 +109,6 @@ jobs:
             | **Pylint Score** | ${{ steps.pylint.outcome == 'success' && '✅' || '⚠️' }} | `${{ steps.metrics.outputs.pylint_score }}` |
             | **Unit Tests** | ${{ steps.pytest.outcome == 'success' && '✅' || '❌' }} | `${{ steps.pytest.outcome }}` |
             | **Code Coverage** | 📊 | `${{ steps.metrics.outputs.coverage }}` |
-
-            <details>
-            <summary>🔍 Pylint Details</summary>
-
-            ```
-            ${{ steps.metrics.outputs.pylint_summary }}
-            ```
-            </details>
 
             [Full Workflow Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
