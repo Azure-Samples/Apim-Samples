@@ -76,7 +76,6 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   ]
 }]
 
-
 // ------------------
 //    MARK: OUTPUTS
 // ------------------
@@ -99,5 +98,3 @@ output apiOutputs array = [for i in range(0, length(apis)): {
   subscriptionPrimaryKey: apisModule[i].?outputs.?subscriptionPrimaryKey ?? ''
   subscriptionSecondaryKey: apisModule[i].?outputs.?subscriptionSecondaryKey ?? ''
 }]
-
-// [ADD RELEVANT OUTPUTS HERE]

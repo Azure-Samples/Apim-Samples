@@ -92,11 +92,9 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   dependsOn: [
     namedValueModule              // ensure all named values are created before APIs
     policyFragmentModule          // ensure all policy fragments are created before APIs
-    productModule              // ensure all products are fully created before APIs
+    productModule                 // ensure all products are fully created before APIs
   ]
 }]
-
-// [ADD RELEVANT BICEP MODULES HERE]
 
 // ------------------
 //    MARK: OUTPUTS

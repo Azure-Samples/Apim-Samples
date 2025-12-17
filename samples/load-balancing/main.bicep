@@ -12,15 +12,11 @@ param apimName string = 'apim-${resourceSuffix}'
 param appInsightsName string = 'appi-${resourceSuffix}'
 param apis array = []
 
-// [ADD RELEVANT PARAMETERS HERE]
-
-
 // ------------------
 //    "CONSTANTS"
 // ------------------
 
 var IMG_WEB_API_429 = 'simonkurtzmsft/webapi429:1.0.0'
-
 
 // ------------------
 //    RESOURCES
@@ -186,7 +182,7 @@ module backendPoolModule4 '../../shared/bicep/modules/apim/v1/backend-pool.bicep
         name: backendModule3.outputs.backendName
         priority: 2
         weight: 50
-      }      
+      }
     ]
   }
   dependsOn: [
@@ -212,7 +208,6 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [
   }
 ]
 
-
 // ------------------
 //    MARK: OUTPUTS
 // ------------------
@@ -233,5 +228,3 @@ output apiOutputs array = [for i in range(0, length(apis)): {
   subscriptionPrimaryKey: apisModule[i].?outputs.?subscriptionPrimaryKey ?? ''
   subscriptionSecondaryKey: apisModule[i].?outputs.?subscriptionSecondaryKey ?? ''
 }]
-
-// [ADD RELEVANT OUTPUTS HERE]

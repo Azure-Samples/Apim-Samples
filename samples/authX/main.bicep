@@ -13,8 +13,6 @@ param apimName string = 'apim-${resourceSuffix}'
 param appInsightsName string = 'appi-${resourceSuffix}'
 param apis array = []
 
-// [ADD RELEVANT PARAMETERS HERE]
-
 // ------------------
 //    RESOURCES
 // ------------------
@@ -57,8 +55,6 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   ]
 }]
 
-// [ADD RELEVANT BICEP MODULES HERE]
-
 // ------------------
 //    MARK: OUTPUTS
 // ------------------
@@ -78,5 +74,3 @@ output apiOutputs array = [for i in range(0, length(apis)): {
   subscriptionPrimaryKey: apisModule[i].?outputs.?subscriptionPrimaryKey ?? ''
   subscriptionSecondaryKey: apisModule[i].?outputs.?subscriptionSecondaryKey ?? ''
 }]
-
-// [ADD RELEVANT OUTPUTS HERE]
