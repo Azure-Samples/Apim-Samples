@@ -37,7 +37,8 @@ jobs:
         id: pylint
         continue-on-error: true
         run: |
-          bash tests/python/run_pylint.sh
+          mkdir -p tests/python/pylint/reports
+          pylint --rcfile tests/python/.pylintrc infrastructure samples setup shared tests --output-format=colorized,text:tests/python/pylint/reports/latest.txt
 
       - name: Upload pylint reports
         if: always()
@@ -45,50 +46,6 @@ jobs:
         with:
           name: pylint-reports-${{ matrix.python-version }}
           path: tests/python/pylint/reports/
-
-      - name: Summarize pylint rating
-        if: always()
-        id: pylint_summary
-        run: |
-          TEXT_REPORT="tests/python/pylint/reports/latest.txt"
-          if [ -f "$TEXT_REPORT" ]; then
-            SCORE=$(grep -Eo 'Your code has been rated at [0-9.]+/10' "$TEXT_REPORT" | tail -n 1)
-            if [ -z "$SCORE" ]; then
-              SCORE="Pylint score not available"
-            fi
-
-            echo "score=$SCORE" >> "$GITHUB_OUTPUT"
-            {
-              echo 'summary<<EOF'
-              tail -n 20 "$TEXT_REPORT"
-              echo EOF
-            } >> "$GITHUB_OUTPUT"
-          else
-            echo "score=Pylint report not found" >> "$GITHUB_OUTPUT"
-            echo "summary=Pylint text report missing" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Publish Pylint Results to PR
-        if: always() && github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@v2
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          header: pylint-${{ matrix.python-version }}
-          message: |
-            ## Python ${{ matrix.python-version }} Pylint Results
-            *Outcome:* `${{ steps.pylint.outcome }}`
-            *Score:* `${{ steps.pylint_summary.outputs.score }}`
-
-            <details>
-            <summary>Report tail</summary>
-
-            ```
-            ${{ steps.pylint_summary.outputs.summary }}
-            ```
-
-            </details>
-
-            🔗 [Download reports](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
       - name: Verify bytecode compilation
         run: |
@@ -99,7 +56,7 @@ jobs:
       - name: Run pytest with coverage and generate JUnit XML
         id: pytest
         run: |
-          PYTHONPATH=$(pwd) COVERAGE_FILE=tests/python/.coverage-${{ matrix.python-version }} pytest --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov-${{ matrix.python-version }} --junitxml=tests/python/junit-${{ matrix.python-version }}.xml tests/python/
+          PYTHONPATH=$(pwd) COVERAGE_FILE=tests/python/.coverage-${{ matrix.python-version }} pytest --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov-${{ matrix.python-version }} --cov-report=term-missing --junitxml=tests/python/junit-${{ matrix.python-version }}.xml tests/python/
         continue-on-error: true
 
       - name: Upload coverage HTML report
@@ -117,12 +74,77 @@ jobs:
           name: junit-results-${{ matrix.python-version }}
           path: tests/python/junit-${{ matrix.python-version }}.xml
 
-      - name: Publish Unit Test Results to PR
+      - name: Extract and Summarize Metrics
+        if: always()
+        id: metrics
+        run: |
+          # Pylint Score
+          TEXT_REPORT="tests/python/pylint/reports/latest.txt"
+          if [ -f "$TEXT_REPORT" ]; then
+            PYLINT_SCORE=$(grep -Eo 'Your code has been rated at [0-9.]+/10' "$TEXT_REPORT" | grep -Eo '[0-9.]+/10' | head -n 1)
+            echo "pylint_score=$PYLINT_SCORE" >> "$GITHUB_OUTPUT"
+            {
+              echo 'pylint_summary<<EOF'
+              tail -n 20 "$TEXT_REPORT"
+              echo EOF
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "pylint_score=N/A" >> "$GITHUB_OUTPUT"
+            echo "pylint_summary=No report found" >> "$GITHUB_OUTPUT"
+          fi
+
+          # Coverage Percentage
+          if [ -f "tests/python/.coverage-${{ matrix.python-version }}" ]; then
+            TOTAL_COV=$(PYTHONPATH=$(pwd) COVERAGE_FILE=tests/python/.coverage-${{ matrix.python-version }} python -m coverage report | grep TOTAL | awk '{print $NF}')
+            echo "coverage=$TOTAL_COV" >> "$GITHUB_OUTPUT"
+          else
+            echo "coverage=N/A" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish Consolidated Results to PR
+        if: always() && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          header: python-results-${{ matrix.python-version }}
+          message: |
+            ### 🐍 Python ${{ matrix.python-version }} Test Report
+
+            | Metric | Status | Value |
+            | :--- | :---: | :--- |
+            | **Pylint Score** | ${{ steps.pylint.outcome == 'success' && '✅' || '⚠️' }} | `${{ steps.metrics.outputs.pylint_score }}` |
+            | **Unit Tests** | ${{ steps.pytest.outcome == 'success' && '✅' || '❌' }} | `${{ steps.pytest.outcome }}` |
+            | **Code Coverage** | 📊 | `${{ steps.metrics.outputs.coverage }}` |
+
+            <details>
+            <summary>🔍 Pylint Details</summary>
+
+            ```
+            ${{ steps.metrics.outputs.pylint_summary }}
+            ```
+            </details>
+
+            [Full Workflow Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+      - name: Generate Job Summary
+        if: always()
+        run: |
+          echo "## 🐍 Python ${{ matrix.python-version }} Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Category | Status | Detail |" >> $GITHUB_STEP_SUMMARY
+          echo "| :--- | :---: | :--- |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Pylint** | ${{ steps.pylint.outcome == 'success' && '✅' || '⚠️' }} | Score: `${{ steps.metrics.outputs.pylint_score }}` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Pytest** | ${{ steps.pytest.outcome == 'success' && '✅' || '❌' }} | Outcome: `${{ steps.pytest.outcome }}` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Coverage** | 📊 | Total: `${{ steps.metrics.outputs.coverage }}` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+
+      - name: Publish Unit Test Results
         if: always()
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: tests/python/junit-${{ matrix.python-version }}.xml
-          comment_title: Python ${{ matrix.python-version }} Test Results
+          comment_title: Python ${{ matrix.python-version }} Detailed Test Results
 
       # Explicitly fail the job if any test failed (so PRs cannot be merged with failing tests).
       # This runs after all reporting steps, meaning coverage and PR comments are always published.
