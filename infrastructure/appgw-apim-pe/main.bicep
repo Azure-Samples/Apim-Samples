@@ -505,7 +505,11 @@ module appgwModule 'br/public:avm/res/network/application-gateway:0.7.2' = {
     sku: 'WAF_v2'
     firewallPolicyResourceId: wafPolicy.id
     enableHttp2: true
-    // Use minimal AZs for cost savings. Adjust accordingly for production workloads.
+    // Create only one instance (default is 2) for cost savings. Adjust accordingly for production workloads (use scaling, minimum instances, no maximum instances, etc.).
+    capacity: 1
+    // Use minimal AZs (1) for cost savings. Adjust accordingly for production workloads.
+    // Setting to 1 availability zone yields the following Azure Advisor message:
+    // High Impact - Deploy your Application Gateway across Availability Zones
     availabilityZones: [
       1
     ]
