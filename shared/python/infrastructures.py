@@ -786,7 +786,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
                 with open(params_file_path, 'w', encoding='utf-8') as file:
                     file.write(json.dumps(bicep_parameters_format))
 
-                print_plain('   📝 Updated parameters to disable public access')
+                print_plain('📝 Updated parameters to disable public access')
 
                 # Run the second deployment
                 main_bicep_path = infra_dir / 'main.bicep'
