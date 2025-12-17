@@ -77,7 +77,7 @@ def test_thread_colors_list():
 
 def test_console_width():
     """Test that console width is set to expected value."""
-    assert console.CONSOLE_WIDTH == 175
+    assert console.CONSOLE_WIDTH == 220
 
 
 def test_print_lock_exists():
