@@ -21,6 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Load dependencies from GitHub runner cache for quicker install
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
@@ -33,6 +34,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      # Lint the Python files & upload the result statistics
       - name: Run pylint analysis
         id: pylint
         continue-on-error: true
@@ -48,6 +50,7 @@ jobs:
           name: pylint-reports-${{ matrix.python-version }}
           path: tests/python/pylint/reports/
 
+      # Static code analysis through simple compilation to ensure code is syntactically sound
       - name: Verify bytecode compilation
         run: |
           python -m compileall infrastructure samples setup shared tests
@@ -75,6 +78,7 @@ jobs:
           name: junit-results-${{ matrix.python-version }}
           path: tests/python/junit-${{ matrix.python-version }}.xml
 
+      # Extract all linting and coverage results in preparation for publish
       - name: Extract and Summarize Metrics
         if: always()
         id: metrics
@@ -100,6 +104,7 @@ jobs:
             echo "coverage=N/A" >> "$GITHUB_OUTPUT"
           fi
 
+      # Publish general statistics for linting, test success, and code coverage as well as detailed tests results
       - name: Publish Consolidated Results to PR
         if: always() && github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
