@@ -42,14 +42,12 @@ param afdEndpointName string = 'afd-${resourceSuffix}'
 param acaName string = 'aca-${resourceSuffix}'
 param useACA bool = false
 
-
 // ------------------
 //    "CONSTANTS"
 // ------------------
 
 var IMG_HELLO_WORLD = 'simonkurtzmsft/helloworld:latest'
 var IMG_MOCK_WEB_API = 'simonkurtzmsft/mockwebapi:1.0.0-alpha.1'
-
 
 // ------------------
 //    RESOURCES
@@ -323,5 +321,3 @@ output apiOutputs array = [for i in range(0, length(apis)): {
   subscriptionPrimaryKey: apisModule[i].?outputs.?subscriptionPrimaryKey ?? ''
   subscriptionSecondaryKey: apisModule[i].?outputs.?subscriptionSecondaryKey ?? ''
 }]
-
-// [ADD RELEVANT OUTPUTS HERE]
