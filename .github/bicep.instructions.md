@@ -10,6 +10,7 @@ applyTo: '**/*.bicep'
 - Prefer modern Bicep syntax and patterns.
 - Keep templates readable and easy to extend.
 - Keep deployments cross-platform (Windows, Linux, macOS).
+- Strive for execution efficiency by parallelizing and avoiding unnecessary dependencies
 
 ## Conventions
 
