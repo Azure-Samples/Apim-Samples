@@ -45,4 +45,6 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2025-02-01' = {
 
 output id string = logAnalytics.id
 output customerId string = logAnalytics.properties.customerId
+
+@secure()
 output clientSecret string = logAnalytics.listKeys().primarySharedKey
