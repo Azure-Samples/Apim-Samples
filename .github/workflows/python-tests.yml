@@ -102,7 +102,7 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           header: python-results-${{ matrix.python-version }}
           message: |
-            ### 🐍 Python ${{ matrix.python-version }} Test Report
+            ## 🐍 Python ${{ matrix.python-version }} Results
 
             | Metric | Status | Value |
             | :--- | :---: | :--- |
