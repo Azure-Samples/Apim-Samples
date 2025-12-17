@@ -34,6 +34,8 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run pylint analysis
+        id: pylint
+        continue-on-error: true
         run: |
           bash tests/python/run_pylint.sh
 
@@ -43,6 +45,50 @@ jobs:
         with:
           name: pylint-reports-${{ matrix.python-version }}
           path: tests/python/pylint/reports/
+
+      - name: Summarize pylint rating
+        if: always()
+        id: pylint_summary
+        run: |
+          TEXT_REPORT="tests/python/pylint/reports/latest.txt"
+          if [ -f "$TEXT_REPORT" ]; then
+            SCORE=$(grep -Eo 'Your code has been rated at [0-9.]+/10' "$TEXT_REPORT" | tail -n 1)
+            if [ -z "$SCORE" ]; then
+              SCORE="Pylint score not available"
+            fi
+
+            echo "score=$SCORE" >> "$GITHUB_OUTPUT"
+            {
+              echo 'summary<<EOF'
+              tail -n 20 "$TEXT_REPORT"
+              echo EOF
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "score=Pylint report not found" >> "$GITHUB_OUTPUT"
+            echo "summary=Pylint text report missing" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish Pylint Results to PR
+        if: always() && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          header: pylint-${{ matrix.python-version }}
+          message: |
+            ## Python ${{ matrix.python-version }} Pylint Results
+            *Outcome:* `${{ steps.pylint.outcome }}`
+            *Score:* `${{ steps.pylint_summary.outputs.score }}`
+
+            <details>
+            <summary>Report tail</summary>
+
+            ```
+            ${{ steps.pylint_summary.outputs.summary }}
+            ```
+
+            </details>
+
+            🔗 [Download reports](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
       - name: Verify bytecode compilation
         run: |
@@ -84,4 +130,10 @@ jobs:
         if: steps.pytest.outcome == 'failure'
         run: |
           echo "::error ::Unit tests failed. See above for details."
+          exit 1
+
+      - name: Fail if pylint failed
+        if: steps.pylint.outcome == 'failure'
+        run: |
+          echo "::error ::Pylint violations detected. See PR comment or artifacts for details."
           exit 1
