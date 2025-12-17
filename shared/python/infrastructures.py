@@ -629,7 +629,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
         Returns:
             bool: True if certificate was created or already exists, False on failure.
         """
-        print_plain('\n   🔐 Creating self-signed certificate in Key Vault...\n')
+        print_plain('\n🔐 Creating self-signed certificate in Key Vault...\n')
         print_val('Key Vault', key_vault_name)
         print_val('Certificate', self.CERT_NAME)
         print_val('Domain', self.DOMAIN_NAME)
