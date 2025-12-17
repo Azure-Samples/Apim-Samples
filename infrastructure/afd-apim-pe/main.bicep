@@ -167,7 +167,7 @@ module acaModule1 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (u
   params: {
     name: 'ca-${resourceSuffix}-mockwebapi-1'
     containerImage: IMG_MOCK_WEB_API
-    environmentId: acaEnvModule.outputs.environmentId
+    environmentId: acaEnvModule!.outputs.environmentId
   }
 }
 module acaModule2 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (useACA) {
@@ -175,7 +175,7 @@ module acaModule2 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (u
   params: {
     name: 'ca-${resourceSuffix}-mockwebapi-2'
     containerImage: IMG_MOCK_WEB_API
-    environmentId: acaEnvModule.outputs.environmentId
+    environmentId: acaEnvModule!.outputs.environmentId
   }
 }
 
@@ -212,7 +212,7 @@ module backendModule1 '../../shared/bicep/modules/apim/v1/backend.bicep' = if (u
   params: {
     apimName: apimName
     backendName: 'aca-backend-1'
-    url: 'https://${acaModule1.outputs.containerAppFqdn}'
+    url: 'https://${acaModule1!.outputs.containerAppFqdn}'
   }
   dependsOn: [
     apimModule
@@ -224,7 +224,7 @@ module backendModule2 '../../shared/bicep/modules/apim/v1/backend.bicep' = if (u
   params: {
     apimName: apimName
     backendName: 'aca-backend-2'
-    url: 'https://${acaModule2.outputs.containerAppFqdn}'
+    url: 'https://${acaModule2!.outputs.containerAppFqdn}'
   }
   dependsOn: [
     apimModule
@@ -239,12 +239,12 @@ module backendPoolModule '../../shared/bicep/modules/apim/v1/backend-pool.bicep'
     backendPoolDescription: 'Backend pool for ACA Hello World backends'
     backends: [
       {
-        name: backendModule1.outputs.backendName
+        name: backendModule1!.outputs.backendName
         priority: 1
         weight: 75
       }
       {
-        name: backendModule2.outputs.backendName
+        name: backendModule2!.outputs.backendName
         priority: 1
         weight: 25
       }
@@ -291,8 +291,8 @@ module apimDnsPrivateLinkModule '../../shared/bicep/modules/dns/v1/dns-private-l
 module acaDnsPrivateZoneModule '../../shared/bicep/modules/dns/v1/aca-dns-private-zone.bicep' = if (useACA && !empty(acaSubnetResourceId)) {
   name: 'acaDnsPrivateZoneModule'
   params: {
-    acaEnvironmentRandomSubdomain: acaEnvModule.outputs.environmentRandomSubdomain
-    acaEnvironmentStaticIp: acaEnvModule.outputs.environmentStaticIp
+    acaEnvironmentRandomSubdomain: acaEnvModule!.outputs.environmentRandomSubdomain
+    acaEnvironmentStaticIp: acaEnvModule!.outputs.environmentStaticIp
     vnetId: vnetModule.outputs.vnetId
   }
 }
