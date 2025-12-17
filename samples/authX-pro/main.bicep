@@ -79,7 +79,7 @@ module productModule '../../shared/bicep/modules/apim/v1/product.bicep' = [for p
 }]
 
 // APIM APIs (deployed after products are ready to avoid race conditions)
-@batchSize(1)  // Deploy APIs sequentially to avoid race conditions
+@batchSize(4)
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: {
   name: 'api-${api.name}'
   params:{
