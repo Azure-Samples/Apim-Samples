@@ -129,9 +129,26 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
   }
 }
 
-// TODO: We have a timing issue here in that we may get a null if this happens too quickly after the vnet module executes.
-var apimSubnetResourceId = resourceId(resourceGroup().name, 'Microsoft.Network/virtualNetworks/subnets', vnetName, apimSubnetName)
-var acaSubnetResourceId  = resourceId(resourceGroup().name, 'Microsoft.Network/virtualNetworks/subnets', vnetName, acaSubnetName)
+// Create explicit dependencies so subnet IDs are always available after the VNet module completes.
+resource vnetExisting 'Microsoft.Network/virtualNetworks@2024-05-01' existing = {
+  name: vnetName
+  dependsOn: [
+    vnetModule
+  ]
+}
+
+resource apimSubnetResource 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' existing = {
+  parent: vnetExisting
+  name: apimSubnetName
+}
+
+resource acaSubnetResource 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' existing = {
+  parent: vnetExisting
+  name: acaSubnetName
+}
+
+var apimSubnetResourceId = apimSubnetResource.id
+var acaSubnetResourceId  = acaSubnetResource.id
 
 // 4. Azure Container App Environment (ACAE)
 module acaEnvModule '../../shared/bicep/modules/aca/v1/environment.bicep' = if (useACA) {
@@ -173,9 +190,6 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
     publicAccess: apimPublicAccess
     globalPolicyXml: revealBackendApiInfo ? loadTextContent('../../shared/apim-policies/all-apis-reveal-backend.xml') : loadTextContent('../../shared/apim-policies/all-apis.xml')
   }
-  dependsOn: [
-    vnetModule
-  ]
 }
 
 // 7. APIM Policy Fragments
@@ -250,11 +264,13 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
     appInsightsId: appInsightsId
     api: api
   }
-  dependsOn: [
+  dependsOn: useACA ? [
     apimModule
     backendModule1
     backendModule2
     backendPoolModule
+  ] : [
+    apimModule
   ]
 }]
 
