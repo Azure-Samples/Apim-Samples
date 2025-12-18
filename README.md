@@ -25,7 +25,7 @@ _Try it out, learn from it, apply it in your setups._
 | [API Management & Container Apps][infra-apim-aca]                  | APIs are often implemented in containers running in Azure Container Apps. This architecture accesses the container apps publicly. It's beneficial to test both APIM and container app URLs to contrast and compare experiences of API calls through and bypassing APIM. It is not intended to be a security baseline.    |
 | [Front Door & API Management & Container Apps][infra-afd-apim-pe]  | A secure implementation of Azure Front Door connecting to APIM via the new private link integration. This traffic, once it traverses through Front Door, rides entirely on Microsoft-owned and operated networks. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). APIM Standard V2 is used here to accept a private link from Front Door. |
 | [Application Gateway (Private Endpoint) & API Management & Container Apps][infra-appgw-apim-pe]  | A secure implementation of Azure Application Gateway connecting to APIM via the new private link integration. This traffic, once it traverses through App Gateway, uses a private endpoint set up in the VNet's private endpoint subnet. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). APIM Standard V2 is used here to accept a private link from App Gateway. |
-| Application Gateway (VNet) & API Management & Container Apps       | *ETA TBD - Stay tuned!* |
+| [Application Gateway (VNet) & API Management & Container Apps][infra-appgw-apim] | Full VNet injection of APIM and ACA! APIM is shielded from any type of traffic unless it comes through App Gateway. This offers maximum isolation for instances in which customers seek VNet injection. |
 
 ## 📁 List of Samples
 
@@ -66,6 +66,7 @@ These prerequisites apply broadly across all infrastructure and samples. If ther
   - Python 3.13 and 3.14 should work as well, but have not been verified extensively
 - [VS Code][vscode] installed with the [Jupyter notebook extension][vscode-jupyter] enabled
 - [Azure CLI][azure-cli-install] installed
+- [Azure Bicep][azure-bicep-install] installed
 - [An Azure Subscription][azure-free] with Owner or Contributor+UserAccessAdministrator permissions. Execute [Verify Azure Account][verify-az-account-notebook] to verify.
 - **Azure Authentication**: Sign in to Azure with Azure CLI using the specific tenant and subscription you want to work with:
   - To log in to a specific tenant: `az login --tenant <your-tenant-id-or-domain>`
@@ -384,6 +385,7 @@ The original author of this project is [Simon Kurtz][simon-kurtz].
 [andrew-redman]: https://github.com/anotherRedbeard
 [apim-lza]: https://learn.microsoft.com/azure/cloud-adoption-framework/scenarios/app-platform/api-management/landing-zone-accelerator
 [apim-snippets-repo]: https://github.com/Azure/api-management-policy-snippets
+[azure-bicep-install]: https://learn.microsoft.com/azure/azure-resource-manager/bicep/install#azure-cli
 [azure-cli-auth]: https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively
 [azure-cli-install]: https://learn.microsoft.com/cli/azure/install-azure-cli
 [azure-free]: https://azure.microsoft.com/free/
@@ -394,6 +396,7 @@ The original author of this project is [Simon Kurtz][simon-kurtz].
 [import-troubleshooting]: .devcontainer/IMPORT-TROUBLESHOOTING.md
 [infra-afd-apim-pe]: ./infrastructure/afd-apim-pe
 [infra-apim-aca]: ./infrastructure/apim-aca
+[infra-appgw-apim]: ./infrastructure/appgw-apim/
 [infra-appgw-apim-pe]: ./infrastructure/appgw-apim-pe/
 [infra-simple-apim]: ./infrastructure/simple-apim
 [pytest-docs]: https://docs.pytest.org/

@@ -216,7 +216,8 @@ class Infrastructure:
             INFRASTRUCTURE.SIMPLE_APIM: 'simple-apim',
             INFRASTRUCTURE.APIM_ACA: 'apim-aca',
             INFRASTRUCTURE.AFD_APIM_PE: 'afd-apim-pe',
-            INFRASTRUCTURE.APPGW_APIM_PE: 'appgw-apim-pe'
+            INFRASTRUCTURE.APPGW_APIM_PE: 'appgw-apim-pe',
+            INFRASTRUCTURE.APPGW_APIM: 'appgw-apim'
         }
 
         # Get the infrastructure directory
@@ -1020,6 +1021,155 @@ class AppGwApimPeInfrastructure(Infrastructure):
             return False
 
 
+class AppGwApimInfrastructure(Infrastructure):
+    """
+    Represents an Application Gateway with API Management (Developer SKU) using VNet Internal mode.
+    No Private Endpoints are used; App Gateway routes directly to APIM's private IP.
+    """
+
+    CERT_NAME = 'appgw-cert'
+    DOMAIN_NAME = 'api.apim-samples.contoso.com'
+
+    def __init__(self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.DEVELOPER, infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
+        super().__init__(INFRASTRUCTURE.APPGW_APIM, index, rg_location, apim_sku, APIMNetworkMode.INTERNAL_VNET, infra_pfs, infra_apis)
+
+    def _create_keyvault(self, key_vault_name: str) -> bool:
+        check_kv = az.run(
+            f'az keyvault show --name {key_vault_name} --resource-group {self.rg_name} -o json'
+        )
+
+        if not check_kv.success:
+            print_plain(f'Creating Key Vault: {key_vault_name}')
+            create_kv = az.run(
+                f'az keyvault create --name {key_vault_name} --resource-group {self.rg_name} --location {self.rg_location} --enable-rbac-authorization true'
+            )
+
+            if not create_kv.success:
+                print_error(f'Failed to create Key Vault: {key_vault_name}')
+                print_plain('This may be caused by a soft-deleted Key Vault with the same name.')
+                print_plain('Check for soft-deleted resources: python shared/python/show_soft_deleted_resources.py\n')
+                return False
+
+            print_ok(f'Key Vault created: {key_vault_name}')
+
+            assign_kv_role = az.run(
+                f'az role assignment create --role "Key Vault Certificates Officer" --assignee {self.current_user_id} --scope /subscriptions/{self.subscription_id}/resourceGroups/{self.rg_name}/providers/Microsoft.KeyVault/vaults/{key_vault_name}'
+            )
+            if not assign_kv_role.success:
+                print_error('Failed to assign Key Vault Certificates Officer role to current user.\nThis is an RBAC permission issue - verify your account has sufficient permissions.')
+                return False
+
+            print_ok(' Assigned Key Vault Certificates Officer role to current user')
+            print_plain('⏳ Waiting for role assignment propagation (15 seconds)...')
+            time.sleep(15)
+
+        return True
+
+    def _create_keyvault_certificate(self, key_vault_name: str) -> bool:
+        print_plain('\n🔐 Creating self-signed certificate in Key Vault...\n')
+        print_val('Key Vault', key_vault_name)
+        print_val('Certificate', self.CERT_NAME)
+        print_val('Domain', self.DOMAIN_NAME)
+
+        check_output = az.run(
+            f'az keyvault certificate show --vault-name {key_vault_name} --name {self.CERT_NAME} -o json'
+        )
+
+        if check_output.success:
+            print_ok('Certificate already exists in Key Vault')
+            return True
+
+        cert_policy = json.dumps({
+            "issuerParameters": {"name": "Self"},
+            "keyProperties": {"exportable": True, "keySize": 2048, "keyType": "RSA", "reuseKey": True},
+            "secretProperties": {"contentType": "application/x-pkcs12"},
+            "x509CertificateProperties": {
+                "keyUsage": ["digitalSignature", "keyEncipherment"],
+                "subject": f"CN={self.DOMAIN_NAME}",
+                "validityInMonths": 12
+            }
+        })
+
+        escaped_policy = cert_policy.replace('"', '\\"')
+        create_output = az.run(
+            f'az keyvault certificate create --vault-name {key_vault_name} --name {self.CERT_NAME} --policy "{escaped_policy}"',
+            'Certificate created successfully in Key Vault',
+            'Failed to create certificate in Key Vault'
+        )
+
+        return create_output.success
+
+    def _define_bicep_parameters(self) -> dict:
+        base_params = super()._define_bicep_parameters()
+
+        appgw_params = {
+            'useACA': {'value': len(self.infra_apis) > 0 if self.infra_apis else False},
+            'setCurrentUserAsKeyVaultAdmin': {'value': True},
+            'currentUserId': {'value': self.current_user_id}
+        }
+
+        base_params.update(appgw_params)
+        return base_params
+
+    def deploy_infrastructure(self, is_update: bool = False) -> utils.Output:
+        """
+        Deploy the APPGW-APIM infrastructure with the required multi-step process.
+
+        Args:
+            is_update (bool): Whether this is an update to existing infrastructure or a new deployment.
+
+        Returns:
+            utils.Output: The deployment result.
+        """
+        action_verb = "Updating" if is_update else "Starting"
+        print_plain(f'🚀 {action_verb} APPGW-APIM infrastructure deployment...\n')
+        print_plain('   This deployment requires multiple steps:\n')
+        print_plain('   1. Create Key Vault and self-signed certificate')
+        print_plain('   2. Deploy infrastructure (APIM in VNet Internal mode)')
+
+        # Step 1: Create Key Vault and certificate
+        print_plain('\n📋 Step 1: Creating Key Vault and certificate...\n')
+        key_vault_name = f'kv-{self.resource_suffix}'
+
+        if not self._create_keyvault(key_vault_name):
+            return utils.Output(False, 'Failed to create Key Vault')
+
+        if not self._create_keyvault_certificate(key_vault_name):
+            return utils.Output(False, 'Failed to create certificate in Key Vault')
+
+        print_ok('Step 1: Key Vault and certificate creation completed', blank_above = True)
+
+        # Step 2: Main deployment
+        print_plain('\n📋 Step 2: Deploying infrastructure...\n')
+        output = super().deploy_infrastructure(is_update)
+
+        if not output.success:
+            print_error('Deployment failed!')
+            return output
+
+        print_ok('Step 2: Deployment completed', blank_above = True)
+
+        # Extract required values from deployment output
+        if not output.json_data:
+            print_error('No deployment output data available')
+            return output
+
+        self.appgw_domain_name = output.get('appGatewayDomainName', 'App Gateway Domain Name', suppress_logging = True)
+        self.appgw_public_ip = output.get('appgwPublicIpAddress', 'App Gateway Public IP', suppress_logging = True)
+
+        print_plain('\n📋 Final Configuration:\n')
+        print_ok('Application Gateway deployed')
+        print_ok('API Management deployed in VNet (Internal)')
+        print_ok('No Private Endpoints used')
+        print_info('Traffic flow: Internet → Application Gateway → APIM (VNet Internal)')
+
+        print_plain('\n\n🧪 TESTING\n')
+        print_plain('Using a self-signed certificate; test using curl with Host header against the App Gateway public IP. A 200 from the APIM health endpoint indicates success.')
+        print_command(f'curl -v -k -H "Host: {self.appgw_domain_name}" https://{self.appgw_public_ip}/status-0123456789abcdef')
+
+        return output
+
+
 # ------------------------------
 #    INFRASTRUCTURE CLEANUP FUNCTIONS
 # ------------------------------
@@ -1072,7 +1222,6 @@ def _cleanup_single_resource(resource: dict) -> tuple[bool, str]:
 
     except Exception as e:
         return False, str(e)
-
 
 def _cleanup_resources_parallel(resources: list[dict], thread_prefix: str = '', thread_color: str = '') -> None:
     """
@@ -1168,7 +1317,6 @@ def _cleanup_resources_parallel(resources: list[dict], thread_prefix: str = '', 
         if completed_count - failed_count > 0:
             log_info(f'{completed_count - failed_count} resource(s) cleaned up successfully.')
 
-
 def _cleanup_resources_parallel_thread_safe(resources: list[dict], thread_prefix: str, thread_color: str) -> None:
     """
     Convenience wrapper for parallel cleanup with thread-safe printing.
@@ -1179,7 +1327,6 @@ def _cleanup_resources_parallel_thread_safe(resources: list[dict], thread_prefix
         thread_color (str): ANSI color code for this thread
     """
     _cleanup_resources_parallel(resources, thread_prefix, thread_color)
-
 
 def _delete_resource_group_best_effort(
     rg_name: str,
@@ -1219,7 +1366,6 @@ def _delete_resource_group_best_effort(
         print_plain(f"Failed to initiate deletion of resource group '{rg_name}': {e}")
         if should_print_traceback():
             traceback.print_exc()
-
 
 def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
     """
@@ -1333,7 +1479,6 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
         if not rg_delete_attempted:
             _delete_resource_group_best_effort(rg_name)
 
-
 def _cleanup_resources_thread_safe(deployment_name: str, rg_name: str, thread_prefix: str, thread_color: str) -> tuple[bool, str]:
     """
     Thread-safe wrapper for _cleanup_resources with formatted output.
@@ -1366,7 +1511,6 @@ def _cleanup_resources_thread_safe(deployment_name: str, rg_name: str, thread_pr
             if should_print_traceback():
                 traceback.print_exc()
         return False, error_msg
-
 
 def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: str, thread_prefix: str, thread_color: str) -> None:
     """
@@ -1477,7 +1621,6 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
         # Best-effort: always attempt RG deletion for the specified RG.
         if not rg_delete_attempted:
             _delete_resource_group_best_effort(rg_name, thread_prefix=thread_prefix, thread_color=thread_color)
-
 
 def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[int] | None = None) -> None:
     """

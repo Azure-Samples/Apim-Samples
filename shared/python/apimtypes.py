@@ -111,6 +111,11 @@ class APIM_SKU(StrEnum):
     STANDARDV2 = 'Standardv2'
     PREMIUMV2  = 'Premiumv2'
 
+    def is_v1(self):
+        return self in (APIM_SKU.DEVELOPER, APIM_SKU.BASIC, APIM_SKU.STANDARD, APIM_SKU.PREMIUM)
+
+    def is_v2(self):
+        return self in (APIM_SKU.BASICV2, APIM_SKU.STANDARDV2, APIM_SKU.PREMIUMV2)
 
 class HTTP_VERB(StrEnum):
     """
@@ -131,10 +136,11 @@ class INFRASTRUCTURE(StrEnum):
     Infrastructure types for APIM automation scenarios.
     """
 
-    SIMPLE_APIM  = 'simple-apim'   # Simple API Management with no dependencies
-    APIM_ACA     = 'apim-aca'      # Azure API Management connected to Azure Container Apps
-    AFD_APIM_PE  = 'afd-apim-pe'   # Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
+    SIMPLE_APIM   = 'simple-apim'   # Simple API Management with no dependencies
+    APIM_ACA      = 'apim-aca'      # Azure API Management connected to Azure Container Apps
+    AFD_APIM_PE   = 'afd-apim-pe'   # Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
     APPGW_APIM_PE = 'appgw-apim-pe' # Application Gateway connected to Azure API Management (Standard V2) via Private Link
+    APPGW_APIM    = 'appgw-apim'    # Application Gateway connected to Azure API Management (Developer SKU) via VNet (Internal)
 
 
 class Endpoints:

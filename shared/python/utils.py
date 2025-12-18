@@ -165,7 +165,8 @@ class InfrastructureNotebookHelper:
                     INFRASTRUCTURE.SIMPLE_APIM: 'simple-apim',
                     INFRASTRUCTURE.AFD_APIM_PE: 'afd-apim-pe',
                     INFRASTRUCTURE.APIM_ACA: 'apim-aca',
-                    INFRASTRUCTURE.APPGW_APIM_PE: 'appgw-apim-pe'
+                    INFRASTRUCTURE.APPGW_APIM_PE: 'appgw-apim-pe',
+                    INFRASTRUCTURE.APPGW_APIM: 'appgw-apim'
                 }
 
                 infra_folder = infra_folder_map.get(self.deployment)
