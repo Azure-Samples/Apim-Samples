@@ -97,13 +97,13 @@ var appInsightsId = appInsightsModule.outputs.id
 var appInsightsInstrumentationKey = appInsightsModule.outputs.instrumentationKey
 
 // 3. Virtual Network and Subnets
-resource nsgDefault 'Microsoft.Network/networkSecurityGroups@2024-05-01' = {
+resource nsgDefault 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
   name: 'nsg-default'
   location: location
 }
 
 // App Gateway needs a specific NSG
-resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2024-05-01' = {
+resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
   name: 'nsg-appgw'
   location: location
   properties: {
@@ -112,7 +112,7 @@ resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2024-05-01' = {
         name: 'AllowGatewayManagerInbound'
         properties: {
           description: 'Allow Azure infrastructure communication'
-          protocol: 'Tcp'
+          protocol: 'TCP'
           sourcePortRange: '*'
           destinationPortRange: '65200-65535'
           sourceAddressPrefix: 'GatewayManager'
@@ -126,7 +126,7 @@ resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2024-05-01' = {
         name: 'AllowHTTPSInbound'
         properties: {
           description: 'Allow HTTPS traffic'
-          protocol: 'Tcp'
+          protocol: 'TCP'
           sourcePortRange: '*'
           destinationPortRange: '443'
           sourceAddressPrefix: '*'
@@ -328,6 +328,7 @@ module acaModule1 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (u
     environmentId: acaEnvModule!.outputs.environmentId
   }
 }
+
 module acaModule2 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (useACA) {
   name: 'acaModule-2'
   params: {

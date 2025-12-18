@@ -78,7 +78,7 @@ var appInsightsInstrumentationKey = appInsightsModule.outputs.instrumentationKey
 // We also do not presently use a custom route table for the subnets, which is a best practice for production workloads.
 
 // https://learn.microsoft.com/azure/templates/microsoft.network/networksecuritygroups
-resource nsg 'Microsoft.Network/networkSecurityGroups@2024-05-01' = {
+resource nsg 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
   name: 'nsg-default'
   location: location
 }
@@ -170,6 +170,7 @@ module acaModule1 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (u
     environmentId: acaEnvModule!.outputs.environmentId
   }
 }
+
 module acaModule2 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (useACA) {
   name: 'acaModule-2'
   params: {
