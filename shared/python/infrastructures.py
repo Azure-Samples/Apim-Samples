@@ -13,7 +13,7 @@ import requests
 
 # APIM Samples imports
 from apimtypes import API, APIM_SKU, APIMNetworkMode, GET_APIOperation, HELLO_WORLD_XML_POLICY_PATH, INFRASTRUCTURE, PolicyFragment
-from console import BOLD_R, BOLD_Y, RESET, THREAD_COLORS, _print_lock, _print_log, print_error, print_info, print_message, print_ok, print_plain, print_warning
+from console import BOLD_R, BOLD_Y, RESET, THREAD_COLORS, _print_lock, _print_log, print_command, print_error, print_info, print_message, print_ok, print_plain, print_warning, print_val
 from logging_config import should_print_traceback
 import azure_resources as az
 import utils
@@ -52,7 +52,6 @@ class Infrastructure:
         self.resource_suffix = az.get_unique_suffix_for_resource_group(self.rg_name)
 
         self.current_user, self.current_user_id, self.tenant_id, self.subscription_id = az.get_account_info()
-
 
 
     # ------------------------------
@@ -199,11 +198,11 @@ class Infrastructure:
 
         action_verb = "Updating" if is_update else "Creating"
         print_plain(f'🚀 {action_verb} infrastructure...\n')
-        print_plain(f'   Infrastructure : {self.infra.value}')
-        print_plain(f'   Index          : {self.index}')
-        print_plain(f'   Resource group : {self.rg_name}')
-        print_plain(f'   Location       : {self.rg_location}')
-        print_plain(f'   APIM SKU       : {self.apim_sku.value}\n')
+        print_val('Infrastructure', self.infra.value)
+        print_val('Index', self.index)
+        print_val('Resource group', self.rg_name)
+        print_val('Location', self.rg_location)
+        print_val('APIM SKU', self.apim_sku.value)
 
         self._define_policy_fragments()
         self._define_apis()
@@ -272,11 +271,11 @@ class Infrastructure:
                     apim_apis = output.getJson('apiOutputs', 'APIs', suppress_logging = True)
 
                     print_plain('\n📋 Infrastructure Details:')
-                    print_plain(f'   Resource Group : {self.rg_name}')
-                    print_plain(f'   Location       : {self.rg_location}')
-                    print_plain(f'   APIM SKU       : {self.apim_sku.value}')
-                    print_plain(f'   Gateway URL    : {apim_gateway_url}')
-                    print_plain(f'   APIs Created   : {len(apim_apis)}')
+                    print_val('Resource Group', self.rg_name)
+                    print_val('Location', self.rg_location)
+                    print_val('APIM SKU', self.apim_sku.value)
+                    print_val('Gateway URL', apim_gateway_url)
+                    print_val('APIs Created', len(apim_apis))
 
                     # TODO: Perform basic verification
                     self._verify_infrastructure(self.rg_name)
@@ -329,7 +328,7 @@ class ApimAcaInfrastructure(Infrastructure):
                 return False
 
         except Exception as e:
-            print_warning(f'  Container Apps verification failed with error: {str(e)}')
+            print_warning(f'Container Apps verification failed with error: {str(e)}')
             return False
 
 class AfdApimAcaInfrastructure(Infrastructure):
@@ -386,7 +385,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
                 pending_connections = [pending_connections]
 
             total = len(pending_connections)
-            print_plain(f'   Found {total} pending private link service connection(s)')
+            print_plain(f'Found {total} pending private link service connection(s)')
 
             if not total:
                 print_ok('No pending connections found - may already be approved')
@@ -396,7 +395,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
             for i, conn in enumerate(pending_connections, 1):
                 conn_id = conn.get('id')
                 conn_name = conn.get('name', '<unknown>')
-                print_plain(f'   Approving {i}/{total}: {conn_name}')
+                print_plain(f'Approving {i}/{total}: {conn_name}')
 
                 approve_result = az.run(
                     f'az network private-endpoint-connection approve --id {conn_id} --description "Approved by infrastructure deployment"',
@@ -407,11 +406,11 @@ class AfdApimAcaInfrastructure(Infrastructure):
                 if not approve_result.success:
                     return False
 
-            print_ok(' All private link connections approved successfully')
+            print_ok('All private link connections approved successfully')
             return True
 
         except Exception as e:
-            print_error(f'    Error during private link approval: {str(e)}')
+            print_error(f'Error during private link approval: {str(e)}')
             return False
 
     def _disable_apim_public_access(self) -> bool:
@@ -445,7 +444,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
                 with open(params_file_path, 'w', encoding='utf-8') as file:
                     file.write(json.dumps(bicep_parameters_format))
 
-                print_plain('   📝 Updated parameters to disable public access')
+                print_plain('📝 Updated parameters to disable public access')
 
                 # Run the second deployment
                 main_bicep_path = infra_dir / 'main.bicep'
@@ -461,7 +460,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
                 os.chdir(original_cwd)
 
         except Exception as e:
-            print_error(f'    Error during public access disable: {str(e)}')
+            print_error(f'Error during public access disable: {str(e)}')
             return False
 
     def _verify_apim_connectivity(self, apim_gateway_url: str) -> bool:
@@ -479,7 +478,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
         try:
             # Use the health check endpoint which doesn't require a subscription key
             healthcheck_url = f'{apim_gateway_url}/status-0123456789abcdef'
-            print_plain(f'   Testing connectivity to health check endpoint: {healthcheck_url}')
+            print_plain(f'Testing connectivity to health check endpoint: {healthcheck_url}')
 
             response = requests.get(healthcheck_url, timeout=30)
 
@@ -487,7 +486,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
                 print_ok('APIM connectivity verified - Health check returned 200')
                 return True
             else:
-                print_warning(f'   APIM health check returned status code {response.status_code} (expected 200)')
+                print_warning(f'APIM health check returned status code {response.status_code} (expected 200)')
                 return True  # Continue anyway as this might be expected during deployment
 
         except Exception as e:
@@ -521,7 +520,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
             print_error('Initial deployment failed!')
             return output
 
-        print_ok(' Step 1 & 2: Initial infrastructure deployment completed')
+        print_ok('Step 1 & 2: Initial infrastructure deployment completed')
 
         # Extract required values from deployment output
         if not output.json_data:
@@ -550,10 +549,10 @@ class AfdApimAcaInfrastructure(Infrastructure):
 
         print_plain('\n🎉 AFD-APIM-PE infrastructure deployment completed successfully!\n')
         print_plain('\n📋 Final Configuration:\n')
-        print_ok(' Azure Front Door deployed')
-        print_ok(' API Management deployed with private endpoints')
-        print_ok(' Private link connections approved')
-        print_ok(' Public access to APIM disabled')
+        print_ok('Azure Front Door deployed')
+        print_ok('API Management deployed with private endpoints')
+        print_ok('Private link connections approved')
+        print_ok('Public access to APIM disabled')
         print_info('Traffic now flows: Internet → AFD → Private Endpoint → APIM')
 
         return output
@@ -603,7 +602,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
                 return False
 
         except Exception as e:
-            print_warning(f' AFD-APIM-PE verification failed with error: {str(e)}')
+            print_warning(f'AFD-APIM-PE verification failed with error: {str(e)}')
             return False
 
 class AppGwApimPeInfrastructure(Infrastructure):
@@ -630,10 +629,10 @@ class AppGwApimPeInfrastructure(Infrastructure):
         Returns:
             bool: True if certificate was created or already exists, False on failure.
         """
-        print_plain('\n   🔐 Creating self-signed certificate in Key Vault...\n')
-        print_plain(f'   Key Vault   : {key_vault_name}')
-        print_plain(f'   Certificate : {self.CERT_NAME}')
-        print_plain(f'   Domain      : {self.DOMAIN_NAME}')
+        print_plain('\n🔐 Creating self-signed certificate in Key Vault...\n')
+        print_val('Key Vault', key_vault_name)
+        print_val('Certificate', self.CERT_NAME)
+        print_val('Domain', self.DOMAIN_NAME)
 
         # Check if certificate already exists
         check_output = az.run(
@@ -738,7 +737,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
             for i, conn in enumerate(pending_connections, 1):
                 conn_id = conn.get('id')
                 conn_name = conn.get('name', '<unknown>')
-                print_plain(f'   Approving {i}/{total}: {conn_name}')
+                print_plain(f'Approving {i}/{total}: {conn_name}')
 
                 approve_result = az.run(
                     f'az network private-endpoint-connection approve --id {conn_id} --description "Approved by infrastructure deployment"',
@@ -787,7 +786,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
                 with open(params_file_path, 'w', encoding='utf-8') as file:
                     file.write(json.dumps(bicep_parameters_format))
 
-                print_plain('   📝 Updated parameters to disable public access')
+                print_plain('📝 Updated parameters to disable public access')
 
                 # Run the second deployment
                 main_bicep_path = infra_dir / 'main.bicep'
@@ -803,7 +802,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
                 os.chdir(original_cwd)
 
         except Exception as e:
-            print_error(f'    Error during public access disable: {str(e)}')
+            print_error(f'Error during public access disable: {str(e)}')
             return False
 
     def _verify_apim_connectivity(self, apim_gateway_url: str) -> bool:
@@ -821,7 +820,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
         try:
             # Use the health check endpoint which doesn't require a subscription key
             healthcheck_url = f'{apim_gateway_url}/status-0123456789abcdef'
-            print_plain(f'   Testing connectivity to health check endpoint: {healthcheck_url}')
+            print_plain(f'Testing connectivity to health check endpoint: {healthcheck_url}')
 
             response = requests.get(healthcheck_url, timeout=30)
 
@@ -829,11 +828,11 @@ class AppGwApimPeInfrastructure(Infrastructure):
                 print_ok('APIM connectivity verified - Health check returned 200')
                 return True
             else:
-                print_warning(f'   APIM health check returned status code {response.status_code} (expected 200)')
+                print_warning(f'APIM health check returned status code {response.status_code} (expected 200)')
                 return True  # Continue anyway as this might be expected during deployment
 
         except Exception as e:
-            print_warning(f'   APIM connectivity test failed: {str(e)}')
+            print_warning(f'APIM connectivity test failed: {str(e)}')
             print_info('Continuing deployment - this may be expected during infrastructure setup')
             return True  # Continue anyway
 
@@ -845,18 +844,18 @@ class AppGwApimPeInfrastructure(Infrastructure):
 
         if not check_kv.success:
             # Create Key Vault via Azure CLI with RBAC authorization (consistent with Bicep module)
-            print_plain(f'   Creating Key Vault: {key_vault_name}')
+            print_plain(f'Creating Key Vault: {key_vault_name}')
             create_kv = az.run(
                 f'az keyvault create --name {key_vault_name} --resource-group {self.rg_name} --location {self.rg_location} --enable-rbac-authorization true'
             )
 
             if not create_kv.success:
-                print_error(f'    Failed to create Key Vault: {key_vault_name}')
-                print_plain('      This may be caused by a soft-deleted Key Vault with the same name.')
-                print_plain('      Check for soft-deleted resources: python shared/python/show_soft_deleted_resources.py\n')
+                print_error(f'Failed to create Key Vault: {key_vault_name}')
+                print_plain('This may be caused by a soft-deleted Key Vault with the same name.')
+                print_plain('Check for soft-deleted resources: python shared/python/show_soft_deleted_resources.py\n')
                 return False
 
-            print_ok(f'    Key Vault created: {key_vault_name}')
+            print_ok(f'Key Vault created: {key_vault_name}')
 
             #Assign Key Vault Certificates Officer role to current user for certificate creation
 
@@ -865,13 +864,13 @@ class AppGwApimPeInfrastructure(Infrastructure):
                 f'az role assignment create --role "Key Vault Certificates Officer" --assignee {self.current_user_id} --scope /subscriptions/{self.subscription_id}/resourceGroups/{self.rg_name}/providers/Microsoft.KeyVault/vaults/{key_vault_name}'
             )
             if not assign_kv_role.success:
-                print_error('   Failed to assign Key Vault Certificates Officer role to current user.\nThis is an RBAC permission issue - verify your account has sufficient permissions.')
+                print_error('Failed to assign Key Vault Certificates Officer role to current user.\nThis is an RBAC permission issue - verify your account has sufficient permissions.')
                 return False
 
             print_ok(' Assigned Key Vault Certificates Officer role to current user')
 
             # Brief wait for role assignment propagation
-            print_plain('   ⏳ Waiting for role assignment propagation (15 seconds)...')
+            print_plain('⏳ Waiting for role assignment propagation (15 seconds)...')
             time.sleep(15)
 
         return True
@@ -968,7 +967,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
         print_plain('As we are using a self-signed certificate (please see README.md for details), we need to test differently.\n' +
               'A curl command using flags for verbose (v), ignoring cert issues (k), and supplying a host header (h) works to verify connectivity.\n' +
               'This tests ingress through App Gateway and a response from API Management\'s health endpoint. An "HTTP 200 Service Operational" response indicates success.\n')
-        print_plain(f'curl -v -k -H "Host: {self.appgw_domain_name}" https://{self.appgw_public_ip}/status-0123456789abcdef')
+        print_command(f'curl -v -k -H "Host: {self.appgw_domain_name}" https://{self.appgw_public_ip}/status-0123456789abcdef')
 
         return output
 
@@ -1017,7 +1016,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
                 return False
 
         except Exception as e:
-            print_warning(f'  APPGW-APIM-PE verification failed with error: {str(e)}')
+            print_warning(f'APPGW-APIM-PE verification failed with error: {str(e)}')
             return False
 
 
@@ -1508,8 +1507,8 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
 
     # For multiple indexes, run in parallel
     print_info(f'Starting parallel cleanup for {len(indexes_list)} infrastructure instances', True)
-    print_info(f'Infrastructure: {deployment.value}')
-    print_info(f'Indexes: {indexes_list}')
+    print_val('Infrastructure', deployment.value)
+    print_val('Indexes', indexes_list)
     print_plain('')
 
     # Determine max workers (reasonable limit to avoid overwhelming the system)

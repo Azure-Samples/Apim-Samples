@@ -42,14 +42,12 @@ param afdEndpointName string = 'afd-${resourceSuffix}'
 param acaName string = 'aca-${resourceSuffix}'
 param useACA bool = false
 
-
 // ------------------
 //    "CONSTANTS"
 // ------------------
 
 var IMG_HELLO_WORLD = 'simonkurtzmsft/helloworld:latest'
 var IMG_MOCK_WEB_API = 'simonkurtzmsft/mockwebapi:1.0.0-alpha.1'
-
 
 // ------------------
 //    RESOURCES
@@ -131,9 +129,26 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
   }
 }
 
-// TODO: We have a timing issue here in that we may get a null if this happens too quickly after the vnet module executes.
-var apimSubnetResourceId = resourceId(resourceGroup().name, 'Microsoft.Network/virtualNetworks/subnets', vnetName, apimSubnetName)
-var acaSubnetResourceId  = resourceId(resourceGroup().name, 'Microsoft.Network/virtualNetworks/subnets', vnetName, acaSubnetName)
+// Create explicit dependencies so subnet IDs are always available after the VNet module completes.
+resource vnetExisting 'Microsoft.Network/virtualNetworks@2024-05-01' existing = {
+  name: vnetName
+  dependsOn: [
+    vnetModule
+  ]
+}
+
+resource apimSubnetResource 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' existing = {
+  parent: vnetExisting
+  name: apimSubnetName
+}
+
+resource acaSubnetResource 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' existing = {
+  parent: vnetExisting
+  name: acaSubnetName
+}
+
+var apimSubnetResourceId = apimSubnetResource.id
+var acaSubnetResourceId  = acaSubnetResource.id
 
 // 4. Azure Container App Environment (ACAE)
 module acaEnvModule '../../shared/bicep/modules/aca/v1/environment.bicep' = if (useACA) {
@@ -152,7 +167,7 @@ module acaModule1 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (u
   params: {
     name: 'ca-${resourceSuffix}-mockwebapi-1'
     containerImage: IMG_MOCK_WEB_API
-    environmentId: acaEnvModule.outputs.environmentId
+    environmentId: acaEnvModule!.outputs.environmentId
   }
 }
 module acaModule2 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (useACA) {
@@ -160,7 +175,7 @@ module acaModule2 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (u
   params: {
     name: 'ca-${resourceSuffix}-mockwebapi-2'
     containerImage: IMG_MOCK_WEB_API
-    environmentId: acaEnvModule.outputs.environmentId
+    environmentId: acaEnvModule!.outputs.environmentId
   }
 }
 
@@ -175,9 +190,6 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
     publicAccess: apimPublicAccess
     globalPolicyXml: revealBackendApiInfo ? loadTextContent('../../shared/apim-policies/all-apis-reveal-backend.xml') : loadTextContent('../../shared/apim-policies/all-apis.xml')
   }
-  dependsOn: [
-    vnetModule
-  ]
 }
 
 // 7. APIM Policy Fragments
@@ -200,7 +212,7 @@ module backendModule1 '../../shared/bicep/modules/apim/v1/backend.bicep' = if (u
   params: {
     apimName: apimName
     backendName: 'aca-backend-1'
-    url: 'https://${acaModule1.outputs.containerAppFqdn}'
+    url: 'https://${acaModule1!.outputs.containerAppFqdn}'
   }
   dependsOn: [
     apimModule
@@ -212,7 +224,7 @@ module backendModule2 '../../shared/bicep/modules/apim/v1/backend.bicep' = if (u
   params: {
     apimName: apimName
     backendName: 'aca-backend-2'
-    url: 'https://${acaModule2.outputs.containerAppFqdn}'
+    url: 'https://${acaModule2!.outputs.containerAppFqdn}'
   }
   dependsOn: [
     apimModule
@@ -227,12 +239,12 @@ module backendPoolModule '../../shared/bicep/modules/apim/v1/backend-pool.bicep'
     backendPoolDescription: 'Backend pool for ACA Hello World backends'
     backends: [
       {
-        name: backendModule1.outputs.backendName
+        name: backendModule1!.outputs.backendName
         priority: 1
         weight: 75
       }
       {
-        name: backendModule2.outputs.backendName
+        name: backendModule2!.outputs.backendName
         priority: 1
         weight: 25
       }
@@ -252,11 +264,13 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
     appInsightsId: appInsightsId
     api: api
   }
-  dependsOn: [
+  dependsOn: useACA ? [
     apimModule
     backendModule1
     backendModule2
     backendPoolModule
+  ] : [
+    apimModule
   ]
 }]
 
@@ -277,8 +291,8 @@ module apimDnsPrivateLinkModule '../../shared/bicep/modules/dns/v1/dns-private-l
 module acaDnsPrivateZoneModule '../../shared/bicep/modules/dns/v1/aca-dns-private-zone.bicep' = if (useACA && !empty(acaSubnetResourceId)) {
   name: 'acaDnsPrivateZoneModule'
   params: {
-    acaEnvironmentRandomSubdomain: acaEnvModule.outputs.environmentRandomSubdomain
-    acaEnvironmentStaticIp: acaEnvModule.outputs.environmentStaticIp
+    acaEnvironmentRandomSubdomain: acaEnvModule!.outputs.environmentRandomSubdomain
+    acaEnvironmentStaticIp: acaEnvModule!.outputs.environmentStaticIp
     vnetId: vnetModule.outputs.vnetId
   }
 }
@@ -323,5 +337,3 @@ output apiOutputs array = [for i in range(0, length(apis)): {
   subscriptionPrimaryKey: apisModule[i].?outputs.?subscriptionPrimaryKey ?? ''
   subscriptionSecondaryKey: apisModule[i].?outputs.?subscriptionSecondaryKey ?? ''
 }]
-
-// [ADD RELEVANT OUTPUTS HERE]
