@@ -133,7 +133,7 @@ def show_deleted_key_vaults(vaults: list):
         print(f'    Purge Date       : {scheduled_purge}')
         print(f'    Purge Protection : {"🔒 ENABLED" if purge_protection else "❌ Disabled"}')
         print(f'    Vault ID         : {vault_id}')
-        print(f'    Purge AZ CLI     : az keyvault purge --name {vault_name} --location "{location}"')
+        print(f'    Purge AZ CLI     : az keyvault purge --name {vault_name} --location "{location}" --no-wait')
         print()
 
     if protected_vaults:
@@ -142,7 +142,7 @@ def show_deleted_key_vaults(vaults: list):
         print()
 
     print('To purge a Key Vault (without purge protection):')
-    print('   az keyvault purge --name <name> --location <location>')
+    print('   az keyvault purge --name <name> --location <location> --no-wait')
     print()
     print('To recover a Key Vault:')
     print('   az keyvault recover --name <name>')

@@ -1054,7 +1054,7 @@ def _cleanup_single_resource(resource: dict) -> tuple[bool, str]:
             purge_cmd = f"az apim deletedservice purge --service-name {resource_name} --location \"{location}\""
         elif resource_type == 'keyvault':
             delete_cmd = f"az keyvault delete -n {resource_name} -g {rg_name}"
-            purge_cmd = f"az keyvault purge -n {resource_name} --location \"{location}\""
+            purge_cmd = f"az keyvault purge -n {resource_name} --location \"{location}\" --no-wait"
         else:
             return False, f"Unknown resource type: {resource_type}"
 

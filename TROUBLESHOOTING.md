@@ -264,7 +264,7 @@ python shared/python/show_soft_deleted_resources.py --purge --yes
 
 # Manual purge
 az apim deletedservice purge --service-name <name> --location <location>
-az keyvault purge --name <name> --location <location>
+az keyvault purge --name <name> --location <location> --no-wait
 ```
 
 **Best Practices:**
