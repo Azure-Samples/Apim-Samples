@@ -284,7 +284,7 @@ module appgwPipModule 'br/public:avm/res/network/public-ip-address:0.9.1' = {
 
 // 7. WAF Policy for Application Gateway
 // https://learn.microsoft.com/azure/templates/microsoft.network/applicationgatewaywebapplicationfirewallpolicies
-resource wafPolicy 'Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies@2024-05-01' = {
+resource wafPolicy 'Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies@2025-01-01' = {
   name: 'waf-${resourceSuffix}'
   location: location
   properties: {
@@ -299,7 +299,8 @@ resource wafPolicy 'Microsoft.Network/ApplicationGatewayWebApplicationFirewallPo
     managedRules: {
       managedRuleSets: [
         {
-          ruleSetType: 'DRS'
+          // Ruleset is defined here: https://github.com/Azure/azure-cli/pull/31289/files
+          ruleSetType: 'Microsoft_DefaultRuleSet'
           ruleSetVersion: '2.1'
         }
       ]
