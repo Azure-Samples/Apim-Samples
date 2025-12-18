@@ -49,6 +49,13 @@ param apimLoggerDescription string  = 'APIM Logger'
 ])
 param apimSku string = 'Basicv2'
 
+@description('The APIM virtual network type when integrated with a VNet')
+@allowed([
+  'External'
+  'Internal'
+])
+param apimVirtualNetworkType string = 'External'
+
 @description('The instrumentation key for Application Insights')
 param appInsightsInstrumentationKey string = ''
 
@@ -95,7 +102,7 @@ resource apimService 'Microsoft.ApiManagement/service@2024-06-01-preview' = {
     publisherEmail: publisherEmail
     publisherName: publisherName
     publicNetworkAccess: publicAccess ? 'Enabled' : 'Disabled'
-    virtualNetworkType: 'External'
+    virtualNetworkType: apimVirtualNetworkType
   }, (!empty(apimSubnetResourceId)) ? {
     virtualNetworkConfiguration: {
       subnetResourceId: apimSubnetResourceId
@@ -136,3 +143,4 @@ output id string = apimService.id
 output name string = apimService.name
 output principalId string = apimService.identity.principalId
 output gatewayUrl string = apimService.properties.gatewayUrl
+output privateIpAddresses array = apimService.properties.privateIPAddresses
