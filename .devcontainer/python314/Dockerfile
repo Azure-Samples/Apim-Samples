@@ -2,11 +2,11 @@
 
 # syntax=docker/dockerfile:1.4
 
-# Use single-stage build with Python 3.12
-FROM mcr.microsoft.com/devcontainers/python:1-3.12-bookworm
+# Use single-stage build with Python 3.14
+FROM mcr.microsoft.com/devcontainers/python:3.14-bookworm
 
 # Set build arguments
-ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION=3.14
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -27,11 +27,11 @@ RUN --mount=type=cache,target=/var/cache/apt \
     # Install essential packages
     apt-get install -y --no-install-recommends curl wget jq tree git-lfs vim nano htop && \
     apt-get clean && \
-    # Create symbolic links to ensure python3 points to Python 3.12
-    ln -sf /usr/local/bin/python3.12 /usr/bin/python3 && \
-    ln -sf /usr/local/bin/python3.12 /usr/bin/python && \
-    # Ensure latest pip is installed for Python 3.12
-    /usr/local/bin/python3.12 -m pip install --upgrade pip setuptools wheel
+    # Create symbolic links to ensure python3 points to Python 3.14
+    ln -sf /usr/local/bin/python3.14 /usr/bin/python3 && \
+    ln -sf /usr/local/bin/python3.14 /usr/bin/python && \
+    # Ensure latest pip is installed for Python 3.14
+    /usr/local/bin/python3.14 -m pip install --upgrade pip setuptools wheel
 
 # Switch to vscode user
 USER vscode
@@ -65,6 +65,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 LABEL maintainer="APIM Samples Team" \
       description="Simplified dev container for Azure API Management samples with Codespaces prebuild optimization" \
       version="2.1" \
-      python.version="3.12" \
+      python.version="3.14" \
       debian.version="bookworm" \
       venv.location="/workspaces/Apim-Samples/.venv"
