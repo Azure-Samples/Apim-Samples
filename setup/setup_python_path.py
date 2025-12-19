@@ -16,15 +16,93 @@ is achieved by:
 
 import sys
 import subprocess
+import shutil
 import os
 import json
 from pathlib import Path  # Cross-platform path handling (Windows: \, Unix: /)
+import subprocess  # Ensure subprocess is imported for the new functions
 
 
 DEFAULT_VSCODE_SEARCH_EXCLUDE = {
     "**/.venv": True,
     "**/.venv/**": True,
 }
+
+def check_azure_cli_installed():
+    """Check if Azure CLI is installed."""
+    az_path = shutil.which('az') or shutil.which('az.cmd') or shutil.which('az.bat')
+    if not az_path:
+        print("   ❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli")
+        return False
+    try:
+        subprocess.run([az_path, '--version'], capture_output=True, text=True, check=True)
+        print("   ✅ Azure CLI is installed")
+        return True
+    except subprocess.CalledProcessError:
+        print("   ❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli")
+        return False
+
+def check_bicep_cli_installed():
+    """Check if Azure Bicep CLI is installed."""
+    az_path = shutil.which('az') or shutil.which('az.cmd') or shutil.which('az.bat')
+    if not az_path:
+        print("   ❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli")
+        return False
+
+    try:
+        subprocess.run([az_path, 'bicep', 'version'], capture_output=True, text=True, check=True)
+        print("   ✅ Azure Bicep CLI is installed (via az bicep)")
+        return True
+    except subprocess.CalledProcessError:
+        print("   ❌ Azure Bicep CLI is not installed. Install with: az bicep install")
+        return False
+
+def check_azure_providers_registered():
+    """Check if required Azure resource providers are registered in the current subscription."""
+    az_path = shutil.which('az') or shutil.which('az.cmd') or shutil.which('az.bat')
+    if not az_path:
+        print("   ❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli")
+        return False
+    required_providers = [
+        'Microsoft.ApiManagement',
+        'Microsoft.App',
+        'Microsoft.Authorization',
+        'Microsoft.CognitiveServices',
+        'Microsoft.ContainerRegistry',
+        'Microsoft.KeyVault',
+        'Microsoft.Maps',
+        'Microsoft.ManagedIdentity',
+        'Microsoft.Network',
+        'Microsoft.OperationalInsights',
+        'Microsoft.Resources',
+        'Microsoft.Storage'
+    ]
+
+    try:
+        # Get list of registered providers
+        result = subprocess.run(
+            [az_path, 'provider', 'list', '--query', '[].namespace', '-o', 'json'],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        registered_providers = json.loads(result.stdout)
+
+        missing_providers = [p for p in required_providers if p not in registered_providers]
+
+        if not missing_providers:
+            print("   ✅ All required Azure resource providers are registered")
+            return True
+
+        print(f"   ❌ Missing {len(missing_providers)} Azure provider(s):")
+        for provider in missing_providers:
+            print(f"      • {provider}")
+        print("   Register with: az provider register -n <provider-namespace>")
+        return False
+
+    except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError):
+        print("   ⚠️  Could not verify Azure provider registrations (Azure CLI may not be configured)")
+        return False
 
 DEFAULT_VSCODE_FILES_WATCHER_EXCLUDE = {
     "**/.venv/**": True,
@@ -549,7 +627,7 @@ def force_kernel_consistency():
 
 def setup_complete_environment():
     """
-    Complete setup: generate .env file, register kernel, and configure VS Code.
+    Complete setup: check Azure prerequisites, generate .env file, register kernel, and configure VS Code.
 
     This provides a one-command setup that makes the local environment
     as easy to use as the dev container.
@@ -557,8 +635,18 @@ def setup_complete_environment():
 
     print("🚀 Setting up complete APIM Samples environment...\n")
 
+    # Step 0: Check Azure prerequisites
+    print("0. Checking Azure prerequisites...")
+    azure_cli_ok = check_azure_cli_installed()
+    bicep_ok = check_bicep_cli_installed()
+    providers_ok = check_azure_providers_registered()
+
+    if not (azure_cli_ok and bicep_ok and providers_ok):
+        print("\n⚠️  Some Azure prerequisites are missing. Please address the issues above and re-run this script.")
+        return
+
     # Step 1: Generate .env file
-    print("1. Generating .env file for Python path configuration...")
+    print("\n1. Generating .env file for Python path configuration...")
     generate_env_file()
 
     # Step 2: Register Jupyter kernel
@@ -576,6 +664,8 @@ def setup_complete_environment():
     # Summary
     print("\n" + "="*50)
     print("📋 Setup Summary:")
+    print("   ✅ Azure CLI and Bicep: Available")
+    print("   ✅ Azure resource providers: Registered")
     print("   ✅ Python path configuration: Complete")
     print(f"   {'✅' if kernel_success else '❌'} Jupyter kernel registration: {'Complete' if kernel_success else 'Failed'}")
     print(f"   {'✅' if vscode_success else '❌'} VS Code settings: {'Complete' if vscode_success else 'Failed'}")

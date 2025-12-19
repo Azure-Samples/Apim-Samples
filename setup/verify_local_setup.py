@@ -6,6 +6,8 @@ This script verifies that the local environment is configured correctly:
 - Virtual environment is active
 - Required packages are installed
 - Shared modules can be imported
+- Azure CLI and Bicep CLI are installed
+- Required Azure resource providers are registered
 - Jupyter kernel is registered
 - VS Code settings are configured
 
@@ -16,6 +18,8 @@ import sys
 import subprocess
 import os
 import io
+import json
+import shutil
 from pathlib import Path
 
 # Configure UTF-8 encoding for console output
@@ -184,6 +188,92 @@ def check_env_file():
         return False
 
 
+def check_azure_cli():
+    """Check if Azure CLI is installed."""
+    az_path = shutil.which('az') or shutil.which('az.cmd') or shutil.which('az.bat')
+    if not az_path:
+        print_status("Azure CLI is not installed or not in PATH", False)
+        return False
+    try:
+        result = subprocess.run([az_path, '--version'], capture_output=True, text=True, check=True)
+        version_line = (result.stdout.splitlines() or ["unknown version"])[0].strip()
+        print_status(f"Azure CLI is installed ({version_line})")
+        return True
+    except subprocess.CalledProcessError:
+        print_status("Azure CLI is not installed or not in PATH", False)
+        return False
+
+
+def check_bicep_cli():
+    """Check if Azure Bicep CLI is installed."""
+    az_path = shutil.which('az') or shutil.which('az.cmd') or shutil.which('az.bat')
+    if not az_path:
+        print_status("Azure CLI is not installed or not in PATH", False)
+        return False
+
+    try:
+        result = subprocess.run([az_path, 'bicep', 'version'], capture_output=True, text=True, check=True)
+        version_line = (result.stdout.splitlines() or ["unknown version"])[0].strip()
+        print_status(f"Azure Bicep CLI is installed (az bicep version: {version_line})")
+        return True
+    except subprocess.CalledProcessError:
+        print_status("Azure Bicep CLI is not installed. Install with: az bicep install", False)
+        return False
+
+
+def check_azure_providers():
+    """Check if required Azure resource providers are registered in the current subscription."""
+    az_path = shutil.which('az') or shutil.which('az.cmd') or shutil.which('az.bat')
+    if not az_path:
+        print_status("Azure CLI is not installed or not in PATH", False)
+        return False
+    required_providers = [
+        'Microsoft.ApiManagement',
+        'Microsoft.App',
+        'Microsoft.Authorization',
+        'Microsoft.CognitiveServices',
+        'Microsoft.ContainerRegistry',
+        'Microsoft.KeyVault',
+        'Microsoft.Maps',
+        'Microsoft.ManagedIdentity',
+        'Microsoft.Network',
+        'Microsoft.OperationalInsights',
+        'Microsoft.Resources',
+        'Microsoft.Storage'
+    ]
+
+    try:
+        # Get list of registered providers
+        result = subprocess.run(
+            [az_path, 'provider', 'list', '--query', '[].namespace', '-o', 'json'],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        registered_providers = sorted(set(json.loads(result.stdout)))
+
+        missing_providers = [p for p in required_providers if p not in registered_providers]
+        found_providers = [p for p in required_providers if p in registered_providers]
+
+        print("   Registered providers:")
+        for provider in found_providers:
+            print(f"      - {provider}")
+
+        if not missing_providers:
+            print_status("All required Azure providers are registered")
+            return True
+
+        print_status(f"Missing {len(missing_providers)} provider(s): {', '.join(missing_providers)}", False)
+        print("   Register missing providers with:")
+        for provider in missing_providers:
+            print(f"   az provider register -n {provider}")
+        return False
+
+    except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError):
+        print_status("Could not verify Azure provider registrations", False)
+        return False
+
+
 def main():
     """Run all verification checks."""
     print("🔍 APIM Samples Local Environment Verification")
@@ -194,6 +284,9 @@ def main():
         ("Required Packages", check_required_packages),
         ("Shared Modules", check_shared_modules),
         ("Environment File", check_env_file),
+        ("Azure CLI", check_azure_cli),
+        ("Azure Bicep CLI", check_bicep_cli),
+        ("Azure Providers", check_azure_providers),
         ("Jupyter Kernel", check_jupyter_kernel),
         ("VS Code Settings", check_vscode_settings)
     ]

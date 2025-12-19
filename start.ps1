@@ -3,6 +3,15 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
+# Set UTF-8 encoding for console output to properly display Unicode characters
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+# Enable ANSI escape sequence support in PowerShell 7+
+$PSVersionTable.PSVersion.Major -ge 7 | Out-Null
+if ($PSVersionTable.PSVersion.Major -ge 7) {
+    $env:TERM = "xterm-256color"
+}
+
 $ScriptDir = Split-Path -Path $MyInvocation.MyCommand.Path -Parent
 $RepoRoot = $ScriptDir
 
@@ -34,11 +43,12 @@ function Invoke-Cmd {
 
         $exe = $flatArgs[0]
         $cmdArgs = @()
+
         if ($flatArgs.Count -gt 1) {
             $cmdArgs = @($flatArgs[1..($flatArgs.Count - 1)])
         }
 
-            $output = & $exe @cmdArgs 2>&1
+        & $exe @cmdArgs 2>&1 | Write-Host
         $exitCode = $LASTEXITCODE
     }
     catch {
@@ -54,9 +64,6 @@ function Invoke-Cmd {
 
     if ($exitCode -ne 0) {
         Write-Host ""
-            if (-not $output) {
-                Write-Host "No output was returned from the command." -ForegroundColor Yellow
-            }
         Write-Host "Command exited with code $exitCode" -ForegroundColor Yellow
         Write-Host ""
         Invoke-Pause-Menu
@@ -97,7 +104,7 @@ except Exception as exc:  # pylint: disable=broad-except
 function Invoke-Pause-Menu {
     Write-Host ""
     Write-Host "=========================="
-    Read-Host "Press Enter to return to the APIM Samples Developer CLI menu" | Out-Null
+    Read-Host "Press ENTER to return to the menu" | Out-Null
 }
 
 while ($true) {
@@ -113,7 +120,7 @@ while ($true) {
     Write-Host "Tests" -ForegroundColor Yellow
     Write-Host "  4) Run pylint"
     Write-Host "  5) Run tests"
-    Write-Host "  6) Run full python checks"
+    Write-Host "  6) Run full Python checks"
     Write-Host ""
     Write-Host "Misc" -ForegroundColor Yellow
     Write-Host "  0) Exit"

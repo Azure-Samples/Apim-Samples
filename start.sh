@@ -56,8 +56,8 @@ shared = root / "shared" / "python"
 if str(shared) not in sys.path:
     sys.path.insert(0, str(shared))
 try:
-    import utils
-    info = utils.get_account_info()
+    import azure_resources as az
+    info = az.get_account_info()
     print(json.dumps(info, indent=2))
 except Exception as exc:  # pylint: disable=broad-except
     print(f"Failed to read Azure account info: {exc}")
@@ -67,7 +67,7 @@ PY
 
 pause_prompt() {
   echo
-  read -rp "Press Enter to return to the menu..." _
+  read -rp "Press ENTER to return to the menu..." _
 }
 
 while true; do
@@ -83,7 +83,7 @@ while true; do
   echo "Tests"
   echo "  4) Run pylint"
   echo "  5) Run tests"
-  echo "  6) Run full python checks"
+  echo "  6) Run full Python checks"
   echo ""
   echo "Misc"
   echo "  0) Exit"
