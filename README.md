@@ -76,6 +76,38 @@ These prerequisites apply broadly across all infrastructure and samples. If ther
 
 ### 🛠️ Initialization
 
+#### 🚀 Developer CLI
+
+Use the interactive Developer CLI to verify setup, run tests, and manage your development workflow:
+
+**Windows:**
+```powershell
+.\start.ps1
+```
+
+**macOS / Linux:**
+```bash
+./start.sh
+```
+
+This menu-driven interface provides quick access to:
+- **Setup**: Complete environment setup, verify local setup, show Azure account info
+- **Tests**: Run pylint, run pytest suite, run full Python checks
+- **Misc**: Exit the CLI
+
+Example output from option 2 (Verify local setup):
+```
+🔍 APIM Samples Local Environment Verification
+✅ Virtual environment is active
+✅ All required packages installed
+✅ Shared modules can be imported
+✅ .env file configured
+⚠️  Jupyter kernel not found
+✅ VS Code settings configured
+```
+
+---
+
 #### Using Dev Container (Recommended)
 
 If you're using the dev container (GitHub Codespaces or VS Code Dev Containers):

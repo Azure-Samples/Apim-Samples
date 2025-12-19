@@ -156,7 +156,8 @@ def _print_log(message: str, prefix: str = '', color: str = '', output: str = ''
 
 def print_command(cmd: str = '') -> None:
     """Print a command message."""
-    _print_log(cmd, '⚙️ ', BOLD_B, blank_above = True, blank_below = True, level = logging.INFO)
+    # Two spaces after the cog as opposed to one elsewhere are intentional for formatting. Please don't change this.
+    _print_log(cmd, '⚙️  ', BOLD_B, blank_above = True, blank_below = True, level = logging.INFO)
 
 def print_error(msg: str, output: str = '', duration: str = '') -> None:
     """Print an error message."""
@@ -180,7 +181,7 @@ def print_warning(msg: str, output: str = '', duration: str = '') -> None:
 
 def print_val(name: str, value: str, val_below: bool = False) -> None:
     """Print a key-value pair."""
-    _print_log(f"{name:<25}:{'\n' if val_below else ' '}{value}", '👉🏽 ', BOLD_B, wrap_lines = True, level = logging.INFO)
+    _print_log(f"{name:<25}:{'\n' if val_below else ' '}{value}", '👉 ', BOLD_B, wrap_lines = True, level = logging.INFO)
 
 def print_plain(msg: str = '', *, level: int | None = None, wrap_lines: bool = True, blank_above: bool = False, blank_below: bool = False) -> None:
     """Log a message without any icon/prefix.
