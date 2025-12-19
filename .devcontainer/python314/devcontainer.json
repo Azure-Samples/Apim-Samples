@@ -1,0 +1,160 @@
+{
+  "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
+  "name": "APIM Samples",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "features": {
+    "ghcr.io/devcontainers/features/azure-cli:1": {
+      "version": "2.72.0"
+    },
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "configureZshAsDefaultShell": true,
+      "installOhMyZsh": true,
+      "upgradePackages": true,
+      "username": "vscode",
+      "uid": "1000",
+      "gid": "1000"
+    },
+    "ghcr.io/devcontainers/features/git:1": {
+      "version": "latest",
+      "ppa": true
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "enableNonRootDocker": "true"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.debugpy",
+        "ms-toolsai.jupyter",
+        "ms-toolsai.jupyter-keymap",
+        "ms-toolsai.jupyter-renderers",
+        "ms-toolsai.vscode-jupyter-cell-tags",
+        "ms-toolsai.vscode-jupyter-slideshow",
+        "ms-azuretools.vscode-bicep",
+        "ms-vscode.azurecli",
+        "ms-azure-devops.azure-pipelines",
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "redhat.vscode-yaml",
+        "ms-vscode.vscode-json",
+        "donjayamanne.vscode-default-python-kernel"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/workspaces/Apim-Samples/.venv/bin/python",
+        "python.pythonPath": "/workspaces/Apim-Samples/.venv/bin/python",
+        "python.terminal.activateEnvironment": true,
+        "python.terminal.activateEnvInCurrentTerminal": true,
+        "python.envFile": "${workspaceFolder}/.env",
+        "python.linting.enabled": true,
+        "python.linting.pylintEnabled": true,
+        "python.formatting.autopep8Path": "/workspaces/Apim-Samples/.venv/bin/autopep8",
+        "python.formatting.blackPath": "/workspaces/Apim-Samples/.venv/bin/black",
+        "python.formatting.yapfPath": "/workspaces/Apim-Samples/.venv/bin/yapf",
+        "python.linting.banditPath": "/workspaces/Apim-Samples/.venv/bin/bandit",
+        "python.linting.flake8Path": "/workspaces/Apim-Samples/.venv/bin/flake8",
+        "python.linting.mypyPath": "/workspaces/Apim-Samples/.venv/bin/mypy",
+        "python.linting.pycodestylePath": "/workspaces/Apim-Samples/.venv/bin/pycodestyle",
+        "python.linting.pydocstylePath": "/workspaces/Apim-Samples/.venv/bin/pydocestyle",
+        "python.linting.pylintPath": "/workspaces/Apim-Samples/.venv/bin/pylint",
+        "python.testing.pytestPath": "/workspaces/Apim-Samples/.venv/bin/pytest",
+        "jupyter.askForKernelRestart": false,
+        "jupyter.interactiveWindow.textEditor.executeSelection": true,
+        "jupyter.notebookFileRoot": "${workspaceFolder}",
+        "jupyter.kernels.excludePythonEnvironments": [
+          "**/anaconda3/**",
+          "**/conda/**",
+          "**/miniconda3/**",
+          "**/python3.*",
+          "*/site-packages/*",
+          "/bin/python",
+          "/bin/python3",
+          "/opt/python/*/bin/python*",
+          "/usr/bin/python",
+          "/usr/bin/python3",
+          "/usr/local/bin/python",
+          "/usr/local/bin/python3",
+          "python",
+          "python3"
+        ],
+        "jupyter.kernels.trusted": [
+          "/workspaces/Apim-Samples/.venv/bin/python"
+        ],
+        "files.associations": {
+          "*.bicep": "bicep"
+        },
+        "terminal.integrated.showExitAlert": false,
+        "terminal.integrated.focusAfterRun": "terminal",
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.tabs.enabled": true,
+        "workbench.panel.defaultLocation": "bottom",
+        "workbench.panel.opensMaximized": "preserve",
+        "workbench.startupEditor": "none",
+        "workbench.panel.defaultPanelHeight": 400,
+        "workbench.view.alwaysShowHeaderActions": true,
+        "workbench.action.terminal.focus": true,
+        "workbench.action.togglePanel": true,
+        "terminal.integrated.defaultLocation": "view",
+        "security.workspace.trust.enabled": false,
+        "editor.experimental.pasteActions.enabled": true,
+        "workbench.editor.enablePreview": false
+      }
+    },
+    "containerEnv": {
+      "PATH": "/workspaces/Apim-Samples/.venv/bin:${PATH}",
+      "PYTHONPATH": "/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples",
+      "VIRTUAL_ENV": "/workspaces/Apim-Samples/.venv"
+    }
+  },
+  "onCreateCommand": [
+    "bash",
+    "-c",
+    "echo '🚀 Creating Python virtual environment in workspace...' && /usr/local/bin/python3.12 -m venv /workspaces/Apim-Samples/.venv --copies && source /workspaces/Apim-Samples/.venv/bin/activate && pip install --upgrade pip setuptools wheel ipykernel && echo '✅ Virtual environment created' && echo '🔧 Registering Jupyter kernel during prebuild...' && python -m ipykernel install --user --name=apim-samples --display-name='APIM Samples Python 3.12' && echo '🧹 Removing default python3 kernel...' && rm -rf /workspaces/Apim-Samples/.venv/share/jupyter/kernels/python3 2>/dev/null || true && echo '✅ Jupyter kernel registered in prebuild'"
+  ],
+  "updateContentCommand": [
+    "bash",
+    "-c",
+    "echo '📦 Installing/updating Python packages from requirements.txt...' && source /workspaces/Apim-Samples/.venv/bin/activate && pip install -r requirements.txt && pip install pytest pytest-cov coverage && echo '✅ Python packages installed/updated' && python setup/setup_python_path.py --generate-env && echo '✅ Environment configuration updated' && echo '⚙️ Configuring Azure CLI...' && az config set core.login_experience_v2=off 2>/dev/null || true && az extension add --name containerapp --only-show-errors 2>/dev/null || true && az extension add --name front-door --only-show-errors 2>/dev/null || true && echo '✅ Azure CLI configured for Codespaces'"
+  ],
+  "postStartCommand": [
+    "bash",
+    "-c",
+    "echo 'APIM Samples Codespace Starting - Keep this terminal open to see progress!' && bash .devcontainer/post-start-setup.sh"
+  ],
+  "forwardPorts": [
+    8000,
+    8080,
+    5000,
+    3000
+  ],
+  "portsAttributes": {
+    "8000": {
+      "label": "Python Development Server",
+      "onAutoForward": "notify"
+    },
+    "8080": {
+      "label": "Alternative HTTP Server",
+      "onAutoForward": "notify"
+    },
+    "5000": {
+      "label": "Flask Development Server",
+      "onAutoForward": "notify"
+    },
+    "3000": {
+      "label": "Node.js Development Server",
+      "onAutoForward": "notify"
+    }
+  },
+  "remoteUser": "vscode",
+  "workspaceFolder": "/workspaces/Apim-Samples",
+  "mounts": [],
+  "runArgs": [
+    "--init"
+  ]
+}
