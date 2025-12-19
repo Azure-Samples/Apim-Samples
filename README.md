@@ -62,8 +62,7 @@ All prerequisites are automatically installed and configured.
 
 These prerequisites apply broadly across all infrastructure and samples. If there are specific deviations, expect them to be noted there.
 
-- [Python 3.12][python] installed
-  - Python 3.13 and 3.14 should work as well, but have not been verified extensively
+- [Python][python] 3.12, 3.13, and 3.14 are all supported
 - [VS Code][vscode] installed with the [Jupyter notebook extension][vscode-jupyter] enabled
 - [Azure CLI][azure-cli-install] installed
 - [Azure Bicep][azure-bicep-install] installed
@@ -102,7 +101,7 @@ Example output from option 2 (Verify local setup):
 ✅ All required packages installed
 ✅ Shared modules can be imported
 ✅ .env file configured
-⚠️  Jupyter kernel not found
+⚠️ Jupyter kernel not found
 ✅ VS Code settings configured
 ```
 
