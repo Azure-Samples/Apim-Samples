@@ -1248,7 +1248,7 @@ def _cleanup_resources_parallel(resources: list[dict], thread_prefix: str = '', 
     def log_info(msg):
         if use_thread_safe_printing:
             with _print_lock:
-                _print_log(f"{thread_prefix}{msg}", '👉🏽 ', thread_color)
+                _print_log(f"{thread_prefix}{msg}", '👉 ', thread_color)
         else:
             print_info(msg)
 
@@ -1494,13 +1494,13 @@ def _cleanup_resources_thread_safe(deployment_name: str, rg_name: str, thread_pr
     """
     try:
         with _print_lock:
-            _print_log(f"{thread_prefix}Starting cleanup for resource group: {rg_name}", '👉🏽 ', thread_color)
+            _print_log(f"{thread_prefix}Starting cleanup for resource group: {rg_name}", '👉 ', thread_color)
 
         # Create a modified version of _cleanup_resources that uses thread-safe printing
         _cleanup_resources_with_thread_safe_printing(deployment_name, rg_name, thread_prefix, thread_color)
 
         with _print_lock:
-            _print_log(f"{thread_prefix}Completed cleanup for resource group: {rg_name}", '👉🏽 ', thread_color)
+            _print_log(f"{thread_prefix}Completed cleanup for resource group: {rg_name}", '👉 ', thread_color)
 
         return True, ""
 
@@ -1531,7 +1531,7 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
 
     try:
         with _print_lock:
-            _print_log(f"{thread_prefix}Resource group : {rg_name}", '👉🏽 ', thread_color)
+            _print_log(f"{thread_prefix}Resource group : {rg_name}", '👉 ', thread_color)
 
         # Show the deployment details
         output = az.run(
@@ -1596,13 +1596,13 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
             with _print_lock:
                 _print_log(
                     f"{thread_prefix}Found {len(resources_to_cleanup)} resource(s) to clean up. Processing in parallel...",
-                    '👉🏽 ',
+                    '👉 ',
                     thread_color
                 )
             _cleanup_resources_parallel_thread_safe(resources_to_cleanup, thread_prefix, thread_color)
         else:
             with _print_lock:
-                _print_log(f"{thread_prefix}No resources found to clean up.", '👉🏽 ', thread_color)
+                _print_log(f"{thread_prefix}No resources found to clean up.", '👉 ', thread_color)
 
         # Delete the resource group last
         rg_delete_attempted = True
