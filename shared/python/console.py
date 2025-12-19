@@ -180,7 +180,7 @@ def print_warning(msg: str, output: str = '', duration: str = '') -> None:
 
 def print_val(name: str, value: str, val_below: bool = False) -> None:
     """Print a key-value pair."""
-    _print_log(f"{name:<25}:{'\n' if val_below else ' '}{value}", '👉🏽 ', BOLD_B, wrap_lines = True, level = logging.INFO)
+    _print_log(f"{name:<25}:{'\n' if val_below else ' '}{value}", '👉 ', BOLD_B, wrap_lines = True, level = logging.INFO)
 
 def print_plain(msg: str = '', *, level: int | None = None, wrap_lines: bool = True, blank_above: bool = False, blank_below: bool = False) -> None:
     """Log a message without any icon/prefix.

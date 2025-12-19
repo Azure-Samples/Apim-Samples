@@ -277,7 +277,7 @@ def test_print_warning_with_duration():
 def test_print_val_inline():
     """Test print_val with value on same line."""
     output = capture_output(console.print_val, 'Name', 'John Doe')
-    assert '👉🏽' in output
+    assert '👉' in output
     assert 'Name' in output
     assert 'John Doe' in output
     assert console.BOLD_B in output
