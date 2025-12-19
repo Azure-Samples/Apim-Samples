@@ -3,7 +3,7 @@
 # syntax=docker/dockerfile:1.4
 
 # Use single-stage build with Python 3.12
-FROM mcr.microsoft.com/devcontainers/python:1-3.12-bookworm
+FROM mcr.microsoft.com/devcontainers/python:3.12-bookworm
 
 # Set build arguments
 ARG PYTHON_VERSION=3.12
