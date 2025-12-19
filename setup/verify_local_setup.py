@@ -15,7 +15,12 @@ Run this after completing the setup to ensure everything is working.
 import sys
 import subprocess
 import os
+import io
 from pathlib import Path
+
+# Configure UTF-8 encoding for console output
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 
 def print_status(message, success=True):
