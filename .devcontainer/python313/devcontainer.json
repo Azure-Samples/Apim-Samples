@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
-  "name": "APIM Samples",
+  "name": "APIM Samples - Python 3.13",
   "build": {
     "dockerfile": "Dockerfile",
     "context": ".."
