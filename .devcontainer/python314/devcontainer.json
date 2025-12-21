@@ -7,103 +7,46 @@
   },
   "features": {
     "ghcr.io/devcontainers/features/azure-cli:1": {
-      "version": "2.72.0"
+      "version": "2.81.0"
     },
     "ghcr.io/devcontainers/features/common-utils:2": {
-      "installZsh": true,
-      "configureZshAsDefaultShell": true,
-      "installOhMyZsh": true,
-      "upgradePackages": true,
+      "installZsh": false,
+      "configureZshAsDefaultShell": false,
+      "installOhMyZsh": false,
+      "upgradePackages": false,
       "username": "vscode",
       "uid": "1000",
       "gid": "1000"
     },
     "ghcr.io/devcontainers/features/git:1": {
       "version": "latest",
-      "ppa": true
-    },
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {
-      "version": "latest",
-      "enableNonRootDocker": "true"
+      "ppa": false
     }
   },
   "customizations": {
     "vscode": {
       "extensions": [
         "ms-python.python",
-        "ms-python.debugpy",
         "ms-toolsai.jupyter",
-        "ms-toolsai.jupyter-keymap",
-        "ms-toolsai.jupyter-renderers",
-        "ms-toolsai.vscode-jupyter-cell-tags",
-        "ms-toolsai.vscode-jupyter-slideshow",
         "ms-azuretools.vscode-bicep",
         "ms-vscode.azurecli",
-        "ms-azure-devops.azure-pipelines",
-        "GitHub.copilot",
-        "GitHub.copilot-chat",
         "redhat.vscode-yaml",
-        "ms-vscode.vscode-json",
-        "donjayamanne.vscode-default-python-kernel"
+        "ms-vscode.vscode-json"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/workspaces/Apim-Samples/.venv/bin/python",
-        "python.pythonPath": "/workspaces/Apim-Samples/.venv/bin/python",
+        "python.envFile": "${workspaceFolder}/.env",
         "python.terminal.activateEnvironment": true,
         "python.terminal.activateEnvInCurrentTerminal": true,
-        "python.envFile": "${workspaceFolder}/.env",
+        "python.testing.pytestEnabled": true,
         "python.linting.enabled": true,
         "python.linting.pylintEnabled": true,
-        "python.formatting.autopep8Path": "/workspaces/Apim-Samples/.venv/bin/autopep8",
-        "python.formatting.blackPath": "/workspaces/Apim-Samples/.venv/bin/black",
-        "python.formatting.yapfPath": "/workspaces/Apim-Samples/.venv/bin/yapf",
-        "python.linting.banditPath": "/workspaces/Apim-Samples/.venv/bin/bandit",
-        "python.linting.flake8Path": "/workspaces/Apim-Samples/.venv/bin/flake8",
-        "python.linting.mypyPath": "/workspaces/Apim-Samples/.venv/bin/mypy",
-        "python.linting.pycodestylePath": "/workspaces/Apim-Samples/.venv/bin/pycodestyle",
-        "python.linting.pydocstylePath": "/workspaces/Apim-Samples/.venv/bin/pydocestyle",
-        "python.linting.pylintPath": "/workspaces/Apim-Samples/.venv/bin/pylint",
-        "python.testing.pytestPath": "/workspaces/Apim-Samples/.venv/bin/pytest",
-        "jupyter.askForKernelRestart": false,
-        "jupyter.interactiveWindow.textEditor.executeSelection": true,
-        "jupyter.notebookFileRoot": "${workspaceFolder}",
-        "jupyter.kernels.excludePythonEnvironments": [
-          "**/anaconda3/**",
-          "**/conda/**",
-          "**/miniconda3/**",
-          "**/python3.*",
-          "*/site-packages/*",
-          "/bin/python",
-          "/bin/python3",
-          "/opt/python/*/bin/python*",
-          "/usr/bin/python",
-          "/usr/bin/python3",
-          "/usr/local/bin/python",
-          "/usr/local/bin/python3",
-          "python",
-          "python3"
-        ],
         "jupyter.kernels.trusted": [
           "/workspaces/Apim-Samples/.venv/bin/python"
         ],
         "files.associations": {
           "*.bicep": "bicep"
-        },
-        "terminal.integrated.showExitAlert": false,
-        "terminal.integrated.focusAfterRun": "terminal",
-        "terminal.integrated.defaultProfile.linux": "bash",
-        "terminal.integrated.tabs.enabled": true,
-        "workbench.panel.defaultLocation": "bottom",
-        "workbench.panel.opensMaximized": "preserve",
-        "workbench.startupEditor": "none",
-        "workbench.panel.defaultPanelHeight": 400,
-        "workbench.view.alwaysShowHeaderActions": true,
-        "workbench.action.terminal.focus": true,
-        "workbench.action.togglePanel": true,
-        "terminal.integrated.defaultLocation": "view",
-        "security.workspace.trust.enabled": false,
-        "editor.experimental.pasteActions.enabled": true,
-        "workbench.editor.enablePreview": false
+        }
       }
     },
     "containerEnv": {
@@ -115,7 +58,7 @@
   "onCreateCommand": [
     "bash",
     "-c",
-    "echo '🚀 Creating Python virtual environment in workspace...' && /usr/local/bin/python3.12 -m venv /workspaces/Apim-Samples/.venv --copies && source /workspaces/Apim-Samples/.venv/bin/activate && pip install --upgrade pip setuptools wheel ipykernel && echo '✅ Virtual environment created' && echo '🔧 Registering Jupyter kernel during prebuild...' && python -m ipykernel install --user --name=apim-samples --display-name='APIM Samples Python 3.12' && echo '🧹 Removing default python3 kernel...' && rm -rf /workspaces/Apim-Samples/.venv/share/jupyter/kernels/python3 2>/dev/null || true && echo '✅ Jupyter kernel registered in prebuild'"
+    "echo '🚀 Creating Python virtual environment in workspace...' && /usr/local/bin/python3.14 -m venv /workspaces/Apim-Samples/.venv --copies && source /workspaces/Apim-Samples/.venv/bin/activate && pip install --upgrade pip setuptools wheel ipykernel && echo '✅ Virtual environment created' && echo '🔧 Registering Jupyter kernel during prebuild...' && python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)' && echo '🧹 Removing default python3 kernel...' && rm -rf /workspaces/Apim-Samples/.venv/share/jupyter/kernels/python3 2>/dev/null || true && echo '✅ Jupyter kernel registered in prebuild'"
   ],
   "updateContentCommand": [
     "bash",

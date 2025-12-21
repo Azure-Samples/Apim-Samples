@@ -50,5 +50,10 @@
     "plantuml.exportFormat": "svg",
     "plantuml.java": "C:\\Program Files\\OpenJDK\\jdk-22.0.2\\bin\\java.exe",
     "plantuml.diagramsRoot": "assets/diagrams/src",
-    "plantuml.exportOutDir": "assets/diagrams/out"
+    "plantuml.exportOutDir": "assets/diagrams/out",
+    "python.terminal.activateEnvironment": true,
+    "python.terminal.activateEnvInCurrentTerminal": true,
+    "python.testing.pytestEnabled": true,
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": true
 }

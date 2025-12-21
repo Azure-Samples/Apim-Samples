@@ -21,6 +21,8 @@ echo ""
 
 WORKSPACE_ROOT="/workspaces/Apim-Samples"
 VENV_PATH="$WORKSPACE_ROOT/.venv"
+PY_VERSION=$(python --version 2>/dev/null | awk '{print $2}' | cut -d'.' -f1,2)
+PY_VERSION_DISPLAY=${PY_VERSION:-"unknown"}
 
 echo -e "Environment Status:\n"
 
@@ -45,7 +47,7 @@ else
 fi
 
 if command -v python >/dev/null 2>&1; then
-    echo "   ✅ Python"
+    echo "   ✅ Python (${PY_VERSION_DISPLAY})"
 else
     echo "   ❌ Python missing"
 fi

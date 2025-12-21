@@ -16,21 +16,14 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples \
     DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies as root
+# Install minimal system dependencies as root
 USER root
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt/lists \
     apt-get update && \
-    # Remove Python 3.11 and other versions if they exist
-    apt-get remove -y python3.11* python3-minimal python3.11-minimal || true && \
-    apt-get autoremove -y && \
-    # Install essential packages
-    apt-get install -y --no-install-recommends curl wget jq tree git-lfs vim nano htop && \
+    apt-get install -y --no-install-recommends curl git-lfs && \
     apt-get clean && \
-    # Create symbolic links to ensure python3 points to Python 3.12
-    ln -sf /usr/local/bin/python3.12 /usr/bin/python3 && \
-    ln -sf /usr/local/bin/python3.12 /usr/bin/python && \
-    # Ensure latest pip is installed for Python 3.12
+    rm -rf /var/lib/apt/lists/* && \
     /usr/local/bin/python3.12 -m pip install --upgrade pip setuptools wheel
 
 # Switch to vscode user
@@ -41,30 +34,17 @@ RUN az config set core.login_experience_v2=off 2>/dev/null || true && \
     az extension add --name containerapp --only-show-errors 2>/dev/null || true && \
     az extension add --name front-door --only-show-errors 2>/dev/null || true
 
-# Configure shell aliases and helpful commands (venv handled by devcontainer)
-RUN echo "# APIM Samples helpful aliases" >> ~/.bashrc && \
-    echo "alias ll='ls -alF'" >> ~/.bashrc && \
-    echo "alias la='ls -A'" >> ~/.bashrc && \
-    echo "alias l='ls -CF'" >> ~/.bashrc && \
-    echo "alias pytest-cov='python -m pytest --cov=. --cov-report=html'" >> ~/.bashrc && \
-    echo "" >> ~/.zshrc && \
-    echo "# APIM Samples helpful aliases" >> ~/.zshrc && \
-    echo "alias ll='ls -alF'" >> ~/.zshrc && \
-    echo "alias la='ls -A'" >> ~/.zshrc && \
-    echo "alias l='ls -CF'" >> ~/.zshrc && \
-    echo "alias pytest-cov='python -m pytest --cov=. --cov-report=html'" >> ~/.zshrc
-
 # Set final working directory
 WORKDIR /workspaces/Apim-Samples
 
 # Add health check for the virtual environment
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD . /workspaces/Apim-Samples/.venv/bin/activate && python -c "import sys, pip; print(f'Python {sys.version}'); print(f'Pip {pip.__version__}'); import requests, jwt; print('Core packages OK')" || exit 1
+    CMD . /workspaces/Apim-Samples/.venv/bin/activate && python -c "import sys, pip; print(f'Python {sys.version}'); print(f'Pip {pip.__version__}')" || exit 1
 
 # Add labels for maintainability
 LABEL maintainer="APIM Samples Team" \
-      description="Simplified dev container for Azure API Management samples with Codespaces prebuild optimization" \
-      version="2.1" \
-      python.version="3.12" \
-      debian.version="bookworm" \
-      venv.location="/workspaces/Apim-Samples/.venv"
+    description="Optimized dev container for Azure API Management samples with Codespaces prebuild support" \
+    version="2.2" \
+    python.version="3.12" \
+    debian.version="bookworm" \
+    venv.location="/workspaces/Apim-Samples/.venv"

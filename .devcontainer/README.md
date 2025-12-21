@@ -15,6 +15,8 @@ This directory contains the optimized dev container configuration for the Azure 
 
 ## 🎯 Overview
 
+This repository provides three prebuilt dev container configurations, one for each current Python version: 3.12, 3.13, and 3.14. When creating a new Codespace, select the variant you prefer — all variants are functionally equivalent for this project and differ only by Python runtime version.
+
 The dev container uses a **three-stage optimization approach** to minimize startup time:
 
 1. **Build Stage** (Dockerfile): Base system setup, Azure CLI configuration, and VS Code extension pre-installation
@@ -29,36 +31,61 @@ This approach ensures that time-consuming operations happen during container pre
 
 | File | Purpose | Stage |
 |------|---------|-------|
-| `devcontainer.json` | Main dev container configuration | All |
-| `Dockerfile` | Container image definition | Build |
-| `post-start-setup.sh` | Runtime verification script | Runtime |
+| `python312/devcontainer.json` | Dev container configuration (Python 3.12) | All |
+| `python312/Dockerfile` | Container image definition (Python 3.12) | Build |
+| `python312/post-start-setup.sh` | Runtime verification script | Runtime |
+| `python313/devcontainer.json` | Dev container configuration (Python 3.13) | All |
+| `python313/Dockerfile` | Container image definition (Python 3.13) | Build |
+| `python313/post-start-setup.sh` | Runtime verification script | Runtime |
+| `python314/devcontainer.json` | Dev container configuration (Python 3.14) | All |
+| `python314/Dockerfile` | Container image definition (Python 3.14) | Build |
+| `python314/post-start-setup.sh` | Runtime verification script | Runtime |
 | `README.md` | This documentation | - |
 
 ### Configuration Details
 
-#### `devcontainer.json`
+#### `devcontainer.json` (per Python version folder)
 - **Features**: Azure CLI, common utilities, Git, Docker-in-Docker
 - **Extensions**: Python, Jupyter, Bicep, GitHub Copilot, and more
 - **Lifecycle Commands**: Optimized three-stage setup
 - **Port Forwarding**: Common development ports (3000, 5000, 8000, 8080)
 
-#### `Dockerfile`
-- **Base Image**: Microsoft's Python 3.12 dev container
+#### `Dockerfile` (per Python version folder)
+- **Base Image**: Microsoft's Python 3.12/3.13/3.14 dev container (depending on folder)
 - **System Dependencies**: Essential packages and tools
 - **Azure CLI Setup**: Extensions and configuration for Codespaces
 - **Virtual Environment**: Auto-activation configuration
 
-#### `post-start-setup.sh`
+#### `post-start-setup.sh` (shared behavior)
 - **Environment Verification**: Quick checks and status reporting
 - **Fallback Installation**: Safety net for missing components
 - **User Guidance**: Next steps and helpful information
+
+## 🧭 Choosing a Dev Container in Codespaces
+
+When creating a new Codespace, GitHub will present multiple dev container options derived from the `.devcontainer` subfolders:
+
+- **APIM Samples – Python 3.12** ✅ (folder: `python312`)
+- **APIM Samples – Python 3.13** ✅ (folder: `python313`)
+- **APIM Samples – Python 3.14** ✅ (folder: `python314`)
+
+All three are supported and prebuilt; choose the Python runtime that best matches your needs or local environment.
+
+### ⚠️ About the "Default" Option
+
+GitHub Codespaces will also display a generic **"Default"** dev container option. **Do not use this option** — it will result in:
+- Significantly slower startup times (5-10 minutes vs. ~30 seconds)
+- Missing tools, extensions, and optimizations
+- Suboptimal development experience
+
+**Always select one of the three Python-specific configurations above.** Unfortunately, GitHub does not currently provide a way to remove the default option from the Codespace creation dialog. This is a GitHub limitation, and we recommend always selecting one of the optimized Python variants.
 
 ## 🚀 Setup Stages
 
 ### Stage 1: Container Build (Dockerfile)
 **When it runs**: During initial container build
 **What it does**:
-- Installs Python 3.12 and system dependencies
+- Installs the selected Python version (3.12, 3.13, or 3.14) and system dependencies
 - Configures Azure CLI for Codespaces (device code authentication)
 - Installs Azure CLI extensions (`containerapp`, `front-door`)
 - Sets up shell auto-activation for virtual environment
@@ -160,11 +187,12 @@ Our devcontainer uses two key lifecycle commands optimized for prebuild:
 #### `onCreateCommand` (Container Creation)
 ```bash
 # Creates Python virtual environment and registers Jupyter kernel
+# Note: The Python path varies by selected variant (3.12/3.13/3.14)
 echo '🚀 Creating Python virtual environment in workspace...' &&
-/usr/local/bin/python3.12 -m venv /workspaces/Apim-Samples/.venv --copies &&
+/usr/local/bin/python3.<version> -m venv /workspaces/Apim-Samples/.venv --copies &&
 source /workspaces/Apim-Samples/.venv/bin/activate &&
 pip install --upgrade pip setuptools wheel ipykernel &&
-python -m ipykernel install --user --name=apim-samples --display-name='APIM Samples Python 3.12'
+python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)'
 ```
 
 #### `updateContentCommand` (Content Updates)
@@ -186,6 +214,14 @@ Prebuild automatically occurs when you push changes to:
 - `.devcontainer/Dockerfile`
 - `requirements.txt` (when referenced in `updateContentCommand`)
 - Any other files referenced in lifecycle commands
+
+### Caching Strategy
+
+This project relies on GitHub Codespaces Prebuilds for fast startup and predictable environments:
+
+- Main branch: Prebuilds are automatically triggered and cached when `.devcontainer/**` or `requirements.txt` changes. Opening a Codespace on main pulls the prebuilt image, typically starting in ~30 seconds.
+- Feature branches: If prebuilds are not enabled, the first Codespace startup builds from the Dockerfile (usually a few minutes with the optimized images). Subsequent starts reuse Codespaces' transient cache.
+- Registry images (optional): If you later need deterministic, versioned images across many branches or forks, you can publish images to GHCR and reference the tags directly in `devcontainer.json`. For now, prebuilds on main are sufficient.
 
 ### Monitoring Prebuild Status
 
@@ -249,16 +285,16 @@ To refresh the prebuilt container (recommended periodically):
 
 ## 🔧 Jupyter Kernel Configuration
 
-The dev container is configured with a custom Jupyter kernel for optimal Python development experience:
+The dev container is configured with a standardized Jupyter kernel for optimal Python development experience:
 
-- **Kernel Name**: `apim-samples`
-- **Display Name**: "APIM Samples Python 3.12"
+- **Kernel Name**: `python-venv`
+- **Display Name**: "Python (.venv)"
 - **Python Path**: `/workspaces/Apim-Samples/.venv/bin/python`
 
 ### Kernel Registration Details
 The kernel is automatically registered during the prebuild stage using:
 ```bash
-python -m ipykernel install --user --name=apim-samples --display-name="APIM Samples Python 3.12"
+python -m ipykernel install --user --name=python-venv --display-name="Python (.venv)"
 ```
 
 ### VS Code Kernel Configuration
@@ -300,7 +336,7 @@ az extension add --name front-door
 **Symptom**: Kernel not visible in VS Code
 **Solution**: Re-register the kernel:
 ```bash
-python -m ipykernel install --user --name=apim-samples --display-name="APIM Samples Python 3.12"
+python -m ipykernel install --user --name=python-venv --display-name="Python (.venv)"
 ```
 
 #### Environment Variables Not Set
