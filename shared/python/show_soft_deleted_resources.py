@@ -4,9 +4,14 @@ These resources are in a recoverable state and can be restored or purged.
 """
 
 import sys
+import io
 import argparse
 from datetime import datetime
 from pathlib import Path
+
+# Configure UTF-8 encoding for console output
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 # APIM Samples imports
 import azure_resources as az
