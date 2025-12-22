@@ -12,21 +12,50 @@ is achieved by:
 - Using UTF-8 encoding explicitly (ensures consistent file encoding)
 - Using Python's sys.path for runtime PYTHONPATH configuration
 - Registering consistent Jupyter kernel across local and dev container environments
+
+The script is idempotent and merges settings to preserve any existing
+customizations in .env and .vscode/settings.json.
 """
 
-import sys
-import subprocess
-import shutil
-import os
 import json
+import os
+import shutil
+import subprocess
+import sys
 from pathlib import Path  # Cross-platform path handling (Windows: \, Unix: /)
-import subprocess  # Ensure subprocess is imported for the new functions
 
 
 DEFAULT_VSCODE_SEARCH_EXCLUDE = {
     "**/.venv": True,
     "**/.venv/**": True,
 }
+
+DEFAULT_VSCODE_FILES_WATCHER_EXCLUDE = {
+    "**/.venv/**": True,
+}
+
+DEFAULT_VSCODE_FILES_EXCLUDE = {
+    "**/.venv": True,
+}
+
+DEFAULT_PYTHON_ANALYSIS_EXCLUDE = [
+    "**/node_modules",
+    "**/__pycache__",
+    ".git",
+    "**/build",
+    "env/**",
+    "**/.venv/**",
+]
+
+KERNEL_NAME = "python-venv"
+KERNEL_DISPLAY_NAME = "Python (.venv)"
+
+
+def _venv_python_path() -> str:
+    """Return the workspace-local virtualenv interpreter path (platform aware)."""
+
+    return "./.venv/Scripts/python.exe" if os.name == "nt" else "./.venv/bin/python"
+
 
 def check_azure_cli_installed():
     """Check if Azure CLI is installed."""
@@ -103,24 +132,6 @@ def check_azure_providers_registered():
     except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError):
         print("   ⚠️  Could not verify Azure provider registrations (Azure CLI may not be configured)")
         return False
-
-DEFAULT_VSCODE_FILES_WATCHER_EXCLUDE = {
-    "**/.venv/**": True,
-}
-
-DEFAULT_VSCODE_FILES_EXCLUDE = {
-    "**/.venv": True,
-}
-
-DEFAULT_PYTHON_ANALYSIS_EXCLUDE = [
-    "**/node_modules",
-    "**/__pycache__",
-    ".git",
-    "**/build",
-    "env/**",
-    "**/.venv/**",
-]
-
 
 def _merge_bool_map(existing: object, required: dict[str, bool]) -> dict[str, bool]:
     """Merge boolean map settings while enforcing required keys.
@@ -277,7 +288,7 @@ def generate_env_file() -> None:
     lines: list[str] = [
         "# Auto-generated environment for VS Code and local tooling",
         "# Run 'python setup/setup_python_path.py --generate-env' to regenerate",
-        "# Good to set console width to 220, 221 - whatever it takes"
+        "# Good to set console width to 220, 221 - whatever it takes",
         "",
         f"APIM_SAMPLES_CONSOLE_WIDTH={managed_keys['APIM_SAMPLES_CONSOLE_WIDTH']}",
         f"APIM_SAMPLES_LOG_LEVEL={managed_keys['APIM_SAMPLES_LOG_LEVEL']}",
@@ -324,9 +335,8 @@ def install_jupyter_kernel():
             print(f"❌ Failed to install ipykernel: {e}")
             return False
 
-    # Register the kernel with standardized name and display name
-    kernel_name = "apim-samples"
-    display_name = "APIM Samples Python 3.12"
+    kernel_name = KERNEL_NAME
+    display_name = KERNEL_DISPLAY_NAME
 
     try:
         # Install the kernel for the current user
@@ -352,10 +362,9 @@ def install_jupyter_kernel():
 
 def create_vscode_settings():
     """
-    Create VS Code workspace settings to automatically use the APIM Samples kernel.
+    Create VS Code workspace settings to prefer the standardized python-venv kernel.
 
-    This ensures that when users open notebooks, VS Code automatically selects
-    the correct kernel without manual intervention.
+    Settings are merged rather than overwritten so existing customizations stay intact.
     """
 
     project_root = get_project_root()
@@ -365,58 +374,20 @@ def create_vscode_settings():
     # Create .vscode directory if it doesn't exist
     vscode_dir.mkdir(exist_ok=True)
 
-    # Settings to update for kernel and Python configuration
-    # Note: exclude settings (search/files watcher/Pylance) are merged separately
-    # to avoid clobbering any user customizations.
-    required_settings = {
-        "files.trimTrailingWhitespace": True,
-        "files.insertFinalNewline": True,
-        "files.trimFinalNewlines": True,
-        "files.eol": "\n",
-        "editor.renderWhitespace": "trailing",
-        "python.defaultInterpreterPath": "./.venv/Scripts/python.exe" if os.name == 'nt' else "./.venv/bin/python",
-        "python.pythonPath": "./.venv/Scripts/python.exe" if os.name == 'nt' else "./.venv/bin/python",
-        "python.envFile": "${workspaceFolder}/.env",
-        "jupyter.defaultKernel": "apim-samples",
-        "jupyter.kernels.filter": [
-            {
-                "path": "apim-samples",
-                "type": "pythonEnvironment"
-            }
-        ],
-        "jupyter.kernels.excludePythonEnvironments": [
-            "**/anaconda3/**",
-            "**/conda/**",
-            "**/miniconda3/**",
-            "**/python3.*",
-            "*/site-packages/*",
-            "/bin/python",
-            "/bin/python3",
-            "/opt/python/*/bin/python*",
-            "/usr/bin/python",
-            "/usr/bin/python3",
-            "/usr/local/bin/python",
-            "/usr/local/bin/python3",
-            "python",
-            "python3",
-            "**/.venv/**/python*",
-            "**/Scripts/python*",
-            "**/bin/python*"
-        ],
-        "jupyter.kernels.trusted": [
-            "./.venv/Scripts/python.exe" if os.name == 'nt' else "./.venv/bin/python"
-        ],
-        "jupyter.preferredKernelIdForNotebook": {
-            "*.ipynb": "apim-samples"
-        },
-        "jupyter.kernels.changeKernelIdForNotebookEnabled": False,
-        "notebook.defaultLanguage": "python",
-        "notebook.kernelPickerType": "mru"
-    }
+    venv_python = _venv_python_path()
 
-    # For Windows, also set the default terminal profile
-    if os.name == 'nt':
-        required_settings["terminal.integrated.defaultProfile.windows"] = "PowerShell"
+    # Settings to update for Python and notebook flow. Excludes and trusted kernels
+    # are merged to avoid overwriting user customizations.
+    required_settings = {
+        "python.defaultInterpreterPath": venv_python,
+        "python.envFile": "${workspaceFolder}/.env",
+        "python.terminal.activateEnvironment": True,
+        "python.terminal.activateEnvInCurrentTerminal": True,
+        "python.testing.pytestEnabled": True,
+        "python.linting.enabled": True,
+        "python.linting.pylintEnabled": True,
+        "jupyter.kernels.trusted": [venv_python],
+    }
 
     # Check if settings.json already exists
     if settings_file.exists():
@@ -427,45 +398,38 @@ def create_vscode_settings():
 
             # Try to parse as JSON (will fail if it has comments)
             existing_settings = json.loads(content)
-
-            # Merge required settings with existing ones
-            existing_settings.update(required_settings)
-
-            # Merge performance excludes without overwriting other patterns
-            existing_settings["search.exclude"] = _merge_bool_map(
-                existing_settings.get("search.exclude"),
-                DEFAULT_VSCODE_SEARCH_EXCLUDE,
-            )
-            existing_settings["files.watcherExclude"] = _merge_bool_map(
-                existing_settings.get("files.watcherExclude"),
-                DEFAULT_VSCODE_FILES_WATCHER_EXCLUDE,
-            )
-            existing_settings["files.exclude"] = _merge_bool_map(
-                existing_settings.get("files.exclude"),
-                DEFAULT_VSCODE_FILES_EXCLUDE,
-            )
-            existing_settings["python.analysis.exclude"] = _merge_string_list(
-                existing_settings.get("python.analysis.exclude"),
-                DEFAULT_PYTHON_ANALYSIS_EXCLUDE,
-            )
-
-            # Write back the merged settings
-            with open(settings_file, 'w', encoding='utf-8') as f:
-                json.dump(existing_settings, f, indent=4)
-
-            print(f"✅ VS Code settings updated: {settings_file}")
-            print("   - Existing settings preserved")
-            print("   - Default kernel set to 'apim-samples'")
-            print("   - Python interpreter configured for .venv")
-            print("   - .venv excluded from search/watcher/Pylance indexing")
-
         except (json.JSONDecodeError, IOError):
-            print("⚠️  Existing settings.json has comments or formatting issues")
-            print("   Please manually add these settings to preserve your existing configuration:")
-            print("   - \"jupyter.defaultKernel\": \"apim-samples\"")
-            print(f"   - \"python.defaultInterpreterPath\": \"{required_settings['python.defaultInterpreterPath']}\"")
-            print(f"   - \"python.pythonPath\": \"{required_settings['python.pythonPath']}\"")
+            print("⚠️  Existing settings.json has comments or formatting issues; keeping your file untouched.")
+            print("   Please manually merge these minimal settings:")
+            for key, value in required_settings.items():
+                print(f"   - {key}: {value}")
             return False
+
+        merged_settings = existing_settings | required_settings
+        merged_settings["search.exclude"] = _merge_bool_map(
+            existing_settings.get("search.exclude"),
+            DEFAULT_VSCODE_SEARCH_EXCLUDE,
+        )
+        merged_settings["files.watcherExclude"] = _merge_bool_map(
+            existing_settings.get("files.watcherExclude"),
+            DEFAULT_VSCODE_FILES_WATCHER_EXCLUDE,
+        )
+        merged_settings["files.exclude"] = _merge_bool_map(
+            existing_settings.get("files.exclude"),
+            DEFAULT_VSCODE_FILES_EXCLUDE,
+        )
+        merged_settings["python.analysis.exclude"] = _merge_string_list(
+            existing_settings.get("python.analysis.exclude"),
+            DEFAULT_PYTHON_ANALYSIS_EXCLUDE,
+        )
+
+        with open(settings_file, 'w', encoding='utf-8') as f:
+            json.dump(merged_settings, f, indent=4)
+
+        print(f"✅ VS Code settings updated: {settings_file}")
+        print("   - Existing settings preserved")
+        print("   - Python interpreter set to .venv")
+        print("   - .venv excluded from search/watcher/Pylance indexing")
     else:
         # Create new settings file
         try:
@@ -478,7 +442,6 @@ def create_vscode_settings():
                 json.dump(required_settings, f, indent=4)
 
             print(f"✅ VS Code settings created: {settings_file}")
-            print("   - Default kernel set to 'apim-samples'")
             print("   - Python interpreter configured for .venv")
             print("   - .venv excluded from search/watcher/Pylance indexing")
         except (ImportError, IOError) as e:
@@ -490,7 +453,7 @@ def create_vscode_settings():
 
 def validate_kernel_setup():
     """
-    Validate that the APIM Samples kernel is properly registered and accessible.
+    Validate that the standardized kernel is properly registered and accessible.
 
     Returns:
         bool: True if kernel is properly configured, False otherwise
@@ -502,11 +465,11 @@ def validate_kernel_setup():
                               check=True, capture_output=True, text=True)
 
         # Check if our kernel is in the list
-        if 'apim-samples' in result.stdout:
-            print("✅ APIM Samples kernel found in kernelspec list")
+        if KERNEL_NAME in result.stdout:
+            print(f"✅ {KERNEL_NAME} kernel found in kernelspec list")
             return True
 
-        print("❌ APIM Samples kernel not found in kernelspec list")
+        print(f"❌ {KERNEL_NAME} kernel not found in kernelspec list")
         return False
 
     except subprocess.CalledProcessError as e:
@@ -519,105 +482,62 @@ def validate_kernel_setup():
 
 def force_kernel_consistency():
     """
-    Enforce kernel consistency by removing conflicting kernels and ensuring
-    only the APIM Samples kernel is used for notebooks.
+    Ensure the standardized kernel exists and trusted paths are set without
+    overwriting user customization. This function is intentionally minimal to
+    stay idempotent.
     """
 
     print("🔧 Enforcing kernel consistency...")
 
-    # First, ensure our kernel is registered
     if not validate_kernel_setup():
         print("⚠️ Kernel not found, attempting to register...")
         if not install_jupyter_kernel():
             print("❌ Failed to register kernel - manual intervention required")
             return False
 
-    # Update VS Code settings with strict kernel enforcement
     project_root = get_project_root()
     vscode_dir = project_root / '.vscode'
     settings_file = vscode_dir / 'settings.json'
+    vscode_dir.mkdir(exist_ok=True)
 
-    # Enhanced kernel settings that prevent VS Code from changing kernels
-    strict_kernel_settings = {
-        "jupyter.defaultKernel": "apim-samples",
-        "jupyter.kernels.changeKernelIdForNotebookEnabled": False,
-        "jupyter.kernels.filter": [
-            {
-                "path": "apim-samples",
-                "type": "pythonEnvironment"
-            }
-        ],
-        "jupyter.preferredKernelIdForNotebook": {
-            "*.ipynb": "apim-samples"
-        },
-        "jupyter.kernels.trusted": [
-            "./.venv/Scripts/python.exe" if os.name == 'nt' else "./.venv/bin/python"
-        ],
-        # Prevent VS Code from auto-detecting other Python environments
-        "jupyter.kernels.excludePythonEnvironments": [
-            "**/anaconda3/**",
-            "**/conda/**",
-            "**/miniconda3/**",
-            "**/python3.*",
-            "*/site-packages/*",
-            "/bin/python",
-            "/bin/python3",
-            "/opt/python/*/bin/python*",
-            "/usr/bin/python",
-            "/usr/bin/python3",
-            "/usr/local/bin/python",
-            "/usr/local/bin/python3",
-            "python",
-            "python3",
-            "**/.venv/**/python*",
-            "**/Scripts/python*",
-            "**/bin/python*"
-        ]
-    }
-
-    performance_exclude_settings = {
-        "search.exclude": DEFAULT_VSCODE_SEARCH_EXCLUDE,
-        "files.watcherExclude": DEFAULT_VSCODE_FILES_WATCHER_EXCLUDE,
-        "files.exclude": DEFAULT_VSCODE_FILES_EXCLUDE,
-        "python.analysis.exclude": DEFAULT_PYTHON_ANALYSIS_EXCLUDE,
-    }
+    venv_python = _venv_python_path()
 
     try:
-        # Read existing settings or create new ones
         existing_settings = {}
         if settings_file.exists():
             try:
                 with open(settings_file, 'r', encoding='utf-8') as f:
                     existing_settings = json.load(f)
             except json.JSONDecodeError:
-                print("⚠️ Existing settings.json has issues, creating new one")
+                print("⚠️ Existing settings.json has issues; leaving it untouched.")
+                return False
 
-        # Merge settings, with our strict kernel settings taking priority
-        existing_settings.update(strict_kernel_settings)
-
-        # Merge performance excludes without clobbering user patterns
-        existing_settings["search.exclude"] = _merge_bool_map(
+        merged_settings = existing_settings.copy()
+        merged_settings["jupyter.kernels.trusted"] = _merge_string_list(
+            existing_settings.get("jupyter.kernels.trusted"),
+            [venv_python],
+        )
+        merged_settings["search.exclude"] = _merge_bool_map(
             existing_settings.get("search.exclude"),
-            performance_exclude_settings["search.exclude"],
+            DEFAULT_VSCODE_SEARCH_EXCLUDE,
         )
-        existing_settings["files.watcherExclude"] = _merge_bool_map(
+        merged_settings["files.watcherExclude"] = _merge_bool_map(
             existing_settings.get("files.watcherExclude"),
-            performance_exclude_settings["files.watcherExclude"],
+            DEFAULT_VSCODE_FILES_WATCHER_EXCLUDE,
         )
-        existing_settings["files.exclude"] = _merge_bool_map(
+        merged_settings["files.exclude"] = _merge_bool_map(
             existing_settings.get("files.exclude"),
-            performance_exclude_settings["files.exclude"],
+            DEFAULT_VSCODE_FILES_EXCLUDE,
         )
-        existing_settings["python.analysis.exclude"] = _merge_string_list(
+        merged_settings["python.analysis.exclude"] = _merge_string_list(
             existing_settings.get("python.analysis.exclude"),
-            performance_exclude_settings["python.analysis.exclude"],
+            DEFAULT_PYTHON_ANALYSIS_EXCLUDE,
         )
 
-        # Write updated settings
         with open(settings_file, 'w', encoding='utf-8') as f:
-            json.dump(existing_settings, f, indent=4)
+            json.dump(merged_settings, f, indent=4)
 
-        print("✅ Strict kernel enforcement settings applied")
+        print("✅ Kernel trust and performance excludes refreshed without overriding user settings")
         return True
 
     except Exception as e:
@@ -653,7 +573,7 @@ def setup_complete_environment():
     print("2. Registering standardized Jupyter kernel...")
     kernel_success = install_jupyter_kernel()
 
-    # Step 3: Configure VS Code settings with strict kernel enforcement
+    # Step 3: Configure VS Code settings with minimal, merged defaults
     print("\n3. Configuring VS Code workspace settings...")
     vscode_success = create_vscode_settings()
 
@@ -669,14 +589,14 @@ def setup_complete_environment():
     print("   ✅ Python path configuration: Complete")
     print(f"   {'✅' if kernel_success else '❌'} Jupyter kernel registration: {'Complete' if kernel_success else 'Failed'}")
     print(f"   {'✅' if vscode_success else '❌'} VS Code settings: {'Complete' if vscode_success else 'Failed'}")
-    print(f"   {'✅' if consistency_success else '❌'} Kernel consistency enforcement: {'Complete' if consistency_success else 'Failed'}")
+    print(f"   {'✅' if consistency_success else '❌'} Kernel trust refresh: {'Complete' if consistency_success else 'Failed'}")
 
     if kernel_success and vscode_success and consistency_success:
         print("\n🎉 Setup complete! Your local environment now matches the dev container experience.")
-        print("   • Notebooks will automatically use the 'APIM Samples Python 3.12' kernel")
+        print(f"   • Notebooks can use the '{KERNEL_DISPLAY_NAME}' kernel")
         print("   • Python modules from shared/ directory are available")
         print("   • VS Code is configured for optimal workflow")
-        print("   • Kernel selection is locked to prevent auto-changes")
+        print("   • User customizations are preserved across reruns")
         print("\n💡 Next steps:")
         print("   1. Restart VS Code to apply all settings")
         print("   2. Open any notebook - it should automatically use the correct kernel")
@@ -703,7 +623,7 @@ def show_help():
     print("  (no options)        Show this help information")
     print("  --run-only          Only modify current session's PYTHONPATH (basic setup)")
     print("  --generate-env      Generate .env file for VS Code and terminal integration")
-    print("  --setup-kernel      Register the APIM Samples Jupyter kernel")
+    print("  --setup-kernel      Register the standardized Jupyter kernel")
     print("  --setup-vscode      Configure VS Code settings for optimal workflow")
     print("  --complete-setup    Perform complete environment setup (recommended)")
 
@@ -721,16 +641,15 @@ def show_help():
     print("    • Ensures consistent paths across platforms")
 
     print("\n  --setup-kernel:")
-    print("    • Registers a standardized Jupyter kernel named 'apim-samples'")
-    print("    • Display name will be 'APIM Samples Python 3.12'")
+    print(f"    • Registers a standardized Jupyter kernel named '{KERNEL_NAME}'")
+    print(f"    • Display name will be '{KERNEL_DISPLAY_NAME}'")
     print("    • Ensures consistent notebook experience")
     print("    • Installs ipykernel if not already available")
 
     print("\n  --setup-vscode:")
     print("    • Creates/updates .vscode/settings.json")
-    print("    • Configures Python interpreter, Jupyter settings")
-    print("    • Sets default kernel for notebooks")
-    print("    • Preserves existing VS Code settings")
+    print("    • Configures Python interpreter, linting, testing, and trusted kernels")
+    print("    • Preserves existing VS Code settings by merging changes")
 
     print("\n  --complete-setup:")
     print("    • Performs all of the above steps")
