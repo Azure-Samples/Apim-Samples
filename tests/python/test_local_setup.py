@@ -20,7 +20,7 @@ if str(SETUP_PATH) not in sys.path:
 if TYPE_CHECKING:  # pragma: no cover
     sps = cast(ModuleType, None)
 else:
-    sps = cast(ModuleType, importlib.import_module("setup_python_path"))
+    sps = cast(ModuleType, importlib.import_module("local_setup"))
 
 
 @pytest.fixture
@@ -46,11 +46,6 @@ def test_create_vscode_settings_creates_perf_excludes(temp_project_root: Path) -
 
     settings = _read_settings(temp_project_root)
 
-    assert settings["search.exclude"]["**/.venv"] is True
-    assert settings["search.exclude"]["**/.venv/**"] is True
-    assert settings["files.watcherExclude"]["**/.venv/**"] is True
-    assert settings["files.exclude"]["**/.venv"] is True
-
     assert settings["python.analysis.exclude"][: len(sps.DEFAULT_PYTHON_ANALYSIS_EXCLUDE)] == sps.DEFAULT_PYTHON_ANALYSIS_EXCLUDE
 
 
@@ -61,7 +56,6 @@ def test_create_vscode_settings_merges_excludes(temp_project_root: Path) -> None
     (vscode_dir / "settings.json").write_text(
         json.dumps(
             {
-                "search.exclude": {"custom/**": True, "**/.venv": False},
                 "python.analysis.exclude": ["custom2/**", "**/__pycache__"],
             },
             indent=4,
@@ -72,11 +66,6 @@ def test_create_vscode_settings_merges_excludes(temp_project_root: Path) -> None
     assert sps.create_vscode_settings() is True
 
     settings = _read_settings(temp_project_root)
-
-    # Required keys forced on, custom preserved
-    assert settings["search.exclude"]["custom/**"] is True
-    assert settings["search.exclude"]["**/.venv"] is True
-    assert settings["search.exclude"]["**/.venv/**"] is True
 
     # Required patterns come first, custom patterns preserved afterwards
     assert settings["python.analysis.exclude"][: len(sps.DEFAULT_PYTHON_ANALYSIS_EXCLUDE)] == sps.DEFAULT_PYTHON_ANALYSIS_EXCLUDE
@@ -90,7 +79,6 @@ def test_force_kernel_consistency_merges_excludes(temp_project_root: Path, monke
     (vscode_dir / "settings.json").write_text(
         json.dumps(
             {
-                "search.exclude": {"**/.venv/**": False},
                 "files.watcherExclude": {"other/**": True},
                 "python.analysis.exclude": ["custom3/**"],
             },
@@ -105,11 +93,6 @@ def test_force_kernel_consistency_merges_excludes(temp_project_root: Path, monke
     assert sps.force_kernel_consistency() is True
 
     settings = _read_settings(temp_project_root)
-
-    assert settings["search.exclude"]["**/.venv"] is True
-    assert settings["search.exclude"]["**/.venv/**"] is True
-    assert settings["files.watcherExclude"]["**/.venv/**"] is True
-    assert settings["files.watcherExclude"]["other/**"] is True
 
     assert settings["python.analysis.exclude"][: len(sps.DEFAULT_PYTHON_ANALYSIS_EXCLUDE)] == sps.DEFAULT_PYTHON_ANALYSIS_EXCLUDE
     assert "custom3/**" in settings["python.analysis.exclude"]

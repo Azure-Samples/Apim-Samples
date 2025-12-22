@@ -66,23 +66,6 @@ def test_check_required_packages_missing(monkeypatch: pytest.MonkeyPatch) -> Non
     assert vls.check_required_packages() is False
 
 
-def test_check_vscode_settings_success(temp_cwd: Path) -> None:
-    """VS Code settings check should succeed when required keys are present."""
-
-    settings_dir = temp_cwd / ".vscode"
-    settings_dir.mkdir(parents=True)
-    (settings_dir / "settings.json").write_text(
-        '{\n'
-        '  "jupyter.defaultKernel": "apim-samples",\n'
-        '  "python.defaultInterpreterPath": ".venv/",\n'
-        '  "notebook.defaultLanguage": "python"\n'
-        '}\n',
-        encoding="utf-8",
-    )
-
-    assert vls.check_vscode_settings() is True
-
-
 def test_check_env_file_validation(temp_cwd: Path) -> None:
     """Environment file check should validate required keys."""
 

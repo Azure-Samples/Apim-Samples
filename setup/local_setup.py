@@ -25,26 +25,12 @@ import sys
 from pathlib import Path  # Cross-platform path handling (Windows: \, Unix: /)
 
 
-DEFAULT_VSCODE_SEARCH_EXCLUDE = {
-    "**/.venv": True,
-    "**/.venv/**": True,
-}
-
-DEFAULT_VSCODE_FILES_WATCHER_EXCLUDE = {
-    "**/.venv/**": True,
-}
-
-DEFAULT_VSCODE_FILES_EXCLUDE = {
-    "**/.venv": True,
-}
-
 DEFAULT_PYTHON_ANALYSIS_EXCLUDE = [
     "**/node_modules",
     "**/__pycache__",
     ".git",
     "**/build",
     "env/**",
-    "**/.venv/**",
 ]
 
 KERNEL_NAME = "python-venv"
@@ -132,23 +118,6 @@ def check_azure_providers_registered():
     except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError):
         print("   ⚠️  Could not verify Azure provider registrations (Azure CLI may not be configured)")
         return False
-
-def _merge_bool_map(existing: object, required: dict[str, bool]) -> dict[str, bool]:
-    """Merge boolean map settings while enforcing required keys.
-
-    For VS Code exclude maps, required keys are forced to True.
-    """
-
-    if isinstance(existing, dict):
-        merged: dict[str, bool] = {str(k): bool(v) for k, v in existing.items()}
-    else:
-        merged = {}
-
-    for key in required:
-        merged[key] = True
-
-    return merged
-
 
 def _normalize_string_list(value: object) -> list[str]:
     if value is None:
@@ -287,7 +256,7 @@ def generate_env_file() -> None:
     # These paths will be automatically correct for the current platform
     lines: list[str] = [
         "# Auto-generated environment for VS Code and local tooling",
-        "# Run 'python setup/setup_python_path.py --generate-env' to regenerate",
+        "# Run 'python setup/local_setup.py --generate-env' to regenerate",
         "# Good to set console width to 220, 221 - whatever it takes",
         "",
         f"APIM_SAMPLES_CONSOLE_WIDTH={managed_keys['APIM_SAMPLES_CONSOLE_WIDTH']}",
@@ -376,7 +345,7 @@ def create_vscode_settings():
 
     venv_python = _venv_python_path()
 
-    # Settings to update for Python and notebook flow. Excludes and trusted kernels
+    # Settings to update for Python and notebook flow. Trusted kernels
     # are merged to avoid overwriting user customizations.
     required_settings = {
         "python.defaultInterpreterPath": venv_python,
@@ -406,18 +375,6 @@ def create_vscode_settings():
             return False
 
         merged_settings = existing_settings | required_settings
-        merged_settings["search.exclude"] = _merge_bool_map(
-            existing_settings.get("search.exclude"),
-            DEFAULT_VSCODE_SEARCH_EXCLUDE,
-        )
-        merged_settings["files.watcherExclude"] = _merge_bool_map(
-            existing_settings.get("files.watcherExclude"),
-            DEFAULT_VSCODE_FILES_WATCHER_EXCLUDE,
-        )
-        merged_settings["files.exclude"] = _merge_bool_map(
-            existing_settings.get("files.exclude"),
-            DEFAULT_VSCODE_FILES_EXCLUDE,
-        )
         merged_settings["python.analysis.exclude"] = _merge_string_list(
             existing_settings.get("python.analysis.exclude"),
             DEFAULT_PYTHON_ANALYSIS_EXCLUDE,
@@ -429,13 +386,9 @@ def create_vscode_settings():
         print(f"✅ VS Code settings updated: {settings_file}")
         print("   - Existing settings preserved")
         print("   - Python interpreter set to .venv")
-        print("   - .venv excluded from search/watcher/Pylance indexing")
     else:
         # Create new settings file
         try:
-            required_settings["search.exclude"] = DEFAULT_VSCODE_SEARCH_EXCLUDE
-            required_settings["files.watcherExclude"] = DEFAULT_VSCODE_FILES_WATCHER_EXCLUDE
-            required_settings["files.exclude"] = DEFAULT_VSCODE_FILES_EXCLUDE
             required_settings["python.analysis.exclude"] = DEFAULT_PYTHON_ANALYSIS_EXCLUDE
 
             with open(settings_file, 'w', encoding='utf-8') as f:
@@ -443,7 +396,6 @@ def create_vscode_settings():
 
             print(f"✅ VS Code settings created: {settings_file}")
             print("   - Python interpreter configured for .venv")
-            print("   - .venv excluded from search/watcher/Pylance indexing")
         except (ImportError, IOError) as e:
             print(f"❌ Failed to create VS Code settings: {e}")
             return False
@@ -517,18 +469,6 @@ def force_kernel_consistency():
             existing_settings.get("jupyter.kernels.trusted"),
             [venv_python],
         )
-        merged_settings["search.exclude"] = _merge_bool_map(
-            existing_settings.get("search.exclude"),
-            DEFAULT_VSCODE_SEARCH_EXCLUDE,
-        )
-        merged_settings["files.watcherExclude"] = _merge_bool_map(
-            existing_settings.get("files.watcherExclude"),
-            DEFAULT_VSCODE_FILES_WATCHER_EXCLUDE,
-        )
-        merged_settings["files.exclude"] = _merge_bool_map(
-            existing_settings.get("files.exclude"),
-            DEFAULT_VSCODE_FILES_EXCLUDE,
-        )
         merged_settings["python.analysis.exclude"] = _merge_string_list(
             existing_settings.get("python.analysis.exclude"),
             DEFAULT_PYTHON_ANALYSIS_EXCLUDE,
@@ -537,7 +477,7 @@ def force_kernel_consistency():
         with open(settings_file, 'w', encoding='utf-8') as f:
             json.dump(merged_settings, f, indent=4)
 
-        print("✅ Kernel trust and performance excludes refreshed without overriding user settings")
+        print("✅ Kernel trust refreshed without overriding user settings")
         return True
 
     except Exception as e:
@@ -617,7 +557,7 @@ def show_help():
     print("It handles PYTHONPATH setup, Jupyter kernel registration, and VS Code integration.")
 
     print("\nUSAGE:")
-    print("  python setup/setup_python_path.py [OPTION]")
+    print("  python setup/local_setup.py [OPTION]")
 
     print("\nOPTIONS:")
     print("  (no options)        Show this help information")
@@ -658,11 +598,11 @@ def show_help():
 
     print("\nEXAMPLES:")
     print("  # Show this help information:")
-    print("  python setup/setup_python_path.py")
+    print("  python setup/local_setup.py")
     print("\n  # Perform complete setup (recommended for new users):")
-    print("  python setup/setup_python_path.py --complete-setup")
+    print("  python setup/local_setup.py --complete-setup")
     print("\n  # Only generate the .env file:")
-    print("  python setup/setup_python_path.py --generate-env")
+    print("  python setup/local_setup.py --generate-env")
 
     print("\nNOTES:")
     print("  • Running this script without options now displays this help screen")

@@ -97,12 +97,76 @@ This menu-driven interface provides quick access to:
 Example output from option 2 (Verify local setup):
 ```
 🔍 APIM Samples Local Environment Verification
+==================================================
+
+📋 Virtual Environment
+----------------------
 ✅ Virtual environment is active
-✅ All required packages installed
-✅ Shared modules can be imported
-✅ .env file configured
-⚠️ Jupyter kernel not found
-✅ VS Code settings configured
+
+📋 Required Packages
+--------------------
+✅ requests is installed
+✅ ipykernel is installed
+✅ jupyter is installed
+✅ python-dotenv is installed
+
+📋 Shared Modules
+-----------------
+✅ All shared modules can be imported
+
+📋 Environment File
+-------------------
+✅ .env file is configured correctly
+
+📋 Azure CLI
+------------
+✅ Azure CLI is installed (azure-cli                         2.81.0)
+
+📋 Azure Bicep CLI
+------------------
+✅ Azure Bicep CLI is installed (az bicep version: Bicep CLI version 0.39.26 (1e90b06e40))
+
+📋 Azure Providers
+------------------
+   Registered providers:
+      - Microsoft.ApiManagement
+      - Microsoft.App
+      - Microsoft.Authorization
+      - Microsoft.CognitiveServices
+      - Microsoft.ContainerRegistry
+      - Microsoft.KeyVault
+      - Microsoft.Maps
+      - Microsoft.ManagedIdentity
+      - Microsoft.Network
+      - Microsoft.OperationalInsights
+      - Microsoft.Resources
+      - Microsoft.Storage
+✅ All required Azure providers are registered
+
+📋 Jupyter Kernel
+-----------------
+✅ APIM Samples Jupyter kernel is registered
+
+📋 VS Code Settings
+-------------------
+✅ VS Code settings are configured correctly
+
+📋 Summary
+----------
+✅ Virtual Environment : PASS
+✅ Required Packages   : PASS
+✅ Shared Modules      : PASS
+✅ Environment File    : PASS
+✅ Azure CLI           : PASS
+✅ Azure Bicep CLI     : PASS
+✅ Azure Providers     : PASS
+✅ Jupyter Kernel      : PASS
+✅ VS Code Settings    : PASS
+
+📊 Overall: 9/9 checks passed
+
+🎉 All checks passed! Your local environment is ready for APIM Samples.
+💡 You can now open any notebook and it should work seamlessly.
 ```
 
 ---
@@ -132,11 +196,11 @@ If you're setting up locally without the dev container:
 1. **Create Python Environment**: In VS Code, use Ctrl+Shift+P → "Python: Create Environment" → "Venv" → Select Python version → Check requirements.txt
 2. **Complete Environment Setup**: Run the automated setup script:
    ```bash
-   python setup/setup_python_path.py --complete-setup
+   python setup/local_setup.py --complete-setup
    ```
    For help and available options, run without arguments:
    ```bash
-   python setup/setup_python_path.py
+   python setup/local_setup.py
    ```
 3. **Restart VS Code** to apply all settings
 4. **Sign in to Azure**: `az login --tenant <your-tenant-id>` and `az account set --subscription <your-subscription>`
@@ -164,9 +228,9 @@ If you prefer manual setup or the automated script doesn't work:
 1. Verify the virtual environment is set up. You should see a new _.venv_ directory with a _pyveng.cfg_ file and the Python version you selected earlier.
 1. Set up the project environment:
    ```bash
-   python setup/setup_python_path.py --generate-env
-   python setup/setup_python_path.py --setup-kernel
-   python setup/setup_python_path.py --setup-vscode
+   python setup/local_setup.py --generate-env
+   python setup/local_setup.py --setup-kernel
+   python setup/local_setup.py --setup-vscode
    ```
 1. **Restart VS Code** to ensure all environment settings are loaded properly.
 
@@ -178,7 +242,7 @@ If you encounter import errors (e.g., `ModuleNotFoundError: No module named 'req
 
 1. **Fix Python path configuration**:
    ```bash
-   python setup/setup_python_path.py --generate-env
+   python setup/local_setup.py --generate-env
    ```
 
 2. **Verify setup**:

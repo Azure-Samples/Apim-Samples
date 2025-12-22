@@ -6,7 +6,7 @@
             "type": "shell",
             "command": "${config:python.pythonPath}",
             "args": [
-                "setup/setup_python_path.py",
+                "setup/local_setup.py",
                 "--generate-env"
             ],
             "group": "build",

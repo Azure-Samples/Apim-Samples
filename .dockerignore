@@ -32,5 +32,5 @@
 
 # Keep essential files for the build
 !requirements.txt
-!setup/setup_python_path.py
+!setup/local_setup.py
 !shared/python/**

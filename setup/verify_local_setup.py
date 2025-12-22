@@ -142,9 +142,11 @@ def check_vscode_settings():
 
         # Check for key settings (simple string search since the file may have comments)
         checks = [
-            ('jupyter.defaultKernel', 'apim-samples'),
             ('python.defaultInterpreterPath', '.venv'),
-            ('notebook.defaultLanguage', 'python')
+            ('python.envFile', '.env'),
+            ('python.terminal.activateEnvironment', 'true'),
+            ('python.testing.pytestEnabled', 'true'),
+            ('files.eol', '\\n')
         ]
 
         all_found = True
@@ -315,7 +317,7 @@ def main():
         print("💡 You can now open any notebook and it should work seamlessly.")
     else:
         print("\n⚠️  Some checks failed. Consider running the setup script:")
-        print("   python setup/setup_python_path.py --complete-setup")
+        print("   python setup/local_setup.py --complete-setup")
         print("   Then restart VS Code and run this verification again.")
 
     return passed == total
