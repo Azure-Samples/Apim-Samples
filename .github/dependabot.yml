@@ -9,7 +9,7 @@ updates:
   directory: "/"
   schedule:
     interval: daily
-    time: "2:21"
+    time: "02:21"
   groups:
     python-packages:
       patterns:
