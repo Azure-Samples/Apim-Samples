@@ -822,6 +822,194 @@ def testget_project_root_functionality():
     assert isinstance(root, Path)
     assert root.exists()
 
+    def test_output_class_basic():
+        """Test Output class initialization and properties."""
+        # Test successful output with JSON
+        output = Output(True, '{"key": "value"}')
+        assert output.success is True
+        assert output.text == '{"key": "value"}'
+        assert output.json_data == {"key": "value"}
+        assert output.is_json is True
+
+    def test_output_class_non_json():
+        """Test Output class with non-JSON text."""
+        output = Output(True, 'some plain text')
+        assert output.success is True
+        assert output.text == 'some plain text'
+        assert output.json_data is None
+        assert output.is_json is False
+
+    def test_output_get_with_properties_structure():
+        """Test Output.get() with deployment output structure."""
+        json_text = json.dumps({
+            'properties': {
+                'outputs': {
+                    'apimName': {'value': 'my-apim'}
+                }
+            }
+        })
+        output = Output(True, json_text)
+        result = output.get('apimName', suppress_logging=True)
+        assert result == 'my-apim'
+
+    def test_output_get_missing_key():
+        """Test Output.get() with missing key."""
+        json_text = json.dumps({
+            'properties': {
+                'outputs': {
+                    'apimName': {'value': 'my-apim'}
+                }
+            }
+        })
+        output = Output(True, json_text)
+        result = output.get('nonExistent', suppress_logging=True)
+        assert result is None
+
+    def test_output_get_non_dict_json():
+        """Test Output.get() when json_data is not a dict."""
+        output = Output(True, '[1, 2, 3]')
+        result = output.get('key', suppress_logging=True)
+        assert result is None
+
+    def test_output_get_missing_properties():
+        """Test Output.get() when 'properties' key is missing."""
+        json_text = json.dumps({
+            'data': {
+                'outputs': {
+                    'apimName': {'value': 'my-apim'}
+                }
+            }
+        })
+        output = Output(True, json_text)
+        # Should look for key at root level
+        result = output.get('apimName', suppress_logging=True)
+        assert result is None
+
+    def test_output_getJson_with_nested_structure():
+        """Test Output.getJson() returns parsed JSON from nested value."""
+        nested_json = '{"nested": "data"}'
+        json_text = json.dumps({
+            'properties': {
+                'outputs': {
+                    'config': {'value': nested_json}
+                }
+            }
+        })
+        output = Output(True, json_text)
+        result = output.getJson('config', suppress_logging=True)
+        assert result == {"nested": "data"}
+
+    def test_output_getJson_with_dict_value():
+        """Test Output.getJson() with dict value."""
+        json_text = json.dumps({
+            'properties': {
+                'outputs': {
+                    'config': {'value': {"nested": "dict"}}
+                }
+            }
+        })
+        output = Output(True, json_text)
+        result = output.getJson('config', suppress_logging=True)
+        assert result == {"nested": "dict"}
+
+    def test_output_getJson_with_missing_key():
+        """Test Output.getJson() with missing key."""
+        json_text = json.dumps({
+            'properties': {
+                'outputs': {
+                    'apimName': {'value': 'my-apim'}
+                }
+            }
+        })
+        output = Output(True, json_text)
+        result = output.getJson('nonExistent', suppress_logging=True)
+        assert result is None
+
+        def test_output_get_with_direct_key():
+            """Test Output.get() when output key is at root level."""
+            json_text = json.dumps({
+                'apimName': {'value': 'my-apim'},
+                'location': {'value': 'eastus'}
+            })
+            output = Output(True, json_text)
+            result = output.get('apimName', suppress_logging=True)
+            assert result == 'my-apim'
+
+        def test_output_get_with_label_and_secure():
+            """Test Output.get() with label and secure masking."""
+            json_text = json.dumps({
+                'properties': {
+                    'outputs': {
+                        'secretKey': {'value': 'very-secret-key-12345'}
+                    }
+                }
+            })
+            output = Output(True, json_text)
+            # Should not raise even with label; we suppress logging in test
+            result = output.get('secretKey', label='Secret', secure=True, suppress_logging=True)
+            assert result == 'very-secret-key-12345'
+
+        def test_output_getJson_with_list_value():
+            """Test Output.getJson() with array value."""
+            json_text = json.dumps({
+                'properties': {
+                    'outputs': {
+                        'items': {'value': [1, 2, 3, 4, 5]}
+                    }
+                }
+            })
+            output = Output(True, json_text)
+            result = output.getJson('items', suppress_logging=True)
+            assert result == [1, 2, 3, 4, 5]
+
+        def test_output_getJson_with_string_json_value():
+            """Test Output.getJson() when value is JSON-formatted string."""
+            nested_json = '{"nested": "object"}'
+            json_text = json.dumps({
+                'properties': {
+                    'outputs': {
+                        'config': {'value': nested_json}
+                    }
+                }
+            })
+            output = Output(True, json_text)
+            result = output.getJson('config', suppress_logging=True)
+            assert result == {"nested": "object"}
+
+        def test_output_get_empty_string_value():
+            """Test Output.get() with empty string value."""
+            json_text = json.dumps({
+                'properties': {
+                    'outputs': {
+                        'empty': {'value': ''}
+                    }
+                }
+            })
+            output = Output(True, json_text)
+            result = output.get('empty', suppress_logging=True)
+            assert result == ''
+
+        def test_output_getJson_empty_object():
+            """Test Output.getJson() with empty JSON object."""
+            json_text = json.dumps({
+                'properties': {
+                    'outputs': {
+                        'emptyObj': {'value': {}}
+                    }
+                }
+            })
+            output = Output(True, json_text)
+            result = output.getJson('emptyObj', suppress_logging=True)
+            assert result == {}
+
+        def test_output_parse_error_handling():
+            """Test Output class handles JSON parse errors gracefully."""
+            # JSON that doesn't parse but has structure
+            output = Output(True, '{invalid json here}')
+            # Should still initialize without crashing
+            assert output.text == '{invalid json here}'
+            assert output.success is True
+
 
 def test_api_edge_cases():
     """Test API class with edge cases and full coverage."""

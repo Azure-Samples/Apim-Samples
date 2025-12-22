@@ -153,6 +153,122 @@ def test_get_account_info_no_json():
         assert 'Failed to retrieve account information' in str(exc_info.value)
 
 # ------------------------------
+#    JWT SIGNING KEY CLEANUP TESTS
+# ------------------------------
+
+def test_cleanup_old_jwt_signing_keys_success(monkeypatch):
+    """Test successful cleanup of old JWT signing keys."""
+
+    run_calls: list[str] = []
+
+    def fake_run(cmd: str, *args, **kwargs):
+        run_calls.append(cmd)
+
+        if 'nv list' in cmd:
+            return Output(True, 'JwtSigningKey-sample-123\nJwtSigningKey-sample-456\n')
+
+        if 'nv delete' in cmd:
+            # Only the non-current key should be deleted
+            return Output(True, '')
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+    monkeypatch.setattr(az, 'print_message', lambda *a, **k: None)
+    monkeypatch.setattr(az, 'print_info', lambda *a, **k: None)
+    monkeypatch.setattr(az, 'print_ok', lambda *a, **k: None)
+    monkeypatch.setattr(az, 'print_error', lambda *a, **k: None)
+
+    result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'JwtSigningKey-sample-456')
+
+    assert result is True
+    assert any('nv list' in c for c in run_calls)
+    delete_calls = [c for c in run_calls if 'nv delete' in c]
+    assert len(delete_calls) == 1
+    assert 'JwtSigningKey-sample-123' in delete_calls[0]
+
+
+def test_cleanup_old_jwt_signing_keys_invalid_pattern(monkeypatch):
+    """Test cleanup when current key name does not match expected pattern."""
+
+    monkeypatch.setattr(az, 'run', lambda *a, **k: pytest.fail('run should not be called'))
+    monkeypatch.setattr(az, 'print_message', lambda *a, **k: None)
+    monkeypatch.setattr(az, 'print_info', lambda *a, **k: None)
+    monkeypatch.setattr(az, 'print_ok', lambda *a, **k: None)
+
+    result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'invalid-key-name')
+
+    assert result is False
+
+
+# ------------------------------
+#    APIM BLOB PERMISSIONS TESTS
+# ------------------------------
+
+def test_check_apim_blob_permissions_success(monkeypatch):
+    """Test blob permission check succeeds when role assignment and access test succeed."""
+
+    monkeypatch.setattr(az, 'get_azure_role_guid', lambda *_: 'role-guid')
+    monkeypatch.setattr(az, 'print_info', lambda *a, **k: None)
+    monkeypatch.setattr(az, 'print_ok', lambda *a, **k: None)
+    monkeypatch.setattr(az, 'print_warning', lambda *a, **k: None)
+    monkeypatch.setattr(az, 'print_error', lambda *a, **k: None)
+
+    run_calls: list[str] = []
+
+    def fake_run(cmd: str, *args, **kwargs):
+        run_calls.append(cmd)
+
+        if 'apim show' in cmd:
+            return Output(True, 'principal-id\n')
+
+        if 'storage account show' in cmd:
+            return Output(True, 'notice\n/subscriptions/123/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/storage\n')
+
+        if 'role assignment list' in cmd:
+            return Output(True, 'assignment-id\n')
+
+        if 'storage blob list' in cmd:
+            return Output(True, 'blob-name\n')
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+    monkeypatch.setattr(az.time, 'sleep', lambda *a, **k: None)
+
+    result = az.check_apim_blob_permissions('apim', 'storage', 'rg', max_wait_minutes = 1)
+
+    assert result is True
+    assert any('role assignment list' in c for c in run_calls)
+    assert any('storage blob list' in c for c in run_calls)
+
+
+def test_check_apim_blob_permissions_missing_resource_id(monkeypatch):
+    """Test blob permission check fails when storage account ID cannot be parsed."""
+
+    monkeypatch.setattr(az, 'get_azure_role_guid', lambda *_: 'role-guid')
+    monkeypatch.setattr(az, 'print_info', lambda *a, **k: None)
+    monkeypatch.setattr(az, 'print_ok', lambda *a, **k: None)
+    monkeypatch.setattr(az, 'print_warning', lambda *a, **k: None)
+    monkeypatch.setattr(az, 'print_error', lambda *a, **k: None)
+
+    def fake_run(cmd: str, *args, **kwargs):
+        if 'apim show' in cmd:
+            return Output(True, 'principal-id\n')
+
+        if 'storage account show' in cmd:
+            return Output(True, 'no matching id here')
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    result = az.check_apim_blob_permissions('apim', 'storage', 'rg')
+
+    assert result is False
+
+
+# ------------------------------
 #    DEPLOYMENT NAME TESTS
 # ------------------------------
 

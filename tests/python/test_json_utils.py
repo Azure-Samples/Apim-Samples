@@ -79,3 +79,37 @@ def test_extract_json_multiple_json_types():
     assert json_utils.extract_json(s) == [1, 2, 3]
     s2 = '{"a": 1}[1,2,3]'
     assert json_utils.extract_json(s2) == {'a': 1}
+
+def test_is_string_json_with_literal_eval():
+    """Test is_string_json with Python literal syntax (single quotes)."""
+    # Python literal with single quotes
+    assert json_utils.is_string_json("{'a': 1}") is True  # Should match via ast.literal_eval
+    assert json_utils.is_string_json("[1, 2, 3]") is True  # Lists work with literal_eval
+
+
+def test_is_string_json_with_bytes():
+    """Test is_string_json with bytes and bytearray."""
+    assert json_utils.is_string_json(b'{"a": 1}') is True
+    assert json_utils.is_string_json(bytearray(b'{"a": 1}')) is True
+    assert json_utils.is_string_json(b'not json') is False
+
+
+def test_is_string_json_empty_containers():
+    """Test is_string_json with empty JSON containers."""
+    assert json_utils.is_string_json('{}') is True
+    assert json_utils.is_string_json('[]') is True
+    assert json_utils.is_string_json('   {}   ') is True
+    assert json_utils.is_string_json('   []   ') is True
+
+
+def test_extract_json_nested_edge_cases():
+    """Test extract_json with deeply nested structures."""
+    # Test deeply nested JSON
+    nested = {'a': {'b': {'c': {'d': [1, 2, 3]}}}}
+    s = json.dumps(nested)
+    assert json_utils.extract_json(s) == nested
+
+    # Test JSON with escaped quotes and special chars
+    special = {'key': 'value with "quotes" and \\backslash'}
+    s = json.dumps(special)
+    assert json_utils.extract_json(s) == special
