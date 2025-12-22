@@ -7,7 +7,7 @@ Configures cross-platform PYTHONPATH for APIM Samples and provides streamlined l
 For complete local environment setup that matches the dev container experience:
 
 ```shell
-python setup/setup_python_path.py --complete-setup
+python setup/local_setup.py --complete-setup
 ```
 
 This will:
@@ -23,22 +23,22 @@ If you prefer to run setup steps individually:
 
 ```shell
 # Generate .env file only
-python setup/setup_python_path.py --generate-env
+python setup/local_setup.py --generate-env
 
 # Register Jupyter kernel only
-python setup/setup_python_path.py --setup-kernel
+python setup/local_setup.py --setup-kernel
 
 # Configure VS Code settings only
-python setup/setup_python_path.py --setup-vscode
+python setup/local_setup.py --setup-vscode
 
 # Force kernel consistency (fix kernel switching issues)
-python setup/setup_python_path.py --force-kernel
+python setup/local_setup.py --force-kernel
 
 # Basic PYTHONPATH setup for current session
-python setup/setup_python_path.py --run-only
+python setup/local_setup.py --run-only
 
 # Show help and available options
-python setup/setup_python_path.py
+python setup/local_setup.py
 ```
 
 ## Verification
@@ -62,13 +62,13 @@ This checks:
 
 To ensure notebooks always use the correct kernel ("APIM Samples Python 3.12" instead of ".venv" or "python3"):
 
-1. **Run the complete setup**: `python setup/setup_python_path.py --complete-setup`
+1. **Run the complete setup**: `python setup/local_setup.py --complete-setup`
 2. **Restart VS Code** completely
 3. **Verify with**: `python setup/verify_setup.py`
 
 If you still see incorrect kernel names, run:
 ```shell
-python setup/setup_python_path.py --force-kernel
+python setup/local_setup.py --force-kernel
 ```
 
 ## Troubleshooting

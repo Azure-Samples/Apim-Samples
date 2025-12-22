@@ -152,7 +152,7 @@ ModuleNotFoundError: No module named 'utils'
 **Solution:**
 Use the provided setup script:
 ```bash
-python setup/setup_python_path.py --generate-env
+python setup/local_setup.py --generate-env
 ```
 
 ### Working Directory Issues

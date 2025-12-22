@@ -132,11 +132,11 @@ If you're setting up locally without the dev container:
 1. **Create Python Environment**: In VS Code, use Ctrl+Shift+P → "Python: Create Environment" → "Venv" → Select Python version → Check requirements.txt
 2. **Complete Environment Setup**: Run the automated setup script:
    ```bash
-   python setup/setup_python_path.py --complete-setup
+   python setup/local_setup.py --complete-setup
    ```
    For help and available options, run without arguments:
    ```bash
-   python setup/setup_python_path.py
+   python setup/local_setup.py
    ```
 3. **Restart VS Code** to apply all settings
 4. **Sign in to Azure**: `az login --tenant <your-tenant-id>` and `az account set --subscription <your-subscription>`
@@ -164,9 +164,9 @@ If you prefer manual setup or the automated script doesn't work:
 1. Verify the virtual environment is set up. You should see a new _.venv_ directory with a _pyveng.cfg_ file and the Python version you selected earlier.
 1. Set up the project environment:
    ```bash
-   python setup/setup_python_path.py --generate-env
-   python setup/setup_python_path.py --setup-kernel
-   python setup/setup_python_path.py --setup-vscode
+   python setup/local_setup.py --generate-env
+   python setup/local_setup.py --setup-kernel
+   python setup/local_setup.py --setup-vscode
    ```
 1. **Restart VS Code** to ensure all environment settings are loaded properly.
 
@@ -178,7 +178,7 @@ If you encounter import errors (e.g., `ModuleNotFoundError: No module named 'req
 
 1. **Fix Python path configuration**:
    ```bash
-   python setup/setup_python_path.py --generate-env
+   python setup/local_setup.py --generate-env
    ```
 
 2. **Verify setup**:

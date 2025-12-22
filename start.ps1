@@ -129,7 +129,7 @@ while ($true) {
 
     switch ($choice) {
         '1' {
-            if (Invoke-Cmd (Get-Python) "$RepoRoot/setup/setup_python_path.py" "--complete-setup") { Invoke-Pause-Menu }
+            if (Invoke-Cmd (Get-Python) "$RepoRoot/setup/local_setup.py" "--complete-setup") { Invoke-Pause-Menu }
         }
         '2' {
             if (Invoke-Cmd (Get-Python) "$RepoRoot/setup/verify_local_setup.py") { Invoke-Pause-Menu }

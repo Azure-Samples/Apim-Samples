@@ -200,7 +200,7 @@ python -m ipykernel install --user --name=python-venv --display-name='Python (.v
 source /workspaces/Apim-Samples/.venv/bin/activate &&
 pip install -r requirements.txt &&
 pip install pytest pytest-cov coverage &&
-python setup/setup_python_path.py --generate-env &&
+python setup/local_setup.py --generate-env &&
 az config set core.login_experience_v2=off &&
 az extension add --name containerapp --only-show-errors &&
 az extension add --name front-door --only-show-errors
@@ -342,7 +342,7 @@ python -m ipykernel install --user --name=python-venv --display-name="Python (.v
 **Symptom**: Import errors or path issues
 **Solution**: Regenerate the `.env` file:
 ```bash
-python setup/setup_python_path.py --generate-env
+python setup/local_setup.py --generate-env
 ```
 
 ### Debug Commands

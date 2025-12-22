@@ -91,7 +91,7 @@ while true; do
   read -rp "Select an option: " choice
   case "$choice" in
     1)
-      run_cmd "$(find_python)" "${REPO_ROOT}/setup/setup_python_path.py" --complete-setup
+      run_cmd "$(find_python)" "${REPO_ROOT}/setup/local_setup.py" --complete-setup
       pause_prompt
       ;;
     2)
