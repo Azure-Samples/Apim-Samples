@@ -33,13 +33,11 @@ This approach ensures that time-consuming operations happen during container pre
 |------|---------|-------|
 | `python312/devcontainer.json` | Dev container configuration (Python 3.12) | All |
 | `python312/Dockerfile` | Container image definition (Python 3.12) | Build |
-| `python312/post-start-setup.sh` | Runtime verification script | Runtime |
 | `python313/devcontainer.json` | Dev container configuration (Python 3.13) | All |
 | `python313/Dockerfile` | Container image definition (Python 3.13) | Build |
-| `python313/post-start-setup.sh` | Runtime verification script | Runtime |
 | `python314/devcontainer.json` | Dev container configuration (Python 3.14) | All |
 | `python314/Dockerfile` | Container image definition (Python 3.14) | Build |
-| `python314/post-start-setup.sh` | Runtime verification script | Runtime |
+| `post-start-setup.sh` | Shared runtime verification script | Runtime |
 | `README.md` | This documentation | - |
 
 ### Configuration Details
@@ -57,6 +55,7 @@ This approach ensures that time-consuming operations happen during container pre
 - **Virtual Environment**: Auto-activation configuration
 
 #### `post-start-setup.sh` (shared behavior)
+- **Location**: `.devcontainer/post-start-setup.sh` is invoked by each Python variant's `post-start-setup.sh` wrapper
 - **Environment Verification**: Quick checks and status reporting
 - **Fallback Installation**: Safety net for missing components
 - **User Guidance**: Next steps and helpful information
