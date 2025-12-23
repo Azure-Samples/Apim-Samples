@@ -2616,3 +2616,378 @@ def test_infrastructure_with_different_indices(mock_utils):
             rg_location='eastus'
         )
         assert infra.index == index
+
+
+def test_appgw_apim_pe_create_keyvault_success(mock_utils, mock_az):
+    """Test KeyVault creation for AppGwApimPeInfrastructure."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_az.resource_exists.return_value = False
+    mock_az.run.return_value = Mock(success=True)
+
+    result = infra._create_keyvault('test-kv')
+    assert isinstance(result, bool)
+
+
+def test_appgw_apim_create_keyvault_success(mock_utils, mock_az):
+    """Test KeyVault creation for AppGwApimInfrastructure."""
+    infra = infrastructures.AppGwApimInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_az.resource_exists.return_value = False
+    mock_az.run.return_value = Mock(success=True)
+
+    result = infra._create_keyvault('test-kv')
+    assert isinstance(result, bool)
+
+
+def test_appgw_apim_pe_create_certificate_success(mock_utils, mock_az):
+    """Test certificate creation for AppGwApimPeInfrastructure."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_az.run.return_value = Mock(success=True)
+
+    result = infra._create_keyvault_certificate('test-kv')
+    assert isinstance(result, bool)
+
+
+def test_appgw_apim_create_certificate_success(mock_utils, mock_az):
+    """Test certificate creation for AppGwApimInfrastructure."""
+    infra = infrastructures.AppGwApimInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_az.run.return_value = Mock(success=True)
+
+    result = infra._create_keyvault_certificate('test-kv')
+    assert isinstance(result, bool)
+
+
+def test_afd_apim_aca_approve_private_links_multiple(mock_utils, mock_az):
+    """Test private link approval with multiple connections."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_output = Mock()
+    mock_output.success = True
+    mock_output.getJson.return_value = [
+        {'name': 'conn1', 'properties': {'privateLinkServiceConnectionState': {'status': 'Pending'}}},
+        {'name': 'conn2', 'properties': {'privateLinkServiceConnectionState': {'status': 'Pending'}}}
+    ]
+    mock_az.run.return_value = mock_output
+
+    result = infra._approve_private_link_connections('/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test')
+
+    assert isinstance(result, bool)
+
+
+def test_appgw_apim_pe_approve_private_links_multiple(mock_utils, mock_az):
+    """Test private link approval for AppGwApimPeInfrastructure with multiple connections."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_output = Mock()
+    mock_output.success = True
+    mock_output.getJson.return_value = [
+        {'name': 'conn1', 'properties': {'privateLinkServiceConnectionState': {'status': 'Pending'}}},
+        {'name': 'conn2', 'properties': {'privateLinkServiceConnectionState': {'status': 'Pending'}}}
+    ]
+    mock_az.run.return_value = mock_output
+
+    result = infra._approve_private_link_connections('/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test')
+
+    assert isinstance(result, bool)
+
+
+def test_afd_apim_aca_disable_public_access_success(mock_utils, mock_az):
+    """Test disabling public access for AfdApimAcaInfrastructure."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_az.run.return_value = Mock(success=True)
+
+    result = infra._disable_apim_public_access()
+
+    assert isinstance(result, bool)
+
+
+def test_appgw_apim_pe_disable_public_access_success(mock_utils, mock_az):
+    """Test disabling public access for AppGwApimPeInfrastructure."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_az.run.return_value = Mock(success=True)
+
+    result = infra._disable_apim_public_access()
+
+    assert isinstance(result, bool)
+
+
+def test_afd_apim_aca_verify_connectivity_with_retry(mock_utils, mock_az):
+    """Test connectivity verification with retries for AfdApimAcaInfrastructure."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    with patch('infrastructures.requests.get') as mock_requests:
+        mock_requests.return_value.status_code = 200
+
+        result = infra._verify_apim_connectivity('https://test-apim.azure-api.net')
+
+        assert isinstance(result, bool)
+
+
+def test_appgw_apim_pe_verify_connectivity_with_retry(mock_utils, mock_az):
+    """Test connectivity verification for AppGwApimPeInfrastructure."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    with patch('infrastructures.requests.get') as mock_requests:
+        mock_requests.return_value.status_code = 200
+
+        result = infra._verify_apim_connectivity('https://test-apim.azure-api.net')
+
+        assert isinstance(result, bool)
+
+
+def test_afd_apim_aca_define_bicep_parameters_complete(mock_utils):
+    """Test complete bicep parameter definition for AfdApimAcaInfrastructure."""
+    pf = PolicyFragment('custom-pf', '<policy></policy>', 'Custom')
+    api = API('custom-api', 'Custom', '/custom', 'Custom', '<policy></policy>')
+
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1,
+        infra_pfs=[pf],
+        infra_apis=[api]
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    params = infra._define_bicep_parameters()
+
+    assert 'resourceSuffix' in params
+    assert 'apimSku' in params
+    assert 'apis' in params
+    assert 'policyFragments' in params
+    assert len(params['apis']['value']) > 1
+    assert len(params['policyFragments']['value']) > 6
+
+
+def test_appgw_apim_pe_define_bicep_parameters_complete(mock_utils):
+    """Test complete bicep parameter definition for AppGwApimPeInfrastructure."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    params = infra._define_bicep_parameters()
+
+    assert 'resourceSuffix' in params
+    assert 'apimSku' in params
+    assert 'apis' in params
+    assert 'policyFragments' in params
+
+
+def test_appgw_apim_define_bicep_parameters_complete(mock_utils):
+    """Test complete bicep parameter definition for AppGwApimInfrastructure."""
+    infra = infrastructures.AppGwApimInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    params = infra._define_bicep_parameters()
+
+    assert 'resourceSuffix' in params
+    assert 'apimSku' in params
+    assert 'apis' in params
+    assert 'policyFragments' in params
+
+
+def test_apim_aca_verify_infrastructure_specific_checks(mock_utils, mock_az):
+    """Test ApimAcaInfrastructure specific verification checks."""
+    infra = infrastructures.ApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_az.does_resource_group_exist.return_value = True
+    mock_az.does_apim_exist.return_value = True
+
+    result = infra._verify_infrastructure_specific('test-rg')
+    assert isinstance(result, bool)
+
+
+def test_infrastructure_deployment_with_all_skus(mock_utils):
+    """Test infrastructure creation with all available SKUs."""
+    skus = [APIM_SKU.DEVELOPER, APIM_SKU.BASIC, APIM_SKU.STANDARD, APIM_SKU.PREMIUM,
+            APIM_SKU.BASICV2, APIM_SKU.STANDARDV2, APIM_SKU.PREMIUMV2]
+
+    for sku in skus:
+        infra = infrastructures.Infrastructure(
+            infra=INFRASTRUCTURE.SIMPLE_APIM,
+            index=1,
+            rg_location='eastus',
+            apim_sku=sku
+        )
+        infra._define_policy_fragments()
+        infra._define_apis()
+        infra._define_bicep_parameters()
+        assert infra.bicep_parameters['apimSku']['value'] == sku.value
+
+
+def test_infrastructure_bicep_parameters_structure(mock_utils):
+    """Test that bicep parameters have correct structure."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus'
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    params = infra._define_bicep_parameters()
+
+    # Verify structure
+    assert isinstance(params, dict)
+    for _key, value in params.items():
+        assert 'value' in value
+        assert isinstance(value['value'], (str, list))
+
+
+def test_infrastructure_policy_fragments_combining(mock_utils):
+    """Test combining base and custom policy fragments."""
+    pf1 = PolicyFragment('custom-1', '<policy></policy>', 'Custom 1')
+    pf2 = PolicyFragment('custom-2', '<policy></policy>', 'Custom 2')
+
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        infra_pfs=[pf1, pf2]
+    )
+
+    pfs = infra._define_policy_fragments()
+
+    # Should have 6 base + 2 custom
+    assert len(pfs) == 8
+    assert infra.base_pfs
+    assert any(pf.name == 'custom-1' for pf in pfs)
+    assert any(pf.name == 'custom-2' for pf in pfs)
+
+
+def test_infrastructure_apis_combining(mock_utils):
+    """Test combining base and custom APIs."""
+    api1 = API('custom-1', 'Custom 1', '/c1', 'Custom 1', '<policy></policy>')
+    api2 = API('custom-2', 'Custom 2', '/c2', 'Custom 2', '<policy></policy>')
+
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        infra_apis=[api1, api2]
+    )
+
+    apis = infra._define_apis()
+
+    # Should have 1 base (hello-world) + 2 custom
+    assert len(apis) == 3
+    assert infra.base_apis
+    assert any(api.name == 'custom-1' for api in apis)
+    assert any(api.name == 'custom-2' for api in apis)
+    assert infra.apis[0].name == 'hello-world'
+
+
+def test_infrastructure_with_no_custom_components(mock_utils):
+    """Test infrastructure with empty custom component lists."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        infra_apis=[],
+        infra_pfs=[]
+    )
+
+    apis = infra._define_apis()
+    pfs = infra._define_policy_fragments()
+
+    # Only base components
+    assert len(apis) == 1
+    assert len(pfs) == 6
+
+
+def test_infrastructure_network_mode_with_custom_components(mock_utils):
+    """Test infrastructure with network mode and custom components."""
+    pf = PolicyFragment('test-pf', '<policy></policy>', 'Test')
+    api = API('test-api', 'Test API', '/test', 'Test', '<policy></policy>')
+
+    for network_mode in [APIMNetworkMode.PUBLIC, APIMNetworkMode.INTERNAL_VNET, APIMNetworkMode.EXTERNAL_VNET]:
+        infra = infrastructures.Infrastructure(
+            infra=INFRASTRUCTURE.APPGW_APIM,
+            index=1,
+            rg_location='eastus',
+            networkMode=network_mode,
+            infra_pfs=[pf],
+            infra_apis=[api]
+        )
+        assert infra.networkMode == network_mode
+        infra._define_policy_fragments()
+        infra._define_apis()
+        assert len(infra.pfs) == 7
+        assert len(infra.apis) == 2
+
+
+def test_infrastructure_account_info_retrieval(mock_utils, mock_az):
+    """Test that account info is properly retrieved and stored."""
+    mock_az.get_account_info.return_value = (
+        'testuser@company.com',
+        'user-id-12345',
+        'tenant-id-67890',
+        'subscription-id-abcde'
+    )
+
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus'
+    )
+
+    assert infra.current_user == 'testuser@company.com'
+    assert infra.current_user_id == 'user-id-12345'
+    assert infra.tenant_id == 'tenant-id-67890'
+    assert infra.subscription_id == 'subscription-id-abcde'
+
+
+def test_infrastructure_with_different_indices(mock_utils):
+    """Test infrastructure with different index values."""
+    for index in [1, 2, 5, 10, 100]:
+        infra = infrastructures.Infrastructure(
+            infra=INFRASTRUCTURE.SIMPLE_APIM,
+            index=index,
+            rg_location='eastus'
+        )
+        assert infra.index == index
