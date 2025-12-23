@@ -114,6 +114,45 @@ class Infrastructure:
             print_error(f'Error during private link approval: {str(e)}')
             return False
 
+    def _create_keyvault(self, key_vault_name: str) -> bool:
+        # Check if Key Vault already exists
+        check_kv = az.run(
+            f'az keyvault show --name {key_vault_name} --resource-group {self.rg_name} -o json'
+        )
+
+        if not check_kv.success:
+            # Create Key Vault via Azure CLI with RBAC authorization (consistent with Bicep module)
+            print_plain(f'Creating Key Vault: {key_vault_name}')
+            create_kv = az.run(
+                f'az keyvault create --name {key_vault_name} --resource-group {self.rg_name} --location {self.rg_location} --enable-rbac-authorization true'
+            )
+
+            if not create_kv.success:
+                print_error(f'Failed to create Key Vault: {key_vault_name}')
+                print_plain('This may be caused by a soft-deleted Key Vault with the same name.')
+                print_plain('Check for soft-deleted resources: python shared/python/show_soft_deleted_resources.py\n')
+                return False
+
+            print_ok(f'Key Vault created: {key_vault_name}')
+
+            #Assign Key Vault Certificates Officer role to current user for certificate creation
+
+            # Key Vault Certificates Officer role
+            assign_kv_role = az.run(
+                f'az role assignment create --role "Key Vault Certificates Officer" --assignee {self.current_user_id} --scope /subscriptions/{self.subscription_id}/resourceGroups/{self.rg_name}/providers/Microsoft.KeyVault/vaults/{key_vault_name}'
+            )
+            if not assign_kv_role.success:
+                print_error('Failed to assign Key Vault Certificates Officer role to current user.\nThis is an RBAC permission issue - verify your account has sufficient permissions.')
+                return False
+
+            print_ok(' Assigned Key Vault Certificates Officer role to current user')
+
+            # Brief wait for role assignment propagation
+            print_plain('⏳ Waiting for role assignment propagation (15 seconds)...')
+            time.sleep(15)
+
+        return True
+
     def _define_bicep_parameters(self) -> dict:
         # Define the Bicep parameters with serialized APIs
         self.bicep_parameters = {
@@ -696,45 +735,6 @@ class AppGwApimPeInfrastructure(Infrastructure):
         base_params.update(appgw_params)
         return base_params
 
-    def _create_keyvault(self, key_vault_name: str) -> bool:
-        # Check if Key Vault already exists
-        check_kv = az.run(
-            f'az keyvault show --name {key_vault_name} --resource-group {self.rg_name} -o json'
-        )
-
-        if not check_kv.success:
-            # Create Key Vault via Azure CLI with RBAC authorization (consistent with Bicep module)
-            print_plain(f'Creating Key Vault: {key_vault_name}')
-            create_kv = az.run(
-                f'az keyvault create --name {key_vault_name} --resource-group {self.rg_name} --location {self.rg_location} --enable-rbac-authorization true'
-            )
-
-            if not create_kv.success:
-                print_error(f'Failed to create Key Vault: {key_vault_name}')
-                print_plain('This may be caused by a soft-deleted Key Vault with the same name.')
-                print_plain('Check for soft-deleted resources: python shared/python/show_soft_deleted_resources.py\n')
-                return False
-
-            print_ok(f'Key Vault created: {key_vault_name}')
-
-            #Assign Key Vault Certificates Officer role to current user for certificate creation
-
-            # Key Vault Certificates Officer role
-            assign_kv_role = az.run(
-                f'az role assignment create --role "Key Vault Certificates Officer" --assignee {self.current_user_id} --scope /subscriptions/{self.subscription_id}/resourceGroups/{self.rg_name}/providers/Microsoft.KeyVault/vaults/{key_vault_name}'
-            )
-            if not assign_kv_role.success:
-                print_error('Failed to assign Key Vault Certificates Officer role to current user.\nThis is an RBAC permission issue - verify your account has sufficient permissions.')
-                return False
-
-            print_ok(' Assigned Key Vault Certificates Officer role to current user')
-
-            # Brief wait for role assignment propagation
-            print_plain('⏳ Waiting for role assignment propagation (15 seconds)...')
-            time.sleep(15)
-
-        return True
-
     def deploy_infrastructure(self, is_update: bool = False) -> utils.Output:
         """
         Deploy the APPGW-APIM-PE infrastructure with the required multi-step process.
@@ -890,38 +890,6 @@ class AppGwApimInfrastructure(Infrastructure):
 
     def __init__(self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.DEVELOPER, infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
         super().__init__(INFRASTRUCTURE.APPGW_APIM, index, rg_location, apim_sku, APIMNetworkMode.INTERNAL_VNET, infra_pfs, infra_apis)
-
-    def _create_keyvault(self, key_vault_name: str) -> bool:
-        check_kv = az.run(
-            f'az keyvault show --name {key_vault_name} --resource-group {self.rg_name} -o json'
-        )
-
-        if not check_kv.success:
-            print_plain(f'Creating Key Vault: {key_vault_name}')
-            create_kv = az.run(
-                f'az keyvault create --name {key_vault_name} --resource-group {self.rg_name} --location {self.rg_location} --enable-rbac-authorization true'
-            )
-
-            if not create_kv.success:
-                print_error(f'Failed to create Key Vault: {key_vault_name}')
-                print_plain('This may be caused by a soft-deleted Key Vault with the same name.')
-                print_plain('Check for soft-deleted resources: python shared/python/show_soft_deleted_resources.py\n')
-                return False
-
-            print_ok(f'Key Vault created: {key_vault_name}')
-
-            assign_kv_role = az.run(
-                f'az role assignment create --role "Key Vault Certificates Officer" --assignee {self.current_user_id} --scope /subscriptions/{self.subscription_id}/resourceGroups/{self.rg_name}/providers/Microsoft.KeyVault/vaults/{key_vault_name}'
-            )
-            if not assign_kv_role.success:
-                print_error('Failed to assign Key Vault Certificates Officer role to current user.\nThis is an RBAC permission issue - verify your account has sufficient permissions.')
-                return False
-
-            print_ok(' Assigned Key Vault Certificates Officer role to current user')
-            print_plain('⏳ Waiting for role assignment propagation (15 seconds)...')
-            time.sleep(15)
-
-        return True
 
     def _create_keyvault_certificate(self, key_vault_name: str) -> bool:
         print_plain('\n🔐 Creating self-signed certificate in Key Vault...\n')
