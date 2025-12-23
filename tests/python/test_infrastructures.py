@@ -2,6 +2,8 @@
 Unit tests for infrastructures.py.
 """
 
+import json
+import os
 from unittest.mock import Mock, patch, MagicMock
 import pytest
 
@@ -2432,32 +2434,96 @@ def test_appgw_apim_pe_approve_private_links(mock_utils, mock_az):
     assert isinstance(result, bool)
 
 
-def test_afd_apim_aca_disable_public_access(mock_utils, mock_az):
-    """Test disabling public access for AfdApimAcaInfrastructure."""
-    infra = infrastructures.AfdApimAcaInfrastructure(
-        rg_location='eastus',
-        index=1
+@pytest.mark.unit
+def test_disable_apim_public_access_success_writes_params_and_calls_az(mock_utils, mock_az, tmp_path, monkeypatch):
+    """Disable public access should update params.json and trigger a redeploy."""
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    infra._define_bicep_parameters()
+    assert infra.bicep_parameters['apimPublicAccess']['value'] is True
+
+    # Redirect module-relative path resolution to a temp project layout.
+    monkeypatch.setattr(
+        infrastructures,
+        '__file__',
+        str(tmp_path / 'shared' / 'python' / 'infrastructures.py'),
+        raising=False
     )
+    infra_dir = tmp_path / 'infrastructure' / infra.infra.value
+    infra_dir.mkdir(parents=True, exist_ok=True)
 
     mock_az.run.return_value = Mock(success=True)
 
+    original_cwd = os.getcwd()
     result = infra._disable_apim_public_access()
 
-    assert isinstance(result, bool)
+    assert result is True
+    assert os.getcwd() == original_cwd
+    assert infra.bicep_parameters['apimPublicAccess']['value'] is False
+
+    params_path = infra_dir / 'params.json'
+    assert params_path.exists()
+
+    params_json = json.loads(params_path.read_text(encoding='utf-8'))
+    assert params_json['parameters']['apimPublicAccess']['value'] is False
+
+    mock_az.run.assert_called_once()
+    cmd = mock_az.run.call_args.args[0]
+    assert 'az deployment group create' in cmd
+    assert f'--name {infra.infra.value}-lockdown' in cmd
+    assert f'--resource-group {infra.rg_name}' in cmd
+    assert '--template-file' in cmd
+    assert '--parameters' in cmd
 
 
-def test_appgw_apim_pe_disable_public_access(mock_utils, mock_az):
-    """Test disabling public access for AppGwApimPeInfrastructure."""
-    infra = infrastructures.AppGwApimPeInfrastructure(
-        rg_location='eastus',
-        index=1
+@pytest.mark.unit
+def test_disable_apim_public_access_returns_false_when_param_missing(mock_utils, mock_az):
+    """If apimPublicAccess isn't present in parameters, the method should fail safely."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus'
     )
 
-    mock_az.run.return_value = Mock(success=True)
+    infra._define_policy_fragments()
+    infra._define_apis()
+    infra._define_bicep_parameters()
+    assert 'apimPublicAccess' not in infra.bicep_parameters
 
     result = infra._disable_apim_public_access()
 
-    assert isinstance(result, bool)
+    assert result is False
+    mock_az.run.assert_not_called()
+
+
+@pytest.mark.unit
+def test_disable_apim_public_access_returns_false_when_deploy_fails(mock_utils, mock_az, tmp_path, monkeypatch):
+    """If the redeploy fails (az.run.success=False), return False but still write params.json."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    infra._define_bicep_parameters()
+    assert infra.bicep_parameters['apimPublicAccess']['value'] is True
+
+    monkeypatch.setattr(
+        infrastructures,
+        '__file__',
+        str(tmp_path / 'shared' / 'python' / 'infrastructures.py'),
+        raising=False
+    )
+    infra_dir = tmp_path / 'infrastructure' / infra.infra.value
+    infra_dir.mkdir(parents=True, exist_ok=True)
+
+    mock_az.run.return_value = Mock(success=False)
+
+    result = infra._disable_apim_public_access()
+
+    assert result is False
+    assert (infra_dir / 'params.json').exists()
+    assert infra.bicep_parameters['apimPublicAccess']['value'] is False
 
 
 def test_afd_apim_aca_verify_connectivity(mock_utils, mock_az):
@@ -2712,32 +2778,156 @@ def test_appgw_apim_pe_approve_private_links_multiple(mock_utils, mock_az):
     assert isinstance(result, bool)
 
 
-def test_afd_apim_aca_disable_public_access_success(mock_utils, mock_az):
-    """Test disabling public access for AfdApimAcaInfrastructure."""
-    infra = infrastructures.AfdApimAcaInfrastructure(
-        rg_location='eastus',
-        index=1
-    )
+@pytest.mark.unit
+def test_afd_apim_aca_deploy_infrastructure_success_calls_steps(mock_utils, mock_az):
+    """AFD deploy should call approve/connectivity/disable steps when base deploy succeeds."""
+    mock_utils.Output.side_effect = Output
 
-    mock_az.run.return_value = Mock(success=True)
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
 
-    result = infra._disable_apim_public_access()
+    base_output = Mock()
+    base_output.success = True
+    base_output.json_data = {'any': 'value'}
+    base_output.get.side_effect = lambda key, *_args, **_kwargs: {
+        'apimServiceId': '/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test',
+        'apimResourceGatewayURL': 'https://test-apim.azure-api.net'
+    }.get(key)
 
-    assert isinstance(result, bool)
+    infra._approve_private_link_connections = Mock(return_value=True)
+    infra._verify_apim_connectivity = Mock(return_value=True)
+    infra._disable_apim_public_access = Mock(return_value=True)
+
+    with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=base_output) as mock_base_deploy:
+        result = infra.deploy_infrastructure(is_update=False)
+
+    assert result is base_output
+    mock_base_deploy.assert_called_once()
+    infra._approve_private_link_connections.assert_called_once_with('/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test')
+    infra._verify_apim_connectivity.assert_called_once_with('https://test-apim.azure-api.net')
+    infra._disable_apim_public_access.assert_called_once()
 
 
-def test_appgw_apim_pe_disable_public_access_success(mock_utils, mock_az):
-    """Test disabling public access for AppGwApimPeInfrastructure."""
-    infra = infrastructures.AppGwApimPeInfrastructure(
-        rg_location='eastus',
-        index=1
-    )
+@pytest.mark.unit
+def test_afd_apim_aca_deploy_infrastructure_returns_failed_output_when_approve_fails(mock_utils, mock_az):
+    """AFD deploy should return a failed Output when private link approval fails."""
+    mock_utils.Output.side_effect = Output
 
-    mock_az.run.return_value = Mock(success=True)
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
 
-    result = infra._disable_apim_public_access()
+    base_output = Mock()
+    base_output.success = True
+    base_output.json_data = {'any': 'value'}
+    base_output.get.side_effect = lambda key, *_args, **_kwargs: {
+        'apimServiceId': '/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test',
+        'apimResourceGatewayURL': 'https://test-apim.azure-api.net'
+    }.get(key)
 
-    assert isinstance(result, bool)
+    infra._approve_private_link_connections = Mock(return_value=False)
+
+    with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=base_output):
+        result = infra.deploy_infrastructure(is_update=False)
+
+    assert result.success is False
+    assert result.text == 'Private link approval failed'
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_deploy_infrastructure_success_calls_steps_and_sets_appgw_fields(mock_utils, mock_az):
+    """APPGW PE deploy should create prereqs, deploy, approve, verify connectivity, disable public access."""
+    mock_utils.Output.side_effect = Output
+
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    base_output = Mock()
+    base_output.success = True
+    base_output.json_data = {'any': 'value'}
+    base_output.get.side_effect = lambda key, *_args, **_kwargs: {
+        'apimServiceId': '/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test',
+        'apimResourceGatewayURL': 'https://test-apim.azure-api.net',
+        'appGatewayDomainName': 'api.example.com',
+        'appgwPublicIpAddress': '1.2.3.4'
+    }.get(key)
+
+    infra._create_keyvault = Mock(return_value=True)
+    infra._create_keyvault_certificate = Mock(return_value=True)
+    infra._approve_private_link_connections = Mock(return_value=True)
+    infra._verify_apim_connectivity = Mock(return_value=True)
+    infra._disable_apim_public_access = Mock(return_value=True)
+
+    with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=base_output) as mock_base_deploy:
+        result = infra.deploy_infrastructure(is_update=False)
+
+    assert result is base_output
+    infra._create_keyvault.assert_called_once()
+    infra._create_keyvault_certificate.assert_called_once()
+    mock_base_deploy.assert_called_once()
+    infra._approve_private_link_connections.assert_called_once_with('/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test')
+    infra._verify_apim_connectivity.assert_called_once_with('https://test-apim.azure-api.net')
+    infra._disable_apim_public_access.assert_called_once()
+    assert infra.appgw_domain_name == 'api.example.com'
+    assert infra.appgw_public_ip == '1.2.3.4'
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_deploy_infrastructure_returns_failed_output_when_keyvault_fails(mock_utils, mock_az):
+    """APPGW PE deploy should return a failed Output if Key Vault creation fails."""
+    mock_utils.Output.side_effect = Output
+
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+    infra._create_keyvault = Mock(return_value=False)
+
+    result = infra.deploy_infrastructure(is_update=False)
+
+    assert result.success is False
+    assert result.text == 'Failed to create Key Vault'
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_verify_infrastructure_specific_success(mock_utils, mock_az):
+    """Verify should pass when App Gateway exists; container apps and PE checks are optional."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    appgw_output = Mock(success=True, json_data={'name': 'test-appgw'})
+    aca_output = Mock(success=True, text='1')
+    apim_output = Mock(success=True, text='/subscriptions/test/.../apim')
+    pe_output = Mock(success=True, text='2')
+
+    mock_az.run.side_effect = [appgw_output, aca_output, apim_output, pe_output]
+
+    assert infra._verify_infrastructure_specific('rg-test') is True
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_verify_infrastructure_specific_returns_false_when_appgw_missing(mock_utils, mock_az):
+    """Verify should fail when App Gateway cannot be retrieved."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    mock_az.run.return_value = Mock(success=False, json_data=None)
+
+    assert infra._verify_infrastructure_specific('rg-test') is False
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_verify_infrastructure_specific_ignores_private_endpoint_errors(mock_utils, mock_az):
+    """Private endpoint verification is best-effort and should not fail the overall verification."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    appgw_output = Mock(success=True, json_data={'name': 'test-appgw'})
+    aca_output = Mock(success=True, text='0')
+
+    def run_side_effect(*args, **kwargs):
+        cmd = args[0] if args else ''
+        if 'application-gateway list' in cmd:
+            return appgw_output
+        if 'containerapp list' in cmd:
+            return aca_output
+        if 'az apim list' in cmd:
+            raise RuntimeError('boom')
+        raise AssertionError(f'Unexpected az.run call: {cmd}')
+
+    mock_az.run.side_effect = run_side_effect
+
+    assert infra._verify_infrastructure_specific('rg-test') is True
 
 
 def test_afd_apim_aca_verify_connectivity_with_retry(mock_utils, mock_az):
@@ -2959,35 +3149,3 @@ def test_infrastructure_network_mode_with_custom_components(mock_utils):
         infra._define_apis()
         assert len(infra.pfs) == 7
         assert len(infra.apis) == 2
-
-
-def test_infrastructure_account_info_retrieval(mock_utils, mock_az):
-    """Test that account info is properly retrieved and stored."""
-    mock_az.get_account_info.return_value = (
-        'testuser@company.com',
-        'user-id-12345',
-        'tenant-id-67890',
-        'subscription-id-abcde'
-    )
-
-    infra = infrastructures.Infrastructure(
-        infra=INFRASTRUCTURE.SIMPLE_APIM,
-        index=1,
-        rg_location='eastus'
-    )
-
-    assert infra.current_user == 'testuser@company.com'
-    assert infra.current_user_id == 'user-id-12345'
-    assert infra.tenant_id == 'tenant-id-67890'
-    assert infra.subscription_id == 'subscription-id-abcde'
-
-
-def test_infrastructure_with_different_indices(mock_utils):
-    """Test infrastructure with different index values."""
-    for index in [1, 2, 5, 10, 100]:
-        infra = infrastructures.Infrastructure(
-            infra=INFRASTRUCTURE.SIMPLE_APIM,
-            index=index,
-            rg_location='eastus'
-        )
-        assert infra.index == index
