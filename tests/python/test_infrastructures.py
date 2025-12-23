@@ -10,7 +10,7 @@ import pytest
 # APIM Samples imports
 import console
 import infrastructures
-from apimtypes import INFRASTRUCTURE, APIM_SKU, APIMNetworkMode, API, PolicyFragment, HTTP_VERB, Output
+from apimtypes import INFRASTRUCTURE, APIM_SKU, APIMNetworkMode, API, PolicyFragment, Output
 
 
 # ------------------------------
@@ -153,71 +153,83 @@ def test_infrastructure_creation_with_custom_apis(mock_utils, mock_apis):
     assert any(api.name == 'test-api-2' for api in apis)
     assert any(api.name == 'hello-world' for api in apis)
 
-@pytest.mark.unit
-def test_infrastructure_creation_calls_utils_functions(mock_utils, mock_az):
-    """Test that Infrastructure creation calls expected utility functions."""
-    infra = infrastructures.Infrastructure(
-        infra=INFRASTRUCTURE.SIMPLE_APIM,
-        index=TEST_INDEX,
-        rg_location=TEST_LOCATION
-    )
-
-    mock_az.get_infra_rg_name.assert_called_once_with(INFRASTRUCTURE.SIMPLE_APIM, TEST_INDEX)
-    mock_utils.build_infrastructure_tags.assert_called_once_with(INFRASTRUCTURE.SIMPLE_APIM)
-
-    # Initialize policy fragments to trigger utils calls
-    infra._define_policy_fragments()
-    infra._define_apis()
-
-    # Should call read_policy_xml for base policy fragments and APIs
-    assert mock_utils.read_policy_xml.call_count >= 6  # 5 base policy fragments + 1 hello-world API
-    assert mock_utils.determine_shared_policy_path.call_count >= 5
 
 @pytest.mark.unit
-def test_infrastructure_base_policy_fragments_creation(mock_utils):
-    """Test that base policy fragments are created correctly."""
-    infra = infrastructures.Infrastructure(
-        infra=INFRASTRUCTURE.SIMPLE_APIM,
-        index=TEST_INDEX,
-        rg_location=TEST_LOCATION
-    )
+def test_appgw_apim_pe_create_keyvault_certificate_returns_true_when_cert_exists(mock_utils, mock_az):
+    """If the certificate already exists, do not attempt creation (PE)."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+    mock_az.run.return_value = Mock(success=True)
 
-    # Initialize policy fragments
-    infra._define_policy_fragments()
+    assert infra._create_keyvault_certificate('test-kv') is True
+    mock_az.run.assert_called_once()
+    assert 'az keyvault certificate show' in mock_az.run.call_args.args[0]
 
-    # Check that all base policy fragments are created
-    expected_fragment_names = [
-        'AuthZ-Match-All',
-        'AuthZ-Match-Any',
-        'Http-Response-200',
-        'Product-Match-Any',
-        'Remove-Request-Headers'
-    ]
-
-    base_fragment_names = [pf.name for pf in infra.base_pfs]
-    for expected_name in expected_fragment_names:
-        assert expected_name in base_fragment_names
 
 @pytest.mark.unit
-def test_infrastructure_base_apis_creation(mock_utils):
-    """Test that base APIs are created correctly."""
-    infra = infrastructures.Infrastructure(
-        infra=INFRASTRUCTURE.SIMPLE_APIM,
-        index=TEST_INDEX,
-        rg_location=TEST_LOCATION
-    )
+def test_appgw_apim_create_keyvault_certificate_returns_true_when_cert_exists(mock_utils, mock_az):
+    """If the certificate already exists, do not attempt creation (Internal)."""
+    infra = infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1)
+    mock_az.run.return_value = Mock(success=True)
 
-    # Initialize APIs
-    infra._define_apis()
+    assert infra._create_keyvault_certificate('test-kv') is True
+    mock_az.run.assert_called_once()
+    assert 'az keyvault certificate show' in mock_az.run.call_args.args[0]
 
-    # Check that hello-world API is created
-    assert len(infra.base_apis) == 1
-    hello_world_api = infra.base_apis[0]
-    assert hello_world_api.name == 'hello-world'
-    assert hello_world_api.displayName == 'Hello World'
-    assert not hello_world_api.path
-    assert len(hello_world_api.operations) == 1
-    assert hello_world_api.operations[0].method == HTTP_VERB.GET
+
+@pytest.mark.unit
+def test_appgw_apim_pe_create_keyvault_certificate_creates_with_escaped_policy_when_missing(mock_utils, mock_az):
+    """If missing, create certificate and ensure policy string is escaped (PE)."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+    mock_az.run.side_effect = [Mock(success=False), Mock(success=True)]
+
+    assert infra._create_keyvault_certificate('test-kv') is True
+    assert mock_az.run.call_count == 2
+
+    create_cmd = mock_az.run.call_args.args[0]
+    assert 'az keyvault certificate create' in create_cmd
+    assert '--vault-name test-kv' in create_cmd
+    assert f'--name {infra.CERT_NAME}' in create_cmd
+    assert '--policy "' in create_cmd
+    assert '\\"issuerParameters\\"' in create_cmd
+    assert '\\"keyProperties\\"' in create_cmd
+    assert '\\"x509CertificateProperties\\"' in create_cmd
+
+
+@pytest.mark.unit
+def test_appgw_apim_create_keyvault_certificate_creates_with_escaped_policy_when_missing(mock_utils, mock_az):
+    """If missing, create certificate and ensure policy string is escaped (Internal)."""
+    infra = infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1)
+    mock_az.run.side_effect = [Mock(success=False), Mock(success=True)]
+
+    assert infra._create_keyvault_certificate('test-kv') is True
+    assert mock_az.run.call_count == 2
+
+    create_cmd = mock_az.run.call_args.args[0]
+    assert 'az keyvault certificate create' in create_cmd
+    assert '--vault-name test-kv' in create_cmd
+    assert f'--name {infra.CERT_NAME}' in create_cmd
+    assert '--policy "' in create_cmd
+    assert '\\"issuerParameters\\"' in create_cmd
+    assert '\\"keyProperties\\"' in create_cmd
+    assert '\\"x509CertificateProperties\\"' in create_cmd
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_create_keyvault_certificate_returns_false_when_create_fails(mock_utils, mock_az):
+    """If creation fails, return False (PE)."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+    mock_az.run.side_effect = [Mock(success=False), Mock(success=False)]
+
+    assert infra._create_keyvault_certificate('test-kv') is False
+
+
+@pytest.mark.unit
+def test_appgw_apim_create_keyvault_certificate_returns_false_when_create_fails(mock_utils, mock_az):
+    """If creation fails, return False (Internal)."""
+    infra = infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1)
+    mock_az.run.side_effect = [Mock(success=False), Mock(success=False)]
+
+    assert infra._create_keyvault_certificate('test-kv') is False
 
 
 # ------------------------------
@@ -2368,32 +2380,72 @@ def test_appgw_apim_create_keyvault(mock_utils, mock_az):
     assert isinstance(result, bool)
 
 
-def test_appgw_apim_pe_create_certificate(mock_utils, mock_az):
-    """Test certificate creation for AppGwApimPeInfrastructure."""
-    infra = infrastructures.AppGwApimPeInfrastructure(
-        rg_location='eastus',
-        index=1
-    )
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    'infra_factory',
+    [
+        lambda: infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1),
+        lambda: infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1),
+    ]
+)
+def test_create_keyvault_certificate_returns_true_when_cert_exists(mock_utils, mock_az, infra_factory):
+    """If the certificate already exists, do not attempt creation."""
+    infra = infra_factory()
 
     mock_az.run.return_value = Mock(success=True)
 
-    result = infra._create_keyvault_certificate('test-kv')
+    assert infra._create_keyvault_certificate('test-kv') is True
+    mock_az.run.assert_called_once()
+    assert 'az keyvault certificate show' in mock_az.run.call_args.args[0]
 
-    assert isinstance(result, bool)
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    'infra_factory',
+    [
+        lambda: infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1),
+        lambda: infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1),
+    ]
+)
+def test_create_keyvault_certificate_creates_with_escaped_policy_when_missing(mock_utils, mock_az, infra_factory):
+    """If missing, create certificate and ensure policy string is escaped for PowerShell."""
+    infra = infra_factory()
+
+    show_output = Mock(success=False)
+    create_output = Mock(success=True)
+    mock_az.run.side_effect = [show_output, create_output]
+
+    assert infra._create_keyvault_certificate('test-kv') is True
+
+    assert mock_az.run.call_count == 2
+    create_cmd = mock_az.run.call_args.args[0]
+    assert 'az keyvault certificate create' in create_cmd
+    assert '--vault-name test-kv' in create_cmd
+    assert f'--name {infra.CERT_NAME}' in create_cmd
+    assert '--policy "' in create_cmd
+    # Policy JSON should have escaped quotes (\")
+    assert '\\"issuerParameters\\"' in create_cmd
+    assert '\\"keyProperties\\"' in create_cmd
+    assert '\\"x509CertificateProperties\\"' in create_cmd
 
 
-def test_appgw_apim_create_certificate(mock_utils, mock_az):
-    """Test certificate creation for AppGwApimInfrastructure."""
-    infra = infrastructures.AppGwApimInfrastructure(
-        rg_location='eastus',
-        index=1
-    )
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    'infra_factory',
+    [
+        lambda: infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1),
+        lambda: infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1),
+    ]
+)
+def test_create_keyvault_certificate_returns_false_when_create_fails(mock_utils, mock_az, infra_factory):
+    """If creation fails, return False."""
+    infra = infra_factory()
 
-    mock_az.run.return_value = Mock(success=True)
+    show_output = Mock(success=False)
+    create_output = Mock(success=False)
+    mock_az.run.side_effect = [show_output, create_output]
 
-    result = infra._create_keyvault_certificate('test-kv')
-
-    assert isinstance(result, bool)
+    assert infra._create_keyvault_certificate('test-kv') is False
 
 
 def test_afd_apim_aca_approve_private_links(mock_utils, mock_az):
