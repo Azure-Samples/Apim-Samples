@@ -55,7 +55,6 @@ function Invoke-Cmd {
         Write-Host ""
         Write-Host "Command failed: $_" -ForegroundColor Red
         Write-Host ""
-        Invoke-Pause-Menu
         return $false
     }
     finally {
@@ -66,7 +65,6 @@ function Invoke-Cmd {
         Write-Host ""
         Write-Host "Command exited with code $exitCode" -ForegroundColor Yellow
         Write-Host ""
-        Invoke-Pause-Menu
         return $false
     }
 
@@ -101,11 +99,6 @@ except Exception as exc:  # pylint: disable=broad-except
     }
 }
 
-function Invoke-Pause-Menu {
-    Write-Host ""
-    Write-Host "=========================="
-    Read-Host "Press ENTER to return to the menu" | Out-Null
-}
 
 while ($true) {
     Write-Host ""
@@ -130,26 +123,25 @@ while ($true) {
 
     switch ($choice) {
         '1' {
-            if (Invoke-Cmd (Get-Python) "$RepoRoot/setup/local_setup.py" "--complete-setup") { Invoke-Pause-Menu }
+            Invoke-Cmd (Get-Python) "$RepoRoot/setup/local_setup.py" "--complete-setup"
         }
         '2' {
-            if (Invoke-Cmd (Get-Python) "$RepoRoot/setup/verify_local_setup.py") { Invoke-Pause-Menu }
+            Invoke-Cmd (Get-Python) "$RepoRoot/setup/verify_local_setup.py"
         }
         '3' {
             Show-AccountInfo
-            Invoke-Pause-Menu
         }
         '4' {
-            if (Invoke-Cmd (Get-Python) "$RepoRoot/shared/python/show_soft_deleted_resources.py") { Invoke-Pause-Menu }
+            Invoke-Cmd (Get-Python) "$RepoRoot/shared/python/show_soft_deleted_resources.py"
         }
         '5' {
-            if (Invoke-Cmd "$RepoRoot/tests/python/run_pylint.ps1") { Invoke-Pause-Menu }
+            Invoke-Cmd "$RepoRoot/tests/python/run_pylint.ps1"
         }
         '6' {
-            if (Invoke-Cmd "$RepoRoot/tests/python/run_tests.ps1") { Invoke-Pause-Menu }
+            Invoke-Cmd "$RepoRoot/tests/python/run_tests.ps1"
         }
         '7' {
-            if (Invoke-Cmd "$RepoRoot/tests/python/check_python.ps1") { Invoke-Pause-Menu }
+            Invoke-Cmd "$RepoRoot/tests/python/check_python.ps1"
         }
         '0' {
             Write-Host ""
