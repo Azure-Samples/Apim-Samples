@@ -1456,8 +1456,9 @@ def test_determine_shared_policy_path(monkeypatch):
     monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\project')
 
     result = utils.determine_shared_policy_path('test-policy.xml')
-    expected = 'c:\\mock\\project\\shared\\apim-policies\\fragments\\test-policy.xml'
-    assert result == expected
+    expected = Path('c:\\mock\\project') / 'shared' / 'apim-policies' / 'fragments' / 'test-policy.xml'
+
+    assert Path(result) == expected
 
 
 # ------------------------------
