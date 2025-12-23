@@ -1161,3 +1161,363 @@ def test_find_infrastructure_instances_with_index(monkeypatch):
     assert len(result) == 2
     assert (INFRASTRUCTURE.SIMPLE_APIM, 1) in result
     assert (INFRASTRUCTURE.SIMPLE_APIM, 2) in result
+
+
+# ------------------------------
+#    NotebookHelper._get_current_index TESTS
+# ------------------------------
+
+def test_notebookhelper_get_current_index_with_index(monkeypatch):
+    """Test _get_current_index when resource group has an index."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'apim-infra-simple-apim-5', 'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+
+    result = nb_helper._get_current_index()
+    assert result == 5
+
+
+def test_notebookhelper_get_current_index_without_index(monkeypatch):
+    """Test _get_current_index when resource group has no index."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'apim-infra-simple-apim', 'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+
+    result = nb_helper._get_current_index()
+    assert result is None
+
+
+def test_notebookhelper_get_current_index_invalid_format(monkeypatch):
+    """Test _get_current_index with invalid resource group format."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'custom-rg-name', 'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+
+    result = nb_helper._get_current_index()
+    assert result is None
+
+
+def test_notebookhelper_get_current_index_non_numeric_suffix(monkeypatch):
+    """Test _get_current_index with non-numeric suffix."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'apim-infra-simple-apim-abc', 'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+
+    result = nb_helper._get_current_index()
+    assert result is None
+
+
+# ------------------------------
+#    NotebookHelper._clean_up_jwt TESTS
+# ------------------------------
+
+def test_notebookhelper_clean_up_jwt_success(monkeypatch):
+    """Test _clean_up_jwt with successful cleanup."""
+    monkeypatch.setattr(az, 'cleanup_old_jwt_signing_keys', lambda *args: True)
+    monkeypatch.setattr('console.print_warning', lambda *args, **kwargs: None)
+    monkeypatch.setattr(utils, 'generate_signing_key', lambda: ('test-key', 'test-key-b64'))
+    monkeypatch.setattr(utils, 'print_val', lambda *args, **kwargs: None)
+    monkeypatch.setattr('time.time', lambda: 1234567890)
+
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM], use_jwt=True
+    )
+
+    # Should not raise or print warning
+    nb_helper._clean_up_jwt('test-apim')
+
+
+def test_notebookhelper_clean_up_jwt_failure(monkeypatch, caplog):
+    """Test _clean_up_jwt with failed cleanup."""
+    monkeypatch.setattr(az, 'cleanup_old_jwt_signing_keys', lambda *args: False)
+    monkeypatch.setattr(utils, 'generate_signing_key', lambda: ('test-key', 'test-key-b64'))
+    monkeypatch.setattr(utils, 'print_val', lambda *args, **kwargs: None)
+    monkeypatch.setattr('time.time', lambda: 1234567890)
+
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM], use_jwt=True
+    )
+
+    with caplog.at_level(logging.WARNING):
+        nb_helper._clean_up_jwt('test-apim')
+
+    # Should log warning about cleanup failure
+    assert any('JWT key cleanup failed' in record.message for record in caplog.records)
+
+
+# ------------------------------
+#    get_endpoints TESTS
+# ------------------------------
+
+def test_get_endpoints_comprehensive(monkeypatch):
+    """Test get_endpoints function."""
+    monkeypatch.setattr(az, 'get_frontdoor_url', lambda x, y: 'https://test-afd.azurefd.net')
+    monkeypatch.setattr(az, 'get_apim_url', lambda x: 'https://test-apim.azure-api.net')
+    monkeypatch.setattr(az, 'get_appgw_endpoint', lambda x: ('appgw.contoso.com', '1.2.3.4'))
+    monkeypatch.setattr('console.print_message', lambda x, **kw: None)
+
+    endpoints = utils.get_endpoints(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg')
+
+    assert endpoints.afd_endpoint_url == 'https://test-afd.azurefd.net'
+    assert endpoints.apim_endpoint_url == 'https://test-apim.azure-api.net'
+    assert endpoints.appgw_hostname == 'appgw.contoso.com'
+    assert endpoints.appgw_public_ip == '1.2.3.4'
+
+
+def test_get_endpoints_no_frontdoor(monkeypatch):
+    """Test get_endpoints when Front Door is not available."""
+    monkeypatch.setattr(az, 'get_frontdoor_url', lambda x, y: None)
+    monkeypatch.setattr(az, 'get_apim_url', lambda x: 'https://test-apim.azure-api.net')
+    monkeypatch.setattr(az, 'get_appgw_endpoint', lambda x: (None, None))
+    monkeypatch.setattr('console.print_message', lambda x, **kw: None)
+
+    endpoints = utils.get_endpoints(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg')
+
+    assert endpoints.afd_endpoint_url is None
+    assert endpoints.apim_endpoint_url == 'https://test-apim.azure-api.net'
+
+
+# ------------------------------
+#    get_json TESTS
+# ------------------------------
+
+def test_get_json_valid_json_string():
+    """Test get_json with valid JSON string."""
+    json_str = '{"key": "value", "number": 42}'
+    result = utils.get_json(json_str)
+    assert result == {'key': 'value', 'number': 42}
+
+
+def test_get_json_python_dict_string():
+    """Test get_json with Python dict string (single quotes)."""
+    dict_str = "{'key': 'value', 'number': 42}"
+    result = utils.get_json(dict_str)
+    assert result == {'key': 'value', 'number': 42}
+
+
+def test_get_json_invalid_string(monkeypatch):
+    """Test get_json with invalid string."""
+    monkeypatch.setattr('console.print_error', lambda *args, **kwargs: None)
+
+    invalid_str = "not valid json or python literal"
+    result = utils.get_json(invalid_str)
+    # Should return the original string when parsing fails
+    assert result == invalid_str
+
+
+def test_get_json_non_string():
+    """Test get_json with non-string input."""
+    result = utils.get_json({'already': 'a dict'})
+    assert result == {'already': 'a dict'}
+
+    result = utils.get_json([1, 2, 3])
+    assert result == [1, 2, 3]
+
+
+# ------------------------------
+#    does_infrastructure_exist TESTS
+# ------------------------------
+
+def test_does_infrastructure_exist_not_exist(monkeypatch):
+    """Test does_infrastructure_exist when infrastructure doesn't exist."""
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda x: False)
+    monkeypatch.setattr(az, 'get_infra_rg_name', lambda x, y: 'test-rg')
+    monkeypatch.setattr('console.print_plain', lambda *args, **kwargs: None)
+
+    result = utils.does_infrastructure_exist(INFRASTRUCTURE.SIMPLE_APIM, 1)
+    assert result is False
+
+
+def test_does_infrastructure_exist_with_update_option_proceed(monkeypatch):
+    """Test does_infrastructure_exist with update option - user proceeds."""
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda x: True)
+    monkeypatch.setattr(az, 'get_infra_rg_name', lambda x, y: 'test-rg')
+    monkeypatch.setattr('console.print_ok', lambda *args, **kwargs: None)
+    monkeypatch.setattr('console.print_plain', lambda *args, **kwargs: None)
+    monkeypatch.setattr('console.print_info', lambda *args, **kwargs: None)
+    monkeypatch.setattr('builtins.input', lambda prompt: '1')
+
+    result = utils.does_infrastructure_exist(INFRASTRUCTURE.SIMPLE_APIM, 1, allow_update_option=True)
+    assert result is False  # Allow deployment to proceed
+
+
+def test_does_infrastructure_exist_with_update_option_cancel(monkeypatch):
+    """Test does_infrastructure_exist with update option - user cancels."""
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda x: True)
+    monkeypatch.setattr(az, 'get_infra_rg_name', lambda x, y: 'test-rg')
+    monkeypatch.setattr('console.print_ok', lambda *args, **kwargs: None)
+    monkeypatch.setattr('console.print_plain', lambda *args, **kwargs: None)
+    monkeypatch.setattr('console.print_info', lambda *args, **kwargs: None)
+    monkeypatch.setattr('builtins.input', lambda prompt: '2')
+
+    result = utils.does_infrastructure_exist(INFRASTRUCTURE.SIMPLE_APIM, 1, allow_update_option=True)
+    assert result is True  # Block deployment
+
+
+def test_does_infrastructure_exist_without_update_option(monkeypatch):
+    """Test does_infrastructure_exist without update option."""
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda x: True)
+    monkeypatch.setattr(az, 'get_infra_rg_name', lambda x, y: 'test-rg')
+    monkeypatch.setattr('console.print_ok', lambda *args, **kwargs: None)
+    monkeypatch.setattr('console.print_plain', lambda *args, **kwargs: None)
+
+    result = utils.does_infrastructure_exist(INFRASTRUCTURE.SIMPLE_APIM, 1, allow_update_option=False)
+    assert result is True  # Infrastructure exists, block deployment
+
+
+# ------------------------------
+#    read_and_modify_policy_xml TESTS
+# ------------------------------
+
+def test_read_and_modify_policy_xml_with_replacements(monkeypatch):
+    """Test read_and_modify_policy_xml with placeholders."""
+    xml_content = '<policy><key>{jwt_key}</key><value>{api_value}</value></policy>'
+    m = mock_open(read_data=xml_content)
+
+    real_open = builtins.open
+
+    def open_selector(file, *args, **kwargs):
+        mode = kwargs.get('mode', args[0] if args else 'r')
+        file_str = str(file)
+        if 'test-policy.xml' in file_str and 'b' not in mode:
+            return m(file, *args, **kwargs)
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, 'open', open_selector)
+
+    replacements = {
+        'jwt_key': 'JwtSigningKey123',
+        'api_value': 'test-api'
+    }
+
+    result = utils.read_and_modify_policy_xml('/path/to/test-policy.xml', replacements)
+    expected = '<policy><key>JwtSigningKey123</key><value>test-api</value></policy>'
+    assert result == expected
+
+
+def test_read_and_modify_policy_xml_placeholder_not_found(monkeypatch, caplog):
+    """Test read_and_modify_policy_xml when placeholder doesn't exist in XML."""
+    xml_content = '<policy><key>static</key></policy>'
+    m = mock_open(read_data=xml_content)
+
+    real_open = builtins.open
+
+    def open_selector(file, *args, **kwargs):
+        mode = kwargs.get('mode', args[0] if args else 'r')
+        file_str = str(file)
+        if 'test-policy.xml' in file_str and 'b' not in mode:
+            return m(file, *args, **kwargs)
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, 'open', open_selector)
+
+    replacements = {'missing_key': 'value'}
+
+    with caplog.at_level(logging.WARNING):
+        _ = utils.read_and_modify_policy_xml('/path/to/test-policy.xml', replacements)
+
+    # Should log warning about missing placeholder
+    assert any('missing_key' in record.message for record in caplog.records)
+
+
+def test_read_and_modify_policy_xml_none_replacements(monkeypatch):
+    """Test read_and_modify_policy_xml with None replacements."""
+    xml_content = '<policy><key>{jwt_key}</key></policy>'
+    m = mock_open(read_data=xml_content)
+
+    real_open = builtins.open
+
+    def open_selector(file, *args, **kwargs):
+        mode = kwargs.get('mode', args[0] if args else 'r')
+        file_str = str(file)
+        if 'test-policy.xml' in file_str and 'b' not in mode:
+            return m(file, *args, **kwargs)
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, 'open', open_selector)
+
+    result = utils.read_and_modify_policy_xml('/path/to/test-policy.xml', None)
+    # Should return unmodified XML
+    assert result == xml_content
+
+
+# ------------------------------
+#    determine_shared_policy_path TESTS
+# ------------------------------
+
+def test_determine_shared_policy_path(monkeypatch):
+    """Test determine_shared_policy_path function."""
+    monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\project')
+
+    result = utils.determine_shared_policy_path('test-policy.xml')
+    expected = 'c:\\mock\\project\\shared\\apim-policies\\fragments\\test-policy.xml'
+    assert result == expected
+
+
+# ------------------------------
+#    InfrastructureNotebookHelper TESTS
+# ------------------------------
+
+def test_infrastructure_notebook_helper_bypass_check(monkeypatch):
+    """Test InfrastructureNotebookHelper with bypass_infrastructure_check=True."""
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
+
+    # Mock subprocess execution to succeed
+    class MockProcess:
+        def __init__(self, *args, **kwargs):
+            self.returncode = 0
+            self.stdout = iter(['Mock deployment output\n'])
+
+        def wait(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+    monkeypatch.setattr('subprocess.Popen', MockProcess)
+    monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
+    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
+
+    # Test with bypass_infrastructure_check=True
+    result = helper.create_infrastructure(bypass_infrastructure_check=True)
+    assert result is True
+
+
+def test_infrastructure_notebook_helper_allow_update_false(monkeypatch):
+    """Test InfrastructureNotebookHelper with allow_update=False."""
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
+
+    # Mock RG exists but allow_update=False
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda x: True)
+
+    # Mock subprocess execution to succeed
+    class MockProcess:
+        def __init__(self, *args, **kwargs):
+            self.returncode = 0
+            self.stdout = iter(['Mock deployment output\n'])
+
+        def wait(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+    monkeypatch.setattr('subprocess.Popen', MockProcess)
+    monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
+    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
+
+    # With allow_update=False, should still create when infrastructure doesn't exist
+    result = helper.create_infrastructure(allow_update=False, bypass_infrastructure_check=True)
+    assert result is True
