@@ -639,13 +639,15 @@ def find_project_root() -> str:
     """
     current_dir = os.getcwd()
 
-    # Look for marker files that indicate the project root
+    # Look for marker files that indicate the project root.
+    # Require all markers to avoid incorrectly treating notebook folders
+    # (which often contain their own README.md) as the repo root.
     marker_files = ['requirements.txt', 'README.md', 'bicepconfig.json']
 
     while current_dir != os.path.dirname(current_dir):  # Stop at filesystem root
-        if any(os.path.exists(os.path.join(current_dir, marker)) for marker in marker_files):
-            # Return as soon as marker files are found; do not require 'samples' directory
+        if all(os.path.exists(os.path.join(current_dir, marker)) for marker in marker_files):
             return current_dir
+
         current_dir = os.path.dirname(current_dir)
 
     # If we can't find the project root, raise an error
