@@ -1522,10 +1522,6 @@ def test_infrastructure_notebook_helper_allow_update_false(monkeypatch):
     result = helper.create_infrastructure(allow_update=False, bypass_infrastructure_check=True)
     assert result is True
 
-# ==============================
-#    ENHANCED COVERAGE TESTS
-# ==============================
-
 def test_infrastructure_notebook_helper_missing_args():
     """Test InfrastructureNotebookHelper requires all arguments."""
     with pytest.raises(TypeError):
@@ -1861,3 +1857,378 @@ def test_notebookhelper_with_all_parameters():
     assert nb_helper.index == 2
     assert nb_helper.is_debug is True
     assert nb_helper.apim_sku == APIM_SKU.PREMIUM
+
+def test_create_bicep_deployment_group_for_sample_with_custom_params_file(monkeypatch):
+    """Test determine_shared_policy_path constructs correct path."""
+    monkeypatch.setattr(utils, 'find_project_root', lambda: '/project/root')
+
+    result = utils.determine_shared_policy_path('my-fragment.xml')
+
+    # On Windows, path separators will be backslashes
+    assert 'project' in result and 'root' in result
+    assert 'shared' in result
+    assert 'apim-policies' in result
+    assert 'fragments' in result
+    assert 'my-fragment.xml' in result
+
+
+def test_wait_for_apim_blob_permissions_with_custom_timeout(monkeypatch):
+    """Test wait_for_apim_blob_permissions with custom timeout."""
+    mock_check = MagicMock(return_value=True)
+    monkeypatch.setattr(az, 'check_apim_blob_permissions', mock_check)
+    monkeypatch.setattr('console.print_info', lambda *a, **kw: None)
+    monkeypatch.setattr('console.print_ok', lambda *a, **kw: None)
+    monkeypatch.setattr('console.print_plain', lambda *a, **kw: None)
+
+    result = utils.wait_for_apim_blob_permissions(
+        'test-apim', 'test-storage', 'test-rg', max_wait_minutes=5
+    )
+
+    assert result is True
+    # Verify custom timeout was passed
+    mock_check.assert_called_once_with('test-apim', 'test-storage', 'test-rg', 5)
+
+
+def test_test_url_preflight_check_with_afd_endpoint(monkeypatch):
+    """Test test_url_preflight_check selects AFD when available."""
+    monkeypatch.setattr(az, 'get_frontdoor_url', lambda x, y: 'https://afd-endpoint.azurefd.net')
+    monkeypatch.setattr('console.print_message', lambda *a, **kw: None)
+
+    result = utils.test_url_preflight_check(
+        INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim.azure-api.net'
+    )
+
+    assert result == 'https://afd-endpoint.azurefd.net'
+
+
+def test_test_url_preflight_check_without_afd(monkeypatch):
+    """Test test_url_preflight_check uses APIM when no AFD."""
+    monkeypatch.setattr(az, 'get_frontdoor_url', lambda x, y: None)
+    monkeypatch.setattr('console.print_message', lambda *a, **kw: None)
+
+    result = utils.test_url_preflight_check(
+        INFRASTRUCTURE.SIMPLE_APIM, 'test-rg', 'https://apim.azure-api.net'
+    )
+
+    assert result == 'https://apim.azure-api.net'
+
+
+def test_get_json_with_nested_structure():
+    """Test get_json with deeply nested JSON."""
+    nested_json = '{"level1": {"level2": {"level3": {"value": "deep"}}}}'
+    result = utils.get_json(nested_json)
+
+    assert result['level1']['level2']['level3']['value'] == 'deep'
+
+
+def test_get_json_with_array():
+    """Test get_json with JSON array."""
+    json_array = '[{"id": 1}, {"id": 2}, {"id": 3}]'
+    result = utils.get_json(json_array)
+
+    assert isinstance(result, list)
+    assert len(result) == 3
+    assert result[1]['id'] == 2
+
+
+def test_get_json_with_empty_string():
+    """Test get_json with empty string."""
+    result = utils.get_json('')
+
+    assert not result
+
+
+def test_get_json_with_number_string():
+    """Test get_json with numeric string."""
+    result = utils.get_json('42')
+
+    assert result == 42
+
+
+def test_get_json_with_boolean_string():
+    """Test get_json with boolean string."""
+    result_true = utils.get_json('true')
+    result_false = utils.get_json('false')
+
+    assert result_true is True
+    assert result_false is False
+
+
+def test_validate_infrastructure_single_supported():
+    """Test validate_infrastructure with single supported infrastructure."""
+    # Should not raise
+    utils.validate_infrastructure(
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+
+
+def test_validate_infrastructure_multiple_supported_v2():
+    """Test validate_infrastructure with multiple supported infrastructures."""
+    # Should not raise
+    utils.validate_infrastructure(
+        INFRASTRUCTURE.APIM_ACA,
+        [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA, INFRASTRUCTURE.APPGW_APIM]
+    )
+
+
+def test_validate_infrastructure_unsupported_raises():
+    """Test validate_infrastructure raises for unsupported infrastructure."""
+    with pytest.raises(ValueError) as exc_info:
+        utils.validate_infrastructure(
+            INFRASTRUCTURE.AFD_APIM_PE,
+            [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA]
+        )
+
+    assert 'Unsupported infrastructure' in str(exc_info.value)
+    assert 'afd-apim-pe' in str(exc_info.value)
+
+
+def test_generate_signing_key_uniqueness():
+    """Test generate_signing_key produces unique keys."""
+    keys = set()
+    b64_keys = set()
+
+    for _ in range(10):
+        key, b64_key = utils.generate_signing_key()
+        keys.add(key)
+        b64_keys.add(b64_key)
+
+    # All keys should be unique
+    assert len(keys) == 10
+    assert len(b64_keys) == 10
+
+
+def test_build_infrastructure_tags_preserves_custom():
+    """Test build_infrastructure_tags preserves all custom tags."""
+    custom_tags = {
+        'environment': 'production',
+        'cost-center': 'engineering',
+        'owner': 'platform-team',
+        'project': 'api-gateway'
+    }
+
+    result = utils.build_infrastructure_tags(INFRASTRUCTURE.SIMPLE_APIM, custom_tags)
+
+    # All custom tags should be present
+    for key, value in custom_tags.items():
+        assert result[key] == value
+
+    # Infrastructure tag should also be present
+    assert result['infrastructure'] == 'simple-apim'
+
+
+def test_build_infrastructure_tags_with_string_infrastructure():
+    """Test build_infrastructure_tags with string infrastructure value."""
+    result = utils.build_infrastructure_tags('custom-infra', {'env': 'dev'})
+
+    assert result['infrastructure'] == 'custom-infra'
+    assert result['env'] == 'dev'
+
+
+def test_determine_policy_path_with_backslash_separators():
+    """Test determine_policy_path recognizes backslash path separators."""
+    path = 'C:\\path\\to\\policy.xml'
+    result = utils.determine_policy_path(path)
+
+    # Should treat as full path due to backslash
+    assert result == path
+
+
+def test_determine_policy_path_with_forward_slash():
+    """Test determine_policy_path recognizes forward slash paths."""
+    path = '/absolute/path/to/policy.xml'
+    result = utils.determine_policy_path(path)
+
+    # Should treat as full path
+    assert result == path
+
+
+def test_determine_policy_path_with_relative_path():
+    """Test determine_policy_path recognizes relative paths with separators."""
+    path = 'relative/path/policy.xml'
+    result = utils.determine_policy_path(path)
+
+    # Should treat as full path due to separator
+    assert result == path
+
+
+def test_read_policy_xml_with_multiple_named_values(monkeypatch):
+    """Test read_policy_xml with multiple named values."""
+    xml_content = '<policy><key1>{var1}</key1><key2>{var2}</key2><key3>{var3}</key3></policy>'
+    m = mock_open(read_data=xml_content)
+
+    real_open = builtins.open
+
+    def open_selector(file, *args, **kwargs):
+        mode = kwargs.get('mode', args[0] if args else 'r')
+        if 'policy.xml' in str(file) and 'b' not in mode:
+            return m(file, *args, **kwargs)
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, 'open', open_selector)
+
+    named_values = {
+        'var1': 'jwt-signing-key',
+        'var2': 'api-key',
+        'var3': 'role-id'
+    }
+
+    result = utils.read_policy_xml('/path/to/policy.xml', named_values=named_values)
+
+    # Should have double-braced named values
+    assert '{{jwt-signing-key}}' in result
+    assert '{{api-key}}' in result
+    assert '{{role-id}}' in result
+
+
+def test_read_and_modify_policy_xml_with_empty_replacements(monkeypatch):
+    """Test read_and_modify_policy_xml with empty replacements dict."""
+    xml_content = '<policy><key>{placeholder}</key></policy>'
+    m = mock_open(read_data=xml_content)
+
+    real_open = builtins.open
+
+    def open_selector(file, *args, **kwargs):
+        mode = kwargs.get('mode', args[0] if args else 'r')
+        if 'policy.xml' in str(file) and 'b' not in mode:
+            return m(file, *args, **kwargs)
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, 'open', open_selector)
+
+    result = utils.read_and_modify_policy_xml('/path/to/policy.xml', {})
+
+    # With empty replacements, content should be unchanged
+    assert result == xml_content
+
+
+def test_read_and_modify_policy_xml_preserves_formatting(monkeypatch):
+    """Test read_and_modify_policy_xml preserves XML formatting."""
+    xml_content = '''<policy>
+    <inbound>
+        <base />
+        <set-variable name="test" value="{placeholder}" />
+    </inbound>
+</policy>'''
+    m = mock_open(read_data=xml_content)
+
+    real_open = builtins.open
+
+    def open_selector(file, *args, **kwargs):
+        mode = kwargs.get('mode', args[0] if args else 'r')
+        if 'policy.xml' in str(file) and 'b' not in mode:
+            return m(file, *args, **kwargs)
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, 'open', open_selector)
+
+    replacements = {'placeholder': 'actual-value'}
+    result = utils.read_and_modify_policy_xml('/path/to/policy.xml', replacements)
+
+    # Should preserve indentation and newlines
+    assert '\n    <inbound>\n' in result
+    assert 'actual-value' in result
+
+
+def test_find_project_root_with_readme_only(monkeypatch, tmp_path):
+    """Test find_project_root finds root with only README.md."""
+    root = tmp_path / 'project'
+    root.mkdir()
+    (root / 'README.md').touch()
+
+    nested = root / 'sub' / 'dir'
+    nested.mkdir(parents=True)
+
+    monkeypatch.setattr('os.getcwd', lambda: str(nested))
+
+    result = utils.find_project_root()
+    assert result == str(root)
+
+
+def test_find_project_root_with_requirements_only(monkeypatch, tmp_path):
+    """Test find_project_root finds root with only requirements.txt."""
+    root = tmp_path / 'project'
+    root.mkdir()
+    (root / 'requirements.txt').touch()
+
+    nested = root / 'sub' / 'dir'
+    nested.mkdir(parents=True)
+
+    monkeypatch.setattr('os.getcwd', lambda: str(nested))
+
+    result = utils.find_project_root()
+    assert result == str(root)
+
+
+def test_find_project_root_already_at_root(monkeypatch, tmp_path):
+    """Test find_project_root when already in project root."""
+    root = tmp_path / 'project'
+    root.mkdir()
+    (root / 'README.md').touch()
+
+    monkeypatch.setattr('os.getcwd', lambda: str(root))
+
+    result = utils.find_project_root()
+    assert result == str(root)
+
+
+def test_find_project_root_not_found_raises(monkeypatch, tmp_path):
+    """Test find_project_root raises when no markers found."""
+    deep_dir = tmp_path / 'no' / 'project' / 'here'
+    deep_dir.mkdir(parents=True)
+
+    monkeypatch.setattr('os.getcwd', lambda: str(deep_dir))
+
+    with pytest.raises(FileNotFoundError) as exc_info:
+        utils.find_project_root()
+
+    assert 'Could not determine project root' in str(exc_info.value)
+
+
+def test_get_deployment_failure_message_with_deployment_name():
+    """Test get_deployment_failure_message includes deployment name."""
+    msg = utils.get_deployment_failure_message('my-custom-deployment')
+
+    assert 'my-custom-deployment' in msg
+    assert 'failed' in msg.lower()
+
+
+def test_endpoints_class_initialization():
+    """Test Endpoints class initializes deployment field."""
+    endpoints = utils.Endpoints(INFRASTRUCTURE.AFD_APIM_PE)
+
+    assert endpoints.deployment == INFRASTRUCTURE.AFD_APIM_PE
+
+
+def test_endpoints_class_set_values():
+    """Test Endpoints class can set all endpoint values."""
+    endpoints = utils.Endpoints(INFRASTRUCTURE.APPGW_APIM)
+    endpoints.afd_endpoint_url = 'https://afd.azurefd.net'
+    endpoints.apim_endpoint_url = 'https://apim.azure-api.net'
+    endpoints.appgw_hostname = 'appgw.example.com'
+    endpoints.appgw_public_ip = '20.30.40.50'
+
+    assert endpoints.afd_endpoint_url == 'https://afd.azurefd.net'
+    assert endpoints.apim_endpoint_url == 'https://apim.azure-api.net'
+    assert endpoints.appgw_hostname == 'appgw.example.com'
+    assert endpoints.appgw_public_ip == '20.30.40.50'
+
+
+def test_output_class_without_json():
+    """Test Output class with non-JSON text."""
+    output = utils.Output(success=False, text='Error message here')
+
+    assert output.success is False
+    assert output.text == 'Error message here'
+    assert output.is_json is False
+
+
+def test_output_get_with_deep_nesting():
+    """Test Output.get with deeply nested structure."""
+    json_output = '{"properties": {"outputs": {"deep": {"value": {"nested": {"data": "found"}}}}}}'
+    output = utils.Output(success=True, text=json_output)
+
+    # This tests the nested value extraction - Output.get returns str
+    result = output.get('deep', 'Deep value')
+    assert "{'nested':" in result or '{"nested":' in result

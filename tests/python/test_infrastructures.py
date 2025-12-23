@@ -1673,10 +1673,6 @@ def test_cleanup_resources_malformed_responses(monkeypatch):
     # Should handle malformed responses gracefully without raising exceptions
     infrastructures._cleanup_resources('test-deployment', 'test-rg')
 
-# ==============================
-#    ENHANCED COVERAGE TESTS
-# ==============================
-
 def test_appgw_apim_infrastructure_bicep_parameters(mock_utils):
     """Test APPGW-APIM-PE specific Bicep parameters."""
     # Test with custom APIs (should enable ACA)
