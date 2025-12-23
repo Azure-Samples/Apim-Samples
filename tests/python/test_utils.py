@@ -17,6 +17,20 @@ import json_utils
 import azure_resources as az
 from console import print_error, print_info, print_message, print_ok, print_val, print_warning
 
+
+@pytest.fixture
+def suppress_utils_console(monkeypatch):
+    for attr in (
+        'print_plain',
+        'print_info',
+        'print_ok',
+        'print_warning',
+        'print_error',
+        'print_message',
+        'print_val',
+    ):
+        monkeypatch.setattr(utils, attr, lambda *args, **kwargs: None)
+
 # ------------------------------
 #    get_infra_rg_name & get_rg_name
 # ------------------------------
@@ -693,13 +707,101 @@ def test_get_azure_role_guid_comprehensive(monkeypatch):
 
 # ------------------------------
 #    INFRASTRUCTURE SELECTION TESTS
-#    Note: Tests for _find_infrastructure_instances and _query_and_select_infrastructure
-#    removed as they test private implementation details. The standalone function
-#    find_infrastructure_instances() is tested in test_azure_resources.py
 # ------------------------------
 
-# End of Infrastructure Selection Tests - NotebookHelper._query_and_select_infrastructure tests removed
-# as they test private implementation details. The public behavior is tested through integration tests.
+
+def test_query_and_select_infrastructure_returns_desired_when_available(monkeypatch, suppress_utils_console):
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim-3',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    monkeypatch.setattr(
+        az,
+        'find_infrastructure_instances',
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 3)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+    )
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
+    assert selected_index == 3
+
+
+def test_query_and_select_infrastructure_creates_when_none_found(monkeypatch, suppress_utils_console):
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    monkeypatch.setattr(az, 'find_infrastructure_instances', lambda infra: [])
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+
+    created_helpers: list = []
+
+    class DummyInfraHelper:
+        def __init__(self, rg_location, deployment, index, apim_sku):
+            self.rg_location = rg_location
+            self.deployment = deployment
+            self.index = index
+            self.apim_sku = apim_sku
+            self.calls: list[bool] = []
+            created_helpers.append(self)
+
+        def create_infrastructure(self, bypass):
+            self.calls.append(bypass)
+            return True
+
+    monkeypatch.setattr(utils, 'InfrastructureNotebookHelper', DummyInfraHelper)
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
+    assert selected_index is None
+    assert created_helpers
+    assert created_helpers[0].calls == [True]
+
+
+def test_query_and_select_infrastructure_user_selects_existing(monkeypatch, suppress_utils_console):
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim-1',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    monkeypatch.setattr(
+        az,
+        'find_infrastructure_instances',
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 5)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+    )
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+    monkeypatch.setattr('builtins.input', lambda prompt: '2')
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
+    assert selected_index == 5
 
 # ------------------------------
 #    TESTS FOR _prompt_for_infrastructure_update
