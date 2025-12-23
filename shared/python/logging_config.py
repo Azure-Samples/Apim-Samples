@@ -20,7 +20,7 @@ from typing import Final
 
 try:
     from dotenv import load_dotenv  # type: ignore[import-not-found]
-except Exception:  # pragma: no cover
+except Exception:
     load_dotenv = None
 
 

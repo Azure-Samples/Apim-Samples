@@ -15,7 +15,7 @@ SETUP_PATH = PROJECT_ROOT / "setup"
 if str(SETUP_PATH) not in sys.path:
     sys.path.insert(0, str(SETUP_PATH))
 
-if TYPE_CHECKING:  # pragma: no cover - placeholder for type inference
+if TYPE_CHECKING:
     vls = cast(ModuleType, None)
 else:
     vls = cast(ModuleType, importlib.import_module("verify_local_setup"))

@@ -491,131 +491,132 @@ def test_mixed_function_calls():
         assert expected_color in output, f'{func.__name__} should use {expected_color}'
 
 
-    # ------------------------------
-    #    _WRAP_LINE TESTS
-    # ------------------------------
-
-    def test_wrap_line_short_text():
-        """Test _wrap_line with text shorter than width."""
-        result = console._wrap_line('short', 100)
-        assert result == 'short'
+# ------------------------------
+#    _WRAP_LINE TESTS
+# ------------------------------
 
 
-    def test_wrap_line_long_text():
-        """Test _wrap_line with text longer than width."""
-        result = console._wrap_line('this is a very long line that needs to be wrapped because it exceeds the width', 20)
-        # Result should have multiple lines
-        assert '\n' in result
+def test_wrap_line_short_text():
+    """Test _wrap_line with text shorter than width."""
+    result = console._wrap_line('short', 100)
+    assert result == 'short'
 
 
-    def test_wrap_line_preserves_leading_whitespace():
-        """Test _wrap_line preserves leading indentation."""
-        text = '    indented text that is very long and should wrap properly'
-        result = console._wrap_line(text, 30)
-        lines = result.split('\n')
-        # All lines should start with the same indentation
-        for line in lines:
-            if line:  # non-empty lines
-                assert line.startswith('    ')
+def test_wrap_line_long_text():
+    """Test _wrap_line with text longer than width."""
+    result = console._wrap_line('this is a very long line that needs to be wrapped because it exceeds the width', 20)
+    assert '\n' in result
 
 
-    def test_wrap_line_empty_string():
-        """Test _wrap_line with empty string."""
-        result = console._wrap_line('', 100)
-        assert result == ''
+def test_wrap_line_preserves_leading_whitespace():
+    """Test _wrap_line preserves leading indentation."""
+    text = '    indented text that is very long and should wrap properly'
+    result = console._wrap_line(text, 30)
+    lines = result.split('\n')
+    for line in lines:
+        if line:
+            assert line.startswith('    ')
 
 
-    def test_wrap_line_only_whitespace():
-        """Test _wrap_line with only whitespace."""
-        result = console._wrap_line('    ', 100)
-        assert result == '    '
+def test_wrap_line_empty_string():
+    """Test _wrap_line with empty string."""
+    result = console._wrap_line('', 100)
+    assert not result
 
 
-    def test_wrap_line_zero_width():
-        """Test _wrap_line with zero width."""
-        result = console._wrap_line('text', 0)
-        assert result == 'text'
+def test_wrap_line_only_whitespace():
+    """Test _wrap_line with only whitespace."""
+    result = console._wrap_line('    ', 100)
+    assert result == '    '
 
 
-    def test_wrap_line_negative_width():
-        """Test _wrap_line with negative width."""
-        result = console._wrap_line('text', -10)
-        assert result == 'text'
+def test_wrap_line_zero_width():
+    """Test _wrap_line with zero width."""
+    result = console._wrap_line('text', 0)
+    assert result == 'text'
 
 
-    # ------------------------------
-    #    _INFER_LEVEL_FROM_MESSAGE TESTS
-    # ------------------------------
-
-    def test_infer_level_emoji_error():
-        """Test _infer_level_from_message with error emoji."""
-        level = console._infer_level_from_message('❌ Something went wrong')
-        assert level == logging.ERROR
+def test_wrap_line_negative_width():
+    """Test _wrap_line with negative width."""
+    result = console._wrap_line('text', -10)
+    assert result == 'text'
 
 
-    def test_infer_level_emoji_warning():
-        """Test _infer_level_from_message with warning emoji."""
-        level = console._infer_level_from_message('⚠️ Be careful')
-        assert level == logging.WARNING
+# ------------------------------
+#    _INFER_LEVEL_FROM_MESSAGE TESTS
+# ------------------------------
 
 
-    def test_infer_level_emoji_success():
-        """Test _infer_level_from_message with success emoji."""
-        level = console._infer_level_from_message('✅ Operation succeeded')
-        assert level == logging.INFO
+def test_infer_level_emoji_error():
+    """Test _infer_level_from_message with error emoji."""
+    level = console._infer_level_from_message('❌ Something went wrong')
+    assert level == logging.ERROR
 
 
-    def test_infer_level_text_error():
-        """Test _infer_level_from_message with 'error:' text."""
-        level = console._infer_level_from_message('error: something failed')
-        assert level == logging.ERROR
+def test_infer_level_emoji_warning():
+    """Test _infer_level_from_message with warning emoji."""
+    level = console._infer_level_from_message('⚠️ Be careful')
+    assert level == logging.WARNING
 
 
-    def test_infer_level_text_warning():
-        """Test _infer_level_from_message with 'warning:' text."""
-        level = console._infer_level_from_message('warning: be careful')
-        assert level == logging.WARNING
+def test_infer_level_emoji_success():
+    """Test _infer_level_from_message with success emoji."""
+    level = console._infer_level_from_message('✅ Operation succeeded')
+    assert level == logging.INFO
 
 
-    def test_infer_level_default():
-        """Test _infer_level_from_message with unknown format."""
-        level = console._infer_level_from_message('just a message')
-        assert level == logging.INFO
+def test_infer_level_text_error():
+    """Test _infer_level_from_message with 'error:' text."""
+    level = console._infer_level_from_message('error: something failed')
+    assert level == logging.ERROR
 
 
-    def test_infer_level_empty_string():
-        """Test _infer_level_from_message with empty string."""
-        level = console._infer_level_from_message('')
-        assert level == logging.INFO
+def test_infer_level_text_warning():
+    """Test _infer_level_from_message with 'warning:' text."""
+    level = console._infer_level_from_message('warning: be careful')
+    assert level == logging.WARNING
 
 
-    # ------------------------------
-    #    _GET_CONSOLE_WIDTH TESTS
-    # ------------------------------
-
-    def test_get_console_width_default(monkeypatch):
-        """Test _get_console_width uses default when env var not set."""
-        monkeypatch.delenv('APIM_SAMPLES_CONSOLE_WIDTH', raising=False)
-        width = console._get_console_width()
-        assert width == console._DEFAULT_CONSOLE_WIDTH
+def test_infer_level_default():
+    """Test _infer_level_from_message with unknown format."""
+    level = console._infer_level_from_message('just a message')
+    assert level == logging.INFO
 
 
-    def test_get_console_width_custom(monkeypatch):
-        """Test _get_console_width uses custom value from env."""
-        monkeypatch.setenv('APIM_SAMPLES_CONSOLE_WIDTH', '150')
-        width = console._get_console_width()
-        assert width == 150
+def test_infer_level_empty_string():
+    """Test _infer_level_from_message with empty string."""
+    level = console._infer_level_from_message('')
+    assert level == logging.INFO
 
 
-    def test_get_console_width_invalid_value(monkeypatch):
-        """Test _get_console_width falls back to default for invalid value."""
-        monkeypatch.setenv('APIM_SAMPLES_CONSOLE_WIDTH', 'invalid')
-        width = console._get_console_width()
-        assert width == console._DEFAULT_CONSOLE_WIDTH
+# ------------------------------
+#    _GET_CONSOLE_WIDTH TESTS
+# ------------------------------
 
 
-    def test_get_console_width_too_small(monkeypatch):
-        """Test _get_console_width falls back to default for too-small value."""
-        monkeypatch.setenv('APIM_SAMPLES_CONSOLE_WIDTH', '10')
-        width = console._get_console_width()
-        assert width == console._DEFAULT_CONSOLE_WIDTH
+def test_get_console_width_default(monkeypatch):
+    """Test _get_console_width uses default when env var not set."""
+    monkeypatch.delenv('APIM_SAMPLES_CONSOLE_WIDTH', raising=False)
+    width = console._get_console_width()
+    assert width == console._DEFAULT_CONSOLE_WIDTH
+
+
+def test_get_console_width_custom(monkeypatch):
+    """Test _get_console_width uses custom value from env."""
+    monkeypatch.setenv('APIM_SAMPLES_CONSOLE_WIDTH', '150')
+    width = console._get_console_width()
+    assert width == 150
+
+
+def test_get_console_width_invalid_value(monkeypatch):
+    """Test _get_console_width falls back to default for invalid value."""
+    monkeypatch.setenv('APIM_SAMPLES_CONSOLE_WIDTH', 'invalid')
+    width = console._get_console_width()
+    assert width == console._DEFAULT_CONSOLE_WIDTH
+
+
+def test_get_console_width_too_small(monkeypatch):
+    """Test _get_console_width falls back to default for too-small value."""
+    monkeypatch.setenv('APIM_SAMPLES_CONSOLE_WIDTH', '10')
+    width = console._get_console_width()
+    assert width == console._DEFAULT_CONSOLE_WIDTH

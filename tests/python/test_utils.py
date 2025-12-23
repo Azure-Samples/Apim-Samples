@@ -1048,128 +1048,116 @@ def test_notebookhelper_initialization_with_jwt(monkeypatch):
     assert nb_helper.jwt_key_value == 'test-key'
     assert nb_helper.jwt_key_value_bytes_b64 == 'test-key-b64'
 
-    def test_validate_infrastructure_supported():
-        """Test validate_infrastructure with supported infrastructure."""
-        # Should return None for supported infra
-        result = utils.validate_infrastructure(INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM])
-        assert result is None
+def test_get_deployment_failure_message_debug_disabled(monkeypatch):
+    """Test get_deployment_failure_message when DEBUG is not enabled."""
+    monkeypatch.setattr('logging_config.get_configured_level_name', lambda: 'INFO')
 
-    def test_validate_infrastructure_unsupported():
-        """Test validate_infrastructure with unsupported infrastructure."""
-        # Should raise ValueError for unsupported infra
-        with pytest.raises(ValueError, match='Unsupported infrastructure'):
-            utils.validate_infrastructure(INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.APIM_ACA])
+    msg = utils.get_deployment_failure_message('test-deployment')
+    assert 'test-deployment' in msg
+    assert 'DEBUG' in msg
+    assert 'Enable DEBUG' in msg
 
-    def test_get_deployment_failure_message_debug_disabled(monkeypatch):
-        """Test get_deployment_failure_message when DEBUG is not enabled."""
-        monkeypatch.setattr('logging_config.get_configured_level_name', lambda: 'INFO')
-    
-        msg = utils.get_deployment_failure_message('test-deployment')
-        assert 'test-deployment' in msg
-        assert 'DEBUG' in msg
-        assert 'Enable DEBUG' in msg
+def test_get_deployment_failure_message_debug_enabled(monkeypatch):
+    """Test get_deployment_failure_message when DEBUG is enabled."""
+    monkeypatch.setattr('logging_config.get_configured_level_name', lambda: 'DEBUG')
 
-    def test_get_deployment_failure_message_debug_enabled(monkeypatch):
-        """Test get_deployment_failure_message when DEBUG is enabled."""
-        monkeypatch.setattr('logging_config.get_configured_level_name', lambda: 'DEBUG')
-    
-        msg = utils.get_deployment_failure_message('test-deployment')
-        assert 'test-deployment' in msg
-        assert 'Enable DEBUG' not in msg
+    msg = utils.get_deployment_failure_message('test-deployment')
+    assert 'test-deployment' in msg
+    assert 'Enable DEBUG' not in msg
 
-    def test_find_project_root_in_current_dir(monkeypatch, tmp_path):
-        """Test find_project_root when called from subdirectory."""
-        # Create mock project structure
-        root = tmp_path / 'project'
-        root.mkdir()
-        (root / 'README.md').touch()
-        (root / 'bicepconfig.json').touch()
-        subdir = root / 'infrastructure' / 'test'
-        subdir.mkdir(parents=True)
-    
-        monkeypatch.setattr('os.getcwd', lambda: str(subdir))
-    
-        result = utils.find_project_root()
-        assert isinstance(result, str)
+def test_find_project_root_in_current_dir(monkeypatch, tmp_path):
+    """Test find_project_root when called from subdirectory."""
+    # Create mock project structure
+    root = tmp_path / 'project'
+    root.mkdir()
+    (root / 'README.md').touch()
+    (root / 'bicepconfig.json').touch()
+    subdir = root / 'infrastructure' / 'test'
+    subdir.mkdir(parents=True)
 
-    def test_determine_policy_path_with_full_path():
-        """Test determine_policy_path with full file path."""
-        full_path = '/full/path/to/policy.xml'
-        result = utils.determine_policy_path(full_path)
-        assert result == full_path
+    monkeypatch.setattr('os.getcwd', lambda: str(subdir))
 
-    def test_determine_policy_path_with_sample_name(monkeypatch):
-        """Test determine_policy_path with sample name."""
-        mock_root = Path('/mock/root')
-        monkeypatch.setattr('utils.get_project_root', lambda: mock_root)
-    
-        result = utils.determine_policy_path('policy.xml', 'test-sample')
-        expected = str(mock_root / 'samples' / 'test-sample' / 'policy.xml')
-        assert result == expected
+    result = utils.find_project_root()
+    assert isinstance(result, str)
 
-    def test_get_infra_rg_name_with_different_types(monkeypatch):
-        """Test get_infra_rg_name with various infrastructure types."""
-        result = az.get_infra_rg_name(INFRASTRUCTURE.SIMPLE_APIM)
-        assert result == 'apim-infra-simple-apim'
-    
-        result = az.get_infra_rg_name(INFRASTRUCTURE.APIM_ACA, 2)
-        assert result == 'apim-infra-apim-aca-2'
-    
-        result = az.get_infra_rg_name(INFRASTRUCTURE.AFD_APIM_PE, 10)
-        assert result == 'apim-infra-afd-apim-pe-10'
+def test_determine_policy_path_with_full_path():
+    """Test determine_policy_path with full file path."""
+    full_path = '/full/path/to/policy.xml'
+    result = utils.determine_policy_path(full_path)
+    assert result == full_path
 
-    def test_create_resource_group_doesnt_exist(monkeypatch):
-        """Test create_resource_group when RG doesn't exist."""
-        monkeypatch.setattr(az, 'does_resource_group_exist', lambda x: False)
-    
-        run_calls = []
-        def fake_run(cmd, *args, **kwargs):
-            run_calls.append(cmd)
-            return utils.Output(True, '')
-    
-        monkeypatch.setattr(az, 'run', fake_run)
-    
-        az.create_resource_group('test-rg', 'eastus', {'tag1': 'value1'})
-    
-        assert len(run_calls) == 1
-        assert 'az group create' in run_calls[0]
-        assert 'test-rg' in run_calls[0]
-        assert 'eastus' in run_calls[0]
-        assert 'tag1' in run_calls[0]
+def test_determine_policy_path_with_sample_name(monkeypatch):
+    """Test determine_policy_path with sample name."""
+    mock_root = Path('/mock/root')
+    monkeypatch.setattr('utils.get_project_root', lambda: mock_root)
 
-    def test_create_resource_group_already_exists(monkeypatch):
-        """Test create_resource_group when RG already exists."""
-        monkeypatch.setattr(az, 'does_resource_group_exist', lambda x: True)
-    
-        run_calls = []
-        def fake_run(cmd, *args, **kwargs):
-            run_calls.append(cmd)
-            return utils.Output(True, '')
-    
-        monkeypatch.setattr(az, 'run', fake_run)
-    
-        az.create_resource_group('test-rg', 'eastus')
-    
-        # Should not call run when RG exists
-        assert len(run_calls) == 0
+    result = utils.determine_policy_path('policy.xml', 'test-sample')
+    expected = str(mock_root / 'samples' / 'test-sample' / 'policy.xml')
+    assert result == expected
 
-    def test_find_infrastructure_instances_no_results(monkeypatch):
-        """Test find_infrastructure_instances when no instances found."""
-        monkeypatch.setattr(az, 'run', lambda cmd, *args, **kwargs: utils.Output(False, 'no results'))
-    
-        result = az.find_infrastructure_instances(INFRASTRUCTURE.SIMPLE_APIM)
-        assert result == []
+def test_get_infra_rg_name_with_different_types(monkeypatch):
+    """Test get_infra_rg_name with various infrastructure types."""
+    result = az.get_infra_rg_name(INFRASTRUCTURE.SIMPLE_APIM)
+    assert result == 'apim-infra-simple-apim'
 
-    def test_find_infrastructure_instances_with_index(monkeypatch):
-        """Test find_infrastructure_instances with indexed resource groups."""
-        def fake_run(cmd, *args, **kwargs):
-            if 'simple-apim' in cmd:
-                return utils.Output(True, 'apim-infra-simple-apim-1\napim-infra-simple-apim-2\n')
-            return utils.Output(False, '')
-    
-        monkeypatch.setattr(az, 'run', fake_run)
-    
-        result = az.find_infrastructure_instances(INFRASTRUCTURE.SIMPLE_APIM)
-        assert len(result) == 2
-        assert (INFRASTRUCTURE.SIMPLE_APIM, 1) in result
-        assert (INFRASTRUCTURE.SIMPLE_APIM, 2) in result
+    result = az.get_infra_rg_name(INFRASTRUCTURE.APIM_ACA, 2)
+    assert result == 'apim-infra-apim-aca-2'
+
+    result = az.get_infra_rg_name(INFRASTRUCTURE.AFD_APIM_PE, 10)
+    assert result == 'apim-infra-afd-apim-pe-10'
+
+def test_create_resource_group_doesnt_exist(monkeypatch):
+    """Test create_resource_group when RG doesn't exist."""
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda x: False)
+
+    run_calls = []
+    def fake_run(cmd, *args, **kwargs):
+        run_calls.append(cmd)
+        return utils.Output(True, '')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    az.create_resource_group('test-rg', 'eastus', {'tag1': 'value1'})
+
+    assert len(run_calls) == 1
+    assert 'az group create' in run_calls[0]
+    assert 'test-rg' in run_calls[0]
+    assert 'eastus' in run_calls[0]
+    assert 'tag1' in run_calls[0]
+
+def test_create_resource_group_already_exists(monkeypatch):
+    """Test create_resource_group when RG already exists."""
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda x: True)
+
+    run_calls = []
+    def fake_run(cmd, *args, **kwargs):
+        run_calls.append(cmd)
+        return utils.Output(True, '')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    az.create_resource_group('test-rg', 'eastus')
+
+    # Should not call run when RG exists
+    assert not run_calls
+
+def test_find_infrastructure_instances_no_results(monkeypatch):
+    """Test find_infrastructure_instances when no instances found."""
+    monkeypatch.setattr(az, 'run', lambda cmd, *args, **kwargs: utils.Output(False, 'no results'))
+
+    result = az.find_infrastructure_instances(INFRASTRUCTURE.SIMPLE_APIM)
+    assert result == []
+
+def test_find_infrastructure_instances_with_index(monkeypatch):
+    """Test find_infrastructure_instances with indexed resource groups."""
+    def fake_run(cmd, *args, **kwargs):
+        if 'simple-apim' in cmd:
+            return utils.Output(True, 'apim-infra-simple-apim-1\napim-infra-simple-apim-2\n')
+        return utils.Output(False, '')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    result = az.find_infrastructure_instances(INFRASTRUCTURE.SIMPLE_APIM)
+    assert len(result) == 2
+    assert (INFRASTRUCTURE.SIMPLE_APIM, 1) in result
+    assert (INFRASTRUCTURE.SIMPLE_APIM, 2) in result
