@@ -11,7 +11,7 @@ import json
 import pytest
 
 # APIM Samples imports
-from apimtypes import INFRASTRUCTURE, APIM_SKU
+from apimtypes import INFRASTRUCTURE, APIM_SKU, HTTP_VERB
 import utils
 import json_utils
 import azure_resources as az
@@ -1521,3 +1521,343 @@ def test_infrastructure_notebook_helper_allow_update_false(monkeypatch):
     # With allow_update=False, should still create when infrastructure doesn't exist
     result = helper.create_infrastructure(allow_update=False, bypass_infrastructure_check=True)
     assert result is True
+
+# ==============================
+#    ENHANCED COVERAGE TESTS
+# ==============================
+
+def test_infrastructure_notebook_helper_missing_args():
+    """Test InfrastructureNotebookHelper requires all arguments."""
+    with pytest.raises(TypeError):
+        utils.InfrastructureNotebookHelper()
+
+    with pytest.raises(TypeError):
+        utils.InfrastructureNotebookHelper('eastus')
+
+
+def test_does_infrastructure_exist_with_prompt_multiple_retries(monkeypatch):
+    """Test does_infrastructure_exist when user makes multiple invalid entries."""
+    inputs = iter(['invalid', '4', '0', '2'])  # Invalid entries, then valid option 2
+    monkeypatch.setattr('builtins.input', lambda prompt: next(inputs))
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda x: True)
+    monkeypatch.setattr(az, 'get_infra_rg_name', lambda x, y: 'test-rg')
+    monkeypatch.setattr('console.print_ok', lambda *a, **kwargs: None)
+    monkeypatch.setattr('console.print_plain', lambda *a, **kwargs: None)
+    monkeypatch.setattr('console.print_info', lambda *a, **kwargs: None)
+    monkeypatch.setattr('console.print_error', lambda *a, **kwargs: None)
+
+    result = utils.does_infrastructure_exist(INFRASTRUCTURE.SIMPLE_APIM, 1, allow_update_option=True)
+    assert result is True  # Block deployment
+
+
+def test_get_endpoints_with_none_values(monkeypatch):
+    """Test get_endpoints when some endpoints are None."""
+    monkeypatch.setattr(az, 'get_frontdoor_url', lambda x, y: None)
+    monkeypatch.setattr(az, 'get_apim_url', lambda x: 'https://test-apim.azure-api.net')
+    monkeypatch.setattr(az, 'get_appgw_endpoint', lambda x: (None, None))
+    monkeypatch.setattr('console.print_message', lambda x, **kw: None)
+
+    endpoints = utils.get_endpoints(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg')
+
+    assert endpoints.afd_endpoint_url is None
+    assert endpoints.apim_endpoint_url == 'https://test-apim.azure-api.net'
+    assert endpoints.appgw_hostname is None
+    assert endpoints.appgw_public_ip is None
+
+
+def test_json_parsing_various_formats():
+    """Test get_json with various input formats."""
+    # Test nested JSON
+    nested_json = '{"outer": {"inner": {"value": "test"}}}'
+    result = utils.get_json(nested_json)
+    assert result['outer']['inner']['value'] == 'test'
+
+    # Test array JSON
+    array_json = '[1, 2, 3, {"key": "value"}]'
+    result = utils.get_json(array_json)
+    assert result[3]['key'] == 'value'
+
+    # Test empty object
+    empty_obj = '{}'
+    result = utils.get_json(empty_obj)
+    assert result == {}
+
+    # Test empty array
+    empty_arr = '[]'
+    result = utils.get_json(empty_arr)
+    assert result == []
+
+
+def test_validate_signing_key_properties():
+    """Test comprehensive properties of generated signing keys."""
+    for _ in range(5):  # Test multiple times to ensure consistency
+        key, b64_key = utils.generate_signing_key()
+
+        # Check string properties
+        assert isinstance(key, str)
+        assert isinstance(b64_key, str)
+
+        # Check length constraints
+        assert 32 <= len(key) <= 100
+
+        # Verify alphanumeric content
+        assert all(c.isalnum() for c in key)
+
+        # Verify base64 encoding
+        assert all(c in 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=' for c in b64_key)
+
+        # Verify base64 can be decoded back to original
+        decoded = base64.b64decode(b64_key).decode('ascii')
+        assert decoded == key
+
+
+def test_deployment_failure_message_consistency(monkeypatch):
+    """Test deployment failure message with various logging levels."""
+    test_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+
+    for level in test_levels:
+        monkeypatch.setattr('logging_config.get_configured_level_name', lambda level=level: level)
+        msg = utils.get_deployment_failure_message('test-deployment')
+
+        # Message should always contain deployment name
+        assert 'test-deployment' in msg
+
+        # Should only suggest DEBUG if not already enabled
+        if level == 'DEBUG':
+            assert 'Enable DEBUG' not in msg
+        else:
+            assert 'Enable DEBUG' in msg
+
+
+def test_create_bicep_deployment_group_with_debug_mode(monkeypatch):
+    """Test create_bicep_deployment_group with debug mode enabled."""
+    mock_create_rg = MagicMock()
+    monkeypatch.setattr(az, 'create_resource_group', mock_create_rg)
+    mock_run = MagicMock(return_value=MagicMock(success=True))
+    monkeypatch.setattr(az, 'run', mock_run)
+    mock_open_func = mock_open()
+    monkeypatch.setattr(builtins, 'open', mock_open_func)
+    monkeypatch.setattr(builtins, 'print', MagicMock())
+    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
+    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
+    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
+
+    bicep_params = {'param1': {'value': 'test'}}
+
+    result = utils.create_bicep_deployment_group(
+        'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, bicep_params, is_debug=True
+    )
+
+    # Verify debug flag was included in command
+    mock_run.assert_called_once()
+    actual_cmd = mock_run.call_args[0][0]
+    assert '--debug' in actual_cmd
+    assert result.success is True
+
+
+def test_read_policy_xml_complex_replacements(monkeypatch):
+    """Test read_and_modify_policy_xml with complex replacement scenarios."""
+    xml_content = '<policy><key1>{placeholder1}</key1><key2>{placeholder2}</key2><key3>{placeholder3}</key3></policy>'
+    m = mock_open(read_data=xml_content)
+
+    real_open = builtins.open
+
+    def open_selector(file, *args, **kwargs):
+        mode = kwargs.get('mode', args[0] if args else 'r')
+        file_str = str(file)
+        if 'policy.xml' in file_str and 'b' not in mode:
+            return m(file, *args, **kwargs)
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, 'open', open_selector)
+
+    replacements = {
+        'placeholder1': 'value1',
+        'placeholder2': 'value2',
+        'placeholder3': 'value3'
+    }
+
+    result = utils.read_and_modify_policy_xml('/path/to/policy.xml', replacements)
+
+    # Verify all replacements were made
+    assert 'value1' in result
+    assert 'value2' in result
+    assert 'value3' in result
+    assert '{placeholder1}' not in result
+    assert '{placeholder2}' not in result
+    assert '{placeholder3}' not in result
+
+
+def test_infrastructure_tags_with_special_characters():
+    """Test build_infrastructure_tags with special characters in tags."""
+    special_tags = {
+        'environment': 'prod-test',
+        'team-name': 'api-management',
+        'cost-center': 'cc-12345'
+    }
+
+    result = utils.build_infrastructure_tags(INFRASTRUCTURE.AFD_APIM_PE, special_tags)
+
+    # Verify all tags were included with special characters preserved
+    assert result['environment'] == 'prod-test'
+    assert result['team-name'] == 'api-management'
+    assert result['cost-center'] == 'cc-12345'
+    assert result['infrastructure'] == 'afd-apim-pe'
+
+
+def test_bicep_parameters_serialization(monkeypatch):
+    """Test that bicep parameters serialize correctly to JSON."""
+    mock_create_rg = MagicMock()
+    monkeypatch.setattr(az, 'create_resource_group', mock_create_rg)
+    mock_run = MagicMock(return_value=MagicMock(success=True))
+    monkeypatch.setattr(az, 'run', mock_run)
+
+    # Track file writes
+    written_content = []
+
+    def mock_file_write(content):
+        written_content.append(content)
+        return len(content)
+
+    mock_open_func = mock_open()
+    mock_open_func.return_value.__enter__.return_value.write = mock_file_write
+    monkeypatch.setattr(builtins, 'open', mock_open_func)
+    monkeypatch.setattr(builtins, 'print', MagicMock())
+    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
+    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
+    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
+
+    bicep_params = {
+        'apiManagementName': {'value': 'test-apim'},
+        'location': {'value': 'eastus'},
+        'apis': {'value': [{'name': 'api1'}, {'name': 'api2'}]}
+    }
+
+    utils.create_bicep_deployment_group(
+        'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, bicep_params
+    )
+
+    # Verify JSON was properly written
+    written_text = ''.join(written_content)
+    assert '$schema' in written_text
+    assert 'contentVersion' in written_text
+    assert 'parameters' in written_text
+
+
+def test_create_resource_group_with_empty_tags(monkeypatch):
+    """Test create_resource_group with empty dictionary tags."""
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda x: False)
+
+    run_calls = []
+
+    def mock_run(cmd, *args, **kwargs):
+        run_calls.append(cmd)
+        return utils.Output(success=True, text='')
+
+    monkeypatch.setattr(az, 'run', mock_run)
+
+    az.create_resource_group('test-rg', 'eastus', {})
+
+    assert len(run_calls) == 1
+    assert 'az group create' in run_calls[0]
+
+
+def test_validate_http_verb():
+    """Test HTTP verb validation."""
+
+    # Valid verbs
+    assert utils.validate_http_verb('GET') == HTTP_VERB.GET
+    assert utils.validate_http_verb('POST') == HTTP_VERB.POST
+    assert utils.validate_http_verb('PUT') == HTTP_VERB.PUT
+    assert utils.validate_http_verb('DELETE') == HTTP_VERB.DELETE
+    assert utils.validate_http_verb('PATCH') == HTTP_VERB.PATCH
+
+    # Invalid verb
+    with pytest.raises(ValueError):
+        utils.validate_http_verb('INVALID')
+
+
+def test_validate_sku():
+    """Test APIM SKU validation."""
+    # Valid SKUs
+    assert utils.validate_sku('Developer') == APIM_SKU.DEVELOPER
+    assert utils.validate_sku('Basic') == APIM_SKU.BASIC
+    assert utils.validate_sku('Standard') == APIM_SKU.STANDARD
+    assert utils.validate_sku('Premium') == APIM_SKU.PREMIUM
+
+    # Invalid SKU
+    with pytest.raises(ValueError):
+        utils.validate_sku('InvalidSKU')
+
+
+def test_find_project_root_from_nested_directory(monkeypatch, tmp_path):
+    """Test find_project_root from a deeply nested directory."""
+    root = tmp_path / 'project'
+    root.mkdir()
+    (root / 'README.md').touch()
+    (root / 'requirements.txt').touch()
+
+    nested_dir = root / 'a' / 'b' / 'c' / 'd' / 'e'
+    nested_dir.mkdir(parents=True)
+
+    monkeypatch.setattr('os.getcwd', lambda: str(nested_dir))
+
+    result = utils.find_project_root()
+    assert result == str(root)
+
+
+def test_determine_bicep_directory_with_main_bicep_in_current(monkeypatch):
+    """Test bicep directory determination when main.bicep is in current directory."""
+    monkeypatch.setattr('os.getcwd', lambda: '/current/dir')
+    monkeypatch.setattr('os.path.exists', lambda path: 'main.bicep' in str(path) and '/current/dir' in str(path))
+
+    result = utils._determine_bicep_directory('any-dir')
+    assert result == '/current/dir'
+
+
+def test_read_policy_xml_with_special_characters(monkeypatch):
+    """Test read_policy_xml with special characters and Unicode."""
+    xml_content = '<policy>Unicode: © ® ™ € Chinese: 中文 Arabic: العربية</policy>'
+    m = mock_open(read_data=xml_content)
+
+    real_open = builtins.open
+
+    def open_selector(file, *args, **kwargs):
+        mode = kwargs.get('mode', args[0] if args else 'r')
+        if 'policy.xml' in str(file) and 'b' not in mode:
+            return m(file, *args, **kwargs)
+        return real_open(file, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, 'open', open_selector)
+
+    result = utils.read_policy_xml('/path/to/policy.xml')
+    assert '©' in result
+    assert '中文' in result
+    assert 'العربية' in result
+
+
+def test_output_class_json_extraction():
+    """Test Output class JSON extraction methods."""
+    json_output = '{"properties": {"outputs": {"apiUrl": {"value": "https://test.azure-api.net"}}}}'
+    output = utils.Output(success=True, text=json_output)
+
+    # Test get method with nested extraction
+    api_url = output.get('apiUrl', 'API URL')
+    assert api_url == 'https://test.azure-api.net'
+
+
+def test_notebookhelper_with_all_parameters():
+    """Test NotebookHelper initialization with all possible parameters."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'westus2',
+        INFRASTRUCTURE.APIM_ACA, [INFRASTRUCTURE.APIM_ACA, INFRASTRUCTURE.SIMPLE_APIM],
+        use_jwt=False, index=2, is_debug=True, apim_sku=APIM_SKU.PREMIUM
+    )
+
+    assert nb_helper.sample_folder == 'test-sample'
+    assert nb_helper.rg_name == 'test-rg'
+    assert nb_helper.rg_location == 'westus2'
+    assert nb_helper.deployment == INFRASTRUCTURE.APIM_ACA
+    assert nb_helper.index == 2
+    assert nb_helper.is_debug is True
+    assert nb_helper.apim_sku == APIM_SKU.PREMIUM
