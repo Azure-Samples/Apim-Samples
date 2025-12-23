@@ -218,11 +218,13 @@ class ApimRequests:  # pylint: disable=invalid-name
                     'response_time': response_time
                 })
 
-                if sleepMs is not None:
-                    if sleepMs > 0:
-                        time.sleep(sleepMs / 1000)
-                else:
-                    time.sleep(SLEEP_TIME_BETWEEN_REQUESTS_MS / 1000)   # default sleep time
+                # Sleep only between requests (not after the final run)
+                if i < runs - 1:
+                    if sleepMs is not None:
+                        if sleepMs > 0:
+                            time.sleep(sleepMs / 1000)
+                    else:
+                        time.sleep(SLEEP_TIME_BETWEEN_REQUESTS_MS / 1000)   # default sleep time
         finally:
             session.close()
 
