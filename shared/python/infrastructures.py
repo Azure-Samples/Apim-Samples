@@ -232,7 +232,7 @@ class Infrastructure:
 
         try:
             os.chdir(infra_dir)
-            print_plain(f'📁 Changed working directory to: {infra_dir}')
+            print_plain(f'📁 Changed working directory to: {infra_dir}', blank_above = True)
 
             # Prepare deployment parameters and run directly to avoid path detection issues
             bicep_parameters_format = {

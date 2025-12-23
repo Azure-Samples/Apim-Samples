@@ -143,4 +143,4 @@ output id string = apimService.id
 output name string = apimService.name
 output principalId string = apimService.identity.principalId
 output gatewayUrl string = apimService.properties.gatewayUrl
-output privateIpAddresses array = apimService.properties.privateIPAddresses
+output privateIpAddresses array = apimService.properties.privateIPAddresses ?? []

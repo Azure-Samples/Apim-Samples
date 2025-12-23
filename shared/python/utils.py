@@ -695,7 +695,7 @@ def create_bicep_deployment_group_for_sample(sample_name: str, rg_name: str, rg_
 
         # Change to the sample directory to ensure params.json is written there
         os.chdir(sample_dir)
-        print_plain(f'📁 Changed working directory to: {sample_dir}')
+        print_plain(f'📁 Changed working directory to: {sample_dir}', blank_above = True)
 
         # Call the original deployment function
         return create_bicep_deployment_group(rg_name, rg_location, sample_name, bicep_parameters, bicep_parameters_file, rg_tags, is_debug)

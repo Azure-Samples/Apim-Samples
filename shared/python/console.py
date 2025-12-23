@@ -156,8 +156,7 @@ def _print_log(message: str, prefix: str = '', color: str = '', output: str = ''
 
 def print_command(cmd: str = '') -> None:
     """Print a command message."""
-    # Two spaces after the cog as opposed to one elsewhere are intentional for formatting. Please don't change this.
-    _print_log(cmd, '⚙️  ', BOLD_B, blank_above = True, blank_below = True, level = logging.INFO)
+    _print_log(cmd, '⚙️ ', BOLD_B, blank_above = True, blank_below = True, level = logging.INFO)
 
 def print_error(msg: str, output: str = '', duration: str = '') -> None:
     """Print an error message."""
