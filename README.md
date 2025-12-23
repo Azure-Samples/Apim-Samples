@@ -1,11 +1,13 @@
 # Azure API Management Samples
 
+[![Open Source Love](https://firstcontributions.github.io/open-source-badges/badges/open-source-v1/open-source.svg)](https://github.com/firstcontributions/open-source-badges)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11057/badge)](https://www.bestpractices.dev/projects/11057)
 [![Python Tests][badge-python-tests]][workflow-python-tests]
 
 This repository provides a playground to safely experiment with and learn Azure API Management (APIM) policies in various architectures.
 
 _If you are interested in APIM & Azure OpenAI integrations, please check out the excellent [AI Gateway][ai-gateway] GitHub repository._
+_For much more API Management content, please also check out [APIM Love][apim-love]._
 
 ## 🎯 Objectives
 
@@ -21,10 +23,10 @@ _Try it out, learn from it, apply it in your setups._
 
 | Infrastructure Name                                                | Description                                                                                                                                                           |
 |:-------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Simple API Management][infra-simple-apim]                         | Just the basics with a publicly accessible API Management instance fronting your APIs. This is the innermost way to experience and experiment with the APIM policies. |
-| [API Management & Container Apps][infra-apim-aca]                  | APIs are often implemented in containers running in Azure Container Apps. This architecture accesses the container apps publicly. It's beneficial to test both APIM and container app URLs to contrast and compare experiences of API calls through and bypassing APIM. It is not intended to be a security baseline.    |
-| [Front Door & API Management & Container Apps][infra-afd-apim-pe]  | A secure implementation of Azure Front Door connecting to APIM via the new private link integration. This traffic, once it traverses through Front Door, rides entirely on Microsoft-owned and operated networks. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). APIM Standard V2 is used here to accept a private link from Front Door. |
-| [Application Gateway (Private Endpoint) & API Management & Container Apps][infra-appgw-apim-pe]  | A secure implementation of Azure Application Gateway connecting to APIM via the new private link integration. This traffic, once it traverses through App Gateway, uses a private endpoint set up in the VNet's private endpoint subnet. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). APIM Standard V2 is used here to accept a private link from App Gateway. |
+| [Simple API Management][infra-simple-apim]                         | **Just the basics with a publicly accessible API Management instance** fronting your APIs. This is the innermost way to experience and experiment with the APIM policies. |
+| [API Management & Container Apps][infra-apim-aca]                  | APIs are often implemented in containers running in **Azure Container Apps**. This architecture accesses the container apps publicly. It's beneficial to test both APIM and container app URLs to contrast and compare experiences of API calls through and bypassing APIM. It is not intended to be a security baseline.    |
+| [Front Door & API Management & Container Apps][infra-afd-apim-pe]  | **A secure implementation of Azure Front Door connecting to APIM via the new private link integration!** This traffic, once it traverses through Front Door, rides entirely on Microsoft-owned and operated networks. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). **APIM Standard V2** is used here to accept a private link from Front Door. |
+| [Application Gateway (Private Endpoint) & API Management & Container Apps][infra-appgw-apim-pe]  | **A secure implementation of Azure Application Gateway connecting to APIM via the new private link integration!** This traffic, once it traverses through App Gateway, uses a private endpoint set up in the VNet's private endpoint subnet. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). APIM Standard V2 is used here to accept a private link from App Gateway. |
 | [Application Gateway (VNet) & API Management & Container Apps][infra-appgw-apim] | Full VNet injection of APIM and ACA! APIM is shielded from any type of traffic unless it comes through App Gateway. This offers maximum isolation for instances in which customers seek VNet injection. |
 
 ## 📁 List of Samples
@@ -47,9 +49,11 @@ _Try it out, learn from it, apply it in your setups._
 
 #### Option 1: GitHub Codespaces / Dev Container (Recommended)
 
-The fastest way to get started is using our pre-configured development environment:
+The fastest way to get started is using our pre-configured development environment. Each supported Python version has its own dev container,
+providing you with a more tailored environment that hopefully more closely resembles your own workloads.
 
-- **GitHub Codespaces**: Click the green "Code" button → "Codespaces" → "Create codespace on main"
+- **GitHub Codespaces**: Click the green "Code" button → "Codespaces" → "..." → "New with options..." → "Dev container configuration" (select Python version but ignore *Default project configuration*) → "Create codespace"
+  <img src="./assets/codespaces-python-configurations.png" alt="Codespaces configuration selector for various supposed Python versions" title="Codespaces configuration selector" />
 - **VS Code Dev Containers**: Install the [Dev Containers extension][vscode-devcontainers], then "Reopen in Container"
 
 All prerequisites are automatically installed and configured.
@@ -478,6 +482,7 @@ The original author of this project is [Simon Kurtz][simon-kurtz].
 [ai-gateway-private-connectivity]: https://github.com/Azure-Samples/AI-Gateway/tree/main/labs/private-connectivity
 [alex-vieira]: https://github.com/vieiraae
 [andrew-redman]: https://github.com/anotherRedbeard
+[apim-love]: https://aka.ms/apimlove
 [apim-lza]: https://learn.microsoft.com/azure/cloud-adoption-framework/scenarios/app-platform/api-management/landing-zone-accelerator
 [apim-snippets-repo]: https://github.com/Azure/api-management-policy-snippets
 [azure-bicep-install]: https://learn.microsoft.com/azure/azure-resource-manager/bicep/install#azure-cli
