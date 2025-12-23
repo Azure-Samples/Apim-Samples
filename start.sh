@@ -37,7 +37,6 @@ run_cmd() {
     echo ""
     echo "Command exited with code $status"
     echo ""
-    pause_prompt
     return $status
   fi
 }
@@ -65,10 +64,6 @@ PY
   )
 }
 
-pause_prompt() {
-  echo
-  read -rp "Press ENTER to return to the menu..." _
-}
 
 while true; do
   echo ""
@@ -93,30 +88,24 @@ while true; do
   case "$choice" in
     1)
       run_cmd "$(find_python)" "${REPO_ROOT}/setup/local_setup.py" --complete-setup
-      pause_prompt
       ;;
     2)
       run_cmd "$(find_python)" "${REPO_ROOT}/setup/verify_local_setup.py"
-      pause_prompt
       ;;
     3)
-      if show_account; then pause_prompt; fi
+      show_account
       ;;
     4)
       run_cmd "$(find_python)" "${REPO_ROOT}/shared/python/show_soft_deleted_resources.py"
-      pause_prompt
       ;;
     5)
       run_cmd "${REPO_ROOT}/tests/python/run_pylint.sh"
-      pause_prompt
       ;;
     6)
       run_cmd "${REPO_ROOT}/tests/python/run_tests.sh"
-      pause_prompt
       ;;
     7)
       run_cmd "${REPO_ROOT}/tests/python/check_python.sh"
-      pause_prompt
       ;;
     0)
       echo ""

@@ -209,6 +209,16 @@ def test_headers_property_is_dict_reference():
     h['X-Ref'] = 'ref'
     assert apim.headers['X-Ref'] == 'ref'
 
+
+def test_subscription_key_setter_updates_and_clears_header():
+    apim = ApimRequests(DEFAULT_URL, DEFAULT_KEY)
+
+    apim.subscriptionKey = 'new-key'
+    assert apim.headers[SUBSCRIPTION_KEY_PARAMETER_NAME] == 'new-key'
+
+    apim.subscriptionKey = None
+    assert SUBSCRIPTION_KEY_PARAMETER_NAME not in apim.headers
+
 # ------------------------------
 #    ADDITIONAL COVERAGE TESTS FOR APIMREQUESTS
 # ------------------------------
@@ -433,6 +443,49 @@ def test_multi_request_non_json_response(mock_print_info, mock_session_class, ap
 
 
 @pytest.mark.unit
+@patch('apimrequests.time.sleep')
+@patch('apimrequests.requests.Session')
+def test_multi_request_sleep_zero(mock_session_class, mock_sleep, apim):
+    """Test _multiRequest respects sleepMs=0 without sleeping."""
+    mock_session = MagicMock()
+    mock_session_class.return_value = mock_session
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.json.return_value = {'ok': True}
+    mock_response.text = '{"ok": true}'
+    mock_session.request.return_value = mock_response
+
+    with patch.object(apim, '_print_response_code'):
+        result = apim._multiRequest(HTTP_VERB.GET, '/sleep', 1, sleepMs=0)
+
+    assert result[0]['status_code'] == 200
+    mock_sleep.assert_not_called()
+
+
+@pytest.mark.unit
+@patch('apimrequests.time.sleep')
+@patch('apimrequests.requests.Session')
+def test_multi_request_sleep_positive(mock_session_class, mock_sleep, apim):
+    """Test _multiRequest sleeps when sleepMs is positive."""
+    mock_session = MagicMock()
+    mock_session_class.return_value = mock_session
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.json.return_value = {'ok': True}
+    mock_response.text = '{"ok": true}'
+    mock_session.request.return_value = mock_response
+
+    with patch.object(apim, '_print_response_code'):
+        apim._multiRequest(HTTP_VERB.GET, '/sleep', 2, sleepMs = 150)
+
+    mock_sleep.assert_called_once_with(0.15)
+
+
+@pytest.mark.unit
 @patch('apimrequests.print_val')
 def test_print_response_non_200_status(mock_print_val, apim):
     """Test _print_response method with non-200 status code."""
@@ -447,6 +500,60 @@ def test_print_response_non_200_status(mock_print_val, apim):
 
     # Should print response body directly for non-200 status
     mock_print_val.assert_any_call('Response body', '{"error": "not found"}', True)
+
+
+@pytest.mark.unit
+@patch('apimrequests.print_val')
+def test_print_response_200_invalid_json(mock_print_val, apim):
+    """Test _print_response handles invalid JSON body for 200 responses."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.reason = 'OK'
+    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.text = 'not valid json'
+
+    with patch.object(apim, '_print_response_code'):
+        apim._print_response(mock_response)
+
+    mock_print_val.assert_any_call('Response body', 'not valid json', True)
+
+
+@pytest.mark.unit
+@patch('apimrequests.print_val')
+def test_print_response_200_valid_json(mock_print_val, apim):
+    """Test _print_response prints formatted JSON when parse succeeds."""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.reason = 'OK'
+    mock_response.headers = {'Content-Type': 'application/json'}
+    mock_response.text = '{"alpha": 1}'
+
+    with patch.object(apim, '_print_response_code'):
+        apim._print_response(mock_response)
+
+    mock_print_val.assert_any_call('Response body', '{\n    "alpha": 1\n}', True)
+
+
+@pytest.mark.unit
+@patch('apimrequests.print_val')
+def test_print_response_code_success_and_error(mock_print_val, apim):
+    """Test _print_response_code color formatting for success and error codes."""
+    class DummyResponse:
+        status_code = 200
+        reason = 'OK'
+
+    apim._print_response_code(DummyResponse())
+
+    class ErrorResponse:
+        status_code = 500
+        reason = 'Server Error'
+
+    apim._print_response_code(ErrorResponse())
+
+    messages = [record.args[1] for record in mock_print_val.call_args_list]
+
+    assert any('200 - OK' in msg for msg in messages)
+    assert any('500 - Server Error' in msg for msg in messages)
 
 
 @pytest.mark.unit

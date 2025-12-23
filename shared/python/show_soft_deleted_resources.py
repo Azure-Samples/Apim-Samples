@@ -9,12 +9,12 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
+# APIM Samples imports
+import azure_resources as az
+
 # Configure UTF-8 encoding for console output
 if sys.stdout.encoding != 'utf-8':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-
-# APIM Samples imports
-import azure_resources as az
 
 
 def _get_suggested_purge_command() -> str:

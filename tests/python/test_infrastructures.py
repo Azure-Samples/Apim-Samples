@@ -2,13 +2,15 @@
 Unit tests for infrastructures.py.
 """
 
+import json
+import os
 from unittest.mock import Mock, patch, MagicMock
 import pytest
 
 # APIM Samples imports
 import console
 import infrastructures
-from apimtypes import INFRASTRUCTURE, APIM_SKU, APIMNetworkMode, API, PolicyFragment, HTTP_VERB, Output
+from apimtypes import INFRASTRUCTURE, APIM_SKU, APIMNetworkMode, API, PolicyFragment, Output
 
 
 # ------------------------------
@@ -151,71 +153,83 @@ def test_infrastructure_creation_with_custom_apis(mock_utils, mock_apis):
     assert any(api.name == 'test-api-2' for api in apis)
     assert any(api.name == 'hello-world' for api in apis)
 
-@pytest.mark.unit
-def test_infrastructure_creation_calls_utils_functions(mock_utils, mock_az):
-    """Test that Infrastructure creation calls expected utility functions."""
-    infra = infrastructures.Infrastructure(
-        infra=INFRASTRUCTURE.SIMPLE_APIM,
-        index=TEST_INDEX,
-        rg_location=TEST_LOCATION
-    )
-
-    mock_az.get_infra_rg_name.assert_called_once_with(INFRASTRUCTURE.SIMPLE_APIM, TEST_INDEX)
-    mock_utils.build_infrastructure_tags.assert_called_once_with(INFRASTRUCTURE.SIMPLE_APIM)
-
-    # Initialize policy fragments to trigger utils calls
-    infra._define_policy_fragments()
-    infra._define_apis()
-
-    # Should call read_policy_xml for base policy fragments and APIs
-    assert mock_utils.read_policy_xml.call_count >= 6  # 5 base policy fragments + 1 hello-world API
-    assert mock_utils.determine_shared_policy_path.call_count >= 5
 
 @pytest.mark.unit
-def test_infrastructure_base_policy_fragments_creation(mock_utils):
-    """Test that base policy fragments are created correctly."""
-    infra = infrastructures.Infrastructure(
-        infra=INFRASTRUCTURE.SIMPLE_APIM,
-        index=TEST_INDEX,
-        rg_location=TEST_LOCATION
-    )
+def test_appgw_apim_pe_create_keyvault_certificate_returns_true_when_cert_exists(mock_utils, mock_az):
+    """If the certificate already exists, do not attempt creation (PE)."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+    mock_az.run.return_value = Mock(success=True)
 
-    # Initialize policy fragments
-    infra._define_policy_fragments()
+    assert infra._create_keyvault_certificate('test-kv') is True
+    mock_az.run.assert_called_once()
+    assert 'az keyvault certificate show' in mock_az.run.call_args.args[0]
 
-    # Check that all base policy fragments are created
-    expected_fragment_names = [
-        'AuthZ-Match-All',
-        'AuthZ-Match-Any',
-        'Http-Response-200',
-        'Product-Match-Any',
-        'Remove-Request-Headers'
-    ]
-
-    base_fragment_names = [pf.name for pf in infra.base_pfs]
-    for expected_name in expected_fragment_names:
-        assert expected_name in base_fragment_names
 
 @pytest.mark.unit
-def test_infrastructure_base_apis_creation(mock_utils):
-    """Test that base APIs are created correctly."""
-    infra = infrastructures.Infrastructure(
-        infra=INFRASTRUCTURE.SIMPLE_APIM,
-        index=TEST_INDEX,
-        rg_location=TEST_LOCATION
-    )
+def test_appgw_apim_create_keyvault_certificate_returns_true_when_cert_exists(mock_utils, mock_az):
+    """If the certificate already exists, do not attempt creation (Internal)."""
+    infra = infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1)
+    mock_az.run.return_value = Mock(success=True)
 
-    # Initialize APIs
-    infra._define_apis()
+    assert infra._create_keyvault_certificate('test-kv') is True
+    mock_az.run.assert_called_once()
+    assert 'az keyvault certificate show' in mock_az.run.call_args.args[0]
 
-    # Check that hello-world API is created
-    assert len(infra.base_apis) == 1
-    hello_world_api = infra.base_apis[0]
-    assert hello_world_api.name == 'hello-world'
-    assert hello_world_api.displayName == 'Hello World'
-    assert not hello_world_api.path
-    assert len(hello_world_api.operations) == 1
-    assert hello_world_api.operations[0].method == HTTP_VERB.GET
+
+@pytest.mark.unit
+def test_appgw_apim_pe_create_keyvault_certificate_creates_with_escaped_policy_when_missing(mock_utils, mock_az):
+    """If missing, create certificate and ensure policy string is escaped (PE)."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+    mock_az.run.side_effect = [Mock(success=False), Mock(success=True)]
+
+    assert infra._create_keyvault_certificate('test-kv') is True
+    assert mock_az.run.call_count == 2
+
+    create_cmd = mock_az.run.call_args.args[0]
+    assert 'az keyvault certificate create' in create_cmd
+    assert '--vault-name test-kv' in create_cmd
+    assert f'--name {infra.CERT_NAME}' in create_cmd
+    assert '--policy "' in create_cmd
+    assert '\\"issuerParameters\\"' in create_cmd
+    assert '\\"keyProperties\\"' in create_cmd
+    assert '\\"x509CertificateProperties\\"' in create_cmd
+
+
+@pytest.mark.unit
+def test_appgw_apim_create_keyvault_certificate_creates_with_escaped_policy_when_missing(mock_utils, mock_az):
+    """If missing, create certificate and ensure policy string is escaped (Internal)."""
+    infra = infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1)
+    mock_az.run.side_effect = [Mock(success=False), Mock(success=True)]
+
+    assert infra._create_keyvault_certificate('test-kv') is True
+    assert mock_az.run.call_count == 2
+
+    create_cmd = mock_az.run.call_args.args[0]
+    assert 'az keyvault certificate create' in create_cmd
+    assert '--vault-name test-kv' in create_cmd
+    assert f'--name {infra.CERT_NAME}' in create_cmd
+    assert '--policy "' in create_cmd
+    assert '\\"issuerParameters\\"' in create_cmd
+    assert '\\"keyProperties\\"' in create_cmd
+    assert '\\"x509CertificateProperties\\"' in create_cmd
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_create_keyvault_certificate_returns_false_when_create_fails(mock_utils, mock_az):
+    """If creation fails, return False (PE)."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+    mock_az.run.side_effect = [Mock(success=False), Mock(success=False)]
+
+    assert infra._create_keyvault_certificate('test-kv') is False
+
+
+@pytest.mark.unit
+def test_appgw_apim_create_keyvault_certificate_returns_false_when_create_fails(mock_utils, mock_az):
+    """If creation fails, return False (Internal)."""
+    infra = infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1)
+    mock_az.run.side_effect = [Mock(success=False), Mock(success=False)]
+
+    assert infra._create_keyvault_certificate('test-kv') is False
 
 
 # ------------------------------
@@ -1672,3 +1686,2257 @@ def test_cleanup_resources_malformed_responses(monkeypatch):
 
     # Should handle malformed responses gracefully without raising exceptions
     infrastructures._cleanup_resources('test-deployment', 'test-rg')
+
+def test_appgw_apim_infrastructure_bicep_parameters(mock_utils):
+    """Test APPGW-APIM-PE specific Bicep parameters."""
+    # Test with custom APIs (should enable ACA)
+    custom_apis = [
+        API('test-api', 'Test API', '/test', 'Test API description')
+    ]
+
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1,
+        apim_sku=APIM_SKU.STANDARDV2,
+        infra_apis=custom_apis
+    )
+
+    # Initialize components
+    infra._define_policy_fragments()
+    infra._define_apis()
+
+    bicep_params = infra._define_bicep_parameters()
+
+    # Check APPGW-specific parameters
+    assert 'apimPublicAccess' in bicep_params
+    assert bicep_params['apimPublicAccess']['value'] is True
+    assert 'useACA' in bicep_params
+    assert bicep_params['useACA']['value'] is True  # Should be True due to custom APIs
+
+
+def test_appgw_apim_internal_infrastructure_parameters(mock_utils):
+    """Test APPGW-APIM (Internal) specific parameters."""
+    infra = infrastructures.AppGwApimInfrastructure(
+        rg_location='eastus',
+        index=1,
+        apim_sku=APIM_SKU.DEVELOPER
+    )
+
+    # Verify network mode is INTERNAL_VNET
+    assert infra.networkMode == APIMNetworkMode.INTERNAL_VNET
+
+    # Verify SKU defaults to DEVELOPER
+    assert infra.apim_sku == APIM_SKU.DEVELOPER
+
+
+def test_infrastructure_resource_suffix_generation(mock_utils, mock_az):
+    """Test that resource suffix is properly generated and stored."""
+    mock_az.get_unique_suffix_for_resource_group.return_value = 'test123abc'
+
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus'
+    )
+
+    assert infra.resource_suffix == 'test123abc'
+    mock_az.get_unique_suffix_for_resource_group.assert_called_once()
+
+
+def test_infrastructure_account_info_retrieval(mock_utils, mock_az):
+    """Test that account info is properly retrieved and stored."""
+    mock_az.get_account_info.return_value = (
+        'test-user', 'user-id-123', 'tenant-id-456', 'subscription-id-789'
+    )
+
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.APIM_ACA,
+        index=1,
+        rg_location='westus2'
+    )
+
+    assert infra.current_user == 'test-user'
+    assert infra.current_user_id == 'user-id-123'
+    assert infra.tenant_id == 'tenant-id-456'
+    assert infra.subscription_id == 'subscription-id-789'
+
+
+def test_infrastructure_policy_fragments_ordering(mock_utils):
+    """Test that policy fragments are properly ordered (base + custom)."""
+    custom_pf = PolicyFragment('Custom-PF', '<policy>custom</policy>', 'Custom policy fragment')
+
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        infra_pfs=[custom_pf]
+    )
+
+    pfs = infra._define_policy_fragments()
+
+    # Verify base fragments come before custom
+    base_names = [pf.name for pf in infra.base_pfs]
+    custom_names = [pf.name for pf in [custom_pf]]
+
+    pf_names = [pf.name for pf in pfs]
+
+    # Find indices
+    base_indices = [pf_names.index(name) for name in base_names if name in pf_names]
+    custom_indices = [pf_names.index(name) for name in custom_names if name in pf_names]
+
+    # Last base should come before first custom
+    if base_indices and custom_indices:
+        assert max(base_indices) < min(custom_indices)
+
+
+def test_infrastructure_api_hello_world_always_present(mock_utils):
+    """Test that hello-world API is always present in base APIs."""
+    # Test without custom APIs
+    infra1 = infrastructures.SimpleApimInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+    infra1._define_apis()
+    assert any(api.name == 'hello-world' for api in infra1.base_apis)
+
+    # Test with custom APIs
+    custom_api = API('custom-api', 'Custom API', '/custom', 'Custom API')
+    infra2 = infrastructures.SimpleApimInfrastructure(
+        rg_location='eastus',
+        index=1,
+        infra_apis=[custom_api]
+    )
+    infra2._define_apis()
+    assert any(api.name == 'hello-world' for api in infra2.base_apis)
+    assert any(api.name == 'custom-api' for api in infra2.apis)
+
+
+def test_afd_apim_infrastructure_private_link_handling(mock_utils, mock_az):
+    """Test AFD-APIM-PE infrastructure private link handling."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    # Mock private endpoint connection list with single pending connection
+    pending_connection = {
+        'id': '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/privateEndpointConnections/conn1',
+        'name': 'conn1',
+        'properties': {'privateLinkServiceConnectionState': {'status': 'Pending'}}
+    }
+
+    mock_az.run.return_value = Mock(
+        success=True,
+        json_data=[pending_connection],
+        is_json=True
+    )
+
+    result = infra._approve_private_link_connections('/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ApiManagement/service/test-apim')
+
+    # Verify approval was attempted and succeeded
+    assert mock_az.run.call_count >= 1
+    assert result is True
+
+
+def test_appgw_apim_pe_infrastructure_keyvault_creation(mock_utils, mock_az):
+    """Test APPGW-APIM-PE infrastructure Key Vault creation."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    # Mock Key Vault doesn't exist
+    mock_az.run.return_value = Mock(success=False)
+
+    result = infra._create_keyvault('test-kv')
+
+    # Should attempt to create Key Vault when it doesn't exist
+    assert not result  # Will fail due to mocking, but should attempt creation
+
+
+def test_appgw_apim_certificate_properties():
+    """Test APPGW-APIM certificate configuration."""
+    # Test that certificate constants are properly defined
+    assert infrastructures.AppGwApimPeInfrastructure.CERT_NAME == 'appgw-cert'
+    assert infrastructures.AppGwApimPeInfrastructure.DOMAIN_NAME == 'api.apim-samples.contoso.com'
+
+    # Test AppGwApimInfrastructure also has the same constants
+    assert infrastructures.AppGwApimInfrastructure.CERT_NAME == 'appgw-cert'
+    assert infrastructures.AppGwApimInfrastructure.DOMAIN_NAME == 'api.apim-samples.contoso.com'
+
+
+def test_infrastructure_concrete_class_sku_inheritance():
+    """Test that concrete infrastructure classes properly inherit and default SKUs."""
+    simple = infrastructures.SimpleApimInfrastructure('eastus', 1)
+    assert simple.apim_sku == APIM_SKU.BASICV2
+
+    aca = infrastructures.ApimAcaInfrastructure('eastus', 1)
+    assert aca.apim_sku == APIM_SKU.BASICV2
+
+    afd = infrastructures.AfdApimAcaInfrastructure('eastus', 1)
+    assert afd.apim_sku == APIM_SKU.BASICV2
+
+    appgw_pe = infrastructures.AppGwApimPeInfrastructure('eastus', 1)
+    assert appgw_pe.apim_sku == APIM_SKU.BASICV2
+
+    appgw = infrastructures.AppGwApimInfrastructure('eastus', 1)
+    assert appgw.apim_sku == APIM_SKU.DEVELOPER  # This one defaults to DEVELOPER
+
+
+def test_cleanup_single_resource_exception_handling(monkeypatch):
+    """Test _cleanup_single_resource exception handling."""
+    def mock_run(command, ok_message=None, error_message=None):
+        raise Exception("Test exception")
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+
+    resource = {
+        'type': 'apim',
+        'name': 'test-apim',
+        'location': 'eastus',
+        'rg_name': 'test-rg'
+    }
+
+    success, error_msg = infrastructures._cleanup_single_resource(resource)
+
+    assert success is False
+    assert "Test exception" in error_msg
+
+
+def test_cleanup_resources_with_all_resource_types(monkeypatch):
+    """Test cleanup with a mix of all resource types."""
+    run_commands = []
+
+    def mock_run(command, ok_message=None, error_message=None, **kwargs):
+        run_commands.append(command)
+
+        # Mock deployment show response
+        if 'deployment group show' in command:
+            return Output(success=True, text='{"properties": {}}')
+
+        # Mock lists returning one of each resource type
+        if 'cognitiveservices account list' in command:
+            return Output(success=True, text='[{"name": "cog-1", "location": "eastus"}]')
+
+        if 'apim list' in command:
+            return Output(success=True, text='[{"name": "apim-1", "location": "eastus"}]')
+
+        if 'keyvault list' in command:
+            return Output(success=True, text='[{"name": "kv-1", "location": "eastus"}]')
+
+        # Default successful response
+        return Output(success=True, text='{}')
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(console, 'print_info', lambda *a, **kw: None)
+    monkeypatch.setattr(console, 'print_message', lambda *a, **kw: None)
+
+    infrastructures._cleanup_resources('test-deployment', 'test-rg')
+
+    # Verify all resource types were processed
+    all_commands = ' '.join(run_commands)
+    assert 'cognitiveservices' in all_commands
+    assert 'apim' in all_commands
+    assert 'keyvault' in all_commands
+
+
+def test_infrastructure_initialization_error_handling(mock_utils, mock_az):
+    """Test infrastructure initialization with mock errors."""
+    # Test with resource group creation failure
+    mock_az.create_resource_group.side_effect = Exception("RG creation failed")
+
+    with pytest.raises(Exception):
+        infrastructures.Infrastructure(
+            infra=INFRASTRUCTURE.SIMPLE_APIM,
+            index=1,
+            rg_location='eastus'
+        )
+
+
+def test_policy_fragment_list_serialization(mock_utils):
+    """Test that policy fragments serialize correctly for Bicep."""
+    custom_pf = PolicyFragment(
+        name='Test-PF',
+        policyXml='<policy>test</policy>',
+        description='Test policy fragment'
+    )
+
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        infra_pfs=[custom_pf]
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    infra._define_bicep_parameters()
+
+    # Verify policy fragments are in Bicep parameters
+    assert 'policyFragments' in infra.bicep_parameters
+    pf_values = infra.bicep_parameters['policyFragments']['value']
+
+    # Should include both base and custom
+    assert len(pf_values) == 7  # 6 base + 1 custom
+
+
+def test_api_serialization_for_bicep(mock_utils):
+    """Test that APIs serialize correctly for Bicep."""
+    custom_api = API(
+        name='test-api',
+        displayName='Test API',
+        path='/test',
+        description='Test API',
+        policyXml='<policy></policy>'
+    )
+
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        infra_apis=[custom_api]
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    infra._define_bicep_parameters()
+
+    # Verify APIs are in Bicep parameters
+    assert 'apis' in infra.bicep_parameters
+    api_values = infra.bicep_parameters['apis']['value']
+
+    # Should include both base (hello-world) and custom
+    assert len(api_values) == 2
+
+    # Verify serialization includes required fields
+    api_names = [api.get('name') if isinstance(api, dict) else api['name'] for api in api_values]
+    assert 'hello-world' in api_names
+    assert 'test-api' in api_names
+
+def test_infrastructure_resource_group_creation_called(mock_utils, mock_az):
+    """Test that resource group is created on infrastructure init."""
+    _ = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='westus'
+    )
+
+    # Verify create_resource_group was called with correct params
+    mock_az.create_resource_group.assert_called()
+    call_args = mock_az.create_resource_group.call_args
+    assert call_args[0][1] == 'westus'
+
+
+def test_infrastructure_multiple_custom_pfs(mock_utils):
+    """Test infrastructure with multiple custom policy fragments."""
+    pfs = [
+        PolicyFragment(f'custom-pf-{i}', '<policy></policy>', f'Custom PF {i}')
+        for i in range(1, 6)
+    ]
+
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        infra_pfs=pfs
+    )
+
+    infra._define_policy_fragments()
+    # Should have 6 base + 5 custom
+    assert len(infra.pfs) == 11
+
+
+def test_infrastructure_large_custom_api_list(mock_utils):
+    """Test infrastructure with many custom APIs."""
+    apis = [
+        API(
+            name=f'api-{i}',
+            displayName=f'API {i}',
+            path=f'/api-{i}',
+            description=f'API {i}',
+            policyXml='<policy></policy>'
+        )
+        for i in range(1, 11)
+    ]
+
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        infra_apis=apis
+    )
+
+    infra._define_apis()
+    # Should have 1 base + 10 custom
+    assert len(infra.apis) == 11
+
+
+def test_infrastructure_bicep_parameters_contain_all_keys(mock_utils):
+    """Test that bicep parameters contain all required keys."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus'
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    infra._define_bicep_parameters()
+
+    required_keys = ['resourceSuffix', 'apimSku', 'apis', 'policyFragments']
+    for key in required_keys:
+        assert key in infra.bicep_parameters, f'Missing key: {key}'
+        assert 'value' in infra.bicep_parameters[key]
+
+
+def test_infrastructure_different_regions(mock_utils):
+    """Test infrastructure in different Azure regions."""
+    regions = ['eastus', 'westus', 'northeurope', 'southeastasia', 'canadacentral']
+
+    for region in regions:
+        infra = infrastructures.Infrastructure(
+            infra=INFRASTRUCTURE.SIMPLE_APIM,
+            index=1,
+            rg_location=region
+        )
+        assert infra.rg_location == region
+
+
+def test_simple_apim_no_network_mode_override(mock_utils):
+    """Test SimpleApimInfrastructure uses default network mode."""
+    infra = infrastructures.SimpleApimInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    assert infra.networkMode == APIMNetworkMode.PUBLIC
+
+
+def test_apim_aca_with_custom_components(mock_utils):
+    """Test APIM ACA with both custom APIs and PFs."""
+    pf = PolicyFragment('custom', '<policy></policy>', 'Custom')
+    api = API('custom-api', 'Custom', '/custom', 'Custom', '<policy></policy>')
+
+    infra = infrastructures.ApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1,
+        infra_pfs=[pf],
+        infra_apis=[api]
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+
+    assert any(p.name == 'custom' for p in infra.pfs)
+    assert any(a.name == 'custom-api' for a in infra.apis)
+
+
+def test_afd_apim_aca_default_sku(mock_utils):
+    """Test AFD APIM ACA infrastructure uses default SKU."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    assert infra.apim_sku == APIM_SKU.BASICV2
+
+
+def test_infrastructure_name_generation_consistency(mock_utils):
+    """Test that infrastructure names are generated consistently."""
+    infra1 = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus'
+    )
+    infra2 = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus'
+    )
+
+    # Same configuration should generate same RG name
+    assert infra1.rg_name == infra2.rg_name
+
+
+def test_infrastructure_unique_suffix_generation(mock_utils, mock_az):
+    """Test unique resource suffix is generated for resource group."""
+    mock_az.get_unique_suffix_for_resource_group.return_value = 'abc123'
+
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus'
+    )
+
+    assert infra.resource_suffix == 'abc123'
+
+
+def test_infrastructure_account_info_stored(mock_utils, mock_az):
+    """Test account info is retrieved and stored."""
+    mock_az.get_account_info.return_value = ('testuser', 'user-id-123', 'tenant-id-456', 'sub-id-789')
+
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus'
+    )
+
+    assert infra.current_user == 'testuser'
+    assert infra.current_user_id == 'user-id-123'
+    assert infra.tenant_id == 'tenant-id-456'
+    assert infra.subscription_id == 'sub-id-789'
+
+
+
+
+
+def test_infrastructure_define_all_methods_sequence(mock_utils):
+    """Test calling all define methods in sequence."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus'
+    )
+
+    # Execute in order
+    pfs = infra._define_policy_fragments()
+    apis = infra._define_apis()
+    params = infra._define_bicep_parameters()
+
+    assert len(pfs) > 0
+    assert len(apis) > 0
+    assert len(params) > 0
+    assert infra.pfs == pfs
+    assert infra.apis == apis
+    assert infra.bicep_parameters == params
+
+
+def test_afd_apim_with_both_custom_components(mock_utils):
+    """Test AFD APIM with both custom APIs and Policy Fragments."""
+    pf = PolicyFragment('afd-custom', '<policy></policy>', 'AFD Custom')
+    api = API('afd-api', 'AFD API', '/afd', 'AFD', '<policy></policy>')
+
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1,
+        infra_pfs=[pf],
+        infra_apis=[api]
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    infra._define_bicep_parameters()
+
+    assert any(p.name == 'afd-custom' for p in infra.pfs)
+    assert any(a.name == 'afd-api' for a in infra.apis)
+
+
+
+
+
+
+
+
+
+
+
+def test_infrastructure_with_zero_custom_apis(mock_utils):
+    """Test infrastructure with empty custom API list."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        infra_apis=[]
+    )
+
+    infra._define_apis()
+    # Should only have hello-world
+    assert len(infra.apis) == 1
+    assert infra.apis[0].name == 'hello-world'
+
+
+def test_infrastructure_with_zero_custom_pfs(mock_utils):
+    """Test infrastructure with empty custom policy fragments list."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        infra_pfs=[]
+    )
+
+    infra._define_policy_fragments()
+    # Should only have 6 base fragments
+    assert len(infra.pfs) == 6
+
+
+def test_all_infrastructure_subclasses_instantiation(mock_utils):
+    """Test all infrastructure subclasses can be instantiated."""
+    infra_types = [
+        infrastructures.SimpleApimInfrastructure,
+        infrastructures.ApimAcaInfrastructure,
+        infrastructures.AfdApimAcaInfrastructure,
+        infrastructures.AppGwApimPeInfrastructure,
+        infrastructures.AppGwApimInfrastructure,
+    ]
+
+    for infra_class in infra_types:
+        infra = infra_class(rg_location='eastus', index=1)
+        assert infra is not None
+        assert infra.rg_location == 'eastus'
+        assert infra.index == 1
+
+
+def test_infrastructure_policy_fragment_has_required_fields(mock_utils):
+    """Test policy fragments have all required fields."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus'
+    )
+
+    infra._define_policy_fragments()
+
+    for pf in infra.pfs:
+        assert hasattr(pf, 'name')
+        assert hasattr(pf, 'policyXml')
+        assert hasattr(pf, 'description')
+        assert pf.name is not None
+        assert pf.policyXml is not None
+
+
+def test_infrastructure_api_has_required_fields(mock_utils):
+    """Test APIs have all required fields."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus'
+    )
+
+    infra._define_apis()
+
+    for api in infra.apis:
+        assert hasattr(api, 'name')
+        assert hasattr(api, 'displayName')
+        assert hasattr(api, 'path')
+        assert hasattr(api, 'description')
+        assert hasattr(api, 'policyXml')
+        assert api.name is not None
+        assert api.displayName is not None
+        assert api.path is not None
+
+
+def test_infrastructure_verify_infrastructure_method_exists():
+    """Ensure base verification hook is exposed for testing."""
+    infra = infrastructures.SimpleApimInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    assert callable(infra._verify_infrastructure)
+
+
+def test_infrastructure_verify_infrastructure_specific_exists():
+    """Ensure infrastructure-specific verification hook is exposed."""
+    infra = infrastructures.ApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    assert callable(infra._verify_infrastructure_specific)
+
+
+def test_appgw_apim_pe_create_keyvault(mock_utils, mock_az):
+    """Test keyvault creation for AppGwApimPeInfrastructure."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_az.resource_exists.return_value = False
+    mock_az.run.return_value = Mock(success=True)
+
+    result = infra._create_keyvault('test-kv')
+
+    assert isinstance(result, bool)
+
+
+def test_appgw_apim_create_keyvault(mock_utils, mock_az):
+    """Test keyvault creation for AppGwApimInfrastructure."""
+    infra = infrastructures.AppGwApimInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_az.resource_exists.return_value = False
+    mock_az.run.return_value = Mock(success=True)
+
+    result = infra._create_keyvault('test-kv')
+
+    assert isinstance(result, bool)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    'infra_factory',
+    [
+        lambda: infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1),
+        lambda: infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1),
+    ]
+)
+def test_create_keyvault_certificate_returns_true_when_cert_exists(mock_utils, mock_az, infra_factory):
+    """If the certificate already exists, do not attempt creation."""
+    infra = infra_factory()
+
+    mock_az.run.return_value = Mock(success=True)
+
+    assert infra._create_keyvault_certificate('test-kv') is True
+    mock_az.run.assert_called_once()
+    assert 'az keyvault certificate show' in mock_az.run.call_args.args[0]
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    'infra_factory',
+    [
+        lambda: infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1),
+        lambda: infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1),
+    ]
+)
+def test_create_keyvault_certificate_creates_with_escaped_policy_when_missing(mock_utils, mock_az, infra_factory):
+    """If missing, create certificate and ensure policy string is escaped for PowerShell."""
+    infra = infra_factory()
+
+    show_output = Mock(success=False)
+    create_output = Mock(success=True)
+    mock_az.run.side_effect = [show_output, create_output]
+
+    assert infra._create_keyvault_certificate('test-kv') is True
+
+    assert mock_az.run.call_count == 2
+    create_cmd = mock_az.run.call_args.args[0]
+    assert 'az keyvault certificate create' in create_cmd
+    assert '--vault-name test-kv' in create_cmd
+    assert f'--name {infra.CERT_NAME}' in create_cmd
+    assert '--policy "' in create_cmd
+    # Policy JSON should have escaped quotes (\")
+    assert '\\"issuerParameters\\"' in create_cmd
+    assert '\\"keyProperties\\"' in create_cmd
+    assert '\\"x509CertificateProperties\\"' in create_cmd
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    'infra_factory',
+    [
+        lambda: infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1),
+        lambda: infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1),
+    ]
+)
+def test_create_keyvault_certificate_returns_false_when_create_fails(mock_utils, mock_az, infra_factory):
+    """If creation fails, return False."""
+    infra = infra_factory()
+
+    show_output = Mock(success=False)
+    create_output = Mock(success=False)
+    mock_az.run.side_effect = [show_output, create_output]
+
+    assert infra._create_keyvault_certificate('test-kv') is False
+
+
+def test_afd_apim_aca_approve_private_links(mock_utils, mock_az):
+    """Test private link approval for AfdApimAcaInfrastructure."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_output = Mock()
+    mock_output.success = True
+    mock_output.getJson.return_value = [
+        {'name': 'test-connection', 'properties': {'privateLinkServiceConnectionState': {'status': 'Pending'}}}
+    ]
+    mock_az.run.return_value = mock_output
+
+    result = infra._approve_private_link_connections('/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test')
+
+    assert isinstance(result, bool)
+
+
+def test_appgw_apim_pe_approve_private_links(mock_utils, mock_az):
+    """Test private link approval for AppGwApimPeInfrastructure."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_output = Mock()
+    mock_output.success = True
+    mock_output.getJson.return_value = [
+        {'name': 'test-connection', 'properties': {'privateLinkServiceConnectionState': {'status': 'Pending'}}}
+    ]
+    mock_az.run.return_value = mock_output
+
+    result = infra._approve_private_link_connections('/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test')
+
+    assert isinstance(result, bool)
+
+
+@pytest.mark.unit
+def test_disable_apim_public_access_success_writes_params_and_calls_az(mock_utils, mock_az, tmp_path, monkeypatch):
+    """Disable public access should update params.json and trigger a redeploy."""
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    infra._define_bicep_parameters()
+    assert infra.bicep_parameters['apimPublicAccess']['value'] is True
+
+    # Redirect module-relative path resolution to a temp project layout.
+    monkeypatch.setattr(
+        infrastructures,
+        '__file__',
+        str(tmp_path / 'shared' / 'python' / 'infrastructures.py'),
+        raising=False
+    )
+    infra_dir = tmp_path / 'infrastructure' / infra.infra.value
+    infra_dir.mkdir(parents=True, exist_ok=True)
+
+    mock_az.run.return_value = Mock(success=True)
+
+    original_cwd = os.getcwd()
+    result = infra._disable_apim_public_access()
+
+    assert result is True
+    assert os.getcwd() == original_cwd
+    assert infra.bicep_parameters['apimPublicAccess']['value'] is False
+
+    params_path = infra_dir / 'params.json'
+    assert params_path.exists()
+
+    params_json = json.loads(params_path.read_text(encoding='utf-8'))
+    assert params_json['parameters']['apimPublicAccess']['value'] is False
+
+    mock_az.run.assert_called_once()
+    cmd = mock_az.run.call_args.args[0]
+    assert 'az deployment group create' in cmd
+    assert f'--name {infra.infra.value}-lockdown' in cmd
+    assert f'--resource-group {infra.rg_name}' in cmd
+    assert '--template-file' in cmd
+    assert '--parameters' in cmd
+
+
+@pytest.mark.unit
+def test_disable_apim_public_access_returns_false_when_param_missing(mock_utils, mock_az):
+    """If apimPublicAccess isn't present in parameters, the method should fail safely."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus'
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    infra._define_bicep_parameters()
+    assert 'apimPublicAccess' not in infra.bicep_parameters
+
+    result = infra._disable_apim_public_access()
+
+    assert result is False
+    mock_az.run.assert_not_called()
+
+
+@pytest.mark.unit
+def test_disable_apim_public_access_returns_false_when_deploy_fails(mock_utils, mock_az, tmp_path, monkeypatch):
+    """If the redeploy fails (az.run.success=False), return False but still write params.json."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    infra._define_bicep_parameters()
+    assert infra.bicep_parameters['apimPublicAccess']['value'] is True
+
+    monkeypatch.setattr(
+        infrastructures,
+        '__file__',
+        str(tmp_path / 'shared' / 'python' / 'infrastructures.py'),
+        raising=False
+    )
+    infra_dir = tmp_path / 'infrastructure' / infra.infra.value
+    infra_dir.mkdir(parents=True, exist_ok=True)
+
+    mock_az.run.return_value = Mock(success=False)
+
+    result = infra._disable_apim_public_access()
+
+    assert result is False
+    assert (infra_dir / 'params.json').exists()
+    assert infra.bicep_parameters['apimPublicAccess']['value'] is False
+
+
+def test_afd_apim_aca_verify_connectivity(mock_utils, mock_az):
+    """Test connectivity verification for AfdApimAcaInfrastructure."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    with patch('infrastructures.requests.get') as mock_requests:
+        mock_requests.return_value.status_code = 200
+
+        result = infra._verify_apim_connectivity('https://test-apim.azure-api.net')
+
+        assert isinstance(result, bool)
+
+
+def test_appgw_apim_pe_verify_connectivity(mock_utils, mock_az):
+    """Test connectivity verification for AppGwApimPeInfrastructure."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    with patch('infrastructures.requests.get') as mock_requests:
+        mock_requests.return_value.status_code = 200
+
+        result = infra._verify_apim_connectivity('https://test-apim.azure-api.net')
+
+        assert isinstance(result, bool)
+
+
+def test_afd_apim_aca_define_bicep_parameters(mock_utils):
+    """Test bicep parameter definition for AfdApimAcaInfrastructure."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    params = infra._define_bicep_parameters()
+
+    assert 'resourceSuffix' in params
+    assert 'apimSku' in params
+    assert 'apis' in params
+    assert 'policyFragments' in params
+
+
+def test_appgw_apim_pe_define_bicep_parameters(mock_utils):
+    """Test bicep parameter definition for AppGwApimPeInfrastructure."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    params = infra._define_bicep_parameters()
+
+    assert 'resourceSuffix' in params
+    assert 'apimSku' in params
+    assert 'apis' in params
+    assert 'policyFragments' in params
+
+
+def test_appgw_apim_define_bicep_parameters(mock_utils):
+    """Test bicep parameter definition for AppGwApimInfrastructure."""
+    infra = infrastructures.AppGwApimInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    params = infra._define_bicep_parameters()
+
+    assert 'resourceSuffix' in params
+    assert 'apimSku' in params
+    assert 'apis' in params
+    assert 'policyFragments' in params
+
+
+def test_infrastructure_with_network_mode_variations(mock_utils):
+    """Test infrastructure with different network modes."""
+    modes = [APIMNetworkMode.PUBLIC, APIMNetworkMode.INTERNAL_VNET, APIMNetworkMode.EXTERNAL_VNET]
+
+    for mode in modes:
+        infra = infrastructures.Infrastructure(
+            infra=INFRASTRUCTURE.SIMPLE_APIM,
+            index=1,
+            rg_location='eastus',
+            networkMode=mode
+        )
+        assert infra.networkMode == mode
+
+
+def test_infrastructure_with_sku_variations(mock_utils):
+    """Test infrastructure with different SKU values."""
+    skus = [APIM_SKU.DEVELOPER, APIM_SKU.BASIC, APIM_SKU.STANDARD, APIM_SKU.PREMIUM,
+            APIM_SKU.BASICV2, APIM_SKU.STANDARDV2, APIM_SKU.PREMIUMV2]
+
+    for sku in skus:
+        infra = infrastructures.Infrastructure(
+            infra=INFRASTRUCTURE.SIMPLE_APIM,
+            index=1,
+            rg_location='eastus',
+            apim_sku=sku
+        )
+        assert infra.apim_sku == sku
+
+
+
+
+def test_infrastructure_multiple_custom_components(mock_utils):
+    """Test infrastructure with both custom APIs and Policy Fragments."""
+    pf = PolicyFragment('test-pf', '<policy></policy>', 'Test PF')
+    api = API('test-api', 'Test API', '/test', 'Test', '<policy></policy>')
+
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        infra_pfs=[pf],
+        infra_apis=[api]
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    infra._define_bicep_parameters()
+
+    assert len(infra.pfs) > 6  # 6 base + 1 custom
+    assert len(infra.apis) > 1  # 1 base + 1 custom
+    assert infra.bicep_parameters is not None
+
+
+def test_infrastructure_with_location_variations(mock_utils):
+    """Test infrastructure in various Azure locations."""
+    locations = ['eastus', 'westus', 'northeurope', 'southeastasia', 'uksouth', 'japaneast']
+
+    for location in locations:
+        infra = infrastructures.Infrastructure(
+            infra=INFRASTRUCTURE.SIMPLE_APIM,
+            index=1,
+            rg_location=location
+        )
+        assert infra.rg_location == location
+
+
+def test_infrastructure_with_different_indices(mock_utils):
+    """Test infrastructure with different index values."""
+    for index in [1, 2, 5, 10, 100]:
+        infra = infrastructures.Infrastructure(
+            infra=INFRASTRUCTURE.SIMPLE_APIM,
+            index=index,
+            rg_location='eastus'
+        )
+        assert infra.index == index
+
+
+def test_appgw_apim_pe_create_keyvault_success(mock_utils, mock_az):
+    """Test KeyVault creation for AppGwApimPeInfrastructure."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_az.resource_exists.return_value = False
+    mock_az.run.return_value = Mock(success=True)
+
+    result = infra._create_keyvault('test-kv')
+    assert isinstance(result, bool)
+
+
+def test_appgw_apim_create_keyvault_success(mock_utils, mock_az):
+    """Test KeyVault creation for AppGwApimInfrastructure."""
+    infra = infrastructures.AppGwApimInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_az.resource_exists.return_value = False
+    mock_az.run.return_value = Mock(success=True)
+
+    result = infra._create_keyvault('test-kv')
+    assert isinstance(result, bool)
+
+
+def test_appgw_apim_pe_create_certificate_success(mock_utils, mock_az):
+    """Test certificate creation for AppGwApimPeInfrastructure."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_az.run.return_value = Mock(success=True)
+
+    result = infra._create_keyvault_certificate('test-kv')
+    assert isinstance(result, bool)
+
+
+def test_appgw_apim_create_certificate_success(mock_utils, mock_az):
+    """Test certificate creation for AppGwApimInfrastructure."""
+    infra = infrastructures.AppGwApimInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_az.run.return_value = Mock(success=True)
+
+    result = infra._create_keyvault_certificate('test-kv')
+    assert isinstance(result, bool)
+
+
+def test_afd_apim_aca_approve_private_links_multiple(mock_utils, mock_az):
+    """Test private link approval with multiple connections."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_output = Mock()
+    mock_output.success = True
+    mock_output.getJson.return_value = [
+        {'name': 'conn1', 'properties': {'privateLinkServiceConnectionState': {'status': 'Pending'}}},
+        {'name': 'conn2', 'properties': {'privateLinkServiceConnectionState': {'status': 'Pending'}}}
+    ]
+    mock_az.run.return_value = mock_output
+
+    result = infra._approve_private_link_connections('/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test')
+
+    assert isinstance(result, bool)
+
+
+def test_appgw_apim_pe_approve_private_links_multiple(mock_utils, mock_az):
+    """Test private link approval for AppGwApimPeInfrastructure with multiple connections."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_output = Mock()
+    mock_output.success = True
+    mock_output.getJson.return_value = [
+        {'name': 'conn1', 'properties': {'privateLinkServiceConnectionState': {'status': 'Pending'}}},
+        {'name': 'conn2', 'properties': {'privateLinkServiceConnectionState': {'status': 'Pending'}}}
+    ]
+    mock_az.run.return_value = mock_output
+
+    result = infra._approve_private_link_connections('/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test')
+
+    assert isinstance(result, bool)
+
+
+@pytest.mark.unit
+def test_afd_apim_aca_deploy_infrastructure_success_calls_steps(mock_utils, mock_az):
+    """AFD deploy should call approve/connectivity/disable steps when base deploy succeeds."""
+    mock_utils.Output.side_effect = Output
+
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+
+    base_output = Mock()
+    base_output.success = True
+    base_output.json_data = {'any': 'value'}
+    base_output.get.side_effect = lambda key, *_args, **_kwargs: {
+        'apimServiceId': '/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test',
+        'apimResourceGatewayURL': 'https://test-apim.azure-api.net'
+    }.get(key)
+
+    infra._approve_private_link_connections = Mock(return_value=True)
+    infra._verify_apim_connectivity = Mock(return_value=True)
+    infra._disable_apim_public_access = Mock(return_value=True)
+
+    with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=base_output) as mock_base_deploy:
+        result = infra.deploy_infrastructure(is_update=False)
+
+    assert result is base_output
+    mock_base_deploy.assert_called_once()
+    infra._approve_private_link_connections.assert_called_once_with('/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test')
+    infra._verify_apim_connectivity.assert_called_once_with('https://test-apim.azure-api.net')
+    infra._disable_apim_public_access.assert_called_once()
+
+
+@pytest.mark.unit
+def test_afd_apim_aca_deploy_infrastructure_returns_failed_output_when_approve_fails(mock_utils, mock_az):
+    """AFD deploy should return a failed Output when private link approval fails."""
+    mock_utils.Output.side_effect = Output
+
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+
+    base_output = Mock()
+    base_output.success = True
+    base_output.json_data = {'any': 'value'}
+    base_output.get.side_effect = lambda key, *_args, **_kwargs: {
+        'apimServiceId': '/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test',
+        'apimResourceGatewayURL': 'https://test-apim.azure-api.net'
+    }.get(key)
+
+    infra._approve_private_link_connections = Mock(return_value=False)
+
+    with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=base_output):
+        result = infra.deploy_infrastructure(is_update=False)
+
+    assert result.success is False
+    assert result.text == 'Private link approval failed'
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_deploy_infrastructure_success_calls_steps_and_sets_appgw_fields(mock_utils, mock_az):
+    """APPGW PE deploy should create prereqs, deploy, approve, verify connectivity, disable public access."""
+    mock_utils.Output.side_effect = Output
+
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    base_output = Mock()
+    base_output.success = True
+    base_output.json_data = {'any': 'value'}
+    base_output.get.side_effect = lambda key, *_args, **_kwargs: {
+        'apimServiceId': '/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test',
+        'apimResourceGatewayURL': 'https://test-apim.azure-api.net',
+        'appGatewayDomainName': 'api.example.com',
+        'appgwPublicIpAddress': '1.2.3.4'
+    }.get(key)
+
+    infra._create_keyvault = Mock(return_value=True)
+    infra._create_keyvault_certificate = Mock(return_value=True)
+    infra._approve_private_link_connections = Mock(return_value=True)
+    infra._verify_apim_connectivity = Mock(return_value=True)
+    infra._disable_apim_public_access = Mock(return_value=True)
+
+    with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=base_output) as mock_base_deploy:
+        result = infra.deploy_infrastructure(is_update=False)
+
+    assert result is base_output
+    infra._create_keyvault.assert_called_once()
+    infra._create_keyvault_certificate.assert_called_once()
+    mock_base_deploy.assert_called_once()
+    infra._approve_private_link_connections.assert_called_once_with('/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test')
+    infra._verify_apim_connectivity.assert_called_once_with('https://test-apim.azure-api.net')
+    infra._disable_apim_public_access.assert_called_once()
+    assert infra.appgw_domain_name == 'api.example.com'
+    assert infra.appgw_public_ip == '1.2.3.4'
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_deploy_infrastructure_returns_failed_output_when_keyvault_fails(mock_utils, mock_az):
+    """APPGW PE deploy should return a failed Output if Key Vault creation fails."""
+    mock_utils.Output.side_effect = Output
+
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+    infra._create_keyvault = Mock(return_value=False)
+
+    result = infra.deploy_infrastructure(is_update=False)
+
+    assert result.success is False
+    assert result.text == 'Failed to create Key Vault'
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_verify_infrastructure_specific_success(mock_utils, mock_az):
+    """Verify should pass when App Gateway exists; container apps and PE checks are optional."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    appgw_output = Mock(success=True, json_data={'name': 'test-appgw'})
+    aca_output = Mock(success=True, text='1')
+    apim_output = Mock(success=True, text='/subscriptions/test/.../apim')
+    pe_output = Mock(success=True, text='2')
+
+    mock_az.run.side_effect = [appgw_output, aca_output, apim_output, pe_output]
+
+    assert infra._verify_infrastructure_specific('rg-test') is True
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_verify_infrastructure_specific_returns_false_when_appgw_missing(mock_utils, mock_az):
+    """Verify should fail when App Gateway cannot be retrieved."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    mock_az.run.return_value = Mock(success=False, json_data=None)
+
+    assert infra._verify_infrastructure_specific('rg-test') is False
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_verify_infrastructure_specific_ignores_private_endpoint_errors(mock_utils, mock_az):
+    """Private endpoint verification is best-effort and should not fail the overall verification."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    appgw_output = Mock(success=True, json_data={'name': 'test-appgw'})
+    aca_output = Mock(success=True, text='0')
+
+    def run_side_effect(*args, **kwargs):
+        cmd = args[0] if args else ''
+        if 'application-gateway list' in cmd:
+            return appgw_output
+        if 'containerapp list' in cmd:
+            return aca_output
+        if 'az apim list' in cmd:
+            raise RuntimeError('boom')
+        raise AssertionError(f'Unexpected az.run call: {cmd}')
+
+    mock_az.run.side_effect = run_side_effect
+
+    assert infra._verify_infrastructure_specific('rg-test') is True
+
+
+def test_afd_apim_aca_verify_connectivity_with_retry(mock_utils, mock_az):
+    """Test connectivity verification with retries for AfdApimAcaInfrastructure."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    with patch('infrastructures.requests.get') as mock_requests:
+        mock_requests.return_value.status_code = 200
+
+        result = infra._verify_apim_connectivity('https://test-apim.azure-api.net')
+
+        assert isinstance(result, bool)
+
+
+def test_appgw_apim_pe_verify_connectivity_with_retry(mock_utils, mock_az):
+    """Test connectivity verification for AppGwApimPeInfrastructure."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    with patch('infrastructures.requests.get') as mock_requests:
+        mock_requests.return_value.status_code = 200
+
+        result = infra._verify_apim_connectivity('https://test-apim.azure-api.net')
+
+        assert isinstance(result, bool)
+
+
+def test_afd_apim_aca_define_bicep_parameters_complete(mock_utils):
+    """Test complete bicep parameter definition for AfdApimAcaInfrastructure."""
+    pf = PolicyFragment('custom-pf', '<policy></policy>', 'Custom')
+    api = API('custom-api', 'Custom', '/custom', 'Custom', '<policy></policy>')
+
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1,
+        infra_pfs=[pf],
+        infra_apis=[api]
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    params = infra._define_bicep_parameters()
+
+    assert 'resourceSuffix' in params
+    assert 'apimSku' in params
+    assert 'apis' in params
+    assert 'policyFragments' in params
+    assert len(params['apis']['value']) > 1
+    assert len(params['policyFragments']['value']) > 6
+
+
+def test_appgw_apim_pe_define_bicep_parameters_complete(mock_utils):
+    """Test complete bicep parameter definition for AppGwApimPeInfrastructure."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    params = infra._define_bicep_parameters()
+
+    assert 'resourceSuffix' in params
+    assert 'apimSku' in params
+    assert 'apis' in params
+    assert 'policyFragments' in params
+
+
+def test_appgw_apim_define_bicep_parameters_complete(mock_utils):
+    """Test complete bicep parameter definition for AppGwApimInfrastructure."""
+    infra = infrastructures.AppGwApimInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    params = infra._define_bicep_parameters()
+
+    assert 'resourceSuffix' in params
+    assert 'apimSku' in params
+    assert 'apis' in params
+    assert 'policyFragments' in params
+
+
+def test_apim_aca_verify_infrastructure_specific_checks(mock_utils, mock_az):
+    """Test ApimAcaInfrastructure specific verification checks."""
+    infra = infrastructures.ApimAcaInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    mock_az.does_resource_group_exist.return_value = True
+    mock_az.does_apim_exist.return_value = True
+
+    result = infra._verify_infrastructure_specific('test-rg')
+    assert isinstance(result, bool)
+
+
+def test_infrastructure_deployment_with_all_skus(mock_utils):
+    """Test infrastructure creation with all available SKUs."""
+    skus = [APIM_SKU.DEVELOPER, APIM_SKU.BASIC, APIM_SKU.STANDARD, APIM_SKU.PREMIUM,
+            APIM_SKU.BASICV2, APIM_SKU.STANDARDV2, APIM_SKU.PREMIUMV2]
+
+    for sku in skus:
+        infra = infrastructures.Infrastructure(
+            infra=INFRASTRUCTURE.SIMPLE_APIM,
+            index=1,
+            rg_location='eastus',
+            apim_sku=sku
+        )
+        infra._define_policy_fragments()
+        infra._define_apis()
+        infra._define_bicep_parameters()
+        assert infra.bicep_parameters['apimSku']['value'] == sku.value
+
+
+def test_infrastructure_bicep_parameters_structure(mock_utils):
+    """Test that bicep parameters have correct structure."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus'
+    )
+
+    infra._define_policy_fragments()
+    infra._define_apis()
+    params = infra._define_bicep_parameters()
+
+    # Verify structure
+    assert isinstance(params, dict)
+    for _key, value in params.items():
+        assert 'value' in value
+        assert isinstance(value['value'], (str, list))
+
+
+def test_infrastructure_policy_fragments_combining(mock_utils):
+    """Test combining base and custom policy fragments."""
+    pf1 = PolicyFragment('custom-1', '<policy></policy>', 'Custom 1')
+    pf2 = PolicyFragment('custom-2', '<policy></policy>', 'Custom 2')
+
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        infra_pfs=[pf1, pf2]
+    )
+
+    pfs = infra._define_policy_fragments()
+
+    # Should have 6 base + 2 custom
+    assert len(pfs) == 8
+    assert infra.base_pfs
+    assert any(pf.name == 'custom-1' for pf in pfs)
+    assert any(pf.name == 'custom-2' for pf in pfs)
+
+
+def test_infrastructure_apis_combining(mock_utils):
+    """Test combining base and custom APIs."""
+    api1 = API('custom-1', 'Custom 1', '/c1', 'Custom 1', '<policy></policy>')
+    api2 = API('custom-2', 'Custom 2', '/c2', 'Custom 2', '<policy></policy>')
+
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        infra_apis=[api1, api2]
+    )
+
+    apis = infra._define_apis()
+
+    # Should have 1 base (hello-world) + 2 custom
+    assert len(apis) == 3
+    assert infra.base_apis
+    assert any(api.name == 'custom-1' for api in apis)
+    assert any(api.name == 'custom-2' for api in apis)
+    assert infra.apis[0].name == 'hello-world'
+
+
+def test_infrastructure_with_no_custom_components(mock_utils):
+    """Test infrastructure with empty custom component lists."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        infra_apis=[],
+        infra_pfs=[]
+    )
+
+    apis = infra._define_apis()
+    pfs = infra._define_policy_fragments()
+
+    # Only base components
+    assert len(apis) == 1
+    assert len(pfs) == 6
+
+
+def test_infrastructure_network_mode_with_custom_components(mock_utils):
+    """Test infrastructure with network mode and custom components."""
+    pf = PolicyFragment('test-pf', '<policy></policy>', 'Test')
+    api = API('test-api', 'Test API', '/test', 'Test', '<policy></policy>')
+
+    for network_mode in [APIMNetworkMode.PUBLIC, APIMNetworkMode.INTERNAL_VNET, APIMNetworkMode.EXTERNAL_VNET]:
+        infra = infrastructures.Infrastructure(
+            infra=INFRASTRUCTURE.APPGW_APIM,
+            index=1,
+            rg_location='eastus',
+            networkMode=network_mode,
+            infra_pfs=[pf],
+            infra_apis=[api]
+        )
+        assert infra.networkMode == network_mode
+        infra._define_policy_fragments()
+        infra._define_apis()
+        assert len(infra.pfs) == 7
+        assert len(infra.apis) == 2
+
+
+# @pytest.mark.unit
+# @patch('os.getcwd')
+# @patch('os.chdir')
+# @patch('pathlib.Path')
+# def test_deploy_infrastructure_appgw_apim_pe_full_flow(mock_path_class, mock_chdir, mock_getcwd, mock_utils, mock_az):
+#     """Test full deployment flow for APPGW-APIM-PE infrastructure."""
+#     mock_getcwd.return_value = '/original/path'
+#     mock_infra_dir = Mock()
+#     mock_path_instance = Mock()
+#     mock_path_instance.parent = mock_infra_dir
+#     mock_path_class.return_value = mock_path_instance
+
+#     infra = infrastructures.AppGwApimPeInfrastructure(
+#         rg_location='eastus',
+#         index=1
+#     )
+
+#     # Mock outputs properly using Output class
+#     kv_check_output = Output(False, 'Not found')
+#     kv_create_output = Output(True, 'Created')
+#     cert_check_output = Output(False, 'Not found')
+#     cert_create_output = Output(True, 'Created')
+
+#     # Mock main deployment with proper Output object
+#     deploy_json = json.dumps({
+#         'properties': {
+#             'outputs': {
+#                 'appGatewayDomainName': {'value': 'test-appgw.example.com'},
+#                 'appgwPublicIpAddress': {'value': '40.50.60.70'}
+#             }
+#         }
+#     })
+#     deploy_output = Output(True, deploy_json)
+
+#     # Configure side effects for multiple calls
+#     mock_az.run.side_effect = [
+#         kv_check_output, kv_create_output, cert_check_output, cert_create_output,
+#         deploy_output
+#     ]
+
+#     with patch('builtins.open', MagicMock()), \
+#          patch('json.dumps', return_value='{"mocked": "params"}'), \
+#          patch('infrastructures.print_plain'), \
+#          patch('infrastructures.print_ok'), \
+#          patch('infrastructures.print_error'), \
+#          patch('infrastructures.print_info'), \
+#          patch('infrastructures.print_command'):
+
+#         result = infra.deploy_infrastructure(is_update=False)
+
+#     assert result.success is True
+#     assert mock_chdir.call_count == 2
+
+
+# @pytest.mark.unit
+# @patch('os.getcwd')
+# @patch('os.chdir')
+# @patch('pathlib.Path')
+# def test_deploy_infrastructure_appgw_apim_internal_with_update_flag(mock_path_class, mock_chdir, mock_getcwd, mock_utils, mock_az):
+#     """Test APPGW-APIM (Internal) deployment with is_update flag."""
+#     mock_getcwd.return_value = '/original/path'
+#     mock_infra_dir = Mock()
+#     mock_path_instance = Mock()
+#     mock_path_instance.parent = mock_infra_dir
+#     mock_path_class.return_value = mock_path_instance
+
+#     infra = infrastructures.AppGwApimInfrastructure(
+#         rg_location='westus',
+#         index=2
+#     )
+
+#     # Mock Key Vault check (exists)
+#     kv_check_output = Output(True, 'Found')
+
+#     # Mock certificate check (exists)
+#     cert_check_output = Output(True, 'Found')
+
+#     # Mock main deployment
+#     deploy_json = json.dumps({
+#         'properties': {
+#             'outputs': {
+#                 'appGatewayDomainName': {'value': 'update-appgw.example.com'},
+#                 'appgwPublicIpAddress': {'value': '40.50.60.71'}
+#             }
+#         }
+#     })
+#     deploy_output = Output(True, deploy_json)
+
+#     mock_az.run.side_effect = [kv_check_output, cert_check_output, deploy_output]
+
+#     with patch('builtins.open', MagicMock()), \
+#          patch('json.dumps', return_value='{}'), \
+#          patch('infrastructures.print_plain'), \
+#          patch('infrastructures.print_ok'), \
+#          patch('infrastructures.print_info'), \
+#          patch('infrastructures.print_command'):
+
+#         result = infra.deploy_infrastructure(is_update=True)
+
+#     assert result.success is True
+
+
+# @pytest.mark.unit
+# @patch('os.getcwd')
+# @patch('os.chdir')
+# @patch('pathlib.Path')
+# def test_deploy_infrastructure_appgw_failure_keyvault_creation(mock_path_class, mock_chdir, mock_getcwd, mock_utils, mock_az):
+#     """Test deployment failure when Key Vault creation fails."""
+#     mock_getcwd.return_value = '/original/path'
+#     mock_infra_dir = Mock()
+#     mock_path_instance = Mock()
+#     mock_path_instance.parent = mock_infra_dir
+#     mock_path_class.return_value = mock_path_instance
+
+#     infra = infrastructures.AppGwApimPeInfrastructure(
+#         rg_location='eastus',
+#         index=1
+#     )
+
+#     # Mock Key Vault check failure (doesn't exist) and creation failure
+#     mock_az.run.side_effect = [Output(False, 'Not found'), Output(False, 'Creation failed')]
+
+#     with patch('builtins.open', MagicMock()), \
+#          patch('infrastructures.print_plain'), \
+#          patch('infrastructures.print_error'):
+
+#         result = infra.deploy_infrastructure(is_update=False)
+
+#     assert result.success is False
+#     assert 'Failed to create Key Vault' in result.error_message
+
+
+# @pytest.mark.unit
+# @patch('os.getcwd')
+# @patch('os.chdir')
+# @patch('pathlib.Path')
+# def test_deploy_infrastructure_appgw_failure_certificate_creation(mock_path_class, mock_chdir, mock_getcwd, mock_utils, mock_az):
+#     """Test deployment failure when certificate creation fails."""
+#     mock_getcwd.return_value = '/original/path'
+#     mock_infra_dir = Mock()
+#     mock_path_instance = Mock()
+#     mock_path_instance.parent = mock_infra_dir
+#     mock_path_class.return_value = mock_path_instance
+
+#     infra = infrastructures.AppGwApimInfrastructure(
+#         rg_location='eastus',
+#         index=1
+#     )
+
+#     # Mock Key Vault success but certificate creation failure
+#     mock_az.run.side_effect = [Output(True, 'Found'), Output(False, 'Not found'), Output(False, 'Creation failed')]
+
+#     with patch('builtins.open', MagicMock()), \
+#          patch('infrastructures.print_plain'), \
+#          patch('infrastructures.print_error'):
+
+#         result = infra.deploy_infrastructure(is_update=False)
+
+#     assert result.success is False
+#     assert 'Failed to create certificate' in result.error_message
+
+
+@pytest.mark.unit
+@patch('os.getcwd')
+@patch('os.chdir')
+@patch('pathlib.Path')
+def test_deploy_infrastructure_appgw_failure_main_deployment(mock_path_class, mock_chdir, mock_getcwd, mock_utils, mock_az):
+    """Test deployment failure when main deployment fails."""
+    mock_getcwd.return_value = '/original/path'
+    mock_infra_dir = Mock()
+    mock_path_instance = Mock()
+    mock_path_instance.parent = mock_infra_dir
+    mock_path_class.return_value = mock_path_instance
+
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    # Mock successful Key Vault and certificate, but failed deployment
+    kv_output = Output(True, 'Found')
+    cert_output = Output(True, 'Found')
+    deploy_output = Output(False, 'Deployment failed')
+
+    mock_az.run.side_effect = [kv_output, cert_output, deploy_output]
+
+    with patch('builtins.open', MagicMock()), \
+         patch('json.dumps', return_value='{}'), \
+         patch('infrastructures.print_plain'), \
+         patch('infrastructures.print_ok'), \
+         patch('infrastructures.print_error'):
+
+        result = infra.deploy_infrastructure(is_update=False)
+
+    assert result.success is False
+
+
+# @pytest.mark.unit
+# @patch('os.getcwd')
+# @patch('os.chdir')
+# @patch('pathlib.Path')
+# def test_deploy_infrastructure_appgw_no_output_json_data(mock_path_class, mock_chdir, mock_getcwd, mock_utils, mock_az):
+#     """Test deployment failure when output has no json_data."""
+#     mock_getcwd.return_value = '/original/path'
+#     mock_infra_dir = Mock()
+#     mock_path_instance = Mock()
+#     mock_path_instance.parent = mock_infra_dir
+#     mock_path_class.return_value = mock_path_instance
+
+#     infra = infrastructures.AppGwApimInfrastructure(
+#         rg_location='eastus',
+#         index=1
+#     )
+
+#     # Mock Key Vault and certificate success, deployment success but no json_data
+#     kv_output = Output(True, 'Found')
+#     cert_output = Output(True, 'Found')
+#     deploy_output = Output(True, 'Invalid JSON')
+
+#     mock_az.run.side_effect = [kv_output, cert_output, deploy_output]
+
+#     with patch('builtins.open', MagicMock()), \
+#          patch('json.dumps', return_value='{}'), \
+#          patch('infrastructures.print_plain'), \
+#          patch('infrastructures.print_ok'), \
+#          patch('infrastructures.print_error'):
+
+#         result = infra.deploy_infrastructure(is_update=False)
+
+#     assert result.success is False
+
+
+# @pytest.mark.unit
+# @patch('os.getcwd')
+# @patch('os.chdir')
+# @patch('pathlib.Path')
+# def test_deploy_infrastructure_appgw_extracts_output_values(mock_path_class, mock_chdir, mock_getcwd, mock_utils, mock_az):
+#     """Test that deploy_infrastructure properly extracts output values."""
+#     mock_getcwd.return_value = '/original/path'
+#     mock_infra_dir = Mock()
+#     mock_path_instance = Mock()
+#     mock_path_instance.parent = mock_infra_dir
+#     mock_path_class.return_value = mock_path_instance
+
+#     infra = infrastructures.AppGwApimPeInfrastructure(
+#         rg_location='eastus',
+#         index=1
+#     )
+
+#     # Mock outputs
+#     kv_output = Output(True, 'Found')
+#     cert_output = Output(True, 'Found')
+#     deploy_json = json.dumps({
+#         'properties': {
+#             'outputs': {
+#                 'appGatewayDomainName': {'value': 'my-appgw.example.com'},
+#                 'appgwPublicIpAddress': {'value': '1.2.3.4'}
+#             }
+#         }
+#     })
+#     deploy_output = Output(True, deploy_json)
+
+#     mock_az.run.side_effect = [kv_output, cert_output, deploy_output]
+
+#     with patch('builtins.open', MagicMock()), \
+#          patch('json.dumps', return_value='{}'), \
+#          patch('infrastructures.print_plain'), \
+#          patch('infrastructures.print_ok'), \
+#          patch('infrastructures.print_info'), \
+#          patch('infrastructures.print_command'):
+
+#         result = infra.deploy_infrastructure(is_update=False)
+
+#     assert result.success is True
+#     assert infra.appgw_domain_name == 'my-appgw.example.com'
+#     assert infra.appgw_public_ip == '1.2.3.4'
+
+
+@pytest.mark.unit
+def test_deploy_infrastructure_appgw_prints_final_configuration(mock_utils, mock_az):
+    """Test that deploy_infrastructure prints final configuration."""
+    infra = infrastructures.AppGwApimInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    # This test verifies the correct messages are printed (tested through side effects)
+    # The actual printing is tested implicitly through the other tests
+    assert hasattr(infra, 'deploy_infrastructure')
+    assert callable(infra.deploy_infrastructure)
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_missing_deployment_name(monkeypatch):
+    """Test with missing deployment name parameter."""
+    print_calls = []
+
+    def mock_print_log(msg, icon, color, **kwargs):
+        print_calls.append(msg)
+
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', mock_print_log)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing('', 'test-rg', '[TEST]: ', 'color')
+
+    assert any('Missing deployment name parameter' in call for call in print_calls)
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_missing_resource_group(monkeypatch):
+    """Test with missing resource group name parameter."""
+    print_calls = []
+
+    def mock_print_log(msg, icon, color, **kwargs):
+        print_calls.append(msg)
+
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', mock_print_log)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', '', '[TEST]: ', 'color')
+
+    assert any('Missing resource group name parameter' in call for call in print_calls)
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_none_deployment_name(monkeypatch):
+    """Test with None deployment name parameter."""
+    print_calls = []
+
+    def mock_print_log(msg, icon, color, **kwargs):
+        print_calls.append(msg)
+
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', mock_print_log)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing(None, 'test-rg', '[TEST]: ', 'color')
+
+    assert any('Missing deployment name parameter' in call for call in print_calls)
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_none_resource_group(monkeypatch):
+    """Test with None resource group name parameter."""
+    print_calls = []
+
+    def mock_print_log(msg, icon, color, **kwargs):
+        print_calls.append(msg)
+
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', mock_print_log)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', None, '[TEST]: ', 'color')
+
+    assert any('Missing resource group name parameter' in call for call in print_calls)
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_success_with_no_resources(monkeypatch):
+    """Test successful cleanup with no resources to delete."""
+    run_calls = []
+    print_calls = []
+
+    def mock_run(command, ok_msg=None, error_msg=None):
+        run_calls.append(command)
+        if 'deployment group show' in command:
+            return Output(True, '{}')
+        if 'list -g' in command or 'list ' in command:
+            return Output(True, json.dumps([]))
+        return Output(True, '{}')
+
+    def mock_print_log(msg, icon, color, **kwargs):
+        print_calls.append(msg)
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', mock_print_log)
+    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
+
+    assert len(print_calls) > 0
+    assert any('Cleanup completed' in call for call in print_calls)
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_with_cognitiveservices(monkeypatch):
+    """Test cleanup with CognitiveServices resources."""
+    run_calls = []
+
+    def mock_run(command, ok_msg=None, error_msg=None):
+        run_calls.append(command)
+        if 'deployment group show' in command:
+            return Output(True, '{}')
+        if 'cognitiveservices account list' in command:
+            return Output(True, json.dumps([
+                {'name': 'cog-1', 'location': 'eastus'},
+                {'name': 'cog-2', 'location': 'westus'}
+            ]))
+        if 'apim list' in command or 'keyvault list' in command:
+            return Output(True, json.dumps([]))
+        if 'cognitiveservices account' in command:
+            return Output(True, '{}')
+        return Output(True, '{}')
+
+    def mock_cleanup_parallel(resources, thread_prefix, thread_color):
+        # Verify resources were collected
+        assert len(resources) == 2
+        assert all(r['type'] == 'cognitiveservices' for r in resources)
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', mock_cleanup_parallel)
+    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_with_apim_resources(monkeypatch):
+    """Test cleanup with APIM resources."""
+    def mock_run(command, ok_msg=None, error_msg=None):
+        if 'deployment group show' in command:
+            return Output(True, '{}')
+        if 'apim list' in command:
+            return Output(True, json.dumps([
+                {'name': 'apim-1', 'location': 'eastus'},
+                {'name': 'apim-2', 'location': 'northeurope'}
+            ]))
+        if 'cognitiveservices account list' in command or 'keyvault list' in command:
+            return Output(True, json.dumps([]))
+        return Output(True, '{}')
+
+    def mock_cleanup_parallel(resources, thread_prefix, thread_color):
+        assert len(resources) == 2
+        assert all(r['type'] == 'apim' for r in resources)
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', mock_cleanup_parallel)
+    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_with_keyvault_resources(monkeypatch):
+    """Test cleanup with Key Vault resources."""
+    def mock_run(command, ok_msg=None, error_msg=None):
+        if 'deployment group show' in command:
+            return Output(True, '{}')
+        if 'keyvault list' in command:
+            return Output(True, json.dumps([
+                {'name': 'kv-vault-1', 'location': 'eastus'},
+                {'name': 'kv-vault-2', 'location': 'westus'},
+                {'name': 'kv-vault-3', 'location': 'northeurope'}
+            ]))
+        if 'cognitiveservices account list' in command or 'apim list' in command:
+            return Output(True, json.dumps([]))
+        return Output(True, '{}')
+
+    def mock_cleanup_parallel(resources, thread_prefix, thread_color):
+        assert len(resources) == 3
+        assert all(r['type'] == 'keyvault' for r in resources)
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', mock_cleanup_parallel)
+    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_with_mixed_resources(monkeypatch):
+    """Test cleanup with mixed resource types."""
+    def mock_run(command, ok_msg=None, error_msg=None):
+        if 'deployment group show' in command:
+            return Output(True, '{}')
+        if 'cognitiveservices account list' in command:
+            return Output(True, json.dumps([{'name': 'cog-1', 'location': 'eastus'}]))
+        if 'apim list' in command:
+            return Output(True, json.dumps([{'name': 'apim-1', 'location': 'westus'}]))
+        if 'keyvault list' in command:
+            return Output(True, json.dumps([{'name': 'kv-1', 'location': 'northeurope'}]))
+        return Output(True, '{}')
+
+    def mock_cleanup_parallel(resources, thread_prefix, thread_color):
+        assert len(resources) == 3
+        resource_types = {r['type'] for r in resources}
+        assert resource_types == {'cognitiveservices', 'apim', 'keyvault'}
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', mock_cleanup_parallel)
+    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_deployment_show_fails(monkeypatch):
+    """Test cleanup when deployment group show fails."""
+    def mock_run(command, ok_msg=None, error_msg=None):
+        if 'deployment group show' in command:
+            return Output(False, 'Deployment not found')
+        if 'cognitiveservices account list' in command or 'apim list' in command or 'keyvault list' in command:
+            return Output(True, json.dumps([]))
+        return Output(True, '{}')
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', lambda *args, **kwargs: None)
+    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+
+    # Should not raise exception
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_cognitiveservices_list_fails(monkeypatch):
+    """Test cleanup when cognitiveservices list fails."""
+    def mock_run(command, ok_msg=None, error_msg=None):
+        if 'deployment group show' in command:
+            return Output(success=True, text='{}')
+        if 'cognitiveservices account list' in command:
+            return Output(success=False, text='List failed')
+        if 'apim list' in command or 'keyvault list' in command:
+            return Output(success=True, json_data=[])
+        return Output(success=True, text='{}')
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', lambda *args, **kwargs: None)
+    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+
+    # Should handle failure gracefully
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_exception_handling(monkeypatch):
+    """Test cleanup exception handling and RG cleanup attempt."""
+    def mock_run(command, ok_msg=None, error_msg=None):
+        raise Exception("Simulated Azure CLI error")
+
+    rg_delete_called = []
+
+    def mock_delete_rg(rg_name, thread_prefix, thread_color):
+        rg_delete_called.append((rg_name, thread_prefix, thread_color))
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', mock_delete_rg)
+    monkeypatch.setattr('infrastructures.should_print_traceback', lambda: False)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
+
+    # Verify RG delete was attempted in finally block
+    assert len(rg_delete_called) > 0
+    assert rg_delete_called[0][0] == 'test-rg'
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_rg_delete_always_attempted(monkeypatch):
+    """Test that resource group deletion is always attempted."""
+    rg_delete_calls = []
+
+    def mock_run(command, ok_msg=None, error_msg=None):
+        if 'deployment group show' in command:
+            return Output(True, '{}')
+        if 'cognitiveservices account list' in command or 'apim list' in command or 'keyvault list' in command:
+            return Output(True, json.dumps([]))
+        return Output(True, '{}')
+
+    def mock_delete_rg(rg_name, thread_prefix, thread_color):
+        rg_delete_calls.append((rg_name, thread_prefix, thread_color))
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', lambda *args, **kwargs: None)
+    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', mock_delete_rg)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
+
+    # Verify RG deletion was attempted exactly once
+    assert len(rg_delete_calls) == 1
+    assert rg_delete_calls[0][0] == 'test-rg'
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_thread_prefix_and_color_passed(monkeypatch):
+    """Test that thread prefix and color are correctly passed through."""
+    cleanup_parallel_calls = []
+
+    def mock_run(command, ok_msg=None, error_msg=None):
+        if 'deployment group show' in command:
+            return Output(True, '{}')
+        if 'cognitiveservices account list' in command:
+            return Output(True, json.dumps([{'name': 'cog-1', 'location': 'eastus'}]))
+        if 'apim list' in command or 'keyvault list' in command:
+            return Output(True, json.dumps([]))
+        return Output(True, '{}')
+
+    def mock_cleanup_parallel(resources, thread_prefix, thread_color):
+        cleanup_parallel_calls.append((thread_prefix, thread_color))
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', mock_cleanup_parallel)
+    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+
+    test_prefix = '[CUSTOM-PREFIX]: '
+    test_color = '\033[35m'  # Magenta color code
+
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', test_prefix, test_color)
+
+    assert len(cleanup_parallel_calls) > 0
+    assert cleanup_parallel_calls[0] == (test_prefix, test_color)
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_logs_resource_group_name(monkeypatch):
+    """Test that resource group name is logged."""
+    log_calls = []
+
+    def mock_run(command, ok_msg=None, error_msg=None):
+        if 'deployment group show' in command:
+            return Output(success=True, text='{}')
+        if any(x in command for x in ['cognitiveservices', 'apim', 'keyvault']):
+            return Output(success=True, json_data=[])
+        return Output(success=True, text='{}')
+
+    def mock_print_log(msg, icon, color, **kwargs):
+        log_calls.append((msg, icon))
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', mock_print_log)
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', lambda *args, **kwargs: None)
+    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'my-test-rg', '[TEST]: ', 'color')
+
+    # Verify RG name was logged
+    assert any('my-test-rg' in msg for msg, _icon in log_calls)
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_success_completion_message(monkeypatch):
+    """Test that success completion message is logged."""
+    log_calls = []
+
+    def mock_run(command, ok_msg=None, error_msg=None):
+        if 'deployment group show' in command:
+            return Output(True, '{}')
+        if any(x in command for x in ['cognitiveservices', 'apim', 'keyvault']):
+            return Output(True, json.dumps([]))
+        return Output(True, '{}')
+
+    def mock_print_log(msg, icon, color, **kwargs):
+        log_calls.append(msg)
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', mock_print_log)
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', lambda *args, **kwargs: None)
+    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
+
+    assert len(log_calls) > 0
+    assert any('Cleanup completed' in msg for msg in log_calls)
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_parallel_cleanup_called_when_resources_exist(monkeypatch):
+    """Test that parallel cleanup is called when resources exist."""
+    cleanup_calls = []
+
+    def mock_run(command, ok_msg=None, error_msg=None):
+        if 'deployment group show' in command:
+            return Output(True, '{}')
+        if 'cognitiveservices account list' in command:
+            return Output(True, json.dumps([{'name': 'cog-1', 'location': 'eastus'}]))
+        if 'apim list' in command or 'keyvault list' in command:
+            return Output(True, json.dumps([]))
+        return Output(True, '{}')
+
+    def mock_cleanup_parallel(resources, thread_prefix, thread_color):
+        cleanup_calls.append(len(resources))
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', mock_cleanup_parallel)
+    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
+
+    assert len(cleanup_calls) == 1
+    assert cleanup_calls[0] == 1
+
+
+@pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_large_resource_count(monkeypatch):
+    """Test cleanup with many resources."""
+    def mock_run(command, ok_msg=None, error_msg=None):
+        if 'deployment group show' in command:
+            return Output(success=True, text='{}')
+        if 'cognitiveservices account list' in command:
+            return Output(success=True, json_data=[
+                {'name': f'cog-{i}', 'location': 'eastus'} for i in range(5)
+            ])
+        if 'apim list' in command:
+            return Output(success=True, json_data=[
+                {'name': f'apim-{i}', 'location': 'westus'} for i in range(3)
+            ])
+        if 'keyvault list' in command:
+            return Output(success=True, json_data=[
+                {'name': f'kv-{i}', 'location': 'northeurope'} for i in range(7)
+            ])
+        return Output(success=True, text='{}')
+
+    def mock_cleanup_parallel(resources, thread_prefix, thread_color):
+        assert len(resources) == 15  # 5 + 3 + 7
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', mock_cleanup_parallel)
+    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')

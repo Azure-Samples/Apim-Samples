@@ -20,7 +20,7 @@ from typing import Any
 import azure_resources as az
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, get_project_root
 from console import print_error, print_info, print_message, print_ok, print_plain, print_warning, print_val
-from logging_config import get_configured_level_name
+import logging_config
 
 # Configure warning filter to suppress IPython exit warnings
 warnings.filterwarnings(
@@ -48,7 +48,7 @@ def get_deployment_failure_message(deployment_name: str) -> str:
     base_message = f"Deployment '{deployment_name}' failed. View deployment details in Azure Portal."
 
     # Only suggest enabling DEBUG logging if it's not already enabled
-    current_level = get_configured_level_name()
+    current_level = logging_config.get_configured_level_name()
     if current_level != 'DEBUG':
         return f"{base_message} Enable DEBUG logging in workspace root .env file, then rerun to see details."
 
@@ -644,9 +644,8 @@ def find_project_root() -> str:
 
     while current_dir != os.path.dirname(current_dir):  # Stop at filesystem root
         if any(os.path.exists(os.path.join(current_dir, marker)) for marker in marker_files):
-            # Additional check: verify this looks like our project by checking for samples directory
-            if os.path.exists(os.path.join(current_dir, 'samples')):
-                return current_dir
+            # Return as soon as marker files are found; do not require 'samples' directory
+            return current_dir
         current_dir = os.path.dirname(current_dir)
 
     # If we can't find the project root, raise an error
