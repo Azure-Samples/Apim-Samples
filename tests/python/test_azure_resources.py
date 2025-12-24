@@ -152,6 +152,87 @@ def test_get_account_info_no_json():
 
         assert 'Failed to retrieve account information' in str(exc_info.value)
 
+
+# ------------------------------
+#    APIM SUBSCRIPTION KEY TESTS
+# ------------------------------
+
+
+def test_get_apim_subscription_key_selects_active_and_returns_primary(monkeypatch):
+    """Selects an active subscription when multiple exist and returns the primaryKey."""
+
+    calls: list[str] = []
+
+    def fake_run(cmd: str, *args, **kwargs):
+        calls.append(cmd)
+
+        if cmd.startswith('az account show'):
+            return Output(True, 'sub-123\n')
+
+        if 'az rest --method get' in cmd and '/subscriptions?' in cmd:
+            payload = {
+                'value': [
+                    {'name': 'sid-1', 'properties': {'state': 'suspended', 'displayName': 'Suspended'}},
+                    {'name': 'sid-2', 'properties': {'state': 'active', 'displayName': 'Active'}},
+                ]
+            }
+            return Output(True, json.dumps(payload))
+
+        if 'az rest --method post' in cmd and 'listSecrets' in cmd:
+            assert '/subscriptions/sid-2/listSecrets' in cmd
+            return Output(True, json.dumps({'primaryKey': 'pk-abc', 'secondaryKey': 'sk-def'}))
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    key = az.get_apim_subscription_key('apim-name', 'rg-name')
+
+    assert key == 'pk-abc'
+    assert any('az rest --method get' in c for c in calls)
+    assert any('listSecrets' in c for c in calls)
+
+
+def test_get_apim_subscription_key_returns_none_when_no_subscriptions(monkeypatch):
+    """Returns None when APIM has no subscriptions."""
+
+    def fake_run(cmd: str, *args, **kwargs):
+        if cmd.startswith('az account show'):
+            return Output(True, 'sub-123\n')
+
+        if 'az rest --method get' in cmd and '/subscriptions?' in cmd:
+            return Output(True, json.dumps({'value': []}))
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    assert az.get_apim_subscription_key('apim-name', 'rg-name') is None
+
+
+def test_get_apim_subscription_key_uses_provided_sid(monkeypatch):
+    """Uses the provided sid directly and skips listing subscriptions."""
+
+    calls: list[str] = []
+
+    def fake_run(cmd: str, *args, **kwargs):
+        calls.append(cmd)
+
+        if cmd.startswith('az account show'):
+            return Output(True, 'sub-123\n')
+
+        if 'az rest --method post' in cmd and 'listSecrets' in cmd:
+            assert '/subscriptions/sid-explicit/listSecrets' in cmd
+            return Output(True, json.dumps({'primaryKey': 'pk-xyz'}))
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    key = az.get_apim_subscription_key('apim-name', 'rg-name', sid = 'sid-explicit')
+    assert key == 'pk-xyz'
+    assert not any('az rest --method get' in c and '/subscriptions?' in c for c in calls)
+
 # ------------------------------
 #    JWT SIGNING KEY CLEANUP TESTS
 # ------------------------------

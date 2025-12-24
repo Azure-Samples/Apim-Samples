@@ -1173,6 +1173,7 @@ def test_find_project_root_in_current_dir(monkeypatch, tmp_path):
     root = tmp_path / 'project'
     root.mkdir()
     (root / 'README.md').touch()
+    (root / 'requirements.txt').touch()
     (root / 'bicepconfig.json').touch()
     subdir = root / 'infrastructure' / 'test'
     subdir.mkdir(parents=True)
@@ -1895,6 +1896,7 @@ def test_find_project_root_from_nested_directory(monkeypatch, tmp_path):
     root.mkdir()
     (root / 'README.md').touch()
     (root / 'requirements.txt').touch()
+    (root / 'bicepconfig.json').touch()
 
     nested_dir = root / 'a' / 'b' / 'c' / 'd' / 'e'
     nested_dir.mkdir(parents=True)
@@ -2235,10 +2237,12 @@ def test_read_and_modify_policy_xml_preserves_formatting(monkeypatch):
 
 
 def test_find_project_root_with_readme_only(monkeypatch, tmp_path):
-    """Test find_project_root finds root with only README.md."""
+    """Test find_project_root finds root when all markers are present."""
     root = tmp_path / 'project'
     root.mkdir()
     (root / 'README.md').touch()
+    (root / 'requirements.txt').touch()
+    (root / 'bicepconfig.json').touch()
 
     nested = root / 'sub' / 'dir'
     nested.mkdir(parents=True)
@@ -2250,10 +2254,12 @@ def test_find_project_root_with_readme_only(monkeypatch, tmp_path):
 
 
 def test_find_project_root_with_requirements_only(monkeypatch, tmp_path):
-    """Test find_project_root finds root with only requirements.txt."""
+    """Test find_project_root finds root when all markers are present."""
     root = tmp_path / 'project'
     root.mkdir()
+    (root / 'README.md').touch()
     (root / 'requirements.txt').touch()
+    (root / 'bicepconfig.json').touch()
 
     nested = root / 'sub' / 'dir'
     nested.mkdir(parents=True)
@@ -2269,6 +2275,8 @@ def test_find_project_root_already_at_root(monkeypatch, tmp_path):
     root = tmp_path / 'project'
     root.mkdir()
     (root / 'README.md').touch()
+    (root / 'requirements.txt').touch()
+    (root / 'bicepconfig.json').touch()
 
     monkeypatch.setattr('os.getcwd', lambda: str(root))
 

@@ -322,9 +322,8 @@ class Infrastructure:
                     if api_count > 0:
                         try:
                             # Get subscription key for testing
-                            sub_output = az.run(f'az apim subscription list --service-name {apim_name} -g {rg_name} --query "[0].primaryKey" -o tsv')
-
-                            if sub_output.success and sub_output.text.strip():
+                            subscription_key = az.get_apim_subscription_key(apim_name, rg_name)
+                            if subscription_key:
                                 print_ok('Subscription key available for API testing')
                         except:
                             pass

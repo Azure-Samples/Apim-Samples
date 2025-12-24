@@ -184,7 +184,19 @@ class InfrastructureNotebookHelper:
                 ]
 
                 # Execute the infrastructure creation script with real-time output streaming and UTF-8 encoding to handle Unicode characters properly
-                with subprocess.Popen(cmd_args, stdout = subprocess.PIPE, stderr = subprocess.STDOUT, text = True, bufsize = 1, universal_newlines = True, encoding = 'utf-8', errors = 'replace') as process:
+                project_root = find_project_root()
+
+                with subprocess.Popen(
+                    cmd_args,
+                    cwd = project_root,
+                    stdout = subprocess.PIPE,
+                    stderr = subprocess.STDOUT,
+                    text = True,
+                    bufsize = 1,
+                    universal_newlines = True,
+                    encoding = 'utf-8',
+                    errors = 'replace'
+                ) as process:
                     try:
                         # Stream output in real-time
                         for line in process.stdout:

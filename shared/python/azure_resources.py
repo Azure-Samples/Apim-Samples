@@ -12,7 +12,7 @@ import os
 import re
 import subprocess
 import threading
-from typing import Tuple, Optional
+from typing import Any, Literal, Optional, Tuple
 
 import logging
 
@@ -729,6 +729,126 @@ def get_apim_url(rg_name: str) -> str | None:
         print_warning('No APIM gateway URL found.')
 
     return apim_endpoint_url
+
+
+def get_apim_subscription_key(
+    apim_name: str,
+    rg_name: str,
+    *,
+    key_name: Literal['primaryKey', 'secondaryKey'] = 'primaryKey',
+    subscription_id: str | None = None,
+    sid: str | None = None,
+    api_version: str = '2022-08-01'
+) -> str | None:
+    """Retrieve an API Management subscription key.
+
+    The Azure CLI command group `az apim` does not always include subscription-key commands.
+    This helper uses ARM `listSecrets` via `az rest`, which is consistent across CLI installs.
+
+    Args:
+        apim_name: API Management service name.
+        rg_name: Resource group name containing the APIM instance.
+        key_name: Which key to return: 'primaryKey' or 'secondaryKey'.
+        subscription_id: Azure subscription ID. If omitted, resolved from `az account show`.
+        sid: APIM subscription resource name (a.k.a. subscription id within APIM). If omitted,
+            the helper selects the first "active" subscription when available, otherwise the first.
+        api_version: Microsoft.ApiManagement API version for ARM calls.
+
+    Returns:
+        The requested key, or None if it cannot be determined.
+    """
+
+    if not apim_name or not rg_name:
+        return None
+
+    resolved_subscription_id = subscription_id
+    if not resolved_subscription_id:
+        sub_output = run('az account show --query id -o tsv', log_command = False)
+        if not sub_output.success or not sub_output.text.strip():
+            return None
+        resolved_subscription_id = sub_output.text.strip()
+
+    resolved_sid = sid
+    if not resolved_sid:
+        subs = list_apim_subscriptions(
+            apim_name,
+            rg_name,
+            subscription_id = resolved_subscription_id,
+            api_version = api_version
+        )
+        if not subs:
+            return None
+
+        # Prefer an active subscription when present.
+        active = [s for s in subs if str(s.get('properties', {}).get('state', '')).lower() == 'active']
+        pick = active[0] if active else subs[0]
+        resolved_sid = str(pick.get('name', '')).strip() or None
+
+    if not resolved_sid:
+        return None
+
+    secrets_url = (
+        f'https://management.azure.com/subscriptions/{resolved_subscription_id}'
+        f'/resourceGroups/{rg_name}/providers/Microsoft.ApiManagement/service/{apim_name}'
+        f'/subscriptions/{resolved_sid}/listSecrets?api-version={api_version}'
+    )
+
+    secrets_output = run(
+        f'az rest --method post --url "{secrets_url}" -o json',
+        log_command = False
+    )
+
+    if not secrets_output.success or not isinstance(secrets_output.json_data, dict):
+        return None
+
+    key_value = secrets_output.json_data.get(key_name)
+    if isinstance(key_value, str) and key_value.strip():
+        return key_value.strip()
+
+    return None
+
+
+def list_apim_subscriptions(
+    apim_name: str,
+    rg_name: str,
+    *,
+    subscription_id: str | None = None,
+    api_version: str = '2022-08-01'
+) -> list[dict[str, Any]]:
+    """List APIM subscriptions for an API Management instance.
+
+    Returns the raw ARM subscription resources (dicts). This does not include keys.
+    """
+
+    if not apim_name or not rg_name:
+        return []
+
+    resolved_subscription_id = subscription_id
+    if not resolved_subscription_id:
+        sub_output = run('az account show --query id -o tsv', log_command = False)
+        if not sub_output.success or not sub_output.text.strip():
+            return []
+        resolved_subscription_id = sub_output.text.strip()
+
+    list_url = (
+        f'https://management.azure.com/subscriptions/{resolved_subscription_id}'
+        f'/resourceGroups/{rg_name}/providers/Microsoft.ApiManagement/service/{apim_name}'
+        f'/subscriptions?api-version={api_version}'
+    )
+
+    output = run(
+        f'az rest --method get --url "{list_url}" -o json',
+        log_command = False
+    )
+
+    if not output.success or not isinstance(output.json_data, dict):
+        return []
+
+    value = output.json_data.get('value')
+    if isinstance(value, list):
+        return [v for v in value if isinstance(v, dict)]
+
+    return []
 
 def get_appgw_endpoint(rg_name: str) -> Tuple[str | None, str | None]:
     """
