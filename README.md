@@ -164,8 +164,6 @@ The Python helpers in this repo use standard-library `logging`, empowering you t
    - When set to `DEBUG`, the Azure CLI runner in [shared/python/azure_resources.py](shared/python/azure_resources.py) will also add `--debug` to simple `az ...` commands.
 - `APIM_SAMPLES_CONSOLE_WIDTH`: Optional wrap width for long lines (defaults to `120`).
 
-📘 **For comprehensive troubleshooting including deployment errors, authentication issues, and more, see our main [Troubleshooting Guide][troubleshooting].**
-
 
 ## Troubleshooting
 
