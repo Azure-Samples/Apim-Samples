@@ -59,6 +59,7 @@ applyTo: '**/*.py'
 - Add or update pytest unit tests when changing behavior.
 - Prefer focused tests for the code being changed.
 - Avoid tests that require live Azure access; mock Azure CLI interactions and `azure_resources` helpers.
+- Abstract and consolidate common test overhead into the `test_helpers.py` file.
 
 ## Azure Helper Imports
 
