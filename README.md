@@ -79,10 +79,7 @@ This menu-driven interface provides quick access to:
 
 ## 🏗️ Setup
 
-APIM Samples supports two options:
-
-1. Option 1: **GitHub Codespaces / Dev Container (recommended)**
-1. Option 2: **Full Local Setup**
+APIM Samples supports two setup options:
 
 ### Option 1: GitHub Codespaces / Dev Container (Recommended)
 <details>
