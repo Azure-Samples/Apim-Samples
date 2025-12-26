@@ -23,7 +23,7 @@ Historically, there were two general paths to experimenting with APIM. Standing 
 
 It's quick and easy to get started!
 
-1. Follow one of the two [setup options](#️-infrastructure-setup).
+1. Follow one of the two [setup options](#️-setup).
 1. Select an [infrastructure](#-list-of-infrastructures) to deploy. 
 
 
@@ -77,12 +77,12 @@ This menu-driven interface provides quick access to:
 </details>
 
 
-## 🏗️ Infrastructure Setup
+## 🏗️ Setup
 
 APIM Samples supports two options:
 
-1. Option 1: GitHub Codespaces / Dev Container (recommended)
-1. Full Local Setup
+1. Option 1: **GitHub Codespaces / Dev Container (recommended)**
+1. Option 2: **Full Local Setup**
 
 ### Option 1: GitHub Codespaces / Dev Container (Recommended)
 <details>
