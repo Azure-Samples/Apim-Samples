@@ -17,6 +17,15 @@ from apimtypes import APIM_SKU, APIMNetworkMode, API, APIOperation, PolicyFragme
 #    PATCH HELPERS
 # ------------------------------
 
+def suppress_module_functions(monkeypatch, module, names: list[str]) -> None:
+    """Suppress noisy functions on a module by replacing them with a no-op."""
+
+    def _noop(*args, **kwargs):
+        return None
+
+    for name in names:
+        monkeypatch.setattr(module, name, _noop)
+
 def patch_open_for_text_read(
     monkeypatch,
     *,
@@ -87,6 +96,35 @@ def patch_os_paths(
         monkeypatch.setattr('os.path.basename', basename)
     else:
         monkeypatch.setattr('os.path.basename', MagicMock(return_value=basename))
+
+
+def patch_create_bicep_deployment_group_dependencies(
+    monkeypatch,
+    *,
+    az_module,
+    run_success: bool = True,
+    cwd: str = '/test/dir',
+    exists: bool | Callable[[str], bool] = True,
+    basename: str | Callable[[str], str] = 'test-dir'
+):
+    """Patch common dependencies for utils.create_bicep_deployment_group tests.
+
+    Returns:
+        tuple: (mock_create_resource_group, mock_az_run, mock_open)
+    """
+    mock_create_rg = MagicMock()
+    monkeypatch.setattr(az_module, 'create_resource_group', mock_create_rg)
+
+    mock_run = MagicMock(return_value=MagicMock(success=run_success))
+    monkeypatch.setattr(az_module, 'run', mock_run)
+
+    open_mock = mock_open()
+    monkeypatch.setattr(builtins, 'open', open_mock)
+    monkeypatch.setattr(builtins, 'print', MagicMock())
+
+    patch_os_paths(monkeypatch, cwd=cwd, exists=exists, basename=basename)
+
+    return mock_create_rg, mock_run, open_mock
 
 
 # ------------------------------

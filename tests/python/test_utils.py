@@ -1,11 +1,10 @@
 import os
-import builtins
 import inspect
 import base64
 import subprocess
 import logging
 from pathlib import Path
-from unittest.mock import MagicMock, mock_open
+from unittest.mock import MagicMock
 import json
 import pytest
 
@@ -15,87 +14,49 @@ import utils
 import json_utils
 import azure_resources as az
 from console import print_error, print_info, print_message, print_ok, print_val, print_warning
-from test_helpers import capture_console_output as capture_output
+import console as console_module
+from test_helpers import (
+    capture_console_output as capture_output,
+    mock_popen,
+    patch_create_bicep_deployment_group_dependencies,
+    patch_open_for_text_read,
+    suppress_module_functions,
+)
 
 
 @pytest.fixture
 def suppress_utils_console(monkeypatch):
-    for attr in (
-        'print_plain',
-        'print_info',
-        'print_ok',
-        'print_warning',
-        'print_error',
-        'print_message',
-        'print_val',
-    ):
-        monkeypatch.setattr(utils, attr, lambda *args, **kwargs: None)
+    suppress_module_functions(
+        monkeypatch,
+        utils,
+        [
+            'print_plain',
+            'print_info',
+            'print_ok',
+            'print_warning',
+            'print_error',
+            'print_message',
+            'print_val',
+        ],
+    )
 
 
 @pytest.fixture
 def suppress_console(monkeypatch):
-    import console as console_module
-
-    for attr in (
-        'print_plain',
-        'print_command',
-        'print_info',
-        'print_ok',
-        'print_warning',
-        'print_error',
-        'print_message',
-        'print_val',
-    ):
-        monkeypatch.setattr(console_module, attr, lambda *args, **kwargs: None)
-
-
-# ------------------------------
-#    LOCAL TEST HELPERS
-# ------------------------------
-
-def _patch_open_for_text_read(monkeypatch, *, match, read_data: str | None = None, raises: Exception | None = None):
-    """Patch builtins.open for a specific text-mode path match.
-
-    Only intercepts when 'b' is not present in the requested mode.
-    All other opens are delegated to the real built-in open.
-    """
-    real_open = builtins.open
-    open_mock = mock_open(read_data=read_data) if read_data is not None else None
-
-    def open_selector(file, *args, **kwargs):
-        mode = kwargs.get('mode', args[0] if args else 'r')
-        file_str = str(file)
-        is_match = match(file_str) if callable(match) else file_str == str(match)
-
-        if is_match and 'b' not in mode:
-            if raises is not None:
-                raise raises
-            return open_mock(file, *args, **kwargs)
-
-        return real_open(file, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, 'open', open_selector)
-    return open_mock
-
-
-def _mock_popen(monkeypatch, *, stdout_lines: list[str], returncode: int = 0):
-    """Patch subprocess.Popen with a context-manager friendly mock process."""
-
-    class MockProcess:
-        def __init__(self, *args, **kwargs):
-            self.returncode = returncode
-            self.stdout = iter(stdout_lines)
-
-        def wait(self):
-            return None
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *args):
-            return False
-
-    monkeypatch.setattr('subprocess.Popen', MockProcess)
+    suppress_module_functions(
+        monkeypatch,
+        console_module,
+        [
+            'print_plain',
+            'print_command',
+            'print_info',
+            'print_ok',
+            'print_warning',
+            'print_error',
+            'print_message',
+            'print_val',
+        ],
+    )
 
 
 # ------------------------------
@@ -141,27 +102,27 @@ def test_run_failure(monkeypatch):
 def test_read_policy_xml_success(monkeypatch):
     """Test reading a valid XML file returns its contents."""
     xml_content = '<policies><inbound><base /></inbound></policies>'
-    _patch_open_for_text_read(monkeypatch, match='/path/to/dummy.xml', read_data=xml_content)
+    patch_open_for_text_read(monkeypatch, match='/path/to/dummy.xml', read_data=xml_content)
     # Use full path to avoid sample name auto-detection
     result = utils.read_policy_xml('/path/to/dummy.xml')
     assert result == xml_content
 
 def test_read_policy_xml_file_not_found(monkeypatch):
     """Test reading a missing XML file raises FileNotFoundError."""
-    _patch_open_for_text_read(monkeypatch, match='/path/to/missing.xml', raises=FileNotFoundError('File not found'))
+    patch_open_for_text_read(monkeypatch, match='/path/to/missing.xml', raises=FileNotFoundError('File not found'))
     with pytest.raises(FileNotFoundError):
         utils.read_policy_xml('/path/to/missing.xml')
 
 def test_read_policy_xml_empty_file(monkeypatch):
     """Test reading an empty XML file returns an empty string."""
-    _patch_open_for_text_read(monkeypatch, match='/path/to/empty.xml', read_data='')
+    patch_open_for_text_read(monkeypatch, match='/path/to/empty.xml', read_data='')
     result = utils.read_policy_xml('/path/to/empty.xml')
     assert not result
 
 def test_read_policy_xml_with_named_values(monkeypatch):
     """Test reading policy XML with named values formatting."""
     xml_content = '<policy><validate-jwt><issuer-signing-keys><key>{jwt_signing_key}</key></issuer-signing-keys></validate-jwt></policy>'
-    _patch_open_for_text_read(monkeypatch, match=lambda p: p.endswith('hr_all_operations.xml'), read_data=xml_content)
+    patch_open_for_text_read(monkeypatch, match=lambda p: p.endswith('hr_all_operations.xml'), read_data=xml_content)
 
     # Mock the auto-detection to return 'authX'
     def mock_inspect_currentframe():
@@ -185,7 +146,7 @@ def test_read_policy_xml_with_named_values(monkeypatch):
 def test_read_policy_xml_legacy_mode(monkeypatch):
     """Test that legacy mode (full path) still works."""
     xml_content = '<policies><inbound><base /></inbound></policies>'
-    _patch_open_for_text_read(monkeypatch, match='/full/path/to/policy.xml', read_data=xml_content)
+    patch_open_for_text_read(monkeypatch, match='/full/path/to/policy.xml', read_data=xml_content)
     result = utils.read_policy_xml('/full/path/to/policy.xml')
     assert result == xml_content
 
@@ -286,17 +247,14 @@ def test_build_infrastructure_tags_none_custom_tags():
 
 def test_create_bicep_deployment_group_with_enum(monkeypatch):
     """Test create_bicep_deployment_group with INFRASTRUCTURE enum."""
-    mock_create_rg = MagicMock()
-    monkeypatch.setattr(az, 'create_resource_group', mock_create_rg)
-    mock_run = MagicMock(return_value=MagicMock(success=True))
-    monkeypatch.setattr(az, 'run', mock_run)
-    mock_open_func = mock_open()
-    monkeypatch.setattr(builtins, 'open', mock_open_func)
-    monkeypatch.setattr(builtins, 'print', MagicMock())
-    # Mock os functions for file path operations
-    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
-    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
-    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
+    mock_create_rg, mock_run, _mock_open_func = patch_create_bicep_deployment_group_dependencies(
+        monkeypatch,
+        az_module=az,
+        run_success=True,
+        cwd='/test/dir',
+        exists=True,
+        basename='test-dir',
+    )
 
     bicep_params = {'param1': {'value': 'test'}}
     rg_tags = {'infrastructure': 'simple-apim'}
@@ -317,17 +275,14 @@ def test_create_bicep_deployment_group_with_enum(monkeypatch):
 
 def test_create_bicep_deployment_group_with_string(monkeypatch):
     """Test create_bicep_deployment_group with string deployment name."""
-    mock_create_rg = MagicMock()
-    monkeypatch.setattr(az, 'create_resource_group', mock_create_rg)
-    mock_run = MagicMock(return_value=MagicMock(success=True))
-    monkeypatch.setattr(az, 'run', mock_run)
-    mock_open_func = mock_open()
-    monkeypatch.setattr(builtins, 'open', mock_open_func)
-    monkeypatch.setattr(builtins, 'print', MagicMock())
-    # Mock os functions for file path operations
-    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
-    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
-    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
+    mock_create_rg, mock_run, _mock_open_func = patch_create_bicep_deployment_group_dependencies(
+        monkeypatch,
+        az_module=az,
+        run_success=True,
+        cwd='/test/dir',
+        exists=True,
+        basename='test-dir',
+    )
 
     bicep_params = {'param1': {'value': 'test'}}
 
@@ -345,17 +300,7 @@ def test_create_bicep_deployment_group_with_string(monkeypatch):
 
 def test_create_bicep_deployment_group_params_file_written(monkeypatch):
     """Test that bicep parameters are correctly written to file."""
-    mock_create_rg = MagicMock()
-    monkeypatch.setattr(az, 'create_resource_group', mock_create_rg)
-    mock_run = MagicMock(return_value=MagicMock(success=True))
-    monkeypatch.setattr(az, 'run', mock_run)
-    mock_open_func = mock_open()
-    monkeypatch.setattr(builtins, 'open', mock_open_func)
-    monkeypatch.setattr(builtins, 'print', MagicMock())
-
-    # Mock os functions for file path operations
     # For this test, we want to simulate being in an infrastructure directory
-    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir/infrastructure/apim-aca'))
 
     def mock_exists(path):
         # Only return True for the main.bicep in the infrastructure directory, not in current dir
@@ -364,8 +309,14 @@ def test_create_bicep_deployment_group_params_file_written(monkeypatch):
             return True
         return False
 
-    monkeypatch.setattr('os.path.exists', mock_exists)
-    monkeypatch.setattr('os.path.basename', MagicMock(return_value='apim-aca'))
+    _mock_create_rg, _mock_run, mock_open_func = patch_create_bicep_deployment_group_dependencies(
+        monkeypatch,
+        az_module=az,
+        run_success=True,
+        cwd='/test/dir/infrastructure/apim-aca',
+        exists=mock_exists,
+        basename='apim-aca',
+    )
 
     bicep_params = {
         'apiManagementName': {'value': 'test-apim'},
@@ -391,17 +342,14 @@ def test_create_bicep_deployment_group_params_file_written(monkeypatch):
 
 def test_create_bicep_deployment_group_no_tags(monkeypatch):
     """Test create_bicep_deployment_group without tags."""
-    mock_create_rg = MagicMock()
-    monkeypatch.setattr(az, 'create_resource_group', mock_create_rg)
-    mock_run = MagicMock(return_value=MagicMock(success=True))
-    monkeypatch.setattr(az, 'run', mock_run)
-    mock_open_func = mock_open()
-    monkeypatch.setattr(builtins, 'open', mock_open_func)
-    monkeypatch.setattr(builtins, 'print', MagicMock())
-    # Mock os functions for file path operations
-    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
-    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
-    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
+    mock_create_rg, _mock_run, _mock_open_func = patch_create_bicep_deployment_group_dependencies(
+        monkeypatch,
+        az_module=az,
+        run_success=True,
+        cwd='/test/dir',
+        exists=True,
+        basename='test-dir',
+    )
 
     bicep_params = {'param1': {'value': 'test'}}
 
@@ -412,17 +360,14 @@ def test_create_bicep_deployment_group_no_tags(monkeypatch):
 
 def test_create_bicep_deployment_group_deployment_failure(monkeypatch):
     """Test create_bicep_deployment_group when deployment fails."""
-    mock_create_rg = MagicMock()
-    monkeypatch.setattr(az, 'create_resource_group', mock_create_rg)
-    mock_run = MagicMock(return_value=MagicMock(success=False))
-    monkeypatch.setattr(az, 'run', mock_run)
-    mock_open_func = mock_open()
-    monkeypatch.setattr(builtins, 'open', mock_open_func)
-    monkeypatch.setattr(builtins, 'print', MagicMock())
-    # Mock os functions for file path operations
-    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
-    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
-    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
+    mock_create_rg, _mock_run, _mock_open_func = patch_create_bicep_deployment_group_dependencies(
+        monkeypatch,
+        az_module=az,
+        run_success=False,
+        cwd='/test/dir',
+        exists=True,
+        basename='test-dir',
+    )
 
     bicep_params = {'param1': {'value': 'test'}}
 
@@ -528,8 +473,7 @@ def test_read_policy_xml_with_sample_name_explicit(monkeypatch):
     monkeypatch.setattr('utils.get_project_root', lambda: mock_project_root)
 
     xml_content = '<policies><inbound><base /></inbound></policies>'
-    m = mock_open(read_data=xml_content)
-    monkeypatch.setattr(builtins, 'open', m)
+    patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in str(p), read_data=xml_content)
 
     result = utils.read_policy_xml('policy.xml', sample_name='test-sample')
     assert result == xml_content
@@ -539,8 +483,7 @@ def test_read_policy_xml_with_named_values_formatting(monkeypatch):
     """Test read_policy_xml with named values formatting."""
     xml_content = '<policy><key>{jwt_key}</key></policy>'
     expected = '<policy><key>{{JwtSigningKey}}</key></policy>'
-    m = mock_open(read_data=xml_content)
-    monkeypatch.setattr(builtins, 'open', m)
+    patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in str(p), read_data=xml_content)
 
     named_values = {'jwt_key': 'JwtSigningKey'}
     result = utils.read_policy_xml('/path/to/policy.xml', named_values)
@@ -678,8 +621,11 @@ def test_get_azure_role_guid_comprehensive(monkeypatch):
         'Storage Account Contributor': '17d1049b-9a84-46fb-8f53-869881c3d3ab'
     }
 
-    m = mock_open(read_data=json.dumps(mock_roles))
-    monkeypatch.setattr(builtins, 'open', m)
+    patch_open_for_text_read(
+        monkeypatch,
+        match=lambda p: str(p).endswith('azure-roles.json') or 'azure-roles.json' in str(p),
+        read_data=json.dumps(mock_roles),
+    )
 
     # Test valid role
     result = az.get_azure_role_guid('Storage Blob Data Reader')
@@ -865,7 +811,7 @@ def test_infrastructure_notebook_helper_create_with_index_retry(monkeypatch):
     monkeypatch.setattr(utils, '_prompt_for_infrastructure_update', lambda rg_name: (False, 3))
     monkeypatch.setattr(az, 'does_resource_group_exist', mock_rg_exists)
 
-    _mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n', 'Success!\n'])
+    mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n', 'Success!\n'])
     monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
 
     # Mock print functions to avoid output during testing
@@ -904,7 +850,7 @@ def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch)
     monkeypatch.setattr(utils, '_prompt_for_infrastructure_update', mock_prompt)
     monkeypatch.setattr(az, 'does_resource_group_exist', mock_rg_exists)
 
-    _mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n'])
+    mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n'])
     monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
     monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
 
@@ -1406,12 +1352,10 @@ def test_does_infrastructure_exist_with_update_option_cancel(monkeypatch, suppre
     assert result is True  # Block deployment
 
 
-def test_does_infrastructure_exist_without_update_option(monkeypatch):
+def test_does_infrastructure_exist_without_update_option(monkeypatch, suppress_console):
     """Test does_infrastructure_exist without update option."""
     monkeypatch.setattr(az, 'does_resource_group_exist', lambda x: True)
     monkeypatch.setattr(az, 'get_infra_rg_name', lambda x, y: 'test-rg')
-    monkeypatch.setattr('console.print_ok', lambda *args, **kwargs: None)
-    monkeypatch.setattr('console.print_plain', lambda *args, **kwargs: None)
 
     result = utils.does_infrastructure_exist(INFRASTRUCTURE.SIMPLE_APIM, 1, allow_update_option=False)
     assert result is True  # Infrastructure exists, block deployment
@@ -1424,18 +1368,7 @@ def test_does_infrastructure_exist_without_update_option(monkeypatch):
 def test_read_and_modify_policy_xml_with_replacements(monkeypatch):
     """Test read_and_modify_policy_xml with placeholders."""
     xml_content = '<policy><key>{jwt_key}</key><value>{api_value}</value></policy>'
-    m = mock_open(read_data=xml_content)
-
-    real_open = builtins.open
-
-    def open_selector(file, *args, **kwargs):
-        mode = kwargs.get('mode', args[0] if args else 'r')
-        file_str = str(file)
-        if 'test-policy.xml' in file_str and 'b' not in mode:
-            return m(file, *args, **kwargs)
-        return real_open(file, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, 'open', open_selector)
+    patch_open_for_text_read(monkeypatch, match=lambda p: 'test-policy.xml' in p, read_data=xml_content)
 
     replacements = {
         'jwt_key': 'JwtSigningKey123',
@@ -1450,18 +1383,7 @@ def test_read_and_modify_policy_xml_with_replacements(monkeypatch):
 def test_read_and_modify_policy_xml_placeholder_not_found(monkeypatch, caplog):
     """Test read_and_modify_policy_xml when placeholder doesn't exist in XML."""
     xml_content = '<policy><key>static</key></policy>'
-    m = mock_open(read_data=xml_content)
-
-    real_open = builtins.open
-
-    def open_selector(file, *args, **kwargs):
-        mode = kwargs.get('mode', args[0] if args else 'r')
-        file_str = str(file)
-        if 'test-policy.xml' in file_str and 'b' not in mode:
-            return m(file, *args, **kwargs)
-        return real_open(file, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, 'open', open_selector)
+    patch_open_for_text_read(monkeypatch, match=lambda p: 'test-policy.xml' in p, read_data=xml_content)
 
     replacements = {'missing_key': 'value'}
 
@@ -1475,18 +1397,7 @@ def test_read_and_modify_policy_xml_placeholder_not_found(monkeypatch, caplog):
 def test_read_and_modify_policy_xml_none_replacements(monkeypatch):
     """Test read_and_modify_policy_xml with None replacements."""
     xml_content = '<policy><key>{jwt_key}</key></policy>'
-    m = mock_open(read_data=xml_content)
-
-    real_open = builtins.open
-
-    def open_selector(file, *args, **kwargs):
-        mode = kwargs.get('mode', args[0] if args else 'r')
-        file_str = str(file)
-        if 'test-policy.xml' in file_str and 'b' not in mode:
-            return m(file, *args, **kwargs)
-        return real_open(file, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, 'open', open_selector)
+    patch_open_for_text_read(monkeypatch, match=lambda p: 'test-policy.xml' in p, read_data=xml_content)
 
     result = utils.read_and_modify_policy_xml('/path/to/test-policy.xml', None)
     # Should return unmodified XML
@@ -1515,7 +1426,7 @@ def test_infrastructure_notebook_helper_bypass_check(monkeypatch):
     """Test InfrastructureNotebookHelper with bypass_infrastructure_check=True."""
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
 
-    _mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n'])
+    mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n'])
     monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
     monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
 
@@ -1531,7 +1442,7 @@ def test_infrastructure_notebook_helper_allow_update_false(monkeypatch):
     # Mock RG exists but allow_update=False
     monkeypatch.setattr(az, 'does_resource_group_exist', lambda x: True)
 
-    _mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n'])
+    mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n'])
     monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
     monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
 
@@ -1639,16 +1550,14 @@ def test_deployment_failure_message_consistency(monkeypatch):
 
 def test_create_bicep_deployment_group_with_debug_mode(monkeypatch):
     """Test create_bicep_deployment_group with debug mode enabled."""
-    mock_create_rg = MagicMock()
-    monkeypatch.setattr(az, 'create_resource_group', mock_create_rg)
-    mock_run = MagicMock(return_value=MagicMock(success=True))
-    monkeypatch.setattr(az, 'run', mock_run)
-    mock_open_func = mock_open()
-    monkeypatch.setattr(builtins, 'open', mock_open_func)
-    monkeypatch.setattr(builtins, 'print', MagicMock())
-    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
-    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
-    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
+    _mock_create_rg, mock_run, _mock_open_func = patch_create_bicep_deployment_group_dependencies(
+        monkeypatch,
+        az_module=az,
+        run_success=True,
+        cwd='/test/dir',
+        exists=True,
+        basename='test-dir',
+    )
 
     bicep_params = {'param1': {'value': 'test'}}
 
@@ -1666,18 +1575,7 @@ def test_create_bicep_deployment_group_with_debug_mode(monkeypatch):
 def test_read_policy_xml_complex_replacements(monkeypatch):
     """Test read_and_modify_policy_xml with complex replacement scenarios."""
     xml_content = '<policy><key1>{placeholder1}</key1><key2>{placeholder2}</key2><key3>{placeholder3}</key3></policy>'
-    m = mock_open(read_data=xml_content)
-
-    real_open = builtins.open
-
-    def open_selector(file, *args, **kwargs):
-        mode = kwargs.get('mode', args[0] if args else 'r')
-        file_str = str(file)
-        if 'policy.xml' in file_str and 'b' not in mode:
-            return m(file, *args, **kwargs)
-        return real_open(file, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, 'open', open_selector)
+    patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in p, read_data=xml_content)
 
     replacements = {
         'placeholder1': 'value1',
@@ -1715,10 +1613,14 @@ def test_infrastructure_tags_with_special_characters():
 
 def test_bicep_parameters_serialization(monkeypatch):
     """Test that bicep parameters serialize correctly to JSON."""
-    mock_create_rg = MagicMock()
-    monkeypatch.setattr(az, 'create_resource_group', mock_create_rg)
-    mock_run = MagicMock(return_value=MagicMock(success=True))
-    monkeypatch.setattr(az, 'run', mock_run)
+    _mock_create_rg, _mock_run, mock_open_func = patch_create_bicep_deployment_group_dependencies(
+        monkeypatch,
+        az_module=az,
+        run_success=True,
+        cwd='/test/dir',
+        exists=True,
+        basename='test-dir',
+    )
 
     # Track file writes
     written_content = []
@@ -1727,13 +1629,7 @@ def test_bicep_parameters_serialization(monkeypatch):
         written_content.append(content)
         return len(content)
 
-    mock_open_func = mock_open()
     mock_open_func.return_value.__enter__.return_value.write = mock_file_write
-    monkeypatch.setattr(builtins, 'open', mock_open_func)
-    monkeypatch.setattr(builtins, 'print', MagicMock())
-    monkeypatch.setattr('os.getcwd', MagicMock(return_value='/test/dir'))
-    monkeypatch.setattr('os.path.exists', MagicMock(return_value=True))
-    monkeypatch.setattr('os.path.basename', MagicMock(return_value='test-dir'))
 
     bicep_params = {
         'apiManagementName': {'value': 'test-apim'},
@@ -1827,17 +1723,7 @@ def test_determine_bicep_directory_with_main_bicep_in_current(monkeypatch):
 def test_read_policy_xml_with_special_characters(monkeypatch):
     """Test read_policy_xml with special characters and Unicode."""
     xml_content = '<policy>Unicode: © ® ™ € Chinese: 中文 Arabic: العربية</policy>'
-    m = mock_open(read_data=xml_content)
-
-    real_open = builtins.open
-
-    def open_selector(file, *args, **kwargs):
-        mode = kwargs.get('mode', args[0] if args else 'r')
-        if 'policy.xml' in str(file) and 'b' not in mode:
-            return m(file, *args, **kwargs)
-        return real_open(file, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, 'open', open_selector)
+    patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in p, read_data=xml_content)
 
     result = utils.read_policy_xml('/path/to/policy.xml')
     assert '©' in result
@@ -2064,17 +1950,7 @@ def test_determine_policy_path_with_relative_path():
 def test_read_policy_xml_with_multiple_named_values(monkeypatch):
     """Test read_policy_xml with multiple named values."""
     xml_content = '<policy><key1>{var1}</key1><key2>{var2}</key2><key3>{var3}</key3></policy>'
-    m = mock_open(read_data=xml_content)
-
-    real_open = builtins.open
-
-    def open_selector(file, *args, **kwargs):
-        mode = kwargs.get('mode', args[0] if args else 'r')
-        if 'policy.xml' in str(file) and 'b' not in mode:
-            return m(file, *args, **kwargs)
-        return real_open(file, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, 'open', open_selector)
+    patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in p, read_data=xml_content)
 
     named_values = {
         'var1': 'jwt-signing-key',
@@ -2093,17 +1969,7 @@ def test_read_policy_xml_with_multiple_named_values(monkeypatch):
 def test_read_and_modify_policy_xml_with_empty_replacements(monkeypatch):
     """Test read_and_modify_policy_xml with empty replacements dict."""
     xml_content = '<policy><key>{placeholder}</key></policy>'
-    m = mock_open(read_data=xml_content)
-
-    real_open = builtins.open
-
-    def open_selector(file, *args, **kwargs):
-        mode = kwargs.get('mode', args[0] if args else 'r')
-        if 'policy.xml' in str(file) and 'b' not in mode:
-            return m(file, *args, **kwargs)
-        return real_open(file, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, 'open', open_selector)
+    patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in p, read_data=xml_content)
 
     result = utils.read_and_modify_policy_xml('/path/to/policy.xml', {})
 
@@ -2119,17 +1985,7 @@ def test_read_and_modify_policy_xml_preserves_formatting(monkeypatch):
         <set-variable name="test" value="{placeholder}" />
     </inbound>
 </policy>'''
-    m = mock_open(read_data=xml_content)
-
-    real_open = builtins.open
-
-    def open_selector(file, *args, **kwargs):
-        mode = kwargs.get('mode', args[0] if args else 'r')
-        if 'policy.xml' in str(file) and 'b' not in mode:
-            return m(file, *args, **kwargs)
-        return real_open(file, *args, **kwargs)
-
-    monkeypatch.setattr(builtins, 'open', open_selector)
+    patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in p, read_data=xml_content)
 
     replacements = {'placeholder': 'actual-value'}
     result = utils.read_and_modify_policy_xml('/path/to/policy.xml', replacements)
