@@ -5,9 +5,6 @@
 
 **This repository provides resources to quickly deploy high-fidelity Azure API Management (APIM) infrastructures and experiment with common APIM.**
 
-_If you are interested in APIM & Azure OpenAI integrations, please check out the excellent [AI Gateway][ai-gateway] GitHub repository._
-_For much more API Management content, please also check out [APIM Love][apim-love]._
-
 Historically, there were two general paths to experimenting with APIM. Standing up an entire landing zone with the [APIM Landing Zone Accelerator][apim-lza] can feel overwhelming and _more than needed_. Similarly, using [APIM policy snippets][apim-snippets] is only helpful when an APIM instance and infrastructure already exists.
 
 > ⭐ _APIM Samples_ provides common APIM **_infrastructures_** and real-world **_samples_**. Most samples can be deployed to any infrastructure, yielding an **innovative and highly powerful and flexible _à la carte_ approach!**
@@ -235,11 +232,6 @@ Adding a new sample is relatively straight-forward.
 1. Create a pull request for merge.
 
 
-## 📚 Supporting Resources
-
-The APIM team maintains an [APIM policy snippets repo][apim-snippets] with use cases we have seen. They are not immediately executable samples and require integrations such as in this repo.
-
-
 ## 🙏 Acknowledgements
 
 This project has its roots in work done by [Alex Vieira][alex-vieira] on the excellent Azure API Management [AI Gateway][ai-gateway] GitHub repository. Much of the structure is similar and its reuse resulted in significant time savings. Thank you, Alex!
@@ -250,6 +242,23 @@ Furthermore, [Houssem Dellai][houssem-dellai] was instrumental in setting up a w
 
 The original author of this project is [Simon Kurtz][simon-kurtz].
 
+
+## 🥇 Other resources
+
+- [AI Gateway][ai-gateway]
+- [Landing Zone Accelerator](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/scenarios/app-platform/api-management/landing-zone-accelerator#generative-ai-gateway-scenario)
+- [Learning Modules](https://learn.microsoft.com/en-us/training/browse/?products=azure-api-management)
+- [News and announcements](https://techcommunity.microsoft.com/tag/API%20Management?nodeId=board%3AIntegrationsonAzureBlog)
+- [APIM Releases](https://github.com/Azure/API-Management/releases)
+- [APIM policy snippets repo][apim-snippets]
+
+_For much more API Management content, please also check out [APIM Love](https://aka.ms/apimlove)._
+
+
+## 📜 Disclaimer
+
+> [!IMPORTANT]
+> This software is provided for demonstration purposes only. It is not intended to be relied upon for any purpose. The creators of this software make no representations or warranties of any kind, express or implied, about the completeness, accuracy, reliability, suitability or availability with respect to the software or the information, products, services, or related graphics contained in the software for any purpose. Any reliance you place on such information is therefore strictly at your own risk.
 
 
 [ai-gateway]: https://github.com/Azure-Samples/AI-Gateway
