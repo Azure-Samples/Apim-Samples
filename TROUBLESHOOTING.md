@@ -4,12 +4,31 @@ This guide helps you resolve common issues when working with the Azure API Manag
 
 ## Table of Contents
 
+- [Setup Issues](#setup-issues)
 - [Deployment Errors](#deployment-errors)
 - [Authentication Issues](#authentication-issues)
 - [Notebook and Development Environment Issues](#notebook-and-development-environment-issues)
 - [Azure CLI Issues](#azure-cli-issues)
 - [Resource Management Issues](#resource-management-issues)
 - [Getting Additional Help](#getting-additional-help)
+
+## Setup Issues
+
+If you encounter import errors (e.g., `ModuleNotFoundError: No module named 'requests'` or cannot import shared modules), try these steps:
+
+1. **Fix Python path configuration**:
+   ```bash
+   python setup/local_setup.py --generate-env
+   ```
+
+2. **Verify setup**:
+   ```bash
+   python setup/verify_local_setup.py
+   ```
+
+3. **Restart VS Code** after running the above commands.
+
+4. **Check Python interpreter**: Use `Ctrl+Shift+P` → "Python: Select Interpreter" and choose your `.venv` interpreter.
 
 ## Deployment Errors
 
