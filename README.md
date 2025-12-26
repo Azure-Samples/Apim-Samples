@@ -1,25 +1,38 @@
 # Azure API Management Samples
 
-[![Open Source Love](https://firstcontributions.github.io/open-source-badges/badges/open-source-v1/open-source.svg)](https://github.com/firstcontributions/open-source-badges)
-[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11057/badge)](https://www.bestpractices.dev/projects/11057)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11057/badge)][openssf]
 [![Python Tests][badge-python-tests]][workflow-python-tests]
 
-This repository provides a playground to safely experiment with and learn Azure API Management (APIM) policies in various architectures.
+**This repository provides resources to quickly deploy high-fidelity Azure API Management (APIM) infrastructures and experiment with common APIM.**
 
 _If you are interested in APIM & Azure OpenAI integrations, please check out the excellent [AI Gateway][ai-gateway] GitHub repository._
 _For much more API Management content, please also check out [APIM Love][apim-love]._
 
+Historically, there were two general paths to experimenting with APIM. Standing up an entire landing zone with the [APIM Landing Zone Accelerator][apim-lza] can feel overwhelming and _more than needed_. Similarly, using [APIM policy snippets][apim-snippets] is only helpful when an APIM instance and infrastructure already exists.
+
+> ⭐ _APIM Samples_ provides common APIM **_infrastructures_** and real-world **_samples_**. Most samples can be deployed to any infrastructure, yielding an **innovative and highly powerful and flexible _à la carte_ approach!**
+
+💡 **_APIM Samples_ is _neither too much nor too little. It is _just right_!**
+
+
 ## 🎯 Objectives
 
-1. Educate you on common APIM architectures we see across industries and customers.
-1. Empower you to safely experiment with APIM policies.
-1. Provide you with high-fidelity building blocks to further your APIM integration efforts.
+1. Educate on common APIM architectures we see across industries and customers.
+1. Empower to safely experiment with APIM policies.
+1. Provide high-fidelity building blocks to further your APIM integration efforts.
 
-_Try it out, learn from it, apply it in your setups._
 
----
+## 🚀 Getting Started
+
+It's quick and easy to get started!
+
+1. Follow one of the two [setup options](#️-infrastructure-setup).
+1. Select an [infrastructure](#-list-of-infrastructures) to deploy. 
+
 
 ## 📁 List of Infrastructures
+
+<details open>
 
 | Infrastructure Name                                                | Description                                                                                                                                                           |
 |:-------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -28,8 +41,11 @@ _Try it out, learn from it, apply it in your setups._
 | [Front Door & API Management & Container Apps][infra-afd-apim-pe]  | **A secure implementation of Azure Front Door connecting to APIM via the new private link integration!** This traffic, once it traverses through Front Door, rides entirely on Microsoft-owned and operated networks. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). **APIM Standard V2** is used here to accept a private link from Front Door. |
 | [Application Gateway (Private Endpoint) & API Management & Container Apps][infra-appgw-apim-pe]  | **A secure implementation of Azure Application Gateway connecting to APIM via the new private link integration!** This traffic, once it traverses through App Gateway, uses a private endpoint set up in the VNet's private endpoint subnet. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). APIM Standard V2 is used here to accept a private link from App Gateway. |
 | [Application Gateway (VNet) & API Management & Container Apps][infra-appgw-apim] | Full VNet injection of APIM and ACA! APIM is shielded from any type of traffic unless it comes through App Gateway. This offers maximum isolation for instances in which customers seek VNet injection. |
+</details>
 
 ## 📁 List of Samples
+
+<details open>
 
 | Sample Name                                                 | Description                                                                                                         | Supported Infrastructure(s)   |
 |:------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------|:------------------------------|
@@ -40,46 +56,10 @@ _Try it out, learn from it, apply it in your setups._
 | [Secure Blob Access][sample-secure-blob-access]             | Secure blob access via the [valet key pattern][valet-key-pattern].                                                  | All infrastructures           |
 | [Credential Manager (with Spotify)][sample-oauth-3rd-party] | Authenticate with APIM which then uses its Credential Manager with Spotify's REST API.                              | All infrastructures           |
 | [Azure Maps][sample-azure-maps]                             | Proxying calls to Azure Maps with APIM policies.                                                                    | All infrastructures           |
+</details>
 
----
 
-## 🏗️ Infrastructure Setup
-
-### Quick Start Options
-
-#### Option 1: GitHub Codespaces / Dev Container (Recommended)
-
-The fastest way to get started is using our pre-configured development environment. Each supported Python version has its own dev container,
-providing you with a more tailored environment that hopefully more closely resembles your own workloads.
-
-- **GitHub Codespaces**: Click the green "Code" button → "Codespaces" → "..." → "New with options..." → "Dev container configuration" (select Python version but ignore *Default project configuration*) → "Create codespace"
-  <img src="./assets/codespaces-python-configurations.png" alt="Codespaces configuration selector for various supposed Python versions" title="Codespaces configuration selector" />
-- **VS Code Dev Containers**: Install the [Dev Containers extension][vscode-devcontainers], then "Reopen in Container"
-
-All prerequisites are automatically installed and configured.
-
-📖 **For detailed setup information, troubleshooting, and optimization details, see [Dev Container Documentation](.devcontainer/README.md)**
-
-#### Option 2: Local Setup
-
-### 📋 Prerequisites
-
-These prerequisites apply broadly across all infrastructure and samples. If there are specific deviations, expect them to be noted there.
-
-- [Python][python] 3.12, 3.13, and 3.14 are all supported
-- [VS Code][vscode] installed with the [Jupyter notebook extension][vscode-jupyter] enabled
-- [Azure CLI][azure-cli-install] installed
-- [Azure Bicep][azure-bicep-install] installed
-- [An Azure Subscription][azure-free] with Owner or Contributor+UserAccessAdministrator permissions. Execute [Verify Azure Account][verify-az-account-notebook] to verify.
-- **Azure Authentication**: Sign in to Azure with Azure CLI using the specific tenant and subscription you want to work with:
-  - To log in to a specific tenant: `az login --tenant <your-tenant-id-or-domain>`
-  - To set a specific subscription: `az account set --subscription <your-subscription-id-or-name>`
-  - To verify your current context: `az account show`
-   - See the [Azure CLI authentication guide][azure-cli-auth] for more options
-
-### 🛠️ Initialization
-
-#### 🚀 Developer CLI
+## 🛠️ Developer CLI
 
 Use the interactive Developer CLI to verify setup, run tests, and manage your development workflow:
 
@@ -94,90 +74,31 @@ Use the interactive Developer CLI to verify setup, run tests, and manage your de
 ```
 
 This menu-driven interface provides quick access to:
-- **Setup**: Complete environment setup, verify local setup, show Azure account info
-- **Tests**: Run pylint, run pytest suite, run full Python checks
-- **Misc**: Exit the CLI
+- **Setup**: Complete environment setup, verify local setup, and show Azure account info
+- **Tests**: Run pylint, pytest, and full Python checks
 
-Example output from option 2 (Verify local setup):
-```
-🔍 APIM Samples Local Environment Verification
-==================================================
+</details>
 
-📋 Virtual Environment
-----------------------
-✅ Virtual environment is active
 
-📋 Required Packages
---------------------
-✅ requests is installed
-✅ ipykernel is installed
-✅ jupyter is installed
-✅ python-dotenv is installed
+## 🏗️ Infrastructure Setup
 
-📋 Shared Modules
------------------
-✅ All shared modules can be imported
+APIM Samples supports two options:
 
-📋 Environment File
--------------------
-✅ .env file is configured correctly
+1. Option 1: GitHub Codespaces / Dev Container (recommended)
+1. Full Local Setup
 
-📋 Azure CLI
-------------
-✅ Azure CLI is installed (azure-cli                         2.81.0)
+### Option 1: GitHub Codespaces / Dev Container (Recommended)
+<details>
 
-📋 Azure Bicep CLI
-------------------
-✅ Azure Bicep CLI is installed (az bicep version: Bicep CLI version 0.39.26 (1e90b06e40))
+**The fastest way to get started is using our pre-configured development environment.**
 
-📋 Azure Providers
-------------------
-   Registered providers:
-      - Microsoft.ApiManagement
-      - Microsoft.App
-      - Microsoft.Authorization
-      - Microsoft.CognitiveServices
-      - Microsoft.ContainerRegistry
-      - Microsoft.KeyVault
-      - Microsoft.Maps
-      - Microsoft.ManagedIdentity
-      - Microsoft.Network
-      - Microsoft.OperationalInsights
-      - Microsoft.Resources
-      - Microsoft.Storage
-✅ All required Azure providers are registered
+Each supported Python version has its own dev container, providing you with a more tailored environment that hopefully more closely resembles your own workloads.
 
-📋 Jupyter Kernel
------------------
-✅ APIM Samples Jupyter kernel is registered
+**GitHub Codespaces**: Click the green "Code" button → "Codespaces" → "..." → "New with options..." → "Dev container configuration" (select Python version but ignore *Default project configuration*) → "Create codespace"
 
-📋 VS Code Settings
--------------------
-✅ VS Code settings are configured correctly
+<img src="./assets/codespaces-python-configurations.png" alt="Codespaces configuration selector for various supposed Python versions" title="Codespaces configuration selector" />
 
-📋 Summary
-----------
-✅ Virtual Environment : PASS
-✅ Required Packages   : PASS
-✅ Shared Modules      : PASS
-✅ Environment File    : PASS
-✅ Azure CLI           : PASS
-✅ Azure Bicep CLI     : PASS
-✅ Azure Providers     : PASS
-✅ Jupyter Kernel      : PASS
-✅ VS Code Settings    : PASS
-
-📊 Overall: 9/9 checks passed
-
-🎉 All checks passed! Your local environment is ready for APIM Samples.
-💡 You can now open any notebook and it should work seamlessly.
-```
-
----
-
-#### Using Dev Container (Recommended)
-
-If you're using the dev container (GitHub Codespaces or VS Code Dev Containers):
+**VS Code Dev Containers**: Alternatively, you can run the dev container locally by installing the [Dev Containers extension][vscode-devcontainers], then selecting "Reopen in Container".
 
 1. Open the repository in the dev container environment
 2. Wait for the automatic setup to complete (includes interactive Azure CLI configuration)
@@ -191,88 +112,43 @@ If you're using the dev container (GitHub Codespaces or VS Code Dev Containers):
    - Verify your authentication context: `az account show`
 5. Verify your Azure setup by executing [shared/jupyter/verify-az-account.ipynb](shared/jupyter/verify-az-account.ipynb)
 
+All prerequisites are automatically installed and configured.
+
+📖 **For detailed setup information, troubleshooting, and optimization details, see [Dev Container Documentation](.devcontainer/README.md)**
+</details>
+
+### Option 2: Full Local Setup
+<details>
+
+#### 📋 Prerequisites
+
+These prerequisites apply broadly across all infrastructure and samples. If there are specific deviations, expect them to be noted there.
+
+- [Python][python] **3.12, 3.13, and 3.14 are all supported**
+- [VS Code][vscode] installed with the [Jupyter notebook extension][vscode-jupyter] enabled
+- [Azure CLI][azure-cli-install] installed
+- [Azure Bicep][azure-bicep-install] installed
+- [An Azure Subscription][azure-free] with Owner or Contributor+UserAccessAdministrator permissions. Execute [Verify Azure Account][verify-az-account-notebook] to verify.
+- **Azure Authentication**: Sign in to Azure with Azure CLI using the specific tenant and subscription you want to work with:
+  - To log in to a specific tenant: `az login --tenant <your-tenant-id-or-domain>`
+  - To set a specific subscription: `az account set --subscription <your-subscription-id-or-name>`
+  - To verify your current context: `az account show`
+   - See the [Azure CLI authentication guide][azure-cli-auth] for more options
+
 #### Manual Local Setup
 
-If you're setting up locally without the dev container:
-
-##### Quick Setup (Recommended)
-
-1. **Create Python Environment**: In VS Code, use Ctrl+Shift+P → "Python: Create Environment" → "Venv" → Select Python version → Check requirements.txt
-2. **Complete Environment Setup**: Run the automated setup script:
-   ```bash
-   python setup/local_setup.py --complete-setup
-   ```
-   For help and available options, run without arguments:
-   ```bash
-   python setup/local_setup.py
-   ```
+1. **Create Python Environment**: In VS Code, use Ctrl+Shift+P → "Python: Create Environment" → "Venv" → Select Python version → Check requirements.txt  
+  The install may take a few minutes. You can check on progress in the _OUTPUT_ window (select `Python`).
+1. **Complete Environment Setup**: Open a terminal and start the [Developer CLI](#-developer-cli), then select `Complete environment setup`.
 3. **Restart VS Code** to apply all settings
 4. **Sign in to Azure**: `az login --tenant <your-tenant-id>` and `az account set --subscription <your-subscription>`
-
-That's it! Your local environment now matches the dev container experience with:
-- ✅ Standardized "APIM Samples Python 3.12" Jupyter kernel
-- ✅ Automatic notebook kernel selection
-- ✅ Python path configured for shared modules
-- ✅ VS Code optimized for the project
-
-When you open any `.ipynb` notebook, it will automatically use the correct kernel and all imports will work seamlessly.
-
-**🔍 Verify Setup**: Run `python setup/verify_local_setup.py` to confirm everything is working correctly.
-
-##### Manual Step-by-Step Setup
-
-If you prefer manual setup or the automated script doesn't work:
-
-1. Open VS Code.
-1. Invoke the _Command Palette_ via the _View_ menu or a shortcut (on Windows: Ctrl + Shift + P, on Mac: CMD + Shift + P).
-1. Select _Python: Create Environment_.
-1. Select _Venv_ as we want a local virtual environment.
-1. Select the desired, installed Python version.
-1. Check _requirements.txt_ to install the Python dependencies we need for this repo, then press _OK_. The install may take a few minutes. You can check on progress in the _OUTPUT_ window (select `Python`).
-1. Verify the virtual environment is set up. You should see a new _.venv_ directory with a _pyveng.cfg_ file and the Python version you selected earlier.
-1. Set up the project environment:
-   ```bash
-   python setup/local_setup.py --generate-env
-   python setup/local_setup.py --setup-kernel
-   python setup/local_setup.py --setup-vscode
-   ```
-1. **Restart VS Code** to ensure all environment settings are loaded properly.
+5. **Verify local setup**: Start the Developer CLI, then select `Verify local setup`.
 
 The first time you run a Jupyter notebook, you may be asked to install the Jupyter kernel package (ipykernel) if not already available.
+When you open any `.ipynb` notebook, it will automatically use the correct kernel and all imports will work seamlessly.
+</details>
 
-#### 🔧 Troubleshooting Setup Issues
-
-If you encounter import errors (e.g., `ModuleNotFoundError: No module named 'requests'` or cannot import shared modules), try these steps:
-
-1. **Fix Python path configuration**:
-   ```bash
-   python setup/local_setup.py --generate-env
-   ```
-
-2. **Verify setup**:
-   ```bash
-   python setup/verify_local_setup.py
-   ```
-
-3. **Restart VS Code** after running the above commands.
-
-4. **Check Python interpreter**: Use `Ctrl+Shift+P` → "Python: Select Interpreter" and choose your `.venv` interpreter.
-
-For detailed troubleshooting of setup issues, see [Import Troubleshooting Guide][import-troubleshooting].
-
----
-
-## 🔎 Logging and Output
-
-The Python helpers in this repo use standard-library `logging` (not ad-hoc `print()`), so you can control verbosity via environment variables.
-
-- `APIM_SAMPLES_LOG_LEVEL`: Controls the overall verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`). Default: `INFO`.
-   - When set to `DEBUG`, the Azure CLI runner in [shared/python/azure_resources.py](shared/python/azure_resources.py) will also add `--debug` to simple `az ...` commands.
-- `APIM_SAMPLES_CONSOLE_WIDTH`: Optional wrap width for long lines (defaults to `120`).
-
-📘 **For comprehensive troubleshooting including deployment errors, authentication issues, and more, see our main [Troubleshooting Guide][troubleshooting].**
-
-## 🚀 Running a Sample
+## 🚀 Sample Deployments
 
 1. Open the desired sample's `create.ipynb` file.
 1. Optional: Adjust the parameters under the `User-defined Parameters` header, if desired.
@@ -282,11 +158,21 @@ The Python helpers in this repo use standard-library `logging` (not ad-hoc `prin
 
 Now that infrastructure and sample have been stood up, you can experiment with the policies, make requests against APIM, etc.
 
----
+
+## 🔎 Logging and Output
+
+The Python helpers in this repo use standard-library `logging`, empowering you to control verbosity via environment variables in the root `.env` file. This file is created via the APIM Samples Developer CLI.
+
+- `APIM_SAMPLES_LOG_LEVEL`: Controls the overall verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`). Default: `INFO`.
+   - When set to `DEBUG`, the Azure CLI runner in [shared/python/azure_resources.py](shared/python/azure_resources.py) will also add `--debug` to simple `az ...` commands.
+- `APIM_SAMPLES_CONSOLE_WIDTH`: Optional wrap width for long lines (defaults to `120`).
+
+📘 **For comprehensive troubleshooting including deployment errors, authentication issues, and more, see our main [Troubleshooting Guide][troubleshooting].**
+
 
 ## Troubleshooting
 
-Encountering issues? Check our comprehensive **[Troubleshooting Guide](TROUBLESHOOTING.md)** which covers:
+Encountering issues? Check our comprehensive **[Troubleshooting Guide](troubleshooting)**! which covers:
 
 - **Deployment Errors** - Including the common "content already consumed" error and parameter mismatches
 - **Authentication Issues** - Azure CLI login problems and permission errors
@@ -296,7 +182,6 @@ Encountering issues? Check our comprehensive **[Troubleshooting Guide](TROUBLESH
 
 For immediate help with common errors, diagnostic commands, and step-by-step solutions, see **[TROUBLESHOOTING.md][troubleshooting]**.
 
----
 
 ## 📂 Repo Structure
 
@@ -321,8 +206,6 @@ For immediate help with common errors, diagnostic commands, and step-by-step sol
 
 We provide several common architectural approaches to integrating APIM into your Azure ecosystem. While these are high-fidelity setups, they are not production-ready. Please refer to the [Azure API Management landing zone accelerator][apim-lza] for up-to-date production setups.
 
----
-
 ## 🛠️ Development
 
 As you work with this repo, you will likely want to make your own customizations. There's little you need to know to be successful.
@@ -333,55 +216,11 @@ The repo uses the bicep linter and has rules defined in `bicepconfig.json`. See 
 
 ### 🔍 Code Quality & Linting
 
-The repository uses [pylint][pylint-docs] to maintain Python code quality standards. Configuration is located in `tests/python/.pylintrc`.
+The repository uses [pylint][pylint-docs] to maintain Python code quality standards. The configuration is located in `tests/python/.pylintrc`, and the Developer CLI supports linting.
 
-#### Running Code Quality Checks
+### 🧪 Testing & Code Coverage
 
-**Using the combined check script (recommended):**
-
-This is the preferred method as it runs both linting and testing in a single command:
-
-```powershell
-# From repository root
-.\tests\python\check_python.ps1                 # Run both pylint and pytest
-.\tests\python\check_python.ps1 -ShowLintReport # Include detailed pylint report
-```
-
-```bash
-# From repository root
-./tests/python/check_python.sh                   # Run both pylint and pytest
-./tests/python/check_python.sh --show-report     # Include detailed pylint report
-```
-
-**Running pylint only:**
-
-```powershell
-# From repository root
-.\tests\python\run_pylint.ps1                   # Run with default settings
-.\tests\python\run_pylint.ps1 -ShowReport       # Include full detailed report
-.\tests\python\run_pylint.ps1 -Target "samples" # Analyze specific directory
-```
-
-```bash
-# From repository root
-./tests/python/run_pylint.sh                     # Run with default settings
-./tests/python/run_pylint.sh samples --show-report # Analyze specific directory with report
-```
-
-**Manual execution:**
-
-```powershell
-pylint --rcfile tests/python/.pylintrc shared/python
-```
-
-#### Pylint Reports
-
-All pylint runs generate timestamped reports in `tests/python/pylint/reports/`:
-- **JSON format**: Machine-readable for CI/CD integration
-- **Text format**: Human-readable detailed analysis
-- **Latest symlinks**: `latest.json` and `latest.txt` always point to the most recent run
-
-The script automatically displays a **Top 10 Issues Summary** showing the most frequent code quality issues to help prioritize improvements.
+Python modules in `shared/python` are covered by comprehensive unit tests located in `tests/python`. All tests use [pytest][pytest-docs] and leverage modern pytest features, including custom markers for unit and HTTP tests. The Developer CLI supports testing.
 
 ### ➕ Adding a Sample
 
@@ -395,76 +234,11 @@ Adding a new sample is relatively straight-forward.
 1. Test the sample with all supported infrastructures.
 1. Create a pull request for merge.
 
-### 🧪 Testing & Code Coverage
-
-Python modules in `shared/python` are covered by comprehensive unit tests located in `tests/python`. All tests use [pytest][pytest-docs] and leverage modern pytest features, including custom markers for unit and HTTP tests.
-
-#### 🚀 Running Tests Locally
-
-**Using the combined check script (recommended):**
-
-This is the preferred method as it runs both linting and testing:
-
-```powershell
-# From repository root
-.\tests\python\check_python.ps1
-```
-
-```bash
-# From repository root
-./tests/python/check_python.sh
-```
-
-**Running tests only:**
-
-- **PowerShell (Windows):**
-  - Run all tests with coverage: `.\tests\python\run_tests.ps1` (from repository root)
-- **Shell (Linux/macOS):**
-  - Run all tests with coverage: `./tests/python/run_tests.sh` (from repository root)
-
-Both scripts:
-- Run all tests in `tests/python` using pytest
-- Generate a code coverage report (HTML output in `tests/python/htmlcov`)
-- Store the raw coverage data in `tests/python/.coverage`
-
-You can also run tests manually and see details in the console:
-```sh
-pytest -v --cov=shared/python --cov-report=html:tests/python/htmlcov --cov-report=term tests/python
-```
-
-#### 📊 Viewing Coverage Reports
-
-After running tests, open `tests/python/htmlcov/index.html` in your browser to view detailed coverage information.
-
-#### 🏷️ Pytest Markers
-
-- `@pytest.mark.unit` — marks a unit test
-- `@pytest.mark.http` — marks a test involving HTTP/mocking
-
-Markers are registered in `pytest.ini` to avoid warnings.
-
-#### ⚡ Continuous Integration (CI)
-
-On every push or pull request, GitHub Actions will:
-- Install dependencies
-- Run all Python tests in `tests/python` with coverage
-- Store the `.coverage` file in `tests/python`
-- Upload the HTML coverage report as a workflow artifact for download
-
-#### 📝 Additional Notes
-
-- The `.gitignore` is configured to exclude coverage output and artifacts.
-- All test and coverage features work both locally and in CI.
-
-For more details on pytest usage, see the [pytest documentation][pytest-docs-versioned].
-
----
 
 ## 📚 Supporting Resources
 
-The APIM team maintains an [APIM policy snippets repo][apim-snippets-repo] with use cases we have seen. They are not immediately executable samples and require integrations such as in this repo.
+The APIM team maintains an [APIM policy snippets repo][apim-snippets] with use cases we have seen. They are not immediately executable samples and require integrations such as in this repo.
 
----
 
 ## 🙏 Acknowledgements
 
@@ -484,7 +258,7 @@ The original author of this project is [Simon Kurtz][simon-kurtz].
 [andrew-redman]: https://github.com/anotherRedbeard
 [apim-love]: https://aka.ms/apimlove
 [apim-lza]: https://learn.microsoft.com/azure/cloud-adoption-framework/scenarios/app-platform/api-management/landing-zone-accelerator
-[apim-snippets-repo]: https://github.com/Azure/api-management-policy-snippets
+[apim-snippets]: https://github.com/Azure/api-management-policy-snippets
 [azure-bicep-install]: https://learn.microsoft.com/azure/azure-resource-manager/bicep/install#azure-cli
 [azure-cli-auth]: https://learn.microsoft.com/cli/azure/authenticate-azure-cli-interactively
 [azure-cli-install]: https://learn.microsoft.com/cli/azure/install-azure-cli
@@ -499,6 +273,7 @@ The original author of this project is [Simon Kurtz][simon-kurtz].
 [infra-appgw-apim]: ./infrastructure/appgw-apim/
 [infra-appgw-apim-pe]: ./infrastructure/appgw-apim-pe/
 [infra-simple-apim]: ./infrastructure/simple-apim
+[openssf]: https://www.bestpractices.dev/projects/11057
 [pytest-docs]: https://docs.pytest.org/
 [pytest-docs-versioned]: https://docs.pytest.org/en/8.2.x/
 [python]: https://www.python.org/

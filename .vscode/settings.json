@@ -22,7 +22,9 @@
         },
         "editor.formatOnSave": true
     },
-
+    "[markdown]": {
+        "files.trimTrailingWhitespace": false
+    },
     "terminal.integrated.defaultProfile.windows": "PowerShell",
     "plantuml.render": "Local",
     "plantuml.exportFormat": "svg",
