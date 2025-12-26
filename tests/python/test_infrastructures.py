@@ -24,57 +24,19 @@ TEST_NETWORK_MODE = APIMNetworkMode.PUBLIC
 
 
 # ------------------------------
-#    FIXTURES
+#    FIXTURE ALIASES
 # ------------------------------
 
 @pytest.fixture
-def mock_utils():
-    """Mock the utils module to avoid external dependencies."""
-    with patch('infrastructures.utils') as mock_utils:
-        mock_utils.build_infrastructure_tags.return_value = {'environment': 'test', 'project': 'apim-samples'}
-        mock_utils.read_policy_xml.return_value = '<policies><inbound><base /></inbound></policies>'
-        mock_utils.determine_shared_policy_path.return_value = '/mock/path/policy.xml'
-        mock_utils.verify_infrastructure.return_value = True
+def mock_policy_fragments(sample_policy_fragments):
+    """Alias to keep older test signatures stable."""
+    return sample_policy_fragments
 
-        yield mock_utils
-
-
-@pytest.fixture(autouse = True)
-def mock_az():
-    """Mock the azure_resources module used by infrastructures."""
-
-    with patch('infrastructures.az') as mock_az:
-        mock_az.get_infra_rg_name.return_value = 'rg-test-infrastructure-01'
-        mock_az.create_resource_group.return_value = None
-        mock_az.does_resource_group_exist.return_value = True
-        mock_az.get_account_info.return_value = ('test_user', 'test_user_id', 'test_tenant', 'test_subscription')
-        mock_az.get_unique_suffix_for_resource_group.return_value = 'abc123def456'
-
-        # Mock the run command with proper return object
-        mock_output = Mock()
-        mock_output.success = True
-        mock_output.json_data = {'outputs': 'test'}
-        mock_output.get.return_value = 'https://test-apim.azure-api.net'
-        mock_output.getJson.return_value = ['api1', 'api2']
-        mock_az.run.return_value = mock_output
-
-        yield mock_az
 
 @pytest.fixture
-def mock_policy_fragments():
-    """Provide mock policy fragments for testing."""
-    return [
-        PolicyFragment('Test-Fragment-1', '<policy>test1</policy>', 'Test fragment 1'),
-        PolicyFragment('Test-Fragment-2', '<policy>test2</policy>', 'Test fragment 2')
-    ]
-
-@pytest.fixture
-def mock_apis():
-    """Provide mock APIs for testing."""
-    return [
-        API('test-api-1', 'Test API 1', '/test1', 'Test API 1 description', '<policy>api1</policy>'),
-        API('test-api-2', 'Test API 2', '/test2', 'Test API 2 description', '<policy>api2</policy>')
-    ]
+def mock_apis(sample_apis):
+    """Alias to keep older test signatures stable."""
+    return sample_apis
 
 
 # ------------------------------

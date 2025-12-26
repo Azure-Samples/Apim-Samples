@@ -7,17 +7,10 @@ import logging
 import builtins
 from collections.abc import Callable
 from unittest.mock import Mock, MagicMock, mock_open, patch
+import json as json_module
 
 # APIM Samples imports
-from apimtypes import (
-    APIM_SKU,
-    APIMNetworkMode,
-    API,
-    APIOperation,
-    PolicyFragment,
-    Output,
-    HTTP_VERB
-)
+from apimtypes import APIM_SKU, APIMNetworkMode, API, APIOperation, PolicyFragment, Output, HTTP_VERB
 
 
 # ------------------------------
@@ -417,7 +410,6 @@ def create_mock_http_response(
         headers = {'Content-Type': 'application/json'}
 
     if json_data is not None and text is None:
-        import json as json_module
         text = json_module.dumps(json_data, indent=4)
     elif text is None:
         text = ''
