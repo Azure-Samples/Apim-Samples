@@ -26,6 +26,87 @@ def suppress_module_functions(monkeypatch, module, names: list[str]) -> None:
     for name in names:
         monkeypatch.setattr(module, name, _noop)
 
+
+def mock_module_functions(monkeypatch, module, names: list[str]) -> dict[str, Mock]:
+    """Replace module functions with Mock instances.
+
+    Returns a dict of name -> mock for convenience in assertions.
+    """
+
+    mocks: dict[str, Mock] = {}
+    for name in names:
+        mock = Mock()
+        monkeypatch.setattr(module, name, mock)
+        mocks[name] = mock
+    return mocks
+
+
+def patch_module_thread_safe_printing(
+    monkeypatch,
+    module,
+    *,
+    print_log: Callable[..., object] | None = None,
+    lock: object | None = None,
+    lock_attr: str = '_print_lock',
+    log_attr: str = '_print_log'
+) -> object:
+    """Patch a module's internal thread-safe printing primitives.
+
+    Many modules use a lock + print-log function internally to serialize output.
+    This helper standardizes patching those attributes to reduce per-test boilerplate.
+
+    Args:
+        monkeypatch: pytest monkeypatch fixture
+        module: module under test
+        print_log: function to install as the module's log function
+        lock: object to install as the module's lock (defaults to MagicMock)
+        lock_attr: attribute name of the lock on the module
+        log_attr: attribute name of the log function on the module
+
+    Returns:
+        The lock object that was installed.
+    """
+
+    if lock is None:
+        lock = MagicMock()
+
+    if print_log is None:
+        def _noop(*args, **kwargs):
+            return None
+
+        print_log = _noop
+
+    monkeypatch.setattr(module, lock_attr, lock)
+    monkeypatch.setattr(module, log_attr, print_log)
+    return lock
+
+
+def capture_module_print_log(
+    monkeypatch,
+    module,
+    *,
+    lock_attr: str = '_print_lock',
+    log_attr: str = '_print_log'
+) -> list[dict[str, object]]:
+    """Capture calls to a module's internal print-log function.
+
+    Returns a list of dict entries with keys: msg, icon, color, kwargs.
+    """
+
+    calls: list[dict[str, object]] = []
+
+    def _print_log(msg, icon, color, **kwargs):
+        calls.append({'msg': msg, 'icon': icon, 'color': color, 'kwargs': kwargs})
+
+    patch_module_thread_safe_printing(
+        monkeypatch,
+        module,
+        print_log=_print_log,
+        lock_attr=lock_attr,
+        log_attr=log_attr
+    )
+    return calls
+
 def patch_open_for_text_read(
     monkeypatch,
     *,
@@ -574,6 +655,12 @@ class MockInfrastructuresPatches:
         self.utils.verify_infrastructure.return_value = True
 
         self.patches.append(self.utils_patch)
+
+        # Patch apimtypes._read_policy_xml to prevent file system access in tests
+        self.apimtypes_read_policy_patch = patch('apimtypes._read_policy_xml')
+        self.apimtypes_read_policy = self.apimtypes_read_policy_patch.__enter__()
+        self.apimtypes_read_policy.return_value = '<policies><inbound><base /></inbound></policies>'
+        self.patches.append(self.apimtypes_read_policy_patch)
 
         return self
 

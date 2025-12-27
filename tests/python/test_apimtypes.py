@@ -2,13 +2,15 @@
 Unit tests for apimtypes.py
 """
 
+import importlib
 from pathlib import Path
 import pytest
+import apimtypes
 
 # APIM Samples imports
 from apimtypes import API, APIMNetworkMode, APIM_SKU, APIOperation, BACKEND_XML_POLICY_PATH, DEFAULT_XML_POLICY_PATH, GET_APIOperation, \
-    get_project_root, HELLO_WORLD_XML_POLICY_PATH, HTTP_VERB, INFRASTRUCTURE, NamedValue, Output, PolicyFragment, POST_APIOperation, \
-    Product, REQUEST_HEADERS_XML_POLICY_PATH, Role, SUBSCRIPTION_KEY_PARAMETER_NAME, SLEEP_TIME_BETWEEN_REQUESTS_MS
+    GET_APIOperation2, get_project_root, HELLO_WORLD_XML_POLICY_PATH, HTTP_VERB, INFRASTRUCTURE, NamedValue, Output, PolicyFragment, \
+    POST_APIOperation, Product, REQUEST_HEADERS_XML_POLICY_PATH, Role, SUBSCRIPTION_KEY_PARAMETER_NAME, SLEEP_TIME_BETWEEN_REQUESTS_MS
 from test_helpers import assert_policy_fragment_structure
 
 
@@ -213,6 +215,27 @@ class TestEnums:
         """Test APIM_SKU enum values."""
         assert enum_value == expected
 
+    @pytest.mark.parametrize('sku', [
+        APIM_SKU.DEVELOPER,
+        APIM_SKU.BASIC,
+        APIM_SKU.STANDARD,
+        APIM_SKU.PREMIUM
+    ])
+    def test_apim_sku_is_v1(self, sku):
+        """Test APIM_SKU.is_v1() method for v1 SKUs."""
+        assert sku.is_v1() is True
+        assert sku.is_v2() is False
+
+    @pytest.mark.parametrize('sku', [
+        APIM_SKU.BASICV2,
+        APIM_SKU.STANDARDV2,
+        APIM_SKU.PREMIUMV2
+    ])
+    def test_apim_sku_is_v2(self, sku):
+        """Test APIM_SKU.is_v2() method for v2 SKUs."""
+        assert sku.is_v2() is True
+        assert sku.is_v1() is False
+
     @pytest.mark.parametrize('enum_value,expected', [
         (HTTP_VERB.GET, 'GET'),
         (HTTP_VERB.POST, 'POST'),
@@ -282,6 +305,24 @@ class TestAPIOperation:
         assert op.urlTemplate == '/'
         assert op.description == 'desc'
         assert op.policyXml == '<xml/>'
+        assert op.to_dict()['method'] == HTTP_VERB.GET
+
+    def test_get_operation2(self):
+        """Test GET_APIOperation2 class with custom parameters."""
+        op = GET_APIOperation2(
+            name='get-users',
+            displayName='Get Users',
+            urlTemplate='/users',
+            description='Get all users',
+            policyXml='<custom/>'
+        )
+
+        assert op.name == 'get-users'
+        assert op.displayName == 'Get Users'
+        assert op.urlTemplate == '/users'
+        assert op.method == HTTP_VERB.GET
+        assert op.description == 'Get all users'
+        assert op.policyXml == '<custom/>'
         assert op.to_dict()['method'] == HTTP_VERB.GET
 
     def test_post_operation(self):
@@ -360,6 +401,18 @@ class TestProductCreation:
         """Test that approvalRequired defaults to False."""
         product = Product(**base_product_params)
         assert product.approvalRequired is False
+
+    def test_product_fallback_policy_when_file_not_found(self, monkeypatch, base_product_params):
+        """Test Product uses fallback policy when default policy file is not found."""
+        def mock_read_policy_xml_raise(path):
+            raise FileNotFoundError(f'Policy file not found: {path}')
+
+        monkeypatch.setattr(apimtypes, '_read_policy_xml', mock_read_policy_xml_raise)
+
+        product = Product(**base_product_params)
+        assert product.policyXml is not None
+        assert '<policies>' in product.policyXml
+        assert '<inbound>' in product.policyXml
 
 
 class TestProductSerialization:
@@ -451,6 +504,164 @@ class TestOutput:
         output = Output(success=True, text='not json')
         assert output.json_data is None
 
+    def test_get_method_with_properties_structure(self):
+        """Test Output.get() with standard deployment output structure."""
+        json_text = '''{"properties": {"outputs": {"endpoint": {"value": "https://test.com"}}}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.get('endpoint', suppress_logging=True)
+        assert result == 'https://test.com'
+
+    def test_get_method_with_simple_structure(self):
+        """Test Output.get() with simple output structure."""
+        json_text = '''{"endpoint": {"value": "https://simple.com"}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.get('endpoint', suppress_logging=True)
+        assert result == 'https://simple.com'
+
+    def test_get_method_key_not_found(self):
+        """Test Output.get() when key is not found."""
+        json_text = '''{"properties": {"outputs": {"other": {"value": "val"}}}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.get('missing', suppress_logging=True)
+        assert result is None
+
+    def test_get_method_key_not_found_with_label_raises(self):
+        """Test Output.get() raises when key not found and label provided."""
+        json_text = '''{"properties": {"outputs": {"other": {"value": "val"}}}}'''
+        output = Output(success=True, text=json_text)
+
+        with pytest.raises(Exception):
+            output.get('missing', label='Test Label', suppress_logging=True)
+
+    def test_get_method_with_label_and_secure_masking(self):
+        """Test Output.get() with label and secure masking."""
+        json_text = '''{"properties": {"outputs": {"secret": {"value": "supersecretvalue"}}}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.get('secret', label='Secret', secure=True)
+        assert result == 'supersecretvalue'
+
+    def test_get_method_json_data_not_dict(self):
+        """Test Output.get() when json_data is not a dict."""
+        output = Output(success=True, text='["array", "data"]')
+
+        result = output.get('key', suppress_logging=True)
+        assert result is None
+
+    def test_get_method_properties_not_dict(self):
+        """Test Output.get() when properties is not a dict."""
+        json_text = '''{"properties": "not a dict"}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.get('key', suppress_logging=True)
+        assert result is None
+
+    def test_get_method_outputs_not_dict(self):
+        """Test Output.get() when outputs is not a dict."""
+        json_text = '''{"properties": {"outputs": "not a dict"}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.get('key', suppress_logging=True)
+        assert result is None
+
+    def test_get_method_output_entry_invalid(self):
+        """Test Output.get() when output entry is invalid."""
+        json_text = '''{"properties": {"outputs": {"key": "no value field"}}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.get('key', suppress_logging=True)
+        assert result is None
+
+    def test_getjson_method_with_dict_value(self):
+        """Test Output.getJson() with dictionary value."""
+        json_text = '''{"properties": {"outputs": {"config": {"value": {"key": "val"}}}}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.getJson('config', suppress_logging=True)
+        assert result == {'key': 'val'}
+
+    def test_getjson_method_with_string_json(self):
+        """Test Output.getJson() parsing string as JSON."""
+        json_text = '''{"properties": {"outputs": {"data": {"value": "{\\"nested\\": \\"value\\"}"}}}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.getJson('data', suppress_logging=True)
+        assert result == {'nested': 'value'}
+
+    def test_getjson_method_with_python_literal(self):
+        """Test Output.getJson() parsing Python literal."""
+        json_text = '''{"properties": {"outputs": {"data": {"value": "{'key': 'value'}"}}}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.getJson('data', suppress_logging=True)
+        assert result == {'key': 'value'}
+
+    def test_getjson_method_unparseable_string(self):
+        """Test Output.getJson() with unparseable string returns original value."""
+        json_text = '''{"properties": {"outputs": {"data": {"value": "not valid json or literal"}}}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.getJson('data')
+        assert result == 'not valid json or literal'
+
+    def test_getjson_method_key_not_found(self):
+        """Test Output.getJson() when key not found."""
+        json_text = '''{"properties": {"outputs": {"other": {"value": "val"}}}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.getJson('missing', suppress_logging=True)
+        assert result is None
+
+    def test_getjson_method_raises_with_label(self):
+        """Test Output.getJson() raises when key not found and label provided."""
+        json_text = '''{"properties": {"outputs": {}}}'''
+        output = Output(success=True, text=json_text)
+
+        with pytest.raises(Exception):
+            output.getJson('missing', label='Test')
+
+    def test_getjson_method_json_data_not_dict(self):
+        """Test Output.getJson() when json_data is not a dict."""
+        output = Output(success=True, text='[1, 2, 3]')
+
+        result = output.getJson('key', suppress_logging=True)
+        assert result is None
+
+    def test_getjson_method_properties_not_dict(self):
+        """Test Output.getJson() when properties is not a dict."""
+        json_text = '''{"properties": ["not", "a", "dict"]}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.getJson('key', suppress_logging=True)
+        assert result is None
+
+    def test_getjson_method_outputs_not_dict(self):
+        """Test Output.getJson() when outputs is not a dict."""
+        json_text = '''{"properties": {"outputs": ["not", "dict"]}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.getJson('key', suppress_logging=True)
+        assert result is None
+
+    def test_getjson_method_output_entry_invalid(self):
+        """Test Output.getJson() when output entry is missing value field."""
+        json_text = '''{"properties": {"outputs": {"key": {"no_value": "here"}}}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.getJson('key', suppress_logging=True)
+        assert result is None
+
+    def test_output_with_simple_structure_getjson(self):
+        """Test Output.getJson() with simple structure (no properties wrapper)."""
+        json_text = '''{"data": {"value": {"nested": "obj"}}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.getJson('data', suppress_logging=True)
+        assert result == {'nested': 'obj'}
+
 
 # ------------------------------
 #    NAMED VALUE TESTS
@@ -536,3 +747,14 @@ class TestProjectRoot:
         assert isinstance(root, Path)
         assert root.exists()
         assert root.is_dir()
+
+    def test_get_project_root_from_env_var(self, monkeypatch):
+        """Test get_project_root uses PROJECT_ROOT environment variable."""
+        test_path = Path('c:/test/project')
+        monkeypatch.setenv('PROJECT_ROOT', str(test_path))
+
+        # Need to reimport to pick up new env var
+        importlib.reload(apimtypes)
+
+        root = apimtypes.get_project_root()
+        assert root == test_path

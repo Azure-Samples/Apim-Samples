@@ -11,6 +11,11 @@ import pytest
 import console
 import infrastructures
 from apimtypes import INFRASTRUCTURE, APIM_SKU, APIMNetworkMode, API, PolicyFragment, Output
+from test_helpers import (
+    capture_module_print_log,
+    patch_module_thread_safe_printing,
+    suppress_module_functions
+)
 
 
 # ------------------------------
@@ -938,12 +943,13 @@ def test_policy_fragment_creation_robustness(mock_utils):
 
 def test_cleanup_resources_smoke(monkeypatch):
     monkeypatch.setattr(infrastructures.az, 'run', lambda *a, **kw: MagicMock(success=True, json_data={}))
-    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_error', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_warning', lambda *a, **kw: None)
-    monkeypatch.setattr(console, 'print_val', lambda *a, **kw: None)
+
+    suppress_module_functions(
+        monkeypatch,
+        infrastructures,
+        ['print_info', 'print_error', 'print_message', 'print_ok', 'print_warning'],
+    )
+    suppress_module_functions(monkeypatch, console, ['print_val'])
     # Direct private method call for legacy test (should still work)
     infrastructures._cleanup_resources(INFRASTRUCTURE.SIMPLE_APIM.value, 'rg')
 
@@ -1004,8 +1010,7 @@ def test_cleanup_resources_with_resources(monkeypatch):
         return Output(success=True, text='Operation completed')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(console, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(console, 'print_message', lambda *a, **kw: None)
+    suppress_module_functions(monkeypatch, console, ['print_info', 'print_message'])
 
     # Execute cleanup
     infrastructures._cleanup_resources('test-deployment', 'test-rg')
@@ -1054,8 +1059,7 @@ def test_cleanup_resources_no_resources(monkeypatch):
         return Output(success=True, text='Operation completed')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_message'])
 
     # Execute cleanup
     infrastructures._cleanup_resources('test-deployment', 'test-rg')
@@ -1090,8 +1094,7 @@ def test_cleanup_resources_command_failures(monkeypatch):
         return Output(success=True, json_data=[])
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_message'])
 
     # Should not raise exception even when deployment show fails
     infrastructures._cleanup_resources('test-deployment', 'test-rg')
@@ -1108,8 +1111,7 @@ def test_cleanup_resources_exception_handling(monkeypatch):
         exception_caught.append(message)
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_message'])
     monkeypatch.setattr(infrastructures, 'print_plain', mock_print)
     monkeypatch.setattr('traceback.print_exc', lambda: None)
 
@@ -1132,9 +1134,7 @@ def test_cleanup_resources_always_attempts_rg_delete_on_exception(monkeypatch):
         return Output(success=True, text='{}')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_plain', lambda *a, **kw: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_message', 'print_plain'])
     monkeypatch.setattr('traceback.print_exc', lambda: None)
 
     infrastructures._cleanup_resources('test-deployment', 'test-rg')
@@ -1161,8 +1161,7 @@ def test_cleanup_infra_deployments_parallel_mode(monkeypatch):
 
     monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
     monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
-    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_ok'])
 
     # Test with multiple indexes (should use parallel mode)
     infrastructures.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2, 3])
@@ -1202,9 +1201,7 @@ def test_cleanup_infra_deployments_parallel_with_failures(monkeypatch):
 
     monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
     monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
-    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_error', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_warning', lambda *a, **kw: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_error', 'print_warning'])
 
     # Test with multiple indexes where one fails
     infrastructures.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2, 3])
@@ -1294,8 +1291,7 @@ def test_cleanup_infra_deployments_max_workers_limit(monkeypatch):
     monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
     monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)  # Mock Azure CLI calls
-    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_ok'])
 
     # Test with 6 indexes (should use parallel mode and handle all indexes)
     infrastructures.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2, 3, 4, 5, 6])
@@ -1340,8 +1336,7 @@ def test_cleanup_infra_deployments_thread_color_assignment(monkeypatch):
     monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
     monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)  # Mock Azure CLI calls
-    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_ok'])
 
     # Test with more indexes than available colors to verify cycling
     num_colors = len(console.THREAD_COLORS)
@@ -1376,7 +1371,7 @@ def test_cleanup_infra_deployments_all_infrastructure_types(monkeypatch):
 
     monkeypatch.setattr(infrastructures, '_cleanup_resources', mock_cleanup_resources)
     monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
-    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info'])
 
     # Test all infrastructure types
     infrastructures.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, 1)
@@ -1412,8 +1407,7 @@ def test_cleanup_infra_deployments_index_scenarios(monkeypatch):
     monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
     monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)  # Mock Azure CLI calls
-    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_ok'])
 
     # Test None index (sequential)
     infrastructures.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, None)
@@ -1481,8 +1475,7 @@ def test_cleanup_functions_comprehensive(monkeypatch):
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
     monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
-    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_message'])
 
     # Test _cleanup_resources (private function)
     infrastructures._cleanup_resources('test-deployment', 'test-rg')  # Should not raise
@@ -1523,8 +1516,7 @@ def test_cleanup_edge_cases_comprehensive(monkeypatch):
     monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
     monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)  # Mock Azure CLI calls
-    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_ok'])
 
     # Test with zero index (single index, uses sequential path)
     infrastructures.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, 0)
@@ -1586,12 +1578,12 @@ def test_cleanup_resources_partial_failures(monkeypatch):
         return Output(success=True, text='Operation completed')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
-    monkeypatch.setattr(console, 'print_ok', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_error', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_warning', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_ok', lambda *a, **kw: None)
+    suppress_module_functions(
+        monkeypatch,
+        infrastructures,
+        ['print_info', 'print_message', 'print_error', 'print_warning', 'print_ok'],
+    )
+    suppress_module_functions(monkeypatch, console, ['print_ok'])
 
     # Should not raise exception even when individual operations fail
     infrastructures._cleanup_resources('test-deployment', 'test-rg')
@@ -1643,8 +1635,7 @@ def test_cleanup_resources_malformed_responses(monkeypatch):
         return Output(success=True, text='Operation completed')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(infrastructures, 'print_message', lambda *a, **kw: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_message'])
 
     # Should handle malformed responses gracefully without raising exceptions
     infrastructures._cleanup_resources('test-deployment', 'test-rg')
@@ -1890,8 +1881,7 @@ def test_cleanup_resources_with_all_resource_types(monkeypatch):
         return Output(success=True, text='{}')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(console, 'print_info', lambda *a, **kw: None)
-    monkeypatch.setattr(console, 'print_message', lambda *a, **kw: None)
+    suppress_module_functions(monkeypatch, console, ['print_info', 'print_message'])
 
     infrastructures._cleanup_resources('test-deployment', 'test-rg')
 
@@ -3455,72 +3445,47 @@ def test_deploy_infrastructure_appgw_prints_final_configuration(mock_utils, mock
 @pytest.mark.unit
 def test_cleanup_resources_with_thread_safe_printing_missing_deployment_name(monkeypatch):
     """Test with missing deployment name parameter."""
-    print_calls = []
-
-    def mock_print_log(msg, icon, color, **kwargs):
-        print_calls.append(msg)
-
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', mock_print_log)
+    print_calls = capture_module_print_log(monkeypatch, infrastructures)
 
     infrastructures._cleanup_resources_with_thread_safe_printing('', 'test-rg', '[TEST]: ', 'color')
 
-    assert any('Missing deployment name parameter' in call for call in print_calls)
+    assert any('Missing deployment name parameter' in call['msg'] for call in print_calls)
 
 
 @pytest.mark.unit
 def test_cleanup_resources_with_thread_safe_printing_missing_resource_group(monkeypatch):
     """Test with missing resource group name parameter."""
-    print_calls = []
-
-    def mock_print_log(msg, icon, color, **kwargs):
-        print_calls.append(msg)
-
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', mock_print_log)
+    print_calls = capture_module_print_log(monkeypatch, infrastructures)
 
     infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', '', '[TEST]: ', 'color')
 
-    assert any('Missing resource group name parameter' in call for call in print_calls)
+    assert any('Missing resource group name parameter' in call['msg'] for call in print_calls)
 
 
 @pytest.mark.unit
 def test_cleanup_resources_with_thread_safe_printing_none_deployment_name(monkeypatch):
     """Test with None deployment name parameter."""
-    print_calls = []
-
-    def mock_print_log(msg, icon, color, **kwargs):
-        print_calls.append(msg)
-
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', mock_print_log)
+    print_calls = capture_module_print_log(monkeypatch, infrastructures)
 
     infrastructures._cleanup_resources_with_thread_safe_printing(None, 'test-rg', '[TEST]: ', 'color')
 
-    assert any('Missing deployment name parameter' in call for call in print_calls)
+    assert any('Missing deployment name parameter' in call['msg'] for call in print_calls)
 
 
 @pytest.mark.unit
 def test_cleanup_resources_with_thread_safe_printing_none_resource_group(monkeypatch):
     """Test with None resource group name parameter."""
-    print_calls = []
-
-    def mock_print_log(msg, icon, color, **kwargs):
-        print_calls.append(msg)
-
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', mock_print_log)
+    print_calls = capture_module_print_log(monkeypatch, infrastructures)
 
     infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', None, '[TEST]: ', 'color')
 
-    assert any('Missing resource group name parameter' in call for call in print_calls)
+    assert any('Missing resource group name parameter' in call['msg'] for call in print_calls)
 
 
 @pytest.mark.unit
 def test_cleanup_resources_with_thread_safe_printing_success_with_no_resources(monkeypatch):
     """Test successful cleanup with no resources to delete."""
     run_calls = []
-    print_calls = []
 
     def mock_run(command, ok_msg=None, error_msg=None):
         run_calls.append(command)
@@ -3530,18 +3495,14 @@ def test_cleanup_resources_with_thread_safe_printing_success_with_no_resources(m
             return Output(True, json.dumps([]))
         return Output(True, '{}')
 
-    def mock_print_log(msg, icon, color, **kwargs):
-        print_calls.append(msg)
-
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', mock_print_log)
-    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+    print_calls = capture_module_print_log(monkeypatch, infrastructures)
+    suppress_module_functions(monkeypatch, infrastructures, ['_delete_resource_group_best_effort'])
 
     infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
 
     assert len(print_calls) > 0
-    assert any('Cleanup completed' in call for call in print_calls)
+    assert any('Cleanup completed' in call['msg'] for call in print_calls)
 
 
 @pytest.mark.unit
@@ -3570,10 +3531,9 @@ def test_cleanup_resources_with_thread_safe_printing_with_cognitiveservices(monk
         assert all(r['type'] == 'cognitiveservices' for r in resources)
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
     monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', mock_cleanup_parallel)
-    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['_delete_resource_group_best_effort'])
 
     infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
 
@@ -3598,10 +3558,9 @@ def test_cleanup_resources_with_thread_safe_printing_with_apim_resources(monkeyp
         assert all(r['type'] == 'apim' for r in resources)
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
     monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', mock_cleanup_parallel)
-    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['_delete_resource_group_best_effort'])
 
     infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
 
@@ -3627,10 +3586,9 @@ def test_cleanup_resources_with_thread_safe_printing_with_keyvault_resources(mon
         assert all(r['type'] == 'keyvault' for r in resources)
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
     monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', mock_cleanup_parallel)
-    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['_delete_resource_group_best_effort'])
 
     infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
 
@@ -3655,10 +3613,9 @@ def test_cleanup_resources_with_thread_safe_printing_with_mixed_resources(monkey
         assert resource_types == {'cognitiveservices', 'apim', 'keyvault'}
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
     monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', mock_cleanup_parallel)
-    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['_delete_resource_group_best_effort'])
 
     infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
 
@@ -3674,10 +3631,12 @@ def test_cleanup_resources_with_thread_safe_printing_deployment_show_fails(monke
         return Output(True, '{}')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
-    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', lambda *args, **kwargs: None)
-    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
+    suppress_module_functions(
+        monkeypatch,
+        infrastructures,
+        ['_cleanup_resources_parallel_thread_safe', '_delete_resource_group_best_effort'],
+    )
 
     # Should not raise exception
     infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
@@ -3696,10 +3655,12 @@ def test_cleanup_resources_with_thread_safe_printing_cognitiveservices_list_fail
         return Output(success=True, text='{}')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
-    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', lambda *args, **kwargs: None)
-    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
+    suppress_module_functions(
+        monkeypatch,
+        infrastructures,
+        ['_cleanup_resources_parallel_thread_safe', '_delete_resource_group_best_effort'],
+    )
 
     # Should handle failure gracefully
     infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
@@ -3717,8 +3678,7 @@ def test_cleanup_resources_with_thread_safe_printing_exception_handling(monkeypa
         rg_delete_called.append((rg_name, thread_prefix, thread_color))
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
     monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', mock_delete_rg)
     monkeypatch.setattr('infrastructures.should_print_traceback', lambda: False)
 
@@ -3745,8 +3705,7 @@ def test_cleanup_resources_with_thread_safe_printing_rg_delete_always_attempted(
         rg_delete_calls.append((rg_name, thread_prefix, thread_color))
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
     monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', lambda *args, **kwargs: None)
     monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', mock_delete_rg)
 
@@ -3775,10 +3734,9 @@ def test_cleanup_resources_with_thread_safe_printing_thread_prefix_and_color_pas
         cleanup_parallel_calls.append((thread_prefix, thread_color))
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
     monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', mock_cleanup_parallel)
-    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['_delete_resource_group_best_effort'])
 
     test_prefix = '[CUSTOM-PREFIX]: '
     test_color = '\033[35m'  # Magenta color code
@@ -3792,7 +3750,6 @@ def test_cleanup_resources_with_thread_safe_printing_thread_prefix_and_color_pas
 @pytest.mark.unit
 def test_cleanup_resources_with_thread_safe_printing_logs_resource_group_name(monkeypatch):
     """Test that resource group name is logged."""
-    log_calls = []
 
     def mock_run(command, ok_msg=None, error_msg=None):
         if 'deployment group show' in command:
@@ -3801,25 +3758,23 @@ def test_cleanup_resources_with_thread_safe_printing_logs_resource_group_name(mo
             return Output(success=True, json_data=[])
         return Output(success=True, text='{}')
 
-    def mock_print_log(msg, icon, color, **kwargs):
-        log_calls.append((msg, icon))
-
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', mock_print_log)
-    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', lambda *args, **kwargs: None)
-    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+    log_calls = capture_module_print_log(monkeypatch, infrastructures)
+    suppress_module_functions(
+        monkeypatch,
+        infrastructures,
+        ['_cleanup_resources_parallel_thread_safe', '_delete_resource_group_best_effort'],
+    )
 
     infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'my-test-rg', '[TEST]: ', 'color')
 
     # Verify RG name was logged
-    assert any('my-test-rg' in msg for msg, _icon in log_calls)
+    assert any('my-test-rg' in call['msg'] for call in log_calls)
 
 
 @pytest.mark.unit
 def test_cleanup_resources_with_thread_safe_printing_success_completion_message(monkeypatch):
     """Test that success completion message is logged."""
-    log_calls = []
 
     def mock_run(command, ok_msg=None, error_msg=None):
         if 'deployment group show' in command:
@@ -3828,19 +3783,18 @@ def test_cleanup_resources_with_thread_safe_printing_success_completion_message(
             return Output(True, json.dumps([]))
         return Output(True, '{}')
 
-    def mock_print_log(msg, icon, color, **kwargs):
-        log_calls.append(msg)
-
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', mock_print_log)
-    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', lambda *args, **kwargs: None)
-    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+    log_calls = capture_module_print_log(monkeypatch, infrastructures)
+    suppress_module_functions(
+        monkeypatch,
+        infrastructures,
+        ['_cleanup_resources_parallel_thread_safe', '_delete_resource_group_best_effort'],
+    )
 
     infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
 
     assert len(log_calls) > 0
-    assert any('Cleanup completed' in msg for msg in log_calls)
+    assert any('Cleanup completed' in call['msg'] for call in log_calls)
 
 
 @pytest.mark.unit
@@ -3861,10 +3815,9 @@ def test_cleanup_resources_with_thread_safe_printing_parallel_cleanup_called_whe
         cleanup_calls.append(len(resources))
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
     monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', mock_cleanup_parallel)
-    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['_delete_resource_group_best_effort'])
 
     infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
 
@@ -3896,9 +3849,8 @@ def test_cleanup_resources_with_thread_safe_printing_large_resource_count(monkey
         assert len(resources) == 15  # 5 + 3 + 7
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
-    monkeypatch.setattr(infrastructures, '_print_log', lambda *args, **kwargs: None)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
     monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel_thread_safe', mock_cleanup_parallel)
-    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', lambda *args, **kwargs: None)
+    suppress_module_functions(monkeypatch, infrastructures, ['_delete_resource_group_best_effort'])
 
     infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')

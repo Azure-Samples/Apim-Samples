@@ -20,6 +20,7 @@ disable =
     R0801,  # Duplicate code
     R0902,  # Too many instance attributes
     R0903,  # Too few public methods
+    R0904,  # Too many public methods
     R0911,  # Too many return statements
     R0912,  # Too many branches
     R0913,  # Too many arguments

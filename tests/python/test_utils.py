@@ -1,3 +1,4 @@
+import builtins
 import os
 import inspect
 import base64
@@ -57,6 +58,11 @@ def suppress_console(monkeypatch):
             'print_val',
         ],
     )
+
+
+@pytest.fixture
+def suppress_builtin_print(monkeypatch):
+    suppress_module_functions(monkeypatch, builtins, ['print'])
 
 
 # ------------------------------
@@ -794,7 +800,7 @@ def test_prompt_for_infrastructure_update_invalid_choice_then_valid(monkeypatch)
 #    TESTS FOR InfrastructureNotebookHelper.create_infrastructure WITH INDEX RETRY
 # ------------------------------
 
-def test_infrastructure_notebook_helper_create_with_index_retry(monkeypatch):
+def test_infrastructure_notebook_helper_create_with_index_retry(monkeypatch, suppress_builtin_print):
     """Test InfrastructureNotebookHelper.create_infrastructure with option 2 (different index) retry."""
 
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
@@ -814,15 +820,12 @@ def test_infrastructure_notebook_helper_create_with_index_retry(monkeypatch):
     mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n', 'Success!\n'])
     monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
 
-    # Mock print functions to avoid output during testing
-    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
-
     # Should succeed after retrying with index 3
     result = helper.create_infrastructure()
     assert result is True
     assert helper.index == 3  # Verify index was updated
 
-def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch):
+def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch, suppress_builtin_print):
     """Test InfrastructureNotebookHelper.create_infrastructure with multiple recursive retries."""
 
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
@@ -852,14 +855,12 @@ def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch)
 
     mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n'])
     monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
-    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
-
     # Should succeed after retrying with index 3
     result = helper.create_infrastructure()
     assert result is True
     assert helper.index == 3  # Verify final index
 
-def test_infrastructure_notebook_helper_create_user_cancellation(monkeypatch):
+def test_infrastructure_notebook_helper_create_user_cancellation(monkeypatch, suppress_builtin_print):
     """Test InfrastructureNotebookHelper.create_infrastructure when user cancels during retry."""
 
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
@@ -869,15 +870,13 @@ def test_infrastructure_notebook_helper_create_user_cancellation(monkeypatch):
 
     # Mock the prompt to return cancellation (option 3)
     monkeypatch.setattr(utils, '_prompt_for_infrastructure_update', lambda rg_name: (False, None))
-    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
-
     # Should raise SystemExit when user cancels
     with pytest.raises(SystemExit) as exc_info:
         helper.create_infrastructure()
 
     assert "User cancelled deployment" in str(exc_info.value)
 
-def test_infrastructure_notebook_helper_create_keyboard_interrupt_during_prompt(monkeypatch):
+def test_infrastructure_notebook_helper_create_keyboard_interrupt_during_prompt(monkeypatch, suppress_builtin_print):
     """Test InfrastructureNotebookHelper.create_infrastructure when KeyboardInterrupt occurs during prompt."""
 
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
@@ -890,15 +889,13 @@ def test_infrastructure_notebook_helper_create_keyboard_interrupt_during_prompt(
         raise KeyboardInterrupt()
 
     monkeypatch.setattr(utils, '_prompt_for_infrastructure_update', mock_prompt)
-    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
-
     # Should raise SystemExit when KeyboardInterrupt occurs
     with pytest.raises(SystemExit) as exc_info:
         helper.create_infrastructure()
 
     assert "User cancelled deployment" in str(exc_info.value)
 
-def test_infrastructure_notebook_helper_create_eof_error_during_prompt(monkeypatch):
+def test_infrastructure_notebook_helper_create_eof_error_during_prompt(monkeypatch, suppress_builtin_print):
     """Test InfrastructureNotebookHelper.create_infrastructure when EOFError occurs during prompt."""
 
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
@@ -911,8 +908,6 @@ def test_infrastructure_notebook_helper_create_eof_error_during_prompt(monkeypat
         raise EOFError()
 
     monkeypatch.setattr(utils, '_prompt_for_infrastructure_update', mock_prompt)
-    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
-
     # Should raise SystemExit when EOFError occurs
     with pytest.raises(SystemExit) as exc_info:
         helper.create_infrastructure()
@@ -1422,20 +1417,18 @@ def test_determine_shared_policy_path(monkeypatch):
 #    InfrastructureNotebookHelper TESTS
 # ------------------------------
 
-def test_infrastructure_notebook_helper_bypass_check(monkeypatch):
+def test_infrastructure_notebook_helper_bypass_check(monkeypatch, suppress_builtin_print):
     """Test InfrastructureNotebookHelper with bypass_infrastructure_check=True."""
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
 
     mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n'])
     monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
-    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
-
     # Test with bypass_infrastructure_check=True
     result = helper.create_infrastructure(bypass_infrastructure_check=True)
     assert result is True
 
 
-def test_infrastructure_notebook_helper_allow_update_false(monkeypatch):
+def test_infrastructure_notebook_helper_allow_update_false(monkeypatch, suppress_builtin_print):
     """Test InfrastructureNotebookHelper with allow_update=False."""
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
 
@@ -1444,8 +1437,6 @@ def test_infrastructure_notebook_helper_allow_update_false(monkeypatch):
 
     mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n'])
     monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
-    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: None)
-
     # With allow_update=False, should still create when infrastructure doesn't exist
     result = helper.create_infrastructure(allow_update=False, bypass_infrastructure_check=True)
     assert result is True
