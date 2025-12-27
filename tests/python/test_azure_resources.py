@@ -1101,3 +1101,128 @@ def test_extract_az_cli_error_message_skips_warnings():
     output = 'WARNING: This is deprecated\nERROR: Real error here'
     result = az._extract_az_cli_error_message(output)
     assert result == 'Real error here'
+
+
+def test_extract_az_cli_error_message_with_ansi_codes():
+    """Test _extract_az_cli_error_message strips ANSI codes."""
+    output = '\x1b[31mERROR: Resource failed\x1b[0m'
+    result = az._extract_az_cli_error_message(output)
+    assert result == 'Resource failed'
+
+
+def test_extract_az_cli_error_message_finds_first_non_empty_line():
+    """Test _extract_az_cli_error_message returns first meaningful line."""
+    output = '\n\n\nSome error occurred\nMore details'
+    result = az._extract_az_cli_error_message(output)
+    assert result == 'Some error occurred'
+
+
+def test_looks_like_json_with_valid_json():
+    """Test _looks_like_json identifies JSON strings."""
+    assert az._looks_like_json('{"key": "value"}') is True
+    assert az._looks_like_json('[1, 2, 3]') is True
+
+
+def test_looks_like_json_with_non_json():
+    """Test _looks_like_json rejects non-JSON strings."""
+    assert az._looks_like_json('plain text') is False
+    assert az._looks_like_json('') is False
+
+
+def test_strip_ansi_removes_codes():
+    """Test _strip_ansi removes ANSI escape codes."""
+    text = '\x1b[31mRed text\x1b[0m normal'
+    result = az._strip_ansi(text)
+    assert '\x1b' not in result
+    assert 'Red text' in result
+    assert 'normal' in result
+
+
+def test_is_az_command_recognizes_az_commands():
+    """Test _is_az_command identifies az CLI commands."""
+    assert az._is_az_command('az group list') is True
+    assert az._is_az_command('  az account show  ') is True
+    assert az._is_az_command('az') is True
+
+
+def test_is_az_command_rejects_non_az_commands():
+    """Test _is_az_command rejects non-az commands."""
+    assert az._is_az_command('echo hello') is False
+    assert az._is_az_command('python script.py') is False
+    assert az._is_az_command('azurecli') is False
+
+
+def test_run_with_exception_in_subprocess():
+    """Test run() handles subprocess exceptions gracefully."""
+    with patch('azure_resources.subprocess.run') as mock_subprocess:
+        mock_subprocess.side_effect = Exception('Subprocess failed')
+
+        result = az.run('az group list')
+
+        assert result.success is False
+        assert 'Subprocess failed' in result.text
+
+
+def test_run_with_stderr_only():
+    """Test run() handles commands that only output to stderr."""
+    with patch('azure_resources.subprocess.run') as mock_subprocess:
+        mock_process = Mock()
+        mock_process.returncode = 0
+        mock_process.stdout = ''
+        mock_process.stderr = 'Some warning message'
+        mock_subprocess.return_value = mock_process
+
+        result = az.run('az group list')
+
+        assert result.success is True
+
+
+def test_run_with_az_debug_flag_already_present():
+    """Test run() doesn't duplicate --debug flag."""
+    with patch('azure_resources.is_debug_enabled', return_value=True):
+        with patch('azure_resources.subprocess.run') as mock_subprocess:
+            mock_process = Mock()
+            mock_process.returncode = 0
+            mock_process.stdout = '[]'
+            mock_process.stderr = ''
+            mock_subprocess.return_value = mock_process
+
+            az.run('az group list --debug')
+
+            # Check that --debug appears only once in the command
+            called_command = mock_subprocess.call_args[0][0]
+            assert called_command.count('--debug') == 1
+
+
+def test_run_with_json_output_success():
+    """Test run() with successful JSON output."""
+    with patch('azure_resources.subprocess.run') as mock_subprocess:
+        mock_process = Mock()
+        mock_process.returncode = 0
+        mock_process.stdout = '{"result": "success"}'
+        mock_process.stderr = ''
+        mock_subprocess.return_value = mock_process
+
+        result = az.run('az group show --name test-rg')
+
+        assert result.success is True
+        assert '{"result": "success"}' in result.text
+
+
+def test_run_with_complex_shell_expression():
+    """Test run() handles complex shell expressions with operators."""
+    with patch('azure_resources.is_debug_enabled', return_value=True):
+        with patch('azure_resources.subprocess.run') as mock_subprocess:
+            mock_process = Mock()
+            mock_process.returncode = 0
+            mock_process.stdout = 'output'
+            mock_process.stderr = ''
+            mock_subprocess.return_value = mock_process
+
+            az.run('az group list || echo "failed"')
+
+            # --debug should be inserted before the ||
+            called_command = mock_subprocess.call_args[0][0]
+            debug_pos = called_command.find('--debug')
+            pipe_pos = called_command.find('||')
+            assert debug_pos < pipe_pos
