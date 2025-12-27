@@ -3,12 +3,13 @@ Tests for azure_resources module.
 """
 
 import json
-from unittest.mock import Mock, patch, mock_open, call, MagicMock
+from unittest.mock import Mock, patch, mock_open, call
 import pytest
 
 # APIM Samples imports
 import azure_resources as az
 from apimtypes import INFRASTRUCTURE, Endpoints, Output
+from test_helpers import suppress_module_functions
 
 
 # ------------------------------
@@ -255,10 +256,7 @@ def test_cleanup_old_jwt_signing_keys_success(monkeypatch):
         return Output(False, 'unexpected command')
 
     monkeypatch.setattr(az, 'run', fake_run)
-    monkeypatch.setattr(az, 'print_message', lambda *a, **k: None)
-    monkeypatch.setattr(az, 'print_info', lambda *a, **k: None)
-    monkeypatch.setattr(az, 'print_ok', lambda *a, **k: None)
-    monkeypatch.setattr(az, 'print_error', lambda *a, **k: None)
+    suppress_module_functions(monkeypatch, az, ['print_message', 'print_info', 'print_ok', 'print_error'])
 
     result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'JwtSigningKey-sample-456')
 
@@ -273,9 +271,7 @@ def test_cleanup_old_jwt_signing_keys_invalid_pattern(monkeypatch):
     """Test cleanup when current key name does not match expected pattern."""
 
     monkeypatch.setattr(az, 'run', lambda *a, **k: pytest.fail('run should not be called'))
-    monkeypatch.setattr(az, 'print_message', lambda *a, **k: None)
-    monkeypatch.setattr(az, 'print_info', lambda *a, **k: None)
-    monkeypatch.setattr(az, 'print_ok', lambda *a, **k: None)
+    suppress_module_functions(monkeypatch, az, ['print_message', 'print_info', 'print_ok'])
 
     result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'invalid-key-name')
 
@@ -290,10 +286,7 @@ def test_check_apim_blob_permissions_success(monkeypatch):
     """Test blob permission check succeeds when role assignment and access test succeed."""
 
     monkeypatch.setattr(az, 'get_azure_role_guid', lambda *_: 'role-guid')
-    monkeypatch.setattr(az, 'print_info', lambda *a, **k: None)
-    monkeypatch.setattr(az, 'print_ok', lambda *a, **k: None)
-    monkeypatch.setattr(az, 'print_warning', lambda *a, **k: None)
-    monkeypatch.setattr(az, 'print_error', lambda *a, **k: None)
+    suppress_module_functions(monkeypatch, az, ['print_info', 'print_ok', 'print_warning', 'print_error'])
 
     run_calls: list[str] = []
 
@@ -328,10 +321,7 @@ def test_check_apim_blob_permissions_missing_resource_id(monkeypatch):
     """Test blob permission check fails when storage account ID cannot be parsed."""
 
     monkeypatch.setattr(az, 'get_azure_role_guid', lambda *_: 'role-guid')
-    monkeypatch.setattr(az, 'print_info', lambda *a, **k: None)
-    monkeypatch.setattr(az, 'print_ok', lambda *a, **k: None)
-    monkeypatch.setattr(az, 'print_warning', lambda *a, **k: None)
-    monkeypatch.setattr(az, 'print_error', lambda *a, **k: None)
+    suppress_module_functions(monkeypatch, az, ['print_info', 'print_ok', 'print_warning', 'print_error'])
 
     def fake_run(cmd: str, *args, **kwargs):
         if 'apim show' in cmd:
@@ -703,9 +693,7 @@ def test_get_account_info_missing_user_id(monkeypatch):
 
 def test_cleanup_old_jwt_signing_keys_no_matching_pattern(monkeypatch):
     """Test cleanup_old_jwt_signing_keys with non-matching key pattern."""
-    monkeypatch.setattr('azure_resources.print_message', MagicMock())
-    monkeypatch.setattr('azure_resources.print_info', MagicMock())
-    monkeypatch.setattr('azure_resources.print_ok', MagicMock())
+    suppress_module_functions(monkeypatch, az, ['print_message', 'print_info', 'print_ok'])
 
     result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'InvalidKeyPattern-123')
     assert result is False
@@ -724,10 +712,7 @@ def test_cleanup_old_jwt_signing_keys_all_deleted(monkeypatch):
         return Output(False, 'Unknown')
 
     monkeypatch.setattr('azure_resources.run', fake_run)
-    monkeypatch.setattr('azure_resources.print_message', MagicMock())
-    monkeypatch.setattr('azure_resources.print_info', MagicMock())
-    monkeypatch.setattr('azure_resources.print_ok', MagicMock())
-    monkeypatch.setattr('azure_resources.print_error', MagicMock())
+    suppress_module_functions(monkeypatch, az, ['print_message', 'print_info', 'print_ok', 'print_error'])
 
     result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'JwtSigningKey-sample-99999')
     assert result is True
@@ -948,10 +933,7 @@ def test_check_apim_blob_permissions_no_principal_id(monkeypatch):
         return Output(False, 'Error')
 
     monkeypatch.setattr('azure_resources.run', fake_run)
-    monkeypatch.setattr('azure_resources.print_info', MagicMock())
-    monkeypatch.setattr('azure_resources.print_ok', MagicMock())
-    monkeypatch.setattr('azure_resources.print_warning', MagicMock())
-    monkeypatch.setattr('azure_resources.print_error', MagicMock())
+    suppress_module_functions(monkeypatch, az, ['print_info', 'print_ok', 'print_warning', 'print_error'])
 
     result = az.check_apim_blob_permissions('apim', 'storage', 'rg')
     assert result is False
@@ -978,3 +960,269 @@ def test_get_account_info_all_fields_present(monkeypatch):
         assert user_id == 'user-id-xyz'
         assert tenant_id == 'tenant-abcde'
         assert subscription_id == 'sub-12345'
+
+
+# ------------------------------
+#    UTILITY FUNCTION TESTS
+# ------------------------------
+
+def test_redact_secrets_with_access_token():
+    """Test _redact_secrets redacts accessToken in JSON."""
+    text = '{"accessToken": "secretToken123"}'
+    result = az._redact_secrets(text)
+    assert 'secretToken123' not in result
+    assert '***REDACTED***' in result
+
+
+def test_redact_secrets_with_refresh_token():
+    """Test _redact_secrets redacts refreshToken in JSON."""
+    text = '{"refreshToken": "refreshSecret456"}'
+    result = az._redact_secrets(text)
+    assert 'refreshSecret456' not in result
+    assert '***REDACTED***' in result
+
+
+def test_redact_secrets_with_client_secret():
+    """Test _redact_secrets redacts client_secret in JSON."""
+    text = '{"client_secret": "clientSecret789"}'
+    result = az._redact_secrets(text)
+    assert 'clientSecret789' not in result
+    assert '***REDACTED***' in result
+
+
+def test_redact_secrets_with_bearer_token():
+    """Test _redact_secrets redacts Authorization: Bearer tokens."""
+    text = 'Authorization: Bearer myBearerToken123'
+    result = az._redact_secrets(text)
+    assert 'myBearerToken123' not in result
+    assert '***REDACTED***' in result
+
+
+def test_redact_secrets_with_empty_string():
+    """Test _redact_secrets handles empty string."""
+    assert not az._redact_secrets('')
+    assert az._redact_secrets(None) is None
+
+
+def test_maybe_add_az_debug_flag_when_debug_enabled():
+    """Test _maybe_add_az_debug_flag adds --debug when logging is DEBUG."""
+    with patch('azure_resources.is_debug_enabled', return_value=True):
+        result = az._maybe_add_az_debug_flag('az group list')
+        assert '--debug' in result
+
+
+def test_maybe_add_az_debug_flag_when_debug_disabled():
+    """Test _maybe_add_az_debug_flag doesn't add --debug when logging is not DEBUG."""
+    with patch('azure_resources.is_debug_enabled', return_value=False):
+        result = az._maybe_add_az_debug_flag('az group list')
+        assert result == 'az group list'
+
+
+def test_maybe_add_az_debug_flag_with_pipe():
+    """Test _maybe_add_az_debug_flag handles commands with pipes."""
+    with patch('azure_resources.is_debug_enabled', return_value=True):
+        result = az._maybe_add_az_debug_flag('az group list | jq .')
+        assert '--debug' in result
+        assert result.index('--debug') < result.index('|')
+
+
+def test_maybe_add_az_debug_flag_with_redirect():
+    """Test _maybe_add_az_debug_flag handles commands with output redirection."""
+    with patch('azure_resources.is_debug_enabled', return_value=True):
+        result = az._maybe_add_az_debug_flag('az group list > output.txt')
+        assert '--debug' in result
+        assert result.index('--debug') < result.index('>')
+
+
+def test_maybe_add_az_debug_flag_already_has_debug():
+    """Test _maybe_add_az_debug_flag doesn't duplicate --debug flag."""
+    with patch('azure_resources.is_debug_enabled', return_value=True):
+        result = az._maybe_add_az_debug_flag('az group list --debug')
+        assert result.count('--debug') == 1
+
+
+def test_maybe_add_az_debug_flag_non_az_command():
+    """Test _maybe_add_az_debug_flag doesn't modify non-az commands."""
+    with patch('azure_resources.is_debug_enabled', return_value=True):
+        result = az._maybe_add_az_debug_flag('echo hello')
+        assert result == 'echo hello'
+
+
+def test_extract_az_cli_error_message_with_json_error():
+    """Test _extract_az_cli_error_message extracts from JSON error payload."""
+    output = '{"error": {"code": "NotFound", "message": "Resource not found"}}'
+    result = az._extract_az_cli_error_message(output)
+    assert result == 'Resource not found'
+
+
+def test_extract_az_cli_error_message_with_json_message():
+    """Test _extract_az_cli_error_message extracts from JSON message field."""
+    output = '{"message": "Deployment failed"}'
+    result = az._extract_az_cli_error_message(output)
+    assert result == 'Deployment failed'
+
+
+def test_extract_az_cli_error_message_with_error_prefix():
+    """Test _extract_az_cli_error_message extracts from ERROR: line."""
+    output = 'ERROR: Resource group not found'
+    result = az._extract_az_cli_error_message(output)
+    assert result == 'Resource group not found'
+
+
+def test_extract_az_cli_error_message_with_az_error_prefix():
+    """Test _extract_az_cli_error_message extracts from az: error: line."""
+    output = 'az: error: argument --name is required'
+    result = az._extract_az_cli_error_message(output)
+    assert result == 'argument --name is required'
+
+
+def test_extract_az_cli_error_message_with_code_and_message():
+    """Test _extract_az_cli_error_message combines Code: and Message: lines."""
+    output = 'Code: ResourceNotFound\nMessage: The resource was not found'
+    result = az._extract_az_cli_error_message(output)
+    assert 'ResourceNotFound' in result
+    assert 'The resource was not found' in result
+
+
+def test_extract_az_cli_error_message_with_empty_string():
+    """Test _extract_az_cli_error_message handles empty string."""
+    assert not az._extract_az_cli_error_message('')
+
+
+def test_extract_az_cli_error_message_skips_traceback():
+    """Test _extract_az_cli_error_message skips traceback lines."""
+    output = 'Some error\nTraceback (most recent call last):\n  File "test.py"'
+    result = az._extract_az_cli_error_message(output)
+    assert result == 'Some error'
+
+
+def test_extract_az_cli_error_message_skips_warnings():
+    """Test _extract_az_cli_error_message skips warning lines."""
+    output = 'WARNING: This is deprecated\nERROR: Real error here'
+    result = az._extract_az_cli_error_message(output)
+    assert result == 'Real error here'
+
+
+def test_extract_az_cli_error_message_with_ansi_codes():
+    """Test _extract_az_cli_error_message strips ANSI codes."""
+    output = '\x1b[31mERROR: Resource failed\x1b[0m'
+    result = az._extract_az_cli_error_message(output)
+    assert result == 'Resource failed'
+
+
+def test_extract_az_cli_error_message_finds_first_non_empty_line():
+    """Test _extract_az_cli_error_message returns first meaningful line."""
+    output = '\n\n\nSome error occurred\nMore details'
+    result = az._extract_az_cli_error_message(output)
+    assert result == 'Some error occurred'
+
+
+def test_looks_like_json_with_valid_json():
+    """Test _looks_like_json identifies JSON strings."""
+    assert az._looks_like_json('{"key": "value"}') is True
+    assert az._looks_like_json('[1, 2, 3]') is True
+
+
+def test_looks_like_json_with_non_json():
+    """Test _looks_like_json rejects non-JSON strings."""
+    assert az._looks_like_json('plain text') is False
+    assert az._looks_like_json('') is False
+
+
+def test_strip_ansi_removes_codes():
+    """Test _strip_ansi removes ANSI escape codes."""
+    text = '\x1b[31mRed text\x1b[0m normal'
+    result = az._strip_ansi(text)
+    assert '\x1b' not in result
+    assert 'Red text' in result
+    assert 'normal' in result
+
+
+def test_is_az_command_recognizes_az_commands():
+    """Test _is_az_command identifies az CLI commands."""
+    assert az._is_az_command('az group list') is True
+    assert az._is_az_command('  az account show  ') is True
+    assert az._is_az_command('az') is True
+
+
+def test_is_az_command_rejects_non_az_commands():
+    """Test _is_az_command rejects non-az commands."""
+    assert az._is_az_command('echo hello') is False
+    assert az._is_az_command('python script.py') is False
+    assert az._is_az_command('azurecli') is False
+
+
+def test_run_with_exception_in_subprocess():
+    """Test run() handles subprocess exceptions gracefully."""
+    with patch('azure_resources.subprocess.run') as mock_subprocess:
+        mock_subprocess.side_effect = Exception('Subprocess failed')
+
+        result = az.run('az group list')
+
+        assert result.success is False
+        assert 'Subprocess failed' in result.text
+
+
+def test_run_with_stderr_only():
+    """Test run() handles commands that only output to stderr."""
+    with patch('azure_resources.subprocess.run') as mock_subprocess:
+        mock_process = Mock()
+        mock_process.returncode = 0
+        mock_process.stdout = ''
+        mock_process.stderr = 'Some warning message'
+        mock_subprocess.return_value = mock_process
+
+        result = az.run('az group list')
+
+        assert result.success is True
+
+
+def test_run_with_az_debug_flag_already_present():
+    """Test run() doesn't duplicate --debug flag."""
+    with patch('azure_resources.is_debug_enabled', return_value=True):
+        with patch('azure_resources.subprocess.run') as mock_subprocess:
+            mock_process = Mock()
+            mock_process.returncode = 0
+            mock_process.stdout = '[]'
+            mock_process.stderr = ''
+            mock_subprocess.return_value = mock_process
+
+            az.run('az group list --debug')
+
+            # Check that --debug appears only once in the command
+            called_command = mock_subprocess.call_args[0][0]
+            assert called_command.count('--debug') == 1
+
+
+def test_run_with_json_output_success():
+    """Test run() with successful JSON output."""
+    with patch('azure_resources.subprocess.run') as mock_subprocess:
+        mock_process = Mock()
+        mock_process.returncode = 0
+        mock_process.stdout = '{"result": "success"}'
+        mock_process.stderr = ''
+        mock_subprocess.return_value = mock_process
+
+        result = az.run('az group show --name test-rg')
+
+        assert result.success is True
+        assert '{"result": "success"}' in result.text
+
+
+def test_run_with_complex_shell_expression():
+    """Test run() handles complex shell expressions with operators."""
+    with patch('azure_resources.is_debug_enabled', return_value=True):
+        with patch('azure_resources.subprocess.run') as mock_subprocess:
+            mock_process = Mock()
+            mock_process.returncode = 0
+            mock_process.stdout = 'output'
+            mock_process.stderr = ''
+            mock_subprocess.return_value = mock_process
+
+            az.run('az group list || echo "failed"')
+
+            # --debug should be inserted before the ||
+            called_command = mock_subprocess.call_args[0][0]
+            debug_pos = called_command.find('--debug')
+            pipe_pos = called_command.find('||')
+            assert debug_pos < pipe_pos

@@ -1,54 +1,12 @@
-"""
-Unit tests for the console module.
+"""Unit tests for the console module."""
 
-Tests all public console output functions including formatting, colors,
-thread safety, and various output options.
-"""
-
-import io
 import logging
 import threading
+
 import console
 
-
-# ------------------------------
-#    HELPER FUNCTIONS
-# ------------------------------
-
-def capture_output(func, *args, **kwargs):
-    """
-    Capture console logging output from a function call.
-
-    Args:
-        func: Function to call
-        *args: Positional arguments for the function
-        **kwargs: Keyword arguments for the function
-
-    Returns:
-        str: Captured output
-    """
-    captured_output = io.StringIO()
-
-    logger = logging.getLogger('console')
-    previous_level = logger.level
-    previous_handlers = list(logger.handlers)
-    previous_propagate = logger.propagate
-
-    handler = logging.StreamHandler(captured_output)
-    handler.setFormatter(logging.Formatter('%(message)s'))
-
-    # Route console messages only to our in-memory stream for deterministic tests.
-    logger.handlers = [handler]
-    logger.setLevel(logging.DEBUG)
-    logger.propagate = False
-
-    try:
-        func(*args, **kwargs)
-        return captured_output.getvalue()
-    finally:
-        logger.handlers = previous_handlers
-        logger.setLevel(previous_level)
-        logger.propagate = previous_propagate
+# APIM Samples imports
+from test_helpers import capture_console_output as capture_output
 
 
 # ------------------------------

@@ -8,12 +8,13 @@ from __future__ import annotations
 
 import logging
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 # APIM Samples imports
 import azure_resources as az
+from test_helpers import mock_module_functions
 
 
 class _FakeLock:
@@ -32,10 +33,7 @@ class _FakeLock:
 def _quiet_console(monkeypatch: pytest.MonkeyPatch) -> None:
     """Silence console facade functions so tests don't emit output."""
 
-    monkeypatch.setattr(az, 'print_command', Mock())
-    monkeypatch.setattr(az, 'print_plain', Mock())
-    monkeypatch.setattr(az, 'print_ok', Mock())
-    monkeypatch.setattr(az, 'print_error', Mock())
+    mock_module_functions(monkeypatch, az, ['print_command', 'print_plain', 'print_ok', 'print_error'])
 
 
 def test_run_adds_az_debug_flag_and_keeps_stdout_clean_when_success(_quiet_console: None) -> None:

@@ -48,11 +48,17 @@ applyTo: '**/*.py'
   2. Specific type/constant imports (e.g., `from apimtypes import INFRASTRUCTURE`)
   3. Specific function imports (e.g., `from console import print_error`)
 
-## Linting (pylint)
+## Code Quality Checklist
 
-- Respect the repository pylint configuration at `tests/python/.pylintrc`.
-- When changing Python code, run pylint and ensure changes do not worsen the pylint rating unexpectedly.
-- Prefer fixing root causes (e.g., import structure, error handling) over suppressions.
+Before completing any Python code changes, verify:
+
+- [ ] All pylint warnings and errors are resolved (`pylint --rcfile=tests/python/.pylintrc <file>`)
+- [ ] Code follows PEP 8 and the style guidelines in this file
+- [ ] Import statements for modules within this repo are placed last in the imports and are grouped with the `# APIM Samples imports` header
+- [ ] Type hints are present where appropriate
+- [ ] No unnecessary comments; docstrings are present for functions and classes
+- [ ] Edge cases and error handling are implemented
+- [ ] Prefer fixing root causes (e.g., import structure, error handling) over suppressions.
 
 ## Testing
 

@@ -145,7 +145,7 @@ class Infrastructure:
                 print_error('Failed to assign Key Vault Certificates Officer role to current user.\nThis is an RBAC permission issue - verify your account has sufficient permissions.')
                 return False
 
-            print_ok(' Assigned Key Vault Certificates Officer role to current user')
+            print_ok('Assigned Key Vault Certificates Officer role to current user')
 
             # Brief wait for role assignment propagation
             print_plain('⏳ Waiting for role assignment propagation (15 seconds)...')

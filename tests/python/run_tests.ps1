@@ -19,7 +19,15 @@ $env:PYTHONUNBUFFERED = "1"
 Push-Location $RepoRoot
 try {
 	$env:COVERAGE_FILE = (Join-Path $RepoRoot "tests/python/.coverage")
-	pytest -v --color=yes --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov tests/python/
+	pytest -v --color=yes --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov --cov-report=json tests/python/
+
+	# Generate coverage.json for VS Code visualization
+	Write-Host "`nGenerating coverage.json for VS Code..." -ForegroundColor Cyan
+	coverage json
+
+	# Display coverage summary
+	Write-Host "`nCoverage Summary:" -ForegroundColor Green
+	coverage report --skip-covered
 }
 finally {
 	Pop-Location

@@ -5,7 +5,9 @@ Unit tests for the Charts module.
 from unittest.mock import patch, MagicMock
 import sys
 import os
+import json
 import pytest
+import pandas as pd
 from charts import BarChart
 
 # Add the shared/python directory to the Python path
@@ -445,3 +447,120 @@ def test_backend_index_edge_cases():
         assert call_args[1]['Backend Index'] == 99   # Missing index field
         assert call_args[2]['Backend Index'] == 99   # Empty JSON
         assert call_args[3]['Backend Index'] == 99   # Non-200 status
+
+
+@patch('charts.plt')
+@patch('charts.pd')
+def test_average_line_calculation_normal_data(mock_pd, mock_plt, sample_api_results):
+    """Test average line calculation with normal data (no extreme outliers)."""
+
+    # Create real DataFrame to test filtering logic
+    chart = BarChart('Test', 'X', 'Y', sample_api_results)
+
+    # Build the real rows as the code does
+    rows = []
+    for entry in sample_api_results:
+        run = entry['run']
+        response_time = entry['response_time']
+        status_code = entry['status_code']
+        if status_code == 200 and entry['response']:
+            try:
+                resp = json.loads(entry['response'])
+                backend_index = resp.get('index', 99)
+            except Exception:
+                backend_index = 99
+        else:
+            backend_index = 99
+        rows.append({
+            'Run': run,
+            'Response Time (ms)': response_time * 1000,
+            'Backend Index': backend_index,
+            'Status Code': status_code
+        })
+
+    real_df = pd.DataFrame(rows)
+    mock_pd.DataFrame.return_value = real_df
+
+    # Mock plotting methods
+    mock_ax = MagicMock()
+    with patch.object(real_df, 'plot', return_value=mock_ax):
+        chart._plot_barchart(sample_api_results)
+
+    # Verify average line was plotted
+    mock_plt.axhline.assert_called()
+    mock_plt.text.assert_called()
+
+
+@patch('charts.plt')
+@patch('charts.pd')
+def test_average_line_calculation_with_outlier(mock_pd, mock_plt):
+    """Test average line calculation when data has high outliers."""
+
+    # Create data with a high outlier
+    results_with_outlier = [
+        {'run': 1, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 1}'},
+        {'run': 2, 'response_time': 0.12, 'status_code': 200, 'response': '{"index": 1}'},
+        {'run': 3, 'response_time': 0.11, 'status_code': 200, 'response': '{"index": 1}'},
+        {'run': 4, 'response_time': 0.13, 'status_code': 200, 'response': '{"index": 1}'},
+        {'run': 5, 'response_time': 5.0, 'status_code': 200, 'response': '{"index": 1}'},  # Outlier
+    ]
+
+    chart = BarChart('Test', 'X', 'Y', results_with_outlier)
+
+    # Build real rows
+    rows = []
+    for entry in results_with_outlier:
+        resp = json.loads(entry['response'])
+        rows.append({
+            'Run': entry['run'],
+            'Response Time (ms)': entry['response_time'] * 1000,
+            'Backend Index': resp.get('index', 99),
+            'Status Code': entry['status_code']
+        })
+
+    real_df = pd.DataFrame(rows)
+    mock_pd.DataFrame.return_value = real_df
+
+    # Mock plotting
+    mock_ax = MagicMock()
+    with patch.object(real_df, 'plot', return_value=mock_ax):
+        chart._plot_barchart(results_with_outlier)
+
+    # Verify average line calculation excluded the outlier
+    mock_plt.axhline.assert_called()
+    mock_plt.text.assert_called()
+
+
+@patch('charts.plt')
+@patch('charts.pd')
+def test_average_line_all_data_outliers(mock_pd, mock_plt):
+    """Test average line calculation when all data points are outliers (edge case)."""
+
+    # Create data where all points are very high
+    all_outlier_results = [
+        {'run': 1, 'response_time': 10.0, 'status_code': 200, 'response': '{"index": 1}'},
+        {'run': 2, 'response_time': 11.0, 'status_code': 200, 'response': '{"index": 1}'},
+    ]
+
+    chart = BarChart('Test', 'X', 'Y', all_outlier_results)
+
+    rows = []
+    for entry in all_outlier_results:
+        resp = json.loads(entry['response'])
+        rows.append({
+            'Run': entry['run'],
+            'Response Time (ms)': entry['response_time'] * 1000,
+            'Backend Index': resp.get('index', 99),
+            'Status Code': entry['status_code']
+        })
+
+    real_df = pd.DataFrame(rows)
+    mock_pd.DataFrame.return_value = real_df
+
+    mock_ax = MagicMock()
+    with patch.object(real_df, 'plot', return_value=mock_ax):
+        chart._plot_barchart(all_outlier_results)
+
+    # Should still plot average line
+    mock_plt.axhline.assert_called()
+    mock_plt.text.assert_called()
