@@ -2495,6 +2495,129 @@ def test_disable_apim_public_access_returns_false_when_param_missing(mock_utils,
 
     assert result is False
     mock_az.run.assert_not_called()
+def test_infrastructure_constructor_with_all_network_modes(mock_utils):
+    """Test Infrastructure creation with all network mode options."""
+    # Test PUBLIC mode
+    infra_public = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        networkMode=APIMNetworkMode.PUBLIC
+    )
+    assert infra_public.networkMode == APIMNetworkMode.PUBLIC
+
+    # Test EXTERNAL_VNET mode
+    infra_external = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        networkMode=APIMNetworkMode.EXTERNAL_VNET
+    )
+    assert infra_external.networkMode == APIMNetworkMode.EXTERNAL_VNET
+
+    # Test INTERNAL_VNET mode
+    infra_internal = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        networkMode=APIMNetworkMode.INTERNAL_VNET
+    )
+    assert infra_internal.networkMode == APIMNetworkMode.INTERNAL_VNET
+
+
+@pytest.mark.unit
+def test_infrastructure_constructor_with_all_sku_types(mock_utils):
+    """Test Infrastructure creation with all APIM SKU types."""
+    sku_types = [
+        APIM_SKU.BASICV2,
+        APIM_SKU.STANDARDV2,
+        APIM_SKU.DEVELOPER,
+        APIM_SKU.BASIC,
+        APIM_SKU.STANDARD,
+        APIM_SKU.PREMIUM
+    ]
+
+    for sku in sku_types:
+        infra = infrastructures.Infrastructure(
+            infra=INFRASTRUCTURE.SIMPLE_APIM,
+            index=1,
+            rg_location='eastus',
+            apim_sku=sku
+        )
+        assert infra.apim_sku == sku
+
+
+@pytest.mark.unit
+def test_infrastructure_constructor_with_mixed_custom_components(mock_utils):
+    """Test Infrastructure with combinations of custom APIs and policy fragments."""
+    # Only custom APIs, no PFs
+    api_only = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        infra_apis=[API('api1', 'API 1', '/api1', 'API 1')],
+        infra_pfs=None
+    )
+    api_only._define_policy_fragments()
+    api_only._define_apis()
+    assert len(api_only.apis) == 2  # hello-world + api1
+    assert len(api_only.pfs) == 6   # only base fragments
+
+    # Only custom PFs, no APIs
+    pf_only = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=1,
+        rg_location='eastus',
+        infra_apis=None,
+        infra_pfs=[PolicyFragment('pf1', '<policy/>', 'PF 1')]
+    )
+    pf_only._define_policy_fragments()
+    pf_only._define_apis()
+    assert len(pf_only.apis) == 1  # only hello-world
+    assert len(pf_only.pfs) == 7   # 6 base + pf1
+
+
+@pytest.mark.unit
+def test_infrastructure_constructor_extreme_index_values(mock_utils):
+    """Test Infrastructure creation with edge-case index values."""
+    # Index 0
+    infra_zero = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=0,
+        rg_location='eastus'
+    )
+    assert isinstance(infra_zero.index, int) and infra_zero.index >= 0  # Zero is valid
+
+    # Large index
+    infra_large = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=9999,
+        rg_location='eastus'
+    )
+    assert infra_large.index == 9999
+
+    # Negative index (although not typical, should still work)
+    infra_negative = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=-1,
+        rg_location='eastus'
+    )
+    assert infra_negative.index == -1
+
+
+@pytest.mark.unit
+def test_infrastructure_constructor_with_all_infrastructure_types(mock_utils):
+    """Test that base Infrastructure can be instantiated with all infrastructure types."""
+    for infra_type in INFRASTRUCTURE:
+        infra = infrastructures.Infrastructure(
+            infra=infra_type,
+            index=1,
+            rg_location='eastus'
+        )
+        assert infra.infra == infra_type
+
+
+@pytest.mark.unit
 
 
 @pytest.mark.unit
