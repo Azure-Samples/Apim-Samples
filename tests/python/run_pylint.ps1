@@ -53,18 +53,31 @@ Write-Host "   Working Directory : $RepoRoot" -ForegroundColor Gray
 Write-Host "   Pylint Config     : $PylintRc`n" -ForegroundColor Gray
 
 # Run pylint with multiple output formats
-$JsonReport = "$ReportDir/pylint_${Timestamp}.json"
-$TextReport = "$ReportDir/pylint_${Timestamp}.txt"
-$LatestJson = "$ReportDir/latest.json"
-$LatestText = "$ReportDir/latest.txt"
+$JsonReport = Join-Path $ReportDir "pylint_${Timestamp}.json"
+$TextReport = Join-Path $ReportDir "pylint_${Timestamp}.txt"
+$LatestJson = Join-Path $ReportDir "latest.json"
+$LatestText = Join-Path $ReportDir "latest.txt"
+
+$ReportDirRelative = [IO.Path]::GetRelativePath($RepoRoot, $ReportDir) -replace "\\", "/"
+$JsonReportRelative = "$ReportDirRelative/pylint_${Timestamp}.json"
+$TextReportRelative = "$ReportDirRelative/pylint_${Timestamp}.txt"
 
 # Change to repository root and execute pylint
 Push-Location $RepoRoot
 try {
     pylint --rcfile "$PylintRc" `
-        --output-format=json:$JsonReport,colorized,text:$TextReport `
-        $Target.Split(' ')
-    $ExitCode = $LASTEXITCODE
+        --output-format=json `
+        $Target.Split(' ') `
+        | Tee-Object -FilePath $JsonReport | Out-Null
+    $JsonExitCode = $LASTEXITCODE
+
+    pylint --rcfile "$PylintRc" `
+        --output-format=text `
+        $Target.Split(' ') `
+        | Tee-Object -FilePath $TextReport
+    $TextExitCode = $LASTEXITCODE
+
+    $ExitCode = if ($JsonExitCode -ne 0) { $JsonExitCode } else { $TextExitCode }
 } finally {
     Pop-Location
 }

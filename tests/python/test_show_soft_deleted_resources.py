@@ -1,9 +1,11 @@
 """Tests for show_soft_deleted_resources module."""
 
+import builtins
 from unittest.mock import MagicMock, patch
 
 # APIM Samples imports
 import show_soft_deleted_resources as sdr
+from test_helpers import mock_module_functions
 
 
 # ------------------------------
@@ -289,7 +291,7 @@ def test_main_no_resources_no_purge(monkeypatch):
     monkeypatch.setattr('show_soft_deleted_resources.get_deleted_apim_services', mock_get_apim)
     monkeypatch.setattr('show_soft_deleted_resources.get_deleted_key_vaults', mock_get_vaults)
     monkeypatch.setattr('show_soft_deleted_resources.az.run', mock_az_run)
-    monkeypatch.setattr('builtins.print', MagicMock())
+    mock_module_functions(monkeypatch, builtins, ['print'])
     monkeypatch.setattr('sys.argv', ['script.py'])
 
     result = sdr.main()
@@ -313,7 +315,7 @@ def test_main_with_resources_show_only(monkeypatch):
     monkeypatch.setattr('show_soft_deleted_resources.get_deleted_apim_services', mock_get_apim)
     monkeypatch.setattr('show_soft_deleted_resources.get_deleted_key_vaults', mock_get_vaults)
     monkeypatch.setattr('show_soft_deleted_resources.az.run', mock_az_run)
-    monkeypatch.setattr('builtins.print', MagicMock())
+    mock_module_functions(monkeypatch, builtins, ['print'])
     monkeypatch.setattr('sys.argv', ['script.py'])
 
     result = sdr.main()
@@ -349,7 +351,7 @@ def test_main_with_purge_flag_confirmed(monkeypatch):
     monkeypatch.setattr('show_soft_deleted_resources.purge_apim_services', mock_purge_apim)
     monkeypatch.setattr('show_soft_deleted_resources.purge_key_vaults', mock_purge_kv)
     monkeypatch.setattr('show_soft_deleted_resources.az.run', mock_az_run)
-    monkeypatch.setattr('builtins.print', MagicMock())
+    mock_module_functions(monkeypatch, builtins, ['print'])
     monkeypatch.setattr('sys.argv', ['script.py', '--purge'])
 
     result = sdr.main()
@@ -377,7 +379,7 @@ def test_main_with_purge_flag_not_confirmed(monkeypatch):
     monkeypatch.setattr('show_soft_deleted_resources.get_deleted_key_vaults', mock_get_vaults)
     monkeypatch.setattr('show_soft_deleted_resources.confirm_purge', mock_confirm_purge)
     monkeypatch.setattr('show_soft_deleted_resources.az.run', mock_az_run)
-    monkeypatch.setattr('builtins.print', MagicMock())
+    mock_module_functions(monkeypatch, builtins, ['print'])
     monkeypatch.setattr('sys.argv', ['script.py', '--purge'])
 
     result = sdr.main()
@@ -405,7 +407,7 @@ def test_main_with_purge_and_yes_flags(monkeypatch):
     monkeypatch.setattr('show_soft_deleted_resources.purge_apim_services', track_purge_apim)
     monkeypatch.setattr('show_soft_deleted_resources.purge_key_vaults', track_purge_kv)
     monkeypatch.setattr('show_soft_deleted_resources.az.run', lambda cmd, *a, **k: MagicMock(success=True, json_data={'name': 'test-sub', 'id': 'sub-id'}))
-    monkeypatch.setattr('builtins.print', MagicMock())
+    mock_module_functions(monkeypatch, builtins, ['print'])
     monkeypatch.setattr('sys.argv', ['script.py', '--purge', '--yes'])
 
     result = sdr.main()
@@ -513,7 +515,7 @@ def test_purge_apim_services_partial_failure(monkeypatch):
         return output
 
     monkeypatch.setattr('show_soft_deleted_resources.az.run', mock_run)
-    monkeypatch.setattr('builtins.print', MagicMock())
+    mock_module_functions(monkeypatch, builtins, ['print'])
 
     result = sdr.purge_apim_services(services)
     assert result == 2  # Two succeeded
@@ -532,7 +534,7 @@ def test_purge_key_vaults_mixed_protection(monkeypatch):
     mock_output.success = True
 
     monkeypatch.setattr('show_soft_deleted_resources.az.run', lambda cmd, *a, **k: mock_output)
-    monkeypatch.setattr('builtins.print', MagicMock())
+    mock_module_functions(monkeypatch, builtins, ['print'])
 
     success_count, skipped_count = sdr.purge_key_vaults(vaults)
     assert success_count == 2
@@ -554,7 +556,7 @@ def test_confirm_purge_eof_error(monkeypatch):
     def raise_eof(*args, **kwargs):
         raise EOFError()
     monkeypatch.setattr('builtins.input', raise_eof)
-    monkeypatch.setattr('builtins.print', MagicMock())
+    mock_module_functions(monkeypatch, builtins, ['print'])
 
     result = sdr.confirm_purge(1, 1, 0)
     assert result is False

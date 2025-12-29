@@ -80,12 +80,27 @@ Run tests separately when you only need test execution:
 
 Both scripts:
 - Run all tests in `tests/python` using pytest
-- Generate a code coverage report (HTML output in `tests/python/htmlcov`)
-- Store the raw coverage data in `tests/python/.coverage`
+- Generate code coverage reports:
+  - HTML: `htmlcov/index.html` (at repository root)
+  - XML: `coverage.xml` (for VS Code integration)
+  - JSON: `coverage.json`
+- Store the raw coverage data in `.coverage` (at repository root)
 
 #### Viewing Coverage Reports
 
-After running tests, open `tests/python/htmlcov/index.html` in your browser to view detailed coverage information.
+**In VS Code (no extra extensions):**
+- Open the Testing view (beaker icon in the Activity Bar).
+- Click the "Toggle Code Coverage" shield button in the Testing toolbar.
+- Run tests from the Testing view (Run All or individual test runs).
+- The Explorer will decorate Python files with coverage percentages, and the editor will show covered/uncovered lines.
+- Make sure the Python extension is enabled and `coverage`/`pytest-cov` are available in your venv. If needed:
+   ```powershell
+   pip install coverage pytest-cov
+   ```
+- Note: Running pytest only from the terminal won’t decorate the Explorer. Use the Testing UI to see coverage overlays.
+
+**In Browser:**
+- Open `htmlcov/index.html` in your browser for detailed coverage information
 
 ## Test Infrastructure
 

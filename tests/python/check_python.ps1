@@ -77,8 +77,28 @@ Write-Host "  Step 2/2: Running Tests    " -ForegroundColor Yellow
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
 Write-Host ""
 
-& "$ScriptDir\run_tests.ps1"
+# Capture test output and pass it through to console while also capturing it
+$TestOutput = @()
+& "$ScriptDir\run_tests.ps1" 2>&1 | Tee-Object -Variable TestOutput | Write-Host
 $TestExitCode = $LASTEXITCODE
+
+# Parse test results from captured output
+$TotalTests = 0
+$PassedTests = 0
+$FailedTests = 0
+
+foreach ($Line in $TestOutput) {
+    $LineStr = $Line.ToString()
+    # Look for pytest summary line like "908 passed, 9 failed in 26.76s"
+    if ($LineStr -match '(\d+)\s+passed') {
+        $PassedTests = [int]::Parse($matches[1])
+    }
+    if ($LineStr -match '(\d+)\s+failed') {
+        $FailedTests = [int]::Parse($matches[1])
+    }
+}
+
+$TotalTests = $PassedTests + $FailedTests
 
 Write-Host ""
 
@@ -92,9 +112,11 @@ Write-Host "║         Final Results                      ║" -ForegroundColor
 Write-Host "╚════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
+# Determine statuses
 $LintStatus = if ($LintExitCode -eq 0) { "✅ PASSED" } else { "⚠️  ISSUES FOUND" }
 $TestStatus = if ($TestExitCode -eq 0) { "✅ PASSED" } else { "❌ FAILED" }
 
+# Get pylint score
 $PylintScore = $null
 $LatestPylintText = Join-Path $ScriptDir "pylint/reports/latest.txt"
 if (Test-Path $LatestPylintText) {
@@ -104,17 +126,39 @@ if (Test-Path $LatestPylintText) {
     }
 }
 
-if ($PylintScore) {
-    $LintStatus = "$LintStatus ($PylintScore)"
-}
-
+# Set colors
 $LintColor = if ($LintExitCode -eq 0) { "Green" } else { "Yellow" }
 $TestColor = if ($TestExitCode -eq 0) { "Green" } else { "Red" }
 
-Write-Host "   Pylint:  " -NoNewline
-Write-Host $LintStatus -ForegroundColor $LintColor
-Write-Host "   Tests:   " -NoNewline
+# Calculate column widths for alignment
+$LabelWidth = "Pylint :".Length  # 7
+$Padding = " " * ($LabelWidth - 1)
+
+# Display Pylint status with score
+Write-Host "Pylint : " -NoNewline
+Write-Host $LintStatus -ForegroundColor $LintColor -NoNewline
+if ($PylintScore) {
+    Write-Host " ($PylintScore)" -ForegroundColor Gray
+} else {
+    Write-Host ""
+}
+
+# Display Test status with counts
+Write-Host "Tests  : " -NoNewline
 Write-Host $TestStatus -ForegroundColor $TestColor
+
+# Display test counts with right-aligned numbers
+if ($TotalTests -gt 0) {
+    # Calculate padding for right-alignment (max 5 digits)
+    $TotalPadded = "{0,5}" -f $TotalTests
+    $PassedPadded = "{0,5}" -f $PassedTests
+    $FailedPadded = "{0,5}" -f $FailedTests
+
+    Write-Host "          • Total  : $TotalPadded" -ForegroundColor Gray
+    Write-Host "          • Passed : $PassedPadded" -ForegroundColor Gray
+    Write-Host "          • Failed : $FailedPadded" -ForegroundColor Gray
+}
+
 Write-Host ""
 
 # Determine overall exit code
@@ -127,7 +171,7 @@ if ($TestExitCode -ne 0) {
 }
 
 if ($OverallExitCode -eq 0) {
-    Write-Host "🎉 All checks passed! Code is ready for commit." -ForegroundColor Green
+    Write-Host "🎉 All checks passed! Code is ready to commit." -ForegroundColor Green
 } else {
     Write-Host "⚠️  Some checks did not pass. Please review and fix issues." -ForegroundColor Yellow
 }

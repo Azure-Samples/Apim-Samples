@@ -117,7 +117,6 @@ class InfrastructureNotebookHelper:
         print_val('Infrastructure', self.deployment.value)
         print_val('Index', self.index)
         print_val('APIM SKU', self.apim_sku.value)
-        print_plain('')
 
     # ------------------------------
     #    PUBLIC METHODS
