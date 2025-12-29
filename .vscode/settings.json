@@ -1,12 +1,14 @@
 {
     "python.analysis.exclude": [
+        "**/node_modules",
+        "**/__pycache__",
+        ".git",
+        "**/build",
+        "env/**",
         "**/.*",
         "**/.venv",
         "**/venv",
-        "**/env",
-        "**/node_modules",
-        "**/__pycache__",
-        "env/**"
+        "**/env"
     ],
     "files.trimTrailingWhitespace": true,
     "files.insertFinalNewline": true,
@@ -33,5 +35,10 @@
     "plantuml.exportOutDir": "assets/diagrams/out",
     "python.terminal.activateEnvironment": true,
     "python.terminal.activateEnvInCurrentTerminal": true,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": true,
+    "jupyter.kernels.trusted": [
+        "./.venv/Scripts/python.exe"
+    ]
 }
