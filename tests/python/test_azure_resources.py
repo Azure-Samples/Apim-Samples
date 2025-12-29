@@ -3,6 +3,7 @@ Tests for azure_resources module.
 """
 
 import json
+import time
 from unittest.mock import Mock, patch, mock_open, call
 import pytest
 
@@ -939,6 +940,93 @@ def test_check_apim_blob_permissions_no_principal_id(monkeypatch):
     assert result is False
 
 
+def test_check_apim_blob_permissions_timeout_waiting_for_propagation(monkeypatch):
+    """Test blob permission check times out when waiting for role assignment propagation."""
+    def fake_run(cmd, *args, **kwargs):
+        if 'apim show' in cmd:
+            return Output(True, 'principal-id\n')
+        if 'storage account show' in cmd:
+            return Output(True, '/subscriptions/123/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/storage\n')
+        if 'role assignment list' in cmd:
+            # Never return a role assignment (timeout scenario)
+            return Output(True, '')
+        return Output(False, 'unexpected')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+    monkeypatch.setattr(az, 'get_azure_role_guid', lambda *_: 'role-guid')
+    monkeypatch.setattr(az.time, 'sleep', lambda *a, **k: None)
+    suppress_module_functions(monkeypatch, az, ['print_info', 'print_ok', 'print_warning', 'print_error'])
+
+    result = az.check_apim_blob_permissions('apim', 'storage', 'rg', max_wait_minutes=1)
+    assert result is False
+
+
+def test_check_apim_blob_permissions_storage_account_retrieval_fails(monkeypatch):
+    """Test blob permission check fails when storage account retrieval fails."""
+    def fake_run(cmd, *args, **kwargs):
+        if 'apim show' in cmd:
+            return Output(True, 'principal-id\n')
+        if 'storage account show' in cmd:
+            return Output(False, 'Error retrieving account')
+        return Output(False, 'unexpected')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+    monkeypatch.setattr(az, 'get_azure_role_guid', lambda *_: 'role-guid')
+    suppress_module_functions(monkeypatch, az, ['print_info', 'print_ok', 'print_warning', 'print_error'])
+
+    result = az.check_apim_blob_permissions('apim', 'storage', 'rg')
+    assert result is False
+
+
+def test_check_apim_blob_permissions_role_assignment_exists_but_blob_access_fails(monkeypatch):
+    """Test when role assignment exists but blob access test fails."""
+    def fake_run(cmd, *args, **kwargs):
+        if 'apim show' in cmd:
+            return Output(True, 'principal-id\n')
+        if 'storage account show' in cmd:
+            return Output(True, '/subscriptions/123/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/storage\n')
+        if 'role assignment list' in cmd:
+            return Output(True, 'assignment-id\n')
+        if 'storage blob list' in cmd:
+            return Output(True, 'access-test-failed')
+        return Output(False, 'unexpected')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+    monkeypatch.setattr(az, 'get_azure_role_guid', lambda *_: 'role-guid')
+    monkeypatch.setattr(az.time, 'sleep', lambda *a, **k: None)
+    suppress_module_functions(monkeypatch, az, ['print_info', 'print_ok', 'print_warning', 'print_error'])
+
+    result = az.check_apim_blob_permissions('apim', 'storage', 'rg', max_wait_minutes=1)
+    assert result is False
+
+
+def test_check_apim_blob_permissions_custom_wait_time(monkeypatch):
+    """Test blob permission check with custom max_wait_minutes parameter."""
+    call_times = []
+
+    def fake_sleep(seconds):
+        call_times.append(seconds)
+
+    def fake_run(cmd, *args, **kwargs):
+        if 'apim show' in cmd:
+            return Output(True, 'principal-id\n')
+        if 'storage account show' in cmd:
+            return Output(True, '/subscriptions/123/resourceGroups/rg/providers/Microsoft.Storage/storageAccounts/storage\n')
+        if 'role assignment list' in cmd:
+            return Output(True, '')  # Never find it, trigger timeout
+        return Output(False, 'unexpected')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+    monkeypatch.setattr(az, 'get_azure_role_guid', lambda *_: 'role-guid')
+    monkeypatch.setattr(az.time, 'sleep', fake_sleep)
+    suppress_module_functions(monkeypatch, az, ['print_info', 'print_ok', 'print_warning', 'print_error'])
+
+    result = az.check_apim_blob_permissions('apim', 'storage', 'rg', max_wait_minutes=2)
+    assert result is False
+    # Verify sleep was called with correct interval
+    assert all(seconds == 30 for seconds in call_times)
+
+
 def test_get_account_info_all_fields_present(monkeypatch):
     """Test get_account_info successfully retrieves all account information."""
     with patch('azure_resources.run') as mock_run:
@@ -1226,3 +1314,652 @@ def test_run_with_complex_shell_expression():
             debug_pos = called_command.find('--debug')
             pipe_pos = called_command.find('||')
             assert debug_pos < pipe_pos
+
+# ========================================
+# ADDITIONAL COVERAGE TESTS (MIGRATED)
+# ========================================
+
+
+class TestStripAnsi:
+    """Test ANSI escape sequence removal."""
+
+    def test_strip_ansi_with_color_codes(self):
+        text = '\x1b[1;32mSuccess\x1b[0m'
+        result = az._strip_ansi(text)
+        assert result == 'Success'
+
+    def test_strip_ansi_with_multiple_codes(self):
+        text = '\x1b[31mError\x1b[0m \x1b[1;33mWarning\x1b[0m'
+        result = az._strip_ansi(text)
+        assert result == 'Error Warning'
+
+    def test_strip_ansi_with_no_codes(self):
+        text = 'Plain text'
+        result = az._strip_ansi(text)
+        assert result == 'Plain text'
+
+    def test_strip_ansi_empty_string(self):
+        result = az._strip_ansi('')
+        assert not result
+
+
+class TestRedactSecrets:
+    """Test secret redaction in output."""
+
+    def test_redact_access_token(self):
+        text = '{"accessToken": "secret-token-value"}'
+        result = az._redact_secrets(text)
+        assert 'secret-token-value' not in result
+        assert '***REDACTED***' in result
+
+    def test_redact_refresh_token(self):
+        text = '{"refreshToken": "my-refresh-token"}'
+        result = az._redact_secrets(text)
+        assert 'my-refresh-token' not in result
+        assert '***REDACTED***' in result
+
+    def test_redact_client_secret(self):
+        text = '{"client_secret": "super-secret"}'
+        result = az._redact_secrets(text)
+        assert 'super-secret' not in result
+        assert '***REDACTED***' in result
+
+    def test_redact_bearer_token(self):
+        text = 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9'
+        result = az._redact_secrets(text)
+        assert 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' not in result
+        assert '***REDACTED***' in result
+
+    def test_redact_empty_string(self):
+        result = az._redact_secrets('')
+        assert not result
+
+    def test_redact_none_value(self):
+        result = az._redact_secrets(None)
+        assert result is None
+
+    def test_redact_case_insensitive(self):
+        text = '{"AccessToken": "secret"}'
+        result = az._redact_secrets(text)
+        assert 'secret' not in result
+
+
+class TestIsAzCommand:
+    """Test Azure CLI command detection."""
+
+    def test_is_az_command_with_whitespace(self):
+        assert az._is_az_command('   az group list') is True
+        assert az._is_az_command('az account show  ') is True
+
+    def test_is_az_command_with_arguments(self):
+        assert az._is_az_command('az group list -g test') is True
+        assert az._is_az_command('az account show -o json') is True
+        assert az._is_az_command('az apim list --query') is True
+
+    def test_is_az_command_just_az(self):
+        assert az._is_az_command('az') is True
+
+    def test_is_not_az_command(self):
+        assert az._is_az_command('echo hello') is False
+        assert az._is_az_command('python script.py') is False
+        assert az._is_az_command('azurecli list') is False
+        assert az._is_az_command('') is False
+
+
+class TestMaybeAddAzDebugFlag:
+    """Test adding --debug flag to az commands."""
+
+    def test_add_debug_flag_disabled_logging(self, monkeypatch):
+        monkeypatch.setattr('azure_resources.is_debug_enabled', lambda: False)
+
+        command = 'az group list'
+        result = az._maybe_add_az_debug_flag(command)
+        assert '--debug' not in result
+        assert result == command
+
+    def test_add_debug_flag_non_az_command(self, monkeypatch):
+        monkeypatch.setattr('azure_resources.is_debug_enabled', lambda: True)
+
+        command = 'python script.py'
+        result = az._maybe_add_az_debug_flag(command)
+        assert '--debug' not in result
+
+    def test_add_debug_flag_already_present(self, monkeypatch):
+        monkeypatch.setattr('azure_resources.is_debug_enabled', lambda: True)
+
+        command = 'az group list --debug'
+        result = az._maybe_add_az_debug_flag(command)
+        assert result.count('--debug') == 1
+
+    def test_add_debug_flag_before_pipe(self, monkeypatch):
+        monkeypatch.setattr('azure_resources.is_debug_enabled', lambda: True)
+
+        command = 'az group list | grep test'
+        result = az._maybe_add_az_debug_flag(command)
+        assert '--debug' in result
+        assert result.index('--debug') < result.index('|')
+
+    def test_add_debug_flag_before_redirect(self, monkeypatch):
+        monkeypatch.setattr('azure_resources.is_debug_enabled', lambda: True)
+
+        command = 'az group list > output.txt'
+        result = az._maybe_add_az_debug_flag(command)
+        assert '--debug' in result
+        assert result.index('--debug') < result.index('>')
+
+    def test_add_debug_flag_before_or_operator(self, monkeypatch):
+        monkeypatch.setattr('azure_resources.is_debug_enabled', lambda: True)
+
+        command = 'az group list || echo failed'
+        result = az._maybe_add_az_debug_flag(command)
+        assert '--debug' in result
+
+    def test_add_debug_flag_before_and_operator(self, monkeypatch):
+        monkeypatch.setattr('azure_resources.is_debug_enabled', lambda: True)
+
+        command = 'az group list && az account show'
+        result = az._maybe_add_az_debug_flag(command)
+        assert '--debug' in result
+
+
+class TestExtractAzCliErrorMessage:
+    """Test Azure CLI error message extraction."""
+
+    def test_extract_json_error_with_error_object(self):
+        output = '{"error": {"message": "Resource not found"}}'
+        result = az._extract_az_cli_error_message(output)
+        assert result == 'Resource not found'
+
+    def test_extract_json_error_with_message_field(self):
+        output = '{"message": "Operation failed"}'
+        result = az._extract_az_cli_error_message(output)
+        assert result == 'Operation failed'
+
+    def test_extract_error_prefix(self):
+        output = 'ERROR: Resource group not found'
+        result = az._extract_az_cli_error_message(output)
+        assert result == 'Resource group not found'
+
+    def test_extract_az_error_prefix(self):
+        output = 'az: error: Invalid argument'
+        result = az._extract_az_cli_error_message(output)
+        assert result == 'Invalid argument'
+
+    def test_extract_code_and_message(self):
+        output = 'Code: AuthenticationFailed\nMessage: Token expired'
+        result = az._extract_az_cli_error_message(output)
+        assert result == 'AuthenticationFailed: Token expired'
+
+    def test_extract_message_only(self):
+        output = 'Some other line\nMessage: Parameter is required'
+        result = az._extract_az_cli_error_message(output)
+        assert 'Parameter is required' in result or result == 'Message: Parameter is required'
+
+    def test_extract_empty_output(self):
+        result = az._extract_az_cli_error_message('')
+        assert not result
+
+    def test_extract_none_output(self):
+        result = az._extract_az_cli_error_message(None)
+        assert not result
+
+    def test_extract_with_ansi_codes(self):
+        output = '\x1b[31mERROR: \x1b[0mOperation failed'
+        result = az._extract_az_cli_error_message(output)
+        assert 'Operation failed' in result
+
+    def test_extract_json_in_middle_of_text(self):
+        output = 'Some output\n{"error": {"message": "Actual error"}}\nMore text'
+        result = az._extract_az_cli_error_message(output)
+        assert result == 'Actual error'
+
+    def test_extract_with_traceback(self):
+        output = 'Traceback (most recent call last):\n  File "test.py"\nError: Something failed'
+        result = az._extract_az_cli_error_message(output)
+        assert 'Traceback' not in result
+
+    def test_extract_warning_ignored(self):
+        output = 'WARNING: Something\nERROR: Actual error'
+        result = az._extract_az_cli_error_message(output)
+        assert result == 'Actual error'
+
+    def test_extract_only_empty_lines(self):
+        output = '\n\nTraceback (most recent call last):\n'
+        result = az._extract_az_cli_error_message(output)
+        assert not result
+
+
+class TestFormatDuration:
+    """Test duration formatting."""
+
+    def test_format_duration_seconds(self):
+        start_time = time.time() - 5
+        result = az._format_duration(start_time)
+        assert '[0m:' in result
+        assert 's]' in result
+
+    def test_format_duration_minutes_and_seconds(self):
+        start_time = time.time() - 65
+        result = az._format_duration(start_time)
+        assert '[1m:' in result
+
+
+class TestLooksLikeJson:
+    """Test JSON detection."""
+
+    def test_looks_like_json_with_object(self):
+        assert az._looks_like_json('{"key": "value"}') is True
+        assert az._looks_like_json('  {"key": "value"}') is True
+
+    def test_looks_like_json_with_array(self):
+        assert az._looks_like_json('[1, 2, 3]') is True
+        assert az._looks_like_json('  [1, 2, 3]') is True
+
+    def test_looks_like_json_with_invalid(self):
+        assert az._looks_like_json('{"key": value}') is False
+        assert az._looks_like_json('not json') is False
+
+    def test_looks_like_json_empty(self):
+        assert az._looks_like_json('') is False
+
+    def test_looks_like_json_only_whitespace(self):
+        assert az._looks_like_json('   ') is False
+
+    def test_looks_like_json_xml(self):
+        assert az._looks_like_json('<root></root>') is False
+
+    def test_looks_like_json_plain_text(self):
+        assert az._looks_like_json('plain text') is False
+
+
+class TestRunFunctionEdgeCases:
+    """Test edge cases in the run() function."""
+
+    def test_run_with_stderr_only(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_command', 'print_error', 'print_ok'])
+
+        mock_completed = Mock()
+        mock_completed.returncode = 0
+        mock_completed.stdout = ''
+        mock_completed.stderr = 'Some warning'
+
+        monkeypatch.setattr('azure_resources.subprocess.run', lambda *a, **k: mock_completed)
+
+        result = az.run('echo test')
+        assert result.success is True
+
+    def test_run_with_empty_output(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_command', 'print_ok'])
+
+        mock_completed = Mock()
+        mock_completed.returncode = 0
+        mock_completed.stdout = ''
+        mock_completed.stderr = ''
+
+        monkeypatch.setattr('azure_resources.subprocess.run', lambda *a, **k: mock_completed)
+
+        result = az.run('echo test')
+        assert result.success is True
+        assert not result.text
+
+    def test_run_with_none_stdout_stderr(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_command', 'print_ok'])
+
+        mock_completed = Mock()
+        mock_completed.returncode = 0
+        mock_completed.stdout = None
+        mock_completed.stderr = None
+
+        monkeypatch.setattr('azure_resources.subprocess.run', lambda *a, **k: mock_completed)
+
+        result = az.run('echo test')
+        assert result.success is True
+
+    def test_run_with_non_az_command(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_command', 'print_ok'])
+
+        mock_completed = Mock()
+        mock_completed.returncode = 0
+        mock_completed.stdout = 'output'
+        mock_completed.stderr = ''
+
+        run_calls = []
+
+        def mock_run(*args, **kwargs):
+            run_calls.append((args, kwargs))
+            return mock_completed
+
+        monkeypatch.setattr('azure_resources.subprocess.run', mock_run)
+
+        result = az.run('echo test')
+        assert result.success is True
+        assert len(run_calls) == 1
+
+    def test_run_with_json_stdout(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_command', 'print_ok'])
+
+        mock_completed = Mock()
+        mock_completed.returncode = 0
+        mock_completed.stdout = '{"key": "value"}'
+        mock_completed.stderr = ''
+
+        monkeypatch.setattr('azure_resources.subprocess.run', lambda *a, **k: mock_completed)
+
+        result = az.run('az group list -o json')
+        assert result.success is True
+        assert result.json_data == {'key': 'value'}
+
+    def test_run_command_with_special_characters(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_command', 'print_ok'])
+
+        mock_completed = Mock()
+        mock_completed.returncode = 0
+        mock_completed.stdout = 'output'
+        mock_completed.stderr = ''
+
+        monkeypatch.setattr('azure_resources.subprocess.run', lambda *a, **k: mock_completed)
+
+        result = az.run('echo "test with spaces" && echo done')
+        assert result.success is True
+
+
+class TestGetAccountInfoEdgeCases:
+    """Test edge cases in get_account_info()."""
+
+    def test_get_account_info_partial_failure(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val', 'print_error'])
+
+        account_output = Mock()
+        account_output.success = True
+        account_output.json_data = {
+            'user': {'name': 'test@example.com'},
+            'tenantId': 'tenant-123',
+            'id': 'subscription-123'
+        }
+
+        ad_output = Mock()
+        ad_output.success = False
+        ad_output.json_data = None
+
+        call_count = [0]
+
+        def mock_run(cmd, *args, **kwargs):
+            call_count[0] += 1
+            if 'account show' in cmd:
+                return account_output
+            return ad_output
+
+        monkeypatch.setattr('azure_resources.run', mock_run)
+
+        with pytest.raises(Exception):
+            az.get_account_info()
+
+    def test_get_account_info_success(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val', 'print_error'])
+
+        account_output = Mock()
+        account_output.success = True
+        account_output.json_data = {
+            'user': {'name': 'test@example.com'},
+            'tenantId': 'tenant-123',
+            'id': 'subscription-123'
+        }
+
+        ad_output = Mock()
+        ad_output.success = True
+        ad_output.json_data = {'id': 'user-123'}
+
+        call_count = [0]
+
+        def mock_run(cmd, *args, **kwargs):
+            call_count[0] += 1
+            if 'account show' in cmd:
+                return account_output
+            return ad_output
+
+        monkeypatch.setattr('azure_resources.run', mock_run)
+
+        user, user_id, tenant, subscription = az.get_account_info()
+        assert user == 'test@example.com'
+        assert user_id == 'user-123'
+        assert tenant == 'tenant-123'
+        assert subscription == 'subscription-123'
+
+
+class TestGetDeploymentName:
+    """Test get_deployment_name function."""
+
+    def test_get_deployment_name_custom_directory(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val'])
+
+        result = az.get_deployment_name('my-sample')
+        assert 'deploy-my-sample-' in result
+
+
+class TestGetFrontdoorUrl:
+    """Test get_frontdoor_url function."""
+
+    def test_get_frontdoor_url_not_found(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val'])
+
+        mock_output = Mock()
+        mock_output.success = False
+        mock_output.json_data = None
+
+        monkeypatch.setattr('azure_resources.run', lambda *a, **k: mock_output)
+
+        result = az.get_frontdoor_url(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg')
+        assert result is None
+
+
+class TestGetApimUrl:
+    """Test get_apim_url function."""
+
+    def test_get_apim_url_no_results(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val'])
+
+        mock_output = Mock()
+        mock_output.success = True
+        mock_output.json_data = []
+        mock_output.is_json = True
+
+        monkeypatch.setattr('azure_resources.run', lambda *a, **k: mock_output)
+
+        result = az.get_apim_url('test-rg')
+        assert result is None
+
+
+class TestListApimSubscriptions:
+    """Test list_apim_subscriptions function."""
+
+    def test_list_apim_subscriptions_success(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val'])
+
+        mock_output = Mock()
+        mock_output.success = True
+        mock_output.json_data = {
+            'value': [
+                {'id': 'sub-1', 'displayName': 'Subscription 1'},
+                {'id': 'sub-2', 'displayName': 'Subscription 2'}
+            ]
+        }
+        mock_output.is_json = True
+
+        monkeypatch.setattr('azure_resources.run', lambda *a, **k: mock_output)
+
+        result = az.list_apim_subscriptions('test-apim', 'test-rg')
+        assert len(result) == 2
+        assert result[0]['id'] == 'sub-1'
+
+    def test_list_apim_subscriptions_empty(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val'])
+
+        mock_output = Mock()
+        mock_output.success = True
+        mock_output.json_data = {'value': []}
+        mock_output.is_json = True
+
+        monkeypatch.setattr('azure_resources.run', lambda *a, **k: mock_output)
+
+        result = az.list_apim_subscriptions('test-apim', 'test-rg')
+        assert result == []
+
+    def test_list_apim_subscriptions_failure(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val'])
+
+        mock_output = Mock()
+        mock_output.success = False
+        mock_output.json_data = None
+
+        monkeypatch.setattr('azure_resources.run', lambda *a, **k: mock_output)
+
+        result = az.list_apim_subscriptions('test-apim', 'test-rg')
+        assert result == []
+
+
+class TestGetAppGwEndpoint:
+    """Test get_appgw_endpoint function."""
+
+    def test_get_appgw_endpoint_not_found(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val'])
+
+        with patch('azure_resources.run') as mock_run:
+            mock_run.return_value = Output(False, 'No gateways found')
+
+            hostname, ip = az.get_appgw_endpoint('test-rg')
+
+            assert hostname is None
+            assert ip is None
+
+
+class TestGetUniqueInfraSuffix:
+    """Test get_unique_suffix_for_resource_group function."""
+
+    def test_get_unique_suffix_empty_rg(self):
+        result = az.get_unique_suffix_for_resource_group('')
+        assert isinstance(result, str)
+
+
+class TestFindInfrastructureInstances:
+    """Test find_infrastructure_instances function."""
+
+    def test_find_infrastructure_instances_no_matches(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val', 'print_message'])
+
+        def mock_run(cmd, *args, **kwargs):
+            output = Mock()
+            output.success = True
+            output.text = ''
+            return output
+
+        monkeypatch.setattr('azure_resources.run', mock_run)
+
+        result = az.find_infrastructure_instances(INFRASTRUCTURE.SIMPLE_APIM)
+        assert result == []
+
+
+class TestGetInfraRgName:
+    """Test get_infra_rg_name function."""
+
+    def test_get_infra_rg_name_with_index(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val'])
+
+        result = az.get_infra_rg_name(INFRASTRUCTURE.SIMPLE_APIM, 1)
+        assert 'simple-apim' in result
+        assert '1' in result
+
+    def test_get_infra_rg_name_without_index(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val'])
+
+        result = az.get_infra_rg_name(INFRASTRUCTURE.APIM_ACA)
+        assert 'apim-aca' in result
+
+
+class TestGetRgName:
+    """Test get_rg_name function."""
+
+    def test_get_rg_name_with_index(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val'])
+
+        result = az.get_rg_name('my-sample', 2)
+        assert 'my-sample' in result
+        assert '2' in result
+
+    def test_get_rg_name_without_index(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val'])
+
+        result = az.get_rg_name('test-deployment')
+        assert 'test-deployment' in result
+        assert '-test-deployment' in result
+
+
+class TestCheckApimBlobPermissions:
+    """Test check_apim_blob_permissions function."""
+
+    def test_check_apim_blob_permissions_no_principal_id(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val', 'print_info', 'print_error', 'print_warning'])
+
+        mock_output = Mock()
+        mock_output.success = False
+        mock_output.json_data = None
+
+        monkeypatch.setattr('azure_resources.run', lambda *a, **k: mock_output)
+
+        result = az.check_apim_blob_permissions('apim', 'storage', 'rg', max_wait_minutes=1)
+        assert result is False
+
+
+class TestCleanupOldJwtSigningKeys:
+    """Test cleanup_old_jwt_signing_keys function."""
+
+    def test_cleanup_old_jwt_no_other_keys(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val', 'print_info', 'print_message'])
+
+        mock_output = Mock()
+        mock_output.success = True
+        mock_output.json_data = [{'name': 'JwtSigningKey-authX-12345'}]
+        mock_output.is_json = True
+
+        monkeypatch.setattr('azure_resources.run', lambda *a, **k: mock_output)
+
+        result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'JwtSigningKey-authX-12345')
+        assert isinstance(result, bool)
+
+    def test_cleanup_old_jwt_list_fails(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_val', 'print_info', 'print_message', 'print_error'])
+
+        mock_output = Mock()
+        mock_output.success = False
+        mock_output.json_data = None
+
+        monkeypatch.setattr('azure_resources.run', lambda *a, **k: mock_output)
+
+        result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'JwtSigningKey-authX-12345')
+        assert result is False
+
+
+class TestGetApimSubscriptionKey:
+    """Test get_apim_subscription_key function."""
+
+    def test_get_apim_subscription_key_invalid_params(self):
+        result = az.get_apim_subscription_key('', 'rg')
+        assert result is None
+
+        result = az.get_apim_subscription_key('apim', '')
+        assert result is None
+
+
+class TestGetEndpoints:
+    """Test get_endpoints function."""
+
+    def test_get_endpoints_with_simple_apim(self, monkeypatch):
+        suppress_module_functions(monkeypatch, az, ['print_message', 'print_val'])
+
+        monkeypatch.setattr('azure_resources.get_frontdoor_url', lambda *a, **k: None)
+        monkeypatch.setattr('azure_resources.get_apim_url', lambda *a, **k: 'https://apim.azure-api.net')
+        monkeypatch.setattr('azure_resources.get_appgw_endpoint', lambda *a, **k: (None, None))
+
+        result = az.get_endpoints(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg')
+
+        assert result is not None
+        assert result.apim_endpoint_url == 'https://apim.azure-api.net'

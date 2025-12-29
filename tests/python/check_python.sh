@@ -67,9 +67,17 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 set +e
-"$SCRIPT_DIR/run_tests.sh"
+TEST_OUTPUT=$("$SCRIPT_DIR/run_tests.sh" 2>&1)
 TEST_EXIT_CODE=$?
 set -e
+
+# Print the test output
+echo "$TEST_OUTPUT"
+
+# Parse test results from output
+PASSED_TESTS=$(echo "$TEST_OUTPUT" | grep -oE '[0-9]+ passed' | head -1 | grep -oE '[0-9]+' || echo "0")
+FAILED_TESTS=$(echo "$TEST_OUTPUT" | grep -oE '[0-9]+ failed' | head -1 | grep -oE '[0-9]+' || echo "0")
+TOTAL_TESTS=$((PASSED_TESTS + FAILED_TESTS))
 
 echo ""
 
@@ -83,24 +91,32 @@ echo "║         Final Results                                     ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
 echo ""
 
+# Determine Pylint status
 if [ $LINT_EXIT_CODE -eq 0 ]; then
-    if [ -n "$PYLINT_SCORE" ]; then
-        echo "   Pylint:  ✅ PASSED ($PYLINT_SCORE)"
-    else
-        echo "   Pylint:  ✅ PASSED"
-    fi
+    LINT_STATUS="✅ PASSED"
 else
-    if [ -n "$PYLINT_SCORE" ]; then
-        echo "   Pylint:  ⚠️  ISSUES FOUND ($PYLINT_SCORE)"
-    else
-        echo "   Pylint:  ⚠️  ISSUES FOUND"
-    fi
+    LINT_STATUS="⚠️  ISSUES FOUND"
 fi
 
+# Determine Test status
 if [ $TEST_EXIT_CODE -eq 0 ]; then
-    echo "   Tests:   ✅ PASSED"
+    TEST_STATUS="✅ PASSED"
 else
-    echo "   Tests:   ❌ FAILED"
+    TEST_STATUS="❌ FAILED"
+fi
+
+# Display results with proper alignment
+echo "Pylint : $LINT_STATUS"
+if [ -n "$PYLINT_SCORE" ]; then
+    echo "         ($PYLINT_SCORE)"
+fi
+
+echo "Tests  : $TEST_STATUS"
+if [ $TOTAL_TESTS -gt 0 ]; then
+    # Right-align numbers with padding
+    printf "          • Total  : %5d\n" "$TOTAL_TESTS"
+    printf "          • Passed : %5d\n" "$PASSED_TESTS"
+    printf "          • Failed : %5d\n" "$FAILED_TESTS"
 fi
 
 echo ""
@@ -115,7 +131,7 @@ if [ $TEST_EXIT_CODE -ne 0 ]; then
 fi
 
 if [ $OVERALL_EXIT_CODE -eq 0 ]; then
-    echo "🎉 All checks passed! Code is ready for commit."
+    echo "🎉 All checks passed! Code is ready to commit."
 else
     echo "⚠️  Some checks did not pass. Please review and fix issues."
 fi

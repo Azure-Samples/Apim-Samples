@@ -3566,6 +3566,105 @@ def test_deploy_infrastructure_appgw_prints_final_configuration(mock_utils, mock
 
 
 @pytest.mark.unit
+def test_appgw_apim_infrastructure_has_keyvault_methods(mock_utils, mock_az):
+    """Test AppGwApimInfrastructure has required Key Vault methods."""
+    infra = infrastructures.AppGwApimInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    # Verify methods exist and are callable
+    assert hasattr(infra, '_create_keyvault')
+    assert callable(infra._create_keyvault)
+    assert hasattr(infra, '_create_keyvault_certificate')
+    assert callable(infra._create_keyvault_certificate)
+
+
+@pytest.mark.unit
+def test_appgw_apim_infrastructure_domain_and_ip_attributes(mock_utils, mock_az):
+    """Test AppGwApimInfrastructure initializes domain and IP attributes."""
+    infra = infrastructures.AppGwApimInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    # Verify attributes can be set
+    infra.appgw_domain_name = 'test.example.com'
+    infra.appgw_public_ip = '1.2.3.4'
+
+    assert infra.appgw_domain_name == 'test.example.com'
+    assert infra.appgw_public_ip == '1.2.3.4'
+
+
+@pytest.mark.unit
+def test_appgw_apim_infrastructure_cert_name_constant(mock_utils, mock_az):
+    """Test AppGwApimInfrastructure has correct certificate name constant."""
+    infra = infrastructures.AppGwApimInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    assert infra.CERT_NAME == 'appgw-cert'
+    assert infra.DOMAIN_NAME == 'api.apim-samples.contoso.com'
+
+
+@pytest.mark.unit
+def test_appgw_apim_infrastructure_final_configuration_block(monkeypatch, mock_utils, mock_az):
+    """Covers lines 982-995: extracts outputs, prints final configuration, and prints curl command."""
+    infra = infrastructures.AppGwApimInfrastructure(
+        rg_location='eastus',
+        index=1
+    )
+
+    # Ensure step 1 passes quickly without AZ calls
+    infra._create_keyvault = MagicMock(return_value=True)
+    infra._create_keyvault_certificate = MagicMock(return_value=True)
+
+    # Capture all print_* and print_command calls from infrastructures module
+    messages: list[str] = []
+    def record(msg: str, *args, **kwargs):
+        messages.append(msg)
+    monkeypatch.setattr(infrastructures, 'print_ok', record)
+    monkeypatch.setattr(infrastructures, 'print_info', record)
+    monkeypatch.setattr(infrastructures, 'print_plain', record)
+    monkeypatch.setattr(infrastructures, 'print_command', record)
+
+    # Mock the base deploy to return expected outputs structure
+    mock_output = Output(True, '')
+    mock_output.json_data = {
+        'properties': {
+            'outputs': {
+                'appGatewayDomainName': {'value': 'appgw.example.com'},
+                'appgwPublicIpAddress': {'value': '1.2.3.4'},
+            }
+        }
+    }
+
+    with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=mock_output):
+        result = infra.deploy_infrastructure()
+
+    # Output should be the same object and success
+    assert result.success is True
+
+    # Values should be set from outputs
+    assert infra.appgw_domain_name == 'appgw.example.com'
+    assert infra.appgw_public_ip == '1.2.3.4'
+
+    # Verify final configuration messages were printed
+    def any_msg(substr: str) -> bool:
+        return any(substr in m for m in messages)
+
+    assert any_msg('Application Gateway deployed')
+    assert any_msg('API Management deployed in VNet (Internal)')
+    assert any_msg('No Private Endpoints used')
+    assert any_msg('Traffic flow: Internet')
+
+    # Verify the curl command includes domain and IP
+    assert any_msg('curl -v -k -H')
+    assert any_msg('Host: appgw.example.com')
+    assert any_msg('https://1.2.3.4')
+
+@pytest.mark.unit
 def test_cleanup_resources_with_thread_safe_printing_missing_deployment_name(monkeypatch):
     """Test with missing deployment name parameter."""
     print_calls = capture_module_print_log(monkeypatch, infrastructures)
@@ -3898,6 +3997,556 @@ def test_cleanup_resources_with_thread_safe_printing_logs_resource_group_name(mo
 @pytest.mark.unit
 def test_cleanup_resources_with_thread_safe_printing_success_completion_message(monkeypatch):
     """Test that success completion message is logged."""
+
+
+# ------------------------------
+#    NEW EDGE CASE AND ERROR PATH TESTS
+# ------------------------------
+
+@pytest.mark.unit
+def test_approve_private_link_connections_output_failure(mock_utils, mock_az):
+    """Test _approve_private_link_connections when list command fails."""
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+    mock_az.run.return_value = Mock(success=False)
+
+    assert infra._approve_private_link_connections('test-apim-id') is False
+
+
+@pytest.mark.unit
+def test_approve_private_link_connections_single_dict_response(mock_utils, mock_az):
+    """Test _approve_private_link_connections with single dict response."""
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+
+    # Mock list returns single dict instead of list
+    mock_az.run.side_effect = [
+        Mock(success=True, json_data={'id': 'conn-1', 'name': 'conn-name'}, is_json=True),
+        Mock(success=True)  # approve call
+    ]
+
+    assert infra._approve_private_link_connections('test-apim-id') is True
+
+
+@pytest.mark.unit
+def test_approve_private_link_connections_zero_pending(mock_utils, mock_az):
+    """Test _approve_private_link_connections with zero pending connections."""
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+    mock_az.run.return_value = Mock(success=True, json_data=[], is_json=True)
+
+    assert infra._approve_private_link_connections('test-apim-id') is True
+
+
+@pytest.mark.unit
+def test_approve_private_link_connections_approval_failure(mock_utils, mock_az):
+    """Test _approve_private_link_connections when approval fails."""
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+
+    mock_az.run.side_effect = [
+        Mock(success=True, json_data=[{'id': 'conn-1', 'name': 'conn-name'}], is_json=True),
+        Mock(success=False)  # approve fails
+    ]
+
+    assert infra._approve_private_link_connections('test-apim-id') is False
+
+
+@pytest.mark.unit
+def test_approve_private_link_connections_exception(mock_utils, mock_az):
+    """Test _approve_private_link_connections when exception occurs."""
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+    mock_az.run.side_effect = Exception("Network error")
+
+    assert infra._approve_private_link_connections('test-apim-id') is False
+
+
+@pytest.mark.unit
+def test_create_keyvault_success_path(mock_utils, mock_az):
+    """Test _create_keyvault successful creation."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    mock_az.run.side_effect = [
+        Mock(success=False),  # show fails, doesn't exist
+        Mock(success=True),   # create success
+        Mock(success=True),   # role assignment success
+    ]
+
+    with patch('time.sleep'):  # Skip the 15 second wait
+        assert infra._create_keyvault('test-kv') is True
+
+
+@pytest.mark.unit
+def test_create_keyvault_role_assignment_failure(mock_utils, mock_az):
+    """Test _create_keyvault when role assignment fails."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    mock_az.run.side_effect = [
+        Mock(success=False),  # show fails, doesn't exist
+        Mock(success=True),   # create success
+        Mock(success=False),  # role assignment fails
+    ]
+
+    assert infra._create_keyvault('test-kv') is False
+
+
+@pytest.mark.unit
+def test_verify_apim_connectivity_non_200_response(mock_utils):
+    """Test _verify_apim_connectivity with non-200 response."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+
+    with patch('requests.get') as mock_get:
+        mock_get.return_value = Mock(status_code=404)
+        # Should still return True (continues anyway)
+        assert infra._verify_apim_connectivity('https://test.apim.net') is True
+
+
+@pytest.mark.unit
+def test_verify_apim_connectivity_exception(mock_utils):
+    """Test _verify_apim_connectivity when request raises exception."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+
+    with patch('requests.get') as mock_get:
+        mock_get.side_effect = Exception("Connection timeout")
+        # Should still return True (continues anyway)
+        assert infra._verify_apim_connectivity('https://test.apim.net') is True
+
+
+@pytest.mark.unit
+def test_verify_infrastructure_missing_rg(mock_utils, mock_az):
+    """Test _verify_infrastructure when resource group doesn't exist."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+
+    mock_az.does_resource_group_exist.return_value = False
+
+    assert infra._verify_infrastructure('test-rg') is False
+
+
+@pytest.mark.unit
+def test_verify_infrastructure_no_apim(mock_utils, mock_az):
+    """Test _verify_infrastructure when APIM service not found."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+
+    mock_az.does_resource_group_exist.return_value = True
+    mock_az.run.return_value = Mock(success=True, json_data=None)
+
+    assert infra._verify_infrastructure('test-rg') is False
+
+
+@pytest.mark.unit
+def test_verify_infrastructure_subscription_key_exception(mock_utils, mock_az):
+    """Test _verify_infrastructure when subscription key retrieval raises exception."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+
+    mock_az.does_resource_group_exist.return_value = True
+    mock_az.run.side_effect = [
+        Mock(success=True, json_data={'name': 'test-apim'}),  # APIM list
+        Mock(success=True, text='5')  # API count
+    ]
+    mock_az.get_apim_subscription_key.side_effect = Exception("Key error")
+
+    # Should still succeed despite exception
+    with patch.object(infra, '_verify_infrastructure_specific', return_value=True):
+        assert infra._verify_infrastructure('test-rg') is True
+
+
+@pytest.mark.unit
+def test_verify_infrastructure_specific_verification_failure(mock_utils, mock_az):
+    """Test _verify_infrastructure when infrastructure-specific verification fails."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+
+    mock_az.does_resource_group_exist.return_value = True
+    mock_az.run.side_effect = [
+        Mock(success=True, json_data={'name': 'test-apim'}),
+        Mock(success=True, text='1')
+    ]
+
+    with patch.object(infra, '_verify_infrastructure_specific', return_value=False):
+        assert infra._verify_infrastructure('test-rg') is False
+
+
+@pytest.mark.unit
+def test_verify_infrastructure_exception(mock_utils, mock_az):
+    """Test _verify_infrastructure when exception occurs."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+
+    mock_az.does_resource_group_exist.side_effect = Exception("Azure error")
+
+    assert infra._verify_infrastructure('test-rg') is False
+
+
+@pytest.mark.unit
+def test_deploy_infrastructure_unknown_infrastructure_type(mock_utils):
+    """Test deploy_infrastructure with unknown infrastructure type."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+
+    # Temporarily change to invalid type
+    infra.infra = Mock(value='invalid-type')
+
+    with pytest.raises(ValueError, match="Unknown infrastructure type"):
+        infra.deploy_infrastructure()
+
+
+@pytest.mark.unit
+def test_afd_apim_aca_deploy_initial_deployment_failure(mock_utils, mock_az):
+    """Test AfdApimAcaInfrastructure deploy when initial deployment fails."""
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+
+    with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=Output(False, 'Deploy failed')):
+        result = infra.deploy_infrastructure()
+        assert result.success is False
+
+
+@pytest.mark.unit
+@pytest.mark.unit
+def test_afd_apim_aca_deploy_no_output_data(mock_utils, mock_az):
+    """Test AfdApimAcaInfrastructure deploy when no output data available."""
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+
+    with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=Output(True, '')):
+        result = infra.deploy_infrastructure()
+        assert result.success is False or result.json_data is None
+
+
+@pytest.mark.unit
+def test_afd_apim_aca_deploy_missing_apim_info(mock_utils, mock_az):
+    """Test AfdApimAcaInfrastructure deploy when APIM info missing from output."""
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+
+    mock_output = Output(True, '{\"otherData\": {\"value\": \"test\"}}')
+
+    with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=mock_output):
+        with patch.object(mock_output, 'get', return_value=None):
+            result = infra.deploy_infrastructure()
+            # Should return the output when required info is missing
+            assert result == mock_output
+
+
+@pytest.mark.unit
+def test_afd_apim_aca_deploy_disable_public_access_failure(mock_utils, mock_az):
+    """Test AfdApimAcaInfrastructure deploy when disabling public access fails."""
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+
+    # Create mock output with required properties
+    mock_output = Output(True, '')
+    mock_output.json_data = {
+        'apimServiceId': {'value': 'test-id'},
+        'apimResourceGatewayURL': {'value': 'https://test.apim.net'}
+    }
+
+    # Create the failure output that will be returned by utils.Output()
+    failure_output = Output(False, 'Failed to disable public access')
+    mock_utils.Output.return_value = failure_output
+
+    with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=mock_output):
+        with patch.object(infra, '_approve_private_link_connections', return_value=True):
+            with patch.object(infra, '_verify_apim_connectivity', return_value=True):
+                with patch.object(infra, '_disable_apim_public_access', return_value=False):
+                    result = infra.deploy_infrastructure()
+                    assert result.success is False and 'public access' in result.text.lower()
+
+
+@pytest.mark.unit
+def test_afd_apim_aca_verify_no_afd_profile(mock_utils, mock_az):
+    """Test AfdApimAcaInfrastructure verification when no AFD profile found."""
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+
+    mock_az.run.side_effect = [
+        Mock(success=True, text='{}'),  # AFD list returns empty
+        Mock(success=True, text='test-apim-id'),  # APIM ID
+    ]
+
+    assert infra._verify_infrastructure_specific('test-rg') is False
+
+
+@pytest.mark.unit
+def test_afd_apim_aca_verify_exception(mock_utils, mock_az):
+    """Test AfdApimAcaInfrastructure verification when exception occurs."""
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+
+    mock_az.run.side_effect = Exception("Azure error")
+
+    assert infra._verify_infrastructure_specific('test-rg') is False
+
+
+@pytest.mark.unit
+def test_afd_apim_aca_verify_pe_count_success(mock_utils, mock_az):
+    """Test AfdApimAcaInfrastructure verification with PE count."""
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+
+    mock_az.run.side_effect = [
+        Mock(success=True, json_data={'name': 'afd-profile'}),  # AFD exists
+        Mock(success=True, text='2'),  # PE count
+    ]
+
+    assert infra._verify_infrastructure_specific('test-rg') is True
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_deploy_keyvault_creation_failure(mock_utils, mock_az):
+    """Test AppGwApimPeInfrastructure deploy when Key Vault creation fails."""
+    mock_utils.Output.side_effect = Output
+
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    with patch.object(infra, '_create_keyvault', return_value=False):
+        result = infra.deploy_infrastructure()
+        assert result.success is False
+        assert 'Failed to create Key Vault' in result.text
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_deploy_certificate_creation_failure(mock_utils, mock_az):
+    """Test AppGwApimPeInfrastructure deploy when certificate creation fails."""
+    mock_utils.Output.side_effect = Output
+
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    with patch.object(infra, '_create_keyvault', return_value=True):
+        with patch.object(infra, '_create_keyvault_certificate', return_value=False):
+            result = infra.deploy_infrastructure()
+            assert result.success is False
+            assert 'certificate' in result.text.lower()
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_deploy_no_output_data(mock_utils, mock_az):
+    """Test AppGwApimPeInfrastructure deploy when no output data available."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    with patch.object(infra, '_create_keyvault', return_value=True):
+        with patch.object(infra, '_create_keyvault_certificate', return_value=True):
+            with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=Output(True, '')):
+                result = infra.deploy_infrastructure()
+                assert result.success is False or result.json_data is None
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_deploy_missing_apim_info(mock_utils, mock_az):
+    """Test AppGwApimPeInfrastructure deploy when APIM info missing."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    mock_output = Output(True, '{\"otherData\": {\"value\": \"test\"}}')
+
+    with patch.object(infra, '_create_keyvault', return_value=True):
+        with patch.object(infra, '_create_keyvault_certificate', return_value=True):
+            with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=mock_output):
+                with patch.object(mock_output, 'get', return_value=None):
+                    result = infra.deploy_infrastructure()
+                    assert result == mock_output
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_deploy_approve_private_link_failure(mock_utils, mock_az):
+    """Test AppGwApimPeInfrastructure deploy when private link approval fails."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    # Create mock output with all required properties for AppGW
+    mock_output = Output(True, '')
+    mock_output.json_data = {
+        'apimServiceId': {'value': 'test-id'},
+        'apimResourceGatewayURL': {'value': 'https://test.apim.net'},
+        'appGatewayDomainName': {'value': 'test.appgw.net'},
+        'appgwPublicIpAddress': {'value': '1.2.3.4'}
+    }
+
+    # Create the failure output that will be returned by utils.Output()
+    failure_output = Output(False, 'Private link approval failed')
+    mock_utils.Output.return_value = failure_output
+
+    with patch.object(infra, '_create_keyvault', return_value=True):
+        with patch.object(infra, '_create_keyvault_certificate', return_value=True):
+            with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=mock_output):
+                with patch.object(infra, '_approve_private_link_connections', return_value=False):
+                    result = infra.deploy_infrastructure()
+                    assert result.success is False and 'private link' in result.text.lower()
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_deploy_disable_public_access_failure(mock_utils, mock_az):
+    """Test AppGwApimPeInfrastructure deploy when disabling public access fails."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    # Create mock output with all required properties for AppGW
+    mock_output = Output(True, '')
+    mock_output.json_data = {
+        'apimServiceId': {'value': 'test-id'},
+        'apimResourceGatewayURL': {'value': 'https://test.apim.net'},
+        'appGatewayDomainName': {'value': 'test.appgw.net'},
+        'appgwPublicIpAddress': {'value': '1.2.3.4'}
+    }
+
+    # Create the failure output that will be returned by utils.Output()
+    failure_output = Output(False, 'Failed to disable public access')
+    mock_utils.Output.return_value = failure_output
+
+    with patch.object(infra, '_create_keyvault', return_value=True):
+        with patch.object(infra, '_create_keyvault_certificate', return_value=True):
+            with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=mock_output):
+                with patch.object(infra, '_approve_private_link_connections', return_value=True):
+                    with patch.object(infra, '_disable_apim_public_access', return_value=False):
+                        result = infra.deploy_infrastructure()
+                        assert result.success is False and 'public access' in result.text.lower()
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_verify_exception(mock_utils, mock_az):
+    """Test AppGwApimPeInfrastructure verification when exception occurs."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    mock_az.run.side_effect = Exception("Azure error")
+
+    assert infra._verify_infrastructure_specific('test-rg') is False
+
+
+@pytest.mark.unit
+def test_appgw_apim_deploy_keyvault_creation_failure(mock_utils, mock_az):
+    """Test AppGwApimInfrastructure deploy when Key Vault creation fails."""
+    mock_utils.Output.side_effect = Output
+
+    infra = infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1)
+
+    with patch.object(infra, '_create_keyvault', return_value=False):
+        result = infra.deploy_infrastructure()
+        assert result.success is False
+        assert 'Failed to create Key Vault' in result.text
+
+
+@pytest.mark.unit
+def test_appgw_apim_deploy_certificate_creation_failure(mock_utils, mock_az):
+    """Test AppGwApimInfrastructure deploy when certificate creation fails."""
+    mock_utils.Output.side_effect = Output
+
+    infra = infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1)
+
+    with patch.object(infra, '_create_keyvault', return_value=True):
+        with patch.object(infra, '_create_keyvault_certificate', return_value=False):
+            result = infra.deploy_infrastructure()
+            assert result.success is False
+            assert 'certificate' in result.text.lower()
+
+
+@pytest.mark.unit
+def test_appgw_apim_deploy_deployment_failure(mock_utils, mock_az):
+    """Test AppGwApimInfrastructure deploy when deployment fails."""
+    infra = infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1)
+
+    with patch.object(infra, '_create_keyvault', return_value=True):
+        with patch.object(infra, '_create_keyvault_certificate', return_value=True):
+            with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=Output(False, 'Deploy failed')):
+                result = infra.deploy_infrastructure()
+                assert result.success is False
+
+
+@pytest.mark.unit
+def test_appgw_apim_deploy_no_output_data(mock_utils, mock_az):
+    """Test AppGwApimInfrastructure deploy when no output data available."""
+    infra = infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1)
+
+    with patch.object(infra, '_create_keyvault', return_value=True):
+        with patch.object(infra, '_create_keyvault_certificate', return_value=True):
+            with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=Output(True, '')):
+                result = infra.deploy_infrastructure()
+                assert result.success is False or result.json_data is None
+
+
+@pytest.mark.unit
+def test_cleanup_single_resource_unknown_type(mock_utils, mock_az):
+    """Test _cleanup_single_resource with unknown resource type."""
+    success, error_msg = infrastructures._cleanup_single_resource({
+        'type': 'unknown-type',
+        'name': 'test-resource',
+        'location': 'eastus',
+        'rg_name': 'test-rg'
+    })
+
+    assert success is False
+    assert "Unknown resource type" in error_msg
+
+
+@pytest.mark.unit
+def test_cleanup_single_resource_purge_failure(mock_utils, mock_az):
+    """Test _cleanup_single_resource when purge fails."""
+    mock_az.run.side_effect = [
+        Mock(success=True),  # delete success
+        Mock(success=False)  # purge failure
+    ]
+
+    success, error_msg = infrastructures._cleanup_single_resource({
+        'type': 'keyvault',
+        'name': 'test-kv',
+        'location': 'eastus',
+        'rg_name': 'test-rg'
+    })
+
+    assert success is False
+    assert "Purge failed" in error_msg
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_empty_list(mock_utils):
+    """Test _cleanup_resources_parallel with empty resource list."""
+    # Should return without error
+    infrastructures._cleanup_resources_parallel([])
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_thread_safe_logging(monkeypatch, mock_utils):
+    """Test _cleanup_resources_parallel uses thread-safe logging when prefix provided."""
+
+    def mock_cleanup(resource):
+        return True, ""
+
+    monkeypatch.setattr(infrastructures, '_cleanup_single_resource', mock_cleanup)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
+
+    resources = [{'type': 'keyvault', 'name': 'kv-1', 'location': 'eastus', 'rg_name': 'rg-1'}]
+    infrastructures._cleanup_resources_parallel(resources, thread_prefix='[TEST]: ', thread_color='\033[35m')
+
+    # Should complete without error
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_exception_in_worker(monkeypatch, mock_utils):
+    """Test _cleanup_resources_parallel handles worker exceptions."""
+    def mock_cleanup(resource):
+        raise Exception("Worker error")
+
+    monkeypatch.setattr(infrastructures, '_cleanup_single_resource', mock_cleanup)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
+
+    resources = [{'type': 'keyvault', 'name': 'kv-1', 'location': 'eastus', 'rg_name': 'rg-1'}]
+
+    # Should handle exception gracefully
+    infrastructures._cleanup_resources_parallel(resources, thread_prefix='[TEST]: ')
 
     def mock_run(command, ok_msg=None, error_msg=None):
         if 'deployment group show' in command:

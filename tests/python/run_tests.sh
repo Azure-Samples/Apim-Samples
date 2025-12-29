@@ -16,15 +16,16 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 cd "${REPO_ROOT}"
 
-export COVERAGE_FILE="tests/python/.coverage"
-pytest -v --color=yes --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov --cov-report=json tests/python/
-
-# Generate coverage.json for VS Code visualization
-echo ""
-echo "Generating coverage.json for VS Code..."
-coverage json
+export COVERAGE_FILE=".coverage"
+pytest -v --color=yes --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:htmlcov --cov-report=xml:coverage.xml --cov-report=json:coverage.json tests/python/
 
 # Display coverage summary
 echo ""
 echo "Coverage Summary:"
 coverage report --skip-covered
+
+echo ""
+echo "✅ Coverage reports generated:"
+echo "   - HTML: htmlcov/index.html"
+echo "   - XML: coverage.xml (for VS Code)"
+echo "   - JSON: coverage.json"

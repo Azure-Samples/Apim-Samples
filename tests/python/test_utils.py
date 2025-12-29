@@ -743,6 +743,239 @@ def test_query_and_select_infrastructure_user_selects_existing(monkeypatch, supp
     assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
     assert selected_index == 5
 
+
+@pytest.mark.unit
+def test_query_and_select_infrastructure_user_selects_create_new(monkeypatch, suppress_utils_console):
+    """Test when user selects option to create new infrastructure."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim-1',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    monkeypatch.setattr(
+        az,
+        'find_infrastructure_instances',
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 5)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+    )
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+
+    created_helpers = []
+
+    class DummyInfraHelper:
+        def __init__(self, rg_location, deployment, index, apim_sku):
+            self.rg_location = rg_location
+            self.deployment = deployment
+            self.index = index
+            self.apim_sku = apim_sku
+            self.calls = []
+            created_helpers.append(self)
+
+        def create_infrastructure(self, bypass):
+            self.calls.append(bypass)
+            return True
+
+    monkeypatch.setattr(utils, 'InfrastructureNotebookHelper', DummyInfraHelper)
+    monkeypatch.setattr('builtins.input', lambda prompt: '1')  # Select "Create a NEW infrastructure"
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
+    # When user selects option 1 (create_new), the index is from the helper (not None, it's 1 from the nb_helper.index)
+    assert selected_index == 1
+    assert created_helpers
+    assert created_helpers[0].calls == [True]
+
+
+@pytest.mark.unit
+def test_query_and_select_infrastructure_user_enters_empty_string(monkeypatch, suppress_utils_console):
+    """Test when user enters empty string (no infrastructure selected)."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim-1',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    monkeypatch.setattr(
+        az,
+        'find_infrastructure_instances',
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 5)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+    )
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+    monkeypatch.setattr('builtins.input', lambda prompt: '')
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra is None
+    assert selected_index is None
+
+
+@pytest.mark.unit
+def test_query_and_select_infrastructure_user_enters_invalid_then_valid(monkeypatch, suppress_utils_console):
+    """Test when user enters invalid choice then valid choice."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim-1',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    monkeypatch.setattr(
+        az,
+        'find_infrastructure_instances',
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 5)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+    )
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+    inputs = iter(['999', '0', '-1', '2'])  # Invalid then valid
+    monkeypatch.setattr('builtins.input', lambda prompt: next(inputs))
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
+    assert selected_index == 5
+
+
+@pytest.mark.unit
+def test_query_and_select_infrastructure_user_enters_non_numeric(monkeypatch, suppress_utils_console):
+    """Test when user enters non-numeric input then valid numeric choice."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim-1',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    monkeypatch.setattr(
+        az,
+        'find_infrastructure_instances',
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 5)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+    )
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+    inputs = iter(['abc', 'xyz', '2'])  # Non-numeric then valid
+    monkeypatch.setattr('builtins.input', lambda prompt: next(inputs))
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
+    assert selected_index == 5
+
+
+@pytest.mark.unit
+def test_query_and_select_infrastructure_infrastructure_creation_fails(monkeypatch, suppress_utils_console):
+    """Test when infrastructure creation fails."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    monkeypatch.setattr(az, 'find_infrastructure_instances', lambda infra: [])
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+
+    class DummyInfraHelper:
+        def __init__(self, rg_location, deployment, index, apim_sku):
+            pass
+
+        def create_infrastructure(self, bypass):
+            return False  # Creation fails
+
+    monkeypatch.setattr(utils, 'InfrastructureNotebookHelper', DummyInfraHelper)
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra is None
+    assert selected_index is None
+
+
+@pytest.mark.unit
+def test_query_and_select_infrastructure_multiple_infrastructure_types(monkeypatch, suppress_utils_console):
+    """Test when multiple infrastructure types are available."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-appgw-apim-1',
+        'eastus',
+        INFRASTRUCTURE.APPGW_APIM,
+        [INFRASTRUCTURE.APPGW_APIM, INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    def mock_find_instances(infra):
+        if infra == INFRASTRUCTURE.APPGW_APIM:
+            return [(INFRASTRUCTURE.APPGW_APIM, 1)]
+        elif infra == INFRASTRUCTURE.SIMPLE_APIM:
+            return [(INFRASTRUCTURE.SIMPLE_APIM, 2)]
+        return []
+
+    monkeypatch.setattr(az, 'find_infrastructure_instances', mock_find_instances)
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+    monkeypatch.setattr('builtins.input', lambda prompt: '2')  # Select first existing (appgw-apim-1)
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra == INFRASTRUCTURE.APPGW_APIM
+    assert selected_index == 1
+
+
+@pytest.mark.unit
+def test_query_and_select_infrastructure_with_none_index(monkeypatch, suppress_utils_console):
+    """Test when infrastructure instances have None as index."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    monkeypatch.setattr(
+        az,
+        'find_infrastructure_instances',
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, None)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+    )
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+    monkeypatch.setattr('builtins.input', lambda prompt: '2')  # Select the existing one
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
+    assert selected_index is None
+
+
 # ------------------------------
 #    TESTS FOR _prompt_for_infrastructure_update
 # ------------------------------
@@ -2093,3 +2326,160 @@ def test_output_get_with_deep_nesting():
     # This tests the nested value extraction - Output.get returns str
     result = output.get('deep', 'Deep value')
     assert "{'nested':" in result or '{"nested":' in result
+
+
+# ------------------------------
+#    Additional coverage
+# ------------------------------
+
+def test_create_infrastructure_unsupported_type(monkeypatch, suppress_utils_console):
+    class Unsupported:
+        value = 'unsupported'
+
+    helper = utils.InfrastructureNotebookHelper('eastus', Unsupported(), 1, APIM_SKU.BASICV2)
+
+    # Skip update checks
+    monkeypatch.setattr(az, 'get_infra_rg_name', lambda *_, **__: 'rg')
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda *_, **__: False)
+
+    with pytest.raises(SystemExit):
+        helper.create_infrastructure(bypass_infrastructure_check=False, allow_update=False)
+
+
+def test_create_infrastructure_stream_error(monkeypatch, tmp_path, suppress_utils_console):
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
+
+    monkeypatch.setattr(utils, 'find_project_root', lambda: str(tmp_path))
+    monkeypatch.setattr(az, 'get_infra_rg_name', lambda *_, **__: 'rg')
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda *_, **__: False)
+
+    class BoomIter:
+        def __iter__(self):
+            raise ValueError('boom')
+
+    class FakeProcess:
+        def __init__(self):
+            self.stdout = BoomIter()
+            self.returncode = 1
+
+        def wait(self):
+            self.returncode = 1
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            return False
+
+    monkeypatch.setattr(subprocess, 'Popen', lambda *_, **__: FakeProcess())
+
+    with pytest.raises(SystemExit):
+        helper.create_infrastructure(bypass_infrastructure_check=False, allow_update=False)
+
+
+def test_determine_bicep_directory_current_infra(monkeypatch, tmp_path):
+    infra_dir = tmp_path / 'foo'
+    infra_dir.mkdir()
+
+    monkeypatch.chdir(infra_dir)
+
+    assert utils._determine_bicep_directory('foo') == str(infra_dir)
+
+
+def test_determine_bicep_directory_in_current_tree(monkeypatch, tmp_path):
+    bicep_dir = tmp_path / 'infrastructure' / 'bar'
+    bicep_dir.mkdir(parents=True)
+
+    monkeypatch.chdir(tmp_path)
+
+    assert utils._determine_bicep_directory('bar') == str(bicep_dir)
+
+
+def test_determine_bicep_directory_in_parent_tree(monkeypatch, tmp_path):
+    workdir = tmp_path / 'work'
+    workdir.mkdir()
+    parent_bicep_dir = tmp_path / 'infrastructure' / 'baz'
+    parent_bicep_dir.mkdir(parents=True)
+
+    monkeypatch.chdir(workdir)
+
+    assert utils._determine_bicep_directory('baz') == str(parent_bicep_dir)
+
+
+def test_determine_bicep_directory_from_project_root(monkeypatch, tmp_path):
+    elsewhere = tmp_path / 'elsewhere'
+    elsewhere.mkdir()
+
+    project_root = tmp_path / 'project'
+    project_bicep_dir = project_root / 'infrastructure' / 'qux'
+    project_bicep_dir.mkdir(parents=True)
+
+    monkeypatch.chdir(elsewhere)
+    monkeypatch.setattr(utils, 'get_project_root', lambda: str(project_root))
+
+    assert utils._determine_bicep_directory('qux') == str(project_bicep_dir)
+
+
+def test_determine_bicep_directory_falls_back(monkeypatch, tmp_path):
+    nowhere = tmp_path / 'nowhere'
+    nowhere.mkdir()
+
+    monkeypatch.chdir(nowhere)
+    monkeypatch.setattr(utils, 'get_project_root', lambda: (_ for _ in ()).throw(ValueError('no root')))
+
+    expected = os.path.join(str(nowhere), 'infrastructure', 'missing')
+    assert utils._determine_bicep_directory('missing') == expected
+
+
+def test_create_bicep_deployment_group_for_sample_missing_dir(monkeypatch, tmp_path, suppress_utils_console):
+    monkeypatch.setattr(utils, 'find_project_root', lambda: str(tmp_path))
+
+    with pytest.raises(FileNotFoundError):
+        utils.create_bicep_deployment_group_for_sample('absent', 'rg', 'loc', {})
+
+
+def test_create_bicep_deployment_group_for_sample_missing_main(monkeypatch, tmp_path, suppress_utils_console):
+    sample_dir = tmp_path / 'samples' / 'demo'
+    sample_dir.mkdir(parents=True)
+
+    monkeypatch.setattr(utils, 'find_project_root', lambda: str(tmp_path))
+
+    with pytest.raises(FileNotFoundError):
+        utils.create_bicep_deployment_group_for_sample('demo', 'rg', 'loc', {})
+
+
+def test_create_bicep_deployment_group_for_sample_in_sample_dir(monkeypatch, tmp_path, suppress_utils_console):
+    sample_dir = tmp_path / 'samples' / 'demo'
+    sample_dir.mkdir(parents=True)
+    (sample_dir / 'main.bicep').write_text('// bicep', encoding='utf-8')
+
+    monkeypatch.chdir(sample_dir)
+    monkeypatch.setattr(utils, 'create_bicep_deployment_group', lambda *_, **__: 'ok')
+
+    result = utils.create_bicep_deployment_group_for_sample('demo', 'rg', 'loc', {})
+    assert result == 'ok'
+
+
+def test_determine_policy_path_missing_sample_name(monkeypatch):
+    class FakeFrame:
+        def __init__(self):
+            self.f_back = MagicMock()
+            self.f_back.f_globals = {'__file__': str(Path('/tmp/samples'))}
+
+    monkeypatch.setattr(utils.inspect, 'currentframe', FakeFrame)
+
+    with pytest.raises(ValueError, match='Could not detect sample name'):
+        utils.determine_policy_path('policy.xml')
+
+
+def test_determine_policy_path_fallback_to_cwd(monkeypatch, tmp_path):
+    class FakeFrame:
+        def __init__(self):
+            self.f_back = MagicMock()
+            self.f_back.f_globals = {}
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(utils.inspect, 'currentframe', FakeFrame)
+
+    with pytest.raises(ValueError, match='Not running from within a samples directory'):
+        utils.determine_policy_path('policy.xml')

@@ -26,6 +26,10 @@ labs-in-progress/
 
 # Coverage data and reports
 .coverage
+.coverage.*
+coverage.xml
+coverage.json
+htmlcov/
 tests/python/htmlcov/
 
 # Pylint reports
@@ -40,3 +44,5 @@ Test-Matrix.html
 
 $JsonReport
 $TextReport
+$JsonReportRelative
+$TextReportRelative

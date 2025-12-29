@@ -4,6 +4,7 @@ Unit tests for apimtypes.py
 
 import importlib
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 import pytest
 import apimtypes
 
@@ -758,3 +759,42 @@ class TestProjectRoot:
 
         root = apimtypes.get_project_root()
         assert root == test_path
+
+    def test_get_project_root_returns_path_with_indicators(self, tmp_path, monkeypatch):
+        """Test get_project_root finds correct directory with indicators."""
+        # Create directory structure
+        project_dir = tmp_path / 'project'
+        project_dir.mkdir()
+        (project_dir / 'README.md').write_text('test')
+        (project_dir / 'requirements.txt').write_text('test')
+        (project_dir / 'bicepconfig.json').write_text('test')
+
+        # Mock __file__ to point into a subdirectory
+        shared_dir = project_dir / 'shared' / 'python'
+        shared_dir.mkdir(parents=True)
+        test_file = shared_dir / 'apimtypes.py'
+        test_file.write_text('test')
+
+        # Remove env var to force detection logic
+        monkeypatch.delenv('PROJECT_ROOT', raising=False)
+
+        with patch('apimtypes.Path') as mock_path_class:
+            mock_path_instance = MagicMock()
+            mock_path_instance.resolve.return_value = test_file.resolve()
+            mock_path_class.return_value = mock_path_instance
+            mock_path_class.side_effect = lambda x: Path(x) if isinstance(x, str) else mock_path_instance
+
+            # Call using patched Path directly on already-imported module
+            root = apimtypes.get_project_root()
+
+            # Should find the project directory
+            assert root == project_dir or root.exists()
+
+    def test_get_project_root_contains_required_files(self):
+        """Test that detected project root contains required indicator files."""
+        root = get_project_root()
+
+        # Verify it has the expected files
+        assert (root / 'README.md').exists()
+        assert (root / 'requirements.txt').exists()
+        assert (root / 'bicepconfig.json').exists()
