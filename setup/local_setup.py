@@ -37,6 +37,33 @@ KERNEL_NAME = "python-venv"
 KERNEL_DISPLAY_NAME = "Python (.venv)"
 
 
+def _ensure_utf8_streams() -> None:
+    """Ensure stdout/stderr use UTF-8 to avoid Windows cp1252 issues.
+
+    On some Windows setups, the default console encoding is cp1252, which
+    cannot encode many Unicode symbols (e.g., emoji). Reconfiguring the
+    standard streams to UTF-8 prevents UnicodeEncodeError when printing.
+
+    This is a safe no-op on platforms where UTF-8 is already the default.
+    """
+
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        # If reconfigure is unavailable or fails, fall back to env var.
+        pass
+
+    # Encourage UTF-8 for any child processes that honor PYTHONIOENCODING.
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+
+
+# Configure streams immediately on import so all prints are safe.
+_ensure_utf8_streams()
+
+
 def _venv_python_path() -> str:
     """Return the workspace-local virtualenv interpreter path (platform aware)."""
 

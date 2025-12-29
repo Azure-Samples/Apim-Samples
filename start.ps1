@@ -123,25 +123,25 @@ while ($true) {
 
     switch ($choice) {
         '1' {
-            Invoke-Cmd (Get-Python) "$RepoRoot/setup/local_setup.py" "--complete-setup"
+            Invoke-Cmd (Get-Python) "$RepoRoot/setup/local_setup.py" "--complete-setup" | Out-Null
         }
         '2' {
-            Invoke-Cmd (Get-Python) "$RepoRoot/setup/verify_local_setup.py"
+            Invoke-Cmd (Get-Python) "$RepoRoot/setup/verify_local_setup.py" | Out-Null
         }
         '3' {
             Show-AccountInfo
         }
         '4' {
-            Invoke-Cmd (Get-Python) "$RepoRoot/shared/python/show_soft_deleted_resources.py"
+            Invoke-Cmd (Get-Python) "$RepoRoot/shared/python/show_soft_deleted_resources.py" | Out-Null
         }
         '5' {
-            Invoke-Cmd "$RepoRoot/tests/python/run_pylint.ps1"
+            Invoke-Cmd "$RepoRoot/tests/python/run_pylint.ps1" | Out-Null
         }
         '6' {
-            Invoke-Cmd "$RepoRoot/tests/python/run_tests.ps1"
+            Invoke-Cmd "$RepoRoot/tests/python/run_tests.ps1" | Out-Null
         }
         '7' {
-            Invoke-Cmd "$RepoRoot/tests/python/check_python.ps1"
+            Invoke-Cmd "$RepoRoot/tests/python/check_python.ps1" | Out-Null
         }
         '0' {
             Write-Host ""
