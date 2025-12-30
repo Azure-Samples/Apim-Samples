@@ -19,7 +19,7 @@ $env:PYTHONUNBUFFERED = "1"
 Push-Location $RepoRoot
 try {
 	$env:COVERAGE_FILE = (Join-Path $RepoRoot ".coverage")
-	pytest -v --color=yes --durations=3 --durations-min=0.01 --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov --cov-report=xml:coverage.xml --cov-report=json:coverage.json tests/python/
+	pytest -v --color=yes --durations=3 --durations-min=0.1 --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov --cov-report=xml:coverage.xml --cov-report=json:coverage.json tests/python/
 
 	# Display coverage summary
 	Write-Host "`nCoverage Summary:" -ForegroundColor Green
