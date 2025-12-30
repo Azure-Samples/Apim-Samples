@@ -1,11 +1,13 @@
 [run]
 branch = True
-source = 
+source =
     shared/python
-omit = 
+    setup
+omit =
     */__init__.py
     */__pycache__/*
+    tests/python/*
 
 [report]
 show_missing = True
-skip_covered = True
+skip_covered = False
