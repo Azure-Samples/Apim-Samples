@@ -154,7 +154,7 @@ Write-Host ""
 
 # Determine statuses
 $LintStatus = if ($LintExitCode -eq 0) { "✅ PASSED" } else { "⚠️  ISSUES FOUND" }
-$TestStatus = if ($TestExitCode -eq 0) { "✅ PASSED" } else { "❌ FAILED" }
+$TestStatus = if ($FailedTests -eq 0) { "✅ PASSED" } else { "❌ FAILED" }
 
 # Get pylint score
 $PylintScore = $null

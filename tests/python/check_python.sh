@@ -120,7 +120,7 @@ else
 fi
 
 # Determine Test status
-if [ $TEST_EXIT_CODE -eq 0 ]; then
+if [ $FAILED_TESTS -eq 0 ]; then
     TEST_STATUS="✅ PASSED"
 else
     TEST_STATUS="❌ FAILED"
