@@ -79,6 +79,12 @@ PASSED_TESTS=$(echo "$TEST_OUTPUT" | grep -oE '[0-9]+ passed' | head -1 | grep -
 FAILED_TESTS=$(echo "$TEST_OUTPUT" | grep -oE '[0-9]+ failed' | head -1 | grep -oE '[0-9]+' || echo "0")
 TOTAL_TESTS=$((PASSED_TESTS + FAILED_TESTS))
 
+# Parse coverage from pytest output (e.g., "TOTAL ... 95%")
+COVERAGE_PERCENT=""
+if echo "$TEST_OUTPUT" | grep -qE 'TOTAL\s+.*\s+\d+%'; then
+    COVERAGE_PERCENT=$(echo "$TEST_OUTPUT" | grep -oE 'TOTAL\s+.*\s+(\d+)%' | grep -oE '[0-9]+%' | head -1)
+fi
+
 echo ""
 
 
@@ -106,17 +112,26 @@ else
 fi
 
 # Display results with proper alignment
-echo "Pylint : $LINT_STATUS"
+echo "Pylint   : $LINT_STATUS"
 if [ -n "$PYLINT_SCORE" ]; then
-    echo "         ($PYLINT_SCORE)"
+    echo "             ($PYLINT_SCORE)"
 fi
 
-echo "Tests  : $TEST_STATUS"
+echo "Tests    : $TEST_STATUS"
 if [ $TOTAL_TESTS -gt 0 ]; then
+    # Calculate percentages (using bc for floating point)
+    PASSED_PERCENT=$(echo "scale=2; $PASSED_TESTS / $TOTAL_TESTS * 100" | bc)
+    FAILED_PERCENT=$(echo "scale=2; $FAILED_TESTS / $TOTAL_TESTS * 100" | bc)
+
     # Right-align numbers with padding
-    printf "          • Total  : %5d\n" "$TOTAL_TESTS"
-    printf "          • Passed : %5d\n" "$PASSED_TESTS"
-    printf "          • Failed : %5d\n" "$FAILED_TESTS"
+    printf "            • Total  : %5d\n" "$TOTAL_TESTS"
+    printf "            • Passed : %5d (% 6.2f%%)\n" "$PASSED_TESTS" "$PASSED_PERCENT"
+    printf "            • Failed : %5d (% 6.2f%%)\n" "$FAILED_TESTS" "$FAILED_PERCENT"
+fi
+
+# Display code coverage
+if [ -n "$COVERAGE_PERCENT" ]; then
+    echo "Coverage : 📊 ${COVERAGE_PERCENT}"
 fi
 
 echo ""
