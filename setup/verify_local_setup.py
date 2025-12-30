@@ -334,5 +334,5 @@ def main():
     return passed == total
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     sys.exit(0 if main() else 1)
