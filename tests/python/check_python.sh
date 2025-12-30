@@ -116,11 +116,11 @@ echo ""
 if [ $LINT_EXIT_CODE -eq 0 ]; then
     LINT_STATUS="✅ PASSED"
 else
-    LINT_STATUS="⚠️  ISSUES FOUND"
+    LINT_STATUS="⚠️  ISSUES FOUND" # leave two spaces after yellow triangle to display correctly
 fi
 
 # Determine Test status
-if [ $TEST_EXIT_CODE -eq 0 ]; then
+if [ $FAILED_TESTS -eq 0 ]; then
     TEST_STATUS="✅ PASSED"
 else
     TEST_STATUS="❌ FAILED"
@@ -132,7 +132,11 @@ if [ -n "$PYLINT_SCORE" ]; then
     echo "             ($PYLINT_SCORE)"
 fi
 
-echo "Tests    : $TEST_STATUS"
+if [ $FAILED_TESTS -eq 0 ]; then
+    echo "Tests    : $TEST_STATUS"
+else
+    echo -e "Tests    : \e[31m$TEST_STATUS\e[0m"  # Red color for failed tests
+fi
 if [ $TOTAL_TESTS -gt 0 ]; then
     # Calculate percentages (using bc for floating point)
     PASSED_PERCENT=$(echo "scale=2; $PASSED_TESTS / $TOTAL_TESTS * 100" | bc)
