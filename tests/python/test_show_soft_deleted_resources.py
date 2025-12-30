@@ -416,6 +416,46 @@ def test_main_with_purge_and_yes_flags(monkeypatch):
     assert len(purge_kv_called) > 0
 
 
+def test_main_with_purge_only_protected_vaults(monkeypatch):
+    """Test main handles purge flag when only protected vaults exist."""
+    services = []
+    vaults = [
+        {'name': 'vault-1', 'properties': {'location': 'eastus', 'purgeProtectionEnabled': True}}
+    ]
+
+    confirm_called = []
+    purge_apim_called = []
+    purge_kv_called = []
+
+    def mock_confirm_purge(*a, **k):
+        confirm_called.append(True)
+        return True
+
+    def mock_purge_apim(_):
+        purge_apim_called.append(True)
+        return 0
+
+    def mock_purge_kv(_):
+        purge_kv_called.append(True)
+        return (0, 1)
+
+    monkeypatch.setattr('show_soft_deleted_resources.get_deleted_apim_services', lambda: services)
+    monkeypatch.setattr('show_soft_deleted_resources.get_deleted_key_vaults', lambda: vaults)
+    monkeypatch.setattr('show_soft_deleted_resources.confirm_purge', mock_confirm_purge)
+    monkeypatch.setattr('show_soft_deleted_resources.purge_apim_services', mock_purge_apim)
+    monkeypatch.setattr('show_soft_deleted_resources.purge_key_vaults', mock_purge_kv)
+    monkeypatch.setattr('show_soft_deleted_resources.az.run', lambda cmd, *a, **k: MagicMock(success=True, json_data={'name': 'test-sub', 'id': 'sub-id'}))
+    mock_module_functions(monkeypatch, builtins, ['print'])
+    monkeypatch.setattr('sys.argv', ['script.py', '--purge'])
+
+    result = sdr.main()
+
+    assert not result
+    assert not confirm_called
+    assert not purge_apim_called
+    assert not purge_kv_called
+
+
 def test_get_deleted_apim_services_empty():
     """Test get_deleted_apim_services with empty list response."""
     mock_output = MagicMock()

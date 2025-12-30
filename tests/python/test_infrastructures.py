@@ -510,6 +510,71 @@ def test_afd_apim_infrastructure_verification_no_afd(mock_az):
 
     assert result is False
 
+
+@pytest.mark.unit
+def test_afd_apim_infrastructure_verification_zero_container_apps(mock_az):
+    """Handle zero Container Apps without failing verification."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location=TEST_LOCATION,
+        index=TEST_INDEX,
+        apim_sku=APIM_SKU.STANDARDV2
+    )
+
+    mock_afd_output = Mock(success=True, json_data={'name': 'test-afd'})
+    mock_aca_output = Mock(success=True, text='0')
+    mock_apim_output = Mock(success=False)
+
+    mock_az.run.side_effect = [mock_afd_output, mock_aca_output, mock_apim_output]
+
+    result = infra._verify_infrastructure_specific('test-rg')
+
+    assert result is True
+    assert mock_az.run.call_count == 3
+
+
+@pytest.mark.unit
+def test_afd_apim_infrastructure_verification_handles_aca_failure(mock_az):
+    """Do not fail verification when Container Apps query fails."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location=TEST_LOCATION,
+        index=TEST_INDEX,
+        apim_sku=APIM_SKU.STANDARDV2
+    )
+
+    mock_afd_output = Mock(success=True, json_data={'name': 'test-afd'})
+    mock_aca_output = Mock(success=False)
+    mock_apim_output = Mock(success=False)
+
+    mock_az.run.side_effect = [mock_afd_output, mock_aca_output, mock_apim_output]
+
+    result = infra._verify_infrastructure_specific('test-rg')
+
+    assert result is True
+    assert mock_az.run.call_count == 3
+
+
+@pytest.mark.unit
+def test_afd_apim_infrastructure_verification_private_endpoints(mock_az):
+    """Verify private endpoint listing is attempted and logged."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location=TEST_LOCATION,
+        index=TEST_INDEX,
+        apim_sku=APIM_SKU.STANDARDV2
+    )
+
+    mock_afd_output = Mock(success=True, json_data={'name': 'test-afd'})
+    mock_aca_output = Mock(success=True, text='1')
+    mock_apim_output = Mock(success=True, text='apim-resource-id')
+    mock_pe_output = Mock(success=True, text='2')
+
+    mock_az.run.side_effect = [mock_afd_output, mock_aca_output, mock_apim_output, mock_pe_output]
+
+    result = infra._verify_infrastructure_specific('test-rg')
+
+    assert result is True
+    assert mock_az.run.call_count == 4
+    assert 'private-endpoint-connection list' in mock_az.run.call_args_list[-1].args[0]
+
 @pytest.mark.unit
 def test_afd_apim_infrastructure_bicep_parameters(mock_utils):
     """Test AFD-APIM-PE specific Bicep parameters."""
@@ -603,7 +668,8 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
     mock_open = MagicMock()
 
     with patch('builtins.open', mock_open), \
-         patch('json.dumps', return_value='{"mocked": "params"}') as mock_json_dumps:
+         patch('json.dumps', return_value='{"mocked": "params"}') as mock_json_dumps, \
+         patch('utils.read_policy_xml', return_value='<policy/>'):
 
         infra = TestInfrastructure(
             infra=INFRASTRUCTURE.SIMPLE_APIM,

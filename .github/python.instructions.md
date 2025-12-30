@@ -62,7 +62,7 @@ Before completing any Python code changes, verify:
 
 ## Testing
 
-- Aim for 90+% code coverage for each file.
+- Aim for 95+% code coverage for each file.
 - Slow tests (> 0.1s runtime) should be identified and fixed, if possible.
 - Add or update pytest unit tests when changing behavior.
 - Prefer focused tests for the code being changed.

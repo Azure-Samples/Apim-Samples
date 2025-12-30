@@ -20,7 +20,7 @@ from typing import Final
 
 try:
     from dotenv import load_dotenv  # type: ignore[import-not-found]
-except Exception:
+except Exception:  # pragma: no cover
     load_dotenv = None
 
 
@@ -55,7 +55,7 @@ def _find_env_file() -> Path | None:
         try:
             if candidate.is_file():
                 return candidate
-        except OSError:
+        except OSError:  # pragma: no cover
             continue
 
     return None

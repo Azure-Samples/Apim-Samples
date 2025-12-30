@@ -108,6 +108,7 @@ def test_run_failure(monkeypatch):
 def test_read_policy_xml_success(monkeypatch):
     """Test reading a valid XML file returns its contents."""
     xml_content = '<policies><inbound><base /></inbound></policies>'
+    monkeypatch.setattr(utils, 'determine_policy_path', lambda *a, **k: '/path/to/dummy.xml')
     patch_open_for_text_read(monkeypatch, match='/path/to/dummy.xml', read_data=xml_content)
     # Use full path to avoid sample name auto-detection
     result = utils.read_policy_xml('/path/to/dummy.xml')
@@ -2483,3 +2484,81 @@ def test_determine_policy_path_fallback_to_cwd(monkeypatch, tmp_path):
 
     with pytest.raises(ValueError, match='Not running from within a samples directory'):
         utils.determine_policy_path('policy.xml')
+
+
+def test_query_and_select_infrastructure_user_creates_new_but_fails(monkeypatch, suppress_utils_console):
+    """Test when user selects to create new infrastructure but creation fails."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim-1',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    monkeypatch.setattr(
+        az,
+        'find_infrastructure_instances',
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 5)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+    )
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+
+    class DummyInfraHelper:
+        def __init__(self, rg_location, deployment, index, apim_sku):
+            pass
+
+        def create_infrastructure(self, bypass):
+            return False  # Creation fails
+
+    monkeypatch.setattr(utils, 'InfrastructureNotebookHelper', DummyInfraHelper)
+    monkeypatch.setattr('builtins.input', lambda prompt: '1')  # Select "Create a NEW infrastructure" but it fails
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra is None
+    assert selected_index is None
+
+
+def test_query_and_select_infrastructure_with_query_rg_location_enabled(monkeypatch, suppress_utils_console):
+    """Test the QUERY_RG_LOCATION=True code paths for displaying headers and location info."""
+    # Enable QUERY_RG_LOCATION via environment variable BEFORE creating NotebookHelper
+    monkeypatch.setenv('APIM_TEST_QUERY_RG_LOCATION', 'True')
+
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim-1',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    monkeypatch.setattr(
+        az,
+        'find_infrastructure_instances',
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 5)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+    )
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+    monkeypatch.setattr(az, 'get_resource_group_location', lambda rg_name: 'eastus')
+
+    class DummyInfraHelper:
+        def __init__(self, rg_location, deployment, index, apim_sku):
+            pass
+
+        def create_infrastructure(self, bypass):
+            return True
+
+    monkeypatch.setattr(utils, 'InfrastructureNotebookHelper', DummyInfraHelper)
+    monkeypatch.setattr('builtins.input', lambda prompt: '2')  # Select existing infrastructure (option 2)
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
+    assert selected_index == 5
