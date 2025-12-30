@@ -1,44 +1,45 @@
 {
-    "python.analysis.exclude": [
-        "**/node_modules",
-        "**/__pycache__",
-        ".git",
-        "**/build",
-        "env/**",
-        "**/.*",
-        "**/.venv",
-        "**/venv",
-        "**/env"
-    ],
-    "files.trimTrailingWhitespace": true,
-    "files.insertFinalNewline": true,
-    "files.trimFinalNewlines": true,
-    "files.eol": "\n",
-    "editor.renderWhitespace": "trailing",
-    "python.defaultInterpreterPath": "./.venv/Scripts/python.exe",
-    "python.envFile": "${workspaceFolder}/.env",
-    "[python]": {
-        "editor.codeActionsOnSave": {
-            "source.organizeImports": "explicit",
-            "source.unusedImports": "explicit"
-        },
-        "editor.formatOnSave": true
+  "[markdown]": {
+    "files.trimTrailingWhitespace": false
+  },
+  "[python]": {
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit",
+      "source.unusedImports": "explicit"
     },
-    "[markdown]": {
-        "files.trimTrailingWhitespace": false
-    },
-    "terminal.integrated.defaultProfile.windows": "PowerShell",
-    "plantuml.render": "Local",
-    "plantuml.exportFormat": "svg",
-    "plantuml.java": "C:\\Program Files\\OpenJDK\\jdk-22.0.2\\bin\\java.exe",
-    "plantuml.diagramsRoot": "assets/diagrams/src",
-    "plantuml.exportOutDir": "assets/diagrams/out",
-    "python.terminal.activateEnvironment": true,
-    "python.terminal.activateEnvInCurrentTerminal": true,
-    "python.testing.pytestEnabled": true,
-    "python.linting.enabled": true,
-    "python.linting.pylintEnabled": true,
-    "jupyter.kernels.trusted": [
-        "./.venv/Scripts/python.exe"
-    ]
+    "editor.formatOnSave": true
+  },
+  "editor.renderWhitespace": "trailing",
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.trimTrailingWhitespace": true,
+  "jupyter.kernels.trusted": [
+    "./.venv/Scripts/python.exe"
+  ],
+  "plantuml.diagramsRoot": "assets/diagrams/src",
+  "plantuml.exportFormat": "svg",
+  "plantuml.exportOutDir": "assets/diagrams/out",
+  "plantuml.java": "C:\\Program Files\\OpenJDK\\jdk-22.0.2\\bin\\java.exe",
+  "plantuml.render": "Local",
+  "python.analysis.exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    ".git",
+    "**/build",
+    "env/**",
+    "**/.*",
+    "**/.venv",
+    "**/venv",
+    "**/env"
+  ],
+  "python.defaultInterpreterPath": "./.venv/Scripts/python.exe",
+  "python.envFile": "${workspaceFolder}/.env",
+  "python.linting.enabled": true,
+  "python.linting.pylintEnabled": true,
+  "python.terminal.activateEnvInCurrentTerminal": true,
+  "python.terminal.activateEnvironment": true,
+  "python.terminal.useEnvFile": true,
+  "python.testing.pytestEnabled": true,
+  "terminal.integrated.defaultProfile.windows": "PowerShell"
 }
