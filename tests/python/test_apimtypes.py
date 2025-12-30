@@ -663,6 +663,32 @@ class TestOutput:
         result = output.getJson('data', suppress_logging=True)
         assert result == {'nested': 'obj'}
 
+    def test_getjson_secure_logging_masks_value(self, monkeypatch):
+        """Test Output.getJson() masks logged value when secure flag is set."""
+        json_text = '''{"properties": {"outputs": {"secret": {"value": "abcd1234"}}}}'''
+        output = Output(success=True, text=json_text)
+
+        logged_values = []
+        monkeypatch.setattr(apimtypes, 'print_val', lambda label, value, *a, **k: logged_values.append((label, value)))
+
+        result = output.getJson('secret', label='Secret', secure=True, suppress_logging=False)
+
+        assert result == 'abcd1234'
+        assert ('Secret', '****1234') in logged_values
+
+    def test_getjson_simple_structure_with_logging(self, monkeypatch):
+        """Test Output.getJson() logs value when using simple structure outputs."""
+        json_text = '''{"simple": {"value": {"k": "v"}}}'''
+        output = Output(success=True, text=json_text)
+
+        logged = []
+        monkeypatch.setattr(apimtypes, 'print_val', lambda label, value, *a, **k: logged.append((label, value)))
+
+        result = output.getJson('simple', label='Simple', suppress_logging=False)
+
+        assert result == {'k': 'v'}
+        assert ('Simple', {'k': 'v'}) in logged
+
 
 # ------------------------------
 #    NAMED VALUE TESTS

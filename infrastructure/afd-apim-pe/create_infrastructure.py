@@ -79,5 +79,5 @@ def main():
 
     create_infrastructure(args.location, args.index, apim_sku, args.no_aca)
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     main()

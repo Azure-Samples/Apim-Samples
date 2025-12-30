@@ -159,6 +159,32 @@ def test_load_dotenv_once_skips_when_no_dotenv_module(monkeypatch: pytest.Monkey
     assert logging_config._state['dotenv_loaded'] is True
 
 
+def test_load_dotenv_once_returns_early_when_no_env_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that _load_dotenv_once returns early when no .env file is found."""
+
+    # Create an empty directory with no .env file
+    empty_dir = tmp_path / 'empty'
+    empty_dir.mkdir()
+    monkeypatch.chdir(empty_dir)
+    monkeypatch.delenv('PROJECT_ROOT', raising=False)
+
+    # Mock __file__ to point to a location without .env
+    fake_module = empty_dir / 'shared' / 'python' / 'logging_config.py'
+    fake_module.parent.mkdir(parents=True)
+    monkeypatch.setattr(logging_config, '__file__', str(fake_module))
+
+    # Create a mock for load_dotenv to verify it's NOT called
+    mock_load_dotenv = Mock()
+    monkeypatch.setattr(logging_config, 'load_dotenv', mock_load_dotenv)
+
+    logging_config._state['dotenv_loaded'] = False
+    logging_config._load_dotenv_once()
+
+    # load_dotenv should NOT have been called since no .env file exists
+    mock_load_dotenv.assert_not_called()
+    assert logging_config._state['dotenv_loaded'] is True
+
+
 def test_get_configured_level_name_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv('APIM_SAMPLES_LOG_LEVEL', 'ERROR')
 
@@ -225,4 +251,32 @@ def test_find_env_file_checks_module_path(tmp_path: Path, monkeypatch: pytest.Mo
 
     found = logging_config._find_env_file()
 
+    assert found == tmp_path / '.env'
+
+
+def test_find_env_file_handles_oserror(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test that _find_env_file handles OSError when checking if a path is a file."""
+
+    # Create a valid .env file that will be found after the OSError
+    (tmp_path / '.env').write_text('APIM_SAMPLES_LOG_LEVEL=DEBUG\n', encoding='utf-8')
+    monkeypatch.chdir(tmp_path)
+
+    # Mock Path.is_file to raise OSError on first call, then work normally
+    original_is_file = Path.is_file
+    call_count = [0]
+
+    def mock_is_file(self: Path) -> bool:
+        call_count[0] += 1
+        if call_count[0] == 1:
+            raise OSError('Permission denied')
+        return original_is_file(self)
+
+    monkeypatch.setattr(Path, 'is_file', mock_is_file)
+
+    # Set PROJECT_ROOT to trigger checking a candidate that will raise OSError
+    monkeypatch.setenv('PROJECT_ROOT', str(tmp_path / 'inaccessible'))
+
+    found = logging_config._find_env_file()
+
+    # Should still find the .env in cwd (second candidate)
     assert found == tmp_path / '.env'

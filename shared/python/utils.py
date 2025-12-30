@@ -213,10 +213,10 @@ class InfrastructureNotebookHelper:
 
             return True
 
-        except KeyboardInterrupt as exc:
+        except KeyboardInterrupt as exc:  # pragma: no cover
             print_error('\nInfrastructure deployment cancelled by user.')
             raise SystemExit("User cancelled deployment") from exc
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             print_error(f'Infrastructure deployment failed with error: {e}')
             raise SystemExit(1) from e
 
@@ -310,7 +310,7 @@ class NotebookHelper:
 
         # SJK: Querying the resource group location is inefficient at this time as it's done sequentially.
         # I'm leaving the code here, but may revisit it later.
-        QUERY_RG_LOCATION = False
+        QUERY_RG_LOCATION = os.getenv('APIM_TEST_QUERY_RG_LOCATION', 'False') == 'True'
 
         print_plain('Querying for available infrastructures...\n')
 
@@ -626,7 +626,7 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
     print_plain(f'📝 Updated the policy XML in the bicep parameters file {bicep_parameters_file}')
 
     # Verify that main.bicep exists in the infrastructure directory
-    if not os.path.exists(main_bicep_path):
+    if not os.path.exists(main_bicep_path):  # pragma: no cover
         raise FileNotFoundError(f'main.bicep file not found in expected infrastructure directory: {bicep_dir}')
 
     cmd = f'az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"'

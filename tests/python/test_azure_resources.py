@@ -1816,6 +1816,52 @@ class TestListApimSubscriptions:
         result = az.list_apim_subscriptions('test-apim', 'test-rg')
         assert result == []
 
+    def test_list_subscriptions_with_empty_params(self):
+        """Test list_apim_subscriptions returns empty list for invalid params."""
+
+        result = az.list_apim_subscriptions('', 'rg')
+        assert result == []
+
+        result = az.list_apim_subscriptions('apim', '')
+        assert result == []
+
+    def test_list_subscriptions_account_show_fails(self, monkeypatch):
+        """Test list_apim_subscriptions when account show fails."""
+
+        mock_output = Mock()
+        mock_output.success = False
+        mock_output.text = ''
+
+        monkeypatch.setattr('azure_resources.run', lambda *a, **k: mock_output)
+
+        result = az.list_apim_subscriptions('apim', 'rg')
+
+        assert result == []
+
+    def test_list_subscriptions_value_not_list(self, monkeypatch):
+        """Test list_apim_subscriptions when value is not a list."""
+
+        call_count = [0]
+
+        def mock_run(cmd, *args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:  # First call is account show
+                output = Mock()
+                output.success = True
+                output.text = 'sub-123'
+                return output
+            else:  # Second call is REST API
+                output = Mock()
+                output.success = True
+                output.json_data = {'value': 'not-a-list'}
+                return output
+
+        monkeypatch.setattr('azure_resources.run', mock_run)
+
+        result = az.list_apim_subscriptions('apim', 'rg')
+
+        assert result == []
+
 
 class TestGetAppGwEndpoint:
     """Test get_appgw_endpoint function."""
@@ -1864,6 +1910,24 @@ class TestFindInfrastructureInstances:
 
         result = az.find_infrastructure_instances(INFRASTRUCTURE.SIMPLE_APIM)
         assert not result
+
+    def test_find_with_invalid_index_format(self, monkeypatch):
+        """Test finding resource groups skips invalid index formats."""
+
+        mock_output = Mock()
+        mock_output.success = True
+        mock_output.text = """apim-infra-simple-apim
+apim-infra-simple-apim-abc
+apim-infra-simple-apim-2"""
+
+        monkeypatch.setattr('azure_resources.run', lambda *a, **k: mock_output)
+
+        result = az.find_infrastructure_instances(INFRASTRUCTURE.SIMPLE_APIM)
+
+        # Should only include valid entries (no index and index=2)
+        assert len(result) == 2
+        assert (INFRASTRUCTURE.SIMPLE_APIM, None) in result
+        assert (INFRASTRUCTURE.SIMPLE_APIM, 2) in result
 
 
 class TestGetInfraRgName:
@@ -1971,3 +2035,305 @@ class TestGetEndpoints:
 
         assert result is not None
         assert result.apim_endpoint_url == 'https://apim.azure-api.net'
+
+
+class TestRunFunction:
+    """Test run function edge cases."""
+
+    def test_run_with_non_json_stdout_in_debug(self, monkeypatch):
+        """Test that non-JSON stdout is printed in debug mode."""
+
+        suppress_module_functions(monkeypatch, az, ['print_ok', 'print_error', 'print_plain'])
+
+        monkeypatch.setattr('azure_resources.is_debug_enabled', lambda: True)
+
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_result.stdout = 'Plain text output that is not JSON'
+        mock_result.stderr = ''
+
+        monkeypatch.setattr('azure_resources.subprocess.run', lambda *a, **k: mock_result)
+
+        result = az.run('az test command')
+
+        assert result.success is True
+        assert 'Plain text output' in result.text
+
+    def test_run_with_stderr_and_debug_disabled(self, monkeypatch):
+        """Test that stderr is printed when debug is disabled."""
+
+        suppress_module_functions(monkeypatch, az, ['print_ok', 'print_error', 'print_plain'])
+
+        monkeypatch.setattr('azure_resources.is_debug_enabled', lambda: False)
+
+        mock_result = Mock()
+        mock_result.returncode = 1
+        mock_result.stdout = ''
+        mock_result.stderr = 'Error message in stderr'
+
+        monkeypatch.setattr('azure_resources.subprocess.run', lambda *a, **k: mock_result)
+
+        result = az.run('az test command')
+
+        assert result.success is False
+
+    def test_run_failure_with_no_normalized_error_and_debug_enabled(self, monkeypatch):
+        """Test run failure when error extraction returns empty and debug is enabled."""
+
+        suppress_module_functions(monkeypatch, az, ['print_ok', 'print_error', 'print_plain'])
+
+        monkeypatch.setattr('azure_resources.is_debug_enabled', lambda: True)
+        monkeypatch.setattr('azure_resources._extract_az_cli_error_message', lambda *a: '')
+
+        mock_result = Mock()
+        mock_result.returncode = 1
+        mock_result.stdout = 'Some error output'
+        mock_result.stderr = ''
+
+        monkeypatch.setattr('azure_resources.subprocess.run', lambda *a, **k: mock_result)
+
+        result = az.run('az test command')
+
+        assert result.success is False
+        assert 'Some error output' in result.text
+
+    def test_run_with_stderr_in_debug_mode(self, monkeypatch):
+        """Test that stderr is logged in debug mode."""
+
+        suppress_module_functions(monkeypatch, az, ['print_ok', 'print_error', 'print_plain'])
+
+        monkeypatch.setattr('azure_resources.is_debug_enabled', lambda: True)
+
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_result.stdout = '{"result": "success"}'
+        mock_result.stderr = 'Some warning in stderr'
+
+        monkeypatch.setattr('azure_resources.subprocess.run', lambda *a, **k: mock_result)
+
+        result = az.run('az test command')
+
+        assert result.success is True
+
+    def test_run_success_with_non_json_stdout_not_in_debug(self, monkeypatch):
+        """Test that non-JSON stdout is logged even when debug is disabled."""
+
+        suppress_module_functions(monkeypatch, az, ['print_ok', 'print_error', 'print_plain'])
+
+        monkeypatch.setattr('azure_resources.is_debug_enabled', lambda: False)
+
+        mock_result = Mock()
+        mock_result.returncode = 0
+        mock_result.stdout = 'Plain text success output'
+        mock_result.stderr = ''
+
+        monkeypatch.setattr('azure_resources.subprocess.run', lambda *a, **k: mock_result)
+
+        result = az.run('az test command', 'Success message')
+
+        assert result.success is True
+
+
+class TestCleanupJwtSigningKeysEdgeCases:
+    """Test cleanup_old_jwt_signing_keys edge cases."""
+
+    def test_cleanup_with_empty_key_list(self, monkeypatch):
+        """Test cleanup when API returns empty string."""
+
+        suppress_module_functions(monkeypatch, az, ['print_info', 'print_error'])
+
+        mock_output = Mock()
+        mock_output.success = True
+        mock_output.text = ''
+
+        monkeypatch.setattr('azure_resources.run', lambda *a, **k: mock_output)
+
+        result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'JwtSigningKey-authX-12345')
+
+        assert result is True
+
+
+class TestCreateResourceGroupWithTags:
+    """Test create_resource_group function with tags."""
+
+    def test_create_resource_group_with_tags(self, monkeypatch):
+        """Test creating resource group with additional tags."""
+
+        suppress_module_functions(monkeypatch, az, ['print_val', 'print_ok'])
+
+        calls = []
+
+        def mock_run(cmd, *args, **kwargs):
+            calls.append(cmd)
+            return Output(True, 'Resource group created')
+
+        monkeypatch.setattr('azure_resources.run', mock_run)
+        monkeypatch.setattr('azure_resources.does_resource_group_exist', lambda *a, **k: False)
+
+        az.create_resource_group('test-rg', 'eastus', tags={'environment': 'test', 'owner': 'user'})
+
+        assert len(calls) == 1
+        assert 'environment="test"' in calls[0]
+        assert 'owner="user"' in calls[0]
+
+
+class TestGetApimSubscriptionKeyEdgeCases:
+    """Test get_apim_subscription_key edge cases."""
+
+    def test_get_key_no_active_subscriptions(self, monkeypatch):
+        """Test get_apim_subscription_key when no active subscriptions exist."""
+
+        call_count = [0]
+
+        def mock_run(cmd, *args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:  # account show
+                output = Mock()
+                output.success = True
+                output.text = 'sub-123'
+                return output
+            elif 'subscriptions?' in cmd:  # list subscriptions
+                output = Mock()
+                output.success = True
+                output.json_data = {
+                    'value': [
+                        {'name': 'sid-1', 'properties': {'state': 'suspended'}},
+                        {'name': 'sid-2', 'properties': {'state': 'cancelled'}}
+                    ]
+                }
+                return output
+            else:  # listSecrets
+                output = Mock()
+                output.success = True
+                output.json_data = {'primaryKey': 'key-123'}
+                return output
+
+        monkeypatch.setattr('azure_resources.run', mock_run)
+
+        # Should use first available subscription even if not active
+        result = az.get_apim_subscription_key('apim', 'rg')
+
+        assert result == 'key-123'
+
+    def test_get_key_secrets_call_fails(self, monkeypatch):
+        """Test get_apim_subscription_key when secrets retrieval fails."""
+
+        call_count = [0]
+
+        def mock_run(cmd, *args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:  # account show
+                output = Mock()
+                output.success = True
+                output.text = 'sub-123'
+                return output
+            elif 'subscriptions?' in cmd:  # list subscriptions
+                output = Mock()
+                output.success = True
+                output.json_data = {
+                    'value': [{'name': 'sid-1', 'properties': {'state': 'active'}}]
+                }
+                return output
+            else:  # listSecrets fails
+                output = Mock()
+                output.success = False
+                output.json_data = None
+                return output
+
+        monkeypatch.setattr('azure_resources.run', mock_run)
+
+        result = az.get_apim_subscription_key('apim', 'rg')
+
+        assert result is None
+
+    def test_get_key_empty_key_value(self, monkeypatch):
+        """Test get_apim_subscription_key when key value is empty."""
+
+        call_count = [0]
+
+        def mock_run(cmd, *args, **kwargs):
+            call_count[0] += 1
+            if call_count[0] == 1:  # account show
+                output = Mock()
+                output.success = True
+                output.text = 'sub-123'
+                return output
+            elif 'subscriptions?' in cmd:  # list subscriptions
+                output = Mock()
+                output.success = True
+                output.json_data = {
+                    'value': [{'name': 'sid-1', 'properties': {'state': 'active'}}]
+                }
+                return output
+            else:  # listSecrets returns empty key
+                output = Mock()
+                output.success = True
+                output.json_data = {'primaryKey': '   '}
+                return output
+
+        monkeypatch.setattr('azure_resources.run', mock_run)
+
+        result = az.get_apim_subscription_key('apim', 'rg')
+
+        assert result is None
+
+    def test_get_key_account_show_fails(self, monkeypatch):
+        """Test get_apim_subscription_key when account show fails."""
+
+        mock_output = Mock()
+        mock_output.success = False
+        mock_output.text = ''
+
+        monkeypatch.setattr('azure_resources.run', lambda *a, **k: mock_output)
+
+        result = az.get_apim_subscription_key('apim', 'rg')
+
+        assert result is None
+
+    def test_get_key_list_subscriptions_returns_empty(self, monkeypatch):
+        """Test get_apim_subscription_key when list_apim_subscriptions returns empty list."""
+
+        call_count = [0]
+
+        def mock_run(cmd, *args, **kwargs):
+            call_count[0] += 1
+            if 'account show' in cmd:
+                output = Mock()
+                output.success = True
+                output.text = 'sub-123'
+                return output
+            elif 'subscriptions?' in cmd:
+                output = Mock()
+                output.success = True
+                output.json_data = {'value': []}
+                return output
+            return Mock(success=False, text='')
+
+        monkeypatch.setattr('azure_resources.run', mock_run)
+
+        result = az.get_apim_subscription_key('apim', 'rg')
+
+        assert result is None
+
+
+class TestGetRgNameWithIndex:
+    """Test get_rg_name with index parameter."""
+
+    def test_get_rg_name_formats_with_index(self, monkeypatch):
+        """Test get_rg_name properly formats name with index."""
+
+        suppress_module_functions(monkeypatch, az, ['print_val'])
+
+        result = az.get_rg_name('my-sample', 5)
+
+        assert 'apim-sample-my-sample-5' == result
+
+    def test_get_rg_name_with_none_index(self, monkeypatch):
+        """Test get_rg_name with explicit None index."""
+
+        suppress_module_functions(monkeypatch, az, ['print_val'])
+
+        result = az.get_rg_name('my-sample', None)
+
+        assert 'apim-sample-my-sample' == result
+        assert not result.count('-5')  # Should not have index suffix

@@ -1173,10 +1173,10 @@ def _delete_resource_group_best_effort(
                 f"Initiated deletion of resource group '{rg_name}'",
                 f"Failed to initiate deletion of resource group '{rg_name}'"
             )
-        except Exception as e:
+        except Exception as e:  # pragma: no cover
             with _print_lock:
                 _print_log(f"{thread_prefix}Failed to initiate deletion of resource group '{rg_name}': {e}", '❌ ', BOLD_R, show_time=True)
-                if should_print_traceback():
+                if should_print_traceback():  # pragma: no cover
                     traceback.print_exc()
         return
 
@@ -1189,7 +1189,7 @@ def _delete_resource_group_best_effort(
         )
     except Exception as e:
         print_plain(f"Failed to initiate deletion of resource group '{rg_name}': {e}")
-        if should_print_traceback():
+        if should_print_traceback():  # pragma: no cover
             traceback.print_exc()
 
 def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
@@ -1295,7 +1295,7 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
 
     except Exception as e:
         print_plain(f'An error occurred during cleanup: {e}')
-        if should_print_traceback():
+        if should_print_traceback():  # pragma: no cover
             traceback.print_exc()
 
     finally:
@@ -1333,7 +1333,7 @@ def _cleanup_resources_thread_safe(deployment_name: str, rg_name: str, thread_pr
         error_msg = f'An error occurred during cleanup of {rg_name}: {str(e)}'
         with _print_lock:
             _print_log(f"{thread_prefix}{error_msg}", '❌ ', BOLD_R, show_time=True)
-            if should_print_traceback():
+            if should_print_traceback():  # pragma: no cover
                 traceback.print_exc()
         return False, error_msg
 
@@ -1439,7 +1439,7 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
     except Exception as e:
         with _print_lock:
             _print_log(f"{thread_prefix}An error occurred during cleanup: {e}", '❌ ', BOLD_R)
-            if should_print_traceback():
+            if should_print_traceback():  # pragma: no cover
                 traceback.print_exc()
 
     finally:
