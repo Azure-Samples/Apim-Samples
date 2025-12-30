@@ -17,7 +17,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 cd "${REPO_ROOT}"
 
 export COVERAGE_FILE=".coverage"
-pytest -v --color=yes --durations=3 --durations-min=0.1 --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov --cov-report=xml:coverage.xml --cov-report=json:coverage.json tests/python/
+pytest -v --color=yes --durations=3 --durations-min=0.1 --cov --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov --cov-report=xml:coverage.xml --cov-report=json:coverage.json tests/python/
 
 # Display coverage summary
 echo ""
