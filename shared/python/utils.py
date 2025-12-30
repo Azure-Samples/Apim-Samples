@@ -213,9 +213,9 @@ class InfrastructureNotebookHelper:
 
             return True
 
-        except KeyboardInterrupt as exc:  # pragma: no cover
+        except (KeyboardInterrupt, EOFError) as exc:  # pragma: no cover
             print_error('\nInfrastructure deployment cancelled by user.')
-            raise SystemExit("User cancelled deployment") from exc
+            return False
         except Exception as e:  # pragma: no cover
             print_error(f'Infrastructure deployment failed with error: {e}')
             raise SystemExit(1) from e
@@ -740,13 +740,13 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
     print_plain('ℹ️ Choose an option (input box at the top of the screen):')
     print_plain('     1. Update the existing infrastructure (recommended)')
     print_plain('     2. Use a different index')
-    print_plain('     3. Delete the existing resource group first using the clean-up notebook\n')
+    print_plain('     3. Delete the existing resource group first using the clean-up notebook')
+    print_plain('     (Press ESC to cancel)\n')
 
     while True:
         choice = input('\nEnter your choice (1, 2, or 3): ').strip()
 
-        # Default to option 1 if user just presses Enter
-        if choice == '1' or not choice:
+        if choice == '1':
             return True, None
         elif choice == '2':
             # Option 2: Prompt for a different index
@@ -767,6 +767,9 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
                     print_plain('❌ Please enter a valid integer for the index.')
         elif choice == '3':
             return False, None
+        elif not choice:
+            # Empty input (ESC pressed in Jupyter) - cancel
+            raise EOFError()
         else:
             print_plain('❌ Invalid choice. Please enter 1, 2, or 3.')
 
@@ -783,8 +786,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
         bool: True if the infrastructure exists and no update is desired, False if infrastructure doesn't exist or update is confirmed.
     """
 
-    print_plain(f'� Debug: does_infrastructure_exist called with allow_update_option={allow_update_option}')
-    print_plain('�🔍 Checking if infrastructure already exists...')
+    print_plain('🔍 Checking if infrastructure already exists...')
 
     rg_name = az.get_infra_rg_name(infrastructure, index)
 
@@ -801,16 +803,19 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
             print_info('Choose an option (input box at the top of the screen):')
             print_plain('     1. Update the existing infrastructure (recommended and not destructive if samples already exist)')
             print_plain('     2. Use a different index')
-            print_plain('     3. Exit, then delete the existing resource group separately via the clean-up notebook\n')
+            print_plain('     3. Exit, then delete the existing resource group separately via the clean-up notebook')
+            print_plain('     (Press ESC to cancel)\n')
 
             while True:
                 choice = input('\nEnter your choice (1, 2, or 3): ').strip()
 
-                # Default to option 1 if user just presses Enter
                 if choice == '1':
                     return False  # Allow deployment to proceed
-                elif not choice or choice in('2', '3'):
+                elif choice == '2' or choice == '3':
                     return True  # Block deployment
+                elif not choice:
+                    # Empty input (ESC pressed in Jupyter) - cancel
+                    raise EOFError()
                 else:
                     print_plain('❌ Invalid choice. Please enter 1, 2, or 3.')
         else:
