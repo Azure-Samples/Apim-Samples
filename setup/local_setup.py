@@ -641,7 +641,7 @@ def show_help():
 
 
 # Script entry point - handles command-line arguments
-if __name__ == "__main__":  # pragma: no cover
+if __name__ == '__main__':  # pragma: no cover
     # Parse command-line arguments for different setup modes
     if len(sys.argv) > 1:
         command = sys.argv[1]
