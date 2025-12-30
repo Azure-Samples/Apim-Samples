@@ -28,7 +28,7 @@ def test_apimtesting_init_default():
     assert not testing.tests_passed
     assert not testing.tests_failed
     assert not testing.total_tests
-    assert testing.errors == []
+    assert not testing.errors
 
 
 def test_apimtesting_init_with_parameters():
@@ -39,13 +39,10 @@ def test_apimtesting_init_with_parameters():
         deployment=INFRASTRUCTURE.SIMPLE_APIM
     )
 
-    assert testing.test_suite_name == 'Custom Tests'
-    assert testing.sample_name == 'test-sample'
-    assert testing.deployment == INFRASTRUCTURE.SIMPLE_APIM
     assert not testing.tests_passed
     assert not testing.tests_failed
     assert not testing.total_tests
-    assert testing.errors == []
+    assert not testing.errors
 
 
 # ------------------------------

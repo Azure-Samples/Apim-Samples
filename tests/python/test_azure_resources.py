@@ -820,7 +820,7 @@ def test_find_infrastructure_instances_invalid_format(monkeypatch):
     monkeypatch.setattr('azure_resources.run', fake_run)
 
     result = az.find_infrastructure_instances(INFRASTRUCTURE.AFD_APIM_PE)
-    assert result == []
+    assert not result
 
 
 # ------------------------------
@@ -1821,7 +1821,7 @@ class TestGetAppGwEndpoint:
     """Test get_appgw_endpoint function."""
 
     def test_get_appgw_endpoint_not_found(self, monkeypatch):
-        suppress_module_functions(monkeypatch, az, ['print_val'])
+        suppress_module_functions(monkeypatch, az, ['print_ok', 'print_warning'])
 
         with patch('azure_resources.run') as mock_run:
             mock_run.return_value = Output(False, 'No gateways found')
@@ -1835,7 +1835,15 @@ class TestGetAppGwEndpoint:
 class TestGetUniqueInfraSuffix:
     """Test get_unique_suffix_for_resource_group function."""
 
-    def test_get_unique_suffix_empty_rg(self):
+    def test_get_unique_suffix_empty_rg(self, monkeypatch):
+        # Mock the run function to avoid actual Azure CLI deployment
+        def mock_run(cmd, *args, **kwargs):
+            output = Mock()
+            output.success = True
+            output.text = 'abcd1234efgh5'
+            return output
+
+        monkeypatch.setattr('azure_resources.run', mock_run)
         result = az.get_unique_suffix_for_resource_group('')
         assert isinstance(result, str)
 
@@ -1855,7 +1863,7 @@ class TestFindInfrastructureInstances:
         monkeypatch.setattr('azure_resources.run', mock_run)
 
         result = az.find_infrastructure_instances(INFRASTRUCTURE.SIMPLE_APIM)
-        assert result == []
+        assert not result
 
 
 class TestGetInfraRgName:
