@@ -764,6 +764,49 @@ class TestConstants:
 #    PROJECT ROOT TESTS
 # ------------------------------
 
+# ------------------------------
+#    PRIVATE FUNCTION TESTS
+# ------------------------------
+
+class TestReadPolicyXml:
+    """Test suite for _read_policy_xml private function."""
+
+    def test_read_policy_xml_returns_string(self):
+        """Test that _read_policy_xml returns a string when given a valid file."""
+        # Use an actual policy file from the repository
+        result = apimtypes._read_policy_xml(DEFAULT_XML_POLICY_PATH)
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_read_policy_xml_returns_xml_structure(self):
+        """Test that returned content has basic XML structure."""
+        result = apimtypes._read_policy_xml(DEFAULT_XML_POLICY_PATH)
+        assert '<' in result
+        assert '>' in result
+
+    def test_read_policy_xml_with_backend_file(self):
+        """Test reading backend policy XML file from repository."""
+        result = apimtypes._read_policy_xml(BACKEND_XML_POLICY_PATH)
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_read_policy_xml_with_hello_world_file(self):
+        """Test reading hello-world policy XML file from repository."""
+        result = apimtypes._read_policy_xml(HELLO_WORLD_XML_POLICY_PATH)
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+    def test_read_policy_xml_with_request_headers_file(self):
+        """Test reading request-headers policy XML file from repository."""
+        result = apimtypes._read_policy_xml(REQUEST_HEADERS_XML_POLICY_PATH)
+        assert isinstance(result, str)
+        assert len(result) > 0
+
+
+# ------------------------------
+#    PROJECT ROOT TESTS
+# ------------------------------
+
 class TestProjectRoot:
     """Test suite for get_project_root function."""
 
