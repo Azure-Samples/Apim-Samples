@@ -152,7 +152,6 @@ class InfrastructureNotebookHelper:
                             print_error('Infrastructure deployment cancelled by user.')
                             raise SystemExit("User cancelled deployment")
                     except (KeyboardInterrupt, EOFError) as exc:
-                        print_error('Infrastructure deployment cancelled by user (Escape/Ctrl+C pressed).')
                         raise SystemExit("User cancelled deployment") from exc
 
             # Check infrastructure existence for the normal flow
