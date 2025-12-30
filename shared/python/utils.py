@@ -212,7 +212,7 @@ class InfrastructureNotebookHelper:
 
             return True
 
-        except (KeyboardInterrupt, EOFError) as exc:  # pragma: no cover
+        except (KeyboardInterrupt, EOFError):  # pragma: no cover
             print_error('\nInfrastructure deployment cancelled by user.')
             return False
         except Exception as e:  # pragma: no cover
@@ -810,7 +810,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
 
                 if choice == '1':
                     return False  # Allow deployment to proceed
-                elif choice == '2' or choice == '3':
+                elif choice in ('2', '3'):
                     return True  # Block deployment
                 elif not choice:
                     # Empty input (ESC pressed in Jupyter) - cancel

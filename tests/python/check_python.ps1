@@ -153,7 +153,7 @@ Write-Host "╚═════════════════════�
 Write-Host ""
 
 # Determine statuses
-$LintStatus = if ($LintExitCode -eq 0) { "✅ PASSED" } else { "⚠️  ISSUES FOUND" }
+$LintStatus = if ($LintExitCode -eq 0) { "✅ PASSED" } else { "⚠️  ISSUES FOUND" } # leave two spaces after yellow triangle to display correctly
 $TestStatus = if ($FailedTests -eq 0) { "✅ PASSED" } else { "❌ FAILED" }
 
 # Get pylint score
@@ -168,11 +168,7 @@ if (Test-Path $LatestPylintText) {
 
 # Set colors
 $LintColor = if ($LintExitCode -eq 0) { "Green" } else { "Yellow" }
-$TestColor = if ($TestExitCode -eq 0) { "Green" } else { "Red" }
-
-# Calculate column widths for alignment
-$LabelWidth = "Pylint   :".Length  # 7
-$Padding = " " * ($LabelWidth - 1)
+$TestColor = if ($FailedTests -eq 0) { "Green" } else { "Red" }
 
 # Display Pylint status with score
 Write-Host "Pylint   : " -NoNewline

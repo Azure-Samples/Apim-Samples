@@ -993,8 +993,8 @@ def test_prompt_for_infrastructure_update_option_1(monkeypatch):
     assert result == (True, None)
 
 def test_prompt_for_infrastructure_update_option_1_default(monkeypatch):
-    """Test _prompt_for_infrastructure_update when user presses Enter (defaults to option 1)."""
-    monkeypatch.setattr('builtins.input', lambda prompt: '')
+    """Test _prompt_for_infrastructure_update when user selects option 1 explicitly."""
+    monkeypatch.setattr('builtins.input', lambda prompt: '1')
 
     result = utils._prompt_for_infrastructure_update('test-rg')
     assert result == (True, None)
