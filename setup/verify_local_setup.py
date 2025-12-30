@@ -199,7 +199,9 @@ def check_azure_cli():
     try:
         result = subprocess.run([az_path, '--version'], capture_output=True, text=True, check=True)
         version_line = (result.stdout.splitlines() or ["unknown version"])[0].strip()
-        print_status(f"Azure CLI is installed ({version_line})")
+        # Extract just the version number from "azure-cli                         2.81.0"
+        version = version_line.split()[-1] if version_line else "unknown"
+        print_status(f"Azure CLI is installed ({version})")
         return True
     except subprocess.CalledProcessError:
         print_status("Azure CLI is not installed or not in PATH", False)
@@ -216,7 +218,16 @@ def check_bicep_cli():
     try:
         result = subprocess.run([az_path, 'bicep', 'version'], capture_output=True, text=True, check=True)
         version_line = (result.stdout.splitlines() or ["unknown version"])[0].strip()
-        print_status(f"Azure Bicep CLI is installed (az bicep version: {version_line})")
+        # Extract version number from "Bicep CLI version 0.39.26 (1e90b06e40)"
+        version = "unknown"
+        if "version" in version_line.lower():
+            parts = version_line.split()
+            # Find index of "version" and get the next part
+            for i, part in enumerate(parts):
+                if part.lower() == "version" and i + 1 < len(parts):
+                    version = parts[i + 1]
+                    break
+        print_status(f"Azure Bicep CLI is installed ({version})")
         return True
     except subprocess.CalledProcessError:
         print_status("Azure Bicep CLI is not installed. Install with: az bicep install", False)
@@ -262,10 +273,10 @@ def check_azure_providers():
             print(f"      - {provider}")
 
         if not missing_providers:
-            print_status("All required Azure providers are registered")
+            print_status("\nAll required Azure providers are registered")
             return True
 
-        print_status(f"Missing {len(missing_providers)} provider(s): {', '.join(missing_providers)}", False)
+        print_status(f"\nMissing {len(missing_providers)} provider(s): {', '.join(missing_providers)}", False)
         print("   Register missing providers with:")
         for provider in missing_providers:
             print(f"   az provider register -n {provider}")
