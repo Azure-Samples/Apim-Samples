@@ -805,19 +805,19 @@ def test_infrastructure_with_all_custom_components(mock_utils, mock_policy_fragm
 def test_infrastructure_missing_required_params():
     """Test Infrastructure creation with missing required parameters."""
     with pytest.raises(TypeError):
-        infrastructures.Infrastructure()
+        infrastructures.Infrastructure()  # pylint: disable=no-value-for-parameter
 
     with pytest.raises(TypeError):
-        infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM)
+        infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM)  # pylint: disable=no-value-for-parameter
 
 @pytest.mark.unit
 def test_concrete_infrastructure_missing_params():
     """Test concrete infrastructure classes with missing parameters."""
     with pytest.raises(TypeError):
-        infrastructures.SimpleApimInfrastructure()
+        infrastructures.SimpleApimInfrastructure()  # pylint: disable=no-value-for-parameter
 
     with pytest.raises(TypeError):
-        infrastructures.SimpleApimInfrastructure(rg_location=TEST_LOCATION)
+        infrastructures.SimpleApimInfrastructure(rg_location=TEST_LOCATION)  # pylint: disable=no-value-for-parameter
 
 
 # ------------------------------
@@ -1091,7 +1091,7 @@ def test_cleanup_resources_command_failures(monkeypatch):
             return Output(success=False, text='Deployment not found')
 
         # All other commands succeed
-        return Output(success=True, json_data=[])
+        return Output(success=True, text='[]')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
     suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_message'])
@@ -1257,7 +1257,7 @@ def test_cleanup_resources_with_thread_safe_printing_always_attempts_rg_delete(m
             return Output(success=False, text='Deployment not found')
         # Default empty lists for resource queries.
         if any(x in command for x in ['cognitiveservices account list', 'az apim list', 'az keyvault list']):
-            return Output(success=True, json_data=[])
+            return Output(success=True, text='[]')
         return Output(success=True, text='{}')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
@@ -1460,13 +1460,11 @@ def test_cleanup_functions_comprehensive(monkeypatch):
 
         # Return appropriate mock responses
         if 'deployment group show' in command:
-            return Output(success=True, json_data={
-                'properties': {'provisioningState': 'Succeeded'}
-            })
+            return Output(success=True, text='{"properties": {"provisioningState": "Succeeded"}}')
 
         # Return empty lists for resource queries to avoid complex mocking
         if any(x in command for x in ['list -g', 'list']):
-            return Output(success=True, json_data=[])
+            return Output(success=True, text='[]')
 
         return Output(success=True, text='{}')
 
@@ -3873,7 +3871,7 @@ def test_cleanup_resources_with_thread_safe_printing_cognitiveservices_list_fail
         if 'cognitiveservices account list' in command:
             return Output(success=False, text='List failed')
         if 'apim list' in command or 'keyvault list' in command:
-            return Output(success=True, json_data=[])
+            return Output(success=True, text='[]')
         return Output(success=True, text='{}')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
@@ -3977,7 +3975,7 @@ def test_cleanup_resources_with_thread_safe_printing_logs_resource_group_name(mo
         if 'deployment group show' in command:
             return Output(success=True, text='{}')
         if any(x in command for x in ['cognitiveservices', 'apim', 'keyvault']):
-            return Output(success=True, json_data=[])
+            return Output(success=True, text='[]')
         return Output(success=True, text='{}')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
@@ -4391,8 +4389,10 @@ def test_appgw_apim_pe_deploy_approve_private_link_failure(mock_utils, mock_az):
 
 
 @pytest.mark.unit
-def test_appgw_apim_pe_deploy_disable_public_access_failure(mock_utils, mock_az):
+def test_appgw_apim_pe_deploy_disable_public_access_failure(mock_utils, mock_az, monkeypatch):
     """Test AppGwApimPeInfrastructure deploy when disabling public access fails."""
+    suppress_module_functions(monkeypatch, infrastructures, ['print_plain', 'print_ok', 'print_error', 'print_info', 'print_command'])
+    mock_utils.Output.side_effect = Output
     infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
 
     # Create mock output with all required properties for AppGW
@@ -4404,17 +4404,16 @@ def test_appgw_apim_pe_deploy_disable_public_access_failure(mock_utils, mock_az)
         'appgwPublicIpAddress': {'value': '1.2.3.4'}
     }
 
-    # Create the failure output that will be returned by utils.Output()
-    failure_output = Output(False, 'Failed to disable public access')
-    mock_utils.Output.return_value = failure_output
+    # Mock all the infrastructure methods directly on the instance
+    infra._create_keyvault = Mock(return_value=True)
+    infra._create_keyvault_certificate = Mock(return_value=True)
+    infra._approve_private_link_connections = Mock(return_value=True)
+    infra._verify_apim_connectivity = Mock(return_value=True)
+    infra._disable_apim_public_access = Mock(return_value=False)
 
-    with patch.object(infra, '_create_keyvault', return_value=True):
-        with patch.object(infra, '_create_keyvault_certificate', return_value=True):
-            with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=mock_output):
-                with patch.object(infra, '_approve_private_link_connections', return_value=True):
-                    with patch.object(infra, '_disable_apim_public_access', return_value=False):
-                        result = infra.deploy_infrastructure()
-                        assert result.success is False and 'public access' in result.text.lower()
+    with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=mock_output):
+        result = infra.deploy_infrastructure()
+        assert result.success is False and 'public access' in result.text.lower()
 
 
 @pytest.mark.unit
@@ -4604,17 +4603,11 @@ def test_cleanup_resources_with_thread_safe_printing_large_resource_count(monkey
         if 'deployment group show' in command:
             return Output(success=True, text='{}')
         if 'cognitiveservices account list' in command:
-            return Output(success=True, json_data=[
-                {'name': f'cog-{i}', 'location': 'eastus'} for i in range(5)
-            ])
+            return Output(success=True, text=json.dumps([{'name': f'cog-{i}', 'location': 'eastus'} for i in range(5)]))
         if 'apim list' in command:
-            return Output(success=True, json_data=[
-                {'name': f'apim-{i}', 'location': 'westus'} for i in range(3)
-            ])
+            return Output(success=True, text=json.dumps([{'name': f'apim-{i}', 'location': 'westus'} for i in range(3)]))
         if 'keyvault list' in command:
-            return Output(success=True, json_data=[
-                {'name': f'kv-{i}', 'location': 'northeurope'} for i in range(7)
-            ])
+            return Output(success=True, text=json.dumps([{'name': f'kv-{i}', 'location': 'northeurope'} for i in range(7)]))
         return Output(success=True, text='{}')
 
     def mock_cleanup_parallel(resources, thread_prefix, thread_color):

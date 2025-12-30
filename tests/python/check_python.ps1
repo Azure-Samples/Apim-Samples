@@ -100,6 +100,46 @@ foreach ($Line in $TestOutput) {
 
 $TotalTests = $PassedTests + $FailedTests
 
+# Parse coverage from coverage.json
+$CoveragePercent = $null
+$CoverageJsonPath = Join-Path $ScriptDir "..\..\coverage.json"
+if (Test-Path $CoverageJsonPath) {
+    try {
+        $CoverageData = Get-Content $CoverageJsonPath -Raw | ConvertFrom-Json
+        if ($CoverageData.totals -and $CoverageData.totals.percent_covered) {
+            $CoveragePercent = $CoverageData.totals.percent_covered
+        }
+    }
+    catch {
+        # Silently continue if coverage parsing fails
+    }
+}
+
+# Fallback: Parse coverage from pytest output (e.g., "TOTAL ... 95%")
+if ($CoveragePercent -eq $null) {
+    foreach ($Line in $TestOutput) {
+        $LineStr = $Line.ToString()
+        if ($LineStr -match 'TOTAL\s+.*\s+(\d+)%') {
+            $CoveragePercent = [int]::Parse($matches[1])
+            break
+        }
+    }
+}
+
+# Detect slow tests (>0.1s execution time)
+$SlowTestsFound = $false
+foreach ($Line in $TestOutput) {
+    $LineStr = $Line.ToString()
+    # Match lines like "1.23s call test_file.py::test_name"
+    if ($LineStr -match '(\d+\.\d+)s\s+call\s+') {
+        $time = [double]::Parse($matches[1])
+        if ($time -gt 0.1) {
+            $SlowTestsFound = $true
+            break
+        }
+    }
+}
+
 Write-Host ""
 
 
@@ -131,11 +171,11 @@ $LintColor = if ($LintExitCode -eq 0) { "Green" } else { "Yellow" }
 $TestColor = if ($TestExitCode -eq 0) { "Green" } else { "Red" }
 
 # Calculate column widths for alignment
-$LabelWidth = "Pylint :".Length  # 7
+$LabelWidth = "Pylint   :".Length  # 7
 $Padding = " " * ($LabelWidth - 1)
 
 # Display Pylint status with score
-Write-Host "Pylint : " -NoNewline
+Write-Host "Pylint   : " -NoNewline
 Write-Host $LintStatus -ForegroundColor $LintColor -NoNewline
 if ($PylintScore) {
     Write-Host " ($PylintScore)" -ForegroundColor Gray
@@ -144,19 +184,43 @@ if ($PylintScore) {
 }
 
 # Display Test status with counts
-Write-Host "Tests  : " -NoNewline
+Write-Host "Tests    : " -NoNewline
 Write-Host $TestStatus -ForegroundColor $TestColor
 
-# Display test counts with right-aligned numbers
+# Display test counts with right-aligned numbers and percentages
 if ($TotalTests -gt 0) {
     # Calculate padding for right-alignment (max 5 digits)
     $TotalPadded = "{0,5}" -f $TotalTests
     $PassedPadded = "{0,5}" -f $PassedTests
     $FailedPadded = "{0,5}" -f $FailedTests
 
-    Write-Host "          • Total  : $TotalPadded" -ForegroundColor Gray
-    Write-Host "          • Passed : $PassedPadded" -ForegroundColor Gray
-    Write-Host "          • Failed : $FailedPadded" -ForegroundColor Gray
+    # Calculate percentages
+    $PassedPercent = ($PassedTests / $TotalTests * 100)
+    $FailedPercent = ($FailedTests / $TotalTests * 100)
+    $PassedPercentStr = "{0,6:F2}" -f $PassedPercent
+    $FailedPercentStr = "{0,6:F2}" -f $FailedPercent
+
+    Write-Host "            • Total  : $TotalPadded" -ForegroundColor Gray
+    Write-Host "            • Passed : $PassedPadded (" -ForegroundColor Gray -NoNewline
+    Write-Host $PassedPercentStr -ForegroundColor Gray -NoNewline
+    Write-Host "%)" -ForegroundColor Gray
+    Write-Host "            • Failed : $FailedPadded (" -ForegroundColor Gray -NoNewline
+    Write-Host $FailedPercentStr -ForegroundColor Gray -NoNewline
+    Write-Host "%)" -ForegroundColor Gray
+}
+
+# Display code coverage
+if ($CoveragePercent -ne $null) {
+    Write-Host "Coverage : " -NoNewline
+    Write-Host "📊 " -NoNewline
+    Write-Host ("{0:F2}" -f $CoveragePercent) -ForegroundColor Cyan -NoNewline
+    Write-Host "%" -ForegroundColor Cyan
+}
+
+# Display slow tests warning if detected
+if ($SlowTestsFound) {
+    Write-Host ""
+    Write-Host "⚠️  SLOW TESTS DETECTED (> 0.1s). Please review slowest durations in test summary." -ForegroundColor Yellow
 }
 
 Write-Host ""

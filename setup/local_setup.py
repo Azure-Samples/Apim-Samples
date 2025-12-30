@@ -74,29 +74,29 @@ def check_azure_cli_installed():
     """Check if Azure CLI is installed."""
     az_path = shutil.which('az') or shutil.which('az.cmd') or shutil.which('az.bat')
     if not az_path:
-        print("   ❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli")
+        print("❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli")
         return False
     try:
         subprocess.run([az_path, '--version'], capture_output=True, text=True, check=True)
-        print("   ✅ Azure CLI is installed")
+        print("✅ Azure CLI is installed")
         return True
     except subprocess.CalledProcessError:
-        print("   ❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli")
+        print("❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli")
         return False
 
 def check_bicep_cli_installed():
     """Check if Azure Bicep CLI is installed."""
     az_path = shutil.which('az') or shutil.which('az.cmd') or shutil.which('az.bat')
     if not az_path:
-        print("   ❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli")
+        print("❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli")
         return False
 
     try:
         subprocess.run([az_path, 'bicep', 'version'], capture_output=True, text=True, check=True)
-        print("   ✅ Azure Bicep CLI is installed (via az bicep)")
+        print("✅ Azure Bicep CLI is installed (via az bicep)")
         return True
     except subprocess.CalledProcessError:
-        print("   ❌ Azure Bicep CLI is not installed. Install with: az bicep install")
+        print("❌ Azure Bicep CLI is not installed. Install with: az bicep install")
         return False
 
 def check_azure_providers_registered():
@@ -133,10 +133,10 @@ def check_azure_providers_registered():
         missing_providers = [p for p in required_providers if p not in registered_providers]
 
         if not missing_providers:
-            print("   ✅ All required Azure resource providers are registered")
+            print("✅ All required Azure resource providers are registered")
             return True
 
-        print(f"   ❌ Missing {len(missing_providers)} Azure provider(s):")
+        print(f"❌ Missing {len(missing_providers)} Azure provider(s):")
         for provider in missing_providers:
             print(f"      • {provider}")
         print("   Register with: az provider register -n <provider-namespace>")
@@ -306,7 +306,7 @@ def generate_env_file() -> None:
     with open(env_file_path, 'w', encoding='utf-8') as f:
         f.write(env_content)
 
-    print(f"\nSuccessfully generated .env file: {env_file_path}\n")
+    print(f"\n✅ Successfully generated .env file: {env_file_path}\n")
 
 
 def install_jupyter_kernel():
@@ -380,8 +380,6 @@ def create_vscode_settings():
         "python.terminal.activateEnvironment": True,
         "python.terminal.activateEnvInCurrentTerminal": True,
         "python.testing.pytestEnabled": True,
-        "python.linting.enabled": True,
-        "python.linting.pylintEnabled": True,
         "jupyter.kernels.trusted": [venv_python],
     }
 
@@ -408,7 +406,8 @@ def create_vscode_settings():
         )
 
         with open(settings_file, 'w', encoding='utf-8') as f:
-            json.dump(merged_settings, f, indent=4)
+            json.dump(merged_settings, f, indent=2, sort_keys=True)
+            f.write('\n')
 
         print(f"✅ VS Code settings updated: {settings_file}")
         print("   - Existing settings preserved")
@@ -419,7 +418,8 @@ def create_vscode_settings():
             required_settings["python.analysis.exclude"] = DEFAULT_PYTHON_ANALYSIS_EXCLUDE
 
             with open(settings_file, 'w', encoding='utf-8') as f:
-                json.dump(required_settings, f, indent=4)
+                json.dump(required_settings, f, indent=2, sort_keys=True)
+                f.write('\n')
 
             print(f"✅ VS Code settings created: {settings_file}")
             print("   - Python interpreter configured for .venv")
@@ -502,7 +502,8 @@ def force_kernel_consistency():
         )
 
         with open(settings_file, 'w', encoding='utf-8') as f:
-            json.dump(merged_settings, f, indent=4)
+            json.dump(merged_settings, f, indent=2)
+            f.write('\n')
 
         print("✅ Kernel trust refreshed without overriding user settings")
         return True
@@ -522,8 +523,8 @@ def setup_complete_environment():
 
     print("🚀 Setting up complete APIM Samples environment...\n")
 
-    # Step 0: Check Azure prerequisites
-    print("0. Checking Azure prerequisites...")
+    # Step 1: Check Azure prerequisites
+    print("1/5) Checking Azure prerequisites...\n")
     azure_cli_ok = check_azure_cli_installed()
     bicep_ok = check_bicep_cli_installed()
     providers_ok = check_azure_providers_registered()
@@ -532,20 +533,20 @@ def setup_complete_environment():
         print("\n⚠️  Some Azure prerequisites are missing. Please address the issues above and re-run this script.")
         return
 
-    # Step 1: Generate .env file
-    print("\n1. Generating .env file for Python path configuration...")
+    # Step 2: Generate .env file
+    print("\n2/5) Generating .env file for Python path configuration...")
     generate_env_file()
 
-    # Step 2: Register Jupyter kernel
-    print("2. Registering standardized Jupyter kernel...")
+    # Step 3: Register Jupyter kernel
+    print("3/5) Registering standardized Jupyter kernel...\n")
     kernel_success = install_jupyter_kernel()
 
-    # Step 3: Configure VS Code settings with minimal, merged defaults
-    print("\n3. Configuring VS Code workspace settings...")
+    # Step 4: Configure VS Code settings with minimal, merged defaults
+    print("\n4/5) Configuring VS Code workspace settings...\n")
     vscode_success = create_vscode_settings()
 
-    # Step 4: Enforce kernel consistency
-    print("\n4. Enforcing kernel consistency for future reliability...")
+    # Step 5: Enforce kernel consistency
+    print("\n5/5) Enforcing kernel consistency for future reliability...\n")
     consistency_success = force_kernel_consistency()
 
     # Summary

@@ -23,8 +23,23 @@ Historically, there were two general paths to experimenting with APIM. Standing 
 
 It's quick and easy to get started!
 
-1. Follow one of the two [setup options](#️-setup).
-1. Select an [infrastructure](#-list-of-infrastructures) to deploy. 
+### ⚡ Quick Start (Recommended Path for First-Time Users)
+
+1. **Choose your setup** (pick one):
+   - **Easiest**: Use [GitHub Codespaces or Dev Container](#️-setup) - everything is pre-configured
+   - **Prefer local development**: Follow [Full Local Setup](#️-setup)
+
+2. **Deploy an infrastructure** - Choose one based on your needs:
+   - **Just starting out?** → [Simple API Management][infra-simple-apim] (fastest, lowest cost)
+   - **Want to explore containers?** → [API Management & Container Apps][infra-apim-aca]
+   - **Exploring secure Azure Front Door?** → [Front Door & API Management with Private Link][infra-afd-apim-pe]
+   - **Prefer Application Gateway?** → [Application Gateway (Private Link) & API Management][infra-appgw-apim-pe] or [Application Gateway (VNet) & API Management][infra-appgw-apim]
+
+3. **Run a sample** - Open the desired sample's `create.ipynb` file and run it (nearly all samples work with all infrastructures)
+
+4. **Experiment** - Modify policies, make API calls, and learn!
+
+> 💡 **First time?** Start with the [Simple API Management][infra-simple-apim] infrastructure and the [General][sample-general] sample. It takes ~5 minutes to deploy and costs ~$1-2/hour to run.
 
 
 ## 📁 List of Infrastructures
@@ -81,12 +96,12 @@ This menu-driven interface provides quick access to:
 
 APIM Samples supports two setup options:
 
-### Option 1: GitHub Codespaces / Dev Container (Recommended)
+### Option 1: GitHub Codespaces / Dev Container (Recommended for First-Time Users)
 <details>
 
-**The fastest way to get started is using our pre-configured development environment.**
+**The fastest way to get started is using our pre-configured development environment.** Everything is pre-installed and configured—just sign in to Azure and you're ready to go.
 
-Each supported Python version has its own dev container, providing you with a more tailored environment that hopefully more closely resembles your own workloads.
+This is especially helpful if you're new to APIM, unfamiliar with Python environments, or want to avoid local setup complexity. The entire setup takes 2-3 minutes.
 
 **GitHub Codespaces**: Click the green "Code" button → "Codespaces" → "..." → "New with options..." → "Dev container configuration" (select Python version but ignore *Default project configuration*) → "Create codespace"
 
