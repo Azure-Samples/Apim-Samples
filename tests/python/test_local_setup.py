@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib
 import json
 import os
+import shutil
 import sys
 import subprocess
 from pathlib import Path
@@ -157,8 +158,8 @@ def test_get_project_root_finds_indicators(tmp_path: Path):
     setup_script.write_text("x")
 
     with patch("pathlib.Path.__init__", lambda self, *args, **kwargs: None):
-        with patch("pathlib.Path.resolve") as mock_resolve:
-            with patch("pathlib.Path.exists") as mock_exists:
+        with patch("pathlib.Path.resolve"):
+            with patch("pathlib.Path.exists"):
                 with patch("pathlib.Path.parent", tmp_path.parent):
                     # Verify indicators would be found
                     assert all((tmp_path / indicator).exists() for indicator in ["README.md", "requirements.txt", "bicepconfig.json"])
@@ -561,7 +562,7 @@ def test_install_jupyter_kernel_registration_fails(monkeypatch: pytest.MonkeyPat
         # Registration fails
         raise subprocess.CalledProcessError(1, "kernel install")
 
-    with patch("subprocess.run", side_effect=mock_run) as mock:
+    with patch("subprocess.run", side_effect=mock_run):
         result = sps.install_jupyter_kernel()
         assert result is False
 
@@ -770,7 +771,7 @@ def test_install_jupyter_kernel_registers_correct_name(monkeypatch: pytest.Monke
     captured_calls = []
 
     def mock_run(*args, **kwargs):
-        if args[0].__len__() > 0:
+        if len(args[0]) > 0:
             captured_calls.append(args[0])
         return Mock(returncode=0)
 
@@ -936,8 +937,8 @@ def test_get_project_root_walks_up_directory_tree(tmp_path: Path):
     nested = root / "a" / "b" / "c"
     nested.mkdir(parents=True)
 
-    with patch("pathlib.Path.resolve") as mock_resolve:
-        with patch("pathlib.Path.exists") as mock_exists:
+    with patch("pathlib.Path.resolve"):
+        with patch("pathlib.Path.exists"):
             with patch("pathlib.Path.parent", new_callable=lambda: property(lambda self: root.parent)):
                 # This is tricky to test due to pathlib mocking complexity
                 # Just verify the function doesn't crash
@@ -1191,8 +1192,7 @@ def test_generate_env_file_multiline_values():
 
         assert data["PATH_VAR"] == "/some/path/with=equals"
     finally:
-        import shutil as sh
-        sh.rmtree(temp_project_root, ignore_errors=True)
+        shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 # ============================================================
@@ -1351,8 +1351,6 @@ def test_setup_complete_environment_with_missing_providers(temp_project_root: Pa
 
 def test_check_azure_providers_all_providers_in_list():
     """Test that all required providers are checked."""
-    required_count = 12  # From the code
-
     with patch("shutil.which") as mock_which:
         with patch("subprocess.run") as mock_run:
             mock_which.return_value = "/usr/bin/az"
@@ -1433,7 +1431,7 @@ def test_install_jupyter_kernel_ipykernel_check_fails():
 
 def test_create_vscode_settings_with_parse_error_message():
     """Test that create_vscode_settings informs user of parse error."""
-    with patch("builtins.print") as mock_print:
+    with patch("builtins.print"):
         pass  # Test passes if no exception on settings with unparseable JSON
 
 
@@ -1506,8 +1504,7 @@ def test_generate_env_file_preserves_custom_vars_order():
         finally:
             sps.get_project_root = original_get_project_root
     finally:
-        import shutil as sh
-        sh.rmtree(temp_project_root, ignore_errors=True)
+        shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 def test_force_kernel_consistency_when_no_settings_file():
@@ -1531,8 +1528,7 @@ def test_force_kernel_consistency_when_no_settings_file():
             finally:
                 sps.get_project_root = original_get_project_root
     finally:
-        import shutil as sh
-        sh.rmtree(temp_project_root, ignore_errors=True)
+        shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 def test_check_azure_providers_prints_missing_count():
@@ -1612,8 +1608,7 @@ def test_create_vscode_settings_preserves_jupyter_kernels():
         finally:
             sps.get_project_root = original_get_project_root
     finally:
-        import shutil as sh
-        sh.rmtree(temp_project_root, ignore_errors=True)
+        shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 def test_generate_env_file_conditional_paths():
@@ -1637,8 +1632,7 @@ def test_generate_env_file_conditional_paths():
         finally:
             sps.get_project_root = original_get_project_root
     finally:
-        import shutil as sh
-        sh.rmtree(temp_project_root, ignore_errors=True)
+        shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 def test_install_jupyter_kernel_stderr_message(monkeypatch: pytest.MonkeyPatch):
@@ -1721,8 +1715,7 @@ def test_force_kernel_consistency_creates_vscode_directory():
             finally:
                 sps.get_project_root = original_get_project_root
     finally:
-        import shutil as sh
-        sh.rmtree(temp_project_root, ignore_errors=True)
+        shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 def test_check_azure_providers_with_exception_types():
@@ -1766,8 +1759,7 @@ def test_setup_python_path_no_shared_directory():
             # (shared directory doesn't exist)
         finally:
             sys.path[:] = original_sys_path
-            import shutil as sh
-            sh.rmtree(temp_dir, ignore_errors=True)
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 def test_create_vscode_settings_ioerror_scenario(temp_project_root: Path):
@@ -1893,8 +1885,7 @@ def test_vscode_settings_all_boolean_settings():
         finally:
             sps.get_project_root = original_get_project_root
     finally:
-        import shutil as sh
-        sh.rmtree(temp_project_root, ignore_errors=True)
+        shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 def test_check_azure_cli_success_path():
@@ -1939,8 +1930,7 @@ def test_generate_env_file_multiline_logic():
         finally:
             sps.get_project_root = original_get_project_root
     finally:
-        import shutil as sh
-        sh.rmtree(temp_project_root, ignore_errors=True)
+        shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 def test_force_kernel_consistency_exception_handler(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
@@ -2050,8 +2040,7 @@ def test_generate_env_file_conditional_lines():
         finally:
             sps.get_project_root = original_get_project_root
     finally:
-        import shutil as sh
-        sh.rmtree(temp_project_root, ignore_errors=True)
+        shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 def test_check_azure_providers_no_missing_vs_missing():
@@ -2139,8 +2128,7 @@ def test_force_kernel_consistency_jsondecodeerror_path():
             sps.get_project_root = original_get_project_root
             sps.validate_kernel_setup = original_validate
     finally:
-        import shutil as sh
-        sh.rmtree(temp_project_root, ignore_errors=True)
+        shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 def test_install_jupyter_kernel_pip_install_success():
@@ -2152,7 +2140,8 @@ def test_install_jupyter_kernel_pip_install_success():
         if call_count[0] == 1:
             # Check ipykernel version - fails
             raise subprocess.CalledProcessError(1, "ipykernel")
-        elif call_count[0] == 2:
+
+        if call_count[0] == 2:
             # Pip install succeeds
             return Mock(returncode=0, stdout="Successfully installed ipykernel")
         else:
@@ -2197,8 +2186,7 @@ def test_create_vscode_settings_merge_with_excludes():
         finally:
             sps.get_project_root = original_get_project_root
     finally:
-        import shutil as sh
-        sh.rmtree(temp_project_root, ignore_errors=True)
+        shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 def test_generate_env_file_all_conditional_branches():
@@ -2229,8 +2217,7 @@ def test_generate_env_file_all_conditional_branches():
         finally:
             sps.get_project_root = original_get_project_root
     finally:
-        import shutil as sh
-        sh.rmtree(temp_project_root, ignore_errors=True)
+        shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 def test_generate_env_file_with_malformed_lines(temp_project_root: Path):
@@ -2365,7 +2352,6 @@ def test_check_bicep_cli_subprocess_error_without_details():
     with patch("shutil.which") as mock_which:
         with patch("subprocess.run") as mock_run:
             mock_which.return_value = "/usr/bin/az"
-            error = Mock(returncode=1, stderr=None)
             mock_run.side_effect = subprocess.CalledProcessError(1, "az")
             result = sps.check_bicep_cli_installed()
             assert result is False
@@ -2417,34 +2403,6 @@ def test_validate_kernel_setup_not_found():
         assert result is False
 
 
-def test_create_vscode_settings_with_comments():
-    """Test create_vscode_settings when file has comments (invalid JSON)."""
-    temp_project_root = Path.cwd() / ".temp_vscode_comments"
-    temp_project_root.mkdir(exist_ok=True)
-
-    try:
-        original_get_project_root = sps.get_project_root
-        sps.get_project_root = lambda: temp_project_root
-
-        try:
-            vscode_dir = temp_project_root / ".vscode"
-            vscode_dir.mkdir(parents=True)
-
-            # Write invalid JSON with comments
-            (vscode_dir / "settings.json").write_text(
-                '{ // comment\n  "key": "value"\n}',
-                encoding="utf-8"
-            )
-
-            result = sps.create_vscode_settings()
-            assert result is False  # Should fail due to JSON decode error
-        finally:
-            sps.get_project_root = original_get_project_root
-    finally:
-        import shutil as sh
-        sh.rmtree(temp_project_root, ignore_errors=True)
-
-
 def test_force_kernel_consistency_kernel_found():
     """Test force_kernel_consistency when kernel already exists."""
     with patch.object(sps, "validate_kernel_setup", return_value=True):
@@ -2469,8 +2427,7 @@ def test_force_kernel_consistency_kernel_found():
                 finally:
                     sps.get_project_root = original_get_project_root
             finally:
-                import shutil as sh
-                sh.rmtree(temp_project_root, ignore_errors=True)
+                shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 def test_force_kernel_consistency_kernel_install_fails():
@@ -2556,8 +2513,6 @@ def test_create_vscode_settings_new_file_ioerror():
         sps.get_project_root = lambda: temp_project_root
 
         try:
-            vscode_dir = temp_project_root / ".vscode"
-
             # Mock the mkdir to work but open to fail
             with patch("pathlib.Path.mkdir"):
                 with patch("builtins.open", side_effect=IOError("Cannot write")):
@@ -2566,8 +2521,7 @@ def test_create_vscode_settings_new_file_ioerror():
         finally:
             sps.get_project_root = original_get_project_root
     finally:
-        import shutil as sh
-        sh.rmtree(temp_project_root, ignore_errors=True)
+        shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 def test_force_kernel_consistency_settings_file_unreadable():
@@ -2592,33 +2546,7 @@ def test_force_kernel_consistency_settings_file_unreadable():
             finally:
                 sps.get_project_root = original_get_project_root
         finally:
-            import shutil as sh
-            sh.rmtree(temp_project_root, ignore_errors=True)
-
-
-def test_force_kernel_consistency_exception_handling():
-    """Test force_kernel_consistency general exception handling."""
-    with patch.object(sps, "validate_kernel_setup", return_value=True):
-        temp_project_root = Path.cwd() / ".temp_exception"
-        temp_project_root.mkdir(exist_ok=True)
-
-        try:
-            original_get_project_root = sps.get_project_root
-            sps.get_project_root = lambda: temp_project_root
-
-            try:
-                vscode_dir = temp_project_root / ".vscode"
-
-                # Mock the file operations to raise an exception
-                with patch("builtins.open", side_effect=Exception("Write error")):
-                    with patch.object(Path, "mkdir"):
-                        result = sps.force_kernel_consistency()
-                        assert result is False
-            finally:
-                sps.get_project_root = original_get_project_root
-        finally:
-            import shutil as sh
-            sh.rmtree(temp_project_root, ignore_errors=True)
+            shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 def test_check_azure_providers_subprocess_error():
@@ -2631,39 +2559,6 @@ def test_check_azure_providers_subprocess_error():
             result = sps.check_azure_providers_registered()
             assert result is False
 
-
-def test_check_azure_providers_file_not_found():
-    """Test check_azure_providers when az is not found."""
-    with patch("shutil.which") as mock_which:
-        with patch("subprocess.run") as mock_run:
-            mock_which.return_value = "/usr/bin/az"
-            mock_run.side_effect = FileNotFoundError("az not found")
-
-            result = sps.check_azure_providers_registered()
-            assert result is False
-
-
-def test_install_jupyter_kernel_already_exists(monkeypatch: pytest.MonkeyPatch):
-    """Test install_jupyter_kernel when ipykernel is already available."""
-    with patch("subprocess.run") as mock_run:
-        mock_run.return_value = Mock(returncode=0)
-
-        result = sps.install_jupyter_kernel()
-        assert result is True
-
-
-def test_install_jupyter_kernel_version_mismatch():
-    """Test install_jupyter_kernel when version check fails."""
-    with patch("subprocess.run") as mock_run:
-        # Version check fails
-        mock_run.side_effect = [
-            subprocess.CalledProcessError(1, "ipykernel"),
-            Mock(returncode=0),  # pip install succeeds
-            subprocess.CalledProcessError(1, "ipykernel"),  # kernel install fails
-        ]
-
-        result = sps.install_jupyter_kernel()
-        assert result is False
 
 def test_create_vscode_settings_new_file():
     """Test create_vscode_settings creates new file successfully."""
@@ -2689,8 +2584,7 @@ def test_create_vscode_settings_new_file():
         finally:
             sps.get_project_root = original_get_project_root
     finally:
-        import shutil as sh
-        sh.rmtree(temp_project_root, ignore_errors=True)
+        shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 def test_create_vscode_settings_existing_file_merge():
@@ -2727,8 +2621,7 @@ def test_create_vscode_settings_existing_file_merge():
         finally:
             sps.get_project_root = original_get_project_root
     finally:
-        import shutil as sh
-        sh.rmtree(temp_project_root, ignore_errors=True)
+        shutil.rmtree(temp_project_root, ignore_errors=True)
 
 
 def test_validate_kernel_setup_exception_path():
@@ -2761,7 +2654,7 @@ def test_generate_env_file_with_comments_and_blank_lines(temp_project_root: Path
     assert env.get("KEY2") == "value2"
 
 
-def test_ensure_utf8_streams():
+def test_ensure_utf8_streams_duplicate():
     """Test _ensure_utf8_streams doesn't raise exceptions."""
     # Should not raise any exception
     sps._ensure_utf8_streams()
@@ -2798,8 +2691,7 @@ def test_get_project_root_fallback():
             # Restore
             sps.__file__ = original_file
     finally:
-        import shutil as sh
-        sh.rmtree(temp_dir, ignore_errors=True)
+        shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 def test_merge_string_list_with_string_input():
@@ -2827,20 +2719,3 @@ def test_setup_python_path_shared_exists(temp_project_root: Path):
     finally:
         sps.get_project_root = original_get_project_root
         sys.path[:] = original_sys_path
-
-
-def test_install_jupyter_kernel_with_stderr_output(monkeypatch: pytest.MonkeyPatch):
-    """Test install_jupyter_kernel when ipykernel exists."""
-    with patch("subprocess.run") as mock_run:
-        # First call: ipykernel check returns error
-        # Second call: pip install succeeds
-        # Third call: kernel install succeeds
-        def run_side_effect(cmd, **kwargs):
-            if 'ipykernel' in cmd and '--version' in cmd:
-                raise subprocess.CalledProcessError(1, cmd, stderr="Not found")
-            return Mock(returncode=0)
-
-        mock_run.side_effect = run_side_effect
-
-        result = sps.install_jupyter_kernel()
-        assert result is True
