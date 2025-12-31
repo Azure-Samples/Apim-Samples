@@ -4,7 +4,7 @@ import pytest
 
 # APIM Samples imports
 from apimrequests import ApimRequests
-from apimtypes import SUBSCRIPTION_KEY_PARAMETER_NAME, HTTP_VERB
+from apimtypes import SUBSCRIPTION_KEY_PARAMETER_NAME, HTTP_VERB, SLEEP_TIME_BETWEEN_REQUESTS_MS
 from test_helpers import create_mock_http_response, create_mock_session_with_response
 
 # Sample values for tests
@@ -399,6 +399,23 @@ def test_multi_request_sleep_zero(apim):
 
 
 @pytest.mark.unit
+def test_multi_request_default_sleep_interval(apim):
+    """Test _multiRequest uses default sleep interval when sleepMs is None."""
+
+    response = create_mock_http_response(json_data={'ok': True})
+
+    with patch('apimrequests.requests.Session') as mock_session_cls, \
+         patch('apimrequests.time.sleep') as mock_sleep:
+        mock_session = create_mock_session_with_response(response)
+        mock_session_cls.return_value = mock_session
+
+        with patch.object(apim, '_print_response_code'):
+            apim._multiRequest(HTTP_VERB.GET, '/sleep-default', runs=2, sleepMs=None)
+
+    mock_sleep.assert_called_once_with(SLEEP_TIME_BETWEEN_REQUESTS_MS / 1000)
+
+
+@pytest.mark.unit
 def test_multi_request_sleep_positive(apim):
     """Test _multiRequest sleeps when sleepMs is positive."""
     response = create_mock_http_response(json_data={'ok': True})
@@ -675,3 +692,214 @@ def test_single_post_async_non_json_response(apim, apimrequests_patches):
         result = apim.singlePostAsync('/test')
 
     assert result == 'Plain text result'
+
+
+@pytest.mark.unit
+def test_print_response_code_2xx_non_200(apim, apimrequests_patches):
+    """Test _print_response_code with 2xx status codes other than 200."""
+    class DummyResponse:
+        status_code = 201
+        reason = 'Created'
+
+    apim._print_response_code(DummyResponse())
+
+    # Verify print_val was called with colored output for success
+    apimrequests_patches.print_val.assert_called_once()
+    call_args = apimrequests_patches.print_val.call_args[0]
+    assert 'Response status' in call_args[0]
+    assert '201 - Created' in call_args[1]
+
+
+@pytest.mark.unit
+def test_print_response_code_3xx(apim, apimrequests_patches):
+    """Test _print_response_code with 3xx redirect status codes."""
+    class DummyResponse:
+        status_code = 301
+        reason = 'Moved Permanently'
+
+    apim._print_response_code(DummyResponse())
+
+    call_args = apimrequests_patches.print_val.call_args[0]
+    assert '301' in call_args[1]
+
+
+@pytest.mark.unit
+def test_multi_request_session_exception_on_close(apim):
+    """Test _multiRequest handles exception and ensures session is closed."""
+    with patch('apimrequests.requests.Session') as mock_session_cls:
+        mock_session = MagicMock()
+        mock_response = create_mock_http_response(json_data={'ok': True})
+        mock_session.request.return_value = mock_response
+        mock_session_cls.return_value = mock_session
+
+        with patch.object(apim, '_print_response_code'):
+            result = apim._multiRequest(HTTP_VERB.GET, '/test', 1)
+
+    # Verify session was closed even after successful operation
+    mock_session.close.assert_called_once()
+    assert len(result) == 1
+
+
+@pytest.mark.unit
+def test_single_post_async_with_message(apim, apimrequests_patches):
+    """Test singlePostAsync with message parameter."""
+    mock_response = create_mock_http_response(
+        status_code=200,
+        json_data={'result': 'ok'}
+    )
+    apimrequests_patches.request.return_value = mock_response
+
+    with patch.object(apim, '_print_response'):
+        apim.singlePostAsync('/test', msg='Test async message')
+
+    apimrequests_patches.print_message.assert_called_once_with('Test async message', blank_above=True)
+
+
+@pytest.mark.unit
+def test_single_post_async_with_headers(apim, apimrequests_patches):
+    """Test singlePostAsync with custom headers."""
+    mock_response = create_mock_http_response(
+        status_code=200,
+        json_data={'result': 'ok'}
+    )
+    apimrequests_patches.request.return_value = mock_response
+
+    custom_headers = {'X-Custom': 'header-value'}
+    with patch.object(apim, '_print_response'):
+        apim.singlePostAsync('/test', headers=custom_headers)
+
+    # Verify headers were merged
+    call_kwargs = apimrequests_patches.request.call_args[1]
+    assert 'X-Custom' in call_kwargs['headers']
+
+
+@pytest.mark.unit
+def test_single_post_async_non_json_final_response(apim, apimrequests_patches):
+    """Test singlePostAsync with non-JSON response from polling."""
+    initial_response = MagicMock()
+    initial_response.status_code = 202
+    initial_response.headers = {'Location': 'http://example.com/operation/123'}
+    apimrequests_patches.request.return_value = initial_response
+
+    final_response = create_mock_http_response(
+        status_code=200,
+        headers={'Content-Type': 'text/plain'},
+        text='Plain text final result'
+    )
+
+    with patch.object(apim, '_poll_async_operation', return_value=final_response):
+        with patch.object(apim, '_print_response') as mock_print_response:
+            result = apim.singlePostAsync('/test')
+
+    assert result == 'Plain text final result'
+    mock_print_response.assert_called_once_with(final_response)
+
+
+@pytest.mark.unit
+def test_poll_async_operation_with_custom_headers(apim, apimrequests_patches):
+    """Test _poll_async_operation with custom headers."""
+    mock_response = create_mock_http_response(status_code=200)
+    custom_headers = {'X-Custom': 'value'}
+
+    with patch('apimrequests.requests.get', return_value=mock_response) as mock_get:
+        result = apim._poll_async_operation('http://example.com/op', headers=custom_headers)
+
+    assert result == mock_response
+    # Verify custom headers were passed
+    call_kwargs = mock_get.call_args[1]
+    assert call_kwargs['headers'] == custom_headers
+
+
+@pytest.mark.unit
+def test_request_no_message(apim, apimrequests_patches):
+    """Test _request method when no message is provided."""
+    apimrequests_patches.request.return_value = create_mock_http_response(
+        status_code=200,
+        json_data={'result': 'ok'}
+    )
+
+    with patch.object(apim, '_print_response'):
+        apim._request(HTTP_VERB.GET, '/test')
+
+    # Verify print_message was not called when msg is None
+    apimrequests_patches.print_message.assert_not_called()
+
+
+@pytest.mark.unit
+def test_multi_request_no_message(apim, apimrequests_patches):
+    """Test _multiRequest method when no message is provided."""
+    response = create_mock_http_response(json_data={'result': 'ok'})
+    with patch('apimrequests.requests.Session') as mock_session_cls:
+        mock_session = create_mock_session_with_response(response)
+        mock_session_cls.return_value = mock_session
+
+        with patch.object(apim, '_print_response_code'):
+            apim._multiRequest(HTTP_VERB.GET, '/test', 1)
+
+    # Verify print_message was not called when msg is None
+    apimrequests_patches.print_message.assert_not_called()
+
+
+@pytest.mark.unit
+def test_single_post_async_no_print_response(apim, apimrequests_patches):
+    """Test singlePostAsync with printResponse=False."""
+    mock_response = create_mock_http_response(
+        status_code=200,
+        json_data={'result': 'ok'}
+    )
+    apimrequests_patches.request.return_value = mock_response
+
+    with patch.object(apim, '_print_response') as mock_print_response:
+        result = apim.singlePostAsync('/test', printResponse=False)
+
+    # When printResponse is False, _print_response should not be called
+    mock_print_response.assert_not_called()
+    assert result == '{\n    "result": "ok"\n}'
+
+
+@pytest.mark.unit
+def test_single_get_no_print_response(apim, apimrequests_patches):
+    """Test singleGet with printResponse=False."""
+    apimrequests_patches.request.return_value = create_mock_http_response(
+        status_code=200,
+        json_data={'result': 'ok'}
+    )
+
+    with patch.object(apim, '_print_response') as mock_print_response:
+        result = apim.singleGet('/test', printResponse=False)
+
+    mock_print_response.assert_not_called()
+    assert '{\n    "result": "ok"\n}' in result
+
+
+@pytest.mark.unit
+def test_multi_get_no_print_response(apim):
+    """Test multiGet with printResponse=False."""
+    response = create_mock_http_response(json_data={'result': 'ok'})
+    with patch('apimrequests.requests.Session') as mock_session_cls:
+        mock_session = create_mock_session_with_response(response)
+        mock_session_cls.return_value = mock_session
+
+        with patch.object(apim, '_print_response_code'):
+            result = apim.multiGet('/test', runs=1, printResponse=False)
+
+    assert len(result) == 1
+    assert result[0]['response'] == '{\n    "result": "ok"\n}'
+
+
+@pytest.mark.unit
+def test_single_post_async_no_custom_headers(apim, apimrequests_patches):
+    """Test singlePostAsync without custom headers (None)."""
+    mock_response = create_mock_http_response(
+        status_code=200,
+        json_data={'result': 'ok'}
+    )
+    apimrequests_patches.request.return_value = mock_response
+
+    with patch.object(apim, '_print_response'):
+        result = apim.singlePostAsync('/test', headers=None)
+
+    assert result == '{\n    "result": "ok"\n}'
+    # Verify request was called with merged headers
+    call_kwargs = apimrequests_patches.request.call_args[1]
+    assert 'headers' in call_kwargs

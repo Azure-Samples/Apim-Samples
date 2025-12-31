@@ -229,6 +229,37 @@ def test_print_warning_with_duration():
 
 
 # ------------------------------
+#    print_debug TESTS
+# ------------------------------
+
+
+def test_print_debug_basic():
+    """Test print_debug logs debug prefix."""
+    output = capture_output(console.print_debug, 'Debug details')
+
+    assert '🐞' in output
+    assert 'Debug details' in output
+
+
+def test_print_debug_blank_lines():
+    """Test print_debug respects blank_above/below flags."""
+    output = capture_output(console.print_debug, 'Wrapped', blank_above=True, blank_below=True)
+
+    lines = output.split('\n')
+    assert not lines[0]
+    assert not lines[-1]
+
+
+def test_print_debug_wrap_lines():
+    """Test print_debug wraps long lines when requested."""
+    long_msg = 'd' * 300
+    output = capture_output(console.print_debug, long_msg, wrap_lines=True)
+
+    assert 'd' in output
+    assert '\n' in output
+
+
+# ------------------------------
 #    print_val TESTS
 # ------------------------------
 
@@ -523,6 +554,12 @@ def test_infer_level_emoji_success():
     assert level == logging.INFO
 
 
+def test_infer_level_emoji_celebration():
+    """Test _infer_level_from_message with celebration emoji."""
+    level = console._infer_level_from_message('🎉 Release shipped')
+    assert level == logging.INFO
+
+
 def test_infer_level_text_error():
     """Test _infer_level_from_message with 'error:' text."""
     level = console._infer_level_from_message('error: something failed')
@@ -535,6 +572,24 @@ def test_infer_level_text_warning():
     assert level == logging.WARNING
 
 
+def test_infer_level_debug_word():
+    """Test _infer_level_from_message detects debug prefix."""
+    level = console._infer_level_from_message('Debug output: enabled')
+    assert level == logging.DEBUG
+
+
+def test_infer_level_debug_emoji():
+    """Test _infer_level_from_message detects debug emoji."""
+    level = console._infer_level_from_message('🐞 Tracking issue')
+    assert level == logging.DEBUG
+
+
+def test_infer_level_command_output():
+    """Test _infer_level_from_message detects command output prefix."""
+    level = console._infer_level_from_message('Command Output: az version')
+    assert level == logging.DEBUG
+
+
 def test_infer_level_default():
     """Test _infer_level_from_message with unknown format."""
     level = console._infer_level_from_message('just a message')
@@ -545,6 +600,12 @@ def test_infer_level_empty_string():
     """Test _infer_level_from_message with empty string."""
     level = console._infer_level_from_message('')
     assert level == logging.INFO
+
+
+def test_infer_level_empty_string_custom_default():
+    """Test _infer_level_from_message uses provided default for blanks."""
+    level = console._infer_level_from_message('', default=logging.DEBUG)
+    assert level == logging.DEBUG
 
 
 # ------------------------------

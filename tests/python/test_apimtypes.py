@@ -91,6 +91,24 @@ class TestAPICreation:
         with pytest.raises(TypeError):
             API(**params)
 
+    def test_default_policy_loaded_when_missing(self, base_api_params, monkeypatch):
+        """Test API loads default policy when policyXml parameter is omitted."""
+
+        captured = {}
+
+        def fake_read_policy(path):
+            captured['path'] = path
+            return '<default-policy />'
+
+        monkeypatch.setattr(apimtypes, '_read_policy_xml', fake_read_policy)
+
+        params = base_api_params.copy()
+        params.pop('policyXml')
+        api = API(**params)
+
+        assert api.policyXml == '<default-policy />'
+        assert captured['path'] == DEFAULT_XML_POLICY_PATH
+
 
 class TestAPIToDictSerialization:
     """Test suite for API.to_dict() method."""
@@ -349,6 +367,20 @@ class TestAPIOperation:
                 policyXml='<xml/>'
             )
 
+    def test_operation_accepts_string_method(self):
+        """Test APIOperation accepts valid HTTP verb strings."""
+
+        op = APIOperation(
+            name='string-method',
+            displayName='String Method',
+            urlTemplate='/items',
+            method='GET',
+            description='desc',
+            policyXml='<xml/>'
+        )
+
+        assert op.method == 'GET'
+
 
 # ------------------------------
 #    PRODUCT TESTS
@@ -505,6 +537,21 @@ class TestOutput:
         output = Output(success=True, text='not json')
         assert output.json_data is None
 
+    def test_json_parsing_with_single_quotes_sets_exception(self):
+        """Test Output stores parse exception when JSON uses single quotes."""
+        text = "{'properties': {'outputs': {'endpoint': {'value': 'test'}}}}"
+        output = Output(success=True, text=text)
+
+        assert output.jsonParseException is not None
+
+    def test_json_extraction_from_mixed_text(self):
+        """Test Output extracts JSON embedded within non-JSON text."""
+        text = 'info: {"properties": {"outputs": {"endpoint": {"value": "https://mixed"}}}} end'
+        output = Output(success=True, text=text)
+
+        assert output.json_data is not None
+        assert output.get('endpoint', suppress_logging=True) == 'https://mixed'
+
     def test_get_method_with_properties_structure(self):
         """Test Output.get() with standard deployment output structure."""
         json_text = '''{"properties": {"outputs": {"endpoint": {"value": "https://test.com"}}}}'''
@@ -544,6 +591,19 @@ class TestOutput:
 
         result = output.get('secret', label='Secret', secure=True)
         assert result == 'supersecretvalue'
+
+    def test_get_method_secure_short_value_unmasked(self, monkeypatch):
+        """Test Output.get() does not mask secure values shorter than four characters."""
+        json_text = '''{"properties": {"outputs": {"code": {"value": "abc"}}}}'''
+        output = Output(success=True, text=json_text)
+
+        logged = []
+        monkeypatch.setattr(apimtypes, 'print_val', lambda label, value, *a, **k: logged.append((label, value)))
+
+        result = output.get('code', label='Code', secure=True, suppress_logging=False)
+
+        assert result == 'abc'
+        assert ('Code', 'abc') in logged
 
     def test_get_method_json_data_not_dict(self):
         """Test Output.get() when json_data is not a dict."""
@@ -688,6 +748,16 @@ class TestOutput:
 
         assert result == {'k': 'v'}
         assert ('Simple', {'k': 'v'}) in logged
+
+
+class TestEndpoints:
+    """Test suite for Endpoints container."""
+
+    def test_initialization_assigns_deployment(self):
+        endpoint = apimtypes.Endpoints(INFRASTRUCTURE.SIMPLE_APIM)
+
+        assert endpoint.deployment == INFRASTRUCTURE.SIMPLE_APIM
+        assert getattr(endpoint, 'afd_endpoint_url', None) is None
 
 
 # ------------------------------
@@ -867,3 +937,232 @@ class TestProjectRoot:
         assert (root / 'README.md').exists()
         assert (root / 'requirements.txt').exists()
         assert (root / 'bicepconfig.json').exists()
+
+
+# ------------------------------
+#    ADDITIONAL BRANCH COVERAGE TESTS
+# ------------------------------
+
+class TestAPISKUEdgeCases:
+    """Additional edge case tests for APIM_SKU enum."""
+
+    def test_sku_v1_v2_mutual_exclusivity(self):
+        """Test that v1 and v2 SKUs are mutually exclusive."""
+        v1_skus = [APIM_SKU.DEVELOPER, APIM_SKU.BASIC, APIM_SKU.STANDARD, APIM_SKU.PREMIUM]
+        v2_skus = [APIM_SKU.BASICV2, APIM_SKU.STANDARDV2, APIM_SKU.PREMIUMV2]
+
+        for sku in v1_skus:
+            assert sku.is_v1() and not sku.is_v2()
+
+        for sku in v2_skus:
+            assert sku.is_v2() and not sku.is_v1()
+
+
+class TestAPIOperationStringMethod:
+    """Test APIOperation with string method coercion."""
+
+    def test_operation_with_valid_string_methods(self):
+        """Test APIOperation accepts all valid HTTP verb strings."""
+        for verb_str in ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD']:
+            op = APIOperation(
+                name=f'op-{verb_str}',
+                displayName=f'Operation {verb_str}',
+                urlTemplate='/test',
+                method=verb_str,
+                description='test',
+                policyXml='<xml/>'
+            )
+            assert op.method == verb_str
+
+
+class TestProductPolicyHandling:
+    """Test Product policy XML handling edge cases."""
+
+    def test_product_with_none_policy_loads_default(self, monkeypatch):
+        """Test Product with None policyXml loads default policy file."""
+        def mock_read_policy(path):
+            if 'default' in path:
+                return '<default-policy-xml />'
+            raise FileNotFoundError()
+
+        monkeypatch.setattr(apimtypes, '_read_policy_xml', mock_read_policy)
+
+        product = Product(
+            name='test',
+            displayName='Test',
+            description='Test',
+            policyXml=None
+        )
+
+        assert product.policyXml == '<default-policy-xml />'
+
+    def test_product_with_explicit_policy_not_overridden(self):
+        """Test Product with explicit policyXml doesn't load default."""
+        custom_policy = '<custom-policy />'
+        product = Product(
+            name='test',
+            displayName='Test',
+            description='Test',
+            policyXml=custom_policy
+        )
+
+        assert product.policyXml == custom_policy
+
+
+class TestOutputGetMethodEdgeCases:
+    """Additional edge case tests for Output.get() method."""
+
+    def test_get_method_with_value_field_not_dict(self):
+        """Test Output.get() when output entry value field is missing."""
+        json_text = '''{"properties": {"outputs": {"key": {"wrong_field": "val"}}}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.get('key', suppress_logging=True)
+        assert result is None
+
+    def test_get_method_simple_structure_missing_value_field(self):
+        """Test Output.get() simple structure with missing value field."""
+        json_text = '''{"endpoint": {"no_value_field": "here"}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.get('endpoint', suppress_logging=True)
+        assert result is None
+
+
+class TestOutputGetJsonMethodEdgeCases:
+    """Additional edge case tests for Output.getJson() method."""
+
+    def test_getjson_with_complex_nested_structure(self):
+        """Test Output.getJson() with deeply nested structures."""
+        json_text = '''{"properties": {"outputs": {"complex": {"value": {"level1": {"level2": {"level3": "value"}}}}}}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.getJson('complex', suppress_logging=True)
+        assert result['level1']['level2']['level3'] == 'value'
+
+    def test_getjson_with_list_value(self):
+        """Test Output.getJson() with list as value."""
+        json_text = '''{"properties": {"outputs": {"items": {"value": [1, 2, 3]}}}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.getJson('items', suppress_logging=True)
+        assert result == [1, 2, 3]
+
+    def test_getjson_simple_structure_missing_value_field(self):
+        """Test Output.getJson() simple structure with missing value."""
+        json_text = '''{"simple": {"no_value": "here"}}'''
+        output = Output(success=True, text=json_text)
+
+        result = output.getJson('simple', suppress_logging=True)
+        assert result is None
+
+
+class TestAPIOperationEdgeCases:
+    """Edge case tests for APIOperation classes."""
+
+    def test_operation_with_template_parameters(self):
+        """Test APIOperation with template parameters."""
+        params = [
+            {'name': 'id', 'type': 'int'},
+            {'name': 'name', 'type': 'string'}
+        ]
+        op = APIOperation(
+            name='get-by-id',
+            displayName='Get By ID',
+            urlTemplate='/items/{id}',
+            method=HTTP_VERB.GET,
+            description='Get item by ID',
+            policyXml='<policy/>',
+            templateParameters=params
+        )
+
+        assert op.templateParameters == params
+        assert len(op.to_dict()['templateParameters']) == 2
+
+    def test_get_operation_with_template_parameters(self):
+        """Test GET_APIOperation with template parameters."""
+        params = [{'name': 'id', 'type': 'int'}]
+        op = GET_APIOperation(
+            description='Get operation',
+            policyXml='<policy/>',
+            templateParameters=params
+        )
+
+        assert op.templateParameters == params
+
+
+class TestProductEdgeCases:
+    """Edge case tests for Product class."""
+
+    def test_product_to_dict_includes_policy(self):
+        """Test Product.to_dict includes policyXml when set."""
+        custom_policy = '<custom-policy />'
+        product = Product(
+            name='test',
+            displayName='Test',
+            description='Test',
+            policyXml=custom_policy
+        )
+
+        d = product.to_dict()
+        assert 'policyXml' in d
+        assert d['policyXml'] == custom_policy
+
+    def test_product_state_values(self):
+        """Test Product with different state values."""
+        for state in ['published', 'notPublished']:
+            product = Product(
+                name='test',
+                displayName='Test',
+                description='Test',
+                state=state
+            )
+            assert product.state == state
+            assert product.to_dict()['state'] == state
+
+
+class TestNamedValueEdgeCases:
+    """Edge case tests for NamedValue class."""
+
+    def test_named_value_default_is_secret(self):
+        """Test NamedValue defaults isSecret to False."""
+        nv = NamedValue(name='key', value='val')
+        assert nv.isSecret is False
+
+    def test_named_value_with_special_characters(self):
+        """Test NamedValue handles special characters in value."""
+        special_value = 'value!@#$%^&*()_+-=[]{}|;:,.<>?'
+        nv = NamedValue(name='special', value=special_value, isSecret=True)
+        assert nv.value == special_value
+        assert nv.to_dict()['value'] == special_value
+
+
+class TestAPIEdgeCases:
+    """Edge case tests for API class."""
+
+    def test_api_service_url(self):
+        """Test API with service URL."""
+        service_url = 'https://backend.example.com'
+        api = API(
+            name='backend-api',
+            displayName='Backend API',
+            path='/backend',
+            description='Backend API',
+            serviceUrl=service_url
+        )
+
+        assert api.serviceUrl == service_url
+        assert api.to_dict()['serviceUrl'] == service_url
+
+    def test_api_subscription_required(self):
+        """Test API subscription required setting."""
+        api = API(
+            name='public-api',
+            displayName='Public API',
+            path='/public',
+            description='Public API',
+            subscriptionRequired=False
+        )
+
+        assert api.subscriptionRequired is False
+        assert api.to_dict()['subscriptionRequired'] is False

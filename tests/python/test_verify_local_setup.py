@@ -372,14 +372,9 @@ def test_check_env_file_read_error(temp_cwd: Path, suppress_print) -> None:
     """Environment file check should handle read errors."""
     env_path = temp_cwd / ".env"
     env_path.write_text("PYTHONPATH=/tmp\n", encoding="utf-8")
-    env_path.chmod(0o000)
-
-    try:
+    with patch("builtins.open", side_effect=OSError("Permission denied")):
         result = vls.check_env_file()
-        # Result depends on whether the permission error can be raised
-        assert isinstance(result, bool)
-    finally:
-        env_path.chmod(0o644)
+    assert result is False
 
 
 # ============================================================

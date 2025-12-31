@@ -19,6 +19,31 @@ def test_parse_date_valid_iso_format():
     assert result == '2025-12-13 10:30:00 UTC'
 
 
+def test_get_suggested_purge_command_relative(monkeypatch):
+    """Test suggested purge command when script is relative to cwd."""
+
+    repo_root = sdr.Path(__file__).resolve().parent.parent.parent
+    monkeypatch.chdir(repo_root)
+
+    command = sdr._get_suggested_purge_command()
+
+    assert command.startswith('python ')
+    assert command.endswith('--purge')
+    assert 'shared/python/show_soft_deleted_resources.py' in command
+
+
+def test_get_suggested_purge_command_absolute(tmp_path, monkeypatch):
+    """Test suggested purge command falls back to absolute path."""
+
+    monkeypatch.chdir(tmp_path)
+
+    command = sdr._get_suggested_purge_command()
+
+    script_path = sdr.Path(__file__).resolve().parent.parent.parent / 'shared' / 'python' / 'show_soft_deleted_resources.py'
+
+    assert command == f'python "{script_path}" --purge'
+
+
 def test_parse_date_empty_string():
     """Test parsing an empty date string."""
     result = sdr.parse_date('')
@@ -478,6 +503,18 @@ def test_get_deleted_apim_services_non_json():
         assert result == []
 
 
+def test_get_deleted_apim_services_non_list_json():
+    """Test get_deleted_apim_services when json_data is not a list."""
+    mock_output = MagicMock()
+    mock_output.success = True
+    mock_output.is_json = True
+    mock_output.json_data = {'name': 'apim1'}  # Dict instead of list
+
+    with patch('show_soft_deleted_resources.az.run', return_value=mock_output):
+        result = sdr.get_deleted_apim_services()
+        assert result == []
+
+
 def test_get_deleted_key_vaults_empty():
     """Test get_deleted_key_vaults with empty list response."""
     mock_output = MagicMock()
@@ -499,6 +536,18 @@ def test_get_deleted_key_vaults_failure():
         with patch('builtins.print'):
             result = sdr.get_deleted_key_vaults()
             assert result == []
+
+
+def test_get_deleted_key_vaults_non_list_json():
+    """Test get_deleted_key_vaults when json_data is not a list."""
+    mock_output = MagicMock()
+    mock_output.success = True
+    mock_output.is_json = True
+    mock_output.json_data = {'name': 'kv1'}  # Dict instead of list
+
+    with patch('show_soft_deleted_resources.az.run', return_value=mock_output):
+        result = sdr.get_deleted_key_vaults()
+        assert result == []
 
 
 def test_show_deleted_apim_services_multiple(monkeypatch):
@@ -600,6 +649,88 @@ def test_confirm_purge_eof_error(monkeypatch):
 
     result = sdr.confirm_purge(1, 1, 0)
     assert result is False
+
+
+def test_main_account_show_failure(monkeypatch):
+    """Test main when account show command fails."""
+    def mock_get_apim():
+        return []
+
+    def mock_get_vaults():
+        return []
+
+    def mock_az_run(cmd, *a, **k):
+        if 'account show' in cmd:
+            return MagicMock(success=False, json_data=None)
+        return MagicMock(success=True, json_data=None)
+
+    monkeypatch.setattr('show_soft_deleted_resources.get_deleted_apim_services', mock_get_apim)
+    monkeypatch.setattr('show_soft_deleted_resources.get_deleted_key_vaults', mock_get_vaults)
+    monkeypatch.setattr('show_soft_deleted_resources.az.run', mock_az_run)
+    mock_module_functions(monkeypatch, builtins, ['print'])
+    monkeypatch.setattr('sys.argv', ['script.py'])
+
+    result = sdr.main()
+    assert not result
+
+
+def test_main_purge_with_no_purgeable_resources(monkeypatch):
+    """Test main with purge flag when there are no purgeable resources."""
+    services = []
+    vaults = [
+        {'name': 'vault-1', 'properties': {'location': 'eastus', 'purgeProtectionEnabled': True}}
+    ]
+
+    def mock_get_apim():
+        return services
+
+    def mock_get_vaults():
+        return vaults
+
+    def mock_az_run(cmd, *a, **k):
+        return MagicMock(success=True, json_data={'name': 'test-sub', 'id': 'sub-id'})
+
+    monkeypatch.setattr('show_soft_deleted_resources.get_deleted_apim_services', mock_get_apim)
+    monkeypatch.setattr('show_soft_deleted_resources.get_deleted_key_vaults', mock_get_vaults)
+    monkeypatch.setattr('show_soft_deleted_resources.az.run', mock_az_run)
+    mock_module_functions(monkeypatch, builtins, ['print'])
+    monkeypatch.setattr('sys.argv', ['script.py', '--purge'])
+
+    result = sdr.main()
+
+    assert not result
+
+
+def test_show_deleted_key_vaults_empty():
+    """Test show_deleted_key_vaults with no data."""
+    with patch('builtins.print') as mock_print:
+        sdr.show_deleted_key_vaults([])
+
+        # Should print "No soft-deleted Key Vaults found"
+        call_args = [str(call) for call in mock_print.call_args_list]
+        assert any('No soft-deleted' in str(arg) for arg in call_args)
+
+
+def test_purge_key_vaults_partial_failure(monkeypatch):
+    """Test purge_key_vaults with some failures."""
+    vaults = [
+        {'name': 'vault-1', 'properties': {'location': 'eastus', 'purgeProtectionEnabled': False}},
+        {'name': 'vault-2', 'properties': {'location': 'westus', 'purgeProtectionEnabled': False}},
+    ]
+
+    call_count = [0]
+    def mock_run(cmd, *args, **kwargs):
+        output = MagicMock()
+        output.success = call_count[0] != 1  # Second call fails
+        call_count[0] += 1
+        return output
+
+    monkeypatch.setattr('show_soft_deleted_resources.az.run', mock_run)
+    mock_module_functions(monkeypatch, builtins, ['print'])
+
+    success_count, skipped_count = sdr.purge_key_vaults(vaults)
+    assert success_count == 1
+    assert not skipped_count
 
 
 def test_parse_date_none_input():

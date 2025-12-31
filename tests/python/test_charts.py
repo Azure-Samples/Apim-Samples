@@ -8,6 +8,7 @@ import os
 import json
 import pytest
 import pandas as pd
+import charts
 from charts import BarChart
 
 # Add the shared/python directory to the Python path
@@ -564,3 +565,60 @@ def test_average_line_all_data_outliers(mock_pd, mock_plt):
     # Should still plot average line
     mock_plt.axhline.assert_called()
     mock_plt.text.assert_called()
+
+
+def test_plot_barchart_skips_average_line_without_success(monkeypatch):
+    """Ensure average line is skipped when there are no 200 responses."""
+
+    no_success_results = [
+        {'run': 1, 'response_time': 0.2, 'status_code': 500, 'response': 'error'},
+        {'run': 2, 'response_time': 0.3, 'status_code': 404, 'response': 'not found'},
+    ]
+
+    chart = BarChart('Test', 'X', 'Y', no_success_results)
+
+    # Prevent real plotting
+    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: MagicMock(), raising=False)
+    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext']:
+        monkeypatch.setattr(charts.plt, attr, MagicMock())
+
+    axhline_mock = MagicMock()
+    text_mock = MagicMock()
+    monkeypatch.setattr(charts.plt, 'axhline', axhline_mock)
+    monkeypatch.setattr(charts.plt, 'text', text_mock)
+
+    chart._plot_barchart(no_success_results)
+
+    axhline_mock.assert_not_called()
+    text_mock.assert_not_called()
+
+
+def test_plot_barchart_skips_average_when_filtered_empty(monkeypatch):
+    """Ensure average line is skipped when all successful rows are filtered out."""
+
+    success_results = [
+        {'run': 1, 'response_time': 0.5, 'status_code': 200, 'response': '{"index": 1}'},
+        {'run': 2, 'response_time': 0.6, 'status_code': 200, 'response': '{"index": 2}'},
+    ]
+
+    chart = BarChart('Test', 'X', 'Y', success_results)
+
+    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: MagicMock(), raising=False)
+
+    def fake_quantile(self, q, *args, **kwargs):
+        return 0  # Force all rows to be excluded
+
+    monkeypatch.setattr(pd.Series, 'quantile', fake_quantile, raising=False)
+
+    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext']:
+        monkeypatch.setattr(charts.plt, attr, MagicMock())
+
+    axhline_mock = MagicMock()
+    text_mock = MagicMock()
+    monkeypatch.setattr(charts.plt, 'axhline', axhline_mock)
+    monkeypatch.setattr(charts.plt, 'text', text_mock)
+
+    chart._plot_barchart(success_results)
+
+    axhline_mock.assert_not_called()
+    text_mock.assert_not_called()

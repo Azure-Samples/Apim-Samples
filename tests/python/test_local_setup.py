@@ -1512,8 +1512,8 @@ def test_force_kernel_consistency_when_no_settings_file():
     temp_project_root = Path.cwd() / ".temp_kernel_test"
     temp_project_root.mkdir(exist_ok=True)
 
+    original_get_project_root = sps.get_project_root
     try:
-        original_get_project_root = sps.get_project_root
         sps.get_project_root = lambda: temp_project_root
 
         # Mock validate_kernel_setup
@@ -1583,8 +1583,8 @@ def test_create_vscode_settings_preserves_jupyter_kernels():
     temp_project_root = Path.cwd() / ".temp_kernel_preserve"
     temp_project_root.mkdir(exist_ok=True)
 
+    original_get_project_root = sps.get_project_root
     try:
-        original_get_project_root = sps.get_project_root
         sps.get_project_root = lambda: temp_project_root
 
         try:
@@ -1616,8 +1616,8 @@ def test_generate_env_file_conditional_paths():
     temp_project_root = Path.cwd() / ".temp_env_path"
     temp_project_root.mkdir(exist_ok=True)
 
+    original_get_project_root = sps.get_project_root
     try:
-        original_get_project_root = sps.get_project_root
         sps.get_project_root = lambda: temp_project_root
 
         try:
@@ -1698,8 +1698,8 @@ def test_force_kernel_consistency_creates_vscode_directory():
     temp_project_root = Path.cwd() / ".temp_vscode_create"
     temp_project_root.mkdir(exist_ok=True)
 
+    original_get_project_root = sps.get_project_root
     try:
-        original_get_project_root = sps.get_project_root
         sps.get_project_root = lambda: temp_project_root
 
         with patch.object(sps, "validate_kernel_setup", return_value=True):
@@ -2719,3 +2719,180 @@ def test_setup_python_path_shared_exists(temp_project_root: Path):
     finally:
         sps.get_project_root = original_get_project_root
         sys.path[:] = original_sys_path
+
+
+def test_ensure_utf8_streams_without_reconfigure(monkeypatch: pytest.MonkeyPatch):
+    """Test _ensure_utf8_streams when streams lack reconfigure attribute."""
+
+    class DummyStream:
+        encoding = None
+
+    original_stdout, original_stderr = sys.stdout, sys.stderr
+    sys.stdout = DummyStream()
+    sys.stderr = DummyStream()
+
+    try:
+        sps._ensure_utf8_streams()
+        assert os.environ.get("PYTHONIOENCODING") == "utf-8"
+    finally:
+        sys.stdout = original_stdout
+        sys.stderr = original_stderr
+
+
+def test_ensure_utf8_streams_reconfigure_failure(monkeypatch: pytest.MonkeyPatch):
+    """Test _ensure_utf8_streams when reconfigure raises an exception."""
+
+    class BrokenStream:
+        encoding = None
+
+        def reconfigure(self, **kwargs):
+            raise ValueError("boom")
+
+    original_stdout, original_stderr = sys.stdout, sys.stderr
+    sys.stdout = BrokenStream()
+    sys.stderr = BrokenStream()
+
+    try:
+        sps._ensure_utf8_streams()
+        assert os.environ.get("PYTHONIOENCODING") == "utf-8"
+    finally:
+        sys.stdout = original_stdout
+        sys.stderr = original_stderr
+
+
+def test_create_vscode_settings_read_failure():
+    """Test create_vscode_settings handles read errors on existing file."""
+
+    temp_project_root = Path.cwd() / ".temp_read_failure"
+    temp_project_root.mkdir(exist_ok=True)
+
+    original_get_project_root = sps.get_project_root
+
+    try:
+        sps.get_project_root = lambda: temp_project_root
+
+        vscode_dir = temp_project_root / ".vscode"
+        vscode_dir.mkdir(parents=True)
+        settings_file = vscode_dir / "settings.json"
+        settings_file.write_text("{}", encoding="utf-8")
+
+        original_open = open
+
+        def failing_open(path, *args, **kwargs):
+            mode = kwargs.get("mode")
+            if mode is None:
+                mode = args[0] if args else "r"
+            if "r" in mode:
+                raise IOError("cannot read")
+            return original_open(path, *args, **kwargs)
+
+        with patch("builtins.open", side_effect=failing_open):
+            assert sps.create_vscode_settings() is False
+    finally:
+        sps.get_project_root = original_get_project_root
+        shutil.rmtree(temp_project_root, ignore_errors=True)
+
+
+def test_force_kernel_consistency_installs_kernel_when_missing():
+    """Test force_kernel_consistency installs kernel when validation fails."""
+
+    temp_project_root = Path.cwd() / ".temp_force_install"
+    temp_project_root.mkdir(exist_ok=True)
+
+    original_get_project_root = sps.get_project_root
+    try:
+        sps.get_project_root = lambda: temp_project_root
+
+        with patch.object(sps, "validate_kernel_setup", return_value=False):
+            with patch.object(sps, "install_jupyter_kernel", return_value=True):
+                result = sps.force_kernel_consistency()
+                assert result is True
+
+        settings_file = temp_project_root / ".vscode" / "settings.json"
+        assert settings_file.exists()
+    finally:
+        sps.get_project_root = original_get_project_root
+        shutil.rmtree(temp_project_root, ignore_errors=True)
+
+
+def test_force_kernel_consistency_write_failure():
+    """Test force_kernel_consistency returns False when write fails."""
+
+    temp_project_root = Path.cwd() / ".temp_force_write_fail"
+    temp_project_root.mkdir(exist_ok=True)
+
+    original_get_project_root = sps.get_project_root
+    try:
+        sps.get_project_root = lambda: temp_project_root
+
+        with patch.object(sps, "validate_kernel_setup", return_value=True):
+            original_open = open
+
+            def failing_open(path, *args, **kwargs):
+                mode = kwargs.get("mode")
+                if mode is None:
+                    mode = args[0] if args else "r"
+                if str(path).endswith("settings.json") and "w" in mode:
+                    raise IOError("cannot write")
+
+                return original_open(path, *args, **kwargs)
+
+            with patch("builtins.open", side_effect=failing_open):
+                result = sps.force_kernel_consistency()
+                assert result is False
+    finally:
+        sps.get_project_root = original_get_project_root
+        shutil.rmtree(temp_project_root, ignore_errors=True)
+
+
+def test_get_project_root_no_indicators_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test get_project_root fallback when indicators are absent."""
+
+    temp_root = tmp_path / "proj" / "setup"
+    temp_root.mkdir(parents=True)
+    temp_file = temp_root / "local_setup.py"
+    temp_file.write_text("print('x')", encoding="utf-8")
+
+    original_file = sps.__file__
+    sps.__file__ = str(temp_file)
+
+    try:
+        result = sps.get_project_root()
+        assert result == temp_root.parent
+    finally:
+        sps.__file__ = original_file
+
+
+def test_install_jupyter_kernel_version_check_filenotfound():
+    """Test install_jupyter_kernel when ipykernel check raises FileNotFoundError."""
+
+    call_count = {"idx": 0}
+
+    def mock_run(*args, **kwargs):
+        call_count["idx"] += 1
+        if call_count["idx"] == 1:
+            raise FileNotFoundError("python not found")
+        raise subprocess.CalledProcessError(1, "pip")
+
+    with patch("subprocess.run", side_effect=mock_run):
+        result = sps.install_jupyter_kernel()
+        assert result is False
+
+
+def test_create_vscode_settings_import_error_on_create():
+    """Test create_vscode_settings handles ImportError during file creation."""
+
+    temp_project_root = Path.cwd() / ".temp_import_error"
+    temp_project_root.mkdir(exist_ok=True)
+
+    original_get_project_root = sps.get_project_root
+    try:
+        sps.get_project_root = lambda: temp_project_root
+
+        with patch("pathlib.Path.mkdir"):
+            with patch("builtins.open", side_effect=ImportError("boom")):
+                result = sps.create_vscode_settings()
+                assert result is False
+    finally:
+        sps.get_project_root = original_get_project_root
+        shutil.rmtree(temp_project_root, ignore_errors=True)

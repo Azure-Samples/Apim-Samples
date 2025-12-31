@@ -158,11 +158,35 @@ $TestStatus = if ($FailedTests -eq 0) { "✅ PASSED" } else { "❌ FAILED" }
 
 # Get pylint score
 $PylintScore = $null
+$PylintIssueCount = $null
 $LatestPylintText = Join-Path $ScriptDir "pylint/reports/latest.txt"
+$LatestPylintJson = Join-Path $ScriptDir "pylint/reports/latest.json"
+
 if (Test-Path $LatestPylintText) {
     $ScoreMatch = Select-String -Path $LatestPylintText -Pattern 'rated at (\d+(?:\.\d+)?/10)' | Select-Object -First 1
     if ($ScoreMatch -and $ScoreMatch.Matches.Count -gt 0) {
         $PylintScore = $ScoreMatch.Matches[0].Groups[1].Value
+    }
+}
+
+if (Test-Path $LatestPylintJson) {
+    try {
+        $RawJson = Get-Content $LatestPylintJson -Raw
+        if ($RawJson -and $RawJson.Trim()) {
+            $Issues = $RawJson | ConvertFrom-Json
+            if ($null -eq $Issues) {
+                $PylintIssueCount = 0
+            }
+            elseif ($Issues -is [System.Array]) {
+                $PylintIssueCount = $Issues.Count
+            }
+            else {
+                $PylintIssueCount = 1
+            }
+        }
+    }
+    catch {
+        $PylintIssueCount = $null
     }
 }
 
@@ -173,8 +197,19 @@ $TestColor = if ($FailedTests -eq 0) { "Green" } else { "Red" }
 # Display Pylint status with score
 Write-Host "Pylint   : " -NoNewline
 Write-Host $LintStatus -ForegroundColor $LintColor -NoNewline
+$PylintDetails = @()
 if ($PylintScore) {
-    Write-Host " ($PylintScore)" -ForegroundColor Gray
+    $PylintDetails += $PylintScore
+}
+if ($PylintIssueCount -ne $null) {
+    $IssueLabel = if ($PylintIssueCount -eq 1) { "1 issue" } else { "$PylintIssueCount issues" }
+    $PylintDetails += $IssueLabel
+}
+
+if ($PylintDetails.Count -gt 0) {
+    Write-Host " (" -ForegroundColor Gray -NoNewline
+    Write-Host ($PylintDetails -join " | ") -ForegroundColor Gray -NoNewline
+    Write-Host ")" -ForegroundColor Gray
 } else {
     Write-Host ""
 }

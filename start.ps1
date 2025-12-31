@@ -114,7 +114,7 @@ while ($true) {
     Write-Host "Tests" -ForegroundColor Yellow
     Write-Host "  5) Run pylint"
     Write-Host "  6) Run tests"
-    Write-Host "  7) Run full Python checks"
+    Write-Host "  7) Run full Python checks (most statistics)"
     Write-Host ""
     Write-Host "Misc" -ForegroundColor Yellow
     Write-Host "  0) Exit"
