@@ -45,7 +45,10 @@
         "files.associations": {
           "*.bicep": "bicep"
         }
-      }
+      },
+      "openFiles": [
+        ".devcontainer/CODESPACES-QUICKSTART.md"
+      ]
     },
     "containerEnv": {
       "PATH": "/workspaces/Apim-Samples/.venv/bin:${PATH}",
