@@ -3,6 +3,7 @@ Unit tests for apimtypes.py
 """
 
 import importlib
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 import pytest
@@ -1166,3 +1167,59 @@ class TestAPIEdgeCases:
 
         assert api.subscriptionRequired is False
         assert api.to_dict()['subscriptionRequired'] is False
+
+
+class TestProjectRootDetection:
+    """Test project root detection logic."""
+
+    def test_get_project_root_from_env_var(self, monkeypatch):
+        """Test get_project_root when PROJECT_ROOT env var is set."""
+        expected_root = Path('/custom/project/root')
+        monkeypatch.setenv('PROJECT_ROOT', str(expected_root))
+
+        result = get_project_root()
+        assert result == expected_root
+
+    def test_get_project_root_without_env_var(self, monkeypatch):
+        """Test get_project_root when PROJECT_ROOT env var is not set."""
+        monkeypatch.delenv('PROJECT_ROOT', raising=False)
+
+        # Should return a Path object (doesn't have to exist in tests)
+        result = get_project_root()
+        assert isinstance(result, Path)
+
+
+class TestOutputGetEdgeCases:
+    """Additional edge case tests for Output.get() method."""
+
+    def test_output_get_with_missing_label_returns_none(self):
+        """Test Output.get() without label returns None on error."""
+        output = apimtypes.Output(success=True, text='{}')
+
+        # Should return None when key is missing and no label is provided
+        result = output.get('nonexistent_key')
+        assert result is None
+
+    def test_output_get_json_with_syntax_error(self):
+        """Test Output.getJson() returns original value when parsing fails."""
+        json_text = json.dumps({
+            'output1': {
+                'value': 'invalid syntax {bracket'
+            }
+        })
+        output = apimtypes.Output(success=True, text=json_text)
+
+        # Should return the original value when parsing fails
+        result = output.getJson('output1')
+        assert result == 'invalid syntax {bracket'
+
+    def test_output_get_json_with_non_dict_properties(self):
+        """Test Output.getJson() when properties is not a dict."""
+        json_text = json.dumps({
+            'properties': 'not a dict'
+        })
+        output = apimtypes.Output(success=True, text=json_text)
+
+        # Should handle gracefully and return None
+        result = output.getJson('key')
+        assert result is None

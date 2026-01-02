@@ -132,16 +132,16 @@ class BarChart:
 
         # Exclude high outliers for average calculation
         valid_200 = df[(df['Status Code'] == 200)].copy()
+
+        # Exclude high outliers (e.g., above 95th percentile)
         if not valid_200.empty:
-            # Exclude high outliers (e.g., above 95th percentile)
-            if not valid_200.empty:
-                upper = valid_200['Response Time (ms)'].quantile(0.95)
-                filtered = valid_200[valid_200['Response Time (ms)'] <= upper]
-                if not filtered.empty:
-                    avg = filtered['Response Time (ms)'].mean()
-                    avg_label = f'Mean APIM response time: {avg:.1f} ms'
-                    plt.axhline(y = avg, color = 'b', linestyle = '--')
-                    plt.text(len(df) - 1, avg, avg_label, color = 'b', va = 'bottom', ha = 'right', fontsize = 10)
+            upper = valid_200['Response Time (ms)'].quantile(0.95)
+            filtered = valid_200[valid_200['Response Time (ms)'] <= upper]
+            if not filtered.empty:
+                avg = filtered['Response Time (ms)'].mean()
+                avg_label = f'Mean APIM response time: {avg:.1f} ms'
+                plt.axhline(y = avg, color = 'b', linestyle = '--')
+                plt.text(len(df) - 1, avg, avg_label, color = 'b', va = 'bottom', ha = 'right', fontsize = 10)
 
         # Add figtext under the chart
         plt.figtext(0.13, -0.1, wrap = True, ha = 'left', fontsize = 11, s = self.fig_text)
