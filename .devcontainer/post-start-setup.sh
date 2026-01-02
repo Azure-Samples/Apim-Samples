@@ -28,7 +28,7 @@ cd "$WORKSPACE_ROOT" || exit 1
 
 # Open quickstart in preview (best-effort; ignore failures)
 if command -v code >/dev/null 2>&1; then
-    code --command markdown.showPreviewToSide .devcontainer/CODESPACES-QUICKSTART.md >/dev/null 2>&1 || true
+    code --command markdown.showPreviewToSide "${WORKSPACE_ROOT}/.devcontainer/CODESPACES-QUICKSTART.md" >/dev/null 2>&1 || true
 fi
 
 # Calculate total duration
