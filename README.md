@@ -154,7 +154,7 @@ These prerequisites apply broadly across all infrastructure and samples. If ther
 
 #### Manual Local Setup
 
-1. **Create Python Environment**: In VS Code, use Ctrl+Shift+P → "Python: Create Environment" → "Venv" → Select Python version → Check requirements.txt  
+1. **Create Python Environment**: In VS Code, use **Ctrl+Shift+P → "Python: Create Environment" → "Venv" → Select Python version → Leave name as `.venv` → "Install project dependencies" → Check requirements.txt → OK**  
   The install may take a few minutes. You can check on progress in the _OUTPUT_ window (select `Python`).
 1. **Complete Environment Setup**: Open a terminal and start the [Developer CLI](#-developer-cli), then select `Complete environment setup`.
 3. **Restart VS Code** to apply all settings
