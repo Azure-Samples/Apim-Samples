@@ -26,17 +26,26 @@ import shutil
 from pathlib import Path
 
 # Configure UTF-8 encoding for console output
-if sys.stdout.encoding != 'utf-8':
+if sys.stdout.encoding != 'utf-8':  # pragma: no cover
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 
-def print_status(message, success=True, fix=""):
+def print_status(message, success=True, fix="", skipped=False):
     """Print status message with optional fix guidance."""
-    color = "32" if success else "31"  # Green for success, red for failure
-    icon = "✅" if success else "❌"
-    print(f"{icon} \033[1;{color}m{message}\033[0m")
-    if not success and fix:
-        print(f"   👉 Fix: {fix}")
+    if skipped:
+        color = "33"  # Yellow for skipped
+        icon = "⚠️ "
+        status_text = "SKIPPED"
+    else:
+        color = "32" if success else "31"  # Green for success, red for failure
+        icon = "✅" if success else "❌"
+        status_text = "PASS" if success else "FAIL"
+    print(f"{icon} \033[1;{color}m{status_text}: {message}\033[0m")
+    if fix:
+        if skipped:
+            print(f"   ℹ️  Note: {fix}")
+        elif not success:
+            print(f"   👉 Fix: {fix}")
 
 
 def print_section(title):
@@ -231,7 +240,7 @@ def check_azure_login():
         subscription = account.get("id", "unknown")
         return True, f"Logged in (sub: {name}, id: {subscription}, tenant: {tenant})"
     except (subprocess.CalledProcessError, json.JSONDecodeError):
-        return False, "Login and set subscription: az login --tenant <tenant-id> && az account set --subscription <subscription-id>"
+        return False, "Log in and set subscription: az login --tenant <tenant-id> && az account set --subscription <subscription-id>"
 
 
 def check_azure_providers():
@@ -272,7 +281,7 @@ def check_azure_providers():
         fix_cmds = ", ".join([f"az provider register -n {provider}" for provider in missing_providers])
         return False, f"Register missing providers: {fix_cmds}"
     except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError):
-        return False, "Login then retry: az login --tenant <tenant> && az account set --subscription <subscription>"
+        return False, "Log in then retry: az login --tenant <tenant> && az account set --subscription <subscription>"
 
 
 def main():
@@ -294,25 +303,51 @@ def main():
     ]
 
     results = []
+    azure_login_passed = False
 
     for check_name, check_function in checks:
+        # Skip Azure Providers check if Azure Login failed
+        if check_name == "Azure Providers" and not azure_login_passed:
+            print_section(check_name)
+            print_status(
+                check_name,
+                success=True,
+                fix="A successful Azure login must be detected prior to running this check",
+                skipped=True
+            )
+            results.append((check_name, None, "Skipped because Azure login is required"))
+            continue
+
         print_section(check_name)
         passed, fix = check_function()
-        print_status(f"{check_name}: {'PASS' if passed else 'FAIL'}", passed, fix)
+        print_status(check_name, passed, fix)
         results.append((check_name, passed, fix))
 
+        # Track if Azure Login passed for conditional Azure Providers check
+        if check_name == "Azure Login":
+            azure_login_passed = passed
+
     print_section("Summary")
-    passed_count = sum(1 for _, ok, _ in results if ok)
+    passed_count = sum(1 for _, ok, _ in results if ok is True)
+    skipped_count = sum(1 for _, ok, _ in results if ok is None)
     total = len(results)
     max_name_length = max(len(check_name) for check_name, _, _ in results)
 
     for check_name, ok, fix in results:
         padded_name = check_name.ljust(max_name_length + 1)
-        print_status(f"{padded_name}: {'PASS' if ok else 'FAIL'}", ok, fix)
+        if ok is None:
+            # Skipped check
+            print_status(padded_name, success=True, fix=fix, skipped=True)
+        else:
+            print_status(padded_name, ok, fix)
 
-    print(f"\n📊 Overall: {passed_count}/{total} checks passed")
+    active_checks = total - skipped_count
+    print(f"\n📊 Overall: {passed_count}/{active_checks} checks passed", end="")
+    if skipped_count > 0:
+        print(f" ({skipped_count} skipped)", end="")
+    print()
 
-    if passed_count == total:
+    if passed_count == active_checks:
         print("\n🎉 All checks passed! Your environment is ready for APIM Samples.")
         print("💡 You can now open any notebook and it should work seamlessly.")
     else:
@@ -320,7 +355,7 @@ def main():
         print("   python setup/local_setup.py --complete-setup")
         print("   Then restart VS Code and run this verification again.")
 
-    return passed_count == total
+    return passed_count == active_checks
 
 
 if __name__ == '__main__':  # pragma: no cover

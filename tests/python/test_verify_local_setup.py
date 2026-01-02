@@ -78,6 +78,11 @@ def test_print_section(capsys, suppress_print):
     vls.print_section("Test Section")
 
 
+def test_print_status_skipped(capsys, suppress_print):
+    """print_status should tolerate skipped checks with note."""
+    vls.print_status("skipped check", skipped=True, fix="reason for skip")
+
+
 # ============================================================
 # Tests for check_virtual_environment
 # ============================================================
@@ -588,7 +593,7 @@ def test_check_azure_providers_subprocess_error(monkeypatch: pytest.MonkeyPatch,
             mock_run.side_effect = subprocess.CalledProcessError(1, "az")
             ok, fix = vls.check_azure_providers()
             assert ok is False
-            assert "Login" in fix
+            assert "Log in" in fix or "Login" in fix
 
 
 def test_check_azure_providers_json_error(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
@@ -599,7 +604,7 @@ def test_check_azure_providers_json_error(monkeypatch: pytest.MonkeyPatch, suppr
             mock_run.return_value = Mock(stdout="invalid json", returncode=0)
             ok, fix = vls.check_azure_providers()
             assert ok is False
-            assert "Login" in fix
+            assert "Log in" in fix or "Login" in fix
 
 
 # ============================================================
@@ -623,6 +628,57 @@ def test_main_all_pass(monkeypatch: pytest.MonkeyPatch, suppress_print):
     assert result is True
 
 
+def test_main_skip_azure_providers_when_login_fails(monkeypatch: pytest.MonkeyPatch, suppress_print):
+    """Main function should skip Azure Providers check when Azure Login fails."""
+    monkeypatch.setattr(vls, "check_virtual_environment", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_required_packages", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_shared_modules", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_env_file", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_azure_cli", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_bicep_cli", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_azure_login", lambda: (False, "not logged in"))
+    azure_providers_called = []
+
+    def check_azure_providers_mock():
+        azure_providers_called.append(True)
+        return (True, "")
+
+    monkeypatch.setattr(vls, "check_azure_providers", check_azure_providers_mock)
+    monkeypatch.setattr(vls, "check_jupyter_kernel", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_vscode_settings", lambda: (True, ""))
+
+    result = vls.main()
+    # Should fail because azure_login failed (even though providers are skipped)
+    assert result is False
+    # Verify Azure Providers check was NOT called because login failed
+    assert len(azure_providers_called) == 0
+
+
+def test_main_run_azure_providers_when_login_succeeds(monkeypatch: pytest.MonkeyPatch, suppress_print):
+    """Main function should run Azure Providers check when Azure Login succeeds."""
+    monkeypatch.setattr(vls, "check_virtual_environment", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_required_packages", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_shared_modules", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_env_file", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_azure_cli", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_bicep_cli", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_azure_login", lambda: (True, "logged in"))
+    azure_providers_called = []
+
+    def check_azure_providers_mock():
+        azure_providers_called.append(True)
+        return (True, "")
+
+    monkeypatch.setattr(vls, "check_azure_providers", check_azure_providers_mock)
+    monkeypatch.setattr(vls, "check_jupyter_kernel", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_vscode_settings", lambda: (True, ""))
+
+    result = vls.main()
+    assert result is True
+    # Verify Azure Providers check WAS called
+    assert len(azure_providers_called) == 1
+
+
 def test_main_some_fail(monkeypatch: pytest.MonkeyPatch, suppress_print):
     """Main function should return False when some checks fail."""
     monkeypatch.setattr(vls, "check_virtual_environment", lambda: (True, ""))
@@ -637,4 +693,21 @@ def test_main_some_fail(monkeypatch: pytest.MonkeyPatch, suppress_print):
     monkeypatch.setattr(vls, "check_vscode_settings", lambda: (True, ""))
 
     result = vls.main()
+    assert result is False
+
+
+def test_main_skip_providers_and_fail_other(monkeypatch: pytest.MonkeyPatch, suppress_print):
+    """Main function should return False when non-provider checks fail, even if providers skipped."""
+    monkeypatch.setattr(vls, "check_virtual_environment", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_required_packages", lambda: (False, "install"))
+    monkeypatch.setattr(vls, "check_shared_modules", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_env_file", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_azure_cli", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_bicep_cli", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_azure_login", lambda: (False, "not logged in"))
+    monkeypatch.setattr(vls, "check_jupyter_kernel", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_vscode_settings", lambda: (True, ""))
+
+    result = vls.main()
+    # Should fail because check_required_packages fails
     assert result is False
