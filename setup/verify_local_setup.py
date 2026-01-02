@@ -110,17 +110,17 @@ def check_shared_modules():
 
 
 def check_jupyter_kernel():
-    """Check if the APIM Samples Jupyter kernel is registered."""
+    """Check if the Jupyter kernel is registered."""
     try:
         result = subprocess.run([
             sys.executable, '-m', 'jupyter', 'kernelspec', 'list'
         ], capture_output=True, text=True, check=True)
 
-        if 'apim-samples' in result.stdout:
-            print_status("APIM Samples Jupyter kernel is registered")
+        if 'python3' in result.stdout:
+            print_status("Python3 Jupyter kernel is registered")
             return True
 
-        print_status("APIM Samples Jupyter kernel not found", False)
+        print_status("Python3 Jupyter kernel not found. check available kernels: jupyter kernelspec list  ", False)
         return False
 
     except (subprocess.CalledProcessError, FileNotFoundError):
