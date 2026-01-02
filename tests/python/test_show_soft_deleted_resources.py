@@ -181,6 +181,12 @@ def test_purge_key_vaults_all_protected():
         assert skipped_count == 2
 
 
+def test_purge_key_vaults_empty_list():
+    """Test purge_key_vaults with empty list returns early."""
+    result = sdr.purge_key_vaults([])
+    assert result == (0, 0)
+
+
 # ------------------------------
 #    CONFIRMATION TESTS
 # ------------------------------
@@ -698,6 +704,29 @@ def test_main_purge_with_no_purgeable_resources(monkeypatch):
 
     result = sdr.main()
 
+    assert not result
+
+
+def test_main_purge_all_resources_successfully(monkeypatch):
+    """Test main when all purgeable resources are successfully purged."""
+    services = [{'name': 'apim-1', 'location': 'eastus', 'deletionDate': '2025-12-13T10:00:00Z', 'scheduledPurgeDate': '2026-01-13T10:00:00Z', 'serviceId': 'id-1'}]
+    vaults = [{'name': 'vault-1', 'properties': {'location': 'eastus', 'purgeProtectionEnabled': False}}]
+
+    def mock_purge_apim(s):
+        return len(s)  # Successfully purge all
+
+    def mock_purge_kv(v):
+        return (1, 0)  # Successfully purge all, 0 skipped
+
+    monkeypatch.setattr('show_soft_deleted_resources.get_deleted_apim_services', lambda: services)
+    monkeypatch.setattr('show_soft_deleted_resources.get_deleted_key_vaults', lambda: vaults)
+    monkeypatch.setattr('show_soft_deleted_resources.purge_apim_services', mock_purge_apim)
+    monkeypatch.setattr('show_soft_deleted_resources.purge_key_vaults', mock_purge_kv)
+    monkeypatch.setattr('show_soft_deleted_resources.az.run', lambda cmd, *a, **k: MagicMock(success=True, json_data={'name': 'test-sub', 'id': 'sub-id'}))
+    mock_module_functions(monkeypatch, builtins, ['print'])
+    monkeypatch.setattr('sys.argv', ['script.py', '--purge', '--yes'])
+
+    result = sdr.main()
     assert not result
 
 

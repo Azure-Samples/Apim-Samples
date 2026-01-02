@@ -3,6 +3,8 @@
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11057/badge)][openssf]
 [![Python Tests][badge-python-tests]][workflow-python-tests]
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Azure-Samples/Apim-Samples?devcontainer_path=.devcontainer%2Fpython314%2Fdevcontainer.json)
+
 **This repository provides resources to quickly deploy high-fidelity Azure API Management (APIM) infrastructures and experiment with common APIM.**
 
 Historically, there were two general paths to experimenting with APIM. Standing up an entire landing zone with the [APIM Landing Zone Accelerator][apim-lza] can feel overwhelming and _more than needed_. Similarly, using [APIM policy snippets][apim-snippets] is only helpful when an APIM instance and infrastructure already exists.
@@ -89,6 +91,8 @@ This menu-driven interface provides quick access to:
 - **Setup**: Complete environment setup, verify local setup, and show Azure account info
 - **Tests**: Run pylint, pytest, and full Python checks
 
+<img src="./assets/dev-cli-lint-test-results.png" alt="APIM Samples Developer CLI showing final linting, test, and code coverage results" title="APIM Samples Developer CLI Final Results" />
+
 </details>
 
 
@@ -98,6 +102,9 @@ APIM Samples supports two setup options:
 
 ### Option 1: GitHub Codespaces / Dev Container (Recommended for First-Time Users)
 <details>
+<br/>
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Azure-Samples/Apim-Samples?devcontainer_path=.devcontainer%2Fpython314%2Fdevcontainer.json)
 
 **The fastest way to get started is using our pre-configured development environment.** Everything is pre-installed and configured—just sign in to Azure and you're ready to go.
 

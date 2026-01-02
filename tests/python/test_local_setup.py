@@ -144,6 +144,22 @@ def test_merge_string_list_no_duplicates():
     assert result == ["a", "b", "c"]
 
 
+def test_merge_string_list_empty_existing():
+    """Test _merge_string_list with empty existing list."""
+    existing = []
+    required = ["a", "b", "c"]
+    result = sps._merge_string_list(existing, required)
+    assert result == ["a", "b", "c"]
+
+
+def test_merge_string_list_with_none_and_empty_string():
+    """Test _merge_string_list handles None existing and normalizes it to empty list."""
+    existing = None
+    required = ["a", "b"]
+    result = sps._merge_string_list(existing, required)
+    assert result == ["a", "b"]
+
+
 def test_get_project_root_finds_indicators(tmp_path: Path):
     """Test get_project_root locates project root by indicators."""
     # Create indicators at root
