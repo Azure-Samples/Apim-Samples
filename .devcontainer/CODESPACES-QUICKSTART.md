@@ -19,7 +19,7 @@ environment, `.env` file, Azure CLI, and Python are all present. Look for the
 first terminal tab titled **“APIM Samples Codespace Starting”** (or re-open the
 first terminal in VS Code); it shows the output from `.devcontainer/post-start-setup.sh`.
 
-If you ever want to rerun the verification manually, open a terminal and execute:
+For more visibility, you can also run the command in the terminal yourself:
 
 ```bash
 bash .devcontainer/post-start-setup.sh

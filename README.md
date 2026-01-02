@@ -106,11 +106,13 @@ APIM Samples supports two setup options:
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Azure-Samples/Apim-Samples?devcontainer_path=.devcontainer%2Fpython314%2Fdevcontainer.json)
 
-**The fastest way to get started is using our pre-configured development environment.** Everything is pre-installed and configured—just sign in to Azure and you're ready to go.
+**The fastest way to get started is using our pre-configured development environment. Just click the *Open in GitHub Codespaces* button above!** Everything is pre-installed and configured—just sign in to Azure and you're ready to go.
 
-This is especially helpful if you're new to APIM, unfamiliar with Python environments, or want to avoid local setup complexity. The entire setup takes 2-3 minutes.
+This is especially helpful if you're new to APIM, unfamiliar with Python environments, or want to avoid local setup complexity. **The entire setup typically takes 2-3 minutes.**
 
-**GitHub Codespaces**: Click the green "Code" button → "Codespaces" → "..." → "New with options..." → "Dev container configuration" (select Python version but ignore *Default project configuration*) → "Create codespace"
+**GitHub Codespaces**: You can also go through the menu by clicking the green "Code" button → "Codespaces" → "..." → "New with options..." → "Dev container configuration" (select Python version but ignore *Default project configuration*) → "Create codespace"
+
+📖 **For detailed setup information, troubleshooting, and optimization details, see [Codespaces Quickstart](.devcontainer/CODESPACES-QUICKSTART.md) and [Dev Container Documentation](.devcontainer/README.md)**
 
 <img src="./assets/codespaces-python-configurations.png" alt="Codespaces configuration selector for various supposed Python versions" title="Codespaces configuration selector" />
 
@@ -130,7 +132,6 @@ This is especially helpful if you're new to APIM, unfamiliar with Python environ
 
 All prerequisites are automatically installed and configured.
 
-📖 **For detailed setup information, troubleshooting, and optimization details, see [Dev Container Documentation](.devcontainer/README.md)**
 </details>
 
 ### Option 2: Full Local Setup
