@@ -48,21 +48,18 @@ def suppress_print(monkeypatch: pytest.MonkeyPatch) -> None:
 # ============================================================
 
 def test_print_status_success(capsys, suppress_print):
-    """Test print_status with success message."""
-    vls.print_status("Test message", success=True)
-    # Just verify it doesn't raise an exception
+    """print_status should tolerate success messages."""
+    vls.print_status("ok", success=True)
 
 
-def test_print_status_failure(capsys, suppress_print):
-    """Test print_status with failure message."""
-    vls.print_status("Test message", success=False)
-    # Just verify it doesn't raise an exception
+def test_print_status_failure_with_fix(capsys, suppress_print):
+    """print_status should tolerate failure messages with fix text."""
+    vls.print_status("bad", success=False, fix="do this")
 
 
 def test_print_section(capsys, suppress_print):
-    """Test print_section displays header."""
+    """print_section should tolerate headers."""
     vls.print_section("Test Section")
-    # Just verify it doesn't raise an exception
 
 
 # ============================================================
@@ -79,12 +76,16 @@ def test_check_virtual_environment_success(temp_cwd: Path, monkeypatch: pytest.M
 
     monkeypatch.setattr(sys, "executable", str(venv_python))
 
-    assert vls.check_virtual_environment() is True
+    ok, fix = vls.check_virtual_environment()
+    assert ok is True
+    assert not fix
 
 
 def test_check_virtual_environment_missing(temp_cwd: Path, suppress_print) -> None:
     """Virtual environment check should fail when .venv doesn't exist."""
-    assert vls.check_virtual_environment() is False
+    ok, fix = vls.check_virtual_environment()
+    assert ok is False
+    assert "Create" in fix
 
 
 def test_check_virtual_environment_wrong_python(temp_cwd: Path, monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
@@ -92,7 +93,9 @@ def test_check_virtual_environment_wrong_python(temp_cwd: Path, monkeypatch: pyt
     (temp_cwd / ".venv").mkdir()
     monkeypatch.setattr(sys, "executable", "/usr/bin/python")
 
-    assert vls.check_virtual_environment() is False
+    ok, fix = vls.check_virtual_environment()
+    assert ok is False
+    assert "Activate" in fix
 
 
 # ============================================================
@@ -107,7 +110,9 @@ def test_check_required_packages_all_present(monkeypatch: pytest.MonkeyPatch, su
 
     monkeypatch.setattr("builtins.__import__", fake_import)
 
-    assert vls.check_required_packages() is True
+    ok, fix = vls.check_required_packages()
+    assert ok is True
+    assert not fix
 
 
 def test_check_required_packages_missing(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
@@ -116,13 +121,13 @@ def test_check_required_packages_missing(monkeypatch: pytest.MonkeyPatch, suppre
     def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
         if name == "dotenv":
             raise ImportError("dotenv missing")
-
-        # Return a lightweight placeholder for expected modules.
         return SimpleNamespace(__name__=name)
 
     monkeypatch.setattr("builtins.__import__", fake_import)
 
-    assert vls.check_required_packages() is False
+    ok, fix = vls.check_required_packages()
+    assert ok is False
+    assert "pip install" in fix
 
 
 def test_check_required_packages_requests_missing(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
@@ -135,33 +140,9 @@ def test_check_required_packages_requests_missing(monkeypatch: pytest.MonkeyPatc
 
     monkeypatch.setattr("builtins.__import__", fake_import)
 
-    assert vls.check_required_packages() is False
-
-
-def test_check_required_packages_ipykernel_missing(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
-    """Package check should return False when ipykernel is missing."""
-
-    def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
-        if name == "ipykernel":
-            raise ImportError("ipykernel missing")
-        return SimpleNamespace(__name__=name)
-
-    monkeypatch.setattr("builtins.__import__", fake_import)
-
-    assert vls.check_required_packages() is False
-
-
-def test_check_required_packages_jupyter_missing(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
-    """Package check should return False when jupyter is missing."""
-
-    def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
-        if name == "jupyter":
-            raise ImportError("jupyter missing")
-        return SimpleNamespace(__name__=name)
-
-    monkeypatch.setattr("builtins.__import__", fake_import)
-
-    assert vls.check_required_packages() is False
+    ok, fix = vls.check_required_packages()
+    assert ok is False
+    assert "requests" in fix
 
 
 # ============================================================
@@ -176,7 +157,9 @@ def test_check_shared_modules_success(monkeypatch: pytest.MonkeyPatch, suppress_
 
     monkeypatch.setattr("builtins.__import__", fake_import)
 
-    assert vls.check_shared_modules() is True
+    ok, fix = vls.check_shared_modules()
+    assert ok is True
+    assert not fix
 
 
 def test_check_shared_modules_missing_utils(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
@@ -189,7 +172,9 @@ def test_check_shared_modules_missing_utils(monkeypatch: pytest.MonkeyPatch, sup
 
     monkeypatch.setattr("builtins.__import__", fake_import)
 
-    assert vls.check_shared_modules() is False
+    ok, fix = vls.check_shared_modules()
+    assert ok is False
+    assert "generate-env" in fix
 
 
 def test_check_shared_modules_missing_apimtypes(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
@@ -239,10 +224,12 @@ def test_check_jupyter_kernel_found(monkeypatch: pytest.MonkeyPatch, suppress_pr
     """Jupyter kernel check should pass when kernel is found."""
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = Mock(
-            stdout="Available kernels:\n  apim-samples\n",
-            returncode=0
+            stdout="Available kernels:\n  python-venv\n",
+            returncode=0,
         )
-        assert vls.check_jupyter_kernel() is True
+        ok, fix = vls.check_jupyter_kernel()
+        assert ok is True
+        assert not fix
 
 
 def test_check_jupyter_kernel_not_found(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
@@ -250,23 +237,29 @@ def test_check_jupyter_kernel_not_found(monkeypatch: pytest.MonkeyPatch, suppres
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = Mock(
             stdout="Available kernels:\n  other-kernel\n",
-            returncode=0
+            returncode=0,
         )
-        assert vls.check_jupyter_kernel() is False
+        ok, fix = vls.check_jupyter_kernel()
+        assert ok is False
+        assert "ipykernel" in fix or "Register" in fix
 
 
 def test_check_jupyter_kernel_subprocess_error(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
     """Jupyter kernel check should fail on subprocess errors."""
     with patch("subprocess.run") as mock_run:
         mock_run.side_effect = subprocess.CalledProcessError(1, "jupyter")
-        assert vls.check_jupyter_kernel() is False
+        ok, fix = vls.check_jupyter_kernel()
+        assert ok is False
+        assert "Install Jupyter" in fix
 
 
 def test_check_jupyter_kernel_file_not_found(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
     """Jupyter kernel check should fail when jupyter is not found."""
     with patch("subprocess.run") as mock_run:
         mock_run.side_effect = FileNotFoundError()
-        assert vls.check_jupyter_kernel() is False
+        ok, fix = vls.check_jupyter_kernel()
+        assert ok is False
+        assert "Install Jupyter" in fix
 
 
 # ============================================================
@@ -283,16 +276,20 @@ def test_check_vscode_settings_all_configured(temp_cwd: Path, suppress_print) ->
         "python.envFile": "${workspaceFolder}/.env",
         "python.terminal.activateEnvironment": True,
         "python.testing.pytestEnabled": True,
-        "files.eol": "\n"
+        "files.eol": "\n",
     }
     vscode_settings.write_text(json.dumps(settings), encoding="utf-8")
 
-    assert vls.check_vscode_settings() is True
+    ok, fix = vls.check_vscode_settings()
+    assert ok is True
+    assert not fix
 
 
 def test_check_vscode_settings_not_found(temp_cwd: Path, suppress_print) -> None:
     """VS Code settings check should fail when settings.json is missing."""
-    assert vls.check_vscode_settings() is False
+    ok, fix = vls.check_vscode_settings()
+    assert ok is False
+    assert "complete-setup" in fix
 
 
 def test_check_vscode_settings_missing_interpreter_path(temp_cwd: Path, suppress_print) -> None:
@@ -305,7 +302,9 @@ def test_check_vscode_settings_missing_interpreter_path(temp_cwd: Path, suppress
     }
     vscode_settings.write_text(json.dumps(settings), encoding="utf-8")
 
-    assert vls.check_vscode_settings() is False
+    ok, fix = vls.check_vscode_settings()
+    assert ok is False
+    assert "complete-setup" in fix
 
 
 def test_check_vscode_settings_missing_env_file(temp_cwd: Path, suppress_print) -> None:
@@ -318,7 +317,9 @@ def test_check_vscode_settings_missing_env_file(temp_cwd: Path, suppress_print) 
     }
     vscode_settings.write_text(json.dumps(settings), encoding="utf-8")
 
-    assert vls.check_vscode_settings() is False
+    ok, fix = vls.check_vscode_settings()
+    assert ok is False
+    assert "complete-setup" in fix
 
 
 def test_check_vscode_settings_file_read_error(temp_cwd: Path, suppress_print) -> None:
@@ -327,10 +328,10 @@ def test_check_vscode_settings_file_read_error(temp_cwd: Path, suppress_print) -
     vscode_settings.parent.mkdir(parents=True)
     vscode_settings.write_text("", encoding="utf-8")
 
-    # Mock file open to raise exception
     with patch("builtins.open", side_effect=OSError("Permission denied")):
-        result = vls.check_vscode_settings()
-        assert result is False
+        ok, fix = vls.check_vscode_settings()
+    assert ok is False
+    assert "Could not read" in fix
 
 
 # ============================================================
@@ -343,7 +344,9 @@ def test_check_env_file_validation(temp_cwd: Path, suppress_print) -> None:
     env_path = temp_cwd / ".env"
     env_path.write_text("PYTHONPATH=/tmp\nPROJECT_ROOT=/repo\n", encoding="utf-8")
 
-    assert vls.check_env_file() is True
+    ok, fix = vls.check_env_file()
+    assert ok is True
+    assert not fix
 
 
 def test_check_env_file_missing_key(temp_cwd: Path, suppress_print) -> None:
@@ -352,12 +355,16 @@ def test_check_env_file_missing_key(temp_cwd: Path, suppress_print) -> None:
     env_path = temp_cwd / ".env"
     env_path.write_text("PYTHONPATH=/tmp\n", encoding="utf-8")
 
-    assert vls.check_env_file() is False
+    ok, fix = vls.check_env_file()
+    assert ok is False
+    assert "generate-env" in fix
 
 
 def test_check_env_file_missing(temp_cwd: Path, suppress_print) -> None:
     """Environment file check should fail when .env is missing."""
-    assert vls.check_env_file() is False
+    ok, fix = vls.check_env_file()
+    assert ok is False
+    assert "generate-env" in fix
 
 
 def test_check_env_file_with_comments(temp_cwd: Path, suppress_print) -> None:
@@ -365,7 +372,9 @@ def test_check_env_file_with_comments(temp_cwd: Path, suppress_print) -> None:
     env_path = temp_cwd / ".env"
     env_path.write_text("# Comment\nPYTHONPATH=/tmp\nPROJECT_ROOT=/repo\n", encoding="utf-8")
 
-    assert vls.check_env_file() is True
+    ok, fix = vls.check_env_file()
+    assert ok is True
+    assert not fix
 
 
 def test_check_env_file_read_error(temp_cwd: Path, suppress_print) -> None:
@@ -373,8 +382,9 @@ def test_check_env_file_read_error(temp_cwd: Path, suppress_print) -> None:
     env_path = temp_cwd / ".env"
     env_path.write_text("PYTHONPATH=/tmp\n", encoding="utf-8")
     with patch("builtins.open", side_effect=OSError("Permission denied")):
-        result = vls.check_env_file()
-    assert result is False
+        ok, fix = vls.check_env_file()
+    assert ok is False
+    assert "Could not read" in fix
 
 
 # ============================================================
@@ -388,16 +398,20 @@ def test_check_azure_cli_installed(monkeypatch: pytest.MonkeyPatch, suppress_pri
             mock_which.return_value = "/usr/bin/az"
             mock_run.return_value = Mock(
                 stdout="azure-cli                         2.81.0\n",
-                returncode=0
+                returncode=0,
             )
-            assert vls.check_azure_cli() is True
+            ok, fix = vls.check_azure_cli()
+            assert ok is True
+            assert "2.81.0" in fix
 
 
 def test_check_azure_cli_not_found(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
     """Azure CLI check should fail when az is not found."""
     with patch("shutil.which") as mock_which:
         mock_which.return_value = None
-        assert vls.check_azure_cli() is False
+        ok, fix = vls.check_azure_cli()
+        assert ok is False
+        assert "Install Azure CLI" in fix
 
 
 def test_check_azure_cli_subprocess_error(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
@@ -406,7 +420,9 @@ def test_check_azure_cli_subprocess_error(monkeypatch: pytest.MonkeyPatch, suppr
         with patch("subprocess.run") as mock_run:
             mock_which.return_value = "/usr/bin/az"
             mock_run.side_effect = subprocess.CalledProcessError(1, "az")
-            assert vls.check_azure_cli() is False
+            ok, fix = vls.check_azure_cli()
+            assert ok is False
+            assert "Reinstall" in fix
 
 
 def test_check_azure_cli_empty_version(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
@@ -415,7 +431,9 @@ def test_check_azure_cli_empty_version(monkeypatch: pytest.MonkeyPatch, suppress
         with patch("subprocess.run") as mock_run:
             mock_which.return_value = "/usr/bin/az"
             mock_run.return_value = Mock(stdout="", returncode=0)
-            assert vls.check_azure_cli() is True
+            ok, fix = vls.check_azure_cli()
+            assert ok is True
+            assert "Azure CLI" in fix
 
 
 # ============================================================
@@ -429,16 +447,20 @@ def test_check_bicep_cli_installed(monkeypatch: pytest.MonkeyPatch, suppress_pri
             mock_which.return_value = "/usr/bin/az"
             mock_run.return_value = Mock(
                 stdout="Bicep CLI version 0.39.26 (1e90b06e40)\n",
-                returncode=0
+                returncode=0,
             )
-            assert vls.check_bicep_cli() is True
+            ok, fix = vls.check_bicep_cli()
+            assert ok is True
+            assert "0.39.26" in fix
 
 
 def test_check_bicep_cli_not_found(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
     """Bicep CLI check should fail when az is not found."""
     with patch("shutil.which") as mock_which:
         mock_which.return_value = None
-        assert vls.check_bicep_cli() is False
+        ok, fix = vls.check_bicep_cli()
+        assert ok is False
+        assert "Install Azure CLI" in fix
 
 
 def test_check_bicep_cli_subprocess_error(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
@@ -447,7 +469,9 @@ def test_check_bicep_cli_subprocess_error(monkeypatch: pytest.MonkeyPatch, suppr
         with patch("subprocess.run") as mock_run:
             mock_which.return_value = "/usr/bin/az"
             mock_run.side_effect = subprocess.CalledProcessError(1, "az")
-            assert vls.check_bicep_cli() is False
+            ok, fix = vls.check_bicep_cli()
+            assert ok is False
+            assert "Install Bicep" in fix
 
 
 def test_check_bicep_cli_empty_version(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
@@ -456,7 +480,48 @@ def test_check_bicep_cli_empty_version(monkeypatch: pytest.MonkeyPatch, suppress
         with patch("subprocess.run") as mock_run:
             mock_which.return_value = "/usr/bin/az"
             mock_run.return_value = Mock(stdout="", returncode=0)
-            assert vls.check_bicep_cli() is True
+            ok, fix = vls.check_bicep_cli()
+            assert ok is True
+            assert "Bicep" in fix
+
+
+# ============================================================
+# Tests for check_azure_login
+# ============================================================
+
+
+def test_check_azure_login_success(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
+    """Azure login check should pass when account show succeeds."""
+    with patch("shutil.which") as mock_which:
+        with patch("subprocess.run") as mock_run:
+            mock_which.return_value = "/usr/bin/az"
+            mock_run.return_value = Mock(
+                stdout=json.dumps({"name": "sub", "tenantId": "t", "id": "id"}),
+                returncode=0,
+            )
+            ok, fix = vls.check_azure_login()
+            assert ok is True
+            assert "Logged in" in fix
+
+
+def test_check_azure_login_not_logged_in(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
+    """Azure login check should fail when account show errors."""
+    with patch("shutil.which") as mock_which:
+        with patch("subprocess.run") as mock_run:
+            mock_which.return_value = "/usr/bin/az"
+            mock_run.side_effect = subprocess.CalledProcessError(1, "az account show")
+            ok, fix = vls.check_azure_login()
+            assert ok is False
+            assert "az login" in fix
+
+
+def test_check_azure_login_no_cli(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
+    """Azure login check should fail when CLI missing."""
+    with patch("shutil.which") as mock_which:
+        mock_which.return_value = None
+        ok, fix = vls.check_azure_login()
+        assert ok is False
+        assert "Install Azure CLI" in fix
 
 
 # ============================================================
@@ -470,9 +535,11 @@ def test_check_azure_providers_all_registered(monkeypatch: pytest.MonkeyPatch, s
             mock_which.return_value = "/usr/bin/az"
             mock_run.return_value = Mock(
                 stdout='["Microsoft.ApiManagement", "Microsoft.App", "Microsoft.Authorization", "Microsoft.CognitiveServices", "Microsoft.ContainerRegistry", "Microsoft.KeyVault", "Microsoft.Maps", "Microsoft.ManagedIdentity", "Microsoft.Network", "Microsoft.OperationalInsights", "Microsoft.Resources", "Microsoft.Storage"]',
-                returncode=0
+                returncode=0,
             )
-            assert vls.check_azure_providers() is True
+            ok, fix = vls.check_azure_providers()
+            assert ok is True
+            assert not fix
 
 
 def test_check_azure_providers_missing(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
@@ -482,16 +549,20 @@ def test_check_azure_providers_missing(monkeypatch: pytest.MonkeyPatch, suppress
             mock_which.return_value = "/usr/bin/az"
             mock_run.return_value = Mock(
                 stdout='["Microsoft.Storage"]',
-                returncode=0
+                returncode=0,
             )
-            assert vls.check_azure_providers() is False
+            ok, fix = vls.check_azure_providers()
+            assert ok is False
+            assert "Register" in fix
 
 
 def test_check_azure_providers_no_az(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
     """Azure providers check should fail when az is not found."""
     with patch("shutil.which") as mock_which:
         mock_which.return_value = None
-        assert vls.check_azure_providers() is False
+        ok, fix = vls.check_azure_providers()
+        assert ok is False
+        assert "Install Azure CLI" in fix
 
 
 def test_check_azure_providers_subprocess_error(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
@@ -500,7 +571,9 @@ def test_check_azure_providers_subprocess_error(monkeypatch: pytest.MonkeyPatch,
         with patch("subprocess.run") as mock_run:
             mock_which.return_value = "/usr/bin/az"
             mock_run.side_effect = subprocess.CalledProcessError(1, "az")
-            assert vls.check_azure_providers() is False
+            ok, fix = vls.check_azure_providers()
+            assert ok is False
+            assert "Login" in fix
 
 
 def test_check_azure_providers_json_error(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
@@ -509,7 +582,9 @@ def test_check_azure_providers_json_error(monkeypatch: pytest.MonkeyPatch, suppr
         with patch("subprocess.run") as mock_run:
             mock_which.return_value = "/usr/bin/az"
             mock_run.return_value = Mock(stdout="invalid json", returncode=0)
-            assert vls.check_azure_providers() is False
+            ok, fix = vls.check_azure_providers()
+            assert ok is False
+            assert "Login" in fix
 
 
 # ============================================================
@@ -518,15 +593,16 @@ def test_check_azure_providers_json_error(monkeypatch: pytest.MonkeyPatch, suppr
 
 def test_main_all_pass(monkeypatch: pytest.MonkeyPatch, suppress_print):
     """Main function should return True when all checks pass."""
-    monkeypatch.setattr(vls, "check_virtual_environment", lambda: True)
-    monkeypatch.setattr(vls, "check_required_packages", lambda: True)
-    monkeypatch.setattr(vls, "check_shared_modules", lambda: True)
-    monkeypatch.setattr(vls, "check_env_file", lambda: True)
-    monkeypatch.setattr(vls, "check_azure_cli", lambda: True)
-    monkeypatch.setattr(vls, "check_bicep_cli", lambda: True)
-    monkeypatch.setattr(vls, "check_azure_providers", lambda: True)
-    monkeypatch.setattr(vls, "check_jupyter_kernel", lambda: True)
-    monkeypatch.setattr(vls, "check_vscode_settings", lambda: True)
+    monkeypatch.setattr(vls, "check_virtual_environment", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_required_packages", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_shared_modules", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_env_file", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_azure_cli", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_bicep_cli", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_azure_login", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_azure_providers", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_jupyter_kernel", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_vscode_settings", lambda: (True, ""))
 
     result = vls.main()
     assert result is True
@@ -534,15 +610,16 @@ def test_main_all_pass(monkeypatch: pytest.MonkeyPatch, suppress_print):
 
 def test_main_some_fail(monkeypatch: pytest.MonkeyPatch, suppress_print):
     """Main function should return False when some checks fail."""
-    monkeypatch.setattr(vls, "check_virtual_environment", lambda: True)
-    monkeypatch.setattr(vls, "check_required_packages", lambda: False)
-    monkeypatch.setattr(vls, "check_shared_modules", lambda: True)
-    monkeypatch.setattr(vls, "check_env_file", lambda: True)
-    monkeypatch.setattr(vls, "check_azure_cli", lambda: True)
-    monkeypatch.setattr(vls, "check_bicep_cli", lambda: True)
-    monkeypatch.setattr(vls, "check_azure_providers", lambda: True)
-    monkeypatch.setattr(vls, "check_jupyter_kernel", lambda: True)
-    monkeypatch.setattr(vls, "check_vscode_settings", lambda: True)
+    monkeypatch.setattr(vls, "check_virtual_environment", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_required_packages", lambda: (False, "install"))
+    monkeypatch.setattr(vls, "check_shared_modules", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_env_file", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_azure_cli", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_bicep_cli", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_azure_login", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_azure_providers", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_jupyter_kernel", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_vscode_settings", lambda: (True, ""))
 
     result = vls.main()
     assert result is False

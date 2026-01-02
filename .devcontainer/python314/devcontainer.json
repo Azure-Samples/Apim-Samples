@@ -65,12 +65,12 @@
   "updateContentCommand": [
     "bash",
     "-c",
-    "echo '📦 Installing/updating Python packages from requirements.txt...' && source /workspaces/Apim-Samples/.venv/bin/activate && pip install -r requirements.txt && pip install pytest pytest-cov coverage && echo '✅ Python packages installed/updated' && python setup/local_setup.py --generate-env && echo '✅ Environment configuration updated' && echo '⚙️ Configuring Azure CLI...' && az config set core.login_experience_v2=off 2>/dev/null || true && az extension add --name containerapp --only-show-errors 2>/dev/null || true && az extension add --name front-door --only-show-errors 2>/dev/null || true && echo '✅ Azure CLI configured for Codespaces'"
+    "echo '📦 Installing/updating Python packages from requirements.txt...' && source /workspaces/Apim-Samples/.venv/bin/activate && pip install -r requirements.txt && pip install pytest pytest-cov coverage && echo '✅ Python packages installed/updated' && python setup/local_setup.py --generate-env && echo '✅ Environment configuration updated' && echo '⚙️ Configuring Azure CLI and Bicep...' && az config set core.login_experience_v2=off 2>/dev/null || true && az bicep install 2>/dev/null || true && az extension add --name containerapp --only-show-errors 2>/dev/null || true && az extension add --name front-door --only-show-errors 2>/dev/null || true && echo '✅ Azure CLI configured for Codespaces'"
   ],
   "postStartCommand": [
     "bash",
     "-c",
-    "echo 'APIM Samples Codespace Starting - Keep this terminal open to see progress!' && bash .devcontainer/post-start-setup.sh && sleep 2 && code --command markdown.showPreviewToSide .devcontainer/CODESPACES-QUICKSTART.md"
+    "echo 'APIM Samples Codespace Starting - Keep this terminal open to see progress!' && bash .devcontainer/post-start-setup.sh"
   ],
   "forwardPorts": [
     8000,

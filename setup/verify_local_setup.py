@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """
-Verification script for local APIM Samples environment setup.
+Unified verification script for APIM Samples environments (local and devcontainer).
 
-This script verifies that the local environment is configured correctly:
+This script verifies that the environment is configured correctly and always
+emits a suggested fix for any failed check. Checks include:
 - Virtual environment is active
 - Required packages are installed
 - Shared modules can be imported
-- Azure CLI and Bicep CLI are installed
+- Azure CLI is installed
+- Azure Bicep is installed
+- Azure login context is present
 - Required Azure resource providers are registered
 - Jupyter kernel is registered
 - VS Code settings are configured
 
-Run this after completing the setup to ensure everything is working.
+Run after setup (local or devcontainer) to ensure everything is working.
 """
 
 import sys
@@ -27,11 +30,13 @@ if sys.stdout.encoding != 'utf-8':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 
-def print_status(message, success=True):
-    """Print status message with colored output."""
+def print_status(message, success=True, fix=""):
+    """Print status message with optional fix guidance."""
     color = "32" if success else "31"  # Green for success, red for failure
     icon = "✅" if success else "❌"
     print(f"{icon} \033[1;{color}m{message}\033[0m")
+    if not success and fix:
+        print(f"   👉 Fix: {fix}")
 
 
 def print_section(title):
@@ -44,247 +49,230 @@ def check_virtual_environment():
     """Check if we're running in the correct virtual environment."""
     venv_path = Path.cwd() / ".venv"
     if not venv_path.exists():
-        print_status("Virtual environment (.venv) not found", False)
-        return False
+        return False, "Create it: python -m venv .venv && source .venv/bin/activate (or .venv\\Scripts\\activate on Windows)"
 
-    # Check if current Python executable is from the venv
     current_python = Path(sys.executable)
     expected_venv_python = venv_path / ("Scripts" if os.name == 'nt' else "bin") / "python"
 
     if not str(current_python).startswith(str(venv_path)):
-        print_status("Not using virtual environment Python", False)
-        print(f"   Current: {current_python}")
-        print(f"   Expected: {expected_venv_python}")
-        return False
+        return False, f"Activate it: source {expected_venv_python.parent}/activate"
 
-    print_status("Virtual environment is active")
-    return True
+    return True, ""
 
 
 def check_required_packages():
     """Check if required packages are installed."""
-    # List of (package_name, import_name) tuples
     required_packages = [
-        ('requests', 'requests'),
-        ('ipykernel', 'ipykernel'),
-        ('jupyter', 'jupyter'),
-        ('python-dotenv', 'dotenv')
+        ("requests", "requests"),
+        ("ipykernel", "ipykernel"),
+        ("jupyter", "jupyter"),
+        ("python-dotenv", "dotenv"),
     ]
 
-    missing_packages = []
-
+    missing = []
     for package_name, import_name in required_packages:
         try:
             __import__(import_name)
-            print_status(f"{package_name} is installed")
         except ImportError:
-            print_status(f"{package_name} is missing", False)
-            missing_packages.append(package_name)
+            missing.append(package_name)
 
-    return not missing_packages
+    if missing:
+        return False, f"Install missing packages: pip install -r requirements.txt (missing: {', '.join(missing)})"
+
+    return True, ""
 
 
 def check_shared_modules():
     """Check if shared modules can be imported."""
     try:
-        # Add project root to path
         project_root = Path(__file__).parent.parent
-        shared_python_path = project_root / 'shared' / 'python'
+        shared_python_path = project_root / "shared" / "python"
 
         if str(shared_python_path) not in sys.path:
             sys.path.insert(0, str(shared_python_path))
 
-        # Try importing shared modules to verify they're accessible
-        # These imports are intentional for verification purposes
-        __import__('utils')
-        __import__('apimtypes')
-        __import__('authfactory')
-        __import__('apimrequests')
+        __import__("utils")
+        __import__("apimtypes")
+        __import__("authfactory")
+        __import__("apimrequests")
 
-        print_status("All shared modules can be imported")
-        return True
-
-    except ImportError as e:
-        print_status(f"Shared module import failed: {e}", False)
-        return False
+        return True, ""
+    except ImportError as exc:
+        return False, f"Regenerate env and PYTHONPATH: python setup/local_setup.py --generate-env (detail: {exc})"
 
 
 def check_jupyter_kernel():
     """Check if the Jupyter kernel is registered."""
     try:
-        result = subprocess.run([
-            sys.executable, '-m', 'jupyter', 'kernelspec', 'list'
-        ], capture_output=True, text=True, check=True)
+        result = subprocess.run(
+            [sys.executable, "-m", "jupyter", "kernelspec", "list"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
 
-        if 'python3' in result.stdout:
-            print_status("Python3 Jupyter kernel is registered")
-            return True
+        if "python-venv" in result.stdout or "Python (.venv)" in result.stdout:
+            return True, ""
 
-        print_status("Python3 Jupyter kernel not found. check available kernels: jupyter kernelspec list  ", False)
-        return False
+        if "python3" in result.stdout:
+            return True, ""
 
+        return False, "Register kernel: python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)'"
     except (subprocess.CalledProcessError, FileNotFoundError):
-        print_status("Could not check Jupyter kernel registration", False)
-        return False
+        return False, "Install Jupyter tooling: pip install ipykernel jupyter"
 
 
 def check_vscode_settings():
     """Check if VS Code settings are configured."""
-    vscode_settings = Path.cwd() / '.vscode' / 'settings.json'
+    vscode_settings = Path.cwd() / ".vscode" / "settings.json"
 
     if not vscode_settings.exists():
-        print_status("VS Code settings.json not found", False)
-        return False
+        return False, "Run: python setup/local_setup.py --complete-setup (missing .vscode/settings.json)"
 
     try:
-        with open(vscode_settings, 'r', encoding='utf-8') as f:
-            content = f.read()
+        with open(vscode_settings, "r", encoding="utf-8") as handle:
+            content = handle.read()
 
-        # Check for key settings (simple string search since the file may have comments)
         checks = [
-            ('python.defaultInterpreterPath', '.venv'),
-            ('python.envFile', '.env'),
-            ('python.terminal.activateEnvironment', 'true'),
-            ('python.testing.pytestEnabled', 'true'),
-            ('files.eol', '\\n')
+            ("python.defaultInterpreterPath", ".venv"),
+            ("python.envFile", ".env"),
+            ("python.terminal.activateEnvironment", "true"),
+            ("python.testing.pytestEnabled", "true"),
         ]
 
-        all_found = True
+        missing = []
         for setting_key, expected_value in checks:
             if setting_key not in content or expected_value not in content:
-                print_status(f"VS Code setting '{setting_key}' not properly configured", False)
-                all_found = False
+                missing.append(setting_key)
 
-        if all_found:
-            print_status("VS Code settings are configured correctly")
-            return True
+        if missing:
+            return False, f"Regenerate VS Code settings: python setup/local_setup.py --complete-setup (missing: {', '.join(missing)})"
 
-        return False
-
-    except Exception as e:
-        print_status(f"Could not read VS Code settings: {e}", False)
-        return False
+        return True, ""
+    except Exception as exc:  # pylint: disable=broad-except
+        return False, f"Could not read VS Code settings: {exc}"
 
 
 def check_env_file():
     """Check if .env file exists and has correct configuration."""
-    env_file = Path.cwd() / '.env'
+    env_file = Path.cwd() / ".env"
 
     if not env_file.exists():
-        print_status(".env file not found", False)
-        return False
+        return False, "Generate it: python setup/local_setup.py --generate-env"
 
     try:
-        with open(env_file, 'r', encoding='utf-8') as f:
-            content = f.read()
+        with open(env_file, "r", encoding="utf-8") as handle:
+            content = handle.read()
 
-        if 'PYTHONPATH=' in content and 'PROJECT_ROOT=' in content:
-            print_status(".env file is configured correctly")
-            return True
+        if "PYTHONPATH=" in content and "PROJECT_ROOT=" in content:
+            return True, ""
 
-        print_status(".env file missing required configuration", False)
-        return False
+        return False, "Regenerate .env: python setup/local_setup.py --generate-env"
+    except Exception as exc:  # pylint: disable=broad-except
+        return False, f"Could not read .env file: {exc}"
 
-    except Exception as e:
-        print_status(f"Could not read .env file: {e}", False)
-        return False
+
+def _az_path():
+    return shutil.which("az") or shutil.which("az.cmd") or shutil.which("az.bat")
 
 
 def check_azure_cli():
     """Check if Azure CLI is installed."""
-    az_path = shutil.which('az') or shutil.which('az.cmd') or shutil.which('az.bat')
+    az_path = _az_path()
     if not az_path:
-        print_status("Azure CLI is not installed or not in PATH", False)
-        return False
+        return False, "Install Azure CLI: https://learn.microsoft.com/cli/azure/install-azure-cli"
+
     try:
-        result = subprocess.run([az_path, '--version'], capture_output=True, text=True, check=True)
+        result = subprocess.run([az_path, "--version"], capture_output=True, text=True, check=True)
         version_line = (result.stdout.splitlines() or ["unknown version"])[0].strip()
-        # Extract just the version number from "azure-cli                         2.81.0"
         version = version_line.split()[-1] if version_line else "unknown"
-        print_status(f"Azure CLI is installed ({version})")
-        return True
+        return True, f"Azure CLI {version} detected"
     except subprocess.CalledProcessError:
-        print_status("Azure CLI is not installed or not in PATH", False)
-        return False
+        return False, "Reinstall Azure CLI: https://learn.microsoft.com/cli/azure/install-azure-cli"
 
 
 def check_bicep_cli():
     """Check if Azure Bicep CLI is installed."""
-    az_path = shutil.which('az') or shutil.which('az.cmd') or shutil.which('az.bat')
+    az_path = _az_path()
     if not az_path:
-        print_status("Azure CLI is not installed or not in PATH", False)
-        return False
+        return False, "Install Azure CLI first: https://learn.microsoft.com/cli/azure/install-azure-cli"
 
     try:
-        result = subprocess.run([az_path, 'bicep', 'version'], capture_output=True, text=True, check=True)
+        result = subprocess.run([az_path, "bicep", "version"], capture_output=True, text=True, check=True)
         version_line = (result.stdout.splitlines() or ["unknown version"])[0].strip()
-        # Extract version number from "Bicep CLI version 0.39.26 (1e90b06e40)"
         version = "unknown"
         if "version" in version_line.lower():
             parts = version_line.split()
-            # Find index of "version" and get the next part
-            for i, part in enumerate(parts):
-                if part.lower() == "version" and i + 1 < len(parts):
-                    version = parts[i + 1]
+            for index, part in enumerate(parts):
+                if part.lower() == "version" and index + 1 < len(parts):
+                    version = parts[index + 1]
                     break
-        print_status(f"Azure Bicep CLI is installed ({version})")
-        return True
+        return True, f"Bicep {version} detected"
     except subprocess.CalledProcessError:
-        print_status("Azure Bicep CLI is not installed. Install with: az bicep install", False)
-        return False
+        return False, "Install Bicep: az bicep install"
+
+
+def check_azure_login():
+    """Check if the user is logged in to Azure."""
+    az_path = _az_path()
+    if not az_path:
+        return False, "Install Azure CLI: https://learn.microsoft.com/cli/azure/install-azure-cli"
+
+    try:
+        result = subprocess.run(
+            [az_path, "account", "show", "--output", "json"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        account = json.loads(result.stdout)
+        name = account.get("name", "unknown")
+        tenant = account.get("tenantId", "unknown")
+        subscription = account.get("id", "unknown")
+        return True, f"Logged in (sub: {name}, id: {subscription}, tenant: {tenant})"
+    except (subprocess.CalledProcessError, json.JSONDecodeError):
+        return False, "Login and set subscription: az login --tenant <tenant-id> && az account set --subscription <subscription-id>"
 
 
 def check_azure_providers():
     """Check if required Azure resource providers are registered in the current subscription."""
-    az_path = shutil.which('az') or shutil.which('az.cmd') or shutil.which('az.bat')
+    az_path = _az_path()
     if not az_path:
-        print_status("Azure CLI is not installed or not in PATH", False)
-        return False
+        return False, "Install Azure CLI: https://learn.microsoft.com/cli/azure/install-azure-cli"
+
     required_providers = [
-        'Microsoft.ApiManagement',
-        'Microsoft.App',
-        'Microsoft.Authorization',
-        'Microsoft.CognitiveServices',
-        'Microsoft.ContainerRegistry',
-        'Microsoft.KeyVault',
-        'Microsoft.Maps',
-        'Microsoft.ManagedIdentity',
-        'Microsoft.Network',
-        'Microsoft.OperationalInsights',
-        'Microsoft.Resources',
-        'Microsoft.Storage'
+        "Microsoft.ApiManagement",
+        "Microsoft.App",
+        "Microsoft.Authorization",
+        "Microsoft.CognitiveServices",
+        "Microsoft.ContainerRegistry",
+        "Microsoft.KeyVault",
+        "Microsoft.Maps",
+        "Microsoft.ManagedIdentity",
+        "Microsoft.Network",
+        "Microsoft.OperationalInsights",
+        "Microsoft.Resources",
+        "Microsoft.Storage",
     ]
 
     try:
-        # Get list of registered providers
         result = subprocess.run(
-            [az_path, 'provider', 'list', '--query', '[].namespace', '-o', 'json'],
+            [az_path, "provider", "list", "--query", "[].namespace", "-o", "json"],
             capture_output=True,
             text=True,
-            check=True
+            check=True,
         )
         registered_providers = sorted(set(json.loads(result.stdout)))
 
         missing_providers = [p for p in required_providers if p not in registered_providers]
-        found_providers = [p for p in required_providers if p in registered_providers]
-
-        print("   Registered providers:")
-        for provider in found_providers:
-            print(f"      - {provider}")
 
         if not missing_providers:
-            print_status("\nAll required Azure providers are registered")
-            return True
+            return True, ""
 
-        print_status(f"\nMissing {len(missing_providers)} provider(s): {', '.join(missing_providers)}", False)
-        print("   Register missing providers with:")
-        for provider in missing_providers:
-            print(f"   az provider register -n {provider}")
-        return False
-
+        fix_cmds = ", ".join([f"az provider register -n {provider}" for provider in missing_providers])
+        return False, f"Register missing providers: {fix_cmds}"
     except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError):
-        print_status("Could not verify Azure provider registrations", False)
-        return False
+        return False, "Login then retry: az login --tenant <tenant> && az account set --subscription <subscription>"
 
 
 def main():
@@ -298,40 +286,41 @@ def main():
         ("Shared Modules", check_shared_modules),
         ("Environment File", check_env_file),
         ("Azure CLI", check_azure_cli),
-        ("Azure Bicep CLI", check_bicep_cli),
+        ("Azure Bicep", check_bicep_cli),
+        ("Azure Login", check_azure_login),
         ("Azure Providers", check_azure_providers),
         ("Jupyter Kernel", check_jupyter_kernel),
-        ("VS Code Settings", check_vscode_settings)
+        ("VS Code Settings", check_vscode_settings),
     ]
 
     results = []
 
     for check_name, check_function in checks:
         print_section(check_name)
-        result = check_function()
-        results.append((check_name, result))
-      # Summary
+        passed, fix = check_function()
+        print_status(f"{check_name}: {'PASS' if passed else 'FAIL'}", passed, fix)
+        results.append((check_name, passed, fix))
+
     print_section("Summary")
-    passed = sum(1 for _, result in results if result)
+    passed_count = sum(1 for _, ok, _ in results if ok)
     total = len(results)
-      # Calculate the maximum check name length for alignment
-    max_name_length = max(len(check_name) for check_name, _ in results)
+    max_name_length = max(len(check_name) for check_name, _, _ in results)
 
-    for check_name, result in results:
+    for check_name, ok, fix in results:
         padded_name = check_name.ljust(max_name_length + 1)
-        print_status(f"{padded_name}: {'PASS' if result else 'FAIL'}", result)
+        print_status(f"{padded_name}: {'PASS' if ok else 'FAIL'}", ok, fix)
 
-    print(f"\n📊 Overall: {passed}/{total} checks passed")
+    print(f"\n📊 Overall: {passed_count}/{total} checks passed")
 
-    if passed == total:
-        print("\n🎉 All checks passed! Your local environment is ready for APIM Samples.")
+    if passed_count == total:
+        print("\n🎉 All checks passed! Your environment is ready for APIM Samples.")
         print("💡 You can now open any notebook and it should work seamlessly.")
     else:
-        print("\n⚠️  Some checks failed. Consider running the setup script:")
+        print("\n⚠️  Some checks failed. Run the suggested fixes above, or rerun:")
         print("   python setup/local_setup.py --complete-setup")
         print("   Then restart VS Code and run this verification again.")
 
-    return passed == total
+    return passed_count == total
 
 
 if __name__ == '__main__':  # pragma: no cover

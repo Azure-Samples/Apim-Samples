@@ -52,13 +52,14 @@ applyTo: '**/*.py'
 
 Before completing any Python code changes, verify:
 
-- [ ] All pylint warnings and errors are resolved (`pylint --rcfile=tests/python/.pylintrc <file>`)
-- [ ] Code follows PEP 8 and the style guidelines in this file
-- [ ] Import statements for modules within this repo are placed last in the imports and are grouped with the `# APIM Samples imports` header
-- [ ] Type hints are present where appropriate
-- [ ] No unnecessary comments; docstrings are present for functions and classes
-- [ ] Edge cases and error handling are implemented
-- [ ] Prefer fixing root causes (e.g., import structure, error handling) over suppressions.
+- Always load `tests/python/.pylintrc` into context when working on Python files so lint rules are applied.
+- All pylint warnings and errors are resolved (`pylint --rcfile=tests/python/.pylintrc <file>`)
+- Code follows PEP 8 and the style guidelines in this file
+- Import statements for modules within this repo are placed last in the imports and are grouped with the `# APIM Samples imports` header
+- Type hints are present where appropriate
+- No unnecessary comments; docstrings are present for functions and classes
+- Edge cases and error handling are implemented
+- Prefer fixing root causes (e.g., import structure, error handling) over suppressions.
 
 ## Testing
 

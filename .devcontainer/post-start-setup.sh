@@ -6,50 +6,29 @@
 
 start=$(date +%s.%N)
 
+# Ensure workspace scripts are executable (handles mounts without exec bit)
+chmod +x .devcontainer/post-start-setup.sh start.sh start.ps1 setup/*.sh setup/*.ps1 2>/dev/null || true
+
 # Make terminal output more prominent
 clear
 echo "============================================================================"
 echo "                    🚀 APIM SAMPLES - INSTANT VERIFICATION                "
 echo "============================================================================"
 echo ""
-echo "⚡ All heavy setup was completed during prebuild - verifying environment..."
+echo "⚡ Running unified verification (setup/verify_local_setup.py)..."
 echo ""
 
-# ------------------------------
-#    LIGHTNING FAST VERIFICATION
-# ------------------------------
-
 WORKSPACE_ROOT="/workspaces/Apim-Samples"
-VENV_PATH="$WORKSPACE_ROOT/.venv"
-PY_VERSION=$(python --version 2>/dev/null | awk '{print $2}' | cut -d'.' -f1,2)
-PY_VERSION_DISPLAY=${PY_VERSION:-"unknown"}
+PY_CMD="$WORKSPACE_ROOT/.venv/bin/python"
+[ -x "$PY_CMD" ] || PY_CMD=python
 
-echo -e "Environment Status:\n"
+cd "$WORKSPACE_ROOT" || exit 1
 
-# Ultra-fast file system checks (no command execution)
-if [ -d "$VENV_PATH" ]; then
-    echo "   ✅ Virtual environment"
-else
-    echo "   ❌ Virtual environment missing"
-fi
+"$PY_CMD" setup/verify_local_setup.py || true
 
-if [ -f "$WORKSPACE_ROOT/.env" ]; then
-    echo "   ✅ Environment file"
-else
-    echo "   ❌ Environment file missing"
-fi
-
-# Quick command availability checks (fast)
-if command -v az >/dev/null 2>&1; then
-    echo "   ✅ Azure CLI"
-else
-    echo "   ❌ Azure CLI missing"
-fi
-
-if command -v python >/dev/null 2>&1; then
-    echo "   ✅ Python (${PY_VERSION_DISPLAY})"
-else
-    echo "   ❌ Python missing"
+# Open quickstart in preview (best-effort; ignore failures)
+if command -v code >/dev/null 2>&1; then
+    code --command markdown.showPreviewToSide .devcontainer/CODESPACES-QUICKSTART.md >/dev/null 2>&1 || true
 fi
 
 # Calculate total duration
@@ -81,6 +60,7 @@ echo ""
 echo "   3. Start using the infrastructures and samples!"
 echo "        - You may initially need to select the kernel (top-right above the"
 echo "          Jupyter notebook). If so, select the '.venv' Python environment."
+echo "        - To launch the APIM Samples Developer CLI, run: bash start.sh"
 echo ""
 echo "============================================================================"
 echo -e "\n\n"
