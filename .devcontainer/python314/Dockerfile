@@ -11,15 +11,16 @@ ARG PYTHON_VERSION=3.14
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONPATH=/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples \
     DEBIAN_FRONTEND=noninteractive
 
 # Install minimal system dependencies as root
+# Use cache mounts for apt and pip to speed up rebuilds while keeping image lean
 USER root
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt/lists \
+    --mount=type=cache,target=/root/.cache/pip \
     apt-get update && \
     apt-get install -y --no-install-recommends curl git-lfs && \
     apt-get clean && \
@@ -44,7 +45,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Add labels for maintainability
 LABEL maintainer="APIM Samples Team" \
     description="Optimized dev container for Azure API Management samples with Codespaces prebuild support" \
-    version="2.2" \
-    python.version="3.14" \
+    version="2.3" \
+    python.version="${PYTHON_VERSION}" \
     debian.version="bookworm" \
     venv.location="/workspaces/Apim-Samples/.venv"
