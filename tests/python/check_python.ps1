@@ -152,9 +152,9 @@ Write-Host "║         Final Results                      ║" -ForegroundColor
 Write-Host "╚════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
-# Determine statuses
+# Determine statuses - tests need both 0 failures AND 0 exit code
 $LintStatus = if ($LintExitCode -eq 0) { "✅ PASSED" } else { "⚠️  ISSUES FOUND" } # leave two spaces after yellow triangle to display correctly
-$TestStatus = if ($FailedTests -eq 0) { "✅ PASSED" } else { "❌ FAILED" }
+$TestStatus = if ($FailedTests -eq 0 -and $TestExitCode -eq 0) { "✅ PASSED" } else { "❌ FAILED" }
 
 # Get pylint score
 $PylintScore = $null
@@ -192,7 +192,7 @@ if (Test-Path $LatestPylintJson) {
 
 # Set colors
 $LintColor = if ($LintExitCode -eq 0) { "Green" } else { "Yellow" }
-$TestColor = if ($FailedTests -eq 0) { "Green" } else { "Red" }
+$TestColor = if ($FailedTests -eq 0 -and $TestExitCode -eq 0) { "Green" } else { "Red" }
 
 # Display Pylint status with score
 Write-Host "Pylint   : " -NoNewline
@@ -256,13 +256,14 @@ if ($SlowTestsFound) {
 
 Write-Host ""
 
-# Determine overall exit code
+# Determine overall exit code - require both 0 failed tests AND exit code 0 for test success
 $OverallExitCode = 0
 if ($LintExitCode -ne 0) {
     $OverallExitCode = $LintExitCode
 }
-if ($TestExitCode -ne 0) {
-    $OverallExitCode = $TestExitCode
+# Tests must have both 0 failures AND 0 exit code to pass
+if ($FailedTests -ne 0 -or $TestExitCode -ne 0) {
+    $OverallExitCode = if ($TestExitCode -ne 0) { $TestExitCode } else { 1 }
 }
 
 if ($OverallExitCode -eq 0) {

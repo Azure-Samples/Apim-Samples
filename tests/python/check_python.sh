@@ -119,8 +119,8 @@ else
     LINT_STATUS="⚠️  ISSUES FOUND" # leave two spaces after yellow triangle to display correctly
 fi
 
-# Determine Test status
-if [ $FAILED_TESTS -eq 0 ]; then
+# Determine Test status (must have zero failed tests AND zero exit code)
+if [ $FAILED_TESTS -eq 0 ] && [ $TEST_EXIT_CODE -eq 0 ]; then
     TEST_STATUS="✅ PASSED"
 else
     TEST_STATUS="❌ FAILED"
@@ -132,7 +132,7 @@ if [ -n "$PYLINT_SCORE" ]; then
     echo "             ($PYLINT_SCORE)"
 fi
 
-if [ $FAILED_TESTS -eq 0 ]; then
+if [ $FAILED_TESTS -eq 0 ] && [ $TEST_EXIT_CODE -eq 0 ]; then
     echo "Tests    : $TEST_STATUS"
 else
     echo -e "Tests    : \e[31m$TEST_STATUS\e[0m"  # Red color for failed tests
@@ -166,8 +166,11 @@ OVERALL_EXIT_CODE=0
 if [ $LINT_EXIT_CODE -ne 0 ]; then
     OVERALL_EXIT_CODE=$LINT_EXIT_CODE
 fi
-if [ $TEST_EXIT_CODE -ne 0 ]; then
+if [ $TEST_EXIT_CODE -ne 0 ] || [ $FAILED_TESTS -ne 0 ]; then
     OVERALL_EXIT_CODE=$TEST_EXIT_CODE
+    if [ $OVERALL_EXIT_CODE -eq 0 ]; then
+        OVERALL_EXIT_CODE=1
+    fi
 fi
 
 if [ $OVERALL_EXIT_CODE -eq 0 ]; then
