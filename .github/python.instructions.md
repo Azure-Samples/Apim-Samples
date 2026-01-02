@@ -5,6 +5,16 @@ applyTo: '**/*.py'
 
 # Copilot Instructions (Python)
 
+## Critical: Load Pylint Configuration First
+
+**BEFORE making any changes to Python files**, always load the pylint configuration into context:
+
+1. Use `read_file` to load `tests/python/.pylintrc`
+2. Review the disabled rules and enabled checks
+3. Apply these rules when writing or modifying Python code
+
+This ensures all code changes comply with the project's linting standards from the start.
+
 ## Goals
 
 - Make changes that are easy to review, test, and maintain.
@@ -52,7 +62,6 @@ applyTo: '**/*.py'
 
 Before completing any Python code changes, verify:
 
-- Always load `tests/python/.pylintrc` into context when working on Python files so lint rules are applied.
 - All pylint warnings and errors are resolved (`pylint --rcfile=tests/python/.pylintrc <file>`)
 - Code follows PEP 8 and the style guidelines in this file
 - Import statements for modules within this repo are placed last in the imports and are grouped with the `# APIM Samples imports` header
