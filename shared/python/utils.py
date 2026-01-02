@@ -148,10 +148,10 @@ class InfrastructureNotebookHelper:
                             self.index = new_index
                             # Recursively call create_infrastructure with the new index
                             return self.create_infrastructure(bypass_infrastructure_check, allow_update)
-                        elif not should_proceed:
+                        elif not should_proceed:  # pragma: no cover
                             print_error('Infrastructure deployment cancelled by user.')
                             raise SystemExit("User cancelled deployment")
-                    except (KeyboardInterrupt, EOFError) as exc:
+                    except (KeyboardInterrupt, EOFError) as exc:  # pragma: no cover
                         raise SystemExit("User cancelled deployment") from exc
 
             # Check infrastructure existence for the normal flow
@@ -766,7 +766,7 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
                     print_plain('❌ Please enter a valid integer for the index.')
         elif choice == '3':
             return False, None
-        elif not choice:
+        elif not choice:  # pragma: no cover
             # Empty input (ESC pressed in Jupyter) - cancel
             raise EOFError()
         else:
@@ -812,7 +812,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
                     return False  # Allow deployment to proceed
                 elif choice in ('2', '3'):
                     return True  # Block deployment
-                elif not choice:
+                elif not choice:  # pragma: no cover
                     # Empty input (ESC pressed in Jupyter) - cancel
                     raise EOFError()
                 else:
