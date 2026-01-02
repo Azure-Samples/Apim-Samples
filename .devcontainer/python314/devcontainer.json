@@ -45,10 +45,7 @@
         "files.associations": {
           "*.bicep": "bicep"
         }
-      },
-      "openFiles": [
-        ".devcontainer/CODESPACES-QUICKSTART.md"
-      ]
+      }
     },
     "containerEnv": {
       "PATH": "/workspaces/Apim-Samples/.venv/bin:${PATH}",
@@ -69,7 +66,7 @@
   "postStartCommand": [
     "bash",
     "-c",
-    "echo 'APIM Samples Codespace Starting - Keep this terminal open to see progress!' && bash .devcontainer/post-start-setup.sh"
+    "echo 'APIM Samples Codespace Starting - Keep this terminal open to see progress!' && bash .devcontainer/post-start-setup.sh && sleep 2 && code --command markdown.showPreviewToSide .devcontainer/CODESPACES-QUICKSTART.md"
   ],
   "forwardPorts": [
     8000,
