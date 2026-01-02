@@ -27,11 +27,15 @@
     "vscode": {
       "extensions": [
         "ms-python.python",
+        "ms-python.debugpy",
         "ms-toolsai.jupyter",
         "ms-azuretools.vscode-bicep",
         "ms-vscode.azurecli",
         "redhat.vscode-yaml",
-        "ms-vscode.vscode-json"
+        "ms-vscode.vscode-json",
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "donjayamanne.vscode-default-python-kernel"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/workspaces/Apim-Samples/.venv/bin/python",
