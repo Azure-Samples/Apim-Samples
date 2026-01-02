@@ -252,6 +252,18 @@ def test_check_jupyter_kernel_found(monkeypatch: pytest.MonkeyPatch, suppress_pr
         assert not fix
 
 
+def test_check_jupyter_kernel_found_python3(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
+    """Jupyter kernel check should pass when kernel is found."""
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = Mock(
+            stdout="Available kernels:\n  python3\n",
+            returncode=0,
+        )
+        ok, fix = vls.check_jupyter_kernel()
+        assert ok is True
+        assert not fix
+
+
 def test_check_jupyter_kernel_not_found(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
     """Jupyter kernel check should fail when kernel is not found."""
     with patch("subprocess.run") as mock_run:
@@ -651,7 +663,7 @@ def test_main_skip_azure_providers_when_login_fails(monkeypatch: pytest.MonkeyPa
     # Should fail because azure_login failed (even though providers are skipped)
     assert result is False
     # Verify Azure Providers check was NOT called because login failed
-    assert len(azure_providers_called) == 0
+    assert not azure_providers_called
 
 
 def test_main_run_azure_providers_when_login_succeeds(monkeypatch: pytest.MonkeyPatch, suppress_print):
