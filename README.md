@@ -7,11 +7,11 @@
 
 **This repository provides resources to quickly deploy high-fidelity Azure API Management (APIM) infrastructures and experiment with common APIM.**
 
-Historically, there were two general paths to experimenting with APIM. Standing up an entire landing zone with the [APIM Landing Zone Accelerator][apim-lza] can feel overwhelming and _more than needed_. Similarly, using [APIM policy snippets][apim-snippets] is only helpful when an APIM instance and infrastructure already exists.
+Historically, there were two general paths to experimenting with APIM: Standing up an entire landing zone with the [APIM Landing Zone Accelerator][apim-lza] can feel overwhelming and _more than needed_. Similarly, using [APIM policy snippets][apim-snippets] is only helpful when an APIM instance and infrastructure already exists.
 
 > ⭐ _APIM Samples_ provides common APIM **_infrastructures_** and real-world **_samples_**. Most samples can be deployed to any infrastructure, yielding an **innovative and highly powerful and flexible _à la carte_ approach!**
 
-💡 **_APIM Samples_ is _neither too much nor too little. It is _just right_!**
+💡 **_APIM Samples_ is _neither too much nor too little_. It is _just right_!**
 
 
 ## 🎯 Objectives
