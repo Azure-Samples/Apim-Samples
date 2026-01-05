@@ -2,8 +2,9 @@
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
   "name": "APIM Samples - Python 3.12",
   "build": {
+    "args": { "PYTHON_VERSION": "3.12" },
     "dockerfile": "Dockerfile",
-    "context": ".."
+    "context": "../."
   },
   "features": {
     "ghcr.io/devcontainers/features/azure-cli:1": {
