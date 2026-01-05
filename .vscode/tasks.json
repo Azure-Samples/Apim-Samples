@@ -84,19 +84,20 @@
                 ".devcontainer/post-start-setup.sh"
             ],
             "runOptions": {
-                "runOn": "folderOpen"
+                "runOn": "folderOpen",
+                "instanceLimit": 1
             },
             "group": "build",
             "presentation": {
                 "echo": true,
                 "reveal": "always",
-                "focus": true,
-                "panel": "new",
+                "focus": false,
+                "panel": "shared",
                 "showReuseMessage": false,
                 "clear": true
             },
             "problemMatcher": [],
-            "detail": "Show the startup setup logs and verify environment"
+            "detail": "Show the startup setup logs and verify environment (devcontainer only)"
         }
     ],
     "inputs": [

@@ -75,11 +75,7 @@
     "-c",
     "echo 'APIM Samples Codespace Starting - Keep this terminal open to see progress!' && bash .devcontainer/post-start-setup.sh"
   ],
-  "postAttachCommand": [
-    "bash",
-    "-c",
-    "code /workspaces/Apim-Samples/.devcontainer/CODESPACES-QUICKSTART.md"
-  ],
+  "postAttachCommand": [],
   "forwardPorts": [
     8000,
     8080,
