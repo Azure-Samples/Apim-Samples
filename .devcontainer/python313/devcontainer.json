@@ -75,7 +75,7 @@
   "postAttachCommand": [
     "bash",
     "-c",
-    "code /workspaces/Apim-Samples/.devcontainer/CODESPACES-QUICKSTART.md"
+    "code --command \"markdown.showPreview\" /workspaces/Apim-Samples/.devcontainer/CODESPACES-QUICKSTART.md"
   ],
   "forwardPorts": [
     8000,
