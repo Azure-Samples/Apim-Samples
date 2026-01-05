@@ -3,7 +3,10 @@
   "name": "APIM Samples - Python 3.14",
   "build": {
     "dockerfile": "Dockerfile",
-    "context": ".."
+    "context": "..",
+    "args": {
+      "PYTHON_VERSION": "3.14"
+    }
   },
   "features": {
     "ghcr.io/devcontainers/features/azure-cli:1": {
