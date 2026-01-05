@@ -4,6 +4,11 @@
 #    APIM SAMPLES INSTANT VERIFICATION
 # ------------------------------
 
+# Exit silently if not in devcontainer
+if [ ! -d "/workspaces/Apim-Samples" ]; then
+    exit 0
+fi
+
 start=$(date +%s.%N)
 
 # Ensure workspace scripts are executable (handles mounts without exec bit)
@@ -26,9 +31,9 @@ cd "$WORKSPACE_ROOT" || exit 1
 
 "$PY_CMD" setup/verify_local_setup.py || true
 
-# Open quickstart in preview (best-effort; ignore failures)
-if command -v code >/dev/null 2>&1; then
-    code --command markdown.showPreviewToSide "${WORKSPACE_ROOT}/.devcontainer/CODESPACES-QUICKSTART.md" >/dev/null 2>&1 || true
+# Open CODESPACES-QUICKSTART.md in preview mode with focus
+if [ -f "$WORKSPACE_ROOT/.devcontainer/CODESPACES-QUICKSTART.md" ]; then
+    code --reuse-window "$WORKSPACE_ROOT/.devcontainer/CODESPACES-QUICKSTART.md" --preview --goto
 fi
 
 # Calculate total duration
@@ -46,21 +51,25 @@ echo "🎉 Your APIM Samples environment is ready to use!"
 echo -e "\n"
 echo " Next Steps:"
 echo ""
-echo "   1. Open a new terminal and log in via the Azure CLI with either command."
-echo "      See TROUBLESHOOTING.md in the root for details."
+echo "   1. Scroll up and review the verification results."
+echo "        --> Don't worry, it is expected that the Azure Login section failed."
 echo ""
-echo "        - az login"
-echo "        - az login --tenant <your-tenant-id>"
-echo ""
-echo "   2. Wait until Codespace is fully started (it's fairly quick):"
+echo "   2. Wait until Codespace is ready (it may already be done!):"
 echo "        - Watch progress indicators in status bar"
 echo "        - Wait for all extensions to install"
 echo "        --> ✅ (.venv) prefix will appear when you open a new terminal"
 echo ""
-echo "   3. Start using the infrastructures and samples!"
-echo "        - You may initially need to select the kernel (top-right above the"
-echo "          Jupyter notebook). If so, select the '.venv' Python environment."
-echo "        - To launch the APIM Samples Developer CLI, run: bash start.sh"
+echo "   3. Reuse this or open a new terminal, then log in via the Azure CLI"
+echo "      command above."
+echo "      See TROUBLESHOOTING.md in the root for details."
+echo ""
+echo "   4. Start with the '🚀 Getting Started' section in the root README.md"
+echo "      The file is already open in the editor!"
+echo ""
+echo ""
+echo " Optional:"
+echo ""
+echo "   Launch the APIM Samples Developer CLI via 'bash start.sh'"
 echo ""
 echo "============================================================================"
 echo -e "\n\n"

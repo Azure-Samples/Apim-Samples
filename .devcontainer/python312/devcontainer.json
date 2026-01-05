@@ -2,7 +2,8 @@
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
   "name": "APIM Samples - Python 3.12",
   "build": {
-    "dockerfile": "Dockerfile",
+    "args": { "PYTHON_VERSION": "3.12" },
+    "dockerfile": "../Dockerfile",
     "context": ".."
   },
   "features": {
@@ -48,6 +49,9 @@
         ],
         "files.associations": {
           "*.bicep": "bicep"
+        },
+        "workbench.editorAssociations": {
+          "**/.devcontainer/CODESPACES-QUICKSTART.md": "vscode.markdown.preview.editor"
         }
       }
     },
@@ -71,6 +75,11 @@
     "bash",
     "-c",
     "echo 'APIM Samples Codespace Starting - Keep this terminal open to see progress!' && bash .devcontainer/post-start-setup.sh"
+  ],
+  "postAttachCommand": [
+    "bash",
+    "-c",
+    "bash .devcontainer/post-start-setup.sh"
   ],
   "forwardPorts": [
     8000,

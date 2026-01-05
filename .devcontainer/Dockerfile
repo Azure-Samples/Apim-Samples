@@ -2,11 +2,14 @@
 
 # syntax=docker/dockerfile:1.4
 
-# Use single-stage build with Python 3.12
-FROM mcr.microsoft.com/devcontainers/python:3.12-bookworm
+# PYTHON_VERSION must be passed as a build argument. We deliberately do not default it.
+ARG PYTHON_VERSION
+
+# Use single-stage build with the specified Python version
+FROM mcr.microsoft.com/devcontainers/python:${PYTHON_VERSION}-bookworm
 
 # Set build arguments
-ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -25,7 +28,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get install -y --no-install-recommends curl git-lfs && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    /usr/local/bin/python3.12 -m pip install --upgrade pip setuptools wheel
+    /usr/local/bin/python3 -m pip install --upgrade pip setuptools wheel
 
 # Switch to vscode user
 USER vscode
