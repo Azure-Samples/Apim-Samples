@@ -9,7 +9,7 @@ ARG PYTHON_VERSION
 FROM mcr.microsoft.com/devcontainers/python:${PYTHON_VERSION}-bookworm
 
 # Set build arguments
-# ARG PYTHON_VERSION=3.12
+ARG PYTHON_VERSION
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -28,7 +28,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get install -y --no-install-recommends curl git-lfs && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
-    /usr/local/bin/python${PYTHON_VERSION} -m pip install --upgrade pip setuptools wheel
+    /usr/local/bin/python3 -m pip install --upgrade pip setuptools wheel
 
 # Switch to vscode user
 USER vscode
