@@ -76,7 +76,11 @@
     "-c",
     "echo 'APIM Samples Codespace Starting - Keep this terminal open to see progress!' && bash .devcontainer/post-start-setup.sh"
   ],
-  "postAttachCommand": [],
+  "postAttachCommand": [
+    "bash",
+    "-c",
+    "bash .devcontainer/post-start-setup.sh"
+  ],
   "forwardPorts": [
     8000,
     8080,
