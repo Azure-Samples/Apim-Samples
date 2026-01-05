@@ -4,6 +4,11 @@
 #    APIM SAMPLES INSTANT VERIFICATION
 # ------------------------------
 
+# Exit silently if not in devcontainer
+if [ ! -d "/workspaces/Apim-Samples" ]; then
+    exit 0
+fi
+
 start=$(date +%s.%N)
 
 # Ensure workspace scripts are executable (handles mounts without exec bit)
