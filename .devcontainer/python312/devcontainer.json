@@ -48,6 +48,9 @@
         ],
         "files.associations": {
           "*.bicep": "bicep"
+        },
+        "workbench.editorAssociations": {
+          "**/.devcontainer/CODESPACES-QUICKSTART.md": "vscode.markdown.preview.editor"
         }
       }
     },
@@ -75,7 +78,7 @@
   "postAttachCommand": [
     "bash",
     "-c",
-    "code --command \"markdown.showPreview\" /workspaces/Apim-Samples/.devcontainer/CODESPACES-QUICKSTART.md"
+    "code /workspaces/Apim-Samples/.devcontainer/CODESPACES-QUICKSTART.md"
   ],
   "forwardPorts": [
     8000,

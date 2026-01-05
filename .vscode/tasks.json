@@ -83,6 +83,9 @@
             "args": [
                 ".devcontainer/post-start-setup.sh"
             ],
+            "runOptions": {
+                "runOn": "folderOpen"
+            },
             "group": "build",
             "presentation": {
                 "echo": true,
