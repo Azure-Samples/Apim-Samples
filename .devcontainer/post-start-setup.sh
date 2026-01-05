@@ -31,8 +31,10 @@ cd "$WORKSPACE_ROOT" || exit 1
 
 "$PY_CMD" setup/verify_local_setup.py || true
 
-# Note: CODESPACES-QUICKSTART.md opens automatically via workbench.editorAssociations
-# in the devcontainer.json, configured to show in preview mode on first view
+# Open CODESPACES-QUICKSTART.md in preview mode with focus
+if [ -f "$WORKSPACE_ROOT/.devcontainer/CODESPACES-QUICKSTART.md" ]; then
+    code --reuse-window "$WORKSPACE_ROOT/.devcontainer/CODESPACES-QUICKSTART.md" --preview --goto
+fi
 
 # Calculate total duration
 end=$(date +%s.%N)
