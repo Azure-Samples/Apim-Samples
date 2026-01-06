@@ -12,11 +12,10 @@ FROM mcr.microsoft.com/devcontainers/python:${PYTHON_VERSION}-bookworm
 ARG PYTHON_VERSION
 
 # Set environment variables
-ENV PYTHONUNBUFFERED=1 \
+ENV PYTHONPATH=/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples \
+    PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PYTHONPATH=/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples \
-    DEBIAN_FRONTEND=noninteractive
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Install minimal system dependencies as root
 # Use cache mounts for apt and pip to speed up rebuilds while keeping image lean
@@ -25,10 +24,10 @@ RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt/lists \
     --mount=type=cache,target=/root/.cache/pip \
     apt-get update && \
-    apt-get install -y --no-install-recommends curl git-lfs && \
-    apt-get clean && \
+    apt-get install -y --no-install-recommends --no-install-suggests git-lfs && \
     rm -rf /var/lib/apt/lists/* && \
-    /usr/local/bin/python3 -m pip install --upgrade pip setuptools wheel
+    apt-get clean && \
+    python3 -m pip install --upgrade --no-cache-dir pip setuptools wheel
 
 # Switch to vscode user
 USER vscode
@@ -41,14 +40,6 @@ RUN az config set core.login_experience_v2=off 2>/dev/null || true && \
 # Set final working directory
 WORKDIR /workspaces/Apim-Samples
 
-# Add health check for the virtual environment
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD . /workspaces/Apim-Samples/.venv/bin/activate && python -c "import sys, pip; print(f'Python {sys.version}'); print(f'Pip {pip.__version__}')" || exit 1
-
 # Add labels for maintainability
-LABEL maintainer="APIM Samples Team" \
-    description="Optimized dev container for Azure API Management samples with Codespaces prebuild support" \
-    version="2.3" \
-    python.version="${PYTHON_VERSION}" \
-    debian.version="bookworm" \
-    venv.location="/workspaces/Apim-Samples/.venv"
+LABEL description="Dev container for Azure API Management samples" \
+    python.version="${PYTHON_VERSION}"
