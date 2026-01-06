@@ -34,6 +34,7 @@
         "ms-toolsai.jupyter",
         "ms-azuretools.vscode-bicep",
         "ms-vscode.azurecli",
+        "ms-vscode.powershell",
         "redhat.vscode-yaml",
         "ms-vscode.vscode-json",
         "GitHub.copilot",
@@ -63,10 +64,10 @@
       "VIRTUAL_ENV": "/workspaces/Apim-Samples/.venv"
     }
   },
-  "onCreateCommand": [
+  "postCreateCommand": [
     "bash",
     "-c",
-    "echo '🚀 Creating Python virtual environment in workspace...' && /usr/local/bin/python3.13 -m venv /workspaces/Apim-Samples/.venv --copies && source /workspaces/Apim-Samples/.venv/bin/activate && pip install --upgrade pip setuptools wheel ipykernel && echo '✅ Virtual environment created' && echo '🔧 Registering Jupyter kernel during prebuild...' && python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)' && echo '🧹 Removing default python3 kernel...' && rm -rf /workspaces/Apim-Samples/.venv/share/jupyter/kernels/python3 2>/dev/null || true && echo '✅ Jupyter kernel registered in prebuild'"
+    "echo '🚀 Creating Python virtual environment in workspace...' && /usr/local/bin/python3.13 -m venv /workspaces/Apim-Samples/.venv --copies && source /workspaces/Apim-Samples/.venv/bin/activate && pip install --upgrade pip setuptools wheel ipykernel && echo '✅ Virtual environment created' && echo '🔧 Registering Jupyter kernel...' && python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)' && echo '🧹 Removing default python3 kernel...' && rm -rf /workspaces/Apim-Samples/.venv/share/jupyter/kernels/python3 2>/dev/null || true && echo '✅ Jupyter kernel registered'"
   ],
   "updateContentCommand": [
     "bash",
