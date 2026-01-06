@@ -5,8 +5,7 @@
 # PYTHON_VERSION must be passed as a build argument. We deliberately do not default it.
 ARG PYTHON_VERSION
 
-# Use bookworm-slim for smaller image size (~150MB compressed vs 380MB for full bookworm) and faster Codespace startup.
-FROM mcr.microsoft.com/devcontainers/python:${PYTHON_VERSION}-bookworm-slim
+FROM mcr.microsoft.com/devcontainers/python:${PYTHON_VERSION}-bookworm
 
 # Set build arguments
 ARG PYTHON_VERSION
