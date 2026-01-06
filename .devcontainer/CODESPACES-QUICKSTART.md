@@ -18,7 +18,7 @@ Open a terminal and log in:
 az login
 ```
 
-Or if you need to specify a tenant:
+Or, if you need to specify a tenant:
 
 ```bash
 az login --tenant <your-tenant-id>
@@ -28,7 +28,7 @@ az login --tenant <your-tenant-id>
 
 ---
 
-## 🚀 Ready to code?
+## 🚀 Ready to go?
 
 ### Start with a sample
 1. Open any notebook in `infrastructure/` or `samples/`
@@ -55,4 +55,5 @@ bash start.sh
 
 ---
 
-**Ready?** Start with the README in the root folder for the big picture!
+
+Ready? Start with the README in the root folder for the big picture!
