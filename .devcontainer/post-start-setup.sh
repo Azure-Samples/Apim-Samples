@@ -34,11 +34,23 @@ PY_CMD="$WORKSPACE_ROOT/.venv/bin/python"
 
 cd "$WORKSPACE_ROOT" || exit 1
 
+# Configure shell profile to auto-activate venv
+BASHRC="${HOME}/.bashrc"
+
+# Add venv activation to .bashrc if not already present
+if [ -f "$BASHRC" ] && ! grep -q "activate.*\.venv" "$BASHRC" 2>/dev/null; then
+    echo "" >> "$BASHRC"
+    echo "# Auto-activate Python venv for APIM Samples" >> "$BASHRC"
+    echo "if [ -f '$WORKSPACE_ROOT/.venv/bin/activate' ]; then" >> "$BASHRC"
+    echo "    source '$WORKSPACE_ROOT/.venv/bin/activate'" >> "$BASHRC"
+    echo "fi" >> "$BASHRC"
+fi
+
 "$PY_CMD" setup/verify_local_setup.py || true
 
 # Open CODESPACES-QUICKSTART.md in preview mode with focus
 if [ -f "$WORKSPACE_ROOT/.devcontainer/CODESPACES-QUICKSTART.md" ]; then
-    code --reuse-window "$WORKSPACE_ROOT/.devcontainer/CODESPACES-QUICKSTART.md" --preview --goto
+    code --reuse-window "$WORKSPACE_ROOT/.devcontainer/CODESPACES-QUICKSTART.md" --goto
 fi
 
 # Calculate total duration

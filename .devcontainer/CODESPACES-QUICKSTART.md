@@ -1,97 +1,59 @@
 # APIM Samples Codespaces Quickstart
 
-Welcome! Please follow these steps to get productive fast:
+## ✅ What's ready for you
 
-1. [Authenticate with Azure](#-authenticate-with-azure)
-
-1. [Infrastructures and Samples](#-infrastructures-and-samples)
-
-1. [Developer CLI](#-developer-cli)
-
-1. [Troubleshooting](#-troubleshooting)
+Your Codespace has automatically set up:
+- Python virtual environment (`.venv`)
+- Azure CLI
+- All project dependencies
+- VS Code extensions (still installing? Wait ~1 minute for the status bar to finish)
 
 ---
 
-## Environment verification (already done for you)
+## 🎯 Next: Authenticate with Azure
 
-The `post-start-setup.sh` script runs automatically and verifies that the virtual
-environment, `.env` file, Azure CLI, Python, etc. are all present. You can see details
-in the terminal window if you just started your Codespace.
-
-You can also run the command in the terminal yourself:
-
-```bash
-bash .devcontainer/post-start-setup.sh
-```
-
----
-
-## Authenticate with Azure
-
-Use device login to make Azure CLI commands available inside the container:
+Open a terminal and log in:
 
 ```bash
 az login
-# or, specify a tenant explicitly
+```
+
+Or, if you need to specify a tenant:
+
+```bash
 az login --tenant <your-tenant-id>
 ```
 
----
-
-## Activate the virtual environment (if needed)
-
-Every new terminal automatically activates `.venv`. If you do not see the
-`(.venv)` prefix, run:
-
-```bash
-source .venv/bin/activate
-```
-
-This ensures `python`, `pip`, and all tooling reference the prebuilt environment.
+**This is required** before you can deploy any infrastructure or samples.
 
 ---
 
-## Run the verification script (optional)
+## 🚀 Ready to go?
 
-To double-check that everything is connected properly, execute:
+### Start with a sample
+1. Open any notebook in `infrastructure/` or `samples/`
+2. If prompted, select the **Python (.venv)** kernel
+3. Run the cells
 
-```bash
-python setup/verify_local_setup.py
-```
+Each folder has a `README.md` with full deployment steps.
 
-The script validates Azure CLI/Bicep, resource providers, and VS Code settings.
-
----
-
-## Infrastructures and Samples
-
-1. Open any notebook in `infrastructure/` or `samples/`.
-2. If prompted to pick a kernel, choose **Python (.venv)**.
-3. Execute cells as usual.
-
-Need guidance for individual samples? Each subfolder contains a README with
-deployment steps and policy details.
-
----
-
-## Developer CLI
-
-Use the **APIM Samples Developer CLI** for setup and testing:
-
+### Use the Developer CLI
 ```bash
 bash start.sh
 ```
 
 ---
 
-## ℹ️ Troubleshooting
+## 📋 If something isn't working
 
-- **Extensions still installing?** Wait for the VS Code status bar to finish
-  spinning. It can take a minute for Copilot and other extensions to activate.
-- **Something feels off?** Check `.devcontainer/post-start-setup.sh` for the
-  exact commands the container runs on startup.
+| Issue | Solution |
+|-------|----------|
+| Virtual environment not active | New terminals auto-activate. If you see no `(.venv)` prefix, run: `source .venv/bin/activate` |
+| Extensions not ready | Wait for VS Code status bar to stop spinning (~1 minute) |
+| Need to verify setup | Run: `python setup/verify_local_setup.py` |
+| Something else | Check `.devcontainer/post-start-setup.sh` for startup commands |
 
 ---
 
-Enjoy exploring the APIM Samples project! If you have ideas to improve this
-quickstart, open an issue or PR so that everyone may benefit. Thank you!
+
+Ready? Start with the README in the root folder for the big picture!
