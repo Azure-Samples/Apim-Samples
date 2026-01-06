@@ -51,7 +51,7 @@
           "*.bicep": "bicep"
         },
         "workbench.editorAssociations": {
-          "**/.devcontainer/CODESPACES-QUICKSTART.md": "vscode.markdown.preview.editor"
+          "*.md": "vscode.markdown.preview.editor"
         },
         "extensions.ignoreRecommendations": true
       }
