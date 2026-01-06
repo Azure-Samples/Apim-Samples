@@ -34,7 +34,6 @@
         "ms-toolsai.jupyter",
         "ms-azuretools.vscode-bicep",
         "ms-vscode.azurecli",
-        "ms-vscode.powershell",
         "redhat.vscode-yaml",
         "ms-vscode.vscode-json",
         "GitHub.copilot",
