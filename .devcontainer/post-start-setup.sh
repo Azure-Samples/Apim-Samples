@@ -6,6 +6,11 @@
 
 # Exit silently if not in devcontainer
 if [ ! -d "/workspaces/Apim-Samples" ]; then
+    echo ""
+    echo "This script only runs as part of a devcontainer / Codespace."
+    echo "Exiting."
+    echo ""
+
     exit 0
 fi
 

@@ -4,22 +4,21 @@ Welcome! Please follow these steps to get productive fast:
 
 1. [Authenticate with Azure](#-authenticate-with-azure)
 
-1. [Open notebooks and samples](#-work-with-notebooks-and-samples)
+1. [Infrastructures and Samples](#-infrastructures-and-samples)
 
-1. [Use common developer workflows](#-common-developer-workflows)
+1. [Developer CLI](#-developer-cli)
 
-1. [Troubleshoot if anything looks off](#-troubleshooting-tips)
+1. [Troubleshooting](#-troubleshooting)
 
 ---
 
 ## Environment verification (already done for you)
 
-The post-start script runs automatically and verifies that the virtual
-environment, `.env` file, Azure CLI, and Python are all present. Look for the
-first terminal tab titled **“APIM Samples Codespace Starting”** (or re-open the
-first terminal in VS Code); it shows the output from `.devcontainer/post-start-setup.sh`.
+The `post-start-setup.sh` script runs automatically and verifies that the virtual
+environment, `.env` file, Azure CLI, Python, etc. are all present. You can see details
+in the terminal window if you just started your Codespace.
 
-For more visibility, you can also run the command in the terminal yourself:
+You can also run the command in the terminal yourself:
 
 ```bash
 bash .devcontainer/post-start-setup.sh
@@ -29,17 +28,13 @@ bash .devcontainer/post-start-setup.sh
 
 ## Authenticate with Azure
 
-Use device login to make Azure CLI commands available inside the container. Run
-one of the following in a new terminal:
+Use device login to make Azure CLI commands available inside the container:
 
 ```bash
 az login
 # or, specify a tenant explicitly
 az login --tenant <your-tenant-id>
 ```
-
-If you do not have Azure permissions, you can skip this step for local-only
-experiments.
 
 ---
 
@@ -68,7 +63,7 @@ The script validates Azure CLI/Bicep, resource providers, and VS Code settings.
 
 ---
 
-## Work with notebooks and samples
+## Infrastructures and Samples
 
 1. Open any notebook in `infrastructure/` or `samples/`.
 2. If prompted to pick a kernel, choose **Python (.venv)**.
@@ -79,19 +74,17 @@ deployment steps and policy details.
 
 ---
 
-## Common developer workflows
+## Developer CLI
 
-| Task | Command |
-|------|---------|
-| Run tests | `pytest` or `tests/python/run_tests.sh` |
-| Run pylint | `tests/python/run_pylint.sh` |
-| Full quality checks | `tests/python/check_python.ps1` or `.sh` |
-| Generate `.env` again | `python setup/local_setup.py --generate-env` |
-| Launch environment setup | `python setup/local_setup.py --complete-setup` |
+Use the **APIM Samples Developer CLI** for setup and testing:
+
+```bash
+bash start.sh
+```
 
 ---
 
-## ℹ️ Troubleshooting Tips
+## ℹ️ Troubleshooting
 
 - **Extensions still installing?** Wait for the VS Code status bar to finish
   spinning. It can take a minute for Copilot and other extensions to activate.
