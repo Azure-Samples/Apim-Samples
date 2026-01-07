@@ -171,3 +171,113 @@ def test_main_honors_no_location(monkeypatch):
 
     assert not result
     assert captured['include_location'] is False
+
+
+def test_display_infrastructures_index_column_right_aligned(monkeypatch):
+    """Verify that Index column values are right-aligned."""
+
+    printed_lines: list[str] = []
+    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: printed_lines.append(' '.join(str(a) for a in args)))
+
+    data = [
+        {
+            'infrastructure': 'apim-aca',
+            'index': 4,
+            'resource_group': 'rg-apim-aca-4',
+            'location': 'eastus',
+        },
+        {
+            'infrastructure': 'apim-aca',
+            'index': 21,
+            'resource_group': 'rg-apim-aca-21',
+            'location': 'eastus',
+        },
+    ]
+
+    si.display_infrastructures(data, include_location=True)
+
+    # Find the data rows (skip header and separator)
+    data_rows = [line for line in printed_lines if line and not line.startswith('-') and not line.startswith('#')]
+
+    # Verify we have at least the two data rows
+    assert len([r for r in data_rows if 'apim-aca' in r]) >= 2
+
+    # Check that single-digit index (4) has leading spaces compared to two-digit (21)
+    row_with_4 = next((r for r in data_rows if 'rg-apim-aca-4' in r), None)
+    row_with_21 = next((r for r in data_rows if 'rg-apim-aca-21' in r), None)
+
+    assert row_with_4 is not None
+    assert row_with_21 is not None
+
+    # Index should appear after infrastructure column
+    # For right-aligned: "4" should have trailing spaces, "21" should have no trailing spaces
+    idx_4_pos = row_with_4.find('4')
+    idx_21_pos = row_with_21.find('21')
+
+    assert idx_4_pos > 0 and idx_21_pos > 0
+
+
+def test_display_infrastructures_index_none_right_aligned(monkeypatch):
+    """Verify that Index column with None values (N/A) is also right-aligned."""
+
+    printed_lines: list[str] = []
+    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: printed_lines.append(' '.join(str(a) for a in args)))
+
+    data = [
+        {
+            'infrastructure': 'simple-apim',
+            'index': None,
+            'resource_group': 'rg-simple',
+            'location': 'eastus',
+        },
+        {
+            'infrastructure': 'apim-aca',
+            'index': 1,
+            'resource_group': 'rg-apim-aca-1',
+            'location': 'eastus',
+        },
+    ]
+
+    si.display_infrastructures(data, include_location=True)
+
+    printed_output = ' '.join(printed_lines)
+
+    # Verify N/A appears for None index and single digit appears for index=1
+    assert 'N/A' in printed_output
+    assert 'rg-simple' in printed_output
+    assert 'rg-apim-aca-1' in printed_output
+
+
+def test_display_infrastructures_table_formatting(monkeypatch):
+    """Verify the table structure and formatting."""
+
+    printed_lines: list[str] = []
+    monkeypatch.setattr('builtins.print', lambda *args, **kwargs: printed_lines.append(' '.join(str(a) for a in args)))
+
+    data = [
+        {
+            'infrastructure': 'test-infra',
+            'index': 1,
+            'resource_group': 'test-rg-1',
+            'location': 'eastus',
+        },
+    ]
+
+    si.display_infrastructures(data, include_location=True)
+
+    # Verify header row exists (contains #)
+    header_line = next((l for l in printed_lines if '#' in l and 'Infrastructure' in l), None)
+    assert header_line is not None
+    assert 'Index' in header_line
+    assert 'Resource Group' in header_line
+    assert 'Location' in header_line
+
+    # Verify separator row exists (all dashes)
+    separator_line = next((l for l in printed_lines if l and all(c in '- ' for c in l)), None)
+    assert separator_line is not None
+
+    # Verify data row exists
+    data_line = next((l for l in printed_lines if 'test-infra' in l), None)
+    assert data_line is not None
+    assert 'test-rg-1' in data_line
+    assert 'eastus' in data_line

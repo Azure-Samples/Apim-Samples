@@ -88,8 +88,15 @@ def display_infrastructures(infrastructures: list[dict[str, str | int | None]], 
     print('\n' + header_line)
     print(separator_line)
 
+    # Index column (column 2) is right-aligned; others are left-aligned
     for row in rows:
-        print('  '.join(str(value).ljust(widths[i]) for i, value in enumerate(row)))
+        formatted_row = []
+        for i, value in enumerate(row):
+            if i == 2:  # Index column
+                formatted_row.append(str(value).rjust(widths[i]))
+            else:
+                formatted_row.append(str(value).ljust(widths[i]))
+        print('  '.join(formatted_row))
 
     infra_totals: dict[str, int] = {}
     for entry in infrastructures:
@@ -99,7 +106,6 @@ def display_infrastructures(infrastructures: list[dict[str, str | int | None]], 
     print('\nSummary:')
     print(f"  Resource groups found : {len(infrastructures)}")
     print(f"  Infrastructure types  : {len(infra_totals)}")
-    print('  Tag used              : infrastructure=<infra-name>')
     print('\n')
 
 
