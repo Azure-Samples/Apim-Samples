@@ -871,19 +871,19 @@ def test_infrastructure_with_all_custom_components(mock_utils, mock_policy_fragm
 def test_infrastructure_missing_required_params():
     """Test Infrastructure creation with missing required parameters."""
     with pytest.raises(TypeError):
-        infrastructures.Infrastructure()  # pylint: disable=no-value-for-parameter
+        infrastructures.Infrastructure()
 
     with pytest.raises(TypeError):
-        infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM)  # pylint: disable=no-value-for-parameter
+        infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM)
 
 @pytest.mark.unit
 def test_concrete_infrastructure_missing_params():
     """Test concrete infrastructure classes with missing parameters."""
     with pytest.raises(TypeError):
-        infrastructures.SimpleApimInfrastructure()  # pylint: disable=no-value-for-parameter
+        infrastructures.SimpleApimInfrastructure()
 
     with pytest.raises(TypeError):
-        infrastructures.SimpleApimInfrastructure(rg_location=TEST_LOCATION)  # pylint: disable=no-value-for-parameter
+        infrastructures.SimpleApimInfrastructure(rg_location=TEST_LOCATION)
 
 
 # ------------------------------
