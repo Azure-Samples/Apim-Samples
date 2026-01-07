@@ -394,6 +394,134 @@ def test_base_infrastructure_verification_missing_apim(mock_utils, mock_az):
     assert result is False
 
 @pytest.mark.unit
+def test_base_infrastructure_verification_subscription_key_success(mock_utils, mock_az):
+    """Test subscription key retrieval succeeds during verification."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+
+    # Mock successful resource group check
+    mock_az.does_resource_group_exist.return_value = True
+
+    # Mock successful APIM service check
+    mock_apim_output = Mock()
+    mock_apim_output.success = True
+    mock_apim_output.json_data = {'name': 'test-apim'}
+
+    # Mock successful API count check (count > 0 triggers subscription key retrieval)
+    mock_api_output = Mock()
+    mock_api_output.success = True
+    mock_api_output.text = '3'  # 3 APIs
+
+    # Mock successful subscription key retrieval
+    mock_az.get_apim_subscription_key.return_value = 'valid-subscription-key-12345'
+
+    mock_az.run.side_effect = [mock_apim_output, mock_api_output]
+
+    result = infra._verify_infrastructure('test-rg')
+
+    assert result is True
+    # Verify subscription key was retrieved
+    mock_az.get_apim_subscription_key.assert_called_once_with('test-apim', 'test-rg')
+
+@pytest.mark.unit
+def test_base_infrastructure_verification_subscription_key_empty(mock_utils, mock_az):
+    """Test subscription key retrieval when key is empty."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+
+    # Mock successful resource group check
+    mock_az.does_resource_group_exist.return_value = True
+
+    # Mock successful APIM service check
+    mock_apim_output = Mock()
+    mock_apim_output.success = True
+    mock_apim_output.json_data = {'name': 'test-apim'}
+
+    # Mock successful API count check
+    mock_api_output = Mock()
+    mock_api_output.success = True
+    mock_api_output.text = '2'
+
+    # Mock empty subscription key
+    mock_az.get_apim_subscription_key.return_value = None
+
+    mock_az.run.side_effect = [mock_apim_output, mock_api_output]
+
+    result = infra._verify_infrastructure('test-rg')
+
+    assert result is True
+    mock_az.get_apim_subscription_key.assert_called_once_with('test-apim', 'test-rg')
+
+@pytest.mark.unit
+def test_base_infrastructure_verification_subscription_key_exception(mock_utils, mock_az):
+    """Test subscription key retrieval handles exceptions gracefully."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+
+    # Mock successful resource group check
+    mock_az.does_resource_group_exist.return_value = True
+
+    # Mock successful APIM service check
+    mock_apim_output = Mock()
+    mock_apim_output.success = True
+    mock_apim_output.json_data = {'name': 'test-apim'}
+
+    # Mock successful API count check
+    mock_api_output = Mock()
+    mock_api_output.success = True
+    mock_api_output.text = '1'
+
+    # Mock exception during subscription key retrieval
+    mock_az.get_apim_subscription_key.side_effect = Exception('Failed to retrieve subscription key')
+
+    mock_az.run.side_effect = [mock_apim_output, mock_api_output]
+
+    result = infra._verify_infrastructure('test-rg')
+
+    # Should still succeed even if subscription key retrieval fails
+    assert result is True
+    mock_az.get_apim_subscription_key.assert_called_once_with('test-apim', 'test-rg')
+
+@pytest.mark.unit
+def test_base_infrastructure_verification_no_apis_skip_subscription_key(mock_utils, mock_az):
+    """Test subscription key is not retrieved when API count is 0."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+
+    # Mock successful resource group check
+    mock_az.does_resource_group_exist.return_value = True
+
+    # Mock successful APIM service check
+    mock_apim_output = Mock()
+    mock_apim_output.success = True
+    mock_apim_output.json_data = {'name': 'test-apim'}
+
+    # Mock API count check with 0 APIs (should skip subscription key retrieval)
+    mock_api_output = Mock()
+    mock_api_output.success = True
+    mock_api_output.text = '0'
+
+    mock_az.run.side_effect = [mock_apim_output, mock_api_output]
+
+    result = infra._verify_infrastructure('test-rg')
+
+    assert result is True
+    # Subscription key should not be retrieved when there are no APIs
+    mock_az.get_apim_subscription_key.assert_not_called()
+
+@pytest.mark.unit
 def test_infrastructure_specific_verification_base(mock_utils):
     """Test the base infrastructure-specific verification method."""
     infra = infrastructures.Infrastructure(

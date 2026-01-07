@@ -965,7 +965,7 @@ def get_unique_suffix_for_resource_group(rg_name: str) -> str:
     finally:
         try:
             os.unlink(template_path)
-        except Exception:
+        except Exception:  # pragma: no cover
             pass
 
 def get_rg_name(deployment_name: str, index: int | None = None) -> str:
