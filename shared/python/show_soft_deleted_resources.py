@@ -13,7 +13,7 @@ from pathlib import Path
 import azure_resources as az
 
 # Configure UTF-8 encoding for console output
-if sys.stdout.encoding != 'utf-8':
+if sys.stdout.encoding != 'utf-8':  # pragma: no cover
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 
@@ -268,6 +268,64 @@ def confirm_purge(apim_count: int, kv_count: int, kv_protected: int) -> bool:
         return False
 
 
+def _handle_purge_operation(apim_services: list, key_vaults: list, skip_confirmation: bool) -> int:
+    """Execute the purge operation for soft-deleted resources.
+
+    Args:
+        apim_services: List of soft-deleted APIM services
+        key_vaults: List of soft-deleted Key Vaults
+        skip_confirmation: Skip confirmation prompt if True
+
+    Returns:
+        Exit code (0 for success)
+    """
+    apim_count = len(apim_services)
+    kv_count = len(key_vaults)
+
+    # Count protected Key Vaults
+    kv_protected = sum(1 for v in key_vaults
+                      if v.get('properties', {}).get('purgeProtectionEnabled', False))
+    kv_purgeable = kv_count - kv_protected
+
+    # Check if there's actually anything to purge
+    total_purgeable = apim_count + kv_purgeable
+    if not total_purgeable:
+        print('\nℹ️  No purgeable resources found.')
+        if kv_protected > 0:
+            print(f'   All {kv_protected} Key Vault(s) have purge protection enabled.')
+            print('   These will be automatically purged on their scheduled purge dates.')
+        print()
+        return 0
+
+    # Ask for confirmation unless --yes flag is provided
+    if skip_confirmation or confirm_purge(apim_count, kv_purgeable, kv_protected):
+        print('\n🗑️  Starting purge operation...\n')
+
+        apim_purged = purge_apim_services(apim_services)
+        kv_purged, kv_skipped = purge_key_vaults(key_vaults)
+
+        print('\n' + '='*80)
+        print('PURGE SUMMARY')
+        print('='*80)
+        print(f'API Management services purged: {apim_purged}/{apim_count}')
+        print(f'Key Vaults purged: {kv_purged}/{kv_purgeable}')
+        if kv_skipped > 0:
+            print(f'Key Vaults skipped (purge protected): {kv_skipped}')
+        print(f'Total resources purged: {apim_purged + kv_purged}/{apim_count + kv_purgeable}')
+        print()
+
+        expected_purged = apim_count + kv_purgeable
+        if apim_purged + kv_purged == expected_purged:
+            print('✅ All purgeable resources successfully purged')
+        else:
+            print('⚠️  Some resources failed to purge. Check the errors above.')
+    else:
+        print('\n❌ Purge operation cancelled')
+
+    print()
+    return 0
+
+
 def main():
     """Main function to show and optionally purge all soft-deleted resources."""
     parser = argparse.ArgumentParser(
@@ -329,45 +387,7 @@ def main():
 
     # Handle purge option
     if args.purge:
-        # Count protected Key Vaults
-        kv_protected = sum(1 for v in key_vaults
-                          if v.get('properties', {}).get('purgeProtectionEnabled', False))
-        kv_purgeable = kv_count - kv_protected
-
-        # Check if there's actually anything to purge
-        total_purgeable = apim_count + kv_purgeable
-        if not total_purgeable:
-            print('\nℹ️  No purgeable resources found.')
-            if kv_protected > 0:
-                print(f'   All {kv_protected} Key Vault(s) have purge protection enabled.')
-                print('   These will be automatically purged on their scheduled purge dates.')
-            print()
-            return 0
-
-        # Ask for confirmation unless --yes flag is provided
-        if args.yes or confirm_purge(apim_count, kv_purgeable, kv_protected):
-            print('\n🗑️  Starting purge operation...\n')
-
-            apim_purged = purge_apim_services(apim_services)
-            kv_purged, kv_skipped = purge_key_vaults(key_vaults)
-
-            print('\n' + '='*80)
-            print('PURGE SUMMARY')
-            print('='*80)
-            print(f'API Management services purged: {apim_purged}/{apim_count}')
-            print(f'Key Vaults purged: {kv_purged}/{kv_purgeable}')
-            if kv_skipped > 0:
-                print(f'Key Vaults skipped (purge protected): {kv_skipped}')
-            print(f'Total resources purged: {apim_purged + kv_purged}/{apim_count + kv_purgeable}')
-            print()
-
-            expected_purged = apim_count + kv_purgeable
-            if apim_purged + kv_purged == expected_purged:
-                print('✅ All purgeable resources successfully purged')
-            else:
-                print('⚠️  Some resources failed to purge. Check the errors above.')
-        else:
-            print('\n❌ Purge operation cancelled')
+        return _handle_purge_operation(apim_services, key_vaults, args.yes)
     else:
         print('\n💡 To purge all these resources, run:')
         print(f'   {_get_suggested_purge_command()}')

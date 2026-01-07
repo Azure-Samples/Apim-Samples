@@ -873,6 +873,12 @@ class TestReadPolicyXml:
         assert isinstance(result, str)
         assert len(result) > 0
 
+    def test_read_policy_xml_content_is_xml(self):
+        """Test that read content is valid XML structure."""
+        result = apimtypes._read_policy_xml(DEFAULT_XML_POLICY_PATH)
+        assert result.strip().startswith('<') or result.strip().startswith('<?xml')
+        assert '>' in result
+
 
 # ------------------------------
 #    PROJECT ROOT TESTS
@@ -938,6 +944,36 @@ class TestProjectRoot:
         assert (root / 'README.md').exists()
         assert (root / 'requirements.txt').exists()
         assert (root / 'bicepconfig.json').exists()
+
+    def test_get_project_root_detects_parent_indicators(self, tmp_path, monkeypatch):
+        """Ensure traversal finds indicators in parent directories."""
+        project_dir = tmp_path / 'proj'
+        project_dir.mkdir()
+        for name in ['README.md', 'requirements.txt', 'bicepconfig.json']:
+            (project_dir / name).write_text('x')
+
+        child_dir = project_dir / 'shared' / 'python'
+        child_dir.mkdir(parents=True)
+        fake_file = child_dir / 'apimtypes.py'
+        fake_file.write_text('x')
+
+        monkeypatch.delenv('PROJECT_ROOT', raising=False)
+        monkeypatch.setattr(apimtypes, '__file__', str(fake_file))
+
+        root = apimtypes.get_project_root()
+        assert root == project_dir
+
+    def test_get_project_root_fallback_when_no_indicators(self, monkeypatch):
+        """Ensure fallback path is used when no indicators exist."""
+        monkeypatch.delenv('PROJECT_ROOT', raising=False)
+
+        # Force indicator checks to fail
+        monkeypatch.setattr(Path, 'exists', lambda self: False)
+
+        expected = Path(apimtypes.__file__).resolve().parent.parent.parent
+        result = apimtypes.get_project_root()
+
+        assert result == expected
 
 
 # ------------------------------
@@ -1169,24 +1205,6 @@ class TestAPIEdgeCases:
         assert api.to_dict()['subscriptionRequired'] is False
 
 
-class TestProjectRootDetection:
-    """Test project root detection logic."""
-
-    def test_get_project_root_from_env_var(self, monkeypatch):
-        """Test get_project_root when PROJECT_ROOT env var is set."""
-        expected_root = Path('/custom/project/root')
-        monkeypatch.setenv('PROJECT_ROOT', str(expected_root))
-
-        result = get_project_root()
-        assert result == expected_root
-
-    def test_get_project_root_without_env_var(self, monkeypatch):
-        """Test get_project_root when PROJECT_ROOT env var is not set."""
-        monkeypatch.delenv('PROJECT_ROOT', raising=False)
-
-        # Should return a Path object (doesn't have to exist in tests)
-        result = get_project_root()
-        assert isinstance(result, Path)
 
 
 class TestOutputGetEdgeCases:

@@ -1205,6 +1205,75 @@ def test_extract_az_cli_error_message_finds_first_non_empty_line():
     assert result == 'Some error occurred'
 
 
+def test_extract_az_cli_error_message_with_json_array():
+    """Test _extract_az_cli_error_message handles JSON arrays (not dict)."""
+    output = '[1, 2, 3] error'
+    result = az._extract_az_cli_error_message(output)
+    # JSON array is skipped, falls back to returning first non-empty line
+    assert result == '[1, 2, 3] error'
+
+
+def test_extract_az_cli_error_message_with_message_only_no_code():
+    """Test _extract_az_cli_error_message with Message field but no Code."""
+    output = 'Message: Something went wrong\nOther line'
+    result = az._extract_az_cli_error_message(output)
+    assert result == 'Something went wrong'
+
+
+def test_extract_az_cli_error_message_with_code_only_no_message():
+    """Test _extract_az_cli_error_message with Code field but no Message."""
+    output = 'Code: ResourceNotFound\nOther line'
+    result = az._extract_az_cli_error_message(output)
+    # Should return first meaningful line since no message
+    assert result in ('Code: ResourceNotFound', 'Other line')
+
+
+def test_extract_az_cli_error_message_with_whitespace_only():
+    """Test _extract_az_cli_error_message handles whitespace-only text."""
+    output = '   \n   \n   '
+    result = az._extract_az_cli_error_message(output)
+    assert not result
+
+
+def test_extract_az_cli_error_message_with_error_no_message_part():
+    """Test _extract_az_cli_error_message handles ERROR: with no message after colon."""
+    output = 'ERROR:\nOther line'
+    result = az._extract_az_cli_error_message(output)
+    # Falls back to the original line
+    assert 'ERROR' in result or result == 'Other line'
+
+
+def test_extract_az_cli_error_message_with_json_error_without_message():
+    """Test _extract_az_cli_error_message with JSON error dict but no message."""
+    output = '{"error": {"code": "NotFound"}}'
+    result = az._extract_az_cli_error_message(output)
+    # Should skip this JSON since error dict has no message, fall back to first line
+    assert result == '{"error": {"code": "NotFound"}}'
+
+
+def test_extract_az_cli_error_message_with_json_and_error_prefix():
+    """Test _extract_az_cli_error_message prefers JSON, then ERROR: prefix."""
+    output = '{"message": "JSON error"}\nERROR: Text error'
+    result = az._extract_az_cli_error_message(output)
+    # Should prefer JSON message
+    assert result == 'JSON error'
+
+
+def test_extract_az_cli_error_message_multiple_warnings_and_error():
+    """Test _extract_az_cli_error_message with multiple warnings and actual error."""
+    output = 'WARNING: Old feature\nWARNING: Deprecated\nERROR: Real problem'
+    result = az._extract_az_cli_error_message(output)
+    assert result == 'Real problem'
+
+
+def test_extract_az_cli_error_message_with_az_error_no_message():
+    """Test _extract_az_cli_error_message with az: error: but no message."""
+    output = 'az: error:\nOther content'
+    result = az._extract_az_cli_error_message(output)
+    # Falls back to the original line
+    assert 'az: error' in result or result == 'Other content'
+
+
 def test_looks_like_json_with_valid_json():
     """Test _looks_like_json identifies JSON strings."""
     assert az._looks_like_json('{"key": "value"}') is True
