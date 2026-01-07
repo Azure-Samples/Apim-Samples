@@ -4064,6 +4064,85 @@ def test_cleanup_resources_with_thread_safe_printing_success_completion_message(
 
 
 # ------------------------------
+#    RESOURCE GROUP DELETE TESTS
+# ------------------------------
+
+@pytest.mark.unit
+def test_delete_resource_group_best_effort_no_rg_name(monkeypatch):
+    """Returns immediately when rg_name is empty or None."""
+    # Capture print log to ensure no messages when no thread_prefix
+    print_calls = capture_module_print_log(monkeypatch, infrastructures)
+
+    # Empty string
+    infrastructures._delete_resource_group_best_effort('')
+    # None
+    infrastructures._delete_resource_group_best_effort(None)
+
+    # No calls should have been captured for thread-safe logging
+    assert print_calls == []
+
+
+@pytest.mark.unit
+def test_delete_resource_group_best_effort_thread_prefix_path(monkeypatch):
+    """When thread_prefix provided, uses thread-safe print and az.run."""
+    run_calls: list[str] = []
+
+    def mock_run(cmd, *a, **k):
+        run_calls.append(cmd)
+        return Output(True, '{}')
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    log_calls = capture_module_print_log(monkeypatch, infrastructures)
+
+    infrastructures._delete_resource_group_best_effort(
+        'rg-test', thread_prefix='[TEST]: ', thread_color='\x1b[35m'
+    )
+
+    # Verify az.run was invoked with delete command
+    assert any('az group delete' in c for c in run_calls)
+    # Verify thread-safe print was used
+    assert any('Deleting resource group' in call['msg'] for call in log_calls)
+
+
+@pytest.mark.unit
+def test_delete_resource_group_best_effort_no_thread_prefix(monkeypatch):
+    """Without thread_prefix, uses print_message and az.run."""
+    run_calls: list[str] = []
+
+    def mock_run(cmd, *a, **k):
+        run_calls.append(cmd)
+        return Output(True, '{}')
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+
+    # Capture print_message
+    captured: list[str] = []
+    monkeypatch.setattr(infrastructures, 'print_message', captured.append)
+
+    infrastructures._delete_resource_group_best_effort('rg-delete')
+
+    assert any('az group delete' in c for c in run_calls)
+    assert any('Deleting resource group' in msg for msg in captured)
+
+
+@pytest.mark.unit
+def test_delete_resource_group_best_effort_exception_non_thread(monkeypatch):
+    """Exception path prints failure message; traceback suppressed by flag."""
+    def raise_run(cmd, *a, **k):
+        raise RuntimeError('boom')
+
+    monkeypatch.setattr(infrastructures.az, 'run', raise_run)
+    monkeypatch.setattr(infrastructures, 'should_print_traceback', lambda: False)
+
+    printed: list[str] = []
+    monkeypatch.setattr(infrastructures, 'print_plain', printed.append)
+
+    infrastructures._delete_resource_group_best_effort('rg-oops')
+
+    assert any('Failed to initiate deletion' in m for m in printed)
+
+
+# ------------------------------
 #    NEW EDGE CASE AND ERROR PATH TESTS
 # ------------------------------
 
