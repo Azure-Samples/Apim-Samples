@@ -73,13 +73,16 @@ while true; do
   echo "Setup"
   echo "  1) Complete environment setup"
   echo "  2) Verify local setup"
+  echo ""
+  echo "Verify"
   echo "  3) Show Azure account info"
   echo "  4) Show soft-deleted resources"
+  echo "  5) Show all deployed infrastructures"
   echo ""
   echo "Tests"
-  echo "  5) Run pylint"
-  echo "  6) Run tests"
-  echo "  7) Run full Python checks"
+  echo "  6) Run pylint"
+  echo "  7) Run tests"
+  echo "  8) Run full Python checks"
   echo ""
   echo "Misc"
   echo "  0) Exit"
@@ -99,12 +102,15 @@ while true; do
       run_cmd "$(find_python)" "${REPO_ROOT}/shared/python/show_soft_deleted_resources.py"
       ;;
     5)
-      run_cmd "${REPO_ROOT}/tests/python/run_pylint.sh"
+      run_cmd "$(find_python)" "${REPO_ROOT}/shared/python/show_infrastructures.py"
       ;;
     6)
-      run_cmd "${REPO_ROOT}/tests/python/run_tests.sh"
+      run_cmd "${REPO_ROOT}/tests/python/run_pylint.sh"
       ;;
     7)
+      run_cmd "${REPO_ROOT}/tests/python/run_tests.sh"
+      ;;
+    8)
       run_cmd "${REPO_ROOT}/tests/python/check_python.sh"
       ;;
     0)

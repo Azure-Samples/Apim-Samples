@@ -88,7 +88,8 @@ Use the interactive Developer CLI to verify setup, run tests, and manage your de
 ```
 
 This menu-driven interface provides quick access to:
-- **Setup**: Complete environment setup, verify local setup, and show Azure account info
+- **Setup**: Complete environment setup and verify local setup
+- **Verify**: Show Azure account info, list soft-deleted resources, and list deployed infrastructures
 - **Tests**: Run pylint, pytest, and full Python checks
 
 <img src="./assets/dev-cli-lint-test-results.png" alt="APIM Samples Developer CLI showing final linting, test, and code coverage results" title="APIM Samples Developer CLI Final Results" />
