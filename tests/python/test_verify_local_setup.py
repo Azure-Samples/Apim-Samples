@@ -145,7 +145,14 @@ def test_check_required_packages_all_present(monkeypatch: pytest.MonkeyPatch, su
 def test_check_required_packages_missing(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
     """Package check should return False when any dependency fails to import."""
 
-    fake_import = _fake_import_factory({"dotenv": ImportError("dotenv missing")})
+    fake_import = _fake_import_factory(
+        {
+            "requests": SimpleNamespace(__name__="requests"),
+            "ipykernel": SimpleNamespace(__name__="ipykernel"),
+            "jupyter": SimpleNamespace(__name__="jupyter"),
+            "dotenv": ImportError("dotenv missing"),
+        }
+    )
 
     monkeypatch.setattr("builtins.__import__", fake_import)
 
@@ -157,7 +164,14 @@ def test_check_required_packages_missing(monkeypatch: pytest.MonkeyPatch, suppre
 def test_check_required_packages_requests_missing(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
     """Package check should return False when requests is missing."""
 
-    fake_import = _fake_import_factory({"requests": ImportError("requests missing")})
+    fake_import = _fake_import_factory(
+        {
+            "requests": ImportError("requests missing"),
+            "ipykernel": SimpleNamespace(__name__="ipykernel"),
+            "jupyter": SimpleNamespace(__name__="jupyter"),
+            "dotenv": SimpleNamespace(__name__="dotenv"),
+        }
+    )
 
     monkeypatch.setattr("builtins.__import__", fake_import)
 
