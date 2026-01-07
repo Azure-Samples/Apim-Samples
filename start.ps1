@@ -108,13 +108,16 @@ while ($true) {
     Write-Host "Setup" -ForegroundColor Yellow
     Write-Host "  1) Complete environment setup"
     Write-Host "  2) Verify local setup"
+    Write-Host ""
+    Write-Host "Verify" -ForegroundColor Yellow
     Write-Host "  3) Show Azure account info"
     Write-Host "  4) Show soft-deleted resources"
+    Write-Host "  5) Show all deployed infrastructures"
     Write-Host ""
     Write-Host "Tests" -ForegroundColor Yellow
-    Write-Host "  5) Run pylint"
-    Write-Host "  6) Run tests"
-    Write-Host "  7) Run full Python checks (most statistics)"
+    Write-Host "  6) Run pylint"
+    Write-Host "  7) Run tests"
+    Write-Host "  8) Run full Python checks (most statistics)"
     Write-Host ""
     Write-Host "Misc" -ForegroundColor Yellow
     Write-Host "  0) Exit"
@@ -135,12 +138,15 @@ while ($true) {
             Invoke-Cmd (Get-Python) "$RepoRoot/shared/python/show_soft_deleted_resources.py" | Out-Null
         }
         '5' {
-            Invoke-Cmd "$RepoRoot/tests/python/run_pylint.ps1" | Out-Null
+            Invoke-Cmd (Get-Python) "$RepoRoot/shared/python/show_infrastructures.py" | Out-Null
         }
         '6' {
-            Invoke-Cmd "$RepoRoot/tests/python/run_tests.ps1" | Out-Null
+            Invoke-Cmd "$RepoRoot/tests/python/run_pylint.ps1" | Out-Null
         }
         '7' {
+            Invoke-Cmd "$RepoRoot/tests/python/run_tests.ps1" | Out-Null
+        }
+        '8' {
             Invoke-Cmd "$RepoRoot/tests/python/check_python.ps1" | Out-Null
         }
         '0' {

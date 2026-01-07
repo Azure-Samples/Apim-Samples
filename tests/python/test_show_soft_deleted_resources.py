@@ -784,3 +784,88 @@ def test_parse_date_various_invalid_formats():
             assert result == test_input  # Should return input as-is
         else:
             assert result == 'N/A'  # Empty string should return N/A
+
+
+# ------------------------------
+#    _handle_purge_operation TESTS
+# ------------------------------
+
+def test_handle_purge_operation_no_purgeable_resources(monkeypatch):
+    """Returns 0 and prints info when nothing purgeable (e.g., all KV protected)."""
+    apims = []
+    kvs = [{'name': 'kv1', 'properties': {'purgeProtectionEnabled': True}}]
+
+    prints: list[str] = []
+    monkeypatch.setattr(builtins, 'print', lambda *args, **k: prints.append(' '.join(str(a) for a in args)))
+
+    rc = sdr._handle_purge_operation(apims, kvs, skip_confirmation=False)
+
+    assert not rc
+    assert any('No purgeable resources' in p for p in prints)
+    assert any('purge protection enabled' in p for p in prints)
+
+
+def test_handle_purge_operation_skip_confirmation_all_success(monkeypatch):
+    """When skipping confirmation, runs purges and reports success when all purgeable succeed."""
+    apims = [{'name': 'ap1', 'location': 'eastus'}]
+    kvs = [{'name': 'kv1', 'properties': {'purgeProtectionEnabled': False}}]
+
+    monkeypatch.setattr(sdr, 'purge_apim_services', len)
+    monkeypatch.setattr(sdr, 'purge_key_vaults', lambda v: (1, 0))
+    monkeypatch.setattr(builtins, 'print', lambda *a, **k: None)
+
+    rc = sdr._handle_purge_operation(apims, kvs, skip_confirmation=True)
+    assert not rc
+
+
+def test_handle_purge_operation_skip_confirmation_partial_failure(monkeypatch):
+    """Reports warning when not all expected resources are purged."""
+    apims = [{'name': 'ap1', 'location': 'eastus'}, {'name': 'ap2', 'location': 'westus'}]
+    kvs = [{'name': 'kv1', 'properties': {'purgeProtectionEnabled': False}}]
+
+    # Purge one APIM and zero KV
+    monkeypatch.setattr(sdr, 'purge_apim_services', lambda s: 1)
+    monkeypatch.setattr(sdr, 'purge_key_vaults', lambda v: (0, 0))
+
+    outputs: list[str] = []
+    monkeypatch.setattr(builtins, 'print', lambda *args, **k: outputs.append(' '.join(str(a) for a in args)))
+
+    rc = sdr._handle_purge_operation(apims, kvs, skip_confirmation=True)
+    assert not rc
+    assert any('Some resources failed to purge' in o for o in outputs)
+
+
+def test_handle_purge_operation_user_cancels(monkeypatch):
+    """When user does not confirm (and not skipping), prints cancellation."""
+    apims = [{'name': 'ap1', 'location': 'eastus'}]
+    kvs = []
+
+    monkeypatch.setattr(sdr, 'confirm_purge', lambda *a, **k: False)
+    outputs: list[str] = []
+    monkeypatch.setattr(builtins, 'print', lambda *args, **k: outputs.append(' '.join(str(a) for a in args)))
+
+    rc = sdr._handle_purge_operation(apims, kvs, skip_confirmation=False)
+    assert not rc
+    assert any('Purge operation cancelled' in o for o in outputs)
+
+
+def test_handle_purge_operation_only_protected_vaults(monkeypatch):
+    """When only protected vaults exist, returns 0 without prompting or purging."""
+    apims = []
+    kvs = [
+        {'name': 'kv1', 'properties': {'purgeProtectionEnabled': True}},
+        {'name': 'kv2', 'properties': {'purgeProtectionEnabled': True}},
+    ]
+
+    called = {'confirm': 0, 'apim': 0, 'kv': 0}
+    monkeypatch.setattr(sdr, 'confirm_purge', lambda *a, **k: (called.__setitem__('confirm', called['confirm'] + 1), False)[1])
+    monkeypatch.setattr(sdr, 'purge_apim_services', lambda s: called.__setitem__('apim', called['apim'] + 1) or 0)
+    monkeypatch.setattr(sdr, 'purge_key_vaults', lambda v: called.__setitem__('kv', called['kv'] + 1) or (0, len(v)))
+    monkeypatch.setattr(builtins, 'print', lambda *args, **k: None)
+
+    rc = sdr._handle_purge_operation(apims, kvs, skip_confirmation=False)
+
+    assert not rc
+    assert not called['confirm']  # should not prompt
+    assert not called['apim']
+    assert not called['kv']

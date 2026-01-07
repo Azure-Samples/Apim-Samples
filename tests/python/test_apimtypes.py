@@ -842,6 +842,14 @@ class TestConstants:
 class TestReadPolicyXml:
     """Test suite for _read_policy_xml private function."""
 
+    @pytest.fixture(autouse=True)
+    def setup(self, infrastructures_patches):
+        """Stop the mock of _read_policy_xml so we can test the real function."""
+        # Exit the patch for _read_policy_xml only
+        if hasattr(infrastructures_patches, 'apimtypes_read_policy_patch'):
+            infrastructures_patches.apimtypes_read_policy_patch.__exit__(None, None, None)
+            infrastructures_patches.patches.remove(infrastructures_patches.apimtypes_read_policy_patch)
+
     def test_read_policy_xml_returns_string(self):
         """Test that _read_policy_xml returns a string when given a valid file."""
         # Use an actual policy file from the repository
@@ -872,6 +880,115 @@ class TestReadPolicyXml:
         result = apimtypes._read_policy_xml(REQUEST_HEADERS_XML_POLICY_PATH)
         assert isinstance(result, str)
         assert len(result) > 0
+
+    def test_read_policy_xml_content_is_xml(self):
+        """Test that read content is valid XML structure."""
+        result = apimtypes._read_policy_xml(DEFAULT_XML_POLICY_PATH)
+        assert result.strip().startswith('<') or result.strip().startswith('<?xml')
+        assert '>' in result
+
+    def test_read_policy_xml_file_not_found(self):
+        """Test that FileNotFoundError is raised when file does not exist."""
+        with pytest.raises(FileNotFoundError):
+            apimtypes._read_policy_xml('nonexistent_file.xml')
+
+    def test_read_policy_xml_empty_file(self, tmp_path):
+        """Test reading an empty XML file returns empty string."""
+        empty_file = tmp_path / 'empty.xml'
+        empty_file.write_text('', encoding = 'utf-8')
+
+        result = apimtypes._read_policy_xml(str(empty_file))
+
+        assert not result
+        assert isinstance(result, str)
+
+    def test_read_policy_xml_with_whitespace_only(self, tmp_path):
+        """Test reading file with only whitespace."""
+        whitespace_file = tmp_path / 'whitespace.xml'
+        whitespace_file.write_text('   \n\t  \n  ', encoding = 'utf-8')
+
+        result = apimtypes._read_policy_xml(str(whitespace_file))
+
+        assert result == '   \n\t  \n  '
+        assert isinstance(result, str)
+
+    def test_read_policy_xml_with_unicode_content(self, tmp_path):
+        """Test reading file with Unicode characters."""
+        unicode_file = tmp_path / 'unicode.xml'
+        unicode_content = '<policy>Hello 世界 🌍</policy>'
+        unicode_file.write_text(unicode_content, encoding = 'utf-8')
+
+        result = apimtypes._read_policy_xml(str(unicode_file))
+
+        assert result == unicode_content
+        assert '世界' in result
+        assert '🌍' in result
+
+    def test_read_policy_xml_with_special_xml_chars(self, tmp_path):
+        """Test reading file with XML special characters."""
+        xml_file = tmp_path / 'special.xml'
+        xml_content = '<policy>&lt;tag&gt;&amp;&quot;&apos;</policy>'
+        xml_file.write_text(xml_content, encoding = 'utf-8')
+
+        result = apimtypes._read_policy_xml(str(xml_file))
+
+        assert result == xml_content
+        assert '&lt;' in result
+        assert '&amp;' in result
+
+    def test_read_policy_xml_preserves_newlines(self, tmp_path):
+        """Test that newlines are preserved in the content."""
+        newline_file = tmp_path / 'newlines.xml'
+        xml_content = '<policy>\n    <inbound>\n        <base />\n    </inbound>\n</policy>'
+        newline_file.write_text(xml_content, encoding = 'utf-8')
+
+        result = apimtypes._read_policy_xml(str(newline_file))
+
+        assert result == xml_content
+        assert result.count('\n') == 4
+
+    def test_read_policy_xml_large_file(self, tmp_path):
+        """Test reading a large policy file."""
+        large_file = tmp_path / 'large.xml'
+        large_content = '<policies>' + '<policy>test</policy>' * 1000 + '</policies>'
+        large_file.write_text(large_content, encoding = 'utf-8')
+
+        result = apimtypes._read_policy_xml(str(large_file))
+
+        assert result == large_content
+        assert len(result) > 10000
+
+    def test_read_policy_xml_with_bom(self, tmp_path):
+        """Test reading file with UTF-8 BOM (Byte Order Mark)."""
+        bom_file = tmp_path / 'bom.xml'
+        xml_content = '<?xml version="1.0" encoding="utf-8"?><policy></policy>'
+        bom_file.write_text(xml_content, encoding = 'utf-8-sig')
+
+        result = apimtypes._read_policy_xml(str(bom_file))
+
+        # When reading with utf-8, BOM should be preserved or handled
+        assert isinstance(result, str)
+        assert 'policy' in result
+
+    def test_read_policy_xml_is_directory(self, tmp_path):
+        """Test that error is raised when path is a directory."""
+        # On Windows, trying to open a directory raises PermissionError
+        # On Unix-like systems, it raises IsADirectoryError
+        with pytest.raises((IsADirectoryError, PermissionError)):
+            apimtypes._read_policy_xml(str(tmp_path))
+
+    def test_read_policy_xml_permission_error(self, tmp_path, monkeypatch):
+        """Test that PermissionError is raised when file cannot be read."""
+        restricted_file = tmp_path / 'restricted.xml'
+        restricted_file.write_text('<policy></policy>', encoding = 'utf-8')
+
+        def mock_open(*args, **kwargs):
+            raise PermissionError('Permission denied')
+
+        monkeypatch.setattr('builtins.open', mock_open)
+
+        with pytest.raises(PermissionError):
+            apimtypes._read_policy_xml(str(restricted_file))
 
 
 # ------------------------------
@@ -938,6 +1055,36 @@ class TestProjectRoot:
         assert (root / 'README.md').exists()
         assert (root / 'requirements.txt').exists()
         assert (root / 'bicepconfig.json').exists()
+
+    def test_get_project_root_detects_parent_indicators(self, tmp_path, monkeypatch):
+        """Ensure traversal finds indicators in parent directories."""
+        project_dir = tmp_path / 'proj'
+        project_dir.mkdir()
+        for name in ['README.md', 'requirements.txt', 'bicepconfig.json']:
+            (project_dir / name).write_text('x')
+
+        child_dir = project_dir / 'shared' / 'python'
+        child_dir.mkdir(parents=True)
+        fake_file = child_dir / 'apimtypes.py'
+        fake_file.write_text('x')
+
+        monkeypatch.delenv('PROJECT_ROOT', raising=False)
+        monkeypatch.setattr(apimtypes, '__file__', str(fake_file))
+
+        root = apimtypes.get_project_root()
+        assert root == project_dir
+
+    def test_get_project_root_fallback_when_no_indicators(self, monkeypatch):
+        """Ensure fallback path is used when no indicators exist."""
+        monkeypatch.delenv('PROJECT_ROOT', raising=False)
+
+        # Force indicator checks to fail
+        monkeypatch.setattr(Path, 'exists', lambda self: False)
+
+        expected = Path(apimtypes.__file__).resolve().parent.parent.parent
+        result = apimtypes.get_project_root()
+
+        assert result == expected
 
 
 # ------------------------------
@@ -1169,24 +1316,6 @@ class TestAPIEdgeCases:
         assert api.to_dict()['subscriptionRequired'] is False
 
 
-class TestProjectRootDetection:
-    """Test project root detection logic."""
-
-    def test_get_project_root_from_env_var(self, monkeypatch):
-        """Test get_project_root when PROJECT_ROOT env var is set."""
-        expected_root = Path('/custom/project/root')
-        monkeypatch.setenv('PROJECT_ROOT', str(expected_root))
-
-        result = get_project_root()
-        assert result == expected_root
-
-    def test_get_project_root_without_env_var(self, monkeypatch):
-        """Test get_project_root when PROJECT_ROOT env var is not set."""
-        monkeypatch.delenv('PROJECT_ROOT', raising=False)
-
-        # Should return a Path object (doesn't have to exist in tests)
-        result = get_project_root()
-        assert isinstance(result, Path)
 
 
 class TestOutputGetEdgeCases:

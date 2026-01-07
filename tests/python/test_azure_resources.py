@@ -235,6 +235,298 @@ def test_get_apim_subscription_key_uses_provided_sid(monkeypatch):
     assert key == 'pk-xyz'
     assert not any('az rest --method get' in c and '/subscriptions?' in c for c in calls)
 
+
+def test_get_apim_subscription_key_account_show_fails(monkeypatch):
+    """Returns None when az account show fails."""
+
+    def fake_run(cmd: str, *args, **kwargs):
+        if cmd.startswith('az account show'):
+            return Output(False, '')
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    assert az.get_apim_subscription_key('apim-name', 'rg-name') is None
+
+
+def test_get_apim_subscription_key_account_show_empty(monkeypatch):
+    """Returns None when az account show returns empty text."""
+
+    def fake_run(cmd: str, *args, **kwargs):
+        if cmd.startswith('az account show'):
+            return Output(True, '  \n  ')
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    assert az.get_apim_subscription_key('apim-name', 'rg-name') is None
+
+
+def test_get_apim_subscription_key_no_active_uses_first(monkeypatch):
+    """Uses the first subscription when none are active."""
+
+    calls: list[str] = []
+
+    def fake_run(cmd: str, *args, **kwargs):
+        calls.append(cmd)
+
+        if cmd.startswith('az account show'):
+            return Output(True, 'sub-123\n')
+
+        if 'az rest --method get' in cmd and '/subscriptions?' in cmd:
+            payload = {
+                'value': [
+                    {'name': 'sid-1', 'properties': {'state': 'suspended', 'displayName': 'First'}},
+                    {'name': 'sid-2', 'properties': {'state': 'cancelled', 'displayName': 'Second'}},
+                ]
+            }
+            return Output(True, json.dumps(payload))
+
+        if 'az rest --method post' in cmd and 'listSecrets' in cmd:
+            assert '/subscriptions/sid-1/listSecrets' in cmd
+            return Output(True, json.dumps({'primaryKey': 'pk-first', 'secondaryKey': 'sk-first'}))
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    key = az.get_apim_subscription_key('apim-name', 'rg-name')
+
+    assert key == 'pk-first'
+
+
+def test_get_apim_subscription_key_subscription_name_empty(monkeypatch):
+    """Returns None when subscription name is empty or missing."""
+
+    def fake_run(cmd: str, *args, **kwargs):
+        if cmd.startswith('az account show'):
+            return Output(True, 'sub-123\n')
+
+        if 'az rest --method get' in cmd and '/subscriptions?' in cmd:
+            payload = {
+                'value': [
+                    {'name': '', 'properties': {'state': 'active', 'displayName': 'Empty name'}},
+                ]
+            }
+            return Output(True, json.dumps(payload))
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    assert az.get_apim_subscription_key('apim-name', 'rg-name') is None
+
+
+def test_get_apim_subscription_key_subscription_name_missing(monkeypatch):
+    """Returns None when subscription has no name key."""
+
+    def fake_run(cmd: str, *args, **kwargs):
+        if cmd.startswith('az account show'):
+            return Output(True, 'sub-123\n')
+
+        if 'az rest --method get' in cmd and '/subscriptions?' in cmd:
+            payload = {
+                'value': [
+                    {'properties': {'state': 'active', 'displayName': 'No name key'}},
+                ]
+            }
+            return Output(True, json.dumps(payload))
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    assert az.get_apim_subscription_key('apim-name', 'rg-name') is None
+
+
+def test_get_apim_subscription_key_secrets_call_fails(monkeypatch):
+    """Returns None when listSecrets REST call fails."""
+
+    def fake_run(cmd: str, *args, **kwargs):
+        if cmd.startswith('az account show'):
+            return Output(True, 'sub-123\n')
+
+        if 'az rest --method get' in cmd and '/subscriptions?' in cmd:
+            payload = {
+                'value': [
+                    {'name': 'sid-1', 'properties': {'state': 'active', 'displayName': 'Active'}},
+                ]
+            }
+            return Output(True, json.dumps(payload))
+
+        if 'az rest --method post' in cmd and 'listSecrets' in cmd:
+            return Output(False, 'API error')
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    assert az.get_apim_subscription_key('apim-name', 'rg-name') is None
+
+
+def test_get_apim_subscription_key_secrets_not_dict(monkeypatch):
+    """Returns None when listSecrets returns non-dict JSON."""
+
+    def fake_run(cmd: str, *args, **kwargs):
+        if cmd.startswith('az account show'):
+            return Output(True, 'sub-123\n')
+
+        if 'az rest --method get' in cmd and '/subscriptions?' in cmd:
+            payload = {
+                'value': [
+                    {'name': 'sid-1', 'properties': {'state': 'active', 'displayName': 'Active'}},
+                ]
+            }
+            return Output(True, json.dumps(payload))
+
+        if 'az rest --method post' in cmd and 'listSecrets' in cmd:
+            return Output(True, json.dumps(['not', 'a', 'dict']))
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    assert az.get_apim_subscription_key('apim-name', 'rg-name') is None
+
+
+def test_get_apim_subscription_key_returns_secondary_key(monkeypatch):
+    """Returns secondaryKey when requested."""
+
+    def fake_run(cmd: str, *args, **kwargs):
+        if cmd.startswith('az account show'):
+            return Output(True, 'sub-123\n')
+
+        if 'az rest --method get' in cmd and '/subscriptions?' in cmd:
+            payload = {
+                'value': [
+                    {'name': 'sid-1', 'properties': {'state': 'active', 'displayName': 'Active'}},
+                ]
+            }
+            return Output(True, json.dumps(payload))
+
+        if 'az rest --method post' in cmd and 'listSecrets' in cmd:
+            return Output(True, json.dumps({'primaryKey': 'pk-abc', 'secondaryKey': 'sk-xyz'}))
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    key = az.get_apim_subscription_key('apim-name', 'rg-name', key_name = 'secondaryKey')
+
+    assert key == 'sk-xyz'
+
+
+def test_get_apim_subscription_key_key_value_empty(monkeypatch):
+    """Returns None when key value is empty string."""
+
+    def fake_run(cmd: str, *args, **kwargs):
+        if cmd.startswith('az account show'):
+            return Output(True, 'sub-123\n')
+
+        if 'az rest --method get' in cmd and '/subscriptions?' in cmd:
+            payload = {
+                'value': [
+                    {'name': 'sid-1', 'properties': {'state': 'active', 'displayName': 'Active'}},
+                ]
+            }
+            return Output(True, json.dumps(payload))
+
+        if 'az rest --method post' in cmd and 'listSecrets' in cmd:
+            return Output(True, json.dumps({'primaryKey': '  ', 'secondaryKey': 'sk-xyz'}))
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    assert az.get_apim_subscription_key('apim-name', 'rg-name') is None
+
+
+def test_get_apim_subscription_key_key_value_not_string(monkeypatch):
+    """Returns None when key value is not a string."""
+
+    def fake_run(cmd: str, *args, **kwargs):
+        if cmd.startswith('az account show'):
+            return Output(True, 'sub-123\n')
+
+        if 'az rest --method get' in cmd and '/subscriptions?' in cmd:
+            payload = {
+                'value': [
+                    {'name': 'sid-1', 'properties': {'state': 'active', 'displayName': 'Active'}},
+                ]
+            }
+            return Output(True, json.dumps(payload))
+
+        if 'az rest --method post' in cmd and 'listSecrets' in cmd:
+            return Output(True, json.dumps({'primaryKey': 12345, 'secondaryKey': 'sk-xyz'}))
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    assert az.get_apim_subscription_key('apim-name', 'rg-name') is None
+
+
+def test_get_apim_subscription_key_key_missing(monkeypatch):
+    """Returns None when requested key is not in response."""
+
+    def fake_run(cmd: str, *args, **kwargs):
+        if cmd.startswith('az account show'):
+            return Output(True, 'sub-123\n')
+
+        if 'az rest --method get' in cmd and '/subscriptions?' in cmd:
+            payload = {
+                'value': [
+                    {'name': 'sid-1', 'properties': {'state': 'active', 'displayName': 'Active'}},
+                ]
+            }
+            return Output(True, json.dumps(payload))
+
+        if 'az rest --method post' in cmd and 'listSecrets' in cmd:
+            return Output(True, json.dumps({'someOtherKey': 'value'}))
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    assert az.get_apim_subscription_key('apim-name', 'rg-name') is None
+
+
+def test_get_apim_subscription_key_uses_provided_subscription_id(monkeypatch):
+    """Uses provided subscription_id and skips az account show."""
+
+    calls: list[str] = []
+
+    def fake_run(cmd: str, *args, **kwargs):
+        calls.append(cmd)
+
+        if 'az rest --method get' in cmd and '/subscriptions?' in cmd:
+            assert '/subscriptions/custom-sub-id/' in cmd
+            payload = {
+                'value': [
+                    {'name': 'sid-1', 'properties': {'state': 'active', 'displayName': 'Active'}},
+                ]
+            }
+            return Output(True, json.dumps(payload))
+
+        if 'az rest --method post' in cmd and 'listSecrets' in cmd:
+            return Output(True, json.dumps({'primaryKey': 'pk-custom', 'secondaryKey': 'sk-custom'}))
+
+        return Output(False, 'unexpected command')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    key = az.get_apim_subscription_key(
+        'apim-name',
+        'rg-name',
+        subscription_id = 'custom-sub-id'
+    )
+
+    assert key == 'pk-custom'
+    assert not any('az account show' in c for c in calls)
+
+
 # ------------------------------
 #    JWT SIGNING KEY CLEANUP TESTS
 # ------------------------------
@@ -1203,6 +1495,75 @@ def test_extract_az_cli_error_message_finds_first_non_empty_line():
     output = '\n\n\nSome error occurred\nMore details'
     result = az._extract_az_cli_error_message(output)
     assert result == 'Some error occurred'
+
+
+def test_extract_az_cli_error_message_with_json_array():
+    """Test _extract_az_cli_error_message handles JSON arrays (not dict)."""
+    output = '[1, 2, 3] error'
+    result = az._extract_az_cli_error_message(output)
+    # JSON array is skipped, falls back to returning first non-empty line
+    assert result == '[1, 2, 3] error'
+
+
+def test_extract_az_cli_error_message_with_message_only_no_code():
+    """Test _extract_az_cli_error_message with Message field but no Code."""
+    output = 'Message: Something went wrong\nOther line'
+    result = az._extract_az_cli_error_message(output)
+    assert result == 'Something went wrong'
+
+
+def test_extract_az_cli_error_message_with_code_only_no_message():
+    """Test _extract_az_cli_error_message with Code field but no Message."""
+    output = 'Code: ResourceNotFound\nOther line'
+    result = az._extract_az_cli_error_message(output)
+    # Should return first meaningful line since no message
+    assert result in ('Code: ResourceNotFound', 'Other line')
+
+
+def test_extract_az_cli_error_message_with_whitespace_only():
+    """Test _extract_az_cli_error_message handles whitespace-only text."""
+    output = '   \n   \n   '
+    result = az._extract_az_cli_error_message(output)
+    assert not result
+
+
+def test_extract_az_cli_error_message_with_error_no_message_part():
+    """Test _extract_az_cli_error_message handles ERROR: with no message after colon."""
+    output = 'ERROR:\nOther line'
+    result = az._extract_az_cli_error_message(output)
+    # Falls back to the original line
+    assert 'ERROR' in result or result == 'Other line'
+
+
+def test_extract_az_cli_error_message_with_json_error_without_message():
+    """Test _extract_az_cli_error_message with JSON error dict but no message."""
+    output = '{"error": {"code": "NotFound"}}'
+    result = az._extract_az_cli_error_message(output)
+    # Should skip this JSON since error dict has no message, fall back to first line
+    assert result == '{"error": {"code": "NotFound"}}'
+
+
+def test_extract_az_cli_error_message_with_json_and_error_prefix():
+    """Test _extract_az_cli_error_message prefers JSON, then ERROR: prefix."""
+    output = '{"message": "JSON error"}\nERROR: Text error'
+    result = az._extract_az_cli_error_message(output)
+    # Should prefer JSON message
+    assert result == 'JSON error'
+
+
+def test_extract_az_cli_error_message_multiple_warnings_and_error():
+    """Test _extract_az_cli_error_message with multiple warnings and actual error."""
+    output = 'WARNING: Old feature\nWARNING: Deprecated\nERROR: Real problem'
+    result = az._extract_az_cli_error_message(output)
+    assert result == 'Real problem'
+
+
+def test_extract_az_cli_error_message_with_az_error_no_message():
+    """Test _extract_az_cli_error_message with az: error: but no message."""
+    output = 'az: error:\nOther content'
+    result = az._extract_az_cli_error_message(output)
+    # Falls back to the original line
+    assert 'az: error' in result or result == 'Other content'
 
 
 def test_looks_like_json_with_valid_json():

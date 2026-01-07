@@ -160,6 +160,36 @@ def test_merge_string_list_with_none_and_empty_string():
     assert result == ["a", "b"]
 
 
+def test_merge_string_list_with_existing_string():
+    """Test _merge_string_list when existing is a single string."""
+    existing = "a"
+    required = ["a", "b"]
+
+    result = sps._merge_string_list(existing, required)
+
+    assert result == ["a", "b"]
+
+
+def test_merge_string_list_deduplicates_existing_items():
+    """Test _merge_string_list removes duplicates within existing list."""
+    existing = ["a", "a", "b", "b"]
+    required = ["b"]
+
+    result = sps._merge_string_list(existing, required)
+
+    assert result == ["b", "a"]
+
+
+def test_merge_string_list_ignores_duplicate_required_entries():
+    """Test _merge_string_list handles duplicate entries in required list."""
+    existing = ["c"]
+    required = ["a", "a", "b"]
+
+    result = sps._merge_string_list(existing, required)
+
+    assert result == ["a", "b", "c"]
+
+
 def test_get_project_root_finds_indicators(tmp_path: Path):
     """Test get_project_root locates project root by indicators."""
     # Create indicators at root

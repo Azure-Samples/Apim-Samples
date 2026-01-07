@@ -63,6 +63,9 @@ This ensures all code changes comply with the project's linting standards from t
 Before completing any Python code changes, verify:
 
 - All pylint warnings and errors are resolved (`pylint --rcfile=tests/python/.pylintrc <file>`)
+  - Pylint rules cover these, but we don't see .pylintrc being added to the context. Therefore, please pay special attention to these common occurrences:
+      - No trailing whitespace
+      - No assertion of empty strings in tests (use `assert not`)
 - Code follows PEP 8 and the style guidelines in this file
 - Import statements for modules within this repo are placed last in the imports and are grouped with the `# APIM Samples imports` header
 - Type hints are present where appropriate
