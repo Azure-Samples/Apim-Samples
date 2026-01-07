@@ -19,7 +19,8 @@ $env:PYTHONUNBUFFERED = "1"
 Push-Location $RepoRoot
 try {
 	$env:COVERAGE_FILE = (Join-Path $RepoRoot ".coverage")
-	pytest -v --color=yes --durations=3 --durations-min=0.1 --cov --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov --cov-report=xml:coverage.xml --cov-report=json:coverage.json tests/python/
+	# Since we have many tests, we omit the verbosity (-v). We also show the top 3 test durations that run slower than 0.1s as that is often an indicator of missing or faulty mocks.
+	pytest --color=yes --durations=3 --durations-min=0.1 --cov --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov --cov-report=xml:coverage.xml --cov-report=json:coverage.json tests/python/
 
 	# Display coverage summary
 	Write-Host "`nCoverage Summary:" -ForegroundColor Green
