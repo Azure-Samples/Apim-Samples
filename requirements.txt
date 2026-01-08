@@ -1,17 +1,12 @@
 # This is a comprehensive requirements.txt file to ensure that one installation covers everything.
 
 # Core dependencies
-azure.storage.blob
-azure.identity
 ipykernel
-jupyter
 matplotlib
-notebook
 pandas
 pyjwt
 python-dotenv
 requests
-setuptools
 
 # Dev tools for linting, formatting, testing, etc.
 pylint>=3.0.0
