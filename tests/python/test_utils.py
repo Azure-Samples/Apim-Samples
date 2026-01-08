@@ -1709,6 +1709,182 @@ def test_get_endpoints_with_none_values(monkeypatch, suppress_console):
     assert endpoints.appgw_public_ip is None
 
 
+# ------------------------------
+#    get_endpoint
+# ------------------------------
+
+def test_get_endpoint_with_appgw_both_values(monkeypatch, suppress_console):
+    """Test get_endpoint when both appgw hostname and IP are present."""
+    from apimtypes import Endpoints
+
+    mock_endpoints = Endpoints(INFRASTRUCTURE.APPGW_APIM)
+    mock_endpoints.afd_endpoint_url = None
+    mock_endpoints.apim_endpoint_url = 'https://apim.azure-api.net'
+    mock_endpoints.appgw_hostname = 'api.contoso.com'
+    mock_endpoints.appgw_public_ip = '1.2.3.4'
+
+    monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
+
+    endpoint_url, request_headers = utils.get_endpoint(
+        INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net'
+    )
+
+    assert endpoint_url == 'https://1.2.3.4'
+    assert request_headers == {'Host': 'api.contoso.com'}
+
+
+def test_get_endpoint_with_appgw_hostname_only(monkeypatch, suppress_console):
+    """Test get_endpoint when only appgw hostname is present."""
+    from apimtypes import Endpoints
+
+    mock_endpoints = Endpoints(INFRASTRUCTURE.APPGW_APIM)
+    mock_endpoints.afd_endpoint_url = 'https://afd.azurefd.net'
+    mock_endpoints.apim_endpoint_url = 'https://apim.azure-api.net'
+    mock_endpoints.appgw_hostname = 'api.contoso.com'
+    mock_endpoints.appgw_public_ip = None
+
+    monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
+    monkeypatch.setattr(
+        utils, 'test_url_preflight_check',
+        lambda d, r, a: 'https://afd.azurefd.net'
+    )
+
+    endpoint_url, request_headers = utils.get_endpoint(
+        INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net'
+    )
+
+    assert endpoint_url == 'https://afd.azurefd.net'
+    assert request_headers is None
+
+
+def test_get_endpoint_with_appgw_ip_only(monkeypatch, suppress_console):
+    """Test get_endpoint when only appgw IP is present."""
+    from apimtypes import Endpoints
+
+    mock_endpoints = Endpoints(INFRASTRUCTURE.APPGW_APIM)
+    mock_endpoints.afd_endpoint_url = 'https://afd.azurefd.net'
+    mock_endpoints.apim_endpoint_url = 'https://apim.azure-api.net'
+    mock_endpoints.appgw_hostname = None
+    mock_endpoints.appgw_public_ip = '1.2.3.4'
+
+    monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
+    monkeypatch.setattr(
+        utils, 'test_url_preflight_check',
+        lambda d, r, a: 'https://afd.azurefd.net'
+    )
+
+    endpoint_url, request_headers = utils.get_endpoint(
+        INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net'
+    )
+
+    assert endpoint_url == 'https://afd.azurefd.net'
+    assert request_headers is None
+
+
+def test_get_endpoint_with_no_appgw_uses_preflight(monkeypatch, suppress_console):
+    """Test get_endpoint when no appgw values present, uses preflight check."""
+    from apimtypes import Endpoints
+
+    mock_endpoints = Endpoints(INFRASTRUCTURE.SIMPLE_APIM)
+    mock_endpoints.afd_endpoint_url = None
+    mock_endpoints.apim_endpoint_url = 'https://apim.azure-api.net'
+    mock_endpoints.appgw_hostname = None
+    mock_endpoints.appgw_public_ip = None
+
+    monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
+    monkeypatch.setattr(
+        utils, 'test_url_preflight_check',
+        lambda d, r, a: 'https://apim.azure-api.net'
+    )
+
+    endpoint_url, request_headers = utils.get_endpoint(
+        INFRASTRUCTURE.SIMPLE_APIM, 'test-rg', 'https://apim.azure-api.net'
+    )
+
+    assert endpoint_url == 'https://apim.azure-api.net'
+    assert request_headers is None
+
+
+def test_get_endpoint_with_afd_via_preflight(monkeypatch, suppress_console):
+    """Test get_endpoint returns AFD URL via preflight check."""
+    from apimtypes import Endpoints
+
+    mock_endpoints = Endpoints(INFRASTRUCTURE.AFD_APIM_PE)
+    mock_endpoints.afd_endpoint_url = 'https://myapp.azurefd.net'
+    mock_endpoints.apim_endpoint_url = None
+    mock_endpoints.appgw_hostname = None
+    mock_endpoints.appgw_public_ip = None
+
+    monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
+    monkeypatch.setattr(
+        utils, 'test_url_preflight_check',
+        lambda d, r, a: 'https://myapp.azurefd.net'
+    )
+
+    endpoint_url, request_headers = utils.get_endpoint(
+        INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim-internal.azure-api.net'
+    )
+
+    assert endpoint_url == 'https://myapp.azurefd.net'
+    assert request_headers is None
+
+
+def test_get_endpoint_appgw_with_empty_strings(monkeypatch, suppress_console):
+    """Test get_endpoint with empty strings for appgw (falsy values)."""
+    from apimtypes import Endpoints
+
+    mock_endpoints = Endpoints(INFRASTRUCTURE.APPGW_APIM)
+    mock_endpoints.afd_endpoint_url = None
+    mock_endpoints.apim_endpoint_url = 'https://apim.azure-api.net'
+    mock_endpoints.appgw_hostname = ''
+    mock_endpoints.appgw_public_ip = ''
+
+    monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
+    monkeypatch.setattr(
+        utils, 'test_url_preflight_check',
+        lambda d, r, a: 'https://apim.azure-api.net'
+    )
+
+    endpoint_url, request_headers = utils.get_endpoint(
+        INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net'
+    )
+
+    assert endpoint_url == 'https://apim.azure-api.net'
+    assert request_headers is None
+
+
+def test_get_endpoint_various_infrastructures(monkeypatch, suppress_console):
+    """Test get_endpoint with different infrastructure types."""
+    from apimtypes import Endpoints
+
+    infrastructures = [
+        INFRASTRUCTURE.SIMPLE_APIM,
+        INFRASTRUCTURE.AFD_APIM_PE,
+        INFRASTRUCTURE.APPGW_APIM_PE,
+        INFRASTRUCTURE.APIM_ACA,
+    ]
+
+    for infra in infrastructures:
+        mock_endpoints = Endpoints(infra)
+        mock_endpoints.afd_endpoint_url = None
+        mock_endpoints.apim_endpoint_url = 'https://apim.azure-api.net'
+        mock_endpoints.appgw_hostname = None
+        mock_endpoints.appgw_public_ip = None
+
+        monkeypatch.setattr(utils, 'get_endpoints', lambda d, r, i=infra: mock_endpoints)
+        monkeypatch.setattr(
+            utils, 'test_url_preflight_check',
+            lambda d, r, a: 'https://apim.azure-api.net'
+        )
+
+        endpoint_url, request_headers = utils.get_endpoint(
+            infra, 'test-rg', 'https://apim.azure-api.net'
+        )
+
+        assert endpoint_url == 'https://apim.azure-api.net'
+        assert request_headers is None
+
+
 def test_json_parsing_various_formats():
     """Test get_json with various input formats."""
     # Test nested JSON

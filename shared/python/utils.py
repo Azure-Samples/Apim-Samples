@@ -14,7 +14,7 @@ import base64
 import inspect
 import warnings
 from pathlib import Path
-from typing import Any
+from typing import Any, Tuple
 
 # APIM Samples imports
 import azure_resources as az
@@ -1065,6 +1065,21 @@ def get_endpoints(deployment: INFRASTRUCTURE, rg_name: str) -> Endpoints:
     endpoints.appgw_hostname, endpoints.appgw_public_ip = az.get_appgw_endpoint(rg_name)
 
     return endpoints
+
+def get_endpoint(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str) -> Tuple[str, dict[str, str] | None]:
+    # Determine endpoints, URLs, etc. prior to test execution
+    endpoints = get_endpoints(deployment, rg_name)
+    endpoint_url = None
+    request_headers = None
+
+    if (endpoints.appgw_hostname and endpoints.appgw_public_ip):
+        endpoint_url = f'https://{endpoints.appgw_public_ip}'
+        request_headers: dict[str, str] = {"Host": endpoints.appgw_hostname}
+    else:
+        # Preflight: Check if the infrastructure architecture deployment uses Azure Front Door. If so, assume that APIM is not directly accessible and use the Front Door URL instead.
+        endpoint_url = test_url_preflight_check(deployment, rg_name, apim_gateway_url)
+
+    return endpoint_url, request_headers
 
 def get_json(json_str: str) -> Any:
     """
