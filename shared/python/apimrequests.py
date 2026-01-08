@@ -202,10 +202,10 @@ class ApimRequests:  # pylint: disable=invalid-name
                 response_time = time.time() - start_time
                 print_info(f'⌚ {response_time:.2f} seconds')
 
-                self._print_response_code(response)
-
                 if printResponse:
                     self._print_response(response)
+                else:
+                    self._print_response_code(response)
 
                 content_type = response.headers.get('Content-Type')
 
