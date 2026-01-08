@@ -17,7 +17,7 @@ fi
 start=$(date +%s.%N)
 
 # Ensure workspace scripts are executable (handles mounts without exec bit)
-chmod +x .devcontainer/post-start-setup.sh start.sh start.ps1 setup/*.sh setup/*.ps1 2>/dev/null || true
+chmod +x .devcontainer/post-start-setup.sh start.sh start.ps1 setup/*.sh setup/*.ps1 tests/python/*.sh 2>/dev/null || true
 
 # Make terminal output more prominent
 clear

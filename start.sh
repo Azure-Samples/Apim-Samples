@@ -105,13 +105,13 @@ while true; do
       run_cmd "$(find_python)" "${REPO_ROOT}/shared/python/show_infrastructures.py"
       ;;
     6)
-      run_cmd "${REPO_ROOT}/tests/python/run_pylint.sh"
+      run_cmd bash "${REPO_ROOT}/tests/python/run_pylint.sh"
       ;;
     7)
-      run_cmd "${REPO_ROOT}/tests/python/run_tests.sh"
+      run_cmd bash "${REPO_ROOT}/tests/python/run_tests.sh"
       ;;
     8)
-      run_cmd "${REPO_ROOT}/tests/python/check_python.sh"
+      run_cmd bash "${REPO_ROOT}/tests/python/check_python.sh"
       ;;
     0)
       echo ""

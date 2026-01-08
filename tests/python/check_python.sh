@@ -44,7 +44,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 set +e
-"$SCRIPT_DIR/run_pylint.sh" "$TARGET" $SHOW_REPORT
+bash "$SCRIPT_DIR/run_pylint.sh" "$TARGET" $SHOW_REPORT
 LINT_EXIT_CODE=$?
 set -e
 
@@ -67,7 +67,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 set +e
-TEST_OUTPUT=$("$SCRIPT_DIR/run_tests.sh" 2>&1)
+TEST_OUTPUT=$(bash "$SCRIPT_DIR/run_tests.sh" 2>&1)
 TEST_EXIT_CODE=$?
 set -e
 
