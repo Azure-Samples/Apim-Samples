@@ -204,6 +204,9 @@ class ApimRequests:  # pylint: disable=invalid-name
 
                 self._print_response_code(response)
 
+                if printResponse:
+                    self._print_response(response)
+
                 content_type = response.headers.get('Content-Type')
 
                 if content_type and 'application/json' in content_type:
