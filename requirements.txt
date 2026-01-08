@@ -4,9 +4,7 @@
 azure.storage.blob
 azure.identity
 ipykernel
-jupyter
 matplotlib
-notebook
 pandas
 pyjwt
 python-dotenv
