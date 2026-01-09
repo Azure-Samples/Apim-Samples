@@ -155,7 +155,7 @@ def test_request_header_merging():
 def test_init_missing_url():
     # Negative: missing URL should raise TypeError
     with pytest.raises(TypeError):
-        ApimRequests()
+        ApimRequests()  # pylint: disable=no-value-for-parameter
 
 @pytest.mark.http
 def test_print_response_code_edge():
@@ -426,9 +426,35 @@ def test_multi_request_sleep_positive(apim):
         mock_session_cls.return_value = mock_session
 
         with patch.object(apim, '_print_response_code'):
-            apim._multiRequest(HTTP_VERB.GET, '/sleep', 2, sleepMs=150)
+            result = apim._multiRequest(HTTP_VERB.GET, '/sleep', 2, sleepMs=150)
 
+    # Verify sleep was called between the two requests (only once, not after last run)
     mock_sleep.assert_called_once_with(0.15)
+    # Verify we got 2 results
+    assert len(result) == 2
+
+
+@pytest.mark.unit
+def test_multi_request_sleep_positive_multiple_runs(apim):
+    """Test _multiRequest with sleepMs > 0 and multiple runs verifies sleep behavior."""
+    response = create_mock_http_response(json_data={'ok': True})
+
+    with patch('apimrequests.requests.Session') as mock_session_cls, \
+         patch('apimrequests.time.sleep') as mock_sleep:
+        mock_session = create_mock_session_with_response(response)
+        mock_session_cls.return_value = mock_session
+
+        with patch.object(apim, '_print_response_code'):
+            result = apim._multiRequest(HTTP_VERB.GET, '/test', runs=3, sleepMs=250)
+
+    # With 3 runs, sleep should be called 2 times (between runs, not after the last)
+    assert mock_sleep.call_count == 2
+    # Each call should be with the correct sleep duration
+    mock_sleep.assert_called_with(0.25)
+    assert len(result) == 3
+    # Verify responses are in order
+    for i, run in enumerate(result):
+        assert run['run'] == i + 1
 
 
 @pytest.mark.unit
@@ -855,6 +881,46 @@ def test_single_post_async_no_print_response(apim, apimrequests_patches):
     # When printResponse is False, _print_response should not be called
     mock_print_response.assert_not_called()
     assert result == '{\n    "result": "ok"\n}'
+
+
+@pytest.mark.unit
+def test_single_post_async_202_with_location_no_print_response(apim, apimrequests_patches):
+    """Test singlePostAsync with 202 response, location header, and printResponse=False."""
+    initial_response = MagicMock()
+    initial_response.status_code = 202
+    initial_response.headers = {'Location': 'http://example.com/operation/123'}
+    apimrequests_patches.request.return_value = initial_response
+
+    final_response = create_mock_http_response(
+        status_code=200,
+        json_data={'result': 'completed'}
+    )
+
+    with patch.object(apim, '_poll_async_operation', return_value=final_response) as mock_poll:
+        with patch.object(apim, '_print_response') as mock_print_response:
+            result = apim.singlePostAsync('/test', data={'test': 'data'}, printResponse=False)
+
+    mock_poll.assert_called_once()
+    # When printResponse is False, _print_response should not be called for final response
+    mock_print_response.assert_not_called()
+    assert result == '{\n    "result": "completed"\n}'
+
+
+@pytest.mark.unit
+def test_single_post_async_202_no_location_no_print_response(apim, apimrequests_patches):
+    """Test singlePostAsync with 202 response, no location header, and printResponse=False."""
+    mock_response = MagicMock()
+    mock_response.status_code = 202
+    mock_response.headers = {}  # No Location header
+    apimrequests_patches.request.return_value = mock_response
+
+    with patch.object(apim, '_print_response') as mock_print_response:
+        result = apim.singlePostAsync('/test', printResponse=False)
+
+    apimrequests_patches.print_error.assert_called_once_with('No Location header found in 202 response')
+    # When printResponse is False, _print_response should not be called for initial 202 response
+    mock_print_response.assert_not_called()
+    assert result is None
 
 
 @pytest.mark.unit

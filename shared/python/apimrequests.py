@@ -218,7 +218,8 @@ class ApimRequests:  # pylint: disable=invalid-name
                     'run': i + 1,
                     'response': resp_data,
                     'status_code': response.status_code,
-                    'response_time': response_time
+                    'response_time': response_time,
+                    'headers': dict(response.headers)
                 })
 
                 # Sleep only between requests (not after the final run)

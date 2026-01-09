@@ -208,8 +208,6 @@ class InfrastructureNotebookHelper:
                     if process.returncode:
                         raise SystemExit(1)
 
-                return True
-
             return True
 
         except (KeyboardInterrupt, EOFError):  # pragma: no cover

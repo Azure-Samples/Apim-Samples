@@ -10,7 +10,7 @@ import json
 import pytest
 
 # APIM Samples imports
-from apimtypes import INFRASTRUCTURE, APIM_SKU, HTTP_VERB
+from apimtypes import INFRASTRUCTURE, APIM_SKU, HTTP_VERB, Endpoints
 import utils
 import json_utils
 import azure_resources as az
@@ -1247,6 +1247,69 @@ def test_deploy_sample_deployment_failure(monkeypatch):
     with pytest.raises(SystemExit):
         nb_helper.deploy_sample({'test': {'value': 'param'}})
 
+def test_deploy_sample_with_jwt(monkeypatch, suppress_console):
+    """Test deploy_sample method with JWT enabled."""
+    # Mock JWT-related functions
+    monkeypatch.setattr(utils, 'generate_signing_key', lambda: ('test-key', 'test-key-b64'))
+    monkeypatch.setattr('time.time', lambda: 1234567890)
+
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM], use_jwt=True
+    )
+
+    # Mock does_resource_group_exist to return True
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: True)
+
+    # Mock successful deployment
+    mock_output = utils.Output(success=True, text='{"outputs": {"apimServiceName": {"value": "test-apim"}}}')
+    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample',
+                       lambda *args, **kwargs: mock_output)
+
+    # Mock _clean_up_jwt method
+    cleanup_called = []
+    def mock_cleanup(apim_name):
+        cleanup_called.append(apim_name)
+    monkeypatch.setattr(nb_helper, '_clean_up_jwt', mock_cleanup)
+
+    # Test the deployment
+    result = nb_helper.deploy_sample({'test': {'value': 'param'}})
+
+    # Verify JWT cleanup was called with correct APIM name
+    assert len(cleanup_called) == 1
+    assert result.success is True
+
+def test_deploy_sample_infrastructure_selection_already_completed(monkeypatch, suppress_console):
+    """Test deploy_sample when infrastructure selection was already completed in globals."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+
+    # Mock does_resource_group_exist to return False (infrastructure doesn't exist)
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: False)
+
+    # Set the global variable to simulate previous infrastructure selection
+    original_globals = builtins.globals
+    def mock_globals():
+        result = original_globals()
+        result['infrastructure_selection_completed'] = True
+        return result
+    monkeypatch.setattr('builtins.globals', mock_globals)
+
+    # Mock successful deployment
+    mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
+    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample',
+                       lambda *args, **kwargs: mock_output)
+
+    # Test the deployment - should skip infrastructure selection
+    result = nb_helper.deploy_sample({'test': {'value': 'param'}})
+
+    # Verify the helper was not modified (still has original values)
+    assert nb_helper.deployment == INFRASTRUCTURE.SIMPLE_APIM
+    assert nb_helper.rg_name == 'test-rg'
+    assert result.success is True
+
 def test_notebookhelper_initialization_with_supported_infrastructures():
     """Test NotebookHelper initialization with supported infrastructures list."""
     supported_infras = [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA]
@@ -1678,10 +1741,10 @@ def test_infrastructure_notebook_helper_allow_update_false(monkeypatch, suppress
 def test_infrastructure_notebook_helper_missing_args():
     """Test InfrastructureNotebookHelper requires all arguments."""
     with pytest.raises(TypeError):
-        utils.InfrastructureNotebookHelper()
+        utils.InfrastructureNotebookHelper()  # pylint: disable=no-value-for-parameter
 
     with pytest.raises(TypeError):
-        utils.InfrastructureNotebookHelper('eastus')
+        utils.InfrastructureNotebookHelper('eastus')  # pylint: disable=no-value-for-parameter
 
 
 def test_does_infrastructure_exist_with_prompt_multiple_retries(monkeypatch, suppress_console):
@@ -1715,8 +1778,6 @@ def test_get_endpoints_with_none_values(monkeypatch, suppress_console):
 
 def test_get_endpoint_with_appgw_both_values(monkeypatch, suppress_console):
     """Test get_endpoint when both appgw hostname and IP are present."""
-    from apimtypes import Endpoints
-
     mock_endpoints = Endpoints(INFRASTRUCTURE.APPGW_APIM)
     mock_endpoints.afd_endpoint_url = None
     mock_endpoints.apim_endpoint_url = 'https://apim.azure-api.net'
@@ -1735,8 +1796,6 @@ def test_get_endpoint_with_appgw_both_values(monkeypatch, suppress_console):
 
 def test_get_endpoint_with_appgw_hostname_only(monkeypatch, suppress_console):
     """Test get_endpoint when only appgw hostname is present."""
-    from apimtypes import Endpoints
-
     mock_endpoints = Endpoints(INFRASTRUCTURE.APPGW_APIM)
     mock_endpoints.afd_endpoint_url = 'https://afd.azurefd.net'
     mock_endpoints.apim_endpoint_url = 'https://apim.azure-api.net'
@@ -1759,8 +1818,6 @@ def test_get_endpoint_with_appgw_hostname_only(monkeypatch, suppress_console):
 
 def test_get_endpoint_with_appgw_ip_only(monkeypatch, suppress_console):
     """Test get_endpoint when only appgw IP is present."""
-    from apimtypes import Endpoints
-
     mock_endpoints = Endpoints(INFRASTRUCTURE.APPGW_APIM)
     mock_endpoints.afd_endpoint_url = 'https://afd.azurefd.net'
     mock_endpoints.apim_endpoint_url = 'https://apim.azure-api.net'
@@ -1783,8 +1840,6 @@ def test_get_endpoint_with_appgw_ip_only(monkeypatch, suppress_console):
 
 def test_get_endpoint_with_no_appgw_uses_preflight(monkeypatch, suppress_console):
     """Test get_endpoint when no appgw values present, uses preflight check."""
-    from apimtypes import Endpoints
-
     mock_endpoints = Endpoints(INFRASTRUCTURE.SIMPLE_APIM)
     mock_endpoints.afd_endpoint_url = None
     mock_endpoints.apim_endpoint_url = 'https://apim.azure-api.net'
@@ -1807,8 +1862,6 @@ def test_get_endpoint_with_no_appgw_uses_preflight(monkeypatch, suppress_console
 
 def test_get_endpoint_with_afd_via_preflight(monkeypatch, suppress_console):
     """Test get_endpoint returns AFD URL via preflight check."""
-    from apimtypes import Endpoints
-
     mock_endpoints = Endpoints(INFRASTRUCTURE.AFD_APIM_PE)
     mock_endpoints.afd_endpoint_url = 'https://myapp.azurefd.net'
     mock_endpoints.apim_endpoint_url = None
@@ -1831,8 +1884,6 @@ def test_get_endpoint_with_afd_via_preflight(monkeypatch, suppress_console):
 
 def test_get_endpoint_appgw_with_empty_strings(monkeypatch, suppress_console):
     """Test get_endpoint with empty strings for appgw (falsy values)."""
-    from apimtypes import Endpoints
-
     mock_endpoints = Endpoints(INFRASTRUCTURE.APPGW_APIM)
     mock_endpoints.afd_endpoint_url = None
     mock_endpoints.apim_endpoint_url = 'https://apim.azure-api.net'
@@ -1855,8 +1906,6 @@ def test_get_endpoint_appgw_with_empty_strings(monkeypatch, suppress_console):
 
 def test_get_endpoint_various_infrastructures(monkeypatch, suppress_console):
     """Test get_endpoint with different infrastructure types."""
-    from apimtypes import Endpoints
-
     infrastructures = [
         INFRASTRUCTURE.SIMPLE_APIM,
         INFRASTRUCTURE.AFD_APIM_PE,
@@ -1871,7 +1920,7 @@ def test_get_endpoint_various_infrastructures(monkeypatch, suppress_console):
         mock_endpoints.appgw_hostname = None
         mock_endpoints.appgw_public_ip = None
 
-        monkeypatch.setattr(utils, 'get_endpoints', lambda d, r, i=infra: mock_endpoints)
+        monkeypatch.setattr(utils, 'get_endpoints', lambda d, r, m=mock_endpoints: m)
         monkeypatch.setattr(
             utils, 'test_url_preflight_check',
             lambda d, r, a: 'https://apim.azure-api.net'
@@ -2552,6 +2601,41 @@ def test_create_infrastructure_stream_error(monkeypatch, tmp_path, suppress_util
 
     with pytest.raises(SystemExit):
         helper.create_infrastructure(bypass_infrastructure_check=False, allow_update=False)
+
+def test_create_infrastructure_with_allow_update(monkeypatch, tmp_path, suppress_utils_console):
+    """Test create_infrastructure with allow_update=True, which skips infrastructure check."""
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
+
+    # Create fake infrastructure directory and script
+    infra_dir = tmp_path / 'infrastructure' / 'simple-apim'
+    infra_dir.mkdir(parents=True)
+    script_path = infra_dir / 'create_infrastructure.py'
+    script_path.write_text('print("Infrastructure created")')
+
+    monkeypatch.setattr(utils, 'find_project_root', lambda: str(tmp_path))
+    monkeypatch.setattr(az, 'get_infra_rg_name', lambda *_, **__: 'rg')
+
+    # Mock Popen to simulate successful execution
+    class FakeProcess:
+        def __init__(self, *args, **kwargs):
+            self.stdout = iter(['Infrastructure created\n'])
+            self.returncode = 0
+
+        def wait(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            return False
+
+    monkeypatch.setattr(subprocess, 'Popen', FakeProcess)
+
+    # With allow_update=True, infrastructure check should be skipped (infrastructure_exists set to False)
+    result = helper.create_infrastructure(bypass_infrastructure_check=False, allow_update=True)
+
+    assert result is True
 
 
 def test_determine_bicep_directory_current_infra(monkeypatch, tmp_path):

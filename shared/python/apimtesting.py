@@ -40,21 +40,26 @@ class ApimTesting:
     #    PUBLIC METHODS
     # ------------------------------
 
-    def verify(self, value: any, expected: any) -> bool:
+    def verify(self, value: any, expected: any, label: str = '') -> bool:
         """
         Verify (i.e. assert) that a value matches an expected value.
 
         Args:
-            value: The actual value to check
-            expected: The expected value to match
+            value (str): The actual value to check
+            expected (str): The expected value to match
+            label (str, optional): The label for the value under test
 
         Returns:
             bool: True, if the assertion passes; otherwise, False.
         """
         try:
-            print(f'🔍 Assert that [{value}] matches [{expected}].')
+            if label:
+                print(f'🔍 Assert that {label} value [{value}] matches expected value [{expected}].')
+            else:
+                print(f'🔍 Assert that value [{value}] matches expected value [{expected}].')
+
             self.total_tests += 1
-            assert value == expected, f'Value [{value}] does not match expected [{expected}]'
+            assert value == expected, f'Value [{value}] does not match expected value [{expected}]'
             self.tests_passed += 1
             print(f'✅ Test {self.total_tests}: PASS')
 

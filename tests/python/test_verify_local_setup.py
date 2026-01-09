@@ -215,17 +215,16 @@ def test_check_shared_modules_missing_utils(monkeypatch: pytest.MonkeyPatch, sup
     assert "generate-env" in fix
 
 
-# def test_check_shared_modules_missing_apimtypes(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
-#     """Shared modules check should fail when apimtypes module is missing."""
+def test_check_shared_modules_missing_apimtypes(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
+    """Shared modules check should fail when apimtypes module is missing."""
 
-#     def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
-#         if name == "apimtypes":
-#             raise ImportError("apimtypes missing")
-#         return SimpleNamespace(__name__=name)
+    fake_import = _fake_import_factory({"apimtypes": ImportError("apimtypes missing")})
 
-#     monkeypatch.setattr("builtins.__import__", fake_import)
+    monkeypatch.setattr("builtins.__import__", fake_import)
 
-#     assert vls.check_shared_modules() is False
+    ok, fix = vls.check_shared_modules()
+    assert ok is False
+    assert "generate-env" in fix
 
 
 def test_check_shared_modules_missing_authfactory(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
