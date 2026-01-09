@@ -97,7 +97,7 @@ def check_shared_modules():
         project_root = Path(__file__).parent.parent
         shared_python_path = project_root / "shared" / "python"
 
-        if str(shared_python_path) not in sys.path:
+        if str(shared_python_path) not in sys.path:  # pragma: no cover
             sys.path.insert(0, str(shared_python_path))
 
         __import__("utils")

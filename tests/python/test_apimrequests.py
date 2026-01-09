@@ -392,8 +392,9 @@ def test_multi_request_sleep_zero(apim):
         mock_session_cls.return_value = mock_session
 
         with patch.object(apim, '_print_response_code'):
-            result = apim._multiRequest(HTTP_VERB.GET, '/sleep', 1, sleepMs=0)
+            result = apim._multiRequest(HTTP_VERB.GET, '/sleep', 2, sleepMs=0)
 
+    assert len(result) == 2
     assert result[0]['status_code'] == 200
     mock_sleep.assert_not_called()
 
@@ -969,3 +970,20 @@ def test_single_post_async_no_custom_headers(apim, apimrequests_patches):
     # Verify request was called with merged headers
     call_kwargs = apimrequests_patches.request.call_args[1]
     assert 'headers' in call_kwargs
+
+
+@pytest.mark.unit
+def test_multi_request_session_exception_on_request(apim):
+    """Test _multiRequest ensures session.close() is called even if request raises."""
+    with patch('apimrequests.requests.Session') as mock_session_cls:
+        mock_session = MagicMock()
+        # Make request raise an exception after first call
+        mock_session.request.side_effect = requests.exceptions.RequestException('Network error')
+        mock_session_cls.return_value = mock_session
+
+        with patch.object(apim, '_print_response_code'):
+            with pytest.raises(requests.exceptions.RequestException):
+                apim._multiRequest(HTTP_VERB.GET, '/test', 1)
+
+    # Verify session was closed even after exception
+    mock_session.close.assert_called_once()

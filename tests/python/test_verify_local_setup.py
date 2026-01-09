@@ -530,6 +530,48 @@ def test_check_bicep_cli_empty_version(monkeypatch: pytest.MonkeyPatch, suppress
             assert "Bicep" in fix
 
 
+def test_check_bicep_cli_case_insensitive_version(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
+    """Bicep CLI parsing should be case-insensitive for the word 'version'."""
+    with patch("shutil.which") as mock_which:
+        with patch("subprocess.run") as mock_run:
+            mock_which.return_value = "/usr/bin/az"
+            mock_run.return_value = Mock(
+                stdout="BICEP VERSION 1.2.3\n",
+                returncode=0,
+            )
+            ok, fix = vls.check_bicep_cli()
+            assert ok is True
+            assert "1.2.3" in fix
+
+
+def test_check_bicep_cli_version_token_without_value(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
+    """If 'version' is the last token, fallback should report unknown."""
+    with patch("shutil.which") as mock_which:
+        with patch("subprocess.run") as mock_run:
+            mock_which.return_value = "/usr/bin/az"
+            mock_run.return_value = Mock(
+                stdout="Bicep version\n",
+                returncode=0,
+            )
+            ok, fix = vls.check_bicep_cli()
+            assert ok is True
+            assert "unknown" in fix.lower()
+
+
+def test_check_bicep_cli_uses_first_line_only(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
+    """When version isn't on the first line, parser should return unknown."""
+    with patch("shutil.which") as mock_which:
+        with patch("subprocess.run") as mock_run:
+            mock_which.return_value = "/usr/bin/az"
+            mock_run.return_value = Mock(
+                stdout="Welcome to Bicep CLI\nversion 9.9.9\n",
+                returncode=0,
+            )
+            ok, fix = vls.check_bicep_cli()
+            assert ok is True
+            assert "unknown" in fix.lower()
+
+
 # ============================================================
 # Tests for check_azure_login
 # ============================================================
