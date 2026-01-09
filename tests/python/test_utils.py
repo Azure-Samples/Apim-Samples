@@ -1277,7 +1277,6 @@ def test_deploy_sample_with_jwt(monkeypatch, suppress_console):
 
     # Verify JWT cleanup was called with correct APIM name
     assert len(cleanup_called) == 1
-    #assert cleanup_called[0] == 'test-apim'
     assert result.success is True
 
 def test_deploy_sample_infrastructure_selection_already_completed(monkeypatch, suppress_console):
