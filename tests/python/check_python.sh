@@ -92,7 +92,8 @@ if echo "$TEST_OUTPUT" | grep -qE '[0-9]+\.[0-9]+s\s+call\s+'; then
     while IFS= read -r line; do
         if [[ $line =~ ^([0-9]+\.[0-9]+)s\ +call ]]; then
             time="${BASH_REMATCH[1]}"
-            if (( $(echo "$time > 0.1" | bc -l) )); then
+            # Use awk for floating point comparison instead of bc
+            if awk "BEGIN {exit !($time > 0.1)}"; then
                 SLOW_TESTS_FOUND=1
                 break
             fi
@@ -138,14 +139,14 @@ else
     echo -e "Tests    : \e[31m$TEST_STATUS\e[0m"  # Red color for failed tests
 fi
 if [ $TOTAL_TESTS -gt 0 ]; then
-    # Calculate percentages (using bc for floating point)
-    PASSED_PERCENT=$(echo "scale=2; $PASSED_TESTS / $TOTAL_TESTS * 100" | bc)
-    FAILED_PERCENT=$(echo "scale=2; $FAILED_TESTS / $TOTAL_TESTS * 100" | bc)
+    # Calculate percentages using awk for floating point arithmetic
+    PASSED_PERCENT=$(echo "$PASSED_TESTS $TOTAL_TESTS" | awk '{printf "%.2f", ($1 / $2 * 100)}')
+    FAILED_PERCENT=$(echo "$FAILED_TESTS $TOTAL_TESTS" | awk '{printf "%.2f", ($1 / $2 * 100)}')
 
     # Right-align numbers with padding
     printf "            • Total  : %5d\n" "$TOTAL_TESTS"
-    printf "            • Passed : %5d (% 6.2f%%)\n" "$PASSED_TESTS" "$PASSED_PERCENT"
-    printf "            • Failed : %5d (% 6.2f%%)\n" "$FAILED_TESTS" "$FAILED_PERCENT"
+    printf "            • Passed : %5d (%6.2f%%)\n" "$PASSED_TESTS" "$PASSED_PERCENT"
+    printf "            • Failed : %5d (%6.2f%%)\n" "$FAILED_TESTS" "$FAILED_PERCENT"
 fi
 
 # Display code coverage
