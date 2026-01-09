@@ -36,6 +36,7 @@
 # Shell script files must be executable
 .devcontainer/post-start-setup.sh export-ignore diff=sh
 setup/*.sh export-ignore diff=sh
+tests/python/*.sh export-ignore diff=sh
 start.sh export-ignore diff=sh
 
 # Binary files
