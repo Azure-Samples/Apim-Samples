@@ -28,6 +28,15 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get clean && \
     python3 -m pip install --upgrade --no-cache-dir pip setuptools wheel
 
+# Prebuild project virtual environment template with all Python dependencies (as root for /usr/local permissions)
+COPY requirements.txt /tmp/requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python3 -m venv /usr/local/share/venv-template --copies && \
+    /usr/local/share/venv-template/bin/pip install --upgrade pip setuptools wheel && \
+    /usr/local/share/venv-template/bin/pip install -r /tmp/requirements.txt && \
+    chown -R vscode:vscode /usr/local/share/venv-template && \
+    rm /tmp/requirements.txt
+
 # Switch to vscode user
 USER vscode
 
@@ -35,14 +44,6 @@ USER vscode
 RUN az config set core.login_experience_v2=off 2>/dev/null || true && \
     az extension add --name containerapp --only-show-errors 2>/dev/null || true && \
     az extension add --name front-door --only-show-errors 2>/dev/null || true
-
-# Prebuild project virtual environment template with all Python dependencies
-COPY requirements.txt /tmp/requirements.txt
-RUN --mount=type=cache,target=/home/vscode/.cache/pip \
-    python3 -m venv /usr/local/share/venv-template --copies && \
-    /usr/local/share/venv-template/bin/pip install --upgrade pip setuptools wheel && \
-    /usr/local/share/venv-template/bin/pip install -r /tmp/requirements.txt && \
-    rm /tmp/requirements.txt
 
 # Set final working directory
 WORKDIR /workspaces/Apim-Samples
