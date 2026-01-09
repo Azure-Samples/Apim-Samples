@@ -18,6 +18,9 @@
     </backend>
     <outbound>
         <base />
+    </outbound>
+    <on-error>
+        <base />
         <!-- Catch 503 responses that indicate the backend pool is unhealthy and return 429 instead -->
         <!-- The Retry-After header is already contained in the output from the backend and will be passed back to the caller -->
         <choose>
@@ -25,8 +28,5 @@
                 <set-status code="429" reason="Too Many Requests" />
             </when>
         </choose>
-    </outbound>
-    <on-error>
-        <base />
     </on-error>
 </policies>
