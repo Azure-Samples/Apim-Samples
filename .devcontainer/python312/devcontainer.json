@@ -65,17 +65,22 @@
   "onCreateCommand": [
     "bash",
     "-c",
-    "set -euo pipefail; VENV_PATH=/workspaces/Apim-Samples/.venv; TEMPLATE=/usr/local/share/venv-template; if [ ! -d \"$VENV_PATH\" ]; then if [ -d \"$TEMPLATE\" ]; then echo '📦 Seeding virtual environment from template...'; cp -a \"$TEMPLATE\" \"$VENV_PATH\"; else echo '⚠️ Template missing, creating virtual environment...'; python3 -m venv \"$VENV_PATH\" --copies; fi; fi; source \"$VENV_PATH/bin/activate\" && python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)' && echo '✅ Virtual environment ready'"
+    "echo '🚀 Creating Python virtual environment in workspace...' && /usr/local/bin/python3.12 -m venv /workspaces/Apim-Samples/.venv --copies && source /workspaces/Apim-Samples/.venv/bin/activate && pip install --upgrade pip setuptools wheel ipykernel && echo '✅ Virtual environment created' && echo '🔧 Registering Jupyter kernel...' && python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)' && echo '🧹 Removing default python3 kernel...' && rm -rf /workspaces/Apim-Samples/.venv/share/jupyter/kernels/python3 2>/dev/null || true && echo '✅ Jupyter kernel registered'"
   ],
   "updateContentCommand": [
     "bash",
     "-c",
-    "source /workspaces/Apim-Samples/.venv/bin/activate && python setup/local_setup.py --generate-env && echo '✅ Environment configuration updated'"
+    "echo '📦 Installing/updating Python packages from requirements.txt...' && source /workspaces/Apim-Samples/.venv/bin/activate && pip install -r requirements.txt && pip install pytest pytest-cov coverage && echo '✅ Python packages installed/updated' && python setup/local_setup.py --generate-env && echo '✅ Environment configuration updated' && echo '⚙️ Configuring Azure CLI and Bicep...' && az config set core.login_experience_v2=off 2>/dev/null || true && az bicep install 2>/dev/null || true && az extension add --name containerapp --only-show-errors 2>/dev/null || true && az extension add --name front-door --only-show-errors 2>/dev/null || true && echo '✅ Azure CLI configured for Codespaces'"
   ],
   "postStartCommand": [
     "bash",
     "-c",
     "echo 'APIM Samples Codespace Starting - Keep this terminal open to see progress!' && bash .devcontainer/post-start-setup.sh"
+  ],
+  "postAttachCommand": [
+    "bash",
+    "-c",
+    "bash .devcontainer/post-start-setup.sh"
   ],
   "forwardPorts": [
     8000
