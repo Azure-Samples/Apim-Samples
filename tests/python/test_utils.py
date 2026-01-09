@@ -2602,6 +2602,41 @@ def test_create_infrastructure_stream_error(monkeypatch, tmp_path, suppress_util
     with pytest.raises(SystemExit):
         helper.create_infrastructure(bypass_infrastructure_check=False, allow_update=False)
 
+def test_create_infrastructure_with_allow_update(monkeypatch, tmp_path, suppress_utils_console):
+    """Test create_infrastructure with allow_update=True, which skips infrastructure check."""
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
+
+    # Create fake infrastructure directory and script
+    infra_dir = tmp_path / 'infrastructure' / 'simple-apim'
+    infra_dir.mkdir(parents=True)
+    script_path = infra_dir / 'create_infrastructure.py'
+    script_path.write_text('print("Infrastructure created")')
+
+    monkeypatch.setattr(utils, 'find_project_root', lambda: str(tmp_path))
+    monkeypatch.setattr(az, 'get_infra_rg_name', lambda *_, **__: 'rg')
+
+    # Mock Popen to simulate successful execution
+    class FakeProcess:
+        def __init__(self, *args, **kwargs):
+            self.stdout = iter(['Infrastructure created\n'])
+            self.returncode = 0
+
+        def wait(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            return False
+
+    monkeypatch.setattr(subprocess, 'Popen', FakeProcess)
+
+    # With allow_update=True, infrastructure check should be skipped (infrastructure_exists set to False)
+    result = helper.create_infrastructure(bypass_infrastructure_check=False, allow_update=True)
+
+    assert result is True
+
 
 def test_determine_bicep_directory_current_infra(monkeypatch, tmp_path):
     infra_dir = tmp_path / 'foo'

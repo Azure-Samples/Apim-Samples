@@ -75,8 +75,8 @@ def test_verify_failure():
         assert testing.tests_failed == 1
         assert testing.total_tests == 1
         assert len(testing.errors) == 1
-        assert 'Value [5] does not match expected [10]' in testing.errors[0]
-        mock_print.assert_called_with('❌ Test 1: FAIL - Value [5] does not match expected [10]')
+        assert 'Value [5] does not match expected value [10]' in testing.errors[0]
+        mock_print.assert_called_with('❌ Test 1: FAIL - Value [5] does not match expected value [10]')
 
 
 def test_verify_multiple_tests():
@@ -136,6 +136,39 @@ def test_verify_none_vs_empty():
 
         assert not testing.tests_passed
         assert testing.tests_failed == 3
+
+
+def test_verify_with_label():
+    """Test the verify method with a custom label."""
+    testing = ApimTesting()
+
+    with patch('builtins.print') as mock_print:
+        result = testing.verify(200, 200, label='HTTP Status Code')
+
+        assert result is True
+        assert testing.tests_passed == 1
+        assert not testing.tests_failed
+
+        # Check that label was used in the print statement
+        calls = [str(call) for call in mock_print.call_args_list]
+        label_found = any('HTTP Status Code' in call for call in calls)
+        assert label_found
+
+
+def test_verify_with_label_failure():
+    """Test the verify method with a label when test fails."""
+    testing = ApimTesting()
+
+    with patch('builtins.print') as mock_print:
+        result = testing.verify(404, 200, label='Status')
+
+        assert result is False
+        assert testing.tests_failed == 1
+
+        # Check that label was used in the output
+        calls = [str(call) for call in mock_print.call_args_list]
+        label_found = any('Status' in call for call in calls)
+        assert label_found
 
 
 # ------------------------------
