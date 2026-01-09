@@ -4,7 +4,7 @@
   "build": {
     "args": { "PYTHON_VERSION": "3.12" },
     "dockerfile": "../Dockerfile",
-    "context": ".."
+    "context": "../.."
   },
   "features": {
     "ghcr.io/devcontainers/features/azure-cli:1": {

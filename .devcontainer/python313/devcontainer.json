@@ -3,7 +3,7 @@
   "name": "APIM Samples - Python 3.13",
   "build": {
     "dockerfile": "../Dockerfile",
-    "context": "..",
+    "context": "../..",
     "args": {
       "PYTHON_VERSION": "3.13"
     }
