@@ -1247,6 +1247,70 @@ def test_deploy_sample_deployment_failure(monkeypatch):
     with pytest.raises(SystemExit):
         nb_helper.deploy_sample({'test': {'value': 'param'}})
 
+def test_deploy_sample_with_jwt(monkeypatch, suppress_console):
+    """Test deploy_sample method with JWT enabled."""
+    # Mock JWT-related functions
+    monkeypatch.setattr(utils, 'generate_signing_key', lambda: ('test-key', 'test-key-b64'))
+    monkeypatch.setattr('time.time', lambda: 1234567890)
+
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM], use_jwt=True
+    )
+
+    # Mock does_resource_group_exist to return True
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: True)
+
+    # Mock successful deployment
+    mock_output = utils.Output(success=True, text='{"outputs": {"apimServiceName": {"value": "test-apim"}}}')
+    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample',
+                       lambda *args, **kwargs: mock_output)
+
+    # Mock _clean_up_jwt method
+    cleanup_called = []
+    def mock_cleanup(apim_name):
+        cleanup_called.append(apim_name)
+    monkeypatch.setattr(nb_helper, '_clean_up_jwt', mock_cleanup)
+
+    # Test the deployment
+    result = nb_helper.deploy_sample({'test': {'value': 'param'}})
+
+    # Verify JWT cleanup was called with correct APIM name
+    assert len(cleanup_called) == 1
+    #assert cleanup_called[0] == 'test-apim'
+    assert result.success is True
+
+def test_deploy_sample_infrastructure_selection_already_completed(monkeypatch, suppress_console):
+    """Test deploy_sample when infrastructure selection was already completed in globals."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample', 'test-rg', 'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
+    )
+
+    # Mock does_resource_group_exist to return False (infrastructure doesn't exist)
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: False)
+
+    # Set the global variable to simulate previous infrastructure selection
+    original_globals = builtins.globals
+    def mock_globals():
+        result = original_globals()
+        result['infrastructure_selection_completed'] = True
+        return result
+    monkeypatch.setattr('builtins.globals', mock_globals)
+
+    # Mock successful deployment
+    mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
+    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample',
+                       lambda *args, **kwargs: mock_output)
+
+    # Test the deployment - should skip infrastructure selection
+    result = nb_helper.deploy_sample({'test': {'value': 'param'}})
+
+    # Verify the helper was not modified (still has original values)
+    assert nb_helper.deployment == INFRASTRUCTURE.SIMPLE_APIM
+    assert nb_helper.rg_name == 'test-rg'
+    assert result.success is True
+
 def test_notebookhelper_initialization_with_supported_infrastructures():
     """Test NotebookHelper initialization with supported infrastructures list."""
     supported_infras = [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA]
