@@ -37,11 +37,12 @@ RUN az config set core.login_experience_v2=off 2>/dev/null || true && \
     az extension add --name front-door --only-show-errors 2>/dev/null || true
 
 # Prebuild project virtual environment template with all Python dependencies
-RUN --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt,readonly \
-    --mount=type=cache,target=/home/vscode/.cache/pip \
+COPY requirements.txt /tmp/requirements.txt
+RUN --mount=type=cache,target=/home/vscode/.cache/pip \
     python3 -m venv /usr/local/share/venv-template --copies && \
     /usr/local/share/venv-template/bin/pip install --upgrade pip setuptools wheel && \
-    /usr/local/share/venv-template/bin/pip install -r /tmp/requirements.txt
+    /usr/local/share/venv-template/bin/pip install -r /tmp/requirements.txt && \
+    rm /tmp/requirements.txt
 
 # Set final working directory
 WORKDIR /workspaces/Apim-Samples
