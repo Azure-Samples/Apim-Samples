@@ -284,7 +284,7 @@ class Output:
             elif key in self.json_data:
                 deployment_output = self.json_data[key]['value']
             else:
-                raise KeyError(f"Output key '{key}' not found in deployment outputs")
+                raise KeyError(f"Output key '{key}' not found in deployment outputs")  # pragma: no cover
 
             if not suppress_logging and label:
                 if secure and isinstance(deployment_output, str) and len(deployment_output) >= 4:
@@ -585,16 +585,12 @@ class Product:
     # ------------------------------
 
     def to_dict(self) -> dict:
-        product_dict = {
+        return {
             'name': self.name,
             'displayName': self.displayName,
             'description': self.description,
             'state': self.state,
             'subscriptionRequired': self.subscriptionRequired,
-            'approvalRequired': self.approvalRequired
+            'approvalRequired': self.approvalRequired,
+            'policyXml': self.policyXml
         }
-
-        if self.policyXml is not None:
-            product_dict['policyXml'] = self.policyXml
-
-        return product_dict

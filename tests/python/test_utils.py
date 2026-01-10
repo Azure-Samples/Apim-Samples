@@ -746,6 +746,38 @@ def test_query_and_select_infrastructure_user_selects_existing(monkeypatch, supp
 
 
 @pytest.mark.unit
+def test_query_and_select_infrastructure_branch_not_create_new(monkeypatch, suppress_utils_console):
+    """Explicitly exercise the non-create_new branch by selecting an existing option."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim-1',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    # Provide one existing instance so option 2 maps to ('existing', ...)
+    monkeypatch.setattr(
+        az,
+        'find_infrastructure_instances',
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 7)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+    )
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+
+    # Choose the second menu item, which is 'existing'
+    monkeypatch.setattr('builtins.input', lambda prompt: '2')
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
+    assert selected_index == 7
+
+
+@pytest.mark.unit
 def test_query_and_select_infrastructure_user_selects_create_new(monkeypatch, suppress_utils_console):
     """Test when user selects option to create new infrastructure."""
     nb_helper = utils.NotebookHelper(
@@ -840,6 +872,56 @@ def test_query_and_select_infrastructure_create_new_failure(monkeypatch, suppres
     assert selected_index is None
     assert created_helpers
     assert created_helpers[0].calls == [True]
+
+
+@pytest.mark.unit
+def test_query_and_select_infrastructure_user_selects_create_new_none_index(monkeypatch, suppress_utils_console):
+    """Test create_new selection when current index is None."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim',  # no index suffix -> _get_current_index returns None
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    # Make sure some existing options are listed to enter selection flow
+    monkeypatch.setattr(
+        az,
+        'find_infrastructure_instances',
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 5)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+    )
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+
+    created_helpers: list = []
+
+    class DummyInfraHelper:
+        def __init__(self, rg_location, deployment, index, apim_sku):
+            self.rg_location = rg_location
+            self.deployment = deployment
+            self.index = index
+            self.apim_sku = apim_sku
+            self.calls = []
+            created_helpers.append(self)
+
+        def create_infrastructure(self, bypass):
+            self.calls.append(bypass)
+            return True
+
+    monkeypatch.setattr(utils, 'InfrastructureNotebookHelper', DummyInfraHelper)
+    monkeypatch.setattr('builtins.input', lambda prompt: '1')  # Select "Create a NEW infrastructure"
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
+    assert selected_index is None  # None index should be preserved
+    assert created_helpers
+    # Ensure helper was constructed with None index
+    assert created_helpers[0].index is None
 
 
 @pytest.mark.unit
