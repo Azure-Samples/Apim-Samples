@@ -795,6 +795,54 @@ def test_query_and_select_infrastructure_user_selects_create_new(monkeypatch, su
 
 
 @pytest.mark.unit
+def test_query_and_select_infrastructure_create_new_failure(monkeypatch, suppress_utils_console):
+    """Test when user selects option to create new infrastructure but creation fails."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim-1',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    monkeypatch.setattr(
+        az,
+        'find_infrastructure_instances',
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 5)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+    )
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+
+    created_helpers = []
+
+    class DummyInfraHelper:
+        def __init__(self, rg_location, deployment, index, apim_sku):
+            self.rg_location = rg_location
+            self.deployment = deployment
+            self.index = index
+            self.apim_sku = apim_sku
+            self.calls = []
+            created_helpers.append(self)
+
+        def create_infrastructure(self, bypass):
+            self.calls.append(bypass)
+            return False  # Simulate failure
+
+    monkeypatch.setattr(utils, 'InfrastructureNotebookHelper', DummyInfraHelper)
+    monkeypatch.setattr('builtins.input', lambda prompt: '1')  # Select "Create a NEW infrastructure"
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra is None
+    assert selected_index is None
+    assert created_helpers
+    assert created_helpers[0].calls == [True]
+
+
+@pytest.mark.unit
 def test_query_and_select_infrastructure_user_enters_empty_string(monkeypatch, suppress_utils_console):
     """Test when user enters empty string (no infrastructure selected)."""
     nb_helper = utils.NotebookHelper(
@@ -1093,6 +1141,39 @@ def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch,
     result = helper.create_infrastructure()
     assert result is True
     assert helper.index == 3  # Verify final index
+
+def test_infrastructure_notebook_helper_create_with_update_option_1(monkeypatch, suppress_builtin_print):
+    """Test InfrastructureNotebookHelper.create_infrastructure when user selects option 1 (update)."""
+
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
+
+    # Mock resource group to exist (triggering prompt)
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg_name: True)
+
+    # Mock the prompt to return option 1 (update)
+    monkeypatch.setattr(utils, '_prompt_for_infrastructure_update', lambda rg_name: (True, None))
+
+    mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n', 'Success!\n'])
+    monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
+
+    # Should succeed with update
+    result = helper.create_infrastructure()
+    assert result is True
+
+def test_infrastructure_notebook_helper_create_with_allow_update_false(monkeypatch, suppress_builtin_print):
+    """Test InfrastructureNotebookHelper.create_infrastructure with allow_update=False when infrastructure exists."""
+
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
+
+    # Mock resource group to exist
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg_name: True)
+
+    mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n'])
+    monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
+
+    # With allow_update=False, should not create when infrastructure exists
+    result = helper.create_infrastructure(allow_update=False)
+    assert result is True
 
 def test_infrastructure_notebook_helper_create_user_cancellation(monkeypatch, suppress_builtin_print):
     """Test InfrastructureNotebookHelper.create_infrastructure when user cancels during retry."""
@@ -1741,10 +1822,10 @@ def test_infrastructure_notebook_helper_allow_update_false(monkeypatch, suppress
 def test_infrastructure_notebook_helper_missing_args():
     """Test InfrastructureNotebookHelper requires all arguments."""
     with pytest.raises(TypeError):
-        utils.InfrastructureNotebookHelper()  # pylint: disable=no-value-for-parameter
+        utils.InfrastructureNotebookHelper()
 
     with pytest.raises(TypeError):
-        utils.InfrastructureNotebookHelper('eastus')  # pylint: disable=no-value-for-parameter
+        utils.InfrastructureNotebookHelper('eastus')
 
 
 def test_does_infrastructure_exist_with_prompt_multiple_retries(monkeypatch, suppress_console):
