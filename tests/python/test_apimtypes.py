@@ -125,6 +125,21 @@ class TestAPIToDictSerialization:
             policyXml='<policies />'
         )
 
+    @pytest.fixture
+    def base_api_no_policyXml(self):
+        """Create a basic API instance."""
+        return API(
+            name='test-api',
+            displayName='Test API',
+            path='/test',
+            description='A test API.',
+        )
+
+    def test_default_policyXml_when_policyXml_empty(self, base_api_no_policyXml):
+        """Test that to_dict defaults policyXml when not set or empty."""
+        d = base_api_no_policyXml.to_dict()
+        assert d['policyXml'] == '<policies><inbound><base /></inbound></policies>'
+
     def test_includes_tags_when_present(self, base_api):
         """Test that to_dict includes tags when present."""
         base_api.tags = ['foo', 'bar']

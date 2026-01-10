@@ -869,3 +869,17 @@ def test_handle_purge_operation_only_protected_vaults(monkeypatch):
     assert not called['confirm']  # should not prompt
     assert not called['apim']
     assert not called['kv']
+
+
+def test_handle_purge_operation_no_resources_at_all(monkeypatch):
+    """When there are no resources at all (no APIM, no KV), returns 0."""
+    apims = []
+    kvs = []
+
+    prints: list[str] = []
+    monkeypatch.setattr(builtins, 'print', lambda *args, **k: prints.append(' '.join(str(a) for a in args)))
+
+    rc = sdr._handle_purge_operation(apims, kvs, skip_confirmation=False)
+
+    assert not rc
+    assert any('No purgeable resources' in p for p in prints)
