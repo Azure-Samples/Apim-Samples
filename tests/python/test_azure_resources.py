@@ -2811,7 +2811,7 @@ def test_get_frontdoor_url_empty_profile_name(monkeypatch):
     assert result is None
 
 
-# Line 844 & 845: Test list_apim_subscriptions with non-dict json_data
+# Test list_apim_subscriptions with non-dict json_data
 def test_list_apim_subscriptions_invalid_json_data(monkeypatch):
     """Test list_apim_subscriptions when json_data is not a dict."""
     def mock_run(cmd, *args, **kwargs):
@@ -2827,7 +2827,7 @@ def test_list_apim_subscriptions_invalid_json_data(monkeypatch):
     assert result == []
 
 
-# Line 844 & 845: Test list_apim_subscriptions with missing value key
+# Test list_apim_subscriptions with missing value key
 def test_list_apim_subscriptions_missing_value_key(monkeypatch):
     """Test list_apim_subscriptions when value key is missing in response."""
     def mock_run(cmd, *args, **kwargs):
@@ -2843,7 +2843,7 @@ def test_list_apim_subscriptions_missing_value_key(monkeypatch):
     assert result == []
 
 
-# Line 879 & 887: Test get_appgw_endpoint with empty hostname
+# Test get_appgw_endpoint with empty hostname
 def test_get_appgw_endpoint_empty_hostname(monkeypatch):
     """Test get_appgw_endpoint when hostname is empty in listener."""
     def mock_run(cmd, *args, **kwargs):
@@ -2864,7 +2864,7 @@ def test_get_appgw_endpoint_empty_hostname(monkeypatch):
     assert public_ip is None
 
 
-# Line 879 & 887: Test get_appgw_endpoint with no listeners
+# Test get_appgw_endpoint with no listeners
 def test_get_appgw_endpoint_no_http_listeners(monkeypatch):
     """Test get_appgw_endpoint when there are no HTTP listeners."""
     def mock_run(cmd, *args, **kwargs):
