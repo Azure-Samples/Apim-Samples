@@ -3244,6 +3244,48 @@ def test_appgw_apim_pe_verify_infrastructure_specific_ignores_private_endpoint_e
     assert infra._verify_infrastructure_specific('rg-test') is True
 
 
+@pytest.mark.unit
+def test_appgw_apim_pe_verify_infrastructure_specific_aca_count_zero(mock_utils, mock_az):
+    """Test verification when container apps count is zero (aca_count > 0 branch not taken)."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    appgw_output = Mock(success=True, json_data={'name': 'test-appgw'})
+    aca_output = Mock(success=True, text='0')  # No container apps
+
+    mock_az.run.side_effect = [appgw_output, aca_output]
+
+    assert infra._verify_infrastructure_specific('rg-test') is True
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_verify_infrastructure_specific_apim_output_empty(mock_utils, mock_az):
+    """Test verification when APIM output is empty (apim_output.text.strip() is false)."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    appgw_output = Mock(success=True, json_data={'name': 'test-appgw'})
+    aca_output = Mock(success=True, text='0')
+    apim_output = Mock(success=True, text='')  # Empty APIM output
+
+    mock_az.run.side_effect = [appgw_output, aca_output, apim_output]
+
+    assert infra._verify_infrastructure_specific('rg-test') is True
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_verify_infrastructure_specific_pe_output_failed(mock_utils, mock_az):
+    """Test verification when PE output fails (pe_output.success is False)."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    appgw_output = Mock(success=True, json_data={'name': 'test-appgw'})
+    aca_output = Mock(success=True, text='1')
+    apim_output = Mock(success=True, text='/subscriptions/test/.../apim')
+    pe_output = Mock(success=False)  # PE output failed
+
+    mock_az.run.side_effect = [appgw_output, aca_output, apim_output, pe_output]
+
+    assert infra._verify_infrastructure_specific('rg-test') is True
+
+
 def test_afd_apim_aca_verify_connectivity_with_retry(mock_utils, mock_az):
     """Test connectivity verification with retries for AfdApimAcaInfrastructure."""
     infra = infrastructures.AfdApimAcaInfrastructure(
