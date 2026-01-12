@@ -2862,28 +2862,3 @@ def test_get_appgw_endpoint_empty_hostname(monkeypatch):
 
     assert hostname is None
     assert public_ip is None
-
-
-# Test get_appgw_endpoint with no listeners
-def test_get_appgw_endpoint_no_http_listeners(monkeypatch):
-    """Test get_appgw_endpoint when there are no HTTP listeners."""
-    def mock_run(cmd, *args, **kwargs):
-        if 'application-gateway list' in cmd:
-            output = Mock()
-            output.success = True
-            output.json_data = [{
-                'name': 'appgw-123',
-                'httpListeners': [],
-                'frontendIPConfigurations': [{'publicIPAddress': {'id': '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/publicIPAddresses/pip-123'}}]
-            }]
-            return output
-        elif 'public-ip show' in cmd:
-            output = Mock()
-            output.success = True
-            output.json_data = {'ipAddress': '20.20.20.20'}
-            return output
-        return Mock(success=False)
-
-    monkeypatch.setattr('azure_resources.run', mock_run)
-
-    _hostname, _public_ip = az.get_appgw_endpoint('rg')

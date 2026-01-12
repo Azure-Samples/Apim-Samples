@@ -3036,6 +3036,7 @@ def test_query_and_select_infrastructure_else_branch_with_unexpected_type(monkey
                         pass
 
             except ValueError:
+                # Invalid user input (e.g., non-numeric); ignore and prompt again.
                 pass
 
     selected_infra, selected_index = patched_query_and_select()
