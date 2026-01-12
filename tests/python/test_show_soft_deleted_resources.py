@@ -808,14 +808,23 @@ def test_handle_purge_operation_no_purgeable_resources(monkeypatch):
 def test_handle_purge_operation_skip_confirmation_all_success(monkeypatch):
     """When skipping confirmation, runs purges and reports success when all purgeable succeed."""
     apims = [{'name': 'ap1', 'location': 'eastus'}]
-    kvs = [{'name': 'kv1', 'properties': {'purgeProtectionEnabled': False}}]
+    # Include one purgeable and one protected KV to validate expected counts
+    kvs = [
+        {'name': 'kv1', 'properties': {'purgeProtectionEnabled': False}},
+        {'name': 'kv2', 'properties': {'purgeProtectionEnabled': True}},
+    ]
 
+    # Purge returns full success for purgeable resources
     monkeypatch.setattr(sdr, 'purge_apim_services', len)
-    monkeypatch.setattr(sdr, 'purge_key_vaults', lambda v: (1, 0))
-    monkeypatch.setattr(builtins, 'print', lambda *a, **k: None)
+    monkeypatch.setattr(sdr, 'purge_key_vaults', lambda v: (1, 1))
+
+    outputs: list[str] = []
+    monkeypatch.setattr(builtins, 'print', lambda *args, **k: outputs.append(' '.join(str(a) for a in args)))
 
     rc = sdr._handle_purge_operation(apims, kvs, skip_confirmation=True)
     assert not rc
+    # Ensure success message branch is executed (covers line with success print)
+    assert any('All purgeable resources successfully purged' in o for o in outputs)
 
 
 def test_handle_purge_operation_skip_confirmation_partial_failure(monkeypatch):

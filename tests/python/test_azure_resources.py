@@ -2698,3 +2698,192 @@ class TestGetRgNameWithIndex:
 
         assert 'apim-sample-my-sample' == result
         assert not result.count('-5')  # Should not have index suffix
+
+# Test run() method success = not completed.returncode branch (returncode = 0)
+class TestRunMethodBranches:
+    """Test specific branches in the run() method."""
+
+    def test_run_success_returncode_zero(self, monkeypatch):
+        """Test run() when subprocess returncode is 0 (success = True)."""
+        def mock_run(*args, **kwargs):
+            completed = Mock()
+            completed.stdout = 'output text'
+            completed.stderr = None
+            completed.returncode = 0
+            return completed
+
+        monkeypatch.setattr('subprocess.run', mock_run)
+
+        result = az.run('echo test', ok_message='Success')
+
+        assert result.success is True
+        assert 'output text' in result.text
+
+    def test_run_failure_nonzero_returncode(self, monkeypatch):
+        """Test run() when subprocess returncode is non-zero (success = False)."""
+        def mock_run(*args, **kwargs):
+            completed = Mock()
+            completed.stdout = 'some output'
+            completed.stderr = 'error output'
+            completed.returncode = 1
+            return completed
+
+        monkeypatch.setattr('subprocess.run', mock_run)
+
+        result = az.run('bad command', error_message='Failed')
+
+        assert result.success is False
+
+
+# Test cleanup_old_jwt_signing_keys with different key counts
+def test_cleanup_old_jwt_signing_keys_with_multiple_old_keys(monkeypatch):
+    """Test cleanup_old_jwt_signing_keys when there are multiple old keys to delete."""
+    def mock_run(cmd, *args, **kwargs):
+        if 'list' in cmd:
+            output = Mock()
+            output.success = True
+            output.text = 'JwtSigningKey-test-sample-1\nJwtSigningKey-test-sample-2\nJwtSigningKey-test-sample-3\nJwtSigningKey-other-1'
+            return output
+        elif 'delete' in cmd and 'test-sample-1' in cmd:
+            return Mock(success=True)
+        elif 'delete' in cmd and 'test-sample-2' in cmd:
+            return Mock(success=True)
+        else:
+            return Mock(success=True)
+
+    monkeypatch.setattr('azure_resources.run', mock_run)
+
+    result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'JwtSigningKey-test-sample-3')
+
+    assert result is True
+
+
+# Test cleanup_old_jwt_signing_keys when current key is first
+def test_cleanup_old_jwt_signing_keys_current_is_first(monkeypatch):
+    """Test cleanup_old_jwt_signing_keys when current key is the first one."""
+    def mock_run(cmd, *args, **kwargs):
+        if 'list' in cmd:
+            output = Mock()
+            output.success = True
+            output.text = 'JwtSigningKey-test-sample-1\nJwtSigningKey-test-sample-2'
+            return output
+        elif 'delete' in cmd:
+            return Mock(success=True)
+        else:
+            return Mock(success=True)
+
+    monkeypatch.setattr('azure_resources.run', mock_run)
+
+    result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'JwtSigningKey-test-sample-1')
+
+    assert result is True
+
+
+# Test get_frontdoor_url with empty hostname
+def test_get_frontdoor_url_endpoint_no_hostname(monkeypatch):
+    """Test get_frontdoor_url when endpoint has no hostname."""
+    def mock_run(cmd, *args, **kwargs):
+        if 'profile list' in cmd:
+            return Mock(success=True, json_data=[{'name': 'profile-123'}])
+        elif 'endpoint list' in cmd:
+            return Mock(success=True, json_data=[{'hostName': None}])
+        return Mock(success=False)
+
+    monkeypatch.setattr('azure_resources.run', mock_run)
+
+    result = az.get_frontdoor_url('rg', INFRASTRUCTURE.AFD_APIM_PE)
+
+    assert result is None
+
+
+# Test get_frontdoor_url with empty profile name
+def test_get_frontdoor_url_empty_profile_name(monkeypatch):
+    """Test get_frontdoor_url when profile name is empty."""
+    def mock_run(cmd, *args, **kwargs):
+        if 'profile list' in cmd:
+            return Mock(success=True, json_data=[{'name': ''}])
+        return Mock(success=False)
+
+    monkeypatch.setattr('azure_resources.run', mock_run)
+
+    result = az.get_frontdoor_url('rg', INFRASTRUCTURE.AFD_APIM_PE)
+
+    assert result is None
+
+
+# Line 844 & 845: Test list_apim_subscriptions with non-dict json_data
+def test_list_apim_subscriptions_invalid_json_data(monkeypatch):
+    """Test list_apim_subscriptions when json_data is not a dict."""
+    def mock_run(cmd, *args, **kwargs):
+        output = Mock()
+        output.success = True
+        output.json_data = None
+        return output
+
+    monkeypatch.setattr('azure_resources.run', mock_run)
+
+    result = az.list_apim_subscriptions('apim', 'rg')
+
+    assert result == []
+
+
+# Line 844 & 845: Test list_apim_subscriptions with missing value key
+def test_list_apim_subscriptions_missing_value_key(monkeypatch):
+    """Test list_apim_subscriptions when value key is missing in response."""
+    def mock_run(cmd, *args, **kwargs):
+        output = Mock()
+        output.success = True
+        output.json_data = {'items': []}
+        return output
+
+    monkeypatch.setattr('azure_resources.run', mock_run)
+
+    result = az.list_apim_subscriptions('apim', 'rg')
+
+    assert result == []
+
+
+# Line 879 & 887: Test get_appgw_endpoint with empty hostname
+def test_get_appgw_endpoint_empty_hostname(monkeypatch):
+    """Test get_appgw_endpoint when hostname is empty in listener."""
+    def mock_run(cmd, *args, **kwargs):
+        output = Mock()
+        output.success = True
+        output.json_data = [{
+            'name': 'appgw-123',
+            'httpListeners': [{'hostName': ''}],
+            'frontendIPConfigurations': []
+        }]
+        return output
+
+    monkeypatch.setattr('azure_resources.run', mock_run)
+
+    hostname, public_ip = az.get_appgw_endpoint('rg')
+
+    assert hostname is None
+    assert public_ip is None
+
+
+# Line 879 & 887: Test get_appgw_endpoint with no listeners
+def test_get_appgw_endpoint_no_http_listeners(monkeypatch):
+    """Test get_appgw_endpoint when there are no HTTP listeners."""
+    def mock_run(cmd, *args, **kwargs):
+        if 'application-gateway list' in cmd:
+            output = Mock()
+            output.success = True
+            output.json_data = [{
+                'name': 'appgw-123',
+                'httpListeners': [],
+                'frontendIPConfigurations': [{'publicIPAddress': {'id': '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/publicIPAddresses/pip-123'}}]
+            }]
+            return output
+        elif 'public-ip show' in cmd:
+            output = Mock()
+            output.success = True
+            output.json_data = {'ipAddress': '20.20.20.20'}
+            return output
+        return Mock(success=False)
+
+    monkeypatch.setattr('azure_resources.run', mock_run)
+
+    _hostname, _public_ip = az.get_appgw_endpoint('rg')
