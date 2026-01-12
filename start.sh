@@ -81,7 +81,7 @@ while true; do
   echo ""
   echo "Tests"
   echo "  6) Run pylint"
-  echo "  7) Run tests"
+  echo "  7) Run tests (shows detailed test results)"
   echo "  8) Run full Python checks"
   echo ""
   echo "Misc"
