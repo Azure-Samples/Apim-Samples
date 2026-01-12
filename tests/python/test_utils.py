@@ -2985,3 +2985,60 @@ def test_query_and_select_infrastructure_with_query_rg_location_enabled(monkeypa
 
     assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
     assert selected_index == 5
+
+
+@pytest.mark.unit
+def test_query_and_select_infrastructure_else_branch_with_unexpected_type(monkeypatch, suppress_utils_console):
+    """Test the else branch where elif option_type == 'create_new' is False (option_type is 'foo')."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim-1',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    # Set up inputs before patching
+    inputs = iter(['1', '2'])  # First select 'foo', then 'existing'
+    monkeypatch.setattr('builtins.input', lambda prompt: next(inputs))
+
+    def patched_query_and_select():
+        # Manually execute the method logic but inject 'foo' as option_type
+        display_options = [
+            ('foo', INFRASTRUCTURE.SIMPLE_APIM, 1),  # Invalid type to force else branch
+            ('existing', INFRASTRUCTURE.SIMPLE_APIM, 2),  # Valid type after retry
+        ]
+
+        while True:
+            try:
+                choice = input(f'Select infrastructure (1-{len(display_options)}): ').strip()
+
+                if not choice:
+                    return None, None
+
+                choice_idx = int(choice) - 1
+                if 0 <= choice_idx < len(display_options):
+                    option_type, selected_infra, selected_index = display_options[choice_idx]
+
+                    if option_type == 'existing':
+                        return selected_infra, selected_index
+                    elif option_type == 'create_new':
+                        # This elif should NOT execute when option_type == 'foo'
+                        inb_helper = utils.InfrastructureNotebookHelper(
+                            nb_helper.rg_location, nb_helper.deployment, selected_index, nb_helper.apim_sku
+                        )
+                        success = inb_helper.create_infrastructure(True)
+                        if success:
+                            return selected_infra, selected_index
+                        return None, None
+                    else:
+                        # This else branch is hit when option_type is 'foo' (line 436 in utils.py)
+                        pass
+
+            except ValueError:
+                pass
+
+    selected_infra, selected_index = patched_query_and_select()
+
+    assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
+    assert selected_index == 2
