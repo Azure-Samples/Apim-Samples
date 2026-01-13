@@ -583,6 +583,8 @@ def test_install_jupyter_kernel_pip_install_fails(monkeypatch: pytest.MonkeyPatc
     """Test install_jupyter_kernel handles pip install failures."""
     call_count = [0]
 
+    monkeypatch.setattr(shutil, "which", lambda _: None)
+
     def mock_run(*args, **kwargs):
         call_count[0] += 1
         if call_count[0] == 1:
@@ -594,6 +596,26 @@ def test_install_jupyter_kernel_pip_install_fails(monkeypatch: pytest.MonkeyPatc
     with patch("subprocess.run", side_effect=mock_run):
         result = sps.install_jupyter_kernel()
         assert result is False
+
+
+def test_install_jupyter_kernel_falls_back_to_pip(monkeypatch: pytest.MonkeyPatch):
+    """Test install_jupyter_kernel uses pip when uv is unavailable."""
+    call_log: list[list[str]] = []
+
+    monkeypatch.setattr(shutil, "which", lambda _: None)
+
+    def mock_run(args, **kwargs):
+        call_log.append(args)
+        if len(call_log) == 1:
+            raise subprocess.CalledProcessError(1, "ipykernel")
+
+        return Mock(returncode=0)
+
+    with patch("subprocess.run", side_effect=mock_run):
+        result = sps.install_jupyter_kernel()
+
+    assert result is True
+    assert [sys.executable, "-m", "pip", "install", "ipykernel"] in call_log
 
 
 def test_install_jupyter_kernel_registration_fails(monkeypatch: pytest.MonkeyPatch):

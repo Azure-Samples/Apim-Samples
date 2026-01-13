@@ -1,4 +1,27 @@
-# This is a comprehensive requirements.txt file to ensure that one installation covers everything.
+# ⚠️ DEPRECATED: This file is kept for backward compatibility only.
+#
+# This repository now uses pyproject.toml and uv for package management.
+# Please use `uv sync` instead of `pip install -r requirements.txt`.
+#
+# See UV-MIGRATION.md for migration details.
+#
+# To install uv:
+#   Windows: winget install --id=astral-sh.uv -e
+#   macOS:   brew install uv
+#   Linux:   curl -LsSf https://astral.sh/uv/install.sh | sh
+#
+# Quick start:
+#   uv venv
+#   uv sync
+#
+# For pip users (fallback):
+#   python -m venv .venv
+#   source .venv/bin/activate  # or .venv\Scripts\activate on Windows
+#   pip install -e .
+#
+# -----------------------------------------------------------------------------
+# Legacy dependencies (maintained for pip compatibility):
+# -----------------------------------------------------------------------------
 
 # Core dependencies
 ipykernel

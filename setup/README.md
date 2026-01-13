@@ -2,11 +2,46 @@
 
 Configures cross-platform PYTHONPATH for APIM Samples and provides streamlined local development setup.
 
+## Prerequisites
+
+Install uv (fast Python package manager) before proceeding:
+
+**Windows:**
+```powershell
+# Using winget (recommended)
+winget install --id=astral-sh.uv -e
+
+# Or using scoop
+scoop install uv
+```
+
+**macOS:**
+```bash
+# Using Homebrew
+brew install uv
+
+# Or using the official installer
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Linux:**
+```bash
+# Using the official installer
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Verify installation:
+```bash
+uv --version
+```
+
 ## Quick Setup
 
 For complete local environment setup that matches the dev container experience:
 
 ```shell
+uv venv
+uv sync
 python setup/local_setup.py --complete-setup
 ```
 

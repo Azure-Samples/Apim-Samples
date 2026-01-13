@@ -1,0 +1,28 @@
+[project]
+name = "apim-samples"
+version = "0.0.0"
+description = "Azure API Management Samples: infra + policy playground"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [{ name = "Azure Samples" }]
+license = { file = "LICENSE" }
+
+# Converted from requirements.txt
+# Core runtime dependencies
+dependencies = [
+  "ipykernel",
+  "matplotlib",
+  "pandas",
+  "pyjwt",
+  "python-dotenv",
+  "requests",
+]
+
+[dependency-groups]
+# Developer tooling (installed automatically by default with `uv sync`)
+dev = [
+  "pylint>=3.0.0",
+  "pytest>=8.0.0",
+  "pytest-cov>=7.0.0",
+  "coverage>=7.6.4",
+]

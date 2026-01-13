@@ -31,6 +31,6 @@
 **/Thumbs.db
 
 # Keep essential files for the build
-!requirements.txt
+!pyproject.toml
 !setup/local_setup.py
 !shared/python/**

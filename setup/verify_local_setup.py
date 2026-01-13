@@ -58,7 +58,7 @@ def check_virtual_environment():
     """Check if we're running in the correct virtual environment."""
     venv_path = Path.cwd() / ".venv"
     if not venv_path.exists():
-        return False, "Create it: python -m venv .venv && source .venv/bin/activate (or .venv\\Scripts\\activate on Windows)"
+        return False, "Create it: uv venv && uv sync (then activate: source .venv/bin/activate or .venv\\Scripts\\activate on Windows)"
 
     current_python = Path(sys.executable)
     expected_venv_python = venv_path / ("Scripts" if os.name == 'nt' else "bin") / "python"
@@ -68,6 +68,24 @@ def check_virtual_environment():
 
     return True, ""
 
+def check_uv_sync():
+    """Check if uv is available and sync dependencies if it is."""
+    uv_path = shutil.which("uv")
+    if not uv_path:
+        return True, "uv is not installed (optional - install from https://docs.astral.sh/uv/)"
+
+    venv_path = Path.cwd() / ".venv"
+    if not venv_path.exists():
+        try:
+            subprocess.run([uv_path, "venv"], check=True, capture_output=True)
+        except subprocess.CalledProcessError as exc:
+            return False, f"Failed to create venv with uv: {exc}"
+
+    try:
+        subprocess.run([uv_path, "sync"], check=True, capture_output=True)
+        return True, ""
+    except subprocess.CalledProcessError as exc:
+        return False, f"Failed to sync dependencies with uv: {exc}"
 
 def check_required_packages():
     """Check if required packages are installed."""
@@ -86,7 +104,7 @@ def check_required_packages():
             missing.append(package_name)
 
     if missing:
-        return False, f"Install missing packages: pip install -r requirements.txt (missing: {', '.join(missing)})"
+        return False, f"Install missing packages: uv sync (missing: {', '.join(missing)})"
 
     return True, ""
 
@@ -128,7 +146,7 @@ def check_jupyter_kernel():
 
         return False, "Register kernel: python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)'"
     except (subprocess.CalledProcessError, FileNotFoundError):
-        return False, "Install Jupyter tooling: pip install ipykernel jupyter"
+        return False, "Install Jupyter tooling: uv add --dev jupyter && uv sync"
 
 
 def check_vscode_settings():
@@ -291,6 +309,7 @@ def main():
 
     checks = [
         ("Virtual Environment", check_virtual_environment),
+        ("UV Sync", check_uv_sync),
         ("Required Packages", check_required_packages),
         ("Shared Modules", check_shared_modules),
         ("Environment File", check_env_file),

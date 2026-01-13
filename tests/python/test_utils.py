@@ -1529,7 +1529,7 @@ def test_find_project_root_in_current_dir(monkeypatch, tmp_path):
     root = tmp_path / 'project'
     root.mkdir()
     (root / 'README.md').touch()
-    (root / 'requirements.txt').touch()
+    (root / 'pyproject.toml').touch()
     (root / 'bicepconfig.json').touch()
     subdir = root / 'infrastructure' / 'test'
     subdir.mkdir(parents=True)
@@ -2312,7 +2312,7 @@ def test_find_project_root_from_nested_directory(monkeypatch, tmp_path):
     root = tmp_path / 'project'
     root.mkdir()
     (root / 'README.md').touch()
-    (root / 'requirements.txt').touch()
+    (root / 'pyproject.toml').touch()
     (root / 'bicepconfig.json').touch()
 
     nested_dir = root / 'a' / 'b' / 'c' / 'd' / 'e'
@@ -2613,7 +2613,7 @@ def test_find_project_root_with_readme_only(monkeypatch, tmp_path):
     root = tmp_path / 'project'
     root.mkdir()
     (root / 'README.md').touch()
-    (root / 'requirements.txt').touch()
+    (root / 'pyproject.toml').touch()
     (root / 'bicepconfig.json').touch()
 
     nested = root / 'sub' / 'dir'
@@ -2630,7 +2630,7 @@ def test_find_project_root_with_requirements_only(monkeypatch, tmp_path):
     root = tmp_path / 'project'
     root.mkdir()
     (root / 'README.md').touch()
-    (root / 'requirements.txt').touch()
+    (root / 'pyproject.toml').touch()
     (root / 'bicepconfig.json').touch()
 
     nested = root / 'sub' / 'dir'
@@ -2647,7 +2647,7 @@ def test_find_project_root_already_at_root(monkeypatch, tmp_path):
     root = tmp_path / 'project'
     root.mkdir()
     (root / 'README.md').touch()
-    (root / 'requirements.txt').touch()
+    (root / 'pyproject.toml').touch()
     (root / 'bicepconfig.json').touch()
 
     monkeypatch.setattr('os.getcwd', lambda: str(root))
