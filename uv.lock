@@ -17,6 +17,7 @@ dependencies = [
 
 [package.optional-dependencies]
 dev = [
+    { name = "coverage" },
     { name = "pylint" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -24,13 +25,14 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "coverage", marker = "extra == 'dev'", specifier = ">=7.6.4" },
     { name = "ipykernel" },
     { name = "matplotlib" },
     { name = "pandas" },
     { name = "pyjwt" },
     { name = "pylint", marker = "extra == 'dev'", specifier = ">=3.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.0.0" },
     { name = "python-dotenv" },
     { name = "requests" },
 ]
