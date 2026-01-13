@@ -158,7 +158,7 @@ def test_check_required_packages_missing(monkeypatch: pytest.MonkeyPatch, suppre
 
     ok, fix = vls.check_required_packages()
     assert ok is False
-    assert "pip install" in fix
+    assert "uv sync" in fix
 
 
 def test_check_required_packages_requests_missing(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
