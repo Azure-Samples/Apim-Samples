@@ -35,7 +35,7 @@ jobs:
       - name: Install dependencies
         run: |
           uv venv
-          uv sync --all-groups
+          uv sync --extra dev
 
       # Lint the Python files & upload the result statistics
       - name: Run pylint analysis
