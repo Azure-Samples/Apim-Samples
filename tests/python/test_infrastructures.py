@@ -5488,3 +5488,138 @@ def test_cleanup_resources_parallel_thread_safe_consistent_signature(monkeypatch
     assert 'list[dict]' in str(sig.parameters['resources'].annotation)
     assert sig.parameters['thread_prefix'].annotation == str
     assert sig.parameters['thread_color'].annotation == str
+
+
+@pytest.mark.unit
+def test_cleanup_infra_deployments_all_failures_zero_completed(monkeypatch):
+    """Test cleanup_infra_deployments when all cleanups fail (completed_count == 0) - line 1541."""
+
+    def mock_cleanup_resources_thread_safe(deployment_name, rg_name, thread_prefix, thread_color):
+        # Simulate all failures
+        return False, "Simulated failure"
+
+    def mock_get_infra_rg_name(deployment, index):
+        return f'apim-infra-{deployment.value}-{index}'
+
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
+    monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_error', 'print_warning', 'print_ok'])
+
+    # Test with multiple indexes where all fail
+    infrastructures.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2, 3])
+
+
+@pytest.mark.unit
+def test_base_infrastructure_verification_api_output_fails(mock_utils, mock_az):
+    """Test base infrastructure verification when API count check fails - line 317."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+
+    # Mock successful resource group check
+    mock_az.does_resource_group_exist.return_value = True
+
+    # Mock successful APIM service check
+    mock_apim_output = Mock()
+    mock_apim_output.success = True
+    mock_apim_output.json_data = {'name': 'test-apim'}
+
+    # Mock failed API count check
+    mock_api_output = Mock()
+    mock_api_output.success = False
+
+    mock_az.run.side_effect = [mock_apim_output, mock_api_output]
+
+    result = infra._verify_infrastructure('test-rg')
+
+    # Should still return True even if API count check fails
+    assert result is True
+
+
+@pytest.mark.unit
+def test_infrastructure_deployment_output_fails(mock_utils, mock_az):
+    """Test infrastructure deployment when deployment fails - line 444."""
+    with patch('os.getcwd'), \
+         patch('os.chdir'), \
+         patch('pathlib.Path'), \
+         patch('builtins.open', MagicMock()), \
+         patch('json.dumps', return_value='{"mocked": "params"}'):
+
+        # Mock failed deployment
+        mock_output = Mock()
+        mock_output.success = False
+        mock_az.run.return_value = mock_output
+
+        infra = infrastructures.SimpleApimInfrastructure(
+            rg_location=TEST_LOCATION,
+            index=TEST_INDEX
+        )
+
+        result = infra.deploy_infrastructure()
+
+        # Deployment should fail
+        assert result.success is False
+
+
+@pytest.mark.unit
+def test_afd_apim_infrastructure_verification_pe_output_fails(mock_az):
+    """Test AFD-APIM infrastructure verification when private endpoint check fails - line 629."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location=TEST_LOCATION,
+        index=TEST_INDEX,
+        apim_sku=APIM_SKU.STANDARDV2
+    )
+
+    # Mock successful Front Door check
+    mock_afd_output = Mock()
+    mock_afd_output.success = True
+    mock_afd_output.json_data = {'name': 'test-afd'}
+
+    # Mock successful Container Apps check
+    mock_aca_output = Mock()
+    mock_aca_output.success = True
+    mock_aca_output.text = '2'
+
+    # Mock successful APIM check
+    mock_apim_output = Mock()
+    mock_apim_output.success = True
+    mock_apim_output.text = 'apim-resource-id'
+
+    # Mock failed private endpoint check
+    mock_pe_output = Mock()
+    mock_pe_output.success = False
+
+    mock_az.run.side_effect = [mock_afd_output, mock_aca_output, mock_apim_output, mock_pe_output]
+
+    result = infra._verify_infrastructure_specific('test-rg')
+
+    # Should still return True even if private endpoint check fails
+    assert result is True
+
+
+@pytest.mark.unit
+def test_appgw_apim_infrastructure_verification_aca_output_fails(mock_az):
+    """Test APPGW-APIM infrastructure verification when Container Apps check fails - line 854."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location=TEST_LOCATION,
+        index=TEST_INDEX,
+        apim_sku=APIM_SKU.STANDARDV2
+    )
+
+    # Mock successful Application Gateway check
+    mock_appgw_output = Mock()
+    mock_appgw_output.success = True
+    mock_appgw_output.json_data = {'name': 'test-appgw'}
+
+    # Mock failed Container Apps check
+    mock_aca_output = Mock()
+    mock_aca_output.success = False
+
+    mock_az.run.side_effect = [mock_appgw_output, mock_aca_output]
+
+    result = infra._verify_infrastructure_specific('test-rg')
+
+    # Should still return True even if Container Apps check fails
+    assert result is True
