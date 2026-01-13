@@ -1904,10 +1904,10 @@ def test_infrastructure_notebook_helper_allow_update_false(monkeypatch, suppress
 def test_infrastructure_notebook_helper_missing_args():
     """Test InfrastructureNotebookHelper requires all arguments."""
     with pytest.raises(TypeError):
-        utils.InfrastructureNotebookHelper()
+        utils.InfrastructureNotebookHelper()  # pylint: disable=no-value-for-parameter
 
     with pytest.raises(TypeError):
-        utils.InfrastructureNotebookHelper('eastus')
+        utils.InfrastructureNotebookHelper('eastus')  # pylint: disable=no-value-for-parameter
 
 
 def test_does_infrastructure_exist_with_prompt_multiple_retries(monkeypatch, suppress_console):
