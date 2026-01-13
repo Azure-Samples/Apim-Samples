@@ -29,12 +29,17 @@ echo "⚡ Running unified verification (setup/verify_local_setup.py)..."
 echo ""
 
 WORKSPACE_ROOT="/workspaces/Apim-Samples"
-PY_CMD="uv run python"
 
-# Check if uv is available, fallback to direct python
-if ! command -v uv &> /dev/null; then
-    PY_CMD="$WORKSPACE_ROOT/.venv/bin/python"
-    [ -x "$PY_CMD" ] || PY_CMD=python
+# Use venv python directly (uv manages the venv)
+PY_CMD="$WORKSPACE_ROOT/.venv/bin/python"
+
+# Fallback to system python if venv doesn't exist yet
+if [ ! -x "$PY_CMD" ]; then
+    if command -v python3 &> /dev/null; then
+        PY_CMD=python3
+    else
+        PY_CMD=python
+    fi
 fi
 
 cd "$WORKSPACE_ROOT" || exit 1
