@@ -42,14 +42,12 @@ jobs:
       # Lint the Python files & upload the result statistics
       - name: Run pylint analysis
         id: pylint
-        continue-on-error: true
         run: |
           mkdir -p tests/python/pylint/reports
           # Use python -m pylint and tee to ensure output is captured and visible in logs
           PYTHONPATH=$(pwd) uv run python -m pylint --rcfile tests/python/.pylintrc infrastructure samples setup shared tests 2>&1 | tee tests/python/pylint/reports/latest.txt
 
       - name: Upload pylint reports
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pylint-reports-${{ matrix.python-version }}
@@ -60,32 +58,26 @@ jobs:
         run: |
           uv run python -m compileall infrastructure samples setup shared tests
 
-      # Run tests with continue-on-error so that coverage and PR comments are always published.
-      # The final step will explicitly fail the job if any test failed, ensuring PRs cannot be merged with failing tests.
+      # Run tests and generate coverage reports
       - name: Run pytest with coverage and generate JUnit XML
         id: pytest
         run: |
           PYTHONPATH=$(pwd) COVERAGE_FILE=tests/python/.coverage-${{ matrix.python-version }} uv run pytest --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov-${{ matrix.python-version }} --cov-report=term-missing --junitxml=tests/python/junit-${{ matrix.python-version }}.xml tests/python/
-        continue-on-error: true
 
       - name: Upload coverage HTML report
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-html-${{ matrix.python-version }}
           path: tests/python/htmlcov-${{ matrix.python-version }}/
 
       - name: Upload JUnit test results
-        if: always()
         uses: actions/upload-artifact@v4
-        continue-on-error: true
         with:
           name: junit-results-${{ matrix.python-version }}
           path: tests/python/junit-${{ matrix.python-version }}.xml
 
       # Extract all linting and coverage results in preparation for publish
       - name: Extract and Summarize Metrics
-        if: always()
         id: metrics
         run: |
           # Pylint Score
@@ -111,7 +103,7 @@ jobs:
 
       # Publish general statistics for linting, test success, and code coverage as well as detailed tests results
       - name: Publish Consolidated Results to PR
-        if: always() && github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
@@ -128,7 +120,6 @@ jobs:
             [Full Workflow Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
       - name: Generate Job Summary
-        if: always()
         run: |
           echo "## 🐍 Python ${{ matrix.python-version }} Execution Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -141,22 +132,7 @@ jobs:
           echo "---" >> $GITHUB_STEP_SUMMARY
 
       - name: Publish Unit Test Results
-        if: always()
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
           files: tests/python/junit-${{ matrix.python-version }}.xml
           comment_title: Python ${{ matrix.python-version }} Detailed Test Results
-
-      # Explicitly fail the job if any test failed (so PRs cannot be merged with failing tests).
-      # This runs after all reporting steps, meaning coverage and PR comments are always published.
-      - name: Fail if tests failed
-        if: steps.pytest.outcome == 'failure'
-        run: |
-          echo "::error ::Unit tests failed. See above for details."
-          exit 1
-
-      - name: Fail if pylint failed
-        if: steps.pylint.outcome == 'failure'
-        run: |
-          echo "::error ::Pylint violations detected. See PR comment or artifacts for details."
-          exit 1
