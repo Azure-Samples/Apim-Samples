@@ -2864,10 +2864,6 @@ def test_get_appgw_endpoint_empty_hostname(monkeypatch):
     assert public_ip is None
 
 
-# ------------------------------
-#   BRANCH COVERAGE TESTS
-# ------------------------------
-
 def test_run_with_az_lock_acquired(monkeypatch):
     """Test run function when az command lock is acquired (not None path)."""
 
@@ -3001,3 +2997,41 @@ def test_get_appgw_endpoint_no_public_ip_id(monkeypatch):
 
         assert hostname == 'test.example.com'
         assert ip is None
+
+
+def test_cleanup_old_jwt_signing_keys_deletion_fails(monkeypatch):
+    """Test cleanup when deletion fails (delete_output.success is False)."""
+
+    current_key = 'JwtSigningKey-authx-1234567890'
+    old_key = 'JwtSigningKey-authx-1111111111'
+
+    suppress_module_functions(monkeypatch, az, ['print_ok', 'print_info', 'print_message'])
+
+    with patch('azure_resources.run') as mock_run:
+        mock_run.side_effect = [
+            # List of keys (TSV format: one name per line)
+            Output(True, f'{current_key}\n{old_key}'),
+            # Delete command fails
+            Output(False, 'Delete failed'),
+        ]
+
+        result = az.cleanup_old_jwt_signing_keys('test-apim', 'test-rg', current_key)
+
+        assert result is True
+        # Verify the run was called twice (list + delete)
+        assert mock_run.call_count == 2
+
+
+def test_get_frontdoor_url_no_profile_name(monkeypatch):
+    """Test when Front Door profile has no name (line 688 False branch)."""
+
+    suppress_module_functions(monkeypatch, az, ['print_ok', 'print_warning'])
+
+    with patch('azure_resources.run') as mock_run:
+        mock_run.return_value = Output(True, json.dumps([{'name': ''}]))
+
+        result = az.get_frontdoor_url(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg')
+
+        assert result is None
+        # Only called once since afd_profile_name is empty
+        assert mock_run.call_count == 1
