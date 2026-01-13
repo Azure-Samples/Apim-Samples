@@ -5492,7 +5492,7 @@ def test_cleanup_resources_parallel_thread_safe_consistent_signature(monkeypatch
 
 @pytest.mark.unit
 def test_cleanup_infra_deployments_all_failures_zero_completed(monkeypatch):
-    """Test cleanup_infra_deployments when all cleanups fail (completed_count == 0) - line 1541."""
+    """Test cleanup_infra_deployments when all cleanups fail (completed_count == 0)."""
 
     def mock_cleanup_resources_thread_safe(deployment_name, rg_name, thread_prefix, thread_color):
         # Simulate all failures
@@ -5510,8 +5510,8 @@ def test_cleanup_infra_deployments_all_failures_zero_completed(monkeypatch):
 
 
 @pytest.mark.unit
-def test_cleanup_infra_deployments_some_succeed_some_fail_for_line_1541(monkeypatch):
-    """Test cleanup_infra_deployments when some succeed and some fail - line 1541->1544."""
+def test_cleanup_infra_deployments_some_succeed_some_fail(monkeypatch):
+    """Test cleanup_infra_deployments when some succeed and some fail."""
     success_count = [0]
 
     def mock_cleanup_resources_thread_safe(deployment_name, rg_name, thread_prefix, thread_color):
@@ -5672,3 +5672,22 @@ def test_appgw_apim_infrastructure_verification_aca_output_fails(mock_az):
 
     # Should still return True even if Container Apps check fails
     assert result is True
+
+
+@pytest.mark.unit
+def test_cleanup_infra_deployments_all_exceptions_no_completed(monkeypatch):
+    """Test cleanup_infra_deployments when all tasks raise exceptions - line 1541 False path."""
+
+    def mock_cleanup_resources_thread_safe(deployment_name, rg_name, thread_prefix, thread_color):
+        # Raise exception instead of returning
+        raise Exception("Simulated exception in cleanup")
+
+    def mock_get_infra_rg_name(deployment, index):
+        return f'apim-infra-{deployment.value}-{index}'
+
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
+    monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_error', 'print_warning', 'print_ok'])
+
+    # Test with multiple indexes where all raise exceptions (completed_count == 0, failed_count > 0)
+    infrastructures.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2, 3])
