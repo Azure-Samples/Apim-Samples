@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ '3.12', '3.13' , '3.14' ]
+        python-version: [ '3.12', '3.13', '3.14' ]
     steps:
       - uses: actions/checkout@v4
 
@@ -36,6 +36,8 @@ jobs:
         run: |
           uv venv
           uv sync --extra dev
+          # Verify coverage HTML templates are present
+          uv run python -c "import coverage.html; print(coverage.html.__file__)"
 
       # Lint the Python files & upload the result statistics
       - name: Run pylint analysis
