@@ -5510,6 +5510,29 @@ def test_cleanup_infra_deployments_all_failures_zero_completed(monkeypatch):
 
 
 @pytest.mark.unit
+def test_cleanup_infra_deployments_some_succeed_some_fail_for_line_1541(monkeypatch):
+    """Test cleanup_infra_deployments when some succeed and some fail - line 1541->1544."""
+    success_count = [0]
+
+    def mock_cleanup_resources_thread_safe(deployment_name, rg_name, thread_prefix, thread_color):
+        # First one succeeds, rest fail
+        success_count[0] += 1
+        if success_count[0] == 1:
+            return True, ""
+        return False, "Simulated failure"
+
+    def mock_get_infra_rg_name(deployment, index):
+        return f'apim-infra-{deployment.value}-{index}'
+
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
+    monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_error', 'print_warning', 'print_ok'])
+
+    # Test with multiple indexes where some fail (completed_count > 0)
+    infrastructures.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2, 3])
+
+
+@pytest.mark.unit
 def test_base_infrastructure_verification_api_output_fails(mock_utils, mock_az):
     """Test base infrastructure verification when API count check fails - line 317."""
     infra = infrastructures.Infrastructure(
@@ -5561,6 +5584,32 @@ def test_infrastructure_deployment_output_fails(mock_utils, mock_az):
 
         # Deployment should fail
         assert result.success is False
+
+
+@pytest.mark.unit
+def test_infrastructure_deployment_success_no_json_data(mock_utils, mock_az):
+    """Test infrastructure deployment when successful but no JSON data - line 444->460."""
+    with patch('os.getcwd'), \
+         patch('os.chdir'), \
+         patch('pathlib.Path'), \
+         patch('builtins.open', MagicMock()), \
+         patch('json.dumps', return_value='{"mocked": "params"}'):
+
+        # Mock successful deployment but no JSON data
+        mock_output = Mock()
+        mock_output.success = True
+        mock_output.json_data = None  # No JSON data
+        mock_az.run.return_value = mock_output
+
+        infra = infrastructures.SimpleApimInfrastructure(
+            rg_location=TEST_LOCATION,
+            index=TEST_INDEX
+        )
+
+        result = infra.deploy_infrastructure()
+
+        # Deployment should succeed
+        assert result.success is True
 
 
 @pytest.mark.unit
