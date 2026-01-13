@@ -130,9 +130,6 @@ function PyRun {
     }
 }
 
-# Ensure environment is ready when uv is available
-Ensure-UvEnv
-
 while ($true) {
     Write-Host ""
     Write-Host "APIM Samples Developer CLI" -ForegroundColor Cyan

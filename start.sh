@@ -83,9 +83,6 @@ pyrun() {
   fi
 }
 
-# Ensure environment is ready when uv is available
-ensure_uv_env
-
 while true; do
   echo ""
   echo "APIM Samples Developer CLI"

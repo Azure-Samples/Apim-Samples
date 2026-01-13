@@ -68,6 +68,24 @@ def check_virtual_environment():
 
     return True, ""
 
+def check_uv_sync():
+    """Check if uv is available and sync dependencies if it is."""
+    uv_path = shutil.which("uv")
+    if not uv_path:
+        return True, "uv is not installed (optional - install from https://docs.astral.sh/uv/)"
+
+    venv_path = Path.cwd() / ".venv"
+    if not venv_path.exists():
+        try:
+            subprocess.run([uv_path, "venv"], check=True, capture_output=True)
+        except subprocess.CalledProcessError as exc:
+            return False, f"Failed to create venv with uv: {exc}"
+
+    try:
+        subprocess.run([uv_path, "sync"], check=True, capture_output=True)
+        return True, ""
+    except subprocess.CalledProcessError as exc:
+        return False, f"Failed to sync dependencies with uv: {exc}"
 
 def check_required_packages():
     """Check if required packages are installed."""
@@ -291,6 +309,7 @@ def main():
 
     checks = [
         ("Virtual Environment", check_virtual_environment),
+        ("UV Sync", check_uv_sync),
         ("Required Packages", check_required_packages),
         ("Shared Modules", check_shared_modules),
         ("Environment File", check_env_file),
