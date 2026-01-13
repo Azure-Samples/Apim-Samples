@@ -46,6 +46,19 @@ RUN az config set core.login_experience_v2=off 2>/dev/null || true && \
     az extension add --name containerapp --only-show-errors 2>/dev/null || true && \
     az extension add --name front-door --only-show-errors 2>/dev/null || true
 
+# Pre-install VS Code extensions (reduces startup time significantly)
+RUN mkdir -p /home/vscode/.vscode-server/extensions && \
+    code-server --install-extension ms-python.python && \
+    code-server --install-extension ms-python.debugpy && \
+    code-server --install-extension ms-toolsai.jupyter && \
+    code-server --install-extension ms-azuretools.vscode-bicep && \
+    code-server --install-extension ms-vscode.azurecli && \
+    code-server --install-extension redhat.vscode-yaml && \
+    code-server --install-extension ms-vscode.vscode-json && \
+    code-server --install-extension GitHub.copilot && \
+    code-server --install-extension GitHub.copilot-chat && \
+    code-server --install-extension donjayamanne.vscode-default-python-kernel
+
 # Set final working directory
 WORKDIR /workspaces/Apim-Samples
 
