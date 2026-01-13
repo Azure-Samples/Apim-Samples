@@ -99,23 +99,8 @@ except Exception as exc:  # pylint: disable=broad-except
     }
 }
 
-function Has-Uv {
+function Test-Uv {
     return [bool](Get-Command uv -ErrorAction SilentlyContinue)
-}
-
-function Ensure-UvEnv {
-    if (Has-Uv) {
-        Push-Location $RepoRoot
-        try {
-            if (-not (Test-Path (Join-Path $RepoRoot ".venv"))) {
-                Invoke-Cmd "uv" "venv" | Out-Null
-            }
-            Invoke-Cmd "uv" "sync" | Out-Null
-        }
-        finally {
-            Pop-Location
-        }
-    }
 }
 
 function PyRun {
@@ -123,7 +108,7 @@ function PyRun {
         [Parameter(ValueFromRemainingArguments=$true)]
         [string[]] $Args
     )
-    if (Has-Uv) {
+    if (Test-Uv) {
         Invoke-Cmd "uv" (@("run", "python") + $Args)
     } else {
         Invoke-Cmd (Get-Python) $Args
