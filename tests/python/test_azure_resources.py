@@ -941,7 +941,7 @@ def test_get_endpoints_success(mock_appgw, mock_apim, mock_afd):
     mock_appgw.assert_called_once_with('test-rg')
 
 # ------------------------------
-#    ADDITIONAL ERROR HANDLING TESTS
+#   ERROR HANDLING TESTS
 # ------------------------------
 
 def test_run_with_debug_flag_injection(monkeypatch):
@@ -2862,3 +2862,142 @@ def test_get_appgw_endpoint_empty_hostname(monkeypatch):
 
     assert hostname is None
     assert public_ip is None
+
+
+# ------------------------------
+#   BRANCH COVERAGE TESTS
+# ------------------------------
+
+def test_run_with_az_lock_acquired(monkeypatch):
+    """Test run function when az command lock is acquired (not None path)."""
+
+    suppress_module_functions(monkeypatch, az, ['print_command'])
+
+    with patch('azure_resources.is_debug_enabled', return_value=False):
+        with patch('azure_resources._is_az_command', return_value=True):
+            with patch('azure_resources._AZ_CLI_LOCK') as mock_lock:
+                mock_lock.__enter__ = Mock(return_value=None)
+                mock_lock.__exit__ = Mock(return_value=None)
+
+                with patch('subprocess.run') as mock_subprocess:
+                    mock_subprocess.return_value = Mock(
+                        returncode=0,
+                        stdout='success output',
+                        stderr=''
+                    )
+
+                    result = az.run('az group list')
+
+                    assert result.success
+                    assert result.text == 'success output'
+                    mock_lock.__enter__.assert_called_once()
+                    mock_lock.__exit__.assert_called_once()
+
+
+def test_run_with_explicit_log_command_false(monkeypatch):
+    """Test run function with explicit log_command=False to hit line 203."""
+
+    suppress_module_functions(monkeypatch, az, ['print_command'])
+
+    with patch('azure_resources.is_debug_enabled', return_value=False):
+        with patch('subprocess.run') as mock_subprocess:
+            mock_subprocess.return_value = Mock(
+                returncode=0,
+                stdout='test output',
+                stderr=''
+            )
+
+            result = az.run('echo test', log_command=False)
+
+            assert result.success
+            assert result.text == 'test output'
+
+
+def test_run_with_explicit_log_command_true(monkeypatch):
+    """Test run function with explicit log_command=True to hit line 203."""
+
+    suppress_module_functions(monkeypatch, az, ['print_command'])
+
+    with patch('azure_resources.is_debug_enabled', return_value=False):
+        with patch('subprocess.run') as mock_subprocess:
+            mock_subprocess.return_value = Mock(
+                returncode=0,
+                stdout='test output',
+                stderr=''
+            )
+
+            result = az.run('echo test', log_command=True)
+
+            assert result.success
+            assert result.text == 'test output'
+
+
+def test_cleanup_old_jwt_signing_keys_no_deletions(monkeypatch):
+    """Test cleanup when all keys are kept (deleted_count == 0)."""
+
+    current_key = 'JwtSigningKey-authx-1234567890'
+
+    suppress_module_functions(monkeypatch, az, ['print_ok', 'print_info', 'print_message'])
+
+    with patch('azure_resources.run') as mock_run:
+        mock_run.side_effect = [
+            Output(True, json.dumps([
+                {'name': current_key}
+            ])),
+        ]
+
+        result = az.cleanup_old_jwt_signing_keys('test-apim', 'test-rg', current_key)
+
+        assert result is True
+
+
+def test_get_frontdoor_url_no_hostname_in_endpoint(monkeypatch):
+    """Test when Front Door endpoint exists but has no hostname."""
+
+    suppress_module_functions(monkeypatch, az, ['print_ok', 'print_warning', 'print_val'])
+
+    with patch('azure_resources.run') as mock_run:
+        mock_run.side_effect = [
+            Output(True, json.dumps([{'name': 'afd-profile'}])),
+            Output(True, json.dumps([{'name': 'endpoint1', 'hostName': None}])),
+        ]
+
+        result = az.get_frontdoor_url(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg')
+
+        assert result is None
+
+
+def test_get_frontdoor_url_empty_hostname(monkeypatch):
+    """Test when Front Door endpoint has empty hostname string."""
+
+    suppress_module_functions(monkeypatch, az, ['print_ok', 'print_warning', 'print_val'])
+
+    with patch('azure_resources.run') as mock_run:
+        mock_run.side_effect = [
+            Output(True, json.dumps([{'name': 'afd-profile'}])),
+            Output(True, json.dumps([{'name': 'endpoint1', 'hostName': ''}])),
+        ]
+
+        result = az.get_frontdoor_url(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg')
+
+        assert result is None
+
+
+def test_get_appgw_endpoint_no_public_ip_id(monkeypatch):
+    """Test when Application Gateway has no public IP ID in frontend config."""
+
+    suppress_module_functions(monkeypatch, az, ['print_ok', 'print_warning'])
+
+    with patch('azure_resources.run') as mock_run:
+        mock_run.return_value = Output(True, json.dumps([{
+            'name': 'appgw',
+            'httpListeners': [{'hostName': 'test.example.com'}],
+            'frontendIPConfigurations': [
+                {'name': 'config1'}
+            ]
+        }]))
+
+        hostname, ip = az.get_appgw_endpoint('test-rg')
+
+        assert hostname == 'test.example.com'
+        assert ip is None

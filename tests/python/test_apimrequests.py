@@ -193,7 +193,7 @@ def test_subscription_key_setter_updates_and_clears_header():
     assert SUBSCRIPTION_KEY_PARAMETER_NAME not in apim.headers
 
 # ------------------------------
-#    ADDITIONAL COVERAGE TESTS FOR APIMREQUESTS
+#   COVERAGE TESTS FOR APIMREQUESTS
 # ------------------------------
 
 @pytest.mark.unit

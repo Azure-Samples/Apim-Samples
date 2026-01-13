@@ -1103,7 +1103,7 @@ class TestProjectRoot:
 
 
 # ------------------------------
-#    ADDITIONAL BRANCH COVERAGE TESTS
+#   BRANCH COVERAGE TESTS
 # ------------------------------
 
 class TestAPISKUEdgeCases:

@@ -56,7 +56,7 @@ def test_create_jwt_payload_for_user_no_user():
         AuthFactory.create_jwt_payload_for_user(None)
 
 # ------------------------------
-#    ADDITIONAL COVERAGE TESTS
+#   COVERAGE TESTS
 # ------------------------------
 
 def test_jwt_payload_edge_cases():

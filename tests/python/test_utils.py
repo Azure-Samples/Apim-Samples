@@ -387,7 +387,7 @@ def test_create_bicep_deployment_group_deployment_failure(monkeypatch):
     assert result.success is False
 
 # ------------------------------
-#    ADDITIONAL COVERAGE TESTS
+#   COVERAGE TESTS
 # ------------------------------
 
 def test_print_functions_comprehensive():
@@ -2718,7 +2718,7 @@ def test_output_get_with_deep_nesting():
 
 
 # ------------------------------
-#    Additional coverage
+#   coverage
 # ------------------------------
 
 def test_create_infrastructure_unsupported_type(monkeypatch, suppress_utils_console):

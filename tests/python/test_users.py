@@ -157,7 +157,7 @@ def test_get_user_by_role_randomness(monkeypatch):
     assert user.name == 'User2'
 
 # ------------------------------
-#    ADDITIONAL COVERAGE TESTS
+#   COVERAGE TESTS
 # ------------------------------
 
 def test_user_edge_cases():
