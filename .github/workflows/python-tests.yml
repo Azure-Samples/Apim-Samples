@@ -35,7 +35,7 @@ jobs:
       - name: Install dependencies
         run: |
           uv venv
-          uv sync --extra dev
+          uv sync
           # Verify coverage HTML templates are present
           uv run python -c "import coverage.html; print(coverage.html.__file__)"
 
