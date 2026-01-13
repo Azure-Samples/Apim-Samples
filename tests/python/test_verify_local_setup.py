@@ -120,6 +120,99 @@ def test_check_virtual_environment_wrong_python(temp_cwd: Path, monkeypatch: pyt
 
 
 # ============================================================
+# Tests for check_uv_sync
+# ============================================================
+
+def test_check_uv_sync_uv_not_installed(suppress_print) -> None:
+    """UV sync check should pass (with note) when uv is not installed."""
+    with patch("shutil.which") as mock_which:
+        mock_which.return_value = None
+        ok, fix = vls.check_uv_sync()
+        assert ok is True
+        assert "uv is not installed" in fix
+        assert "optional" in fix
+
+
+def test_check_uv_sync_success_venv_exists(temp_cwd: Path, suppress_print) -> None:
+    """UV sync check should pass when uv syncs dependencies successfully with existing venv."""
+    (temp_cwd / ".venv").mkdir()
+
+    with patch("shutil.which") as mock_which:
+        with patch("subprocess.run") as mock_run:
+            mock_which.return_value = "/usr/bin/uv"
+            mock_run.return_value = Mock(returncode=0)
+
+            ok, fix = vls.check_uv_sync()
+            assert ok is True
+            assert not fix
+            # Verify sync was called
+            mock_run.assert_called_once()
+            assert "sync" in mock_run.call_args[0][0]
+
+
+def test_check_uv_sync_fail_sync(temp_cwd: Path, suppress_print) -> None:
+    """UV sync check should fail when uv sync fails."""
+    (temp_cwd / ".venv").mkdir()
+
+    with patch("shutil.which") as mock_which:
+        with patch("subprocess.run") as mock_run:
+            mock_which.return_value = "/usr/bin/uv"
+            mock_run.side_effect = subprocess.CalledProcessError(1, ["uv", "sync"])
+
+            ok, fix = vls.check_uv_sync()
+            assert ok is False
+            assert "Failed to sync dependencies" in fix
+
+
+def test_check_uv_sync_creates_venv_then_syncs(temp_cwd: Path, suppress_print) -> None:
+    """UV sync check should create venv if missing then sync successfully."""
+    with patch("shutil.which") as mock_which:
+        with patch("subprocess.run") as mock_run:
+            mock_which.return_value = "/usr/bin/uv"
+            mock_run.return_value = Mock(returncode=0)
+
+            ok, fix = vls.check_uv_sync()
+            assert ok is True
+            assert not fix
+            # Verify both venv creation and sync were called
+            assert mock_run.call_count == 2
+            assert "venv" in mock_run.call_args_list[0][0][0]
+            assert "sync" in mock_run.call_args_list[1][0][0]
+
+
+def test_check_uv_sync_fail_venv_creation(temp_cwd: Path, suppress_print) -> None:
+    """UV sync check should fail when venv creation fails."""
+    with patch("shutil.which") as mock_which:
+        with patch("subprocess.run") as mock_run:
+            mock_which.return_value = "/usr/bin/uv"
+            mock_run.side_effect = subprocess.CalledProcessError(1, ["uv", "venv"])
+
+            ok, fix = vls.check_uv_sync()
+            assert ok is False
+            assert "Failed to create venv" in fix
+
+
+def test_check_uv_sync_venv_created_but_sync_fails(temp_cwd: Path, suppress_print) -> None:
+    """UV sync check should fail when venv is created but sync fails."""
+    with patch("shutil.which") as mock_which:
+        with patch("subprocess.run") as mock_run:
+            mock_which.return_value = "/usr/bin/uv"
+
+            def run_side_effect(cmd, **kwargs):
+                if "venv" in cmd:
+                    return Mock(returncode=0)
+                if "sync" in cmd:
+                    raise subprocess.CalledProcessError(1, ["uv", "sync"])
+                return Mock(returncode=0)
+
+            mock_run.side_effect = run_side_effect
+
+            ok, fix = vls.check_uv_sync()
+            assert ok is False
+            assert "Failed to sync dependencies" in fix
+
+
+# ============================================================
 # Tests for check_required_packages
 # ============================================================
 
