@@ -8,7 +8,7 @@
   },
   "features": {
     "ghcr.io/devcontainers/features/azure-cli:1": {
-      "version": "2.81.0"
+      "version": "2.82.0"
     },
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": false,
