@@ -1038,7 +1038,6 @@ class TestProjectRoot:
         project_dir = tmp_path / 'project'
         project_dir.mkdir()
         (project_dir / 'README.md').write_text('test')
-        (project_dir / 'requirements.txt').write_text('test')
         (project_dir / 'bicepconfig.json').write_text('test')
 
         # Mock __file__ to point into a subdirectory
@@ -1068,14 +1067,13 @@ class TestProjectRoot:
 
         # Verify it has the expected files
         assert (root / 'README.md').exists()
-        assert (root / 'requirements.txt').exists()
         assert (root / 'bicepconfig.json').exists()
 
     def test_get_project_root_detects_parent_indicators(self, tmp_path, monkeypatch):
         """Ensure traversal finds indicators in parent directories."""
         project_dir = tmp_path / 'proj'
         project_dir.mkdir()
-        for name in ['README.md', 'requirements.txt', 'bicepconfig.json']:
+        for name in ['README.md', 'bicepconfig.json']:
             (project_dir / name).write_text('x')
 
         child_dir = project_dir / 'shared' / 'python'

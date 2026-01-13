@@ -33,7 +33,6 @@ def temp_project_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
 
     # The script expects these indicator files to exist at project root.
     (tmp_path / "README.md").write_text("x", encoding="utf-8")
-    (tmp_path / "requirements.txt").write_text("x", encoding="utf-8")
     (tmp_path / "bicepconfig.json").write_text("{}", encoding="utf-8")
 
     monkeypatch.setattr(sps, "get_project_root", lambda: tmp_path)
@@ -194,7 +193,6 @@ def test_get_project_root_finds_indicators(tmp_path: Path):
     """Test get_project_root locates project root by indicators."""
     # Create indicators at root
     (tmp_path / "README.md").write_text("x")
-    (tmp_path / "requirements.txt").write_text("x")
     (tmp_path / "bicepconfig.json").write_text("{}")
 
     # Create a nested setup folder
@@ -208,7 +206,7 @@ def test_get_project_root_finds_indicators(tmp_path: Path):
             with patch("pathlib.Path.exists"):
                 with patch("pathlib.Path.parent", tmp_path.parent):
                     # Verify indicators would be found
-                    assert all((tmp_path / indicator).exists() for indicator in ["README.md", "requirements.txt", "bicepconfig.json"])
+                    assert all((tmp_path / indicator).exists() for indicator in ["README.md", "bicepconfig.json"])
 
 
 def test_setup_python_path(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
@@ -999,7 +997,6 @@ def test_get_project_root_walks_up_directory_tree(tmp_path: Path):
     root = tmp_path / "project"
     root.mkdir()
     (root / "README.md").write_text("x")
-    (root / "requirements.txt").write_text("x")
     (root / "bicepconfig.json").write_text("{}")
 
     nested = root / "a" / "b" / "c"
