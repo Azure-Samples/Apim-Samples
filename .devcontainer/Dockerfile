@@ -38,11 +38,17 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     chown -R vscode:vscode /usr/local/share/venv-template && \
     rm /tmp/pyproject.toml
 
+# Install Azure CLI 2.82.0 (prebuild optimization)
+USER root
+RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash && \
+    az --version
+
 # Switch to vscode user
 USER vscode
 
 # Configure Azure CLI for Codespaces (prebuild optimization)
 RUN az config set core.login_experience_v2=off 2>/dev/null || true && \
+    az bicep install 2>/dev/null || true && \
     az extension add --name containerapp --only-show-errors 2>/dev/null || true && \
     az extension add --name front-door --only-show-errors 2>/dev/null || true
 
