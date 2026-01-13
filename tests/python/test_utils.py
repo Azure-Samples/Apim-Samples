@@ -2625,7 +2625,7 @@ def test_find_project_root_with_readme_only(monkeypatch, tmp_path):
     assert result == str(root)
 
 
-def test_find_project_root_with_requirements_only(monkeypatch, tmp_path):
+def test_find_project_root_with_files(monkeypatch, tmp_path):
     """Test find_project_root finds root when all markers are present."""
     root = tmp_path / 'project'
     root.mkdir()

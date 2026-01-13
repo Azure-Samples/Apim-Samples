@@ -7,7 +7,6 @@ requires-python = ">=3.12"
 authors = [{ name = "Azure Samples" }]
 license = { file = "LICENSE" }
 
-# Converted from requirements.txt
 # Core runtime dependencies
 dependencies = [
   "ipykernel",
