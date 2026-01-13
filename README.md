@@ -143,6 +143,11 @@ All prerequisites are automatically installed and configured.
 These prerequisites apply broadly across all infrastructure and samples. If there are specific deviations, expect them to be noted there.
 
 - [Python][python] **3.12, 3.13, and 3.14 are all supported**
+- **uv** (https://docs.astral.sh/uv/) - Fast Python package manager
+  - **Windows**: `winget install --id=astral-sh.uv -e` or `scoop install uv`
+  - **macOS**: `brew install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`
+  - **Linux**: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+  - Verify: `uv --version`
 - [VS Code][vscode] installed with the [Jupyter notebook extension][vscode-jupyter] enabled
 - [Azure CLI][azure-cli-install] installed
 - [Azure Bicep][azure-bicep-install] installed
@@ -155,8 +160,14 @@ These prerequisites apply broadly across all infrastructure and samples. If ther
 
 #### Manual Local Setup
 
-1. **Create Python Environment**: In VS Code, use **Ctrl+Shift+P → "Python: Create Environment" → "Venv" → Select Python version → Leave name as `.venv` → "Install project dependencies" → Check requirements.txt → OK**  
-  The install may take a few minutes. You can check on progress in the _OUTPUT_ window (select `Python`).
+1. **Create Python Environment**:
+
+   ```bash
+   uv venv
+   uv sync
+   ```
+
+   Alternatively, you can use VS Code: Ctrl+Shift+P → "Python: Create Environment" → "Venv" → Select Python version → name: .venv. Then run `uv sync` to install dependencies.
 1. **Complete Environment Setup**: Open a terminal and start the [Developer CLI](#-developer-cli), then select `Complete environment setup`.
 3. **Restart VS Code** to apply all settings
 4. **Sign in to Azure**: `az login --tenant <your-tenant-id>` and `az account set --subscription <your-subscription>`

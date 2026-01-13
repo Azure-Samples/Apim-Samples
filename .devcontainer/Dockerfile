@@ -14,28 +14,29 @@ ARG PYTHON_VERSION
 ENV PYTHONPATH=/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    UV_SYSTEM_PYTHON=1
 
-# Install minimal system dependencies as root
-# Use cache mounts for apt and pip to speed up rebuilds while keeping image lean
+# Install uv (https://docs.astral.sh/uv/) for fast Python package management
 USER root
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt/lists \
-    --mount=type=cache,target=/root/.cache/pip \
     apt-get update && \
-    apt-get install -y --no-install-recommends --no-install-suggests && \
+    apt-get install -y --no-install-recommends --no-install-suggests curl ca-certificates && \
     rm -rf /var/lib/apt/lists/* && \
     apt-get clean && \
-    python3 -m pip install --upgrade --no-cache-dir pip setuptools wheel
+    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    mv /root/.cargo/bin/uv /usr/local/bin/uv && \
+    chmod +x /usr/local/bin/uv
 
 # Prebuild project virtual environment template with all Python dependencies (as root for /usr/local permissions)
-COPY requirements.txt /tmp/requirements.txt
-RUN --mount=type=cache,target=/root/.cache/pip \
+COPY pyproject.toml /tmp/pyproject.toml
+RUN --mount=type=cache,target=/root/.cache/uv \
     python3 -m venv /usr/local/share/venv-template --copies && \
-    /usr/local/share/venv-template/bin/pip install --upgrade pip setuptools wheel && \
-    /usr/local/share/venv-template/bin/pip install -r /tmp/requirements.txt && \
+    cd /tmp && \
+    /usr/local/share/venv-template/bin/python -m pip install uv && \
+    /usr/local/share/venv-template/bin/uv pip install --python /usr/local/share/venv-template/bin/python -e . && \
     chown -R vscode:vscode /usr/local/share/venv-template && \
-    rm /tmp/requirements.txt
+    rm /tmp/pyproject.toml
 
 # Switch to vscode user
 USER vscode

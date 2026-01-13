@@ -194,7 +194,7 @@ def get_project_root() -> Path:
 
     # Project root indicators - files that should exist at project root
     # These help identify the correct directory regardless of where script is run
-    indicators = ['README.md', 'requirements.txt', 'bicepconfig.json']
+    indicators = ['README.md', 'pyproject.toml', 'bicepconfig.json']
     current_path = start_path
 
     # Walk up the directory tree until we find all indicators or reach filesystem root
@@ -324,8 +324,14 @@ def install_jupyter_kernel():
     except (subprocess.CalledProcessError, FileNotFoundError):
         print("Installing ipykernel...")
         try:
-            subprocess.run([sys.executable, '-m', 'pip', 'install', 'ipykernel'],
-                          check=True, capture_output=True, text=True)
+            # Try uv first, fallback to pip
+            uv_cmd = shutil.which('uv')
+            if uv_cmd:
+                subprocess.run([uv_cmd, 'pip', 'install', 'ipykernel'],
+                              check=True, capture_output=True, text=True)
+            else:
+                subprocess.run([sys.executable, '-m', 'pip', 'install', 'ipykernel'],
+                              check=True, capture_output=True, text=True)
             print("✅ ipykernel installed successfully")
         except subprocess.CalledProcessError as e:
             print(f"❌ Failed to install ipykernel: {e}")

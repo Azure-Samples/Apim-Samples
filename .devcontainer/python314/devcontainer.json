@@ -67,12 +67,12 @@
   "onCreateCommand": [
     "bash",
     "-c",
-    "echo '🚀 Creating Python virtual environment in workspace...' && /usr/local/bin/python3.14 -m venv /workspaces/Apim-Samples/.venv --copies && source /workspaces/Apim-Samples/.venv/bin/activate && pip install --upgrade pip setuptools wheel ipykernel && echo '✅ Virtual environment created' && echo '🔧 Registering Jupyter kernel...' && python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)' && echo '🧹 Removing default python3 kernel...' && rm -rf /workspaces/Apim-Samples/.venv/share/jupyter/kernels/python3 2>/dev/null || true && echo '✅ Jupyter kernel registered'"
+    "echo '🚀 Creating Python virtual environment with uv...' && uv venv /workspaces/Apim-Samples/.venv --python /usr/local/bin/python3.14 && source /workspaces/Apim-Samples/.venv/bin/activate && echo '✅ Virtual environment created' && echo '🔧 Registering Jupyter kernel...' && python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)' && echo '🧹 Removing default python3 kernel...' && rm -rf /workspaces/Apim-Samples/.venv/share/jupyter/kernels/python3 2>/dev/null || true && echo '✅ Jupyter kernel registered'"
   ],
   "updateContentCommand": [
     "bash",
     "-c",
-    "echo '📦 Installing/updating Python packages from requirements.txt...' && source /workspaces/Apim-Samples/.venv/bin/activate && pip install -r requirements.txt && pip install pytest pytest-cov coverage && echo '✅ Python packages installed/updated' && python setup/local_setup.py --generate-env && echo '✅ Environment configuration updated' && echo '⚙️ Configuring Azure CLI and Bicep...' && az config set core.login_experience_v2=off 2>/dev/null || true && az bicep install 2>/dev/null || true && az extension add --name containerapp --only-show-errors 2>/dev/null || true && az extension add --name front-door --only-show-errors 2>/dev/null || true && echo '✅ Azure CLI configured for Codespaces'"
+    "echo '📦 Installing/updating Python packages with uv...' && source /workspaces/Apim-Samples/.venv/bin/activate && uv sync && echo '✅ Python packages installed/updated' && python setup/local_setup.py --generate-env && echo '✅ Environment configuration updated' && echo '⚙️ Configuring Azure CLI and Bicep...' && az config set core.login_experience_v2=off 2>/dev/null || true && az bicep install 2>/dev/null || true && az extension add --name containerapp --only-show-errors 2>/dev/null || true && az extension add --name front-door --only-show-errors 2>/dev/null || true && echo '✅ Azure CLI configured for Codespaces'"
   ],
   "postStartCommand": [
     "bash",

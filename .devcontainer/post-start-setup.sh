@@ -29,8 +29,13 @@ echo "⚡ Running unified verification (setup/verify_local_setup.py)..."
 echo ""
 
 WORKSPACE_ROOT="/workspaces/Apim-Samples"
-PY_CMD="$WORKSPACE_ROOT/.venv/bin/python"
-[ -x "$PY_CMD" ] || PY_CMD=python
+PY_CMD="uv run python"
+
+# Check if uv is available, fallback to direct python
+if ! command -v uv &> /dev/null; then
+    PY_CMD="$WORKSPACE_ROOT/.venv/bin/python"
+    [ -x "$PY_CMD" ] || PY_CMD=python
+fi
 
 cd "$WORKSPACE_ROOT" || exit 1
 

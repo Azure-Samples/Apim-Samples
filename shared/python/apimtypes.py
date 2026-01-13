@@ -23,7 +23,7 @@ def get_project_root() -> Path:
 
     # Fallback: detect project root by walking up from this file
     current_path = Path(__file__).resolve().parent.parent.parent  # Go up from shared/python/
-    indicators = ['README.md', 'requirements.txt', 'bicepconfig.json']
+    indicators = ['README.md', 'pyproject.toml', 'bicepconfig.json']
 
     while current_path != current_path.parent:
         if all((current_path / indicator).exists() for indicator in indicators):

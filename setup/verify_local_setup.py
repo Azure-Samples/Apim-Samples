@@ -58,7 +58,7 @@ def check_virtual_environment():
     """Check if we're running in the correct virtual environment."""
     venv_path = Path.cwd() / ".venv"
     if not venv_path.exists():
-        return False, "Create it: python -m venv .venv && source .venv/bin/activate (or .venv\\Scripts\\activate on Windows)"
+        return False, "Create it: uv venv && uv sync (then activate: source .venv/bin/activate or .venv\\Scripts\\activate on Windows)"
 
     current_python = Path(sys.executable)
     expected_venv_python = venv_path / ("Scripts" if os.name == 'nt' else "bin") / "python"
@@ -86,7 +86,7 @@ def check_required_packages():
             missing.append(package_name)
 
     if missing:
-        return False, f"Install missing packages: pip install -r requirements.txt (missing: {', '.join(missing)})"
+        return False, f"Install missing packages: uv sync (missing: {', '.join(missing)})"
 
     return True, ""
 
@@ -128,7 +128,7 @@ def check_jupyter_kernel():
 
         return False, "Register kernel: python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)'"
     except (subprocess.CalledProcessError, FileNotFoundError):
-        return False, "Install Jupyter tooling: pip install ipykernel jupyter"
+        return False, "Install Jupyter tooling: uv add --dev jupyter && uv sync"
 
 
 def check_vscode_settings():

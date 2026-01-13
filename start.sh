@@ -65,6 +65,27 @@ PY
 }
 
 
+has_uv() {
+  command -v uv >/dev/null 2>&1
+}
+
+ensure_uv_env() {
+  if has_uv; then
+    (cd "${REPO_ROOT}" && { [ -d .venv ] || uv venv; } && uv sync >/dev/null 2>&1 || true)
+  fi
+}
+
+pyrun() {
+  if has_uv; then
+    uv run python "$@"
+  else
+    "$(find_python)" "$@"
+  fi
+}
+
+# Ensure environment is ready when uv is available
+ensure_uv_env
+
 while true; do
   echo ""
   echo "APIM Samples Developer CLI"
@@ -90,19 +111,19 @@ while true; do
   read -rp "Select an option: " choice
   case "$choice" in
     1)
-      run_cmd "$(find_python)" "${REPO_ROOT}/setup/local_setup.py" --complete-setup
+      run_cmd pyrun "${REPO_ROOT}/setup/local_setup.py" --complete-setup
       ;;
     2)
-      run_cmd "$(find_python)" "${REPO_ROOT}/setup/verify_local_setup.py"
+      run_cmd pyrun "${REPO_ROOT}/setup/verify_local_setup.py"
       ;;
     3)
       show_account
       ;;
     4)
-      run_cmd "$(find_python)" "${REPO_ROOT}/shared/python/show_soft_deleted_resources.py"
+      run_cmd pyrun "${REPO_ROOT}/shared/python/show_soft_deleted_resources.py"
       ;;
     5)
-      run_cmd "$(find_python)" "${REPO_ROOT}/shared/python/show_infrastructures.py"
+      run_cmd pyrun "${REPO_ROOT}/shared/python/show_infrastructures.py"
       ;;
     6)
       run_cmd bash "${REPO_ROOT}/tests/python/run_pylint.sh"

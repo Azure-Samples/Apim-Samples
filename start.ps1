@@ -99,6 +99,39 @@ except Exception as exc:  # pylint: disable=broad-except
     }
 }
 
+function Has-Uv {
+    return [bool](Get-Command uv -ErrorAction SilentlyContinue)
+}
+
+function Ensure-UvEnv {
+    if (Has-Uv) {
+        Push-Location $RepoRoot
+        try {
+            if (-not (Test-Path (Join-Path $RepoRoot ".venv"))) {
+                Invoke-Cmd "uv" "venv" | Out-Null
+            }
+            Invoke-Cmd "uv" "sync" | Out-Null
+        }
+        finally {
+            Pop-Location
+        }
+    }
+}
+
+function PyRun {
+    param(
+        [Parameter(ValueFromRemainingArguments=$true)]
+        [string[]] $Args
+    )
+    if (Has-Uv) {
+        Invoke-Cmd "uv" (@("run", "python") + $Args)
+    } else {
+        Invoke-Cmd (Get-Python) $Args
+    }
+}
+
+# Ensure environment is ready when uv is available
+Ensure-UvEnv
 
 while ($true) {
     Write-Host ""
@@ -126,19 +159,19 @@ while ($true) {
 
     switch ($choice) {
         '1' {
-            Invoke-Cmd (Get-Python) "$RepoRoot/setup/local_setup.py" "--complete-setup" | Out-Null
+            PyRun "$RepoRoot/setup/local_setup.py" "--complete-setup" | Out-Null
         }
         '2' {
-            Invoke-Cmd (Get-Python) "$RepoRoot/setup/verify_local_setup.py" | Out-Null
+            PyRun "$RepoRoot/setup/verify_local_setup.py" | Out-Null
         }
         '3' {
             Show-AccountInfo
         }
         '4' {
-            Invoke-Cmd (Get-Python) "$RepoRoot/shared/python/show_soft_deleted_resources.py" | Out-Null
+            PyRun "$RepoRoot/shared/python/show_soft_deleted_resources.py" | Out-Null
         }
         '5' {
-            Invoke-Cmd (Get-Python) "$RepoRoot/shared/python/show_infrastructures.py" | Out-Null
+            PyRun "$RepoRoot/shared/python/show_infrastructures.py" | Out-Null
         }
         '6' {
             Invoke-Cmd "$RepoRoot/tests/python/run_pylint.ps1" | Out-Null

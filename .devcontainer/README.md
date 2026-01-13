@@ -92,8 +92,8 @@ GitHub Codespaces will also display a generic **"Default"** dev container option
 ### Stage 2: Content Update (devcontainer.json)
 **When it runs**: During prebuild when content changes
 **What it does**:
-- Creates Python virtual environment
-- Installs all Python packages from `requirements.txt`
+- Creates Python virtual environment with uv
+- Installs all Python packages via `uv sync` (pyproject.toml)
 - Generates environment configuration (`.env` file)
 - Registers Jupyter kernel
 - Configures Azure CLI settings
@@ -185,21 +185,19 @@ Our devcontainer uses two key lifecycle commands optimized for prebuild:
 
 #### `onCreateCommand` (Container Creation)
 ```bash
-# Creates Python virtual environment and registers Jupyter kernel
+# Creates Python virtual environment with uv and registers Jupyter kernel
 # Note: The Python path varies by selected variant (3.12/3.13/3.14)
-echo '🚀 Creating Python virtual environment in workspace...' &&
-/usr/local/bin/python3.<version> -m venv /workspaces/Apim-Samples/.venv --copies &&
+echo '🚀 Creating Python virtual environment with uv...' &&
+uv venv /workspaces/Apim-Samples/.venv --python /usr/local/bin/python3.<version> &&
 source /workspaces/Apim-Samples/.venv/bin/activate &&
-pip install --upgrade pip setuptools wheel ipykernel &&
 python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)'
 ```
 
 #### `updateContentCommand` (Content Updates)
 ```bash
-# Installs Python packages and configures environment
+# Installs Python packages via uv and configures environment
 source /workspaces/Apim-Samples/.venv/bin/activate &&
-pip install -r requirements.txt &&
-pip install pytest pytest-cov coverage &&
+uv sync &&
 python setup/local_setup.py --generate-env &&
 az config set core.login_experience_v2=off &&
 az extension add --name containerapp --only-show-errors &&
@@ -211,14 +209,14 @@ az extension add --name front-door --only-show-errors
 Prebuild automatically occurs when you push changes to:
 - `.devcontainer/devcontainer.json`
 - `.devcontainer/Dockerfile`
-- `requirements.txt` (when referenced in `updateContentCommand`)
+- `pyproject.toml` (when referenced in `updateContentCommand`)
 - Any other files referenced in lifecycle commands
 
 ### Caching Strategy
 
 This project relies on GitHub Codespaces Prebuilds for fast startup and predictable environments:
 
-- Main branch: Prebuilds are automatically triggered and cached when `.devcontainer/**` or `requirements.txt` changes. Opening a Codespace on main pulls the prebuilt image, typically starting in ~30 seconds.
+- Main branch: Prebuilds are automatically triggered and cached when `.devcontainer/**` or `pyproject.toml` changes. Opening a Codespace on main pulls the prebuilt image, typically starting in ~30 seconds.
 - Feature branches: If prebuilds are not enabled, the first Codespace startup builds from the Dockerfile (usually a few minutes with the optimized images). Subsequent starts reuse Codespaces' transient cache.
 - Registry images (optional): If you later need deterministic, versioned images across many branches or forks, you can publish images to GHCR and reference the tags directly in `devcontainer.json`. For now, prebuilds on main are sufficient.
 
@@ -258,7 +256,7 @@ To refresh the prebuilt container (recommended periodically):
 3. Click "Trigger prebuild" if the option is available
 
 #### Method 3: Update Dependencies
-1. Update `requirements.txt` with newer package versions
+1. Update `pyproject.toml` with newer package versions or add new dependencies
 2. Commit and push the changes
 3. Prebuild will automatically run with updated dependencies
 
@@ -320,7 +318,7 @@ For more details on kernel configuration in VS Code, see: [VS Code Issue #130946
 ```bash
 python3.12 -m venv /workspaces/Apim-Samples/.venv
 source /workspaces/Apim-Samples/.venv/bin/activate
-pip install -r requirements.txt
+uv sync
 ```
 
 #### Azure CLI Extensions Missing
