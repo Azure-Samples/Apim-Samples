@@ -1528,7 +1528,7 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
                     with _print_lock:
                         print_error(f"Failed cleanup for {deployment.value}-{task['index']}: {error_msg}")
 
-            except Exception as e:  # pragma: no cover
+            except Exception as e:
                 failed_count += 1
                 with _print_lock:
                     print_error(f"Exception during cleanup for {deployment.value}-{task['index']}: {str(e)}")

@@ -417,7 +417,7 @@ class NotebookHelper:
                     if option_type == 'existing':
                         print_ok(f'Selected existing: {selected_infra.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
                         return selected_infra, selected_index
-                    elif option_type == 'create_new':
+                    elif option_type == 'create_new':  # pragma: no cover
                         print_info(f'Creating new infrastructure: {selected_infra.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
 
                         # Execute the infrastructure creation

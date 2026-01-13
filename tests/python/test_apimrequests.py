@@ -155,7 +155,7 @@ def test_request_header_merging():
 def test_init_missing_url():
     # Negative: missing URL should raise TypeError
     with pytest.raises(TypeError):
-        ApimRequests()
+        ApimRequests()  # pylint: disable=no-value-for-parameter
 
 @pytest.mark.http
 def test_print_response_code_edge():
@@ -193,7 +193,7 @@ def test_subscription_key_setter_updates_and_clears_header():
     assert SUBSCRIPTION_KEY_PARAMETER_NAME not in apim.headers
 
 # ------------------------------
-#    ADDITIONAL COVERAGE TESTS FOR APIMREQUESTS
+#   COVERAGE TESTS FOR APIMREQUESTS
 # ------------------------------
 
 @pytest.mark.unit

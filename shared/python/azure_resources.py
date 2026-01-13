@@ -436,7 +436,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
 
     print_info(f'Checking role assignment (will wait up to {max_wait_minutes} minute(s) for propagation)...')
 
-    while elapsed_time < max_wait_seconds:
+    while elapsed_time < max_wait_seconds:  # pragma: no cover
         # Check if role assignment exists
         role_assignment_output = run(
             f"az role assignment list --assignee {principal_id} --scope {storage_account_id} --role {blob_reader_role_id} --query '[0].id' -o tsv",

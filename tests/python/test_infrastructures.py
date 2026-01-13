@@ -4,6 +4,8 @@ Unit tests for infrastructures.py.
 
 import json
 import os
+import time
+import inspect
 from unittest.mock import Mock, patch, MagicMock
 import pytest
 
@@ -999,19 +1001,19 @@ def test_infrastructure_with_all_custom_components(mock_utils, mock_policy_fragm
 def test_infrastructure_missing_required_params():
     """Test Infrastructure creation with missing required parameters."""
     with pytest.raises(TypeError):
-        infrastructures.Infrastructure()
+        infrastructures.Infrastructure()  # pylint: disable=no-value-for-parameter
 
     with pytest.raises(TypeError):
-        infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM)
+        infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM)  # pylint: disable=no-value-for-parameter
 
 @pytest.mark.unit
 def test_concrete_infrastructure_missing_params():
     """Test concrete infrastructure classes with missing parameters."""
     with pytest.raises(TypeError):
-        infrastructures.SimpleApimInfrastructure()
+        infrastructures.SimpleApimInfrastructure()  # pylint: disable=no-value-for-parameter
 
     with pytest.raises(TypeError):
-        infrastructures.SimpleApimInfrastructure(rg_location=TEST_LOCATION)
+        infrastructures.SimpleApimInfrastructure(rg_location=TEST_LOCATION)  # pylint: disable=no-value-for-parameter
 
 
 # ------------------------------
@@ -3244,6 +3246,48 @@ def test_appgw_apim_pe_verify_infrastructure_specific_ignores_private_endpoint_e
     assert infra._verify_infrastructure_specific('rg-test') is True
 
 
+@pytest.mark.unit
+def test_appgw_apim_pe_verify_infrastructure_specific_aca_count_zero(mock_utils, mock_az):
+    """Test verification when container apps count is zero (aca_count > 0 branch not taken)."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    appgw_output = Mock(success=True, json_data={'name': 'test-appgw'})
+    aca_output = Mock(success=True, text='0')  # No container apps
+
+    mock_az.run.side_effect = [appgw_output, aca_output]
+
+    assert infra._verify_infrastructure_specific('rg-test') is True
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_verify_infrastructure_specific_apim_output_empty(mock_utils, mock_az):
+    """Test verification when APIM output is empty (apim_output.text.strip() is false)."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    appgw_output = Mock(success=True, json_data={'name': 'test-appgw'})
+    aca_output = Mock(success=True, text='0')
+    apim_output = Mock(success=True, text='')  # Empty APIM output
+
+    mock_az.run.side_effect = [appgw_output, aca_output, apim_output]
+
+    assert infra._verify_infrastructure_specific('rg-test') is True
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_verify_infrastructure_specific_pe_output_failed(mock_utils, mock_az):
+    """Test verification when PE output fails (pe_output.success is False)."""
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    appgw_output = Mock(success=True, json_data={'name': 'test-appgw'})
+    aca_output = Mock(success=True, text='1')
+    apim_output = Mock(success=True, text='/subscriptions/test/.../apim')
+    pe_output = Mock(success=False)  # PE output failed
+
+    mock_az.run.side_effect = [appgw_output, aca_output, apim_output, pe_output]
+
+    assert infra._verify_infrastructure_specific('rg-test') is True
+
+
 def test_afd_apim_aca_verify_connectivity_with_retry(mock_utils, mock_az):
     """Test connectivity verification with retries for AfdApimAcaInfrastructure."""
     infra = infrastructures.AfdApimAcaInfrastructure(
@@ -4892,3 +4936,758 @@ def test_cleanup_resources_with_thread_safe_printing_large_resource_count(monkey
     suppress_module_functions(monkeypatch, infrastructures, ['_delete_resource_group_best_effort'])
 
     infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
+
+
+# ------------------------------
+#    _cleanup_resources_parallel COMPREHENSIVE TESTS
+# ------------------------------
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_single_resource_success(monkeypatch, mock_utils):
+    """Test _cleanup_resources_parallel with single successful resource cleanup."""
+    cleanup_calls = []
+
+    def mock_cleanup(resource):
+        cleanup_calls.append(resource)
+        return True, ""
+
+    monkeypatch.setattr(infrastructures, '_cleanup_single_resource', mock_cleanup)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_ok', 'print_error'])
+
+    resource = {'type': 'keyvault', 'name': 'kv-1', 'location': 'eastus', 'rg_name': 'rg-1'}
+    infrastructures._cleanup_resources_parallel([resource])
+
+    assert len(cleanup_calls) == 1
+    assert cleanup_calls[0] == resource
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_multiple_resources(monkeypatch, mock_utils):
+    """Test _cleanup_resources_parallel with multiple resources."""
+    cleanup_calls = []
+
+    def mock_cleanup(resource):
+        cleanup_calls.append(resource['name'])
+        return True, ""
+
+    monkeypatch.setattr(infrastructures, '_cleanup_single_resource', mock_cleanup)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_ok', 'print_error'])
+
+    resources = [
+        {'type': 'keyvault', 'name': 'kv-1', 'location': 'eastus', 'rg_name': 'rg-1'},
+        {'type': 'apim', 'name': 'apim-1', 'location': 'westus', 'rg_name': 'rg-1'},
+        {'type': 'cognitiveservices', 'name': 'cog-1', 'location': 'northeurope', 'rg_name': 'rg-1'},
+    ]
+    infrastructures._cleanup_resources_parallel(resources)
+
+    assert len(cleanup_calls) == 3
+    assert all(resource['name'] in cleanup_calls for resource in resources)
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_partial_failures(monkeypatch, mock_utils):
+    """Test _cleanup_resources_parallel with some resources failing."""
+    cleanup_results = []
+
+    def mock_cleanup(resource):
+        if resource['name'] == 'kv-fail':
+            cleanup_results.append((resource['name'], False))
+            return False, "Delete failed"
+        cleanup_results.append((resource['name'], True))
+        return True, ""
+
+    monkeypatch.setattr(infrastructures, '_cleanup_single_resource', mock_cleanup)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_ok', 'print_error', 'print_warning'])
+
+    resources = [
+        {'type': 'keyvault', 'name': 'kv-1', 'location': 'eastus', 'rg_name': 'rg-1'},
+        {'type': 'keyvault', 'name': 'kv-fail', 'location': 'westus', 'rg_name': 'rg-1'},
+        {'type': 'apim', 'name': 'apim-1', 'location': 'northeurope', 'rg_name': 'rg-1'},
+    ]
+    infrastructures._cleanup_resources_parallel(resources)
+
+    assert len(cleanup_results) == 3
+    assert ('kv-1', True) in cleanup_results
+    assert ('kv-fail', False) in cleanup_results
+    assert ('apim-1', True) in cleanup_results
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_all_failures(monkeypatch, mock_utils):
+    """Test _cleanup_resources_parallel when all resources fail to cleanup."""
+    print_calls = []
+
+    def mock_cleanup(resource):
+        return False, f"Failed to cleanup {resource['name']}"
+
+    def mock_print_error(msg):
+        print_calls.append(('error', msg))
+
+    def mock_print_warning(msg):
+        print_calls.append(('warning', msg))
+
+    monkeypatch.setattr(infrastructures, '_cleanup_single_resource', mock_cleanup)
+    monkeypatch.setattr(infrastructures, 'print_error', mock_print_error)
+    monkeypatch.setattr(infrastructures, 'print_warning', mock_print_warning)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info'])
+
+    resources = [
+        {'type': 'keyvault', 'name': 'kv-1', 'location': 'eastus', 'rg_name': 'rg-1'},
+        {'type': 'apim', 'name': 'apim-1', 'location': 'westus', 'rg_name': 'rg-1'},
+    ]
+    infrastructures._cleanup_resources_parallel(resources)
+
+    # Should have logged error messages for each failure
+    assert any('Failed to clean up' in msg for call_type, msg in print_calls if call_type == 'error')
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_thread_safe_mode(monkeypatch, mock_utils):
+    """Test _cleanup_resources_parallel with thread-safe printing enabled."""
+    log_calls = []
+
+    def mock_cleanup(resource):
+        return True, ""
+
+    def mock_print_log(msg, icon, color, **kwargs):
+        log_calls.append({'msg': msg, 'icon': icon, 'color': color})
+
+    monkeypatch.setattr(infrastructures, '_cleanup_single_resource', mock_cleanup)
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', mock_print_log)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_ok', 'print_error'])
+
+    thread_prefix = '[THREAD-1]: '
+    thread_color = console.BOLD_G
+
+    resources = [
+        {'type': 'keyvault', 'name': 'kv-1', 'location': 'eastus', 'rg_name': 'rg-1'},
+    ]
+    infrastructures._cleanup_resources_parallel(resources, thread_prefix=thread_prefix, thread_color=thread_color)
+
+    # Should have called thread-safe logging with the prefix
+    assert any(thread_prefix in call['msg'] for call in log_calls if call['msg'])
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_max_workers_calculation(monkeypatch, mock_utils):
+    """Test that max_workers is correctly calculated (min of resource count and 5)."""
+    worker_calls = []
+
+    def mock_cleanup(resource):
+        worker_calls.append(resource['name'])
+        return True, ""
+
+    monkeypatch.setattr(infrastructures, '_cleanup_single_resource', mock_cleanup)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_ok', 'print_error'])
+
+    # Test with less than 5 resources
+    resources_small = [
+        {'type': 'keyvault', 'name': f'kv-{i}', 'location': 'eastus', 'rg_name': 'rg-1'}
+        for i in range(3)
+    ]
+    infrastructures._cleanup_resources_parallel(resources_small)
+    assert len(worker_calls) == 3
+
+    # Test with more than 5 resources (should use max_workers=5)
+    worker_calls.clear()
+    resources_large = [
+        {'type': 'keyvault', 'name': f'kv-{i}', 'location': 'eastus', 'rg_name': 'rg-1'}
+        for i in range(10)
+    ]
+    infrastructures._cleanup_resources_parallel(resources_large)
+    assert len(worker_calls) == 10  # All should eventually complete
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_exception_in_future(monkeypatch, mock_utils):
+    """Test _cleanup_resources_parallel handles exceptions from worker futures."""
+    def mock_cleanup(resource):
+        if resource['name'] == 'kv-exception':
+            raise RuntimeError("Worker exception")
+        return True, ""
+
+    monkeypatch.setattr(infrastructures, '_cleanup_single_resource', mock_cleanup)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_ok', 'print_error', 'print_warning'])
+
+    resources = [
+        {'type': 'keyvault', 'name': 'kv-1', 'location': 'eastus', 'rg_name': 'rg-1'},
+        {'type': 'keyvault', 'name': 'kv-exception', 'location': 'westus', 'rg_name': 'rg-1'},
+        {'type': 'keyvault', 'name': 'kv-2', 'location': 'northeurope', 'rg_name': 'rg-1'},
+    ]
+    # Should not raise exception
+    infrastructures._cleanup_resources_parallel(resources)
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_progress_tracking(monkeypatch, mock_utils):
+    """Test that cleanup progress is tracked correctly."""
+    print_calls = []
+
+    def mock_cleanup(resource):
+        return True, ""
+
+    def mock_print_ok(msg):
+        print_calls.append(('ok', msg))
+
+    monkeypatch.setattr(infrastructures, '_cleanup_single_resource', mock_cleanup)
+    monkeypatch.setattr(infrastructures, 'print_ok', mock_print_ok)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info'])
+
+    resources = [
+        {'type': 'keyvault', 'name': f'kv-{i}', 'location': 'eastus', 'rg_name': 'rg-1'}
+        for i in range(3)
+    ]
+    infrastructures._cleanup_resources_parallel(resources)
+
+    # Should have logged completion with count
+    assert any('3 resource(s) cleaned up successfully' in msg for call_type, msg in print_calls if call_type == 'ok')
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_regular_vs_thread_safe_printing(monkeypatch, mock_utils):
+    """Test that regular printing is used when no thread prefix."""
+    print_calls = []
+
+    def mock_cleanup(resource):
+        return True, ""
+
+    def mock_print_info(msg):
+        print_calls.append(('info', msg))
+
+    def mock_print_ok(msg):
+        print_calls.append(('ok', msg))
+
+    monkeypatch.setattr(infrastructures, '_cleanup_single_resource', mock_cleanup)
+    monkeypatch.setattr(infrastructures, 'print_info', mock_print_info)
+    monkeypatch.setattr(infrastructures, 'print_ok', mock_print_ok)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_error', 'print_warning'])
+
+    resources = [
+        {'type': 'keyvault', 'name': 'kv-1', 'location': 'eastus', 'rg_name': 'rg-1'},
+    ]
+    # Call without thread_prefix (regular printing)
+    infrastructures._cleanup_resources_parallel(resources)
+
+    # Should have called print_info and print_ok
+    assert any('info' == call[0] for call in print_calls)
+    assert any('ok' == call[0] for call in print_calls)
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_resource_type_details_in_output(monkeypatch, mock_utils):
+    """Test that resource type and name are included in cleanup output."""
+    log_calls = []
+
+    def mock_cleanup(resource):
+        return True, ""
+
+    def mock_print_log(msg, icon, color, **kwargs):
+        log_calls.append(msg)
+
+    monkeypatch.setattr(infrastructures, '_cleanup_single_resource', mock_cleanup)
+    monkeypatch.setattr(infrastructures, '_print_lock', MagicMock())
+    monkeypatch.setattr(infrastructures, '_print_log', mock_print_log)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_ok'])
+
+    resource = {'type': 'apim', 'name': 'test-apim-service', 'location': 'eastus', 'rg_name': 'rg-1'}
+    infrastructures._cleanup_resources_parallel(
+        [resource],
+        thread_prefix='[TEST]: ',
+        thread_color=console.BOLD_G
+    )
+
+    # Should include resource type and name in logged message
+    assert any('apim' in msg and 'test-apim-service' in msg for msg in log_calls)
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_concurrent_execution(monkeypatch, mock_utils):
+    """Test that resources are cleaned up concurrently (not sequentially)."""
+    execution_times = []
+
+    def mock_cleanup(resource):
+        start = time.time()
+        execution_times.append((resource['name'], start))
+        time.sleep(0.05)  # Simulate work
+        return True, ""
+
+    monkeypatch.setattr(infrastructures, '_cleanup_single_resource', mock_cleanup)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_ok'])
+
+    resources = [
+        {'type': 'keyvault', 'name': f'kv-{i}', 'location': 'eastus', 'rg_name': 'rg-1'}
+        for i in range(5)
+    ]
+
+    start_time = time.time()
+    infrastructures._cleanup_resources_parallel(resources)
+    total_time = time.time() - start_time
+
+    # With 5 concurrent workers and 0.05s sleep each, should take ~0.05s total
+    # Sequential execution would take ~0.25s (5 * 0.05s)
+    # Allow some margin for overhead
+    assert total_time < 0.2, f"Cleanup took {total_time}s, expected concurrent execution (~0.05s)"
+
+
+# ------------------------------
+#    _cleanup_resources_parallel_thread_safe COMPREHENSIVE TESTS
+# ------------------------------
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_thread_safe_basic_call(monkeypatch, mock_utils):
+    """Test _cleanup_resources_parallel_thread_safe invokes parallel cleanup correctly."""
+    parallel_calls = []
+
+    def mock_cleanup_parallel(resources, thread_prefix, thread_color):
+        parallel_calls.append({
+            'resources': resources,
+            'thread_prefix': thread_prefix,
+            'thread_color': thread_color
+        })
+
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel', mock_cleanup_parallel)
+
+    resources = [
+        {'type': 'keyvault', 'name': 'kv-1', 'location': 'eastus', 'rg_name': 'rg-1'},
+        {'type': 'apim', 'name': 'apim-1', 'location': 'westus', 'rg_name': 'rg-1'},
+    ]
+    thread_prefix = '[CLEANUP-1]: '
+    thread_color = console.BOLD_C
+
+    infrastructures._cleanup_resources_parallel_thread_safe(resources, thread_prefix, thread_color)
+
+    assert len(parallel_calls) == 1
+    assert parallel_calls[0]['resources'] == resources
+    assert parallel_calls[0]['thread_prefix'] == thread_prefix
+    assert parallel_calls[0]['thread_color'] == thread_color
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_thread_safe_passes_correct_parameters(monkeypatch, mock_utils):
+    """Test that all parameters are correctly passed through to _cleanup_resources_parallel."""
+    captured_calls = []
+
+    def mock_cleanup_parallel(resources, thread_prefix, thread_color):
+        captured_calls.append((resources, thread_prefix, thread_color))
+
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel', mock_cleanup_parallel)
+
+    test_resources = [
+        {'type': 'cognitiveservices', 'name': 'cog-svc', 'location': 'eastus', 'rg_name': 'rg-test'},
+    ]
+    test_prefix = '[WORKER-2]: '
+    test_color = console.BOLD_M
+
+    infrastructures._cleanup_resources_parallel_thread_safe(test_resources, test_prefix, test_color)
+
+    assert len(captured_calls) == 1
+    resources, prefix, color = captured_calls[0]
+    assert resources == test_resources
+    assert prefix == test_prefix
+    assert color == test_color
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_thread_safe_empty_resource_list(monkeypatch, mock_utils):
+    """Test _cleanup_resources_parallel_thread_safe with empty resource list."""
+    parallel_calls = []
+
+    def mock_cleanup_parallel(resources, thread_prefix, thread_color):
+        parallel_calls.append(resources)
+
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel', mock_cleanup_parallel)
+
+    infrastructures._cleanup_resources_parallel_thread_safe([], '[TEST]: ', console.BOLD_G)
+
+    assert len(parallel_calls) == 1
+    assert parallel_calls[0] == []
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_thread_safe_single_resource(monkeypatch, mock_utils):
+    """Test _cleanup_resources_parallel_thread_safe with single resource."""
+    parallel_calls = []
+
+    def mock_cleanup_parallel(resources, thread_prefix, thread_color):
+        parallel_calls.append(len(resources))
+
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel', mock_cleanup_parallel)
+
+    resources = [
+        {'type': 'keyvault', 'name': 'kv-single', 'location': 'eastus', 'rg_name': 'rg-1'},
+    ]
+    infrastructures._cleanup_resources_parallel_thread_safe(resources, '[TEST]: ', console.BOLD_Y)
+
+    assert len(parallel_calls) == 1
+    assert parallel_calls[0] == 1
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_thread_safe_multiple_resources(monkeypatch, mock_utils):
+    """Test _cleanup_resources_parallel_thread_safe with multiple resources."""
+    parallel_calls = []
+
+    def mock_cleanup_parallel(resources, thread_prefix, thread_color):
+        parallel_calls.append(len(resources))
+
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel', mock_cleanup_parallel)
+
+    resources = [
+        {'type': 'keyvault', 'name': f'kv-{i}', 'location': 'eastus', 'rg_name': 'rg-1'}
+        for i in range(7)
+    ]
+    infrastructures._cleanup_resources_parallel_thread_safe(resources, '[TEST-7]: ', console.BOLD_R)
+
+    assert len(parallel_calls) == 1
+    assert parallel_calls[0] == 7
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_thread_safe_with_different_thread_colors(monkeypatch, mock_utils):
+    """Test that different thread colors are passed correctly."""
+    color_calls = []
+
+    def mock_cleanup_parallel(resources, thread_prefix, thread_color):
+        color_calls.append(thread_color)
+
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel', mock_cleanup_parallel)
+
+    resources = [{'type': 'keyvault', 'name': 'kv-1', 'location': 'eastus', 'rg_name': 'rg-1'}]
+
+    # Test with multiple colors
+    colors = [console.BOLD_G, console.BOLD_Y, console.BOLD_C, console.BOLD_M, console.BOLD_R]
+    for i, color in enumerate(colors):
+        infrastructures._cleanup_resources_parallel_thread_safe(resources, f'[THREAD-{i}]: ', color)
+
+    assert len(color_calls) == len(colors)
+    assert color_calls == colors
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_thread_safe_thread_prefix_formats(monkeypatch, mock_utils):
+    """Test that various thread prefix formats are handled correctly."""
+    prefix_calls = []
+
+    def mock_cleanup_parallel(resources, thread_prefix, thread_color):
+        prefix_calls.append(thread_prefix)
+
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel', mock_cleanup_parallel)
+
+    resources = [{'type': 'apim', 'name': 'api-1', 'location': 'westus', 'rg_name': 'rg-1'}]
+
+    # Test with different prefix formats
+    prefixes = [
+        '[CLEANUP]: ',
+        '[RG-simple-apim-1]: ',
+        '[Thread-5-simple-apim]: ',
+        '  ',
+        '[LONG_PREFIX_WITH_DETAILS_AND_TIME]: ',
+    ]
+
+    for prefix in prefixes:
+        infrastructures._cleanup_resources_parallel_thread_safe(resources, prefix, console.BOLD_G)
+
+    assert len(prefix_calls) == len(prefixes)
+    assert prefix_calls == prefixes
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_thread_safe_delegates_to_parallel(monkeypatch, mock_utils):
+    """Test that _cleanup_resources_parallel_thread_safe is a pure delegation wrapper."""
+    # This test verifies the implementation detail that the function simply delegates
+    call_count = [0]
+
+    def mock_cleanup_parallel(resources, thread_prefix, thread_color):
+        call_count[0] += 1
+
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel', mock_cleanup_parallel)
+
+    resources = [
+        {'type': 'keyvault', 'name': 'kv-1', 'location': 'eastus', 'rg_name': 'rg-1'},
+        {'type': 'keyvault', 'name': 'kv-2', 'location': 'westus', 'rg_name': 'rg-1'},
+    ]
+
+    # Call once
+    infrastructures._cleanup_resources_parallel_thread_safe(resources, '[TEST]: ', console.BOLD_G)
+    assert call_count[0] == 1
+
+    # Call again
+    infrastructures._cleanup_resources_parallel_thread_safe(resources, '[TEST2]: ', console.BOLD_Y)
+    assert call_count[0] == 2
+
+    # Call multiple times
+    for _ in range(3):
+        infrastructures._cleanup_resources_parallel_thread_safe(resources, '[LOOP]: ', console.BOLD_C)
+    assert call_count[0] == 5
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_thread_safe_all_resource_types(monkeypatch, mock_utils):
+    """Test _cleanup_resources_parallel_thread_safe with all resource types."""
+    captured_resources = []
+
+    def mock_cleanup_parallel(resources, thread_prefix, thread_color):
+        captured_resources.extend(resources)
+
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_parallel', mock_cleanup_parallel)
+
+    all_types_resources = [
+        {'type': 'keyvault', 'name': 'kv-1', 'location': 'eastus', 'rg_name': 'rg-1'},
+        {'type': 'apim', 'name': 'apim-1', 'location': 'westus', 'rg_name': 'rg-1'},
+        {'type': 'cognitiveservices', 'name': 'cog-1', 'location': 'northeurope', 'rg_name': 'rg-1'},
+    ]
+
+    infrastructures._cleanup_resources_parallel_thread_safe(all_types_resources, '[ALL-TYPES]: ', console.BOLD_M)
+
+    assert len(captured_resources) == 3
+    assert any(r['type'] == 'keyvault' for r in captured_resources)
+    assert any(r['type'] == 'apim' for r in captured_resources)
+    assert any(r['type'] == 'cognitiveservices' for r in captured_resources)
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_thread_safe_integration_with_parallel(monkeypatch, mock_utils):
+    """Test full integration with actual _cleanup_resources_parallel execution."""
+    def mock_cleanup(resource):
+        return True, ""
+
+    monkeypatch.setattr(infrastructures, '_cleanup_single_resource', mock_cleanup)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_ok'])
+
+    resources = [
+        {'type': 'keyvault', 'name': 'kv-1', 'location': 'eastus', 'rg_name': 'rg-1'},
+        {'type': 'apim', 'name': 'apim-1', 'location': 'westus', 'rg_name': 'rg-1'},
+    ]
+
+    # Call the wrapper function
+    infrastructures._cleanup_resources_parallel_thread_safe(resources, '[INTEGRATION]: ', console.BOLD_G)
+    # Should complete successfully without errors
+
+
+@pytest.mark.unit
+def test_cleanup_resources_parallel_thread_safe_consistent_signature(monkeypatch, mock_utils):
+    """Test that function signature matches expected parameters."""
+
+    sig = inspect.signature(infrastructures._cleanup_resources_parallel_thread_safe)
+    params = list(sig.parameters.keys())
+
+    # Should have exactly these parameters
+    assert params == ['resources', 'thread_prefix', 'thread_color']
+
+    # Verify parameter types from annotations (using string representation for comparison)
+    assert 'list[dict]' in str(sig.parameters['resources'].annotation)
+    assert sig.parameters['thread_prefix'].annotation == str
+    assert sig.parameters['thread_color'].annotation == str
+
+
+@pytest.mark.unit
+def test_cleanup_infra_deployments_all_failures_zero_completed(monkeypatch):
+    """Test cleanup_infra_deployments when all cleanups fail (completed_count == 0)."""
+
+    def mock_cleanup_resources_thread_safe(deployment_name, rg_name, thread_prefix, thread_color):
+        # Simulate all failures
+        return False, "Simulated failure"
+
+    def mock_get_infra_rg_name(deployment, index):
+        return f'apim-infra-{deployment.value}-{index}'
+
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
+    monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_error', 'print_warning', 'print_ok'])
+
+    # Test with multiple indexes where all fail
+    infrastructures.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2, 3])
+
+
+@pytest.mark.unit
+def test_cleanup_infra_deployments_some_succeed_some_fail(monkeypatch):
+    """Test cleanup_infra_deployments when some succeed and some fail."""
+    success_count = [0]
+
+    def mock_cleanup_resources_thread_safe(deployment_name, rg_name, thread_prefix, thread_color):
+        # First one succeeds, rest fail
+        success_count[0] += 1
+        if success_count[0] == 1:
+            return True, ""
+        return False, "Simulated failure"
+
+    def mock_get_infra_rg_name(deployment, index):
+        return f'apim-infra-{deployment.value}-{index}'
+
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
+    monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_error', 'print_warning', 'print_ok'])
+
+    # Test with multiple indexes where some fail (completed_count > 0)
+    infrastructures.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2, 3])
+
+
+@pytest.mark.unit
+def test_base_infrastructure_verification_api_output_fails(mock_utils, mock_az):
+    """Test base infrastructure verification when API count check fails - line 317."""
+    infra = infrastructures.Infrastructure(
+        infra=INFRASTRUCTURE.SIMPLE_APIM,
+        index=TEST_INDEX,
+        rg_location=TEST_LOCATION
+    )
+
+    # Mock successful resource group check
+    mock_az.does_resource_group_exist.return_value = True
+
+    # Mock successful APIM service check
+    mock_apim_output = Mock()
+    mock_apim_output.success = True
+    mock_apim_output.json_data = {'name': 'test-apim'}
+
+    # Mock failed API count check
+    mock_api_output = Mock()
+    mock_api_output.success = False
+
+    mock_az.run.side_effect = [mock_apim_output, mock_api_output]
+
+    result = infra._verify_infrastructure('test-rg')
+
+    # Should still return True even if API count check fails
+    assert result is True
+
+
+@pytest.mark.unit
+def test_infrastructure_deployment_output_fails(mock_utils, mock_az):
+    """Test infrastructure deployment when deployment fails - line 444."""
+    with patch('os.getcwd'), \
+         patch('os.chdir'), \
+         patch('pathlib.Path'), \
+         patch('builtins.open', MagicMock()), \
+         patch('json.dumps', return_value='{"mocked": "params"}'):
+
+        # Mock failed deployment
+        mock_output = Mock()
+        mock_output.success = False
+        mock_az.run.return_value = mock_output
+
+        infra = infrastructures.SimpleApimInfrastructure(
+            rg_location=TEST_LOCATION,
+            index=TEST_INDEX
+        )
+
+        result = infra.deploy_infrastructure()
+
+        # Deployment should fail
+        assert result.success is False
+
+
+@pytest.mark.unit
+def test_infrastructure_deployment_success_no_json_data(mock_utils, mock_az):
+    """Test infrastructure deployment when successful but no JSON data - line 444->460."""
+    with patch('os.getcwd'), \
+         patch('os.chdir'), \
+         patch('pathlib.Path'), \
+         patch('builtins.open', MagicMock()), \
+         patch('json.dumps', return_value='{"mocked": "params"}'):
+
+        # Mock successful deployment but no JSON data
+        mock_output = Mock()
+        mock_output.success = True
+        mock_output.json_data = None  # No JSON data
+        mock_az.run.return_value = mock_output
+
+        infra = infrastructures.SimpleApimInfrastructure(
+            rg_location=TEST_LOCATION,
+            index=TEST_INDEX
+        )
+
+        result = infra.deploy_infrastructure()
+
+        # Deployment should succeed
+        assert result.success is True
+
+
+@pytest.mark.unit
+def test_afd_apim_infrastructure_verification_pe_output_fails(mock_az):
+    """Test AFD-APIM infrastructure verification when private endpoint check fails - line 629."""
+    infra = infrastructures.AfdApimAcaInfrastructure(
+        rg_location=TEST_LOCATION,
+        index=TEST_INDEX,
+        apim_sku=APIM_SKU.STANDARDV2
+    )
+
+    # Mock successful Front Door check
+    mock_afd_output = Mock()
+    mock_afd_output.success = True
+    mock_afd_output.json_data = {'name': 'test-afd'}
+
+    # Mock successful Container Apps check
+    mock_aca_output = Mock()
+    mock_aca_output.success = True
+    mock_aca_output.text = '2'
+
+    # Mock successful APIM check
+    mock_apim_output = Mock()
+    mock_apim_output.success = True
+    mock_apim_output.text = 'apim-resource-id'
+
+    # Mock failed private endpoint check
+    mock_pe_output = Mock()
+    mock_pe_output.success = False
+
+    mock_az.run.side_effect = [mock_afd_output, mock_aca_output, mock_apim_output, mock_pe_output]
+
+    result = infra._verify_infrastructure_specific('test-rg')
+
+    # Should still return True even if private endpoint check fails
+    assert result is True
+
+
+@pytest.mark.unit
+def test_appgw_apim_infrastructure_verification_aca_output_fails(mock_az):
+    """Test APPGW-APIM infrastructure verification when Container Apps check fails - line 854."""
+    infra = infrastructures.AppGwApimPeInfrastructure(
+        rg_location=TEST_LOCATION,
+        index=TEST_INDEX,
+        apim_sku=APIM_SKU.STANDARDV2
+    )
+
+    # Mock successful Application Gateway check
+    mock_appgw_output = Mock()
+    mock_appgw_output.success = True
+    mock_appgw_output.json_data = {'name': 'test-appgw'}
+
+    # Mock failed Container Apps check
+    mock_aca_output = Mock()
+    mock_aca_output.success = False
+
+    mock_az.run.side_effect = [mock_appgw_output, mock_aca_output]
+
+    result = infra._verify_infrastructure_specific('test-rg')
+
+    # Should still return True even if Container Apps check fails
+    assert result is True
+
+
+@pytest.mark.unit
+def test_cleanup_infra_deployments_all_exceptions_no_completed(monkeypatch):
+    """Test cleanup_infra_deployments when all tasks raise exceptions - line 1541 False path."""
+
+    def mock_cleanup_resources_thread_safe(deployment_name, rg_name, thread_prefix, thread_color):
+        # Raise exception instead of returning
+        raise Exception("Simulated exception in cleanup")
+
+    def mock_get_infra_rg_name(deployment, index):
+        return f'apim-infra-{deployment.value}-{index}'
+
+    monkeypatch.setattr(infrastructures, '_cleanup_resources_thread_safe', mock_cleanup_resources_thread_safe)
+    monkeypatch.setattr(infrastructures.az, 'get_infra_rg_name', mock_get_infra_rg_name)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_error', 'print_warning', 'print_ok'])
+
+    # Test with multiple indexes where all raise exceptions (completed_count == 0, failed_count > 0)
+    infrastructures.cleanup_infra_deployments(INFRASTRUCTURE.SIMPLE_APIM, [1, 2, 3])
