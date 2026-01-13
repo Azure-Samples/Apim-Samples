@@ -144,10 +144,12 @@ These prerequisites apply broadly across all infrastructure and samples. If ther
 
 - [Python][python] **3.12, 3.13, and 3.14 are all supported**
 - **uv** (https://docs.astral.sh/uv/) - Fast Python package manager
-  - **Windows**: `winget install --id=astral-sh.uv -e` or `scoop install uv`
-  - **macOS**: `brew install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`
-  - **Linux**: `curl -LsSf https://astral.sh/uv/install.sh | sh`
-  - Verify: `uv --version`
+   - Install uv:
+      - **Windows**: `winget install --id=astral-sh.uv -e` or `scoop install uv`
+      - **macOS**: `brew install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`
+      - **Linux**: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+   - If needed, restart VS Code for path to become effective.
+   - Verify: `uv --version`
 - [VS Code][vscode] installed with the [Jupyter notebook extension][vscode-jupyter] enabled
 - [Azure CLI][azure-cli-install] installed
 - [Azure Bicep][azure-bicep-install] installed
