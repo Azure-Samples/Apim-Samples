@@ -136,6 +136,8 @@ def check_jupyter_kernel():
             capture_output=True,
             text=True,
             check=True,
+            timeout=10,
+            stdin=subprocess.DEVNULL,
         )
 
         if "python-venv" in result.stdout or "Python (.venv)" in result.stdout:
@@ -145,6 +147,8 @@ def check_jupyter_kernel():
             return True, ""
 
         return False, "Register kernel: python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)'"
+    except subprocess.TimeoutExpired:
+        return False, "Jupyter kernel check timed out. Try: python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)'"
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False, "Install Jupyter tooling: uv add --dev jupyter && uv sync"
 
