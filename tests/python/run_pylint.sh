@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 TARGET="${1:-infrastructure samples setup shared tests}"
 REPORT_DIR="$SCRIPT_DIR/pylint/reports"
-PYLINT_RC="$SCRIPT_DIR/.pylintrc"
+PYLINT_RC="$REPO_ROOT/.pylintrc"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
 # Set UTF-8 encoding for Python and console output

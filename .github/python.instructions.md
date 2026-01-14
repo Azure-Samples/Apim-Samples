@@ -9,7 +9,7 @@ applyTo: '**/*.py'
 
 **BEFORE making any changes to Python files**, always load the pylint configuration into context:
 
-1. Use `read_file` to load `tests/python/.pylintrc`
+1. Use `read_file` to load `.pylintrc`
 2. Review the disabled rules and enabled checks
 3. Apply these rules when writing or modifying Python code
 
@@ -62,7 +62,7 @@ This ensures all code changes comply with the project's linting standards from t
 
 Before completing any Python code changes, verify:
 
-- All pylint warnings and errors are resolved (`pylint --rcfile=tests/python/.pylintrc <file>`)
+- All pylint warnings and errors are resolved (`pylint --rcfile=.pylintrc <file>`)
   - Pylint rules cover these, but we don't see .pylintrc being added to the context. Therefore, please pay special attention to these common occurrences:
       - No trailing whitespace
       - No assertion of empty strings in tests (use `assert not`)

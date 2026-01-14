@@ -106,9 +106,9 @@ Both scripts:
 
 ### Configuration Files
 
-- `.pylintrc` - Pylint configuration and rules
+- `.pylintrc` - Pylint configuration and rules (in repository root)
 - `.coveragerc` - Coverage.py configuration
-- `pytest.ini` - Pytest configuration and markers
+- `pytest.ini` - Pytest configuration and markers (in repository root)
 - `conftest.py` - Shared pytest fixtures
 
 ### Test Files

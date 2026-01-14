@@ -45,7 +45,7 @@ jobs:
         run: |
           mkdir -p tests/python/pylint/reports
           # Use python -m pylint and tee to ensure output is captured and visible in logs
-          PYTHONPATH=$(pwd) uv run python -m pylint --rcfile tests/python/.pylintrc infrastructure samples setup shared tests 2>&1 | tee tests/python/pylint/reports/latest.txt
+          PYTHONPATH=$(pwd) uv run python -m pylint --rcfile .pylintrc infrastructure samples setup shared tests 2>&1 | tee tests/python/pylint/reports/latest.txt
 
       - name: Upload pylint reports
         uses: actions/upload-artifact@v4

@@ -34,7 +34,7 @@ $ErrorActionPreference = "Continue"
 $ScriptDir = $PSScriptRoot
 $RepoRoot = Split-Path (Split-Path $ScriptDir -Parent) -Parent
 $ReportDir = Join-Path $ScriptDir "pylint/reports"
-$PylintRc = Join-Path $ScriptDir ".pylintrc"
+$PylintRc = Join-Path $RepoRoot ".pylintrc"
 $Timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 
 # Set UTF-8 encoding for Python and console output

@@ -245,7 +245,7 @@ The repo uses the bicep linter and has rules defined in `bicepconfig.json`. See 
 
 ### 🔍 Code Quality & Linting
 
-The repository uses [pylint][pylint-docs] to maintain Python code quality standards. The configuration is located in `tests/python/.pylintrc`, and the Developer CLI supports linting.
+The repository uses [pylint][pylint-docs] to maintain Python code quality standards. The configuration is located in `.pylintrc`, and the Developer CLI supports linting.
 
 ### 🧪 Testing & Code Coverage
 
