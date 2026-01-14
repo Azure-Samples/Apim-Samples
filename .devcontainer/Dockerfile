@@ -31,14 +31,13 @@ RUN --mount=type=cache,target=/var/cache/apt \
 # Prebuild project virtual environment template with all Python dependencies (as root for /usr/local permissions)
 COPY pyproject.toml /tmp/pyproject.toml
 RUN --mount=type=cache,target=/root/.cache/uv \
-    python3 -m venv /usr/local/share/venv-template --copies && \
+    uv venv /usr/local/share/venv-template --python /usr/local/bin/python${PYTHON_VERSION} && \
     cd /tmp && \
-    /usr/local/share/venv-template/bin/python -m pip install uv && \
-    /usr/local/share/venv-template/bin/uv pip install --python /usr/local/share/venv-template/bin/python -e . && \
+    uv pip install --python /usr/local/share/venv-template/bin/python -e . && \
     chown -R vscode:vscode /usr/local/share/venv-template && \
     rm /tmp/pyproject.toml
 
-# Install Azure CLI 2.82.0 (prebuild optimization)
+# Install Azure CLI (prebuild optimization)
 USER root
 RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash && \
     az --version
