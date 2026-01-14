@@ -400,6 +400,15 @@ def test_check_jupyter_kernel_file_not_found(monkeypatch: pytest.MonkeyPatch, su
         assert "Install Jupyter" in fix
 
 
+def test_check_jupyter_kernel_timeout(monkeypatch: pytest.MonkeyPatch, suppress_print) -> None:
+    """Jupyter kernel check should fail when subprocess times out."""
+    with patch("subprocess.run") as mock_run:
+        mock_run.side_effect = subprocess.TimeoutExpired("jupyter", 10)
+        ok, fix = vls.check_jupyter_kernel()
+        assert ok is False
+        assert "timed out" in fix
+
+
 # ============================================================
 # Tests for check_vscode_settings
 # ============================================================
