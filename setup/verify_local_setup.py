@@ -38,7 +38,7 @@ def print_status(message, success=True, fix="", skipped=False):
         status_text = "SKIPPED"
     else:
         color = "32" if success else "31"  # Green for success, red for failure
-        icon = "✅" if success else "❌"
+        icon = "✅" if success else "⚠️"
         status_text = "PASS" if success else "FAIL"
     print(f"{icon} \033[1;{color}m{status_text}: {message}\033[0m")
     if fix:
@@ -46,12 +46,6 @@ def print_status(message, success=True, fix="", skipped=False):
             print(f"   ℹ️  Note: {fix}")
         elif not success:
             print(f"   👉 Fix: {fix}")
-
-
-def print_section(title):
-    """Print section header."""
-    print(f"\n📋 {title}")
-    print("-" * (len(title) + 3))
 
 
 def check_virtual_environment():
@@ -67,6 +61,7 @@ def check_virtual_environment():
         return False, f"Activate it: source {expected_venv_python.parent}/activate"
 
     return True, ""
+
 
 def check_uv_sync():
     """Check if uv is available and sync dependencies if it is."""
@@ -86,6 +81,7 @@ def check_uv_sync():
         return True, ""
     except subprocess.CalledProcessError as exc:
         return False, f"Failed to sync dependencies with uv: {exc}"
+
 
 def check_required_packages():
     """Check if required packages are installed."""
@@ -331,17 +327,10 @@ def main():
     for check_name, check_function in checks:
         # Skip Azure Providers check if Azure Login failed
         if check_name == "Azure Providers" and not azure_login_passed:
-            print_section(check_name)
-            print_status(
-                check_name,
-                success=True,
-                fix="A successful Azure login must be detected prior to running this check",
-                skipped=True
-            )
+            print_status(check_name, success = True, fix = "A successful Azure login must be detected prior to running this check", skipped = True )
             results.append((check_name, None, "Skipped because Azure login is required"))
             continue
 
-        print_section(check_name)
         passed, fix = check_function()
         print_status(check_name, passed, fix)
         results.append((check_name, passed, fix))
@@ -350,33 +339,19 @@ def main():
         if check_name == "Azure Login":
             azure_login_passed = passed
 
-    print_section("Summary")
     passed_count = sum(1 for _, ok, _ in results if ok is True)
     skipped_count = sum(1 for _, ok, _ in results if ok is None)
-    total = len(results)
-    max_name_length = max(len(check_name) for check_name, _, _ in results)
 
-    for check_name, ok, fix in results:
-        padded_name = check_name.ljust(max_name_length + 1)
-        if ok is None:
-            # Skipped check
-            print_status(padded_name, success=True, fix=fix, skipped=True)
-        else:
-            print_status(padded_name, ok, fix)
-
-    active_checks = total - skipped_count
-    print(f"\n📊 Overall: {passed_count}/{active_checks} checks passed", end="")
+    active_checks = len(results) - skipped_count
+    print(f"\n📊 {passed_count}/{active_checks} checks passed", end="")
     if skipped_count > 0:
         print(f" ({skipped_count} skipped)", end="")
     print()
 
     if passed_count == active_checks:
-        print("\n🎉 All checks passed! Your environment is ready for APIM Samples.")
-        print("💡 You can now open any notebook and it should work seamlessly.")
+        print("\n🎉 Your environment is ready! Please proceed with running a sample or infrastructure.")
     else:
-        print("\n⚠️  Some checks failed. Run the suggested fixes above, or rerun:")
-        print("   python setup/local_setup.py --complete-setup")
-        print("   Then restart VS Code and run this verification again.")
+        print("\n⚠️  Some checks failed. Run the suggested fixes above and/or rerun 'Complete environment setup' in the Developer CLI.")
 
     return passed_count == active_checks
 

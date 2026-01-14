@@ -60,7 +60,7 @@ def suppress_print(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 # ============================================================
-# Tests for print_status and print_section
+# Tests for print_status
 # ============================================================
 
 def test_print_status_success(capsys, suppress_print):
@@ -71,11 +71,6 @@ def test_print_status_success(capsys, suppress_print):
 def test_print_status_failure_with_fix(capsys, suppress_print):
     """print_status should tolerate failure messages with fix text."""
     vls.print_status("bad", success=False, fix="do this")
-
-
-def test_print_section(capsys, suppress_print):
-    """print_section should tolerate headers."""
-    vls.print_section("Test Section")
 
 
 def test_print_status_skipped(capsys, suppress_print):
