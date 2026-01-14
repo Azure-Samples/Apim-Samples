@@ -122,17 +122,18 @@ while ($true) {
     Write-Host ""
     Write-Host "Setup" -ForegroundColor Yellow
     Write-Host "  1) Complete environment setup"
-    Write-Host "  2) Verify local setup"
+    Write-Host "  2) Azure CLI login"
     Write-Host ""
     Write-Host "Verify" -ForegroundColor Yellow
-    Write-Host "  3) Show Azure account info"
-    Write-Host "  4) Show soft-deleted resources"
-    Write-Host "  5) Show all deployed infrastructures"
+    Write-Host "  3) Verify local setup"
+    Write-Host "  4) Show Azure account info"
+    Write-Host "  5) Show soft-deleted resources"
+    Write-Host "  6) Show all deployed infrastructures"
     Write-Host ""
     Write-Host "Tests" -ForegroundColor Yellow
-    Write-Host "  6) Run pylint"
-    Write-Host "  7) Run tests (shows detailed test results)"
-    Write-Host "  8) Run full Python checks (most statistics)"
+    Write-Host "  7) Run pylint"
+    Write-Host "  8) Run tests (shows detailed test results)"
+    Write-Host "  9) Run full Python checks (most statistics)"
     Write-Host ""
     Write-Host "Misc" -ForegroundColor Yellow
     Write-Host "  0) Exit"
@@ -144,24 +145,42 @@ while ($true) {
             PyRun "$RepoRoot/setup/local_setup.py" "--complete-setup" | Out-Null
         }
         '2' {
-            PyRun "$RepoRoot/setup/verify_local_setup.py" | Out-Null
+            Write-Host ""
+            $useTenantId = Read-Host "Do you want to specify a tenant ID? (y/n)"
+            if ($useTenantId -eq 'y' -or $useTenantId -eq 'Y') {
+                $tenantId = Read-Host "Enter tenant ID"
+                if ($tenantId) {
+                    $cmd = "az login --tenant $tenantId"
+                    Write-Host "`n>>> $cmd`n" -ForegroundColor Cyan
+                    & az login --tenant $tenantId 2>&1 | Out-Null
+                } else {
+                    Write-Host "Tenant ID is required." -ForegroundColor Red
+                }
+            } else {
+                $cmd = "az login"
+                Write-Host "`n>>> $cmd`n" -ForegroundColor Cyan
+                & az login 2>&1 | Out-Null
+            }
         }
         '3' {
-            Show-AccountInfo
+            PyRun "$RepoRoot/setup/verify_local_setup.py" | Out-Null
         }
         '4' {
-            PyRun "$RepoRoot/shared/python/show_soft_deleted_resources.py" | Out-Null
+            Show-AccountInfo
         }
         '5' {
-            PyRun "$RepoRoot/shared/python/show_infrastructures.py" | Out-Null
+            PyRun "$RepoRoot/shared/python/show_soft_deleted_resources.py" | Out-Null
         }
         '6' {
-            Invoke-Cmd "$RepoRoot/tests/python/run_pylint.ps1" | Out-Null
+            PyRun "$RepoRoot/shared/python/show_infrastructures.py" | Out-Null
         }
         '7' {
-            Invoke-Cmd "$RepoRoot/tests/python/run_tests.ps1" | Out-Null
+            Invoke-Cmd "$RepoRoot/tests/python/run_pylint.ps1" | Out-Null
         }
         '8' {
+            Invoke-Cmd "$RepoRoot/tests/python/run_tests.ps1" | Out-Null
+        }
+        '9' {
             Invoke-Cmd "$RepoRoot/tests/python/check_python.ps1" | Out-Null
         }
         '0' {

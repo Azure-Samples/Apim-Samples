@@ -90,17 +90,18 @@ while true; do
   echo ""
   echo "Setup"
   echo "  1) Complete environment setup"
-  echo "  2) Verify local setup"
+  echo "  2) Azure CLI login"
   echo ""
   echo "Verify"
-  echo "  3) Show Azure account info"
-  echo "  4) Show soft-deleted resources"
-  echo "  5) Show all deployed infrastructures"
+  echo "  3) Verify local setup"
+  echo "  4) Show Azure account info"
+  echo "  5) Show soft-deleted resources"
+  echo "  6) Show all deployed infrastructures"
   echo ""
   echo "Tests"
-  echo "  6) Run pylint"
-  echo "  7) Run tests (shows detailed test results)"
-  echo "  8) Run full Python checks"
+  echo "  7) Run pylint"
+  echo "  8) Run tests (shows detailed test results)"
+  echo "  9) Run full Python checks"
   echo ""
   echo "Misc"
   echo "  0) Exit"
@@ -111,24 +112,45 @@ while true; do
       run_cmd pyrun "${REPO_ROOT}/setup/local_setup.py" --complete-setup
       ;;
     2)
-      run_cmd pyrun "${REPO_ROOT}/setup/verify_local_setup.py"
+      read -rp "Do you want to specify a tenant ID? (y/n): " use_tenant_id
+      if [ "$use_tenant_id" = "y" ] || [ "$use_tenant_id" = "Y" ]; then
+        read -rp "Enter tenant ID: " tenant_id
+        if [ -n "$tenant_id" ]; then
+          cmd="az login --tenant $tenant_id"
+          echo ""
+          echo ">>> $cmd"
+          echo ""
+          az login --tenant "$tenant_id" >/dev/null 2>&1 &
+        else
+          echo "Tenant ID is required."
+        fi
+      else
+        cmd="az login"
+        echo ""
+        echo ">>> $cmd"
+        echo ""
+        az login >/dev/null 2>&1 &
+      fi
       ;;
     3)
-      show_account
+      run_cmd pyrun "${REPO_ROOT}/setup/verify_local_setup.py"
       ;;
     4)
-      run_cmd pyrun "${REPO_ROOT}/shared/python/show_soft_deleted_resources.py"
+      show_account
       ;;
     5)
-      run_cmd pyrun "${REPO_ROOT}/shared/python/show_infrastructures.py"
+      run_cmd pyrun "${REPO_ROOT}/shared/python/show_soft_deleted_resources.py"
       ;;
     6)
-      run_cmd bash "${REPO_ROOT}/tests/python/run_pylint.sh"
+      run_cmd pyrun "${REPO_ROOT}/shared/python/show_infrastructures.py"
       ;;
     7)
-      run_cmd bash "${REPO_ROOT}/tests/python/run_tests.sh"
+      run_cmd bash "${REPO_ROOT}/tests/python/run_pylint.sh"
       ;;
     8)
+      run_cmd bash "${REPO_ROOT}/tests/python/run_tests.sh"
+      ;;
+    9)
       run_cmd bash "${REPO_ROOT}/tests/python/check_python.sh"
       ;;
     0)
