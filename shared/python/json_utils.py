@@ -1,3 +1,7 @@
+"""
+JSON helpers and utilities
+"""
+
 import json
 import ast
 from typing import Any

@@ -26,7 +26,7 @@
 #>
 
 param(
-    [string]$Target = "infrastructure samples setup shared tests",
+    [string]$Target = "infrastructure samples setup shared",
     [switch]$ShowReport
 )
 

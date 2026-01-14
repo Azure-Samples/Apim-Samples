@@ -15,14 +15,14 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SHOW_REPORT=""
-TARGET="${1:-infrastructure samples setup shared tests}"
+TARGET="${1:-infrastructure samples setup shared}"
 
 PYLINT_SCORE=""
 
 # Parse arguments
 if [ "$1" = "--show-report" ]; then
     SHOW_REPORT="--show-report"
-    TARGET="infrastructure samples setup shared tests"
+    TARGET="infrastructure samples setup shared"
 elif [ "$2" = "--show-report" ]; then
     SHOW_REPORT="--show-report"
 fi

@@ -388,10 +388,9 @@ def main():
     # Handle purge option
     if args.purge:
         return _handle_purge_operation(apim_services, key_vaults, args.yes)
-    else:
-        print('\n💡 To purge all these resources, run:')
-        print(f'   {_get_suggested_purge_command()}')
 
+    print('\n💡 To purge all these resources, run:')
+    print(f'   {_get_suggested_purge_command()}')
     print()
     return 0
 

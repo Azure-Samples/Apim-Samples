@@ -456,8 +456,8 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
             if test_access_output.success and test_access_output.text.strip() != 'access-test-failed':
                 print_ok('Blob access test successful!')
                 return True
-            else:
-                print_warning('Role assignment exists but blob access test failed. Permissions may still be propagating...')
+
+            print_warning('Role assignment exists but blob access test failed. Permissions may still be propagating...')
 
         if not elapsed_time:
             print_info('Role assignment not found yet. Waiting for Azure AD propagation...')
@@ -640,10 +640,10 @@ def get_account_info() -> Tuple[str, str, str, str]:
 
     if account_show_output.success and account_show_output.json_data and ad_user_show_output.success and ad_user_show_output.json_data:
         return current_user, current_user_id, tenant_id, subscription_id
-    else:
-        error = 'Failed to retrieve account information. Please ensure the Azure CLI is installed, you are logged in, and the subscription is set correctly.'
-        print_error(error)
-        raise Exception(error)
+
+    error = 'Failed to retrieve account information. Please ensure the Azure CLI is installed, you are logged in, and the subscription is set correctly.'
+    print_error(error)
+    raise Exception(error)
 
 def get_deployment_name(directory_name: str | None = None) -> str:
     """

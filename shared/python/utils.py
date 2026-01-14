@@ -148,7 +148,8 @@ class InfrastructureNotebookHelper:
                             self.index = new_index
                             # Recursively call create_infrastructure with the new index
                             return self.create_infrastructure(bypass_infrastructure_check, allow_update)
-                        elif not should_proceed:  # pragma: no cover
+
+                        if not should_proceed:  # pragma: no cover
                             print_error('Infrastructure deployment cancelled by user.')
                             raise SystemExit("User cancelled deployment")
                     except (KeyboardInterrupt, EOFError) as exc:  # pragma: no cover
@@ -281,7 +282,8 @@ class NotebookHelper:
 
         if self.rg_name == prefix:
             return None
-        elif self.rg_name.startswith(f'{prefix}-'):
+
+        if self.rg_name.startswith(f'{prefix}-'):
             try:
                 index_str = self.rg_name[len(f'{prefix}-'):]
                 return int(index_str)
@@ -395,9 +397,9 @@ class NotebookHelper:
             if success:
                 print_ok(f'Successfully created infrastructure: {self.deployment.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
                 return self.deployment, selected_index
-            else:
-                print_error('Failed to create infrastructure.')
-                return None, None
+
+            print_error('Failed to create infrastructure.')
+            return None, None
 
         print_plain('')
 
@@ -411,13 +413,15 @@ class NotebookHelper:
                     return None, None
 
                 choice_idx = int(choice) - 1
+
                 if 0 <= choice_idx < len(display_options):
                     option_type, selected_infra, selected_index = display_options[choice_idx]
 
                     if option_type == 'existing':
                         print_ok(f'Selected existing: {selected_infra.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
                         return selected_infra, selected_index
-                    elif option_type == 'create_new':  # pragma: no cover
+
+                    if option_type == 'create_new':  # pragma: no cover
                         print_info(f'Creating new infrastructure: {selected_infra.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
 
                         # Execute the infrastructure creation
@@ -427,9 +431,9 @@ class NotebookHelper:
                         if success:
                             print_ok(f'Successfully created infrastructure: {selected_infra.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
                             return selected_infra, selected_index
-                        else:
-                            print_error('Failed to create infrastructure.')
-                            return None, None
+
+                        print_error('Failed to create infrastructure.')
+                        return None, None
                 else:
                     print_error(f'Invalid choice. Please enter a number between 1 and {len(display_options)}.')
 
@@ -745,7 +749,8 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
 
         if choice == '1':
             return True, None
-        elif choice == '2':
+
+        if choice == '2':
             # Option 2: Prompt for a different index
             while True:
                 try:
@@ -767,8 +772,8 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
         elif not choice:  # pragma: no cover
             # Empty input (ESC pressed in Jupyter) - cancel
             raise EOFError()
-        else:
-            print_plain('❌ Invalid choice. Please enter 1, 2, or 3.')
+
+        print_plain('❌ Invalid choice. Please enter 1, 2, or 3.')
 
 def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_update_option: bool = False) -> bool:
     """
@@ -808,7 +813,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
 
                 if choice == '1':
                     return False  # Allow deployment to proceed
-                elif choice in ('2', '3'):
+                if choice in ('2', '3'):
                     return True  # Block deployment
                 elif not choice:  # pragma: no cover
                     # Empty input (ESC pressed in Jupyter) - cancel

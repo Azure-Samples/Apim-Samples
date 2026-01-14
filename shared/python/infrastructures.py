@@ -273,9 +273,9 @@ class Infrastructure:
             if response.status_code == 200:
                 print_ok('APIM connectivity verified - Health check returned 200')
                 return True
-            else:
-                print_warning(f'APIM health check returned status code {response.status_code} (expected 200)')
-                return True  # Continue anyway as this might be expected during deployment
+
+            print_warning(f'APIM health check returned status code {response.status_code} (expected 200)')
+            return True  # Continue anyway as this might be expected during deployment
 
         except Exception as e:
             print_warning(f'APIM connectivity test failed: {str(e)}')
@@ -323,6 +323,7 @@ class Infrastructure:
                         try:
                             # Get subscription key for testing
                             subscription_key = az.get_apim_subscription_key(apim_name, rg_name)
+
                             if subscription_key:
                                 print_ok('Subscription key available for API testing')
                         except:
@@ -498,9 +499,9 @@ class ApimAcaInfrastructure(Infrastructure):
                 aca_count = int(aca_output.text.strip())
                 print_ok(f'Container Apps verified: {aca_count} app(s) created')
                 return True
-            else:
-                print_error('Container Apps verification failed!')
-                return False
+
+            print_error('Container Apps verification failed!')
+            return False
 
         except Exception as e:
             print_warning(f'Container Apps verification failed with error: {str(e)}')
@@ -634,9 +635,9 @@ class AfdApimAcaInfrastructure(Infrastructure):
                     pass
 
                 return True
-            else:
-                print_error('Azure Front Door verification failed!')
-                return False
+
+            print_error('Azure Front Door verification failed!')
+            return False
 
         except Exception as e:
             print_warning(f'AFD-APIM-PE verification failed with error: {str(e)}')
@@ -870,9 +871,9 @@ class AppGwApimPeInfrastructure(Infrastructure):
                     pass
 
                 return True
-            else:
-                print_error('Application Gateway verification failed!')
-                return False
+
+            print_error('Application Gateway verification failed!')
+            return False
 
         except Exception as e:
             print_warning(f'APPGW-APIM-PE verification failed with error: {str(e)}')

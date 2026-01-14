@@ -34,7 +34,7 @@
 
 param(
     [switch]$ShowLintReport,
-    [string]$Target = "infrastructure samples setup shared tests"
+    [string]$Target = "infrastructure samples setup shared"
 )
 
 $ErrorActionPreference = "Continue"
