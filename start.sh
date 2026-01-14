@@ -116,20 +116,18 @@ while true; do
       if [ "$use_tenant_id" = "y" ] || [ "$use_tenant_id" = "Y" ]; then
         read -rp "Enter tenant ID: " tenant_id
         if [ -n "$tenant_id" ]; then
-          cmd="az login --tenant $tenant_id"
           echo ""
-          echo ">>> $cmd"
+          echo ">>> az login --tenant $tenant_id"
           echo ""
-          az login --tenant "$tenant_id" >/dev/null 2>&1 &
+          exec az login --tenant "$tenant_id" <&1
         else
           echo "Tenant ID is required."
         fi
       else
-        cmd="az login"
         echo ""
-        echo ">>> $cmd"
+        echo ">>> az login"
         echo ""
-        az login >/dev/null 2>&1 &
+        exec az login <&1
       fi
       ;;
     3)

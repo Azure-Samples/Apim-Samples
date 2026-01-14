@@ -38,7 +38,7 @@ def print_status(message, success=True, fix="", skipped=False):
         status_text = "SKIPPED"
     else:
         color = "32" if success else "31"  # Green for success, red for failure
-        icon = "✅" if success else "⚠️"
+        icon = "✅" if success else "⚠️ "
         status_text = "PASS" if success else "FAIL"
     print(f"{icon} \033[1;{color}m{status_text}: {message}\033[0m")
     if fix:
