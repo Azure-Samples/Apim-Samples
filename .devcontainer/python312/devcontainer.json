@@ -7,9 +7,6 @@
     "context": "../.."
   },
   "features": {
-    "ghcr.io/devcontainers/features/azure-cli:1": {
-      "version": "2.82.0"
-    },
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": false,
       "configureZshAsDefaultShell": false,
@@ -70,7 +67,7 @@
   "updateContentCommand": [
     "bash",
     "-c",
-    "echo '📦 Installing/updating Python packages with uv...' && source /workspaces/Apim-Samples/.venv/bin/activate && uv sync && echo '✅ Python packages installed/updated' && python setup/local_setup.py --generate-env && echo '✅ Environment configuration updated' && echo '⚙️ Configuring Azure CLI and Bicep...' && az config set core.login_experience_v2=off 2>/dev/null || true && az bicep install 2>/dev/null || true && az extension add --name containerapp --only-show-errors 2>/dev/null || true && az extension add --name front-door --only-show-errors 2>/dev/null || true && echo '✅ Azure CLI configured for Codespaces'"
+    "echo '📦 Installing/updating Python packages with uv...' && source /workspaces/Apim-Samples/.venv/bin/activate && uv sync && echo '✅ Python packages installed/updated' && python setup/local_setup.py --generate-env && echo '✅ Environment configuration updated'"
   ],
   "postStartCommand": [
     "bash",
