@@ -58,10 +58,6 @@ $TextReport = Join-Path $ReportDir "pylint_${Timestamp}.txt"
 $LatestJson = Join-Path $ReportDir "latest.json"
 $LatestText = Join-Path $ReportDir "latest.txt"
 
-$ReportDirRelative = [IO.Path]::GetRelativePath($RepoRoot, $ReportDir) -replace "\\", "/"
-$JsonReportRelative = "$ReportDirRelative/pylint_${Timestamp}.json"
-$TextReportRelative = "$ReportDirRelative/pylint_${Timestamp}.txt"
-
 # Change to repository root and execute pylint
 Push-Location $RepoRoot
 try {
