@@ -89,10 +89,10 @@ if (Test-Path $JsonReport) {
 }
 
 # Display summary
-Write-Host "`n📊 Pylint Summary" -ForegroundColor Cyan
+Write-Host "`n📊 Pylint Summary`n" -ForegroundColor Cyan
 Write-Host "   Exit code: $ExitCode" -ForegroundColor $(if ($ExitCode -eq 0) { "Green" } else { "Yellow" })
-Write-Host "   JSON report: $JsonReport" -ForegroundColor Gray
-Write-Host "   Text report: $TextReport" -ForegroundColor Gray
+Write-Host "   JSON report       : $JsonReport" -ForegroundColor Gray
+Write-Host "   Text report       : $TextReport" -ForegroundColor Gray
 
 # Parse and display top issues from JSON
 if (Test-Path $JsonReport) {

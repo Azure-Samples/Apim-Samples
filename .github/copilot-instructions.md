@@ -78,6 +78,7 @@ In case of any conflicting instructions, the following hierarchy shall apply. If
 ## Formatting and Style
 
 - Maintain consistent indentation and whitespace but consider Editor Config settings, etc, for the repository.
+- Use only LF, never CRLF for line endings.
 - Use blank lines to separate logical sections of code. Whitespace is encouraged for readability.
 - Organize code into logical sections (constants, variables, private/public methods, etc.).
 - Prefer single over double quotes, avoiding typographic quotes.

@@ -1,4 +1,4 @@
-[MASTER]
+[MAIN]
 jobs = 0
 persistent = no
 
@@ -8,7 +8,6 @@ disable =
     C0103,  # Invalid name
     C0301,  # Line too long
     C0302,  # Too many lines in module
-    C0305,  # Trailing newlines
     C0114,  # Missing module docstring
     C0115,  # Missing class docstring
     C0116,  # Missing function or method docstring
@@ -16,7 +15,6 @@ disable =
     I0011,  # Locally disabling (informational)
     I0020,  # Suppressed message (informational)
     W0212,  # Access to a protected member _ of a client class
-    W0401,  # Wildcard import (allow for backwards compatibility)
     R0801,  # Duplicate code
     R0902,  # Too many instance attributes
     R0903,  # Too few public methods
@@ -31,7 +29,6 @@ disable =
     R1705,  # No else return
     W0201,  # Attribute assigned outside init
     W0511,  # TODO/FIXME comments
-    W0613,  # Unused argument
     W0621,  # Redefining name from outer scope
     W0702,  # bare except
     W0718,  # Exception arguments are of wrong type
@@ -39,10 +36,18 @@ disable =
 
 [REPORTS]
 output-format = colorized
-reports = yes
+reports = no
 score = yes
-msg-template = {path}:{line}:{column}: [{msg_id}({symbol}), {obj}] {msg}
+msg-template = {path}:{line}: {msg_id}: {msg}
 
 [FORMAT]
 max-line-length = 120
 expected-line-ending-format = LF
+
+[DESIGN]
+# Allow unused arguments in test fixtures (pytest mocks/fixtures commonly have unused params)
+dummy-variables-rgx = ^_|^mock_|^fixture_|^suppress_|^monkeypatch|^temp_|^fake_
+
+# Disable unused-argument check for test files where pytest fixtures intentionally have unused parameters
+[MESSAGES CONTROL:tests/python/test_*.py]
+disable = W0613

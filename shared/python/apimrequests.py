@@ -20,7 +20,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 #    CLASSES
 # ------------------------------
 
-class ApimRequests:  # pylint: disable=invalid-name
+class ApimRequests:
     """
     Methods for making requests to the Azure API Management service.
     Provides single and multiple request helpers with consistent logging.
@@ -160,7 +160,7 @@ class ApimRequests:  # pylint: disable=invalid-name
             print_error(f'Error making request: {e}')
             return None
 
-    def _multiRequest(self, method: HTTP_VERB, path: str, runs: int, headers: list[any] = None, data: any = None, msg: str | None = None, printResponse: bool = True, sleepMs: int | None = None) -> list[dict[str, Any]]:  # pylint: disable=invalid-name,too-many-locals
+    def _multiRequest(self, method: HTTP_VERB, path: str, runs: int, headers: list[any] = None, data: any = None, msg: str | None = None, printResponse: bool = True, sleepMs: int | None = None) -> list[dict[str, Any]]:
         """
         Make multiple requests to the Azure API Management service.
 
@@ -359,7 +359,7 @@ class ApimRequests:  # pylint: disable=invalid-name
 
         return self._multiRequest(method = HTTP_VERB.GET, path = path, runs = runs, headers = headers, data = data, msg = msg, printResponse = printResponse, sleepMs = sleepMs)
 
-    def singlePostAsync(self, path: str, *, headers = None, data = None, msg: str | None = None, printResponse = True, timeout = 60, poll_interval = 2) -> Any:  # pylint: disable=invalid-name,too-many-locals
+    def singlePostAsync(self, path: str, *, headers = None, data = None, msg: str | None = None, printResponse = True, timeout = 60, poll_interval = 2) -> Any:
         """
         Make an async POST request to the Azure API Management service and poll until completion.
 

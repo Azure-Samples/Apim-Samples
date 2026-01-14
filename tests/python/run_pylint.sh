@@ -50,13 +50,14 @@ fi
 # Display summary
 echo ""
 echo "📊 Pylint Summary"
+echo ""
 if [ $EXIT_CODE -eq 0 ]; then
     echo "   Exit code: $EXIT_CODE ✅"
 else
     echo "   Exit code: $EXIT_CODE ⚠️"
 fi
-echo "   JSON report: $JSON_REPORT"
-echo "   Text report: $TEXT_REPORT"
+echo "   JSON report       : $JSON_REPORT"
+echo "   Text report       : $TEXT_REPORT"
 
 # Parse and display top issues from JSON
 if [ -f "$JSON_REPORT" ] && command -v jq &> /dev/null; then

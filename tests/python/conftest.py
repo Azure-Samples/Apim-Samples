@@ -13,9 +13,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 # Add the tests/python directory to import test_helpers
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
-# APIM Samples imports
-# pylint: disable=wrong-import-position
-from test_helpers import (
+# APIM Samples imports (must come after the sys path inserts, so we disable the offending pylint rule C0413 (wrong-import-position) below)
+from test_helpers import ( # pylint: disable=wrong-import-position
     create_mock_http_response,
     create_mock_output,
     create_sample_apis,

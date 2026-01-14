@@ -180,7 +180,7 @@ def check_vscode_settings():
             return False, f"Regenerate VS Code settings: python setup/local_setup.py --complete-setup (missing: {', '.join(missing)})"
 
         return True, ""
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception as exc:
         return False, f"Could not read VS Code settings: {exc}"
 
 
@@ -199,7 +199,7 @@ def check_env_file():
             return True, ""
 
         return False, "Regenerate .env: python setup/local_setup.py --generate-env"
-    except Exception as exc:  # pylint: disable=broad-except
+    except Exception as exc:
         return False, f"Could not read .env file: {exc}"
 
 

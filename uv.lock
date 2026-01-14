@@ -36,8 +36,8 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "coverage", specifier = ">=7.6.4" },
-    { name = "pylint", specifier = ">=3.0.0" },
-    { name = "pytest", specifier = ">=8.0.0" },
+    { name = "pylint", specifier = ">=4.0.0" },
+    { name = "pytest", specifier = ">=9.0.0" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
 ]
 
