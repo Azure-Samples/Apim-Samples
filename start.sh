@@ -112,6 +112,7 @@ while true; do
       run_cmd pyrun "${REPO_ROOT}/setup/local_setup.py" --complete-setup
       ;;
     2)
+      echo ""
       read -rp "Do you want to specify a tenant ID? (y/n): " use_tenant_id
       if [ "$use_tenant_id" = "y" ] || [ "$use_tenant_id" = "Y" ]; then
         read -rp "Enter tenant ID: " tenant_id
