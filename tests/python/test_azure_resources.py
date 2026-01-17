@@ -14,18 +14,36 @@ from test_helpers import suppress_module_functions
 
 
 # ------------------------------
+#    TEST DATA
+# ------------------------------
+
+# Static account info data for reuse across tests
+def _create_account_output():
+    """Create a standard account output for testing."""
+    output = Output(True, '{}')
+    output.json_data = {
+        'user': {'name': 'test.user@example.com'},
+        'id': 'sub-123',
+        'tenantId': 'tenant-123',
+        'name': 'Test Subscription',
+        'tenantDisplayName': 'Contoso'
+    }
+    return output
+
+
+# ------------------------------
 #    AZURE ROLE TESTS
 # ------------------------------
 
 def test_get_azure_role_guid_success():
     """Test successful retrieval of Azure role GUID."""
 
-    mock_data = {'Contributor': 'role-guid-12345', 'Reader': 'role-guid-67890'}
+    mock_data = {'Contributor': 'role-guid-123', 'Reader': 'role-guid-67890'}
 
     with patch('builtins.open', mock_open(read_data=json.dumps(mock_data))):
         result = az.get_azure_role_guid('Contributor')
 
-        assert result == 'role-guid-12345'
+        assert result == 'role-guid-123'
 
 
 def test_get_azure_role_guid_failure():
@@ -109,24 +127,19 @@ def test_get_account_info_success():
     """Test successful retrieval of account information."""
 
     with patch('azure_resources.run') as mock_run:
-        account_output = Output(True, '{}')
-        account_output.json_data = {
-            'user': {'name': 'test.user@example.com'},
-            'id': 'sub-12345',
-            'tenantId': 'tenant-12345'
-        }
+        account_output = _create_account_output()
 
         ad_user_output = Output(True, '{}')
-        ad_user_output.json_data = {'id': 'user-id-12345'}
+        ad_user_output.json_data = {'id': 'user-id-123'}
 
         mock_run.side_effect = [account_output, ad_user_output]
 
         current_user, current_user_id, tenant_id, subscription_id = az.get_account_info()
 
         assert current_user == 'test.user@example.com'
-        assert current_user_id == 'user-id-12345'
-        assert tenant_id == 'tenant-12345'
-        assert subscription_id == 'sub-12345'
+        assert current_user_id == 'user-id-123'
+        assert tenant_id == 'tenant-123'
+        assert subscription_id == 'sub-123'
 
 
 def test_get_account_info_failure():
@@ -459,7 +472,7 @@ def test_get_apim_subscription_key_key_value_not_string(monkeypatch):
             return Output(True, json.dumps(payload))
 
         if 'az rest --method post' in cmd and 'listSecrets' in cmd:
-            return Output(True, json.dumps({'primaryKey': 12345, 'secondaryKey': 'sk-xyz'}))
+            return Output(True, json.dumps({'primaryKey': 123, 'secondaryKey': 'sk-xyz'}))
 
         return Output(False, 'unexpected command')
 
@@ -970,12 +983,7 @@ def test_get_resource_group_location_with_whitespace(monkeypatch):
 def test_get_account_info_missing_user_id(monkeypatch):
     """Test get_account_info when user ID is not available."""
     with patch('azure_resources.run') as mock_run:
-        account_output = Output(True, '{}')
-        account_output.json_data = {
-            'user': {'name': 'test@example.com'},
-            'id': 'sub-123',
-            'tenantId': 'tenant-123'
-        }
+        account_output = _create_account_output()
 
         ad_user_output = Output(False, 'User not found')
         mock_run.side_effect = [account_output, ad_user_output]
@@ -999,7 +1007,7 @@ def test_cleanup_old_jwt_signing_keys_all_deleted(monkeypatch):
     def fake_run(cmd, *args, **kwargs):
         run_calls.append(cmd)
         if 'nv list' in cmd:
-            return Output(True, 'JwtSigningKey-sample-12345\nJwtSigningKey-sample-67890\n')
+            return Output(True, 'JwtSigningKey-sample-123\nJwtSigningKey-sample-67890\n')
         if 'nv delete' in cmd:
             return Output(True, 'Deleted')
         return Output(False, 'Unknown')
@@ -1322,12 +1330,7 @@ def test_check_apim_blob_permissions_custom_wait_time(monkeypatch):
 def test_get_account_info_all_fields_present(monkeypatch):
     """Test get_account_info successfully retrieves all account information."""
     with patch('azure_resources.run') as mock_run:
-        account_output = Output(True, '{}')
-        account_output.json_data = {
-            'user': {'name': 'user@contoso.com'},
-            'id': 'sub-12345',
-            'tenantId': 'tenant-abcde'
-        }
+        account_output = _create_account_output()
 
         ad_user_output = Output(True, '{}')
         ad_user_output.json_data = {'id': 'user-id-xyz'}
@@ -1336,10 +1339,10 @@ def test_get_account_info_all_fields_present(monkeypatch):
 
         user, user_id, tenant_id, subscription_id = az.get_account_info()
 
-        assert user == 'user@contoso.com'
+        assert user == 'test.user@example.com'
         assert user_id == 'user-id-xyz'
-        assert tenant_id == 'tenant-abcde'
-        assert subscription_id == 'sub-12345'
+        assert tenant_id == 'tenant-123'
+        assert subscription_id == 'sub-123'
 
 
 # ------------------------------
@@ -2030,13 +2033,7 @@ class TestGetAccountInfoEdgeCases:
     def test_get_account_info_partial_failure(self, monkeypatch):
         suppress_module_functions(monkeypatch, az, ['print_val', 'print_error'])
 
-        account_output = Mock()
-        account_output.success = True
-        account_output.json_data = {
-            'user': {'name': 'test@example.com'},
-            'tenantId': 'tenant-123',
-            'id': 'subscription-123'
-        }
+        account_output = _create_account_output()
 
         ad_output = Mock()
         ad_output.success = False
@@ -2058,13 +2055,7 @@ class TestGetAccountInfoEdgeCases:
     def test_get_account_info_success(self, monkeypatch):
         suppress_module_functions(monkeypatch, az, ['print_val', 'print_error'])
 
-        account_output = Mock()
-        account_output.success = True
-        account_output.json_data = {
-            'user': {'name': 'test@example.com'},
-            'tenantId': 'tenant-123',
-            'id': 'subscription-123'
-        }
+        account_output = _create_account_output()
 
         ad_output = Mock()
         ad_output.success = True
@@ -2081,10 +2072,10 @@ class TestGetAccountInfoEdgeCases:
         monkeypatch.setattr('azure_resources.run', mock_run)
 
         user, user_id, tenant, subscription = az.get_account_info()
-        assert user == 'test@example.com'
+        assert user == 'test.user@example.com'
         assert user_id == 'user-123'
         assert tenant == 'tenant-123'
-        assert subscription == 'subscription-123'
+        assert subscription == 'sub-123'
 
 
 class TestGetDeploymentName:
@@ -2350,12 +2341,12 @@ class TestCleanupOldJwtSigningKeys:
 
         mock_output = Mock()
         mock_output.success = True
-        mock_output.json_data = [{'name': 'JwtSigningKey-authX-12345'}]
+        mock_output.json_data = [{'name': 'JwtSigningKey-authX-123'}]
         mock_output.is_json = True
 
         monkeypatch.setattr('azure_resources.run', lambda *a, **k: mock_output)
 
-        result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'JwtSigningKey-authX-12345')
+        result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'JwtSigningKey-authX-123')
         assert isinstance(result, bool)
 
     def test_cleanup_old_jwt_list_fails(self, monkeypatch):
@@ -2367,7 +2358,7 @@ class TestCleanupOldJwtSigningKeys:
 
         monkeypatch.setattr('azure_resources.run', lambda *a, **k: mock_output)
 
-        result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'JwtSigningKey-authX-12345')
+        result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'JwtSigningKey-authX-123')
         assert result is False
 
 
@@ -2509,7 +2500,7 @@ class TestCleanupJwtSigningKeysEdgeCases:
 
         monkeypatch.setattr('azure_resources.run', lambda *a, **k: mock_output)
 
-        result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'JwtSigningKey-authX-12345')
+        result = az.cleanup_old_jwt_signing_keys('apim', 'rg', 'JwtSigningKey-authX-123')
 
         assert result is True
 

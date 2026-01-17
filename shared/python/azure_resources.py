@@ -622,7 +622,7 @@ def get_account_info() -> Tuple[str, str, str, str]:
 
     current_user = tenant_id = subscription_id = current_user_id = ''
 
-    account_show_output = run('az account show', 'Retrieved az account', 'Failed to get the current az account')
+    account_show_output = run('az account show', None, 'Failed to get the current az account')
 
     if account_show_output.success and account_show_output.json_data:
         current_user = account_show_output.json_data['user']['name']
@@ -632,7 +632,11 @@ def get_account_info() -> Tuple[str, str, str, str]:
         subscription_id = account_show_output.json_data['id']
         print_val('Subscription ID', subscription_id)
 
-    ad_user_show_output = run('az ad signed-in-user show', 'Retrieved az ad signed-in-user', 'Failed to get the current az ad signed-in-user')
+        # Printing informationally for the user, not relevant data to return
+        print_val('Tenant name', account_show_output.json_data['tenantDisplayName'])
+        print_val('Subscription name', account_show_output.json_data['name'])
+
+    ad_user_show_output = run('az ad signed-in-user show', None, 'Failed to get the current az ad signed-in-user')
 
     if ad_user_show_output.success and ad_user_show_output.json_data:
         current_user_id = ad_user_show_output.json_data['id']

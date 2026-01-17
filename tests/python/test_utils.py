@@ -2212,7 +2212,7 @@ def test_infrastructure_tags_with_special_characters():
     special_tags = {
         'environment': 'prod-test',
         'team-name': 'api-management',
-        'cost-center': 'cc-12345'
+        'cost-center': 'cc-123'
     }
 
     result = utils.build_infrastructure_tags(INFRASTRUCTURE.AFD_APIM_PE, special_tags)
@@ -2220,7 +2220,7 @@ def test_infrastructure_tags_with_special_characters():
     # Verify all tags were included with special characters preserved
     assert result['environment'] == 'prod-test'
     assert result['team-name'] == 'api-management'
-    assert result['cost-center'] == 'cc-12345'
+    assert result['cost-center'] == 'cc-123'
     assert result['infrastructure'] == 'afd-apim-pe'
 
 

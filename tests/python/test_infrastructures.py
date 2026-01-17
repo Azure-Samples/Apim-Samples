@@ -418,7 +418,7 @@ def test_base_infrastructure_verification_subscription_key_success(mock_utils, m
     mock_api_output.text = '3'  # 3 APIs
 
     # Mock successful subscription key retrieval
-    mock_az.get_apim_subscription_key.return_value = 'valid-subscription-key-12345'
+    mock_az.get_apim_subscription_key.return_value = 'valid-subscription-key-123'
 
     mock_az.run.side_effect = [mock_apim_output, mock_api_output]
 

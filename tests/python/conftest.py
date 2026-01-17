@@ -44,7 +44,7 @@ def sample_test_data() -> dict[str, Any]:
     """Provide sample test data for use across tests."""
     return {
         'test_url': 'https://test-apim.azure-api.net',
-        'test_subscription_key': 'test-subscription-key-12345',
+        'test_subscription_key': 'test-subscription-key-123',
         'test_resource_group': 'rg-test-apim-01',
         'test_location': 'eastus2'
     }
