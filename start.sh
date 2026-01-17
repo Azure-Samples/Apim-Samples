@@ -57,7 +57,6 @@ if str(shared) not in sys.path:
 try:
     import azure_resources as az
     info = az.get_account_info()
-    print(json.dumps(info, indent=2))
 except Exception as exc:  # pylint: disable=broad-except
     print(f"Failed to read Azure account info: {exc}")
 PY
