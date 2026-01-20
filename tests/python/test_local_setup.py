@@ -355,6 +355,56 @@ def test_check_azure_providers_registered_json_error():
 
 
 # ============================================================
+# Tests for check_uv_installed
+# ============================================================
+
+def test_check_uv_installed_success():
+    """Test check_uv_installed returns True when uv is found and functioning."""
+    with patch("shutil.which") as mock_which:
+        with patch("subprocess.run") as mock_run:
+            mock_which.return_value = "/usr/bin/uv"
+            mock_run.return_value = Mock(stdout="uv 0.1.0", returncode=0)
+            result = sps.check_uv_installed()
+            assert result is True
+
+
+def test_check_uv_installed_not_found():
+    """Test check_uv_installed returns False when uv is not found."""
+    with patch("shutil.which") as mock_which:
+        mock_which.return_value = None
+        result = sps.check_uv_installed()
+        assert result is False
+
+
+def test_check_uv_installed_windows_instructions():
+    """Test check_uv_installed provides Windows-specific instructions."""
+    with patch("shutil.which") as mock_which:
+        with patch.object(os, "name", "nt"):
+            mock_which.return_value = None
+            result = sps.check_uv_installed()
+            assert result is False
+
+
+def test_check_uv_installed_unix_instructions():
+    """Test check_uv_installed provides Unix-specific instructions."""
+    with patch("shutil.which") as mock_which:
+        with patch.object(os, "name", "posix"):
+            mock_which.return_value = None
+            result = sps.check_uv_installed()
+            assert result is False
+
+
+def test_check_uv_installed_subprocess_error():
+    """Test check_uv_installed handles subprocess errors."""
+    with patch("shutil.which") as mock_which:
+        with patch("subprocess.run") as mock_run:
+            mock_which.return_value = "/usr/bin/uv"
+            mock_run.side_effect = subprocess.CalledProcessError(1, "uv")
+            result = sps.check_uv_installed()
+            assert result is False
+
+
+# ============================================================
 # Tests for VS Code and environment setup
 # ============================================================
 
@@ -676,7 +726,8 @@ def test_validate_kernel_setup_jupyter_not_found(monkeypatch: pytest.MonkeyPatch
 # ============================================================
 
 def test_setup_complete_environment_success(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
-    """Test setup_complete_environment runs all steps successfully."""
+    """Test setup_complete_environment runs all steps successfully including UV."""
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: True)
     monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: True)
     monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: True)
     monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: True)
@@ -684,15 +735,240 @@ def test_setup_complete_environment_success(temp_project_root: Path, monkeypatch
     monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
     monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
 
-    # Should not raise any exceptions
+    with patch("shutil.which") as mock_which:
+        with patch("subprocess.run") as mock_run:
+            mock_which.return_value = "/usr/bin/uv"
+            mock_run.return_value = Mock(returncode=0)
+            # Should not raise any exceptions
+            sps.setup_complete_environment()
+
+
+def test_setup_complete_environment_without_uv(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test setup_complete_environment succeeds even when UV is not available."""
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: False)
+    monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: True)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
+    monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
+    monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
+
+    # Should complete successfully without UV
+    sps.setup_complete_environment()
+
+
+def test_setup_complete_environment_uv_sync_fails(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test setup_complete_environment handles UV sync failures gracefully."""
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: True)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
+    monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
+    monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
+
+    with patch("shutil.which") as mock_which:
+        with patch("subprocess.run") as mock_run:
+            mock_which.return_value = "/usr/bin/uv"
+            mock_run.side_effect = subprocess.CalledProcessError(1, "uv sync")
+            # Should complete without raising exception
+            sps.setup_complete_environment()
+
+
+def test_setup_complete_environment_check_uv_exception(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test setup_complete_environment handles exceptions in check_uv_installed."""
+    def raise_exception():
+        raise RuntimeError("UV check failed")
+
+    monkeypatch.setattr(sps, "check_uv_installed", raise_exception)
+    monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: True)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
+    monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
+    monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
+
+    # Should continue despite exception
+    sps.setup_complete_environment()
+
+
+def test_setup_complete_environment_azure_cli_exception(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test setup_complete_environment handles exceptions in Azure CLI check."""
+    def raise_exception():
+        raise RuntimeError("Azure CLI check failed")
+
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: False)
+    monkeypatch.setattr(sps, "check_azure_cli_installed", raise_exception)
+    monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: True)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
+    monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
+    monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
+
+    # Should continue despite exception
+    sps.setup_complete_environment()
+
+
+def test_setup_complete_environment_bicep_exception(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test setup_complete_environment handles exceptions in Bicep CLI check."""
+    def raise_exception():
+        raise RuntimeError("Bicep CLI check failed")
+
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: False)
+    monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_bicep_cli_installed", raise_exception)
+    monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: True)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
+    monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
+    monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
+
+    # Should continue despite exception
+    sps.setup_complete_environment()
+
+
+def test_setup_complete_environment_providers_exception(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test setup_complete_environment handles exceptions in Azure providers check."""
+    def raise_exception():
+        raise RuntimeError("Providers check failed")
+
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: False)
+    monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_azure_providers_registered", raise_exception)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
+    monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
+    monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
+
+    # Should continue despite exception
+    sps.setup_complete_environment()
+
+
+def test_setup_complete_environment_generate_env_exception(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test setup_complete_environment handles exceptions in generate_env_file."""
+    def raise_exception():
+        raise RuntimeError("Generate env failed")
+
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: False)
+    monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: True)
+    monkeypatch.setattr(sps, "generate_env_file", raise_exception)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
+    monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
+    monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
+
+    # Should continue despite exception
+    sps.setup_complete_environment()
+
+
+def test_setup_complete_environment_kernel_exception(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test setup_complete_environment handles exceptions in install_jupyter_kernel."""
+    def raise_exception():
+        raise RuntimeError("Kernel install failed")
+
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: False)
+    monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: True)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", raise_exception)
+    monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
+    monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
+
+    # Should continue despite exception
+    sps.setup_complete_environment()
+
+
+def test_setup_complete_environment_vscode_exception(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test setup_complete_environment handles exceptions in create_vscode_settings."""
+    def raise_exception():
+        raise RuntimeError("VS Code settings failed")
+
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: False)
+    monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: True)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
+    monkeypatch.setattr(sps, "create_vscode_settings", raise_exception)
+    monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
+
+    # Should continue despite exception
+    sps.setup_complete_environment()
+
+
+def test_setup_complete_environment_consistency_exception(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test setup_complete_environment handles exceptions in force_kernel_consistency."""
+    def raise_exception():
+        raise RuntimeError("Kernel consistency failed")
+
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: False)
+    monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: True)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
+    monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
+    monkeypatch.setattr(sps, "force_kernel_consistency", raise_exception)
+
+    # Should continue despite exception
+    sps.setup_complete_environment()
+
+
+def test_setup_complete_environment_uv_sync_exception(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test setup_complete_environment handles exceptions during UV sync."""
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: True)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
+    monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
+    monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
+
+    with patch("shutil.which") as mock_which:
+        with patch("subprocess.run") as mock_run:
+            mock_which.return_value = "/usr/bin/uv"
+            mock_run.side_effect = RuntimeError("Unexpected error")
+            # Should continue despite exception
+            sps.setup_complete_environment()
+
+
+def test_setup_complete_environment_uv_sync_path_not_found(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test setup_complete_environment when uv_path is not found after check_uv_installed returns True."""
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: True)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
+    monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
+    monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
+
+    with patch("shutil.which") as mock_which:
+        mock_which.return_value = None  # shutil.which returns None when executable not found
+        # Should complete successfully even when uv executable is not found
+        sps.setup_complete_environment()
+
+
+def test_setup_complete_environment_continues_without_azure_tools(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test setup_complete_environment continues even if Azure tools are missing."""
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: False)
+    monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: False)
+    monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: False)
+    monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: False)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
+    monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
+    monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
+
+    # Should continue and complete setup
     sps.setup_complete_environment()
 
 
 def test_setup_complete_environment_missing_azure_cli(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
     """Test setup_complete_environment stops when Azure CLI is missing."""
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: False)
     monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: False)
     monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: True)
     monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: True)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
+    monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
+    monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
 
     # Should not raise but should return early
     sps.setup_complete_environment()
@@ -1406,9 +1682,13 @@ def test_setup_complete_environment_with_missing_bicep(temp_project_root: Path, 
 
 def test_setup_complete_environment_with_missing_providers(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
     """Test setup_complete_environment stops when Azure providers are not registered."""
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: False)
     monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: True)
     monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: True)
     monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: False)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
+    monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
+    monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
 
     # Should return early without full setup
     sps.setup_complete_environment()
@@ -2322,11 +2602,15 @@ def test_setup_complete_environment_all_pass(monkeypatch: pytest.MonkeyPatch):
 
 def test_setup_complete_environment_azure_cli_fails(monkeypatch: pytest.MonkeyPatch):
     """Test setup_complete_environment when Azure CLI check fails."""
-    with patch.object(sps, "check_azure_cli_installed", return_value=False):
-        with patch.object(sps, "check_bicep_cli_installed", return_value=True):
-            with patch.object(sps, "check_azure_providers_registered", return_value=True):
-                # Should return early, not continue to next steps
-                sps.setup_complete_environment()
+    with patch.object(sps, "check_uv_installed", return_value=False):
+        with patch.object(sps, "check_azure_cli_installed", return_value=False):
+            with patch.object(sps, "check_bicep_cli_installed", return_value=True):
+                with patch.object(sps, "check_azure_providers_registered", return_value=True):
+                    with patch.object(sps, "install_jupyter_kernel", return_value=True):
+                        with patch.object(sps, "create_vscode_settings", return_value=True):
+                            with patch.object(sps, "force_kernel_consistency", return_value=True):
+                                # Should return early, not continue to next steps
+                                sps.setup_complete_environment()
 
 
 def test_setup_complete_environment_kernel_fails(monkeypatch: pytest.MonkeyPatch):

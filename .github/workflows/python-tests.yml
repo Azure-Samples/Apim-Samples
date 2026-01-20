@@ -15,6 +15,8 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      PYTHONPATH: ${{ github.workspace }}/shared/python:${{ github.workspace }}
     strategy:
       matrix:
         python-version: [ '3.12', '3.13', '3.14' ]
@@ -45,7 +47,7 @@ jobs:
         run: |
           mkdir -p tests/python/pylint/reports
           # Use python -m pylint and tee to ensure output is captured and visible in logs
-          PYTHONPATH=$(pwd) uv run python -m pylint --rcfile .pylintrc infrastructure samples setup shared 2>&1 | tee tests/python/pylint/reports/latest.txt
+          uv run python -m pylint --rcfile .pylintrc infrastructure samples setup shared 2>&1 | tee tests/python/pylint/reports/latest.txt
 
       - name: Upload pylint reports
         uses: actions/upload-artifact@v4
@@ -62,7 +64,7 @@ jobs:
       - name: Run pytest with coverage and generate JUnit XML
         id: pytest
         run: |
-          PYTHONPATH=$(pwd) COVERAGE_FILE=tests/python/.coverage-${{ matrix.python-version }} uv run pytest --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov-${{ matrix.python-version }} --cov-report=term-missing --junitxml=tests/python/junit-${{ matrix.python-version }}.xml tests/python/
+          COVERAGE_FILE=tests/python/.coverage-${{ matrix.python-version }} uv run pytest --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov-${{ matrix.python-version }} --cov-report=term-missing --junitxml=tests/python/junit-${{ matrix.python-version }}.xml tests/python/
 
       - name: Upload coverage HTML report
         uses: actions/upload-artifact@v4
@@ -95,7 +97,7 @@ jobs:
 
           # Coverage Percentage
           if [ -f "tests/python/.coverage-${{ matrix.python-version }}" ]; then
-            TOTAL_COV=$(PYTHONPATH=$(pwd) COVERAGE_FILE=tests/python/.coverage-${{ matrix.python-version }} uv run python -m coverage report | grep TOTAL | awk '{print $NF}')
+            TOTAL_COV=$(COVERAGE_FILE=tests/python/.coverage-${{ matrix.python-version }} uv run python -m coverage report | grep TOTAL | awk '{print $NF}')
             echo "coverage=$TOTAL_COV" >> "$GITHUB_OUTPUT"
           else
             echo "coverage=N/A" >> "$GITHUB_OUTPUT"
@@ -106,7 +108,6 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
           header: python-results-${{ matrix.python-version }}
           message: |
             ## 🐍 Python ${{ matrix.python-version }} Results
@@ -121,13 +122,17 @@ jobs:
 
       - name: Generate Job Summary
         run: |
+          PYLINT_SCORE="${{ steps.metrics.outputs.pylint_score }}"
+          PYTEST_OUTCOME="${{ steps.pytest.outcome }}"
+          COVERAGE="${{ steps.metrics.outputs.coverage }}"
+
           echo "## 🐍 Python ${{ matrix.python-version }} Execution Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Category | Status | Detail |" >> $GITHUB_STEP_SUMMARY
           echo "| :--- | :---: | :--- |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Pylint** | ${{ steps.pylint.outcome == 'success' && '✅' || '⚠️' }} | Score: `${{ steps.metrics.outputs.pylint_score }}` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Pytest** | ${{ steps.pytest.outcome == 'success' && '✅' || '❌' }} | Outcome: `${{ steps.pytest.outcome }}` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Coverage** | 📊 | Total: `${{ steps.metrics.outputs.coverage }}` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Pylint** | ${{ steps.pylint.outcome == 'success' && '✅' || '⚠️' }} | Score: \`${PYLINT_SCORE:-N/A}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Pytest** | ${{ steps.pytest.outcome == 'success' && '✅' || '❌' }} | Outcome: \`${PYTEST_OUTCOME:-N/A}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Coverage** | 📊 | Total: \`${COVERAGE:-N/A}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
 

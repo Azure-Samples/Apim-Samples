@@ -67,7 +67,7 @@ def check_uv_sync():
     """Check if uv is available and sync dependencies if it is."""
     uv_path = shutil.which("uv")
     if not uv_path:
-        return True, "uv is not installed (optional - install from https://docs.astral.sh/uv/)"
+        return False, "Install uv for faster dependency management: https://docs.astral.sh/uv/ (or use 'Complete environment setup' in Developer CLI)"
 
     venv_path = Path.cwd() / ".venv"
     if not venv_path.exists():
