@@ -108,7 +108,6 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: marocchino/sticky-pull-request-comment@v2
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
           header: python-results-${{ matrix.python-version }}
           message: |
             ## 🐍 Python ${{ matrix.python-version }} Results
