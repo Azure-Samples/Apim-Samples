@@ -99,6 +99,32 @@ def check_bicep_cli_installed():
         print("❌ Azure Bicep CLI is not installed. Install with: az bicep install")
         return False
 
+def check_uv_installed():
+    """Check if uv is installed and provide installation guidance if not."""
+    uv_path = shutil.which('uv')
+    if not uv_path:
+        print("❌ uv is not installed.")
+        print("   uv provides fast Python package management and is recommended for this project.")
+        print("   Installation instructions:")
+        if os.name == 'nt':  # Windows
+            print("   • PowerShell: irm https://astral.sh/uv/install.ps1 | iex")
+            print("   • Or download from: https://github.com/astral-sh/uv/releases")
+        else:  # macOS/Linux
+            print("   • curl -LsSf https://astral.sh/uv/install.sh | sh")
+        print("   • Official docs: https://docs.astral.sh/uv/getting-started/installation/")
+        return False
+
+    try:
+        result = subprocess.run([uv_path, '--version'], capture_output=True, text=True, check=True)
+        version = result.stdout.strip()
+        print(f"✅ uv is installed ({version})")
+        return True
+    except subprocess.CalledProcessError:
+        print("❌ uv is installed but not functioning correctly")
+        print("   Try reinstalling: https://docs.astral.sh/uv/getting-started/installation/")
+        return False
+
+
 def check_azure_providers_registered():
     """Check if required Azure resource providers are registered in the current subscription."""
     az_path = shutil.which('az') or shutil.which('az.cmd') or shutil.which('az.bat')
@@ -529,54 +555,139 @@ def setup_complete_environment():
 
     print("🚀 Setting up complete APIM Samples environment...\n")
 
-    # Step 1: Check Azure prerequisites
-    print("1/5) Checking Azure prerequisites...\n")
-    azure_cli_ok = check_azure_cli_installed()
-    bicep_ok = check_bicep_cli_installed()
-    providers_ok = check_azure_providers_registered()
+    # Step 1: Check uv installation (recommended but not blocking)
+    print("1/7) Checking uv installation (recommended)...\n")
+    uv_ok = False
+    try:
+        uv_ok = check_uv_installed()
+    except Exception as e:
+        print(f"⚠️  Error checking uv installation: {e}")
+        print("   Continuing with setup...")
 
-    if not (azure_cli_ok and bicep_ok and providers_ok):
-        print("\n⚠️  Some Azure prerequisites are missing. Please address the issues above and re-run this script.")
-        return
+    # Step 2: Check Azure prerequisites
+    print("\n2/7) Checking Azure prerequisites...\n")
+    azure_cli_ok = False
+    bicep_ok = False
+    providers_ok = False
 
-    # Step 2: Generate .env file
-    print("\n2/5) Generating .env file for Python path configuration...")
-    generate_env_file()
+    try:
+        azure_cli_ok = check_azure_cli_installed()
+    except Exception as e:
+        print(f"⚠️  Error checking Azure CLI: {e}")
+        print("   Continuing with setup...")
 
-    # Step 3: Register Jupyter kernel
-    print("3/5) Registering standardized Jupyter kernel...\n")
-    kernel_success = install_jupyter_kernel()
+    try:
+        bicep_ok = check_bicep_cli_installed()
+    except Exception as e:
+        print(f"⚠️  Error checking Bicep CLI: {e}")
+        print("   Continuing with setup...")
 
-    # Step 4: Configure VS Code settings with minimal, merged defaults
-    print("\n4/5) Configuring VS Code workspace settings...\n")
-    vscode_success = create_vscode_settings()
+    try:
+        providers_ok = check_azure_providers_registered()
+    except Exception as e:
+        print(f"⚠️  Error checking Azure providers: {e}")
+        print("   Continuing with setup...")
 
-    # Step 5: Enforce kernel consistency
-    print("\n5/5) Enforcing kernel consistency for future reliability...\n")
-    consistency_success = force_kernel_consistency()
+    if not (azure_cli_ok and bicep_ok):
+        print("\n⚠️  Some Azure prerequisites are missing. Please address the issues above.")
+        print("   Continuing with environment setup...\n")
+
+    # Step 3: Generate .env file
+    print("\n3/7) Generating .env file for Python path configuration...")
+    env_success = False
+    try:
+        generate_env_file()
+        env_success = True
+    except Exception as e:
+        print(f"❌ Failed to generate .env file: {e}")
+        print("   Continuing with setup...")
+
+    # Step 4: Register Jupyter kernel
+    print("\n4/7) Registering standardized Jupyter kernel...\n")
+    kernel_success = False
+    try:
+        kernel_success = install_jupyter_kernel()
+    except Exception as e:
+        print(f"❌ Error installing Jupyter kernel: {e}")
+        print("   Continuing with setup...")
+
+    # Step 5: Configure VS Code settings with minimal, merged defaults
+    print("\n5/7) Configuring VS Code workspace settings...\n")
+    vscode_success = False
+    try:
+        vscode_success = create_vscode_settings()
+    except Exception as e:
+        print(f"❌ Error creating VS Code settings: {e}")
+        print("   Continuing with setup...")
+
+    # Step 6: Enforce kernel consistency
+    print("\n6/7) Enforcing kernel consistency for future reliability...\n")
+    consistency_success = False
+    try:
+        consistency_success = force_kernel_consistency()
+    except Exception as e:
+        print(f"❌ Error enforcing kernel consistency: {e}")
+        print("   Continuing with setup...")
+
+    # Step 7: Run uv sync if uv is available
+    print("\n7/7) Syncing dependencies with uv (if available)...\n")
+    sync_success = False
+    if uv_ok:
+        try:
+            uv_path = shutil.which('uv')
+            if uv_path:
+                subprocess.run([uv_path, 'sync'], check=True, capture_output=True, text=True)
+                print("✅ Dependencies synced successfully with uv")
+                sync_success = True
+            else:
+                print("⚠️  uv reported installed but executable not found in PATH; skipping sync")
+                print("   Install uv and run 'uv sync' for dependency management")
+        except subprocess.CalledProcessError as e:
+            print(f"⚠️  Failed to sync dependencies with uv: {e}")
+            print("   You can manually run 'uv sync' after setup")
+        except Exception as e:
+            print(f"⚠️  Error during uv sync: {e}")
+            print("   You can manually run 'uv sync' after setup")
+    else:
+        print("⚠️  Skipping dependency sync (uv not available)")
+        print("   Install uv and run 'uv sync' for dependency management")
 
     # Summary
     print("\n" + "="*50)
     print("📋 Setup Summary:")
-    print("   ✅ Azure CLI and Bicep: Available")
-    print("   ✅ Azure resource providers: Registered")
-    print("   ✅ Python path configuration: Complete")
+    print(f"   {'✅' if uv_ok else '⚠️ '} uv installation: {'Available' if uv_ok else 'Not installed (recommended)'}")
+    print(f"   {'✅' if azure_cli_ok else '❌'} Azure CLI: {'Available' if azure_cli_ok else 'Not installed'}")
+    print(f"   {'✅' if bicep_ok else '❌'} Azure Bicep: {'Available' if bicep_ok else 'Not installed'}")
+    print(f"   {'✅' if providers_ok else '⚠️ '} Azure resource providers: {'Registered' if providers_ok else 'Not all registered'}")
+    print(f"   {'✅' if env_success else '❌'} Python path configuration: {'Complete' if env_success else 'Failed'}")
     print(f"   {'✅' if kernel_success else '❌'} Jupyter kernel registration: {'Complete' if kernel_success else 'Failed'}")
     print(f"   {'✅' if vscode_success else '❌'} VS Code settings: {'Complete' if vscode_success else 'Failed'}")
     print(f"   {'✅' if consistency_success else '❌'} Kernel trust refresh: {'Complete' if consistency_success else 'Failed'}")
+    print(f"   {'✅' if sync_success else '⚠️ '} Dependency sync: {'Complete' if sync_success else 'Skipped or failed'}")
 
-    if kernel_success and vscode_success and consistency_success:
-        print("\n🎉 Setup complete! Your local environment now matches the dev container experience.")
+    critical_success = env_success and kernel_success and vscode_success and consistency_success
+
+    if critical_success:
+        print("\n🎉 Setup complete! Your local environment is configured.")
         print(f"   • Notebooks can use the '{KERNEL_DISPLAY_NAME}' kernel")
         print("   • Python modules from shared/ directory are available")
         print("   • VS Code is configured for optimal workflow")
         print("   • User customizations are preserved across reruns")
+        if not uv_ok:
+            print("\n⚠️  Note: uv is not installed but is recommended for faster dependency management")
+            print("   See installation instructions above")
         print("\n💡 Next steps:")
         print("   1. Restart VS Code to apply all settings")
-        print("   2. Open any notebook - it should automatically use the correct kernel")
-        print("   3. The kernel should remain consistent across all notebooks")
+        if uv_ok and sync_success:
+            print("   2. Dependencies are synced and ready to use")
+        elif uv_ok:
+            print("   2. Run 'uv sync' to install dependencies")
+        else:
+            print("   2. Install uv and run 'uv sync' for dependency management")
+        print("   3. Open any notebook - it should automatically use the correct kernel")
     else:
         print("\n⚠️  Setup completed with some issues. Check error messages above.")
+        print("   The environment may still be partially functional.")
 
 
 def show_help():

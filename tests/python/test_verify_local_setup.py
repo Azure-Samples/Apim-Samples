@@ -119,13 +119,13 @@ def test_check_virtual_environment_wrong_python(temp_cwd: Path, monkeypatch: pyt
 # ============================================================
 
 def test_check_uv_sync_uv_not_installed(suppress_print) -> None:
-    """UV sync check should pass (with note) when uv is not installed."""
+    """UV sync check should fail when uv is not installed."""
     with patch("shutil.which") as mock_which:
         mock_which.return_value = None
         ok, fix = vls.check_uv_sync()
-        assert ok is True
-        assert "uv is not installed" in fix
-        assert "optional" in fix
+        assert ok is False
+        assert "Install uv" in fix
+        assert "https://docs.astral.sh/uv/" in fix
 
 
 def test_check_uv_sync_success_venv_exists(temp_cwd: Path, suppress_print) -> None:
@@ -778,6 +778,7 @@ def test_check_azure_providers_json_error(monkeypatch: pytest.MonkeyPatch, suppr
 def test_main_all_pass(monkeypatch: pytest.MonkeyPatch, suppress_print):
     """Main function should return True when all checks pass."""
     monkeypatch.setattr(vls, "check_virtual_environment", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_uv_sync", lambda: (True, ""))
     monkeypatch.setattr(vls, "check_required_packages", lambda: (True, ""))
     monkeypatch.setattr(vls, "check_shared_modules", lambda: (True, ""))
     monkeypatch.setattr(vls, "check_env_file", lambda: (True, ""))
@@ -821,6 +822,7 @@ def test_main_skip_azure_providers_when_login_fails(monkeypatch: pytest.MonkeyPa
 def test_main_run_azure_providers_when_login_succeeds(monkeypatch: pytest.MonkeyPatch, suppress_print):
     """Main function should run Azure Providers check when Azure Login succeeds."""
     monkeypatch.setattr(vls, "check_virtual_environment", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_uv_sync", lambda: (True, ""))
     monkeypatch.setattr(vls, "check_required_packages", lambda: (True, ""))
     monkeypatch.setattr(vls, "check_shared_modules", lambda: (True, ""))
     monkeypatch.setattr(vls, "check_env_file", lambda: (True, ""))
