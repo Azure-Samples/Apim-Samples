@@ -122,13 +122,17 @@ jobs:
 
       - name: Generate Job Summary
         run: |
+          PYLINT_SCORE="${{ steps.metrics.outputs.pylint_score }}"
+          PYTEST_OUTCOME="${{ steps.pytest.outcome }}"
+          COVERAGE="${{ steps.metrics.outputs.coverage }}"
+
           echo "## 🐍 Python ${{ matrix.python-version }} Execution Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Category | Status | Detail |" >> $GITHUB_STEP_SUMMARY
           echo "| :--- | :---: | :--- |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Pylint** | ${{ steps.pylint.outcome == 'success' && '✅' || '⚠️' }} | Score: `${{ steps.metrics.outputs.pylint_score }}` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Pytest** | ${{ steps.pytest.outcome == 'success' && '✅' || '❌' }} | Outcome: `${{ steps.pytest.outcome }}` |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Coverage** | 📊 | Total: `${{ steps.metrics.outputs.coverage }}` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Pylint** | ${{ steps.pylint.outcome == 'success' && '✅' || '⚠️' }} | Score: \`${PYLINT_SCORE:-N/A}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Pytest** | ${{ steps.pytest.outcome == 'success' && '✅' || '❌' }} | Outcome: \`${PYTEST_OUTCOME:-N/A}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Coverage** | 📊 | Total: \`${COVERAGE:-N/A}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
 
