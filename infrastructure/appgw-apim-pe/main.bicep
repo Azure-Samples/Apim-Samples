@@ -1,4 +1,11 @@
 // ------------------
+//    IMPORTS
+// ------------------
+
+import {nsgsr_denyAllInbound} from '../../shared/bicep/modules/vnet/v1/nsg_rules.bicep'
+
+
+// ------------------
 //    PARAMETERS
 // ------------------
 
@@ -96,7 +103,16 @@ module appInsightsModule '../../shared/bicep/modules/monitor/v1/appinsights.bice
 var appInsightsId = appInsightsModule.outputs.id
 var appInsightsInstrumentationKey = appInsightsModule.outputs.instrumentationKey
 
-// 3. Virtual Network and Subnets
+// 3. Storage Account for NSG Flow Logs
+module storageFlowLogsModule '../../shared/bicep/modules/vnet/v1/storage-flowlogs.bicep' = {
+  name: 'storageFlowLogsModule'
+  params: {
+    location: location
+    resourceSuffix: resourceSuffix
+  }
+}
+
+// 4. Virtual Network and Subnets
 resource nsgDefault 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
   name: 'nsg-default'
   location: location
@@ -112,7 +128,7 @@ resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
         name: 'AllowGatewayManagerInbound'
         properties: {
           description: 'Allow Azure infrastructure communication'
-          protocol: 'TCP'
+          protocol: 'Tcp'
           sourcePortRange: '*'
           destinationPortRange: '65200-65535'
           sourceAddressPrefix: 'GatewayManager'
@@ -125,8 +141,8 @@ resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
       {
         name: 'AllowHTTPSInbound'
         properties: {
-          description: 'Allow HTTPS traffic'
-          protocol: 'TCP'
+          description: 'Allow HTTPS traffic from internet'
+          protocol: 'Tcp'
           sourcePortRange: '*'
           destinationPortRange: '443'
           sourceAddressPrefix: '*'
@@ -139,7 +155,7 @@ resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
       {
         name: 'AllowAzureLoadBalancerInbound'
         properties: {
-          description: 'Allow Azure Load Balancer'
+          description: 'Allow Azure Load Balancer health probes'
           protocol: '*'
           sourcePortRange: '*'
           destinationPortRange: '*'
@@ -150,7 +166,31 @@ resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
           direction: 'Inbound'
         }
       }
+      nsgsr_denyAllInbound
     ]
+  }
+}
+
+// NSG for APIM with Private Link from Application Gateway
+module nsgApimModule '../../shared/bicep/modules/vnet/v1/nsg-apim-pe.bicep' = {
+  name: 'nsgApimModule'
+  params: {
+    location: location
+    nsgName: 'nsg-apim'
+    apimSubnetPrefix: apimSubnetPrefix
+    allowAppGateway: true
+    appgwSubnetPrefix: appgwSubnetPrefix
+  }
+}
+
+// NSG for Container Apps - only allow traffic from APIM
+module nsgAcaModule '../../shared/bicep/modules/vnet/v1/nsg-aca.bicep' = if (useACA) {
+  name: 'nsgAcaModule'
+  params: {
+    location: location
+    nsgName: 'nsg-aca'
+    acaSubnetPrefix: acaSubnetPrefix
+    apimSubnetPrefix: apimSubnetPrefix
   }
 }
 
@@ -166,7 +206,7 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
         properties: {
           addressPrefix: apimSubnetPrefix
           networkSecurityGroup: {
-            id: nsgDefault.id
+            id: nsgApimModule.outputs.nsgId
           }
           delegations: [
             {
@@ -184,7 +224,7 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
         properties: {
           addressPrefix: acaSubnetPrefix
           networkSecurityGroup: {
-            id: nsgDefault.id
+            id: useACA ? nsgAcaModule.outputs.nsgId : nsgDefault.id
           }
           delegations: [
             {
@@ -226,7 +266,51 @@ var acaSubnetResourceId   = '${vnetModule.outputs.vnetId}/subnets/${acaSubnetNam
 var appgwSubnetResourceId = '${vnetModule.outputs.vnetId}/subnets/${appgwSubnetName}'
 var peSubnetResourceId    = '${vnetModule.outputs.vnetId}/subnets/${privateEndpointSubnetName}'
 
-// 4. User Assigned Managed Identity
+// 5. NSG Flow Logs and Traffic Analytics
+
+// NSG Flow Logs for Application Gateway
+module nsgFlowLogsAppGwModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.bicep' = {
+  name: 'nsgFlowLogsAppGwModule'
+  params: {
+    location: location
+    flowLogName: 'fl-nsg-appgw-${resourceSuffix}'
+    nsgResourceId: nsgAppGw.id
+    storageAccountResourceId: storageFlowLogsModule.outputs.storageAccountId
+    logAnalyticsWorkspaceResourceId: lawId
+    retentionDays: 7
+    enableTrafficAnalytics: true
+  }
+}
+
+// NSG Flow Logs for APIM
+module nsgFlowLogsApimModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.bicep' = {
+  name: 'nsgFlowLogsApimModule'
+  params: {
+    location: location
+    flowLogName: 'fl-nsg-apim-${resourceSuffix}'
+    nsgResourceId: nsgApimModule.outputs.nsgId
+    storageAccountResourceId: storageFlowLogsModule.outputs.storageAccountId
+    logAnalyticsWorkspaceResourceId: lawId
+    retentionDays: 7
+    enableTrafficAnalytics: true
+  }
+}
+
+// NSG Flow Logs for ACA
+module nsgFlowLogsAcaModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.bicep' = if (useACA) {
+  name: 'nsgFlowLogsAcaModule'
+  params: {
+    location: location
+    flowLogName: 'fl-nsg-aca-${resourceSuffix}'
+    nsgResourceId: nsgAcaModule.outputs.nsgId
+    storageAccountResourceId: storageFlowLogsModule.outputs.storageAccountId
+    logAnalyticsWorkspaceResourceId: lawId
+    retentionDays: 7
+    enableTrafficAnalytics: true
+  }
+}
+
+// 6. User Assigned Managed Identity
 // https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/managed-identity/user-assigned-identity
 module uamiModule 'br/public:avm/res/managed-identity/user-assigned-identity:0.4.2' = {
   name: 'uamiModule'
@@ -236,7 +320,7 @@ module uamiModule 'br/public:avm/res/managed-identity/user-assigned-identity:0.4
   }
 }
 
-// 5. Key Vault
+// 7. Key Vault
 // https://learn.microsoft.com/azure/templates/microsoft.keyvault/vaults
 // This assignment is helpful for testing to allow you to examine and administer the Key Vault. Adjust accordingly for real workloads!
 var keyVaultAdminRoleAssignment = setCurrentUserAsKeyVaultAdmin && !empty(currentUserId) ? [
@@ -269,7 +353,7 @@ module keyVaultModule 'br/public:avm/res/key-vault/vault:0.13.3' = {
   }
 }
 
-// 6. Public IP for Application Gateway
+// 8. Public IP for Application Gateway
 // https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/public-ip-address
 module appgwPipModule 'br/public:avm/res/network/public-ip-address:0.9.1' = {
   name: 'appgwPipModule'
@@ -282,7 +366,7 @@ module appgwPipModule 'br/public:avm/res/network/public-ip-address:0.9.1' = {
   }
 }
 
-// 7. WAF Policy for Application Gateway
+// 9. WAF Policy for Application Gateway
 // https://learn.microsoft.com/azure/templates/microsoft.network/applicationgatewaywebapplicationfirewallpolicies
 resource wafPolicy 'Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies@2025-01-01' = {
   name: 'waf-${resourceSuffix}'
@@ -308,7 +392,7 @@ resource wafPolicy 'Microsoft.Network/ApplicationGatewayWebApplicationFirewallPo
   }
 }
 
-// 8. Azure Container App Environment (ACAE)
+// 10. Azure Container App Environment (ACAE)
 module acaEnvModule '../../shared/bicep/modules/aca/v1/environment.bicep' = if (useACA) {
   name: 'acaEnvModule'
   params: {
@@ -319,7 +403,7 @@ module acaEnvModule '../../shared/bicep/modules/aca/v1/environment.bicep' = if (
   }
 }
 
-// 9. Azure Container Apps (ACA) for Mock Web API
+// 11. Azure Container Apps (ACA) for Mock Web API
 module acaModule1 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (useACA) {
   name: 'acaModule-1'
   params: {
@@ -338,7 +422,7 @@ module acaModule2 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (u
   }
 }
 
-// 10. API Management
+// 12. API Management
 module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
   name: 'apimModule'
   params: {
@@ -352,7 +436,7 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
   }
 }
 
-// 11. APIM Policy Fragments
+// 13. APIM Policy Fragments
 module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.bicep' = [for pf in policyFragments: {
   name: 'pf-${pf.name}'
   params:{
@@ -366,7 +450,7 @@ module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.
   ]
 }]
 
-// 12. APIM Backends for ACA
+// 14. APIM Backends for ACA
 module backendModule1 '../../shared/bicep/modules/apim/v1/backend.bicep' = if (useACA) {
   name: 'aca-backend-1'
   params: {
@@ -415,7 +499,7 @@ module backendPoolModule '../../shared/bicep/modules/apim/v1/backend-pool.bicep'
   ]
 }
 
-// 13. APIM APIs
+// 15. APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(length(apis) > 0) {
   name: 'api-${api.name}'
   params: {
@@ -434,7 +518,7 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   ]
 }]
 
-// 14. Private Endpoint for APIM
+// 16. Private Endpoint for APIM
 // https://learn.microsoft.com/azure/templates/microsoft.network/privateendpoints
 resource apimPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
   name: 'pe-apim-${resourceSuffix}'
@@ -457,7 +541,7 @@ resource apimPrivateEndpoint 'Microsoft.Network/privateEndpoints@2024-05-01' = {
   }
 }
 
-// 15. Private DNS Zone Group for APIM Private Endpoint
+// 17. Private DNS Zone Group for APIM Private Endpoint
 // https://learn.microsoft.com/azure/templates/microsoft.network/privateendpoints/privatednszoneegroups
 resource apimPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZoneGroups@2024-05-01' = {
   name: 'apim-dns-zone-group'
@@ -474,7 +558,7 @@ resource apimPrivateDnsZoneGroup 'Microsoft.Network/privateEndpoints/privateDnsZ
   }
 }
 
-// 16. APIM Private DNS Zone, VNet Link
+// 18. APIM Private DNS Zone, VNet Link
 module apimDnsPrivateLinkModule '../../shared/bicep/modules/dns/v1/dns-private-link.bicep' = {
   name: 'apimDnsPrivateLinkModule'
   params: {
@@ -487,7 +571,7 @@ module apimDnsPrivateLinkModule '../../shared/bicep/modules/dns/v1/dns-private-l
   }
 }
 
-// 17. ACA Private DNS Zone
+// 19. ACA Private DNS Zone
 module acaDnsPrivateZoneModule '../../shared/bicep/modules/dns/v1/aca-dns-private-zone.bicep' = if (useACA) {
   name: 'acaDnsPrivateZoneModule'
   params: {
@@ -497,7 +581,7 @@ module acaDnsPrivateZoneModule '../../shared/bicep/modules/dns/v1/aca-dns-privat
   }
 }
 
-// 18. Application Gateway
+// 20. Application Gateway
 // https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/application-gateway
 module appgwModule 'br/public:avm/res/network/application-gateway:0.7.2' = {
   name: 'appgwModule'
