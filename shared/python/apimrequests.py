@@ -181,7 +181,11 @@ class ApimRequests:
 
         session = requests.Session()
 
-        session.headers.update(self.headers.copy())
+        merged_headers = self.headers.copy()
+        if headers:
+            merged_headers.update(headers)
+
+        session.headers.update(merged_headers)
 
         try:
             if msg:

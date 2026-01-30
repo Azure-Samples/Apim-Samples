@@ -58,7 +58,7 @@ def suppress_print(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def mock_az_cli(monkeypatch: pytest.MonkeyPatch):
+def mock_az_cli():
     """Patch shutil.which and subprocess.run for mocking az commands."""
     with patch("shutil.which") as mock_which, patch("subprocess.run") as mock_run:
         yield mock_which, mock_run
@@ -650,14 +650,14 @@ def _mock_all_checks(monkeypatch: pytest.MonkeyPatch, **overrides: tuple[bool, s
         monkeypatch.setattr(vls, check_name, lambda result=result: result)
 
 
-def test_main_all_pass(monkeypatch: pytest.MonkeyPatch, suppress_print):
+def test_main_all_pass(monkeypatch: pytest.MonkeyPatch):
     """Main function should return True when all checks pass."""
     _mock_all_checks(monkeypatch)
     result = vls.main()
     assert result is True
 
 
-def test_main_skip_azure_providers_when_login_fails(monkeypatch: pytest.MonkeyPatch, suppress_print):
+def test_main_skip_azure_providers_when_login_fails(monkeypatch: pytest.MonkeyPatch):
     """Main function should skip Azure Providers check when Azure Login fails."""
     azure_providers_called = []
 
@@ -673,7 +673,7 @@ def test_main_skip_azure_providers_when_login_fails(monkeypatch: pytest.MonkeyPa
     assert not azure_providers_called
 
 
-def test_main_run_azure_providers_when_login_succeeds(monkeypatch: pytest.MonkeyPatch, suppress_print):
+def test_main_run_azure_providers_when_login_succeeds(monkeypatch: pytest.MonkeyPatch):
     """Main function should run Azure Providers check when Azure Login succeeds."""
     azure_providers_called = []
 
@@ -689,14 +689,14 @@ def test_main_run_azure_providers_when_login_succeeds(monkeypatch: pytest.Monkey
     assert len(azure_providers_called) == 1
 
 
-def test_main_some_fail(monkeypatch: pytest.MonkeyPatch, suppress_print):
+def test_main_some_fail(monkeypatch: pytest.MonkeyPatch):
     """Main function should return False when some checks fail."""
     _mock_all_checks(monkeypatch, check_required_packages=(False, "install"))
     result = vls.main()
     assert result is False
 
 
-def test_main_skip_providers_and_fail_other(monkeypatch: pytest.MonkeyPatch, suppress_print):
+def test_main_skip_providers_and_fail_other(monkeypatch: pytest.MonkeyPatch):
     """Main function should return False when non-provider checks fail, even if providers skipped."""
     _mock_all_checks(
         monkeypatch,
