@@ -796,6 +796,7 @@ def test_main_all_pass(monkeypatch: pytest.MonkeyPatch, suppress_print):
 def test_main_skip_azure_providers_when_login_fails(monkeypatch: pytest.MonkeyPatch, suppress_print):
     """Main function should skip Azure Providers check when Azure Login fails."""
     monkeypatch.setattr(vls, "check_virtual_environment", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_uv_sync", lambda: (True, ""))
     monkeypatch.setattr(vls, "check_required_packages", lambda: (True, ""))
     monkeypatch.setattr(vls, "check_shared_modules", lambda: (True, ""))
     monkeypatch.setattr(vls, "check_env_file", lambda: (True, ""))
