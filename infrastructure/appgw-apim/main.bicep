@@ -335,7 +335,7 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
         properties: {
           addressPrefix: acaSubnetPrefix
           networkSecurityGroup: {
-            id: useACA ? nsgAcaModule.outputs.nsgId : nsgDefault.id
+            id: useACA ? nsgAcaModule!.outputs.nsgId : nsgDefault.id
           }
           delegations: [
             {
@@ -401,7 +401,7 @@ module nsgFlowLogsAcaModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.bi
   params: {
     location: location
     flowLogName: 'fl-nsg-aca-${resourceSuffix}'
-    nsgResourceId: nsgAcaModule.outputs.nsgId
+    nsgResourceId: nsgAcaModule!.outputs.nsgId
     storageAccountResourceId: storageFlowLogsModule.outputs.storageAccountId
     logAnalyticsWorkspaceResourceId: lawId
     retentionDays: 7
@@ -599,7 +599,7 @@ module backendPoolModule '../../shared/bicep/modules/apim/v1/backend-pool.bicep'
 }
 
 // 15. APIM APIs
-module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(length(apis) > 0) {
+module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: {
   name: 'api-${api.name}'
   params: {
     apimName: apimName
@@ -609,9 +609,9 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   }
   dependsOn: useACA ? [
     apimModule
-    backendModule1
-    backendModule2
-    backendPoolModule
+    backendModule1!
+    backendModule2!
+    backendPoolModule!
   ] : [
     apimModule
   ]

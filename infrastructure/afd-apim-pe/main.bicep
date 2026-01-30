@@ -136,7 +136,7 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
         properties: {
           addressPrefix: acaSubnetPrefix
           networkSecurityGroup: {
-            id: useACA ? nsgAcaModule.outputs.nsgId : nsgApimModule.outputs.nsgId
+            id: useACA ? nsgAcaModule!.outputs.nsgId : nsgApimModule.outputs.nsgId
           }
           delegations: [
             {
@@ -195,7 +195,7 @@ module nsgFlowLogsAcaModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.bi
   params: {
     location: location
     flowLogName: 'fl-nsg-aca-${resourceSuffix}'
-    nsgResourceId: nsgAcaModule.outputs.nsgId
+    nsgResourceId: nsgAcaModule!.outputs.nsgId
     storageAccountResourceId: storageFlowLogsModule.outputs.storageAccountId
     logAnalyticsWorkspaceResourceId: lawId
     retentionDays: 7
