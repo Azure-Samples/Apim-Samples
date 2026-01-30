@@ -63,7 +63,7 @@ In case of any conflicting instructions, the following hierarchy shall apply. If
 
 - `/`: Root directory containing the main files and folders. Bicep configuration is stored in `bicepconfig.json`.
 - The following folders are all at the root level:
-    - `assets/`: PlantUML diagrams and images. Static assets such as these should be placed here. Any diagrams should be placed in the /diagrams/src subfolder.
+    - `assets/`: Mermaid diagrams and images. Static assets such as these should be placed here. Any diagrams should be placed in the /diagrams/src subfolder.
     - `infrastructure/`: Contains Jupyter notebooks for setting up various API Management infrastructures. When modifying samples, these notebooks should not need to be modified.
     - `samples/`: Various policy and scenario samples that can be applied to the infrastructures.
     - `setup/`: General setup scripts and configurations for the repository and dev environment setup.
@@ -101,13 +101,14 @@ In case of any conflicting instructions, the following hierarchy shall apply. If
 
 - Use these [configuration settings](https://github.com/microsoft/vscode-jupyter/blob/dd568fde/package.nls.json) as a reference for the VS Code Jupyter extension configuration.
 
-### PlantUML Instructions
+### Mermaid Instructions
 
-- Ensure you verify that all include links are correct and up to date. This link provides a starting point: https://github.com/plantuml-stdlib/Azure-PlantUML/blob/master/AzureSymbols.md
 - Keep diagrams simple. For Azure, include major components, not individual aspects of components. For example, there is no need for individual policies in WAFs or APIs in API Management, Smart Detector Alert Rules, etc.
 - Less is more. Don't be too verbose in the diagrams.
 - Never include subscription IDs, resource group names, or any other sensitive information in the diagrams. That data is not relevant.
-- Don't use the "legend" command if the information is relatively obvious.
+- Use flowchart diagrams for architecture diagrams with left-to-right direction (flowchart LR).
+- Apply consistent styling using classDef for Azure components and custom elements.
+- Use Azure blue (#0078D4) for Azure services, light blue (#ADD8E6) for apps, and light green (#90EE90) for APIs.
 
 ### API Management Policy XML Instructions
 
