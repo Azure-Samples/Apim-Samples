@@ -849,6 +849,7 @@ def test_main_run_azure_providers_when_login_succeeds(monkeypatch: pytest.Monkey
 def test_main_some_fail(monkeypatch: pytest.MonkeyPatch, suppress_print):
     """Main function should return False when some checks fail."""
     monkeypatch.setattr(vls, "check_virtual_environment", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_uv_sync", lambda: (True, ""))
     monkeypatch.setattr(vls, "check_required_packages", lambda: (False, "install"))
     monkeypatch.setattr(vls, "check_shared_modules", lambda: (True, ""))
     monkeypatch.setattr(vls, "check_env_file", lambda: (True, ""))
@@ -866,6 +867,7 @@ def test_main_some_fail(monkeypatch: pytest.MonkeyPatch, suppress_print):
 def test_main_skip_providers_and_fail_other(monkeypatch: pytest.MonkeyPatch, suppress_print):
     """Main function should return False when non-provider checks fail, even if providers skipped."""
     monkeypatch.setattr(vls, "check_virtual_environment", lambda: (True, ""))
+    monkeypatch.setattr(vls, "check_uv_sync", lambda: (True, ""))
     monkeypatch.setattr(vls, "check_required_packages", lambda: (False, "install"))
     monkeypatch.setattr(vls, "check_shared_modules", lambda: (True, ""))
     monkeypatch.setattr(vls, "check_env_file", lambda: (True, ""))
