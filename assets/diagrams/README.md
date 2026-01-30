@@ -2,6 +2,34 @@
 
 This directory contains Mermaid diagrams for the Azure API Management architecture.
 
+## About Azure Icons in Mermaid
+
+**Important**: Unlike PlantUML, Mermaid does not have native Azure-specific stencils or icons. The diagrams in this repository use:
+
+1. **Font Awesome icons** (e.g., `fa:fa-cloud`, `fa:fa-database`) to provide visual context
+2. **Color coding** to distinguish component types:
+   - Azure blue (#0078D4) for Azure services
+   - Light blue (#ADD8E6) for applications
+   - Light green (#90EE90) for APIs
+3. **Clear labels** with Azure service names
+
+### Why Not Official Azure Icons?
+
+- Microsoft provides [official Azure icons](https://learn.microsoft.com/en-us/azure/architecture/icons/) as SVG/PNG files
+- These are designed for tools like Visio, PowerPoint, or Draw.io
+- Mermaid does not support importing custom icon sets directly
+- For high-fidelity branded diagrams, use tools like Draw.io or Visio with official Azure icons
+
+### Font Awesome Icon Support
+
+The diagrams use Font Awesome icons (v5+) with the `fa:fa-icon-name` syntax. Icon support depends on your rendering environment:
+
+- ✅ **Mermaid Live Editor**: Full support
+- ✅ **VS Code with Mermaid extension**: Supported (requires Font Awesome stylesheet)
+- ✅ **GitHub Markdown**: Supported in most renderers
+- ⚠️ **Azure DevOps Wiki**: Limited support (may not render icons)
+- ⚠️ **Some static site generators**: May require Font Awesome CDN configuration
+
 ## Using Mermaid in VS Code
 
 1. **Prerequisites**:
@@ -29,11 +57,19 @@ If you encounter issues with Mermaid:
    - Check that Markdown preview is active
    - Try reloading VS Code
 
-2. **Syntax Errors**:
+2. **Icons Not Showing**:
+   - Font Awesome icons may not render in all environments
+   - The diagram structure and labels will still be clear without icons
+   - For web rendering, ensure Font Awesome CSS is loaded:
+     ```html
+     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+     ```
+
+3. **Syntax Errors**:
    - Validate your Mermaid syntax using [Mermaid Live Editor](https://mermaid.live)
    - Check for proper indentation and formatting
    - Ensure all node IDs are unique
 
-3. **Export Issues**:
+4. **Export Issues**:
    - For CLI exports, ensure `@mermaid-js/mermaid-cli` is installed globally
    - Check that Puppeteer dependencies are installed (required for mermaid-cli)

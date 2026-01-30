@@ -2,11 +2,11 @@
 
 ```mermaid
 flowchart LR
-    apps([Apps]):::appStyle
-    apim[API Management]:::azureStyle
-    aca[Container Apps]:::azureStyle
-    appinsights[Application Insights]:::azureStyle
-    loganalytics[Log Analytics]:::azureStyle
+    apps([fa:fa-mobile Apps]):::appStyle
+    apim[fa:fa-cloud API Management]:::azureStyle
+    aca[fa:fa-box Container Apps]:::azureStyle
+    appinsights[fa:fa-chart-line Application Insights]:::azureStyle
+    loganalytics[fa:fa-database Log Analytics]:::azureStyle
 
     apps -->|API Consumers| apim
     apim -->|Backend APIs| aca

@@ -2,12 +2,12 @@
 
 ```mermaid
 flowchart LR
-    apps([Apps]):::appStyle
-    appgw[Application Gateway<br/>WAF]:::azureStyle
-    apim[API Management]:::azureStyle
-    aca[Container Apps]:::azureStyle
-    appinsights[Application Insights]:::azureStyle
-    loganalytics[Log Analytics]:::azureStyle
+    apps([fa:fa-mobile Apps]):::appStyle
+    appgw[fa:fa-shield-alt Application Gateway<br/>WAF]:::azureStyle
+    apim[fa:fa-cloud API Management]:::azureStyle
+    aca[fa:fa-box Container Apps]:::azureStyle
+    appinsights[fa:fa-chart-line Application Insights]:::azureStyle
+    loganalytics[fa:fa-database Log Analytics]:::azureStyle
 
     apps -->|API Consumers| appgw
     appgw -->|Routes traffic<br/>via Private Endpoint| apim

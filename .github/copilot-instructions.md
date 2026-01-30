@@ -109,6 +109,9 @@ In case of any conflicting instructions, the following hierarchy shall apply. If
 - Use flowchart diagrams for architecture diagrams with left-to-right direction (flowchart LR).
 - Apply consistent styling using classDef for Azure components and custom elements.
 - Use Azure blue (#0078D4) for Azure services, light blue (#ADD8E6) for apps, and light green (#90EE90) for APIs.
+- Use Font Awesome icons (fa:fa-icon-name syntax) to enhance visual clarity where appropriate.
+  - Common icons: fa:fa-cloud (cloud services), fa:fa-database (databases), fa:fa-box (containers), fa:fa-mobile (apps), fa:fa-shield-alt (security)
+  - Note: Mermaid does not support official Azure icons/stencils; use Font Awesome as a best-effort alternative.
 
 ### API Management Policy XML Instructions
 
