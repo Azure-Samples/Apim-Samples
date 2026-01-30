@@ -209,7 +209,7 @@ def test_get_project_root_finds_indicators(tmp_path: Path):
                     assert all((tmp_path / indicator).exists() for indicator in ["README.md", "bicepconfig.json"])
 
 
-def test_setup_python_path(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+def test_setup_python_path(temp_project_root: Path):
     """Test setup_python_path adds shared path to sys.path."""
     original_sys_path = sys.path.copy()
 
@@ -223,7 +223,7 @@ def test_setup_python_path(temp_project_root: Path, monkeypatch: pytest.MonkeyPa
         sys.path[:] = original_sys_path
 
 
-def test_setup_python_path_already_in_path(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+def test_setup_python_path_already_in_path(temp_project_root: Path):
     """Test setup_python_path doesn't duplicate existing paths."""
     original_sys_path = sys.path.copy()
 
@@ -602,7 +602,7 @@ def test_generate_env_file_creates_missing_env(temp_project_root: Path) -> None:
 # Tests for Jupyter kernel setup
 # ============================================================
 
-def test_install_jupyter_kernel_success(monkeypatch: pytest.MonkeyPatch):
+def test_install_jupyter_kernel_success():
     """Test install_jupyter_kernel succeeds with ipykernel available."""
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = Mock(returncode=0)
@@ -610,7 +610,7 @@ def test_install_jupyter_kernel_success(monkeypatch: pytest.MonkeyPatch):
         assert result is True
 
 
-def test_install_jupyter_kernel_ipykernel_not_installed(monkeypatch: pytest.MonkeyPatch):
+def test_install_jupyter_kernel_ipykernel_not_installed():
     """Test install_jupyter_kernel installs ipykernel if missing."""
     call_count = [0]
 
@@ -666,7 +666,7 @@ def test_install_jupyter_kernel_falls_back_to_pip(monkeypatch: pytest.MonkeyPatc
     assert [sys.executable, "-m", "pip", "install", "ipykernel"] in call_log
 
 
-def test_install_jupyter_kernel_registration_fails(monkeypatch: pytest.MonkeyPatch):
+def test_install_jupyter_kernel_registration_fails():
     """Test install_jupyter_kernel handles registration failures."""
     call_count = [0]
 
@@ -683,7 +683,7 @@ def test_install_jupyter_kernel_registration_fails(monkeypatch: pytest.MonkeyPat
         assert result is False
 
 
-def test_validate_kernel_setup_kernel_found(monkeypatch: pytest.MonkeyPatch):
+def test_validate_kernel_setup_kernel_found():
     """Test validate_kernel_setup returns True when kernel is found."""
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = Mock(
@@ -694,7 +694,7 @@ def test_validate_kernel_setup_kernel_found(monkeypatch: pytest.MonkeyPatch):
         assert result is True
 
 
-def test_validate_kernel_setup_kernel_not_found(monkeypatch: pytest.MonkeyPatch):
+def test_validate_kernel_setup_kernel_not_found():
     """Test validate_kernel_setup returns False when kernel not found."""
     with patch("subprocess.run") as mock_run:
         mock_run.return_value = Mock(
@@ -705,7 +705,7 @@ def test_validate_kernel_setup_kernel_not_found(monkeypatch: pytest.MonkeyPatch)
         assert result is False
 
 
-def test_validate_kernel_setup_jupyter_error(monkeypatch: pytest.MonkeyPatch):
+def test_validate_kernel_setup_jupyter_error():
     """Test validate_kernel_setup handles Jupyter command errors."""
     with patch("subprocess.run") as mock_run:
         mock_run.side_effect = subprocess.CalledProcessError(1, "jupyter")
@@ -713,7 +713,7 @@ def test_validate_kernel_setup_jupyter_error(monkeypatch: pytest.MonkeyPatch):
         assert result is False
 
 
-def test_validate_kernel_setup_jupyter_not_found(monkeypatch: pytest.MonkeyPatch):
+def test_validate_kernel_setup_jupyter_not_found():
     """Test validate_kernel_setup handles missing Jupyter."""
     with patch("subprocess.run") as mock_run:
         mock_run.side_effect = FileNotFoundError()
@@ -1310,6 +1310,7 @@ def test_force_kernel_consistency_exception_on_write(temp_project_root: Path, mo
 
 def test_setup_complete_environment_summary_messages(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch, capsys):
     """Test setup_complete_environment displays summary with mixed results."""
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: False)
     monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: True)
     monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: True)
     monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: True)
@@ -1672,9 +1673,14 @@ def test_install_jupyter_kernel_ipykernel_already_installed(monkeypatch: pytest.
 
 def test_setup_complete_environment_with_missing_bicep(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
     """Test setup_complete_environment stops when Bicep CLI is missing."""
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: False)
     monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: True)
     monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: False)
     monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: True)
+    monkeypatch.setattr(sps, "generate_env_file", lambda: None)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
+    monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
+    monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
 
     # Should return early without full setup
     sps.setup_complete_environment()
@@ -2589,6 +2595,7 @@ def test_generate_env_file_with_malformed_lines(temp_project_root: Path):
 
 def test_setup_complete_environment_all_pass(monkeypatch: pytest.MonkeyPatch):
     """Test setup_complete_environment when all checks pass."""
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: False)
     with patch.object(sps, "check_azure_cli_installed", return_value=True):
         with patch.object(sps, "check_bicep_cli_installed", return_value=True):
             with patch.object(sps, "check_azure_providers_registered", return_value=True):
@@ -2615,6 +2622,7 @@ def test_setup_complete_environment_azure_cli_fails(monkeypatch: pytest.MonkeyPa
 
 def test_setup_complete_environment_kernel_fails(monkeypatch: pytest.MonkeyPatch):
     """Test setup_complete_environment when kernel registration fails."""
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: False)
     with patch.object(sps, "check_azure_cli_installed", return_value=True):
         with patch.object(sps, "check_bicep_cli_installed", return_value=True):
             with patch.object(sps, "check_azure_providers_registered", return_value=True):
@@ -3074,6 +3082,7 @@ def test_ensure_utf8_streams_without_reconfigure(monkeypatch: pytest.MonkeyPatch
     """Test _ensure_utf8_streams when streams lack reconfigure attribute."""
 
     class DummyStream:
+        """Mock stream without reconfigure method."""
         encoding = None
 
     original_stdout, original_stderr = sys.stdout, sys.stderr
@@ -3092,6 +3101,7 @@ def test_ensure_utf8_streams_reconfigure_failure(monkeypatch: pytest.MonkeyPatch
     """Test _ensure_utf8_streams when reconfigure raises an exception."""
 
     class BrokenStream:
+        """Mock stream with reconfigure that raises an exception."""
         encoding = None
 
         def reconfigure(self, **kwargs):

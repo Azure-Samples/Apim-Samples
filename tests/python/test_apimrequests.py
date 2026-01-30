@@ -1,3 +1,5 @@
+"""Tests for apimrequests helpers and request behavior."""
+
 from unittest.mock import patch, MagicMock
 import requests
 import pytest
@@ -154,13 +156,15 @@ def test_request_header_merging():
 @pytest.mark.http
 def test_init_missing_url():
     # Negative: missing URL should raise TypeError
+    init = ApimRequests.__init__
     with pytest.raises(TypeError):
-        ApimRequests()  # pylint: disable=no-value-for-parameter
+        init(ApimRequests)
 
 @pytest.mark.http
 def test_print_response_code_edge():
     apim = make_apim()
     class DummyResponse:
+        """Response stub for non-2xx status formatting."""
         status_code = 302
         reason = 'Found'
     with patch('apimrequests.print_val') as mock_print_val:
@@ -510,12 +514,14 @@ def test_print_response_200_valid_json(apim, apimrequests_patches):
 def test_print_response_code_success_and_error(apim, apimrequests_patches):
     """Test _print_response_code color formatting for success and error codes."""
     class DummyResponse:
+        """Response stub for successful status formatting."""
         status_code = 200
         reason = 'OK'
 
     apim._print_response_code(DummyResponse())
 
     class ErrorResponse:
+        """Response stub for error status formatting."""
         status_code = 500
         reason = 'Server Error'
 
@@ -725,6 +731,7 @@ def test_single_post_async_non_json_response(apim, apimrequests_patches):
 def test_print_response_code_2xx_non_200(apim, apimrequests_patches):
     """Test _print_response_code with 2xx status codes other than 200."""
     class DummyResponse:
+        """Response stub for 2xx non-200 status formatting."""
         status_code = 201
         reason = 'Created'
 
@@ -741,6 +748,7 @@ def test_print_response_code_2xx_non_200(apim, apimrequests_patches):
 def test_print_response_code_3xx(apim, apimrequests_patches):
     """Test _print_response_code with 3xx redirect status codes."""
     class DummyResponse:
+        """Response stub for 3xx status formatting."""
         status_code = 301
         reason = 'Moved Permanently'
 
@@ -987,3 +995,90 @@ def test_multi_request_session_exception_on_request(apim):
 
     # Verify session was closed even after exception
     mock_session.close.assert_called_once()
+
+
+@pytest.mark.unit
+def test_multi_request_merges_custom_headers(apim):
+    """Test _multiRequest merges passed headers with default headers."""
+    custom_headers = {'X-Custom-Header': 'custom-value', 'X-Request-Id': '123'}
+
+    with patch('apimrequests.requests.Session') as mock_session_cls:
+        mock_session = MagicMock()
+        response = create_mock_http_response(json_data={'result': 'ok'})
+        mock_session.request.return_value = response
+        mock_session_cls.return_value = mock_session
+
+        with patch.object(apim, '_print_response_code'):
+            apim._multiRequest(HTTP_VERB.GET, '/test', 1, headers=custom_headers, printResponse=False)
+
+        # Verify headers.update was called with merged headers
+        update_call_args = mock_session.headers.update.call_args
+        merged_headers = update_call_args[0][0]
+
+        # Check custom headers are included
+        assert merged_headers['X-Custom-Header'] == 'custom-value'
+        assert merged_headers['X-Request-Id'] == '123'
+        # Check default headers are still there
+        assert 'Accept' in merged_headers
+        assert merged_headers['Accept'] == 'application/json'
+        assert SUBSCRIPTION_KEY_PARAMETER_NAME in merged_headers
+
+
+@pytest.mark.unit
+def test_multi_get_merges_custom_headers(apim):
+    """Test multiGet merges custom headers into requests."""
+    custom_headers = {'X-Custom-Header': 'custom-value'}
+
+    with patch('apimrequests.requests.Session') as mock_session_cls:
+        mock_session = MagicMock()
+        response = create_mock_http_response(json_data={'result': 'ok'})
+        mock_session.request.return_value = response
+        mock_session_cls.return_value = mock_session
+
+        with patch.object(apim, '_print_response_code'):
+            result = apim.multiGet('/test', runs=2, headers=custom_headers, printResponse=False)
+def test_single_request_merges_custom_headers(apim):
+    """Test singleGet merges custom headers with default headers."""
+    custom_headers = {'X-Custom-Header': 'test-value'}
+
+    mock_response = create_mock_http_response(json_data={'result': 'ok'})
+
+    with patch('apimrequests.requests.request') as mock_request:
+        mock_request.return_value = mock_response
+
+        with patch.object(apim, '_print_response'):
+            apim.singleGet('/test', headers=custom_headers, printResponse=True)
+
+        # Verify merged headers were passed to request
+        call_kwargs = mock_request.call_args[1]
+        merged_headers = call_kwargs['headers']
+
+        assert merged_headers['X-Custom-Header'] == 'test-value'
+        assert 'Accept' in merged_headers
+        assert SUBSCRIPTION_KEY_PARAMETER_NAME in merged_headers
+
+
+@pytest.mark.unit
+def test_multi_request_custom_headers_do_not_affect_other_runs(apim):
+    """Test that custom headers persist across multiple runs in multiGet."""
+    custom_headers = {'X-Request-Id': 'same-id'}
+
+    with patch('apimrequests.requests.Session') as mock_session_cls:
+        mock_session = MagicMock()
+        response = create_mock_http_response(json_data={'result': 'ok'})
+        mock_session.request.return_value = response
+        mock_session_cls.return_value = mock_session
+
+        with patch.object(apim, '_print_response_code'):
+            result = apim.multiGet('/test', runs=3, headers=custom_headers, printResponse=False)
+
+        # Verify headers.update was called once with merged headers
+        assert mock_session.headers.update.call_count == 1
+
+        # Verify headers contain custom header
+        update_call_args = mock_session.headers.update.call_args
+        merged_headers = update_call_args[0][0]
+        assert merged_headers['X-Request-Id'] == 'same-id'
+
+        # Verify all 3 runs completed
+        assert len(result) == 3
