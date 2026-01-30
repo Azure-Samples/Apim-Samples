@@ -41,6 +41,9 @@ expected-line-ending-format = LF
 # Allow unused arguments in test fixtures (pytest mocks/fixtures commonly have unused params)
 dummy-variables-rgx = ^_|^mock_|^fixture_|^suppress_|^monkeypatch|^temp_|^fake_
 
-# Disable unused-argument check for test files where pytest fixtures intentionally have unused parameters
+# Disable specific rules for test files as they need to operate specifically and differently from production code
 [MESSAGES CONTROL:tests/python/test_*.py]
-disable = W0613
+disable =
+    W0212,  # Access to a protected member
+    W0613,  # Unused argument
+    W0621   # Redefining name from outer scopes
