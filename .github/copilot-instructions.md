@@ -70,7 +70,7 @@ In case of any conflicting instructions, the following hierarchy shall apply. If
     - `shared/`: Shared resources, such as Bicep modules, Python libraries, and other reusable components.
     - `tests/`: Contains unit tests for Python code and Bicep modules. This folder should contain all tests for all code in the repository.
 
-  ## Language-specific Instructions
+## Language-specific Instructions
 
   - Python: see `.github/copilot-instructions.python.md`
   - Bicep: see `.github/copilot-instructions.bicep.md`
