@@ -106,11 +106,22 @@ module appInsightsModule '../../shared/bicep/modules/monitor/v1/appinsights.bice
 var appInsightsId = appInsightsModule.outputs.id
 var appInsightsInstrumentationKey = appInsightsModule.outputs.instrumentationKey
 
-// 3. Virtual Network and Subnets
+// 3. Network Watcher (required for NSG flow logs)
+module networkWatcherModule '../../shared/bicep/modules/network-watcher/v1/network-watcher.bicep' = {
+  name: 'networkWatcherModule'
+  params: {
+    location: location
+  }
+}
+
+// 4. Virtual Network and Subnets
 // https://learn.microsoft.com/azure/templates/microsoft.network/networksecuritygroups
 resource nsgDefault 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
   name: 'nsg-default'
   location: location
+  dependsOn: [
+    networkWatcherModule
+  ]
 }
 
 // App Gateway needs a specific NSG
@@ -118,6 +129,9 @@ resource nsgDefault 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
 resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
   name: 'nsg-appgw'
   location: location
+  dependsOn: [
+    networkWatcherModule
+  ]
   properties: {
     securityRules: [
       {
@@ -172,6 +186,9 @@ resource nsgApimV1 'Microsoft.Network/networkSecurityGroups@2025-01-01' = if (is
 // resource nsgApimV1 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
   name: 'nsg-apim'
   location: location
+  dependsOn: [
+    networkWatcherModule
+  ]
   properties: {
     securityRules: [
       // INBOUND Security Rules
@@ -344,7 +361,7 @@ var apimSubnetResourceId  = '${vnetModule.outputs.vnetId}/subnets/${apimSubnetNa
 var acaSubnetResourceId   = '${vnetModule.outputs.vnetId}/subnets/${acaSubnetName}'
 var appgwSubnetResourceId = '${vnetModule.outputs.vnetId}/subnets/${appgwSubnetName}'
 
-// 4. User Assigned Managed Identity
+// 5. User Assigned Managed Identity
 // https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/managed-identity/user-assigned-identity
 module uamiModule 'br/public:avm/res/managed-identity/user-assigned-identity:0.4.2' = {
   name: 'uamiModule'
@@ -354,7 +371,7 @@ module uamiModule 'br/public:avm/res/managed-identity/user-assigned-identity:0.4
   }
 }
 
-// 5. Key Vault
+// 6. Key Vault
 // https://learn.microsoft.com/azure/templates/microsoft.keyvault/vaults
 // This assignment is helpful for testing to allow you to examine and administer the Key Vault. Adjust accordingly for real workloads!
 var keyVaultAdminRoleAssignment = setCurrentUserAsKeyVaultAdmin && !empty(currentUserId) ? [
@@ -387,7 +404,7 @@ module keyVaultModule 'br/public:avm/res/key-vault/vault:0.13.3' = {
   }
 }
 
-// 6. Public IP for Application Gateway
+// 7. Public IP for Application Gateway
 // https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/public-ip-address
 module appgwPipModule 'br/public:avm/res/network/public-ip-address:0.9.1' = {
   name: 'appgwPipModule'
@@ -400,7 +417,7 @@ module appgwPipModule 'br/public:avm/res/network/public-ip-address:0.9.1' = {
   }
 }
 
-// 7. WAF Policy for Application Gateway
+// 8. WAF Policy for Application Gateway
 // https://learn.microsoft.com/azure/templates/microsoft.network/applicationgatewaywebapplicationfirewallpolicies
 resource wafPolicy 'Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies@2025-01-01' = {
   name: 'waf-${resourceSuffix}'
@@ -426,7 +443,7 @@ resource wafPolicy 'Microsoft.Network/ApplicationGatewayWebApplicationFirewallPo
   }
 }
 
-// 8. Azure Container App Environment (ACAE)
+// 9. Azure Container App Environment (ACAE)
 module acaEnvModule '../../shared/bicep/modules/aca/v1/environment.bicep' = if (useACA) {
   name: 'acaEnvModule'
   params: {
@@ -437,7 +454,7 @@ module acaEnvModule '../../shared/bicep/modules/aca/v1/environment.bicep' = if (
   }
 }
 
-// 9. Azure Container Apps (ACA) for Mock Web API
+// 10. Azure Container Apps (ACA) for Mock Web API
 module acaModule1 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (useACA) {
   name: 'acaModule-1'
   params: {
@@ -455,7 +472,7 @@ module acaModule2 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (u
   }
 }
 
-// 10. API Management (VNet Internal)
+// 11. API Management (VNet Internal)
 module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
   name: 'apimModule'
   params: {
@@ -470,7 +487,7 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
   }
 }
 
-// 11. APIM Policy Fragments
+// 12. APIM Policy Fragments
 module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.bicep' = [for pf in policyFragments: {
   name: 'pf-${pf.name}'
   params:{
@@ -484,7 +501,7 @@ module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.
   ]
 }]
 
-// 12. APIM Backends for ACA
+// 13. APIM Backends for ACA
 module backendModule1 '../../shared/bicep/modules/apim/v1/backend.bicep' = if (useACA) {
   name: 'aca-backend-1'
   params: {
@@ -533,7 +550,7 @@ module backendPoolModule '../../shared/bicep/modules/apim/v1/backend-pool.bicep'
   ]
 }
 
-// 13. APIM APIs
+// 14. APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(length(apis) > 0) {
   name: 'api-${api.name}'
   params: {
@@ -552,7 +569,7 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   ]
 }]
 
-// 14. Application Gateway
+// 15. Application Gateway
 // https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/network/application-gateway
 module appgwModule 'br/public:avm/res/network/application-gateway:0.7.2' = {
   name: 'appgwModule'
