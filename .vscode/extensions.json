@@ -7,6 +7,7 @@
         "ms-vscode.azurecli",
         "GitHub.copilot",
         "GitHub.copilot-chat",
-        "donjayamanne.vscode-default-python-kernel"
+        "donjayamanne.vscode-default-python-kernel",
+        "bierner.markdown-mermaid"
     ]
 }
