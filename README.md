@@ -28,8 +28,8 @@ It's quick and easy to get started!
 ### ⚡ Quick Start (Recommended Path for First-Time Users)
 
 1. **Choose your setup** (pick one):
-   - **Easiest**: Use [GitHub Codespaces or Dev Container](#️-setup) - everything is pre-configured
-   - **Prefer local development**: Follow [Full Local Setup](#️-setup)
+   - **Easiest**: Use [GitHub Codespaces or Dev Container](#-setup) - everything is pre-configured
+   - **Prefer local development**: Follow [Full Local Setup](#-setup)
 
 2. **Deploy an infrastructure** - Choose one based on your needs:
    - **Just starting out?** → [Simple API Management][infra-simple-apim] (fastest, lowest cost)
@@ -73,9 +73,9 @@ It's quick and easy to get started!
 </details>
 
 
-## 🛠️ Developer CLI
+## 🧰 APIM Samples Developer CLI
 
-Use the interactive Developer CLI to verify setup, run tests, and manage your development workflow:
+Use the interactive APIM Samples Developer CLI to verify setup, run tests, and manage your development workflow:
 
 **Windows:**
 ```powershell
@@ -94,10 +94,9 @@ This menu-driven interface provides quick access to:
 
 <img src="./assets/dev-cli-lint-test-results.png" alt="APIM Samples Developer CLI showing final linting, test, and code coverage results" title="APIM Samples Developer CLI Final Results" />
 
-</details>
+> The _APIM Samples Developer CLI_ is not synonomous with the _Azure Developer CLI_. These are two separate CLIs.
 
-
-## 🏗️ Setup
+## 🧭 Setup
 
 APIM Samples supports two setup options:
 
@@ -170,10 +169,10 @@ These prerequisites apply broadly across all infrastructure and samples. If ther
    ```
 
    Alternatively, you can use VS Code: Ctrl+Shift+P → "Python: Create Environment" → "Venv" → Select Python version → name: .venv. Then run `uv sync` to install dependencies.
-1. **Complete Environment Setup**: Open a terminal and start the [Developer CLI](#️-developer-cli), then select `Complete environment setup`.
+1. **Complete Environment Setup**: Open a terminal and start the [APIM Samples Developer CLI](#-apim-samples-developer-cli), then select `Complete environment setup`.
 3. **Restart VS Code** to apply all settings
 4. **Sign in to Azure**: `az login --tenant <your-tenant-id>` and `az account set --subscription <your-subscription>`
-5. **Verify local setup**: Start the Developer CLI, then select `Verify local setup`.
+5. **Verify local setup**: Start the APIM Samples Developer CLI, then select `Verify local setup`.
 
 The first time you run a Jupyter notebook, you may be asked to install the Jupyter kernel package (ipykernel) if not already available.
 When you open any `.ipynb` notebook, it will automatically use the correct kernel and all imports will work seamlessly.
@@ -224,18 +223,18 @@ For immediate help with common errors, diagnostic commands, and step-by-step sol
   - Reusable _APIM policies_ are found in the `apim-policies` folder.
   - Reusable Jupyter notebooks are found in the `jupyter` folder.
 
-### ⚙️ Sample Setup
+### 🔧 Sample Setup
 
 - Each sample uses an architecture infrastructure. This keeps the samples free of almost all setup.
 - Each infrastructure and sample features a `create.ipynb` for creation (and running) of the sample setup and a `main.bicep` file for IaC configuration.
 - Each infrastructure contains a `clean-up.ipynb` file to tear down everything in the infrastructure and its resource group. This reduces your Azure cost.
 - Samples (and infrastructures) may contain additional files specific to their use cases.
 
-### 🏛️ Infrastructure Architectures
+### 🗺 Infrastructure Architectures
 
 We provide several common architectural approaches to integrating APIM into your Azure ecosystem. While these are high-fidelity setups, they are not production-ready. Please refer to the [Azure API Management landing zone accelerator][apim-lza] for up-to-date production setups.
 
-## 🛠️ Development
+## 🧪 Development
 
 As you work with this repo, you will likely want to make your own customizations. There's little you need to know to be successful.
 
@@ -245,11 +244,11 @@ The repo uses the bicep linter and has rules defined in `bicepconfig.json`. See 
 
 ### 🔍 Code Quality & Linting
 
-The repository uses [pylint][pylint-docs] to maintain Python code quality standards. The configuration is located in `.pylintrc`, and the Developer CLI supports linting.
+The repository uses [pylint][pylint-docs] to maintain Python code quality standards. The configuration is located in `.pylintrc`, and the APIM Samples Developer CLI supports linting.
 
 ### 🧪 Testing & Code Coverage
 
-Python modules in `shared/python` are covered by comprehensive unit tests located in `tests/python`. All tests use [pytest][pytest-docs] and leverage modern pytest features, including custom markers for unit and HTTP tests. The Developer CLI supports testing.
+Python modules in `shared/python` are covered by comprehensive unit tests located in `tests/python`. All tests use [pytest][pytest-docs] and leverage modern pytest features, including custom markers for unit and HTTP tests. The APIM Samples Developer CLI supports testing.
 
 ### ➕ Adding a Sample
 
