@@ -39,5 +39,19 @@
   "python.terminal.activateEnvironment": true,
   "python.terminal.useEnvFile": true,
   "python.testing.pytestEnabled": true,
-  "terminal.integrated.defaultProfile.windows": "PowerShell"
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.env.windows": {
+    "VIRTUAL_ENV": "${workspaceFolder}\\.venv"
+  },
+  "terminal.integrated.profiles.windows": {
+    "PowerShell": {
+      "args": [
+        "-NoExit",
+        "-Command",
+        "& { if (Test-Path '.venv\\Scripts\\Activate.ps1') { & '.venv\\Scripts\\Activate.ps1' } }"
+      ],
+      "icon": "terminal-powershell",
+      "source": "PowerShell"
+    }
+  }
 }

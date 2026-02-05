@@ -168,6 +168,8 @@ These prerequisites apply broadly across all infrastructure and samples. If ther
    uv sync
    ```
 
+   Be sure to activate the terminal as per the instruction after `uv venv` runs.
+
    Alternatively, you can use VS Code: Ctrl+Shift+P → "Python: Create Environment" → "Venv" → Select Python version → name: .venv. Then run `uv sync` to install dependencies.
 1. **Complete Environment Setup**: Open a terminal and start the [APIM Samples Developer CLI](#-apim-samples-developer-cli), then select `Complete environment setup`.
 3. **Restart VS Code** to apply all settings
