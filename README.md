@@ -170,7 +170,7 @@ These prerequisites apply broadly across all infrastructure and samples. If ther
    ```
 
    Alternatively, you can use VS Code: Ctrl+Shift+P → "Python: Create Environment" → "Venv" → Select Python version → name: .venv. Then run `uv sync` to install dependencies.
-1. **Complete Environment Setup**: Open a terminal and start the [Developer CLI](#-developer-cli), then select `Complete environment setup`.
+1. **Complete Environment Setup**: Open a terminal and start the [Developer CLI](#️-developer-cli), then select `Complete environment setup`.
 3. **Restart VS Code** to apply all settings
 4. **Sign in to Azure**: `az login --tenant <your-tenant-id>` and `az account set --subscription <your-subscription>`
 5. **Verify local setup**: Start the Developer CLI, then select `Verify local setup`.
@@ -307,7 +307,6 @@ _For much more API Management content, please also check out [APIM Love](https:/
 [badge-python-tests]: https://github.com/Azure-Samples/Apim-Samples/actions/workflows/python-tests.yml/badge.svg?branch=main
 [bicep-linter-docs]: https://learn.microsoft.com/azure/azure-resource-manager/bicep/bicep-config-linter
 [houssem-dellai]: https://github.com/HoussemDellai
-[pylint-docs]: https://pylint.pycqa.org/
 [import-troubleshooting]: .devcontainer/IMPORT-TROUBLESHOOTING.md
 [infra-afd-apim-pe]: ./infrastructure/afd-apim-pe
 [infra-apim-aca]: ./infrastructure/apim-aca
@@ -317,6 +316,7 @@ _For much more API Management content, please also check out [APIM Love](https:/
 [openssf]: https://www.bestpractices.dev/projects/11057
 [pytest-docs]: https://docs.pytest.org/
 [pytest-docs-versioned]: https://docs.pytest.org/en/8.2.x/
+[pylint-docs]: https://pylint.pycqa.org/
 [python]: https://www.python.org/
 [sample-authx]: ./samples/authX/README.md
 [sample-authx-pro]: ./samples/authX-pro/README.md
