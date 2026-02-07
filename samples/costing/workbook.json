@@ -1,0 +1,449 @@
+{
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json",
+  "fallbackResourceIds": [],
+  "fromTemplateId": "sentinel-UserWorkbook",
+  "items": [
+    {
+      "content": {
+        "parameters": [
+          {
+            "id": "b859a101-1fbb-4c30-a1df-97d7d4b0d6f2",
+            "isRequired": true,
+            "label": "Time Range",
+            "name": "TimeRange",
+            "type": 4,
+            "typeSettings": {
+              "allowCustom": true,
+              "selectableValues": [
+                { "durationMs": 86400000 },
+                { "durationMs": 172800000 },
+                { "durationMs": 604800000 },
+                { "durationMs": 1209600000 },
+                { "durationMs": 2592000000 },
+                { "durationMs": 5184000000 },
+                { "durationMs": 7776000000 }
+              ]
+            },
+            "value": {
+              "durationMs": 2592000000
+            },
+            "version": "KqlParameterItem/1.0"
+          },
+          {
+            "id": "c1a2b3d4-e5f6-7890-abcd-ef1234567890",
+            "isRequired": true,
+            "label": "Base Monthly APIM Cost ($)",
+            "name": "BaseMonthlyCost",
+            "type": 1,
+            "typeSettings": {
+              "paramValidationRules": [
+                {
+                  "match": true,
+                  "message": "Enter a valid dollar amount (e.g. 150.00)",
+                  "regExp": "^\\d+(\\.\\d{1,2})?$"
+                }
+              ]
+            },
+            "value": "150.00",
+            "version": "KqlParameterItem/1.0"
+          },
+          {
+            "id": "d2b3c4e5-f6a7-8901-bcde-f12345678901",
+            "isRequired": true,
+            "label": "Variable Cost per 1000 Requests ($)",
+            "name": "PerRequestRate",
+            "type": 1,
+            "typeSettings": {
+              "paramValidationRules": [
+                {
+                  "match": true,
+                  "message": "Enter a valid rate (e.g. 0.003)",
+                  "regExp": "^\\d+(\\.\\d{1,6})?$"
+                }
+              ]
+            },
+            "value": "0.003",
+            "version": "KqlParameterItem/1.0"
+          },
+          {
+            "id": "e3c4d5f6-a7b8-9012-cdef-234567890abc",
+            "isHiddenWhenLocked": true,
+            "label": "Selected Business Unit",
+            "name": "SelectedBusinessUnit",
+            "type": 1,
+            "value": "*",
+            "version": "KqlParameterItem/1.0"
+          }
+        ],
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "style": "pills",
+        "version": "KqlParameterItem/1.0"
+      },
+      "name": "parameters - 0",
+      "type": 9
+    },
+    {
+      "content": {
+        "json": "## APIM Cost Allocation & Showback Dashboard\n\nThis workbook splits the **base APIM infrastructure cost** across business units proportionally by usage, then adds **variable per-API costs** based on request volume.\n\n| Parameter | Description |\n|---|---|\n| **Base Monthly APIM Cost** | Fixed platform cost (SKU, networking, etc.) split proportionally by request share |\n| **Variable Cost per 1K Requests** | Usage-based rate applied on top of the base allocation |\n\n> Adjust parameters above to model different pricing scenarios."
+      },
+      "name": "text - header",
+      "type": 1
+    },
+    {
+      "content": {
+        "expandable": true,
+        "expanded": true,
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "json": "| Component | Formula |\n|---|---|\n| **Base Cost** | Monthly platform cost for the APIM SKU (see parameter above): **${BaseMonthlyCost}** |\n| **Base Cost Share** | `Base Monthly Cost x (BU Requests / Total Requests)` |\n| **Variable Cost** | `BU Requests x (Rate per 1K / 1000)` |\n| **Total Allocated** | `Base Cost Share + Variable Cost` |\n\n> The base monthly cost and variable rate parameters are editable above. Use the notebook's pricing lookup cell to auto-detect values from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) and keep them in sync with your APIM SKU."
+            },
+            "name": "text - cost-model-detail",
+            "type": 1
+          }
+        ],
+        "loadType": "always",
+        "title": "Cost Allocation Model",
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - cost-model",
+      "type": 12
+    },
+    {
+      "content": {
+        "expandable": true,
+        "expanded": true,
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "exportDefaultValue": "*",
+              "exportFieldName": "Business Unit",
+              "exportParameterName": "SelectedBusinessUnit",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Usage Share (%)",
+                    "formatOptions": {
+                      "max": 100,
+                      "min": 0,
+                      "palette": "blue"
+                    },
+                    "formatter": 8
+                  },
+                  {
+                    "columnMatch": "Base Cost Share ($)",
+                    "formatOptions": {
+                      "min": 0,
+                      "palette": "blue"
+                    },
+                    "formatter": 8
+                  },
+                  {
+                    "columnMatch": "Total Allocated ($)",
+                    "formatOptions": {
+                      "min": 0,
+                      "palette": "turquoise"
+                    },
+                    "formatter": 8
+                  }
+                ]
+              },
+              "query": "let baseCost = todouble('{BaseMonthlyCost}');\r\nlet perKRate = todouble('{PerRequestRate}');\r\nlet logs = ApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != '';\r\nlet totalRequests = toscalar(logs | summarize count());\r\nlogs\r\n| summarize RequestCount = count() by ApimSubscriptionId\r\n| extend UsageShare = round(RequestCount * 100.0 / totalRequests, 2)\r\n| extend BaseCostShare = round(baseCost * RequestCount / totalRequests, 2)\r\n| extend VariableCost = round(RequestCount * perKRate / 1000.0, 2)\r\n| extend TotalAllocatedCost = round(BaseCostShare + VariableCost, 2)\r\n| order by TotalAllocatedCost desc\r\n| project\r\n    ['Business Unit'] = ApimSubscriptionId,\r\n    ['Requests'] = RequestCount,\r\n    ['Usage Share (%)'] = UsageShare,\r\n    ['Base Cost ($)'] = baseCost,\r\n    ['Base Cost Share ($)'] = BaseCostShare,\r\n    ['Variable Cost ($)'] = VariableCost,\r\n    ['Total Allocated ($)'] = TotalAllocatedCost",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "size": 0,
+              "timeContext": {
+                "durationMs": 2592000000
+              },
+              "title": "Cost Allocation by Business Unit (click a row to filter charts below)",
+              "version": "KqlItem/1.0",
+              "visualization": "table"
+            },
+            "name": "query - cost-allocation-table",
+            "type": 3
+          },
+          {
+            "content": {
+              "chartSettings": {
+                "customThresholdLine": "{BaseMonthlyCost}",
+                "customThresholdLineStyle": 1,
+                "seriesLabelSettings": [
+                  { "color": "blue", "label": "Base Cost ($)", "seriesName": "BaseCostShare" },
+                  { "color": "orange", "label": "Variable Cost ($)", "seriesName": "VariableCost" }
+                ],
+                "xAxis": "ApimSubscriptionId",
+                "ySettings": {
+                  "min": 0
+                }
+              },
+              "query": "let baseCost = todouble('{BaseMonthlyCost}');\r\nlet perKRate = todouble('{PerRequestRate}');\r\nlet logs = ApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != '';\r\nlet totalRequests = toscalar(logs | summarize count());\r\nlogs\r\n| summarize RequestCount = count() by ApimSubscriptionId\r\n| extend BaseCostShare = round(baseCost * RequestCount / totalRequests, 2)\r\n| extend VariableCost = round(RequestCount * perKRate / 1000.0, 2)\r\n| project ApimSubscriptionId, BaseCostShare, VariableCost",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "size": 0,
+              "timeContext": {
+                "durationMs": 2592000000
+              },
+              "title": "Base vs Variable Cost Split by Business Unit",
+              "version": "KqlItem/1.0",
+              "visualization": "barchart"
+            },
+            "name": "query - cost-allocation-chart",
+            "type": 3
+          },
+          {
+            "content": {
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Total ($)",
+                    "formatOptions": {
+                      "min": 0,
+                      "palette": "turquoise"
+                    },
+                    "formatter": 8
+                  }
+                ]
+              },
+              "query": "let baseCost = todouble('{BaseMonthlyCost}');\r\nlet perKRate = todouble('{PerRequestRate}');\r\nlet selectedBU = '{SelectedBusinessUnit}';\r\nlet logs = ApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != '';\r\nlet filteredLogs = logs\r\n| where selectedBU == '*' or ApimSubscriptionId == selectedBU;\r\nlet totalRequests = toscalar(logs | summarize count());\r\nfilteredLogs\r\n| summarize RequestCount = count() by ApimSubscriptionId, ApiId\r\n| extend BaseCostShare = round(baseCost * RequestCount / totalRequests, 2)\r\n| extend VariableCost = round(RequestCount * perKRate / 1000.0, 2)\r\n| extend TotalCost = round(BaseCostShare + VariableCost, 2)\r\n| order by TotalCost desc\r\n| project\r\n    ['Business Unit'] = ApimSubscriptionId,\r\n    ['API'] = ApiId,\r\n    ['Requests'] = RequestCount,\r\n    ['Base Share ($)'] = BaseCostShare,\r\n    ['Variable ($)'] = VariableCost,\r\n    ['Total ($)'] = TotalCost\r\n| take 25",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "size": 0,
+              "timeContext": {
+                "durationMs": 2592000000
+              },
+              "title": "Cost Breakdown by Business Unit & API (Top 25)",
+              "version": "KqlItem/1.0",
+              "visualization": "table"
+            },
+            "name": "query - cost-per-api",
+            "type": 3
+          }
+        ],
+        "loadType": "always",
+        "title": "Cost Allocation Summary",
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - cost-allocation",
+      "type": 12
+    },
+    {
+      "content": {
+        "expandable": true,
+        "expanded": true,
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "chartSettings": {
+                "ySettings": {
+                  "min": 0
+                }
+              },
+              "query": "ApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\r\n| summarize RequestCount = count() by ApimSubscriptionId\r\n| order by RequestCount desc\r\n| project BusinessUnit = ApimSubscriptionId, RequestCount",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "size": 0,
+              "timeContext": {
+                "durationMs": 2592000000
+              },
+              "title": "Request Count by Business Unit",
+              "version": "KqlItem/1.0",
+              "visualization": "barchart"
+            },
+            "name": "query - request-count",
+            "type": 3
+          },
+          {
+            "content": {
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  { "color": "blue", "seriesName": "RequestCount" }
+                ]
+              },
+              "query": "let apimLogs = ApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != '';\r\nlet totalCount = toscalar(apimLogs | count);\r\napimLogs\r\n| summarize RequestCount = count() by ApimSubscriptionId\r\n| extend Percentage = round(RequestCount * 100.0 / totalCount, 2)\r\n| order by RequestCount desc\r\n| project BusinessUnit = ApimSubscriptionId, RequestCount, ['Percentage (%)'] = Percentage",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "size": 0,
+              "timeContext": {
+                "durationMs": 2592000000
+              },
+              "title": "Request Distribution Across Business Units",
+              "version": "KqlItem/1.0",
+              "visualization": "piechart"
+            },
+            "name": "query - distribution",
+            "type": 3
+          },
+          {
+            "content": {
+              "query": "let selectedBU = '{SelectedBusinessUnit}';\r\nApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\r\n| where selectedBU == '*' or ApimSubscriptionId == selectedBU\r\n| summarize RequestCount = count() by bin(TimeGenerated, 1h), ApimSubscriptionId\r\n| project TimeGenerated, BusinessUnit = ApimSubscriptionId, RequestCount",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "size": 0,
+              "timeContext": {
+                "durationMs": 2592000000
+              },
+              "title": "Request Trends Over Time by Business Unit",
+              "version": "KqlItem/1.0",
+              "visualization": "timechart"
+            },
+            "name": "query - trends",
+            "type": 3
+          }
+        ],
+        "loadType": "always",
+        "title": "Usage Analytics",
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - usage-analytics",
+      "type": 12
+    },
+    {
+      "content": {
+        "expandable": true,
+        "expanded": true,
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Success Rate (%)",
+                    "formatOptions": {
+                      "max": 100,
+                      "min": 0,
+                      "palette": "redGreen"
+                    },
+                    "formatter": 8
+                  },
+                  {
+                    "columnMatch": "Error Rate (%)",
+                    "formatOptions": {
+                      "max": 100,
+                      "min": 0,
+                      "palette": "greenRed"
+                    },
+                    "formatter": 8
+                  }
+                ]
+              },
+              "query": "let selectedBU = '{SelectedBusinessUnit}';\r\nApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\r\n| where selectedBU == '*' or ApimSubscriptionId == selectedBU\r\n| summarize \r\n    TotalRequests = count(),\r\n    SuccessRequests = countif(ResponseCode < 400),\r\n    ClientErrors = countif(ResponseCode >= 400 and ResponseCode < 500),\r\n    ServerErrors = countif(ResponseCode >= 500)\r\n    by ApimSubscriptionId\r\n| extend SuccessRate = round(SuccessRequests * 100.0 / TotalRequests, 2)\r\n| extend ErrorRate = round((ClientErrors + ServerErrors) * 100.0 / TotalRequests, 2)\r\n| project \r\n    BusinessUnit = ApimSubscriptionId, \r\n    TotalRequests, \r\n    SuccessRequests, \r\n    ClientErrors, \r\n    ServerErrors, \r\n    ['Success Rate (%)'] = SuccessRate,\r\n    ['Error Rate (%)'] = ErrorRate\r\n| order by TotalRequests desc",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "size": 0,
+              "timeContext": {
+                "durationMs": 2592000000
+              },
+              "title": "Success & Error Metrics by Business Unit",
+              "version": "KqlItem/1.0",
+              "visualization": "table"
+            },
+            "name": "query - success-errors",
+            "type": 3
+          },
+          {
+            "content": {
+              "chartSettings": {
+                "seriesLabelSettings": [
+                  { "color": "blue", "label": "2xx Success", "seriesName": "2xx" },
+                  { "color": "turquoise", "label": "3xx Redirect", "seriesName": "3xx" },
+                  { "color": "orange", "label": "4xx Client Error", "seriesName": "4xx" },
+                  { "color": "redBright", "label": "5xx Server Error", "seriesName": "5xx" }
+                ]
+              },
+              "query": "let selectedBU = '{SelectedBusinessUnit}';\r\nApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\r\n| where selectedBU == '*' or ApimSubscriptionId == selectedBU\r\n| extend ResponseClass = case(\r\n    ResponseCode >= 200 and ResponseCode < 300, '2xx',\r\n    ResponseCode >= 300 and ResponseCode < 400, '3xx',\r\n    ResponseCode >= 400 and ResponseCode < 500, '4xx',\r\n    ResponseCode >= 500, '5xx',\r\n    'Other')\r\n| summarize RequestCount = count() by ApimSubscriptionId, ResponseClass\r\n| order by ApimSubscriptionId, ResponseClass\r\n| project BusinessUnit = ApimSubscriptionId, ResponseClass, RequestCount",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "size": 0,
+              "timeContext": {
+                "durationMs": 2592000000
+              },
+              "title": "Response Code Distribution by Business Unit",
+              "version": "KqlItem/1.0",
+              "visualization": "categoricalbar"
+            },
+            "name": "query - response-codes",
+            "type": 3
+          }
+        ],
+        "loadType": "always",
+        "title": "Health & Reliability",
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - health",
+      "type": 12
+    },
+    {
+      "content": {
+        "expandable": true,
+        "expanded": false,
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "json": "Select a **Business Unit** row in the Cost Allocation table above to see that unit's cost trend over time.\n\nThe chart shows daily base cost share and variable cost for the selected business unit. The horizontal line represents the total base monthly cost (${BaseMonthlyCost}) for reference."
+            },
+            "name": "text - drilldown-help",
+            "type": 1
+          },
+          {
+            "content": {
+              "chartSettings": {
+                "customThresholdLine": "{BaseMonthlyCost}",
+                "customThresholdLineStyle": 1,
+                "seriesLabelSettings": [
+                  { "color": "blue", "label": "Base Cost Share ($)", "seriesName": "BaseCostShare" },
+                  { "color": "orange", "label": "Variable Cost ($)", "seriesName": "VariableCost" },
+                  { "color": "purple", "label": "Total Allocated ($)", "seriesName": "TotalAllocatedCost" }
+                ],
+                "ySettings": {
+                  "min": 0
+                }
+              },
+              "query": "let baseCost = todouble('{BaseMonthlyCost}');\r\nlet perKRate = todouble('{PerRequestRate}');\r\nlet selectedBU = '{SelectedBusinessUnit}';\r\nlet allLogs = ApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != '';\r\nlet dailyTotal = allLogs\r\n| summarize DayTotal = count() by bin(TimeGenerated, 1d);\r\nallLogs\r\n| where selectedBU != '*' and ApimSubscriptionId == selectedBU\r\n| summarize RequestCount = count() by bin(TimeGenerated, 1d)\r\n| join kind=inner dailyTotal on TimeGenerated\r\n| extend BaseCostShare = round(baseCost * RequestCount / DayTotal, 2)\r\n| extend VariableCost = round(RequestCount * perKRate / 1000.0, 4)\r\n| extend TotalAllocatedCost = round(BaseCostShare + VariableCost, 2)\r\n| project TimeGenerated, BaseCostShare, VariableCost, TotalAllocatedCost",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "size": 0,
+              "timeContext": {
+                "durationMs": 2592000000
+              },
+              "title": "Cost Trend for: {SelectedBusinessUnit}",
+              "version": "KqlItem/1.0",
+              "visualization": "linechart"
+            },
+            "conditionalVisibility": {
+              "comparison": "isNotEqualTo",
+              "parameterName": "SelectedBusinessUnit",
+              "value": "*"
+            },
+            "name": "query - drilldown-cost-trend",
+            "type": 3
+          },
+          {
+            "content": {
+              "json": "> Select a business unit row in the Cost Allocation table to view its cost trend.",
+              "style": "info"
+            },
+            "conditionalVisibility": {
+              "comparison": "isEqualTo",
+              "parameterName": "SelectedBusinessUnit",
+              "value": "*"
+            },
+            "name": "text - drilldown-placeholder",
+            "type": 1
+          }
+        ],
+        "loadType": "always",
+        "title": "Business Unit Drill-Down (over time)",
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - drilldown",
+      "type": 12
+    }
+  ],
+  "version": "Notebook/1.0"
+}
