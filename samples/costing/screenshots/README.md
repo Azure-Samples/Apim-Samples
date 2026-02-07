@@ -2,51 +2,34 @@
 
 This directory contains screenshots showing expected results after running the costing sample.
 
-## Screenshots to Add
+## Cost Management Export
 
-Please capture and add the following screenshots after deployment:
+### Cost Report - Export Overview
 
-### 1. Application Insights - Request Volume
-**Filename**: `workbook-request-volume.png`
-- Navigate to Application Insights → Logs
-- Run query showing request count by subscription
-- Capture chart visualization
+![Cost Report - Export Overview](costreport-01.png)
 
-### 2. Cost Allocation Dashboard
-**Filename**: `workbook-cost-allocation.png`
-- Navigate to Azure Monitor Workbooks (when deployed)
-- Show cost allocation by business unit/subscription
-- Capture full dashboard view
+### Cost Report - Export Details
 
-### 3. Error Rate Analysis
-**Filename**: `workbook-error-rates.png`
-- Show Log Analytics query results for error rates by subscription
-- Include chart showing 4xx/5xx distribution
+![Cost Report - Export Details](costreport-02.png)
 
-### 4. Log Analytics - Sample Query
-**Filename**: `log-analytics-query.png`
-- Show one of the sample Kusto queries running in Log Analytics
-- Capture both query and results
+## Azure Monitor Workbook Dashboard
 
-### 5. Cost Management Export Configuration
-**Filename**: `cost-management-export.png`
-- Azure Portal → Cost Management → Exports
-- Show configured export with storage account destination
+### Cost Allocation Overview
 
-## Screenshot Guidelines
+![Dashboard - Cost Allocation Overview](Dashboard-01.png)
 
-- Use high resolution (at least 1920x1080)
-- Capture full browser window or relevant panel
-- Ensure sensitive data (subscription IDs, resource names) are either masked or use sample data
-- Use PNG format for clarity
-- File names should match exactly as specified above
+### Cost Breakdown by Business Unit
 
-## How to Capture
+![Dashboard - Cost Breakdown by Business Unit](Dashboard-02.png)
 
-After running the notebook:
-1. Wait 5-10 minutes for logs to populate
-2. Navigate to each resource in Azure Portal
-3. Run the sample queries provided in the notebook
-4. Capture screenshots of results
-5. Add them to this directory
-6. Update the main README.md with actual screenshot references
+### Request Distribution
+
+![Dashboard - Request Distribution](Dashboard-03.png)
+
+### Usage Analytics
+
+![Dashboard - Usage Analytics](Dashboard-04.png)
+
+### Response Code Analysis
+
+![Dashboard - Response Code Analysis](Dashboard-05.png)
