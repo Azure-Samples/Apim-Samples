@@ -72,7 +72,15 @@ module appInsightsModule '../../shared/bicep/modules/monitor/v1/appinsights.bice
 var appInsightsId = appInsightsModule.outputs.id
 var appInsightsInstrumentationKey = appInsightsModule.outputs.instrumentationKey
 
-// 3. Virtual Network and Subnets
+// 3. Network Watcher (required for NSG flow logs)
+module networkWatcherModule '../../shared/bicep/modules/network-watcher/v1/network-watcher.bicep' = {
+  name: 'networkWatcherModule'
+  params: {
+    location: location
+  }
+}
+
+// 4. Virtual Network and Subnets
 
 // We are using a standard NSG for our subnets here. Production workloads should use a relevant, custom NSG for each subnet.
 // We also do not presently use a custom route table for the subnets, which is a best practice for production workloads.
@@ -81,6 +89,9 @@ var appInsightsInstrumentationKey = appInsightsModule.outputs.instrumentationKey
 resource nsg 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
   name: 'nsg-default'
   location: location
+  dependsOn: [
+    networkWatcherModule
+  ]
 }
 
 module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
@@ -150,7 +161,7 @@ resource acaSubnetResource 'Microsoft.Network/virtualNetworks/subnets@2024-05-01
 var apimSubnetResourceId = apimSubnetResource.id
 var acaSubnetResourceId  = acaSubnetResource.id
 
-// 4. Azure Container App Environment (ACAE)
+// 5. Azure Container App Environment (ACAE)
 module acaEnvModule '../../shared/bicep/modules/aca/v1/environment.bicep' = if (useACA) {
   name: 'acaEnvModule'
   params: {
@@ -161,7 +172,7 @@ module acaEnvModule '../../shared/bicep/modules/aca/v1/environment.bicep' = if (
   }
 }
 
-// 5. Azure Container Apps (ACA) for Mock Web API
+// 6. Azure Container Apps (ACA) for Mock Web API
 module acaModule1 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (useACA) {
   name: 'acaModule-1'
   params: {
@@ -180,7 +191,7 @@ module acaModule2 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (u
   }
 }
 
-// 6. API Management
+// 7. API Management
 module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
   name: 'apimModule'
   params: {
@@ -193,7 +204,7 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
   }
 }
 
-// 7. APIM Policy Fragments
+// 8. APIM Policy Fragments
 module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.bicep' = [for pf in policyFragments: {
   name: 'pf-${pf.name}'
   params:{
@@ -207,7 +218,7 @@ module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.
   ]
 }]
 
-// 8. APIM Backends for ACA
+// 9. APIM Backends for ACA
 module backendModule1 '../../shared/bicep/modules/apim/v1/backend.bicep' = if (useACA) {
   name: 'aca-backend-1'
   params: {
@@ -256,7 +267,7 @@ module backendPoolModule '../../shared/bicep/modules/apim/v1/backend-pool.bicep'
   ]
 }
 
-// 9. APIM APIs
+// 10. APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(length(apis) > 0) {
   name: 'api-${api.name}'
   params: {
@@ -275,7 +286,7 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   ]
 }]
 
-// 10. APIM Private DNS Zone, VNet Link, and (optional) DNS Zone Group
+// 11. APIM Private DNS Zone, VNet Link, and (optional) DNS Zone Group
 module apimDnsPrivateLinkModule '../../shared/bicep/modules/dns/v1/dns-private-link.bicep' = {
   name: 'apimDnsPrivateLinkModule'
   params: {
@@ -288,7 +299,7 @@ module apimDnsPrivateLinkModule '../../shared/bicep/modules/dns/v1/dns-private-l
   }
 }
 
-// 11. ACA Private DNS Zone (regional, e.g., eastus2.azurecontainerapps.io), VNet Link, and wildcard A record via shared module
+// 12. ACA Private DNS Zone (regional, e.g., eastus2.azurecontainerapps.io), VNet Link, and wildcard A record via shared module
 module acaDnsPrivateZoneModule '../../shared/bicep/modules/dns/v1/aca-dns-private-zone.bicep' = if (useACA && !empty(acaSubnetResourceId)) {
   name: 'acaDnsPrivateZoneModule'
   params: {
@@ -298,7 +309,7 @@ module acaDnsPrivateZoneModule '../../shared/bicep/modules/dns/v1/aca-dns-privat
   }
 }
 
-// 12. Front Door
+// 13. Front Door
 module afdModule '../../shared/bicep/modules/afd/v1/afd.bicep' = {
   name: 'afdModule'
   params: {
