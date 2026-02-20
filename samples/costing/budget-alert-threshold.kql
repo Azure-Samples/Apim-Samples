@@ -1,0 +1,9 @@
+// Fires when a business unit exceeds a request threshold in a 1-hour window.
+//
+// Parameters (prepend as KQL 'let' bindings before running):
+//   let buName    = 'bu-hr';     // Business unit subscription ID
+//   let threshold = 1000;        // Request count threshold
+ApiManagementGatewayLogs
+| where TimeGenerated > ago(1h) and ApimSubscriptionId == buName
+| summarize RequestCount = count()
+| where RequestCount > threshold
