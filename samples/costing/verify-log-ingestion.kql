@@ -1,0 +1,5 @@
+// Counts APIM gateway log entries that carry a subscription ID.
+// Used to verify that diagnostic logs are flowing into Log Analytics.
+ApiManagementGatewayLogs
+| where ApimSubscriptionId != ''
+| summarize Count = count()
