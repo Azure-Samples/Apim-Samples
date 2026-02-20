@@ -1,0 +1,289 @@
+{
+  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json",
+  "fallbackResourceIds": [],
+  "fromTemplateId": "sentinel-UserWorkbook",
+  "items": [
+    {
+      "content": {
+        "parameters": [
+          {
+            "id": "a1b2c3d4-e5f6-7890-abcd-100000000001",
+            "isRequired": true,
+            "label": "Time Range",
+            "name": "TimeRange",
+            "type": 4,
+            "typeSettings": {
+              "allowCustom": true,
+              "selectableValues": [
+                { "durationMs": 3600000 },
+                { "durationMs": 14400000 },
+                { "durationMs": 43200000 },
+                { "durationMs": 86400000 },
+                { "durationMs": 172800000 },
+                { "durationMs": 604800000 },
+                { "durationMs": 2592000000 }
+              ]
+            },
+            "value": {
+              "durationMs": 86400000
+            },
+            "version": "KqlParameterItem/1.0"
+          },
+          {
+            "id": "a1b2c3d4-e5f6-7890-abcd-100000000002",
+            "isRequired": true,
+            "label": "Monthly Base Cost (USD)",
+            "name": "BaseCost",
+            "type": 1,
+            "typeSettings": {
+              "paramValidationRules": [
+                {
+                  "match": true,
+                  "message": "Enter a valid dollar amount (e.g. 150.00)",
+                  "regExp": "^\\d+(\\.\\d{1,2})?$"
+                }
+              ]
+            },
+            "value": "150.00",
+            "version": "KqlParameterItem/1.0"
+          },
+          {
+            "id": "a1b2c3d4-e5f6-7890-abcd-100000000003",
+            "isHiddenWhenLocked": true,
+            "label": "App ID Names (JSON)",
+            "name": "AppIdNames",
+            "type": 1,
+            "description": "Optional JSON mapping of App IDs to friendly names. Example: {\"a5846c0e-...\":\"HR Service\",\"9e6bfb3f-...\":\"Mobile Gateway\"}",
+            "value": "{}",
+            "version": "KqlParameterItem/1.0"
+          }
+        ],
+        "queryType": 0,
+        "resourceType": "microsoft.insights/components",
+        "style": "pills",
+        "version": "KqlParameterItem/1.0"
+      },
+      "name": "parameters - 0",
+      "type": 9
+    },
+    {
+      "content": {
+        "json": "## APIM Cost Attribution by Caller ID\n\nThis workbook shows API usage and cost allocation by **Entra ID application** (`appid` claim). Data comes from the `emit-metric` policy's `caller-requests` custom metric.\n\n| Parameter | Description |\n|---|---|\n| **Monthly Base Cost** | Fixed platform cost split proportionally by request share |\n| **App ID Names** | Optional JSON mapping of App IDs to friendly names |\n\n> **Note:** Data typically takes 5-10 minutes to appear after API calls."
+      },
+      "name": "text - header",
+      "type": 1
+    },
+    {
+      "content": {
+        "expandable": true,
+        "expanded": true,
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "chartSettings": {
+                "ySettings": {
+                  "min": 0
+                }
+              },
+              "query": "let appNames = parse_json('{AppIdNames}');\ncustomMetrics\n| where name == 'caller-requests'\n| extend CallerId = tostring(customDimensions.CallerId)\n| where isnotempty(CallerId)\n| summarize RequestCount = sum(value) by CallerId\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| project Caller, RequestCount\n| order by RequestCount desc",
+              "queryType": 0,
+              "resourceType": "microsoft.insights/components",
+              "size": 1,
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "title": "Total Requests by Caller ID",
+              "noDataMessage": "No caller-requests metrics found in the selected time range.",
+              "version": "KqlItem/1.0",
+              "visualization": "barchart"
+            },
+            "customWidth": "60",
+            "name": "query - usage-chart",
+            "styleSettings": {
+              "maxWidth": "60%",
+              "showBorder": true
+            },
+            "type": 3
+          },
+          {
+            "content": {
+              "query": "let appNames = parse_json('{AppIdNames}');\ncustomMetrics\n| where name == 'caller-requests'\n| extend CallerId = tostring(customDimensions.CallerId)\n| where isnotempty(CallerId)\n| summarize RequestCount = sum(value) by CallerId\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| project Caller, RequestCount\n| order by RequestCount desc",
+              "queryType": 0,
+              "resourceType": "microsoft.insights/components",
+              "size": 0,
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "title": "Usage Summary",
+              "noDataMessage": "No caller-requests metrics found in the selected time range.",
+              "version": "KqlItem/1.0",
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "RequestCount",
+                    "formatter": 1,
+                    "numberFormat": {
+                      "unit": 17,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true
+                      }
+                    }
+                  }
+                ],
+                "labelSettings": [
+                  { "columnId": "Caller", "label": "Caller" },
+                  { "columnId": "RequestCount", "label": "Requests" }
+                ]
+              }
+            },
+            "customWidth": "40",
+            "name": "query - usage-table",
+            "styleSettings": {
+              "maxWidth": "40%",
+              "showBorder": true
+            },
+            "type": 3
+          }
+        ],
+        "loadType": "always",
+        "title": "Usage by Caller ID",
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - usage",
+      "type": 12
+    },
+    {
+      "content": {
+        "expandable": true,
+        "expanded": true,
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "json": "Proportional cost breakdown based on the **Monthly Base Cost** parameter above. Each caller's share is calculated as their percentage of total requests applied to the base cost."
+            },
+            "name": "text - cost-description",
+            "type": 1
+          },
+          {
+            "content": {
+              "query": "let appNames = parse_json('{AppIdNames}');\nlet baseCost = {BaseCost};\nlet metrics = customMetrics\n| where name == 'caller-requests'\n| extend CallerId = tostring(customDimensions.CallerId)\n| where isnotempty(CallerId);\nlet totalRequests = toscalar(metrics | summarize sum(value));\nmetrics\n| summarize RequestCount = sum(value) by CallerId\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| extend UsagePercent = round(RequestCount * 100.0 / totalRequests, 2)\n| extend AllocatedCost = round(baseCost * RequestCount / totalRequests, 2)\n| project Caller, RequestCount, ['Usage %'] = UsagePercent, ['Allocated Cost ($)'] = AllocatedCost\n| order by AllocatedCost desc",
+              "queryType": 0,
+              "resourceType": "microsoft.insights/components",
+              "size": 0,
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "title": "Cost Allocation by Caller ID",
+              "noDataMessage": "No caller-requests metrics found in the selected time range.",
+              "version": "KqlItem/1.0",
+              "visualization": "table",
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "Usage %",
+                    "formatOptions": {
+                      "min": 0,
+                      "max": 100,
+                      "palette": "blue"
+                    },
+                    "formatter": 4
+                  },
+                  {
+                    "columnMatch": "Allocated Cost ($)",
+                    "formatOptions": {
+                      "min": 0,
+                      "palette": "turquoise"
+                    },
+                    "formatter": 8
+                  }
+                ]
+              }
+            },
+            "customWidth": "60",
+            "name": "query - cost-table",
+            "styleSettings": {
+              "maxWidth": "60%",
+              "showBorder": true
+            },
+            "type": 3
+          },
+          {
+            "content": {
+              "query": "let appNames = parse_json('{AppIdNames}');\nlet baseCost = {BaseCost};\nlet metrics = customMetrics\n| where name == 'caller-requests'\n| extend CallerId = tostring(customDimensions.CallerId)\n| where isnotempty(CallerId);\nlet totalRequests = toscalar(metrics | summarize sum(value));\nmetrics\n| summarize RequestCount = sum(value) by CallerId\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| extend AllocatedCost = round(baseCost * RequestCount / totalRequests, 2)\n| project Caller, AllocatedCost\n| order by AllocatedCost desc",
+              "queryType": 0,
+              "resourceType": "microsoft.insights/components",
+              "size": 1,
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "title": "Cost Distribution",
+              "noDataMessage": "No caller-requests metrics found in the selected time range.",
+              "version": "KqlItem/1.0",
+              "visualization": "piechart"
+            },
+            "customWidth": "40",
+            "name": "query - cost-pie",
+            "styleSettings": {
+              "maxWidth": "40%",
+              "showBorder": true
+            },
+            "type": 3
+          }
+        ],
+        "loadType": "always",
+        "title": "Cost Allocation",
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - cost-allocation",
+      "type": 12
+    },
+    {
+      "content": {
+        "expandable": true,
+        "expanded": true,
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "json": "Hourly request volume by caller over time. Use this to spot traffic spikes, identify peak usage periods, and detect anomalies by caller."
+            },
+            "name": "text - trend-description",
+            "type": 1
+          },
+          {
+            "content": {
+              "query": "let appNames = parse_json('{AppIdNames}');\ncustomMetrics\n| where name == 'caller-requests'\n| extend CallerId = tostring(customDimensions.CallerId)\n| where isnotempty(CallerId)\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| summarize Requests = sum(value) by Caller, bin(timestamp, 1h)\n| order by timestamp asc",
+              "queryType": 0,
+              "resourceType": "microsoft.insights/components",
+              "size": 0,
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "title": "Hourly Request Trend by Caller ID",
+              "noDataMessage": "No caller-requests metrics found in the selected time range.",
+              "version": "KqlItem/1.0",
+              "visualization": "timechart"
+            },
+            "name": "query - trend-chart",
+            "type": 3
+          }
+        ],
+        "loadType": "always",
+        "title": "Request Trend",
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - trend",
+      "type": 12
+    }
+  ],
+  "version": "Notebook/1.0"
+}
