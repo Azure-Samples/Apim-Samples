@@ -1,0 +1,62 @@
+<!--
+    Caller Identification Policy - Entra App ID Extraction
+
+    Extracts the Entra ID application identifier (appid or azp claim) from a
+    Bearer JWT token and emits it as a custom metric dimension via emit-metric.
+
+    This enables cost attribution by Entra App ID in Azure Monitor Metrics
+    and Application Insights (customMetrics table).
+
+    Behaviour:
+      - Parses the Authorization header using AsJwt() (no signature validation).
+      - Extracts appid first, falls back to azp.
+      - If no JWT is present, falls back to context.Subscription.Id.
+      - Emits a 'caller-requests' metric with CallerId and API dimensions.
+
+    Requirements:
+      - An Application Insights logger must be configured on the APIM instance.
+      - The API diagnostic must have metrics: true and 100% sampling.
+
+    See README.md for full details.
+-->
+<policies>
+    <inbound>
+        <base />
+        <!-- Extract caller identity from JWT (appid/azp) or subscription key -->
+        <set-variable name="callerId" value='@{
+            var authHeader = context.Request.Headers.GetValueOrDefault("Authorization", "");
+            if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer "))
+            {
+                var jwt = authHeader.Substring(7).AsJwt();
+                if (jwt != null)
+                {
+                    var appId = jwt.Claims.GetValueOrDefault("appid", "");
+                    if (string.IsNullOrEmpty(appId))
+                    {
+                        appId = jwt.Claims.GetValueOrDefault("azp", "");
+                    }
+                    if (!string.IsNullOrEmpty(appId))
+                    {
+                        return appId;
+                    }
+                }
+            }
+            return context.Subscription != null ? context.Subscription.Id : "unknown";
+        }' />
+        <!-- Emit custom metric with caller and API dimensions for cost attribution -->
+        <emit-metric name="caller-requests" value="1" namespace="apim-costing">
+            <dimension name="CallerId" value='@((string)context.Variables["callerId"])' />
+            <dimension name="API" value="@(context.Api.Id)" />
+            <dimension name="Operation" value="@(context.Operation.Id)" />
+        </emit-metric>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
