@@ -7,8 +7,8 @@
 # PowerShell scripts should use CRLF on Windows
 *.ps1 text eol=crlf
 
-# Jupyter notebooks should use LF
-*.ipynb text eol=lf
+# Jupyter notebooks should use LF and have metadata normalized on commit
+*.ipynb text eol=lf filter=notebook-metadata
 
 # Python files should use LF
 *.py text eol=lf

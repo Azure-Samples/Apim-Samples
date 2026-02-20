@@ -545,6 +545,44 @@ def force_kernel_consistency():
         return False
 
 
+def setup_notebook_git_filter():
+    """Configure the git clean filter that normalizes notebook metadata on commit.
+
+    Sets ``filter.notebook-metadata.clean`` so that ``kernelspec.display_name``
+    and ``language_info.version`` are replaced with canonical values whenever
+    a notebook is staged.  The working-tree file is left untouched.
+    """
+    project_root = get_project_root()
+    script = project_root / 'setup' / 'normalize_notebook_metadata.py'
+
+    if not script.exists():
+        print(f"❌ Normalizer script not found at {script}")
+        return False
+
+    # Use a forward-slash relative path so the command works on every OS.
+    clean_cmd = 'python setup/normalize_notebook_metadata.py'
+
+    try:
+        subprocess.run(
+            ['git', 'config', 'filter.notebook-metadata.clean', clean_cmd],
+            check=True, capture_output=True, text=True, cwd=str(project_root),
+        )
+        # The smudge filter is intentionally left as the default (cat / no-op)
+        # so checked-out files receive the real metadata from the user's kernel.
+        subprocess.run(
+            ['git', 'config', 'filter.notebook-metadata.smudge', 'cat'],
+            check=True, capture_output=True, text=True, cwd=str(project_root),
+        )
+        print("✅ Git clean filter for notebook metadata configured")
+        return True
+    except FileNotFoundError:
+        print("⚠️  git not found in PATH; skipping notebook filter setup")
+        return False
+    except subprocess.CalledProcessError as exc:
+        print(f"❌ Failed to configure git filter: {exc}")
+        return False
+
+
 def setup_complete_environment():
     """
     Complete setup: check Azure prerequisites, generate .env file, register kernel, and configure VS Code.
@@ -556,7 +594,7 @@ def setup_complete_environment():
     print("🚀 Setting up complete APIM Samples environment...\n")
 
     # Step 1: Check uv installation (recommended but not blocking)
-    print("1/7) Checking uv installation (recommended)...\n")
+    print("1/8) Checking uv installation (recommended)...\n")
     uv_ok = False
     try:
         uv_ok = check_uv_installed()
@@ -565,7 +603,7 @@ def setup_complete_environment():
         print("   Continuing with setup...")
 
     # Step 2: Check Azure prerequisites
-    print("\n2/7) Checking Azure prerequisites...\n")
+    print("\n2/8) Checking Azure prerequisites...\n")
     azure_cli_ok = False
     bicep_ok = False
     providers_ok = False
@@ -593,7 +631,7 @@ def setup_complete_environment():
         print("   Continuing with environment setup...\n")
 
     # Step 3: Generate .env file
-    print("\n3/7) Generating .env file for Python path configuration...")
+    print("\n3/8) Generating .env file for Python path configuration...")
     env_success = False
     try:
         generate_env_file()
@@ -603,7 +641,7 @@ def setup_complete_environment():
         print("   Continuing with setup...")
 
     # Step 4: Register Jupyter kernel
-    print("\n4/7) Registering standardized Jupyter kernel...\n")
+    print("\n4/8) Registering standardized Jupyter kernel...\n")
     kernel_success = False
     try:
         kernel_success = install_jupyter_kernel()
@@ -612,7 +650,7 @@ def setup_complete_environment():
         print("   Continuing with setup...")
 
     # Step 5: Configure VS Code settings with minimal, merged defaults
-    print("\n5/7) Configuring VS Code workspace settings...\n")
+    print("\n5/8) Configuring VS Code workspace settings...\n")
     vscode_success = False
     try:
         vscode_success = create_vscode_settings()
@@ -621,7 +659,7 @@ def setup_complete_environment():
         print("   Continuing with setup...")
 
     # Step 6: Enforce kernel consistency
-    print("\n6/7) Enforcing kernel consistency for future reliability...\n")
+    print("\n6/8) Enforcing kernel consistency for future reliability...\n")
     consistency_success = False
     try:
         consistency_success = force_kernel_consistency()
@@ -629,8 +667,17 @@ def setup_complete_environment():
         print(f"❌ Error enforcing kernel consistency: {e}")
         print("   Continuing with setup...")
 
-    # Step 7: Run uv sync if uv is available
-    print("\n7/7) Syncing dependencies with uv (if available)...\n")
+    # Step 7: Configure notebook git filter
+    print("\n7/8) Configuring notebook metadata git filter...\n")
+    nb_filter_success = False
+    try:
+        nb_filter_success = setup_notebook_git_filter()
+    except Exception as e:
+        print(f"❌ Error configuring notebook git filter: {e}")
+        print("   Continuing with setup...")
+
+    # Step 8: Run uv sync if uv is available
+    print("\n8/8) Syncing dependencies with uv (if available)...\n")
     sync_success = False
     if uv_ok:
         try:
@@ -663,6 +710,7 @@ def setup_complete_environment():
     print(f"   {'✅' if kernel_success else '❌'} Jupyter kernel registration: {'Complete' if kernel_success else 'Failed'}")
     print(f"   {'✅' if vscode_success else '❌'} VS Code settings: {'Complete' if vscode_success else 'Failed'}")
     print(f"   {'✅' if consistency_success else '❌'} Kernel trust refresh: {'Complete' if consistency_success else 'Failed'}")
+    print(f"   {'✅' if nb_filter_success else '⚠️ '} Notebook git filter: {'Configured' if nb_filter_success else 'Skipped or failed'}")
     print(f"   {'✅' if sync_success else '⚠️ '} Dependency sync: {'Complete' if sync_success else 'Skipped or failed'}")
 
     critical_success = env_success and kernel_success and vscode_success and consistency_success
@@ -710,6 +758,7 @@ def show_help():
     print("  --generate-env      Generate .env file for VS Code and terminal integration")
     print("  --setup-kernel      Register the standardized Jupyter kernel")
     print("  --setup-vscode      Configure VS Code settings for optimal workflow")
+    print("  --setup-nb-filter   Configure git clean filter for notebook metadata")
     print("  --complete-setup    Perform complete environment setup (recommended)")
 
     print("\nDETAILS:")
@@ -735,6 +784,12 @@ def show_help():
     print("    • Creates/updates .vscode/settings.json")
     print("    • Configures Python interpreter, linting, testing, and trusted kernels")
     print("    • Preserves existing VS Code settings by merging changes")
+
+    print("\n  --setup-nb-filter:")
+    print("    • Configures a git clean filter for *.ipynb files")
+    print("    • Normalizes kernelspec.display_name and language_info.version on commit")
+    print("    • Prevents environment-specific Python version diffs")
+    print("    • Working-tree files are left untouched")
 
     print("\n  --complete-setup:")
     print("    • Performs all of the above steps")
@@ -772,6 +827,9 @@ if __name__ == '__main__':  # pragma: no cover
         elif command == "--setup-vscode":
             # Just configure VS Code settings
             create_vscode_settings()
+        elif command == "--setup-nb-filter":
+            # Configure git clean filter for notebook metadata
+            setup_notebook_git_filter()
         elif command == "--force-kernel":
             # Force kernel consistency and prevent changes
             force_kernel_consistency()
