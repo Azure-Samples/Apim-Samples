@@ -50,6 +50,16 @@ Users who only need to **view** the deployed Azure Monitor Workbook (not deploy 
 
 ## ⚙️ Configuration
 
+### Important: Sample Index
+
+The `create.ipynb` notebook passes a **`sampleIndex` parameter** to the Bicep template. This parameter ensures unique resource naming when deploying multiple instances of this sample. The notebook automatically provides this value; you only need to verify it matches your deployment scenario:
+
+```python
+sample_index = 2  # Increment this for multiple sample deployments
+```
+
+This index is used in resource names (e.g., `appi-cost-2-xxxx`, `log-cost-2-xxxx`) to avoid naming conflicts when running multiple instances of the sample.
+
 ### Option A: Use a repository infrastructure (recommended)
 
 1. Navigate to the desired [infrastructure](../../infrastructure/) folder (e.g., [simple-apim](../../infrastructure/simple-apim/)) and follow its README.md to deploy.
@@ -57,6 +67,7 @@ Users who only need to **view** the deployed Azure Monitor Workbook (not deploy 
    ```python
    infrastructure = INFRASTRUCTURE.SIMPLE_APIM  # Match your deployed infra
    index = 1                                     # Match your infra index
+   sample_index = 1                              # Increment for multiple sample deployments
    ```
 3. Run All Cells.
 

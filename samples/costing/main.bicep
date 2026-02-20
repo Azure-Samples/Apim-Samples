@@ -1,6 +1,6 @@
-// ------------------------------
+// ------------------
 //    PARAMETERS
-// ------------------------------
+// ------------------
 
 @description('Location to be used for resources. Defaults to the resource group location')
 param location string = resourceGroup().location
@@ -8,20 +8,17 @@ param location string = resourceGroup().location
 @description('The unique suffix to append. Defaults to a unique string based on subscription and resource group IDs.')
 param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id)
 
-@description('Name of the existing API Management service')
-param apimServiceName string
+@description('Name of the API Management service')
+param apimName string = 'apim-${resourceSuffix}'
 
-@description('Sample deployment index for unique resource naming')
-param sampleIndex int = 1
+@description('Deployment index for unique resource naming')
+param index int
 
 @description('Enable Application Insights for APIM diagnostics')
 param enableApplicationInsights bool = true
 
 @description('Enable Log Analytics for APIM diagnostics')
 param enableLogAnalytics bool = true
-
-@description('Log Analytics data retention in days')
-param logRetentionDays int = 30
 
 @description('Storage account SKU for cost exports')
 @allowed([
@@ -45,50 +42,83 @@ param costExportStartDate string = utcNow('yyyy-MM-ddT00:00:00Z')
 @description('Deploy the Cost Management export from Bicep. When false (default), the notebook handles export creation with retry logic to avoid key-access propagation failures.')
 param enableCostExport bool = false
 
+@description('Array of APIs to deploy')
+param apis array = []
 
-// ------------------------------
+@description('Array of business units to create subscriptions for')
+param businessUnits array = []
+
+
+// ------------------
 //    VARIABLES
-// ------------------------------
+// ------------------
 
-var applicationInsightsName = 'appi-costing-${sampleIndex}-${resourceSuffix}'
-var logAnalyticsWorkspaceName = 'log-costing-${sampleIndex}-${resourceSuffix}'
-var storageAccountName = 'stcost${sampleIndex}${take(replace(resourceSuffix, '-', ''), 16)}'
-var diagnosticSettingsName = 'costing-diagnostics-${sampleIndex}'
-var workbookName = 'APIM Cost Analysis by Business Unit ${sampleIndex}'
-var costExportName = 'apim-cost-export-${sampleIndex}-${resourceGroup().name}'
+var applicationInsightsName = 'appi-cost-${index}-${take(resourceSuffix, 4)}'
+var logAnalyticsWorkspaceName = 'log-cost-${index}-${take(resourceSuffix, 4)}'
+var storageAccountName = 'stcost${take(string(index), 1)}${take(replace(resourceSuffix, '-', ''), 12)}'
+var workbookName = 'APIM Cost Tracking ${index}'
+var costExportName = 'apim-cost-export'
+var diagnosticSettingsNameSuffix = 'costing-diagnostics-${index}'
 
 
-// ------------------------------
+// ------------------
 //    RESOURCES
-// ------------------------------
+// ------------------
 
+// https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service
+resource apimService 'Microsoft.ApiManagement/service@2024-06-01-preview' existing = {
+  name: apimName
+}
 
-// https://learn.microsoft.com/azure/templates/microsoft.operationalinsights/workspaces
-resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' = if (enableLogAnalytics) {
-  name: logAnalyticsWorkspaceName
-  location: location
+// APIM APIs
+module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(!empty(apis)) {
+  name: 'api-${api.name}'
+  params: {
+    apimName: apimName
+    appInsightsInstrumentationKey: appInsightsInstrKey
+    appInsightsId: appInsightsResourceId
+    api: api
+  }
+}]
+
+// Create subscriptions for different business units
+resource subscriptions 'Microsoft.ApiManagement/service/subscriptions@2024-06-01-preview' = [for bu in businessUnits: {
+  name: bu.name
+  parent: apimService
   properties: {
-    sku: {
-      name: 'PerGB2018'
-    }
-    retentionInDays: logRetentionDays
-    features: {
-      enableLogAccessUsingOnlyResourcePermissions: true
-    }
+    displayName: bu.displayName
+    scope: '/apis/${apis[0].name}'
+    state: 'active'
+  }
+  dependsOn: [
+    apisModule
+  ]
+}]
+
+// Deploy Log Analytics Workspace using shared module
+// https://learn.microsoft.com/azure/templates/microsoft.operationalinsights/workspaces
+module logAnalyticsModule '../../shared/bicep/modules/operational-insights/v1/workspaces.bicep' = if (enableLogAnalytics) {
+  name: 'logAnalytics'
+  params: {
+    location: location
+    resourceSuffix: resourceSuffix
+    logAnalyticsName: logAnalyticsWorkspaceName
   }
 }
 
-
+// Deploy Application Insights using shared module
 // https://learn.microsoft.com/azure/templates/microsoft.insights/components
-resource applicationInsights 'Microsoft.Insights/components@2020-02-02' = if (enableApplicationInsights) {
-  name: applicationInsightsName
-  location: location
-  kind: 'web'
-  properties: {
-    Application_Type: 'web'
-    WorkspaceResourceId: enableLogAnalytics ? logAnalyticsWorkspace.id : null
-    publicNetworkAccessForIngestion: 'Enabled'
-    publicNetworkAccessForQuery: 'Enabled'
+module applicationInsightsModule '../../shared/bicep/modules/monitor/v1/appinsights.bicep' = if (enableApplicationInsights) {
+  name: 'applicationInsights'
+  params: {
+    location: location
+    resourceSuffix: resourceSuffix
+    applicationInsightsName: applicationInsightsName
+    applicationInsightsLocation: location
+    customMetricsOptedInType: 'WithDimensions'
+    useWorkbook: false
+    #disable-next-line BCP318
+    lawId: enableLogAnalytics ? logAnalyticsModule.outputs.id : ''
   }
 }
 
@@ -121,147 +151,48 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   }
 }
 
+// Helper variables to safely access properties from conditionally deployed resources
+#disable-next-line BCP318
+var appInsightsInstrKey = enableApplicationInsights ? applicationInsightsModule.outputs.instrumentationKey : ''
+var appInsightsConnectionStr = enableApplicationInsights ? 'InstrumentationKey=${appInsightsInstrKey}' : ''
 
-// https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service
-resource apimService 'Microsoft.ApiManagement/service@2023-09-01-preview' existing = {
-  name: apimServiceName
-}
+// Helper variables for diagnostics module
+#disable-next-line BCP318
+var logAnalyticsWorkspaceId = enableLogAnalytics ? logAnalyticsModule.outputs.id : ''
+#disable-next-line BCP318
+var appInsightsResourceId = enableApplicationInsights ? applicationInsightsModule.outputs.id : ''
 
-
-// https://learn.microsoft.com/azure/templates/microsoft.insights/diagnosticsettings
-resource apimDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
-  name: diagnosticSettingsName
-  scope: apimService
-  properties: {
-    workspaceId: enableLogAnalytics ? logAnalyticsWorkspace.id : null
-    logAnalyticsDestinationType: 'Dedicated'
-    logs: [
-      {
-        category: 'GatewayLogs'
-        enabled: true
-        retentionPolicy: {
-          enabled: false
-          days: 0
-        }
-      }
-      {
-        category: 'WebSocketConnectionLogs'
-        enabled: true
-        retentionPolicy: {
-          enabled: false
-          days: 0
-        }
-      }
-    ]
-    metrics: [
-      {
-        category: 'AllMetrics'
-        enabled: true
-        retentionPolicy: {
-          enabled: false
-          days: 0
-        }
-      }
-    ]
-  }
-}
-
-
-// Configure APIM logger for Application Insights
-// https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/loggers
-resource apimLogger 'Microsoft.ApiManagement/service/loggers@2023-09-01-preview' = if (enableApplicationInsights) {
-  name: 'applicationinsights-logger'
-  parent: apimService
-  properties: {
-    loggerType: 'applicationInsights'
-    description: 'Application Insights logger for cost tracking'
-    credentials: {
-      instrumentationKey: enableApplicationInsights ? applicationInsights.properties.InstrumentationKey : ''
-    }
-    isBuffered: true
-    resourceId: enableApplicationInsights ? applicationInsights.id : ''
-  }
-}
-
-
-// https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/diagnostics
-resource apimDiagnostic 'Microsoft.ApiManagement/service/diagnostics@2023-09-01-preview' = if (enableApplicationInsights) {
-  name: 'applicationinsights'
-  parent: apimService
-  properties: {
-    alwaysLog: 'allErrors'
-    loggerId: enableApplicationInsights ? apimLogger.id : ''
-    sampling: {
-      samplingType: 'fixed'
-      percentage: 100
-    }
-    frontend: {
-      request: {
-        headers: []
-        body: {
-          bytes: 0
-        }
-      }
-      response: {
-        headers: []
-        body: {
-          bytes: 0
-        }
-      }
-    }
-    backend: {
-      request: {
-        headers: []
-        body: {
-          bytes: 0
-        }
-      }
-      response: {
-        headers: []
-        body: {
-          bytes: 0
-        }
-      }
-    }
-    logClientIp: true
-    httpCorrelationProtocol: 'W3C'
-    verbosity: 'information'
-  }
-}
-
-
-// Configure APIM diagnostic for Azure Monitor (Log Analytics)
-// This ensures gateway logs include subscription IDs and other details
-// https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/diagnostics
-resource apimAzureMonitorDiagnostic 'Microsoft.ApiManagement/service/diagnostics@2023-09-01-preview' = if (enableLogAnalytics) {
-  name: 'azuremonitor'
-  parent: apimService
-  properties: {
-    loggerId: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${resourceGroup().name}/providers/Microsoft.ApiManagement/service/${apimServiceName}/loggers/azuremonitor'
-    sampling: {
-      samplingType: 'fixed'
-      percentage: 100
-    }
-    logClientIp: true
-    verbosity: 'information'
+// Deploy APIM diagnostics using shared module
+module apimDiagnosticsModule '../../shared/bicep/modules/apim/v1/diagnostics.bicep' = if (!empty(apimName)) {
+  name: 'apimDiagnostics'
+  params: {
+    location: location
+    apimServiceName: apimName
+    apimResourceGroupName: resourceGroup().name
+    enableLogAnalytics: enableLogAnalytics
+    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
+    enableApplicationInsights: enableApplicationInsights
+    appInsightsInstrumentationKey: appInsightsInstrKey
+    appInsightsResourceId: appInsightsResourceId
+    diagnosticSettingsNameSuffix: diagnosticSettingsNameSuffix
   }
 }
 
 
 // https://learn.microsoft.com/azure/templates/microsoft.insights/workbooks
 resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = if (enableLogAnalytics) {
-  name: guid(resourceGroup().id, 'apim-costing-workbook', string(sampleIndex))
+  name: guid(resourceGroup().id, 'apim-costing-workbook', string(index))
   location: location
   kind: 'shared'
   properties: {
     displayName: workbookName
     serializedData: string(loadJsonContent('workbook.json'))
     version: '1.0'
-    sourceId: logAnalyticsWorkspace.id
+    #disable-next-line BCP318
+    sourceId: enableLogAnalytics ? logAnalyticsModule.outputs.id : ''
     category: 'APIM'
   }
 }
-
 
 // Cost Management exports are subscription-scoped and must be deployed via a module.
 // https://learn.microsoft.com/azure/templates/microsoft.costmanagement/exports
@@ -279,25 +210,37 @@ module costExportModule './cost-export.bicep' = if (enableCostExport) {
   ]
 }
 
+#disable-next-line BCP318
+var costExportOutputName = enableCostExport ? costExportModule.outputs.costExportName : costExportName
 
-// ------------------------------
+// Variables for output values
+var workbookDisplayName = workbookName
+var workbookIdOutput = enableLogAnalytics ? workbook.id : ''
+
+// ------------------
 //    OUTPUTS
-// ------------------------------
+// ------------------
+
+output apimServiceId string = apimService.id
+output apimServiceName string = apimService.name
+output apimResourceGatewayURL string = apimService.properties.gatewayUrl
 
 @description('Name of the Application Insights resource')
-output applicationInsightsName string = enableApplicationInsights ? applicationInsights.name : ''
+#disable-next-line BCP318
+output applicationInsightsName string = enableApplicationInsights ? applicationInsightsModule.outputs.applicationInsightsName : ''
 
 @description('Application Insights instrumentation key')
-output applicationInsightsInstrumentationKey string = enableApplicationInsights ? applicationInsights.properties.InstrumentationKey : ''
+output applicationInsightsInstrumentationKey string = appInsightsInstrKey
 
 @description('Application Insights connection string')
-output applicationInsightsConnectionString string = enableApplicationInsights ? applicationInsights.properties.ConnectionString : ''
+output applicationInsightsConnectionString string = appInsightsConnectionStr
 
 @description('Name of the Log Analytics Workspace')
-output logAnalyticsWorkspaceName string = enableLogAnalytics ? logAnalyticsWorkspace.name : ''
+output logAnalyticsWorkspaceName string = enableLogAnalytics ? logAnalyticsWorkspaceName : ''
 
 @description('Log Analytics Workspace ID')
-output logAnalyticsWorkspaceId string = enableLogAnalytics ? logAnalyticsWorkspace.id : ''
+#disable-next-line BCP318
+output logAnalyticsWorkspaceId string = enableLogAnalytics ? logAnalyticsModule.outputs.id : ''
 
 @description('Name of the Storage Account for cost exports')
 output storageAccountName string = storageAccount.name
@@ -309,10 +252,16 @@ output storageAccountId string = storageAccount.id
 output costExportsContainerName string = 'cost-exports'
 
 @description('Name of the Azure Monitor Workbook')
-output workbookName string = enableLogAnalytics ? workbook.properties.displayName : ''
+output workbookName string = workbookDisplayName
 
 @description('Workbook ID')
-output workbookId string = enableLogAnalytics ? workbook.id : ''
+output workbookId string = workbookIdOutput
 
 @description('Name of the Cost Management export')
-output costExportName string = enableCostExport ? costExportModule.outputs.costExportName : costExportName
+output costExportName string = costExportOutputName
+
+@description('Subscription keys for the business units')
+output subscriptionKeys array = [for (bu, i) in businessUnits: {
+  name: bu.name
+  primaryKey: listSecrets(subscriptions[i].id, '2024-06-01-preview').primaryKey
+}]
