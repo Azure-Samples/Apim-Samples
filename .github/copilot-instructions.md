@@ -84,6 +84,7 @@ In case of any conflicting instructions, the following hierarchy shall apply. If
 - Prefer single over double quotes, avoiding typographic quotes.
 - Only use apostrophe (U+0027) and quotes (U+0022), not left or right single or double quotation marks.
 - Do not localize URLs (e.g. no "en-us" in links).
+- Never use emoji variation selectors in Markdown. They are sneaky little things that can cause rendering and Markdown anchor link issues.
 
 ## Testing and Edge Cases
 
