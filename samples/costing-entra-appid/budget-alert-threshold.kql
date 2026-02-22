@@ -4,7 +4,7 @@
 //   let callerAppId = 'a5846c0e-...';  // Entra ID application (appid claim)
 //   let threshold   = 1000;            // Request count threshold
 customMetrics
-| where TimeGenerated > ago(1h) and name == 'caller-requests'
+| where timestamp > ago(1h) and name == 'caller-requests'
 | extend CallerId = tostring(customDimensions.CallerId)
 | where CallerId == callerAppId
 | summarize RequestCount = sum(value)

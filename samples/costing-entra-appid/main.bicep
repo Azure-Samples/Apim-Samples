@@ -14,12 +14,6 @@ param apimName string = 'apim-${resourceSuffix}'
 @description('Deployment index for unique resource naming')
 param index int
 
-@description('Enable Application Insights for APIM diagnostics')
-param enableApplicationInsights bool = true
-
-@description('Enable Log Analytics for APIM diagnostics')
-param enableLogAnalytics bool = true
-
 @description('Array of APIs to deploy')
 param apis array = []
 
@@ -31,10 +25,7 @@ param deployWorkbook bool = true
 //    VARIABLES
 // ------------------
 
-var applicationInsightsName = 'appi-appid-cost-${index}-${take(resourceSuffix, 4)}'
-var logAnalyticsWorkspaceName = 'log-appid-cost-${index}-${take(resourceSuffix, 4)}'
 var workbookName = 'APIM Cost Attribution by Caller ID ${index}'
-var diagnosticSettingsNameSuffix = 'appid-costing-diagnostics-${index}'
 
 
 // ------------------
@@ -46,72 +37,33 @@ resource apimService 'Microsoft.ApiManagement/service@2024-06-01-preview' existi
   name: apimName
 }
 
+// Reference the infrastructure's Application Insights and Log Analytics.
+// The emit-metric policy sends custom metrics to the App Insights
+// connected to the APIM service (configured by the infrastructure's apim-logger).
+// Deploying a separate App Insights would leave it empty.
+// https://learn.microsoft.com/azure/templates/microsoft.insights/components
+resource infraAppInsights 'Microsoft.Insights/components@2020-02-02' existing = {
+  name: 'appi-${resourceSuffix}'
+}
+
+// https://learn.microsoft.com/azure/templates/microsoft.operationalinsights/workspaces
+resource infraLogAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
+  name: 'log-${resourceSuffix}'
+}
+
 // APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(!empty(apis)) {
   name: 'api-${api.name}'
   params: {
     apimName: apimName
-    appInsightsInstrumentationKey: appInsightsInstrKey
-    appInsightsId: appInsightsResourceId
+    appInsightsInstrumentationKey: infraAppInsights.properties.InstrumentationKey
+    appInsightsId: infraAppInsights.id
     api: api
   }
 }]
 
-// Deploy Log Analytics Workspace using shared module
-// https://learn.microsoft.com/azure/templates/microsoft.operationalinsights/workspaces
-module logAnalyticsModule '../../shared/bicep/modules/operational-insights/v1/workspaces.bicep' = if (enableLogAnalytics) {
-  name: 'logAnalytics'
-  params: {
-    location: location
-    resourceSuffix: resourceSuffix
-    logAnalyticsName: logAnalyticsWorkspaceName
-  }
-}
-
-// Deploy Application Insights using shared module
-// https://learn.microsoft.com/azure/templates/microsoft.insights/components
-module applicationInsightsModule '../../shared/bicep/modules/monitor/v1/appinsights.bicep' = if (enableApplicationInsights) {
-  name: 'applicationInsights'
-  params: {
-    location: location
-    resourceSuffix: resourceSuffix
-    applicationInsightsName: applicationInsightsName
-    applicationInsightsLocation: location
-    customMetricsOptedInType: 'WithDimensions'
-    useWorkbook: false
-    #disable-next-line BCP318
-    lawId: enableLogAnalytics ? logAnalyticsModule.outputs.id : ''
-  }
-}
-
-// Helper variables to safely access properties from conditionally deployed resources
-#disable-next-line BCP318
-var appInsightsInstrKey = enableApplicationInsights ? applicationInsightsModule.outputs.instrumentationKey : ''
-
-// Helper variables for diagnostics module
-#disable-next-line BCP318
-var logAnalyticsWorkspaceId = enableLogAnalytics ? logAnalyticsModule.outputs.id : ''
-#disable-next-line BCP318
-var appInsightsResourceId = enableApplicationInsights ? applicationInsightsModule.outputs.id : ''
-
-// Deploy APIM diagnostics using shared module
-module apimDiagnosticsModule '../../shared/bicep/modules/apim/v1/diagnostics.bicep' = if (!empty(apimName)) {
-  name: 'apimDiagnostics'
-  params: {
-    location: location
-    apimServiceName: apimName
-    apimResourceGroupName: resourceGroup().name
-    enableLogAnalytics: enableLogAnalytics
-    logAnalyticsWorkspaceId: logAnalyticsWorkspaceId
-    enableApplicationInsights: enableApplicationInsights
-    appInsightsInstrumentationKey: appInsightsInstrKey
-    appInsightsResourceId: appInsightsResourceId
-    diagnosticSettingsNameSuffix: diagnosticSettingsNameSuffix
-  }
-}
-
 // https://learn.microsoft.com/azure/templates/microsoft.insights/workbooks
-resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = if (deployWorkbook && enableApplicationInsights) {
+resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = if (deployWorkbook) {
   name: guid(resourceGroup().id, 'appid-costing-workbook', string(index))
   location: location
   kind: 'shared'
@@ -119,8 +71,7 @@ resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = if (deployWorkbook
     displayName: workbookName
     serializedData: string(loadJsonContent('workbook.json'))
     version: '1.0'
-    #disable-next-line BCP318
-    sourceId: enableApplicationInsights ? applicationInsightsModule.outputs.id : ''
+    sourceId: infraAppInsights.id
     category: 'APIM'
   }
 }
@@ -134,28 +85,26 @@ output apimServiceId string = apimService.id
 output apimServiceName string = apimService.name
 output apimResourceGatewayURL string = apimService.properties.gatewayUrl
 
-@description('Name of the Application Insights resource')
-#disable-next-line BCP318
-output applicationInsightsName string = enableApplicationInsights ? applicationInsightsModule.outputs.applicationInsightsName : ''
+@description('Name of the Application Insights resource (from infrastructure)')
+output applicationInsightsName string = infraAppInsights.name
 
 @description('Application Insights instrumentation key')
-output applicationInsightsInstrumentationKey string = appInsightsInstrKey
+output applicationInsightsInstrumentationKey string = infraAppInsights.properties.InstrumentationKey
 
 @description('Application Insights connection string')
-output applicationInsightsConnectionString string = enableApplicationInsights ? 'InstrumentationKey=${appInsightsInstrKey}' : ''
+output applicationInsightsConnectionString string = infraAppInsights.properties.ConnectionString
 
-@description('Name of the Log Analytics Workspace')
-output logAnalyticsWorkspaceName string = enableLogAnalytics ? logAnalyticsWorkspaceName : ''
+@description('Name of the Log Analytics Workspace (from infrastructure)')
+output logAnalyticsWorkspaceName string = infraLogAnalytics.name
 
 @description('Log Analytics Workspace ID')
-#disable-next-line BCP318
-output logAnalyticsWorkspaceId string = enableLogAnalytics ? logAnalyticsModule.outputs.id : ''
+output logAnalyticsWorkspaceId string = infraLogAnalytics.id
 
 @description('Name of the Azure Monitor Workbook')
 output workbookName string = workbookName
 
 @description('Workbook ID')
-output workbookId string = deployWorkbook && enableApplicationInsights ? workbook.id : ''
+output workbookId string = deployWorkbook ? workbook.id : ''
 
 // API outputs
 output apiOutputs array = [for i in range(0, length(apis)): {

@@ -25,7 +25,7 @@
                             Convert.FromBase64String(parts[1].PadRight(parts[1].Length + (4 - parts[1].Length % 4) % 4, '=')));
                         var json = Newtonsoft.Json.Linq.JObject.Parse(payload);
                         var appId = json["appid"]?.ToString() ?? json["azp"]?.ToString();
-                        if (!string.IsNullOrEmpty(appId)) return appId;
+                        if (!string.IsNullOrEmpty(appId)) { return appId; }
                     }
                 }
                 catch { }
