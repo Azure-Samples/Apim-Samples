@@ -172,7 +172,7 @@
           },
           {
             "content": {
-              "query": "let appNames = parse_json('{AppIdNames}');\nlet baseCost = {BaseCost};\nlet metrics = customMetrics\n| where name == 'caller-requests'\n| extend CallerId = tostring(customDimensions.CallerId)\n| where isnotempty(CallerId);\nlet totalRequests = toscalar(metrics | summarize sum(value));\nmetrics\n| summarize RequestCount = sum(value) by CallerId\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| extend UsagePercent = round(RequestCount * 100.0 / totalRequests, 2)\n| extend AllocatedCost = round(baseCost * RequestCount / totalRequests, 2)\n| project Caller, RequestCount, ['Usage %'] = UsagePercent, ['Allocated Cost ($)'] = AllocatedCost\n| order by AllocatedCost desc",
+              "query": "let appNames = parse_json('{AppIdNames}');\nlet baseCost = {BaseCost};\nlet metrics = customMetrics\n| where name == 'caller-requests'\n| extend CallerId = tostring(customDimensions.CallerId)\n| where isnotempty(CallerId);\nlet totalRequests = toscalar(metrics | summarize sum(value));\nmetrics\n| summarize RequestCount = sum(value) by CallerId\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| extend UsagePercent = round(RequestCount * 100.0 / totalRequests, 2)\n| extend AllocatedCost = round(baseCost * RequestCount / totalRequests, 2)\n| order by AllocatedCost desc\n| project Caller, RequestCount, ['Usage %'] = UsagePercent, ['Allocated Cost ($)'] = AllocatedCost",
               "queryType": 0,
               "resourceType": "microsoft.insights/components",
               "size": 0,
