@@ -112,9 +112,11 @@ class APIM_SKU(StrEnum):
     PREMIUMV2  = 'Premiumv2'
 
     def is_v1(self):
+        """Check if the SKU is a v1 tier."""
         return self in (APIM_SKU.DEVELOPER, APIM_SKU.BASIC, APIM_SKU.STANDARD, APIM_SKU.PREMIUM)
 
     def is_v2(self):
+        """Check if the SKU is a v2 tier."""
         return self in (APIM_SKU.BASICV2, APIM_SKU.STANDARDV2, APIM_SKU.PREMIUMV2)
 
 class HTTP_VERB(StrEnum):
@@ -159,6 +161,10 @@ class Endpoints:
 
     def __init__(self, deployment: INFRASTRUCTURE):
         self.deployment = deployment
+        self.afd_endpoint_url: str | None = None
+        self.apim_endpoint_url: str | None = None
+        self.appgw_hostname: str | None = None
+        self.appgw_public_ip: str | None = None
 
 
 class Output:
@@ -243,7 +249,7 @@ class Output:
             print_error(error)
 
             if label:
-                raise Exception(error) from e
+                raise ValueError(error) from e
 
             return None
 
@@ -314,7 +320,7 @@ class Output:
             print_error(error)
 
             if label:
-                raise Exception(error) from e
+                raise ValueError(error) from e
 
             return None
 
@@ -339,8 +345,12 @@ class API:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, displayName: str, path: str, description: str, policyXml: Optional[str] = None, operations: Optional[List['APIOperation']] = None, tags: Optional[List[str]] = None,
-                 productNames: Optional[List[str]] = None, subscriptionRequired: bool = True, serviceUrl: Optional[str] = None):
+    def __init__(
+        self, name: str, displayName: str, path: str, description: str,
+        policyXml: Optional[str] = None, operations: Optional[List['APIOperation']] = None,
+        tags: Optional[List[str]] = None, productNames: Optional[List[str]] = None,
+        subscriptionRequired: bool = True, serviceUrl: Optional[str] = None,
+    ):
         self.name = name
         self.displayName = displayName
         self.path = path
@@ -357,6 +367,7 @@ class API:
     # ------------------------------
 
     def to_dict(self) -> dict:
+        """Convert the API instance to a dictionary."""
         return {
             'name': self.name,
             'displayName': self.displayName,
@@ -388,7 +399,11 @@ class APIOperation:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, displayName: str, urlTemplate: str, method: HTTP_VERB, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None) -> None:
+    def __init__(
+        self, name: str, displayName: str, urlTemplate: str, method: HTTP_VERB,
+        description: str, policyXml: Optional[str] = None,
+        templateParameters: Optional[List[dict[str, Any]]] = None,
+    ) -> None:
         # Validate that method is a valid HTTP_VERB
         if not isinstance(method, HTTP_VERB):
             try:
@@ -409,6 +424,7 @@ class APIOperation:
     # ------------------------------
 
     def to_dict(self) -> dict:
+        """Convert the API operation to a dictionary."""
         return {
             'name': self.name,
             'displayName': self.displayName,
@@ -444,7 +460,11 @@ class GET_APIOperation2(APIOperation):
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, displayName: str, urlTemplate: str, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None) -> None:
+    def __init__(
+        self, name: str, displayName: str, urlTemplate: str, description: str,
+        policyXml: Optional[str] = None,
+        templateParameters: Optional[List[dict[str, Any]]] = None,
+    ) -> None:
         super().__init__(name, displayName, urlTemplate, HTTP_VERB.GET, description, policyXml, templateParameters)
 
 
@@ -487,6 +507,7 @@ class NamedValue:
     # ------------------------------
 
     def to_dict(self) -> dict:
+        """Convert the named value to a dictionary."""
         nv_dict = {
             'name': self.name,
             'value': self.value,
@@ -521,6 +542,7 @@ class PolicyFragment:
     # ------------------------------
 
     def to_dict(self) -> dict:
+        """Convert the policy fragment to a dictionary."""
         pf_dict = {
             'name': self.name,
             'policyXml': self.policyXml,
@@ -550,7 +572,11 @@ class Product:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, displayName: str, description: str, state: str = 'published', subscriptionRequired: bool = True, approvalRequired: bool = False, policyXml: Optional[str] = None) -> None:
+    def __init__(
+        self, name: str, displayName: str, description: str,
+        state: str = 'published', subscriptionRequired: bool = True,
+        approvalRequired: bool = False, policyXml: Optional[str] = None,
+    ) -> None:
         self.name = name
         self.displayName = displayName
         self.description = description
@@ -585,6 +611,7 @@ class Product:
     # ------------------------------
 
     def to_dict(self) -> dict:
+        """Convert the product to a dictionary."""
         return {
             'name': self.name,
             'displayName': self.displayName,

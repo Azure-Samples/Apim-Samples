@@ -13,6 +13,7 @@ from console import print_plain
 
 
 def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU) -> None:
+    """Create the simple APIM infrastructure."""
     # Check if infrastructure already exists to determine messaging
     infrastructure_exists = az.does_resource_group_exist(az.get_infra_rg_name(INFRASTRUCTURE.SIMPLE_APIM, index))
 

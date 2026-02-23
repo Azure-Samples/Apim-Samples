@@ -1,0 +1,200 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 570" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0078D4" />
+      <stop offset="100%" stop-color="#005A9E" />
+    </linearGradient>
+    <linearGradient id="rowLabelGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00796B" />
+      <stop offset="100%" stop-color="#00897B" />
+    </linearGradient>
+    <filter id="shadow" x="-2%" y="-2%" width="104%" height="104%">
+      <feDropShadow dx="1" dy="1" stdDeviation="2" flood-opacity="0.12" />
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="880" height="570" rx="12" fill="#FAFAFA" />
+  <rect x="4" y="4" width="872" height="562" rx="10" fill="none" stroke="#E0E0E0" stroke-width="1" />
+
+  <!-- Title -->
+  <text x="440" y="36" text-anchor="middle" font-size="20" font-weight="700" fill="#1A1A1A">Infrastructure &amp; Sample Compatibility</text>
+  <text x="440" y="56" text-anchor="middle" font-size="12" fill="#666666">Many samples can be deployed onto many infrastructures (many-to-many)</text>
+
+  <!-- Section Labels -->
+  <text x="540" y="82" text-anchor="middle" font-size="16" font-weight="700" fill="#0078D4" letter-spacing="2">INFRASTRUCTURES</text>
+  <text x="18" y="359" text-anchor="middle" font-size="16" font-weight="700" fill="#00796B" letter-spacing="2" transform="rotate(-90 18 359)">SAMPLES</text>
+
+  <!-- Column Headers (Infrastructure names) -->
+  <!-- Background rectangles for headers -->
+  <rect x="210" y="92" width="120" height="96" rx="6" fill="#E3F2FD" opacity="0.5" />
+  <rect x="340" y="92" width="120" height="96" rx="6" fill="#EDE7F6" opacity="0.5" />
+  <rect x="470" y="92" width="120" height="96" rx="6" fill="#E3F2FD" opacity="0.5" />
+  <rect x="600" y="92" width="120" height="96" rx="6" fill="#EDE7F6" opacity="0.5" />
+  <rect x="730" y="92" width="120" height="96" rx="6" fill="#E3F2FD" opacity="0.5" />
+
+  <!-- Column header text -->
+  <text x="270" y="126" text-anchor="middle" font-size="12" font-weight="600" fill="#0078D4">Simple</text>
+  <text x="270" y="142" text-anchor="middle" font-size="12" font-weight="600" fill="#0078D4">APIM</text>
+  <text x="270" y="158" text-anchor="middle" font-size="10" fill="#5C5C5C">(simple-apim)</text>
+
+  <text x="400" y="126" text-anchor="middle" font-size="12" font-weight="600" fill="#0078D4">APIM</text>
+  <text x="400" y="142" text-anchor="middle" font-size="12" font-weight="600" fill="#0078D4">+ ACA</text>
+  <text x="400" y="158" text-anchor="middle" font-size="10" fill="#5C5C5C">(apim-aca)</text>
+
+  <text x="530" y="126" text-anchor="middle" font-size="12" font-weight="600" fill="#0078D4">AFD + APIM</text>
+  <text x="530" y="142" text-anchor="middle" font-size="12" font-weight="600" fill="#0078D4">(PE)</text>
+  <text x="530" y="158" text-anchor="middle" font-size="10" fill="#5C5C5C">(afd-apim-pe)</text>
+
+  <text x="660" y="126" text-anchor="middle" font-size="12" font-weight="600" fill="#0078D4">App GW</text>
+  <text x="660" y="142" text-anchor="middle" font-size="12" font-weight="600" fill="#0078D4">+ APIM</text>
+  <text x="660" y="158" text-anchor="middle" font-size="10" fill="#5C5C5C">(appgw-apim)</text>
+
+  <text x="790" y="126" text-anchor="middle" font-size="12" font-weight="600" fill="#0078D4">App GW</text>
+  <text x="790" y="142" text-anchor="middle" font-size="12" font-weight="600" fill="#0078D4">+ APIM (PE)</text>
+  <text x="790" y="158" text-anchor="middle" font-size="10" fill="#5C5C5C">(appgw-apim-pe)</text>
+
+  <!-- Separator line between headers and grid -->
+  <line x1="30" y1="195" x2="855" y2="195" stroke="#BDBDBD" stroke-width="1" />
+
+  <!-- Row backgrounds (alternating) and labels -->
+  <!-- Row 1: AuthX -->
+  <rect x="30" y="200" width="825" height="42" rx="4" fill="#FFFFFF" />
+  <rect x="35" y="202" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
+  <text x="120" y="226" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">AuthX</text>
+
+  <!-- Row 2: AuthX Pro -->
+  <rect x="30" y="246" width="825" height="42" rx="4" fill="#F5F5F5" />
+  <rect x="35" y="248" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
+  <text x="120" y="272" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">AuthX Pro</text>
+
+  <!-- Row 3: Azure Maps -->
+  <rect x="30" y="292" width="825" height="42" rx="4" fill="#FFFFFF" />
+  <rect x="35" y="294" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
+  <text x="120" y="318" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Azure Maps</text>
+
+  <!-- Row 4: General -->
+  <rect x="30" y="338" width="825" height="42" rx="4" fill="#F5F5F5" />
+  <rect x="35" y="340" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
+  <text x="120" y="364" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">General</text>
+
+  <!-- Row 5: Load Balancing -->
+  <rect x="30" y="384" width="825" height="42" rx="4" fill="#FFFFFF" />
+  <rect x="35" y="386" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
+  <text x="120" y="410" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Load Balancing</text>
+
+  <!-- Row 6: OAuth 3rd-Party -->
+  <rect x="30" y="430" width="825" height="42" rx="4" fill="#F5F5F5" />
+  <rect x="35" y="432" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
+  <text x="120" y="456" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">OAuth 3rd-Party</text>
+
+  <!-- Row 7: Secure Blob Access -->
+  <rect x="30" y="476" width="825" height="42" rx="4" fill="#FFFFFF" />
+  <rect x="35" y="478" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
+  <text x="120" y="502" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Secure Blob Access</text>
+
+  <!-- Vertical grid lines -->
+  <line x1="210" y1="92" x2="210" y2="520" stroke="#E0E0E0" stroke-width="0.5" />
+  <line x1="340" y1="92" x2="340" y2="520" stroke="#E0E0E0" stroke-width="0.5" />
+  <line x1="470" y1="92" x2="470" y2="520" stroke="#E0E0E0" stroke-width="0.5" />
+  <line x1="600" y1="92" x2="600" y2="520" stroke="#E0E0E0" stroke-width="0.5" />
+  <line x1="730" y1="92" x2="730" y2="520" stroke="#E0E0E0" stroke-width="0.5" />
+
+  <!-- Compatibility indicators -->
+  <!-- Row 1: AuthX - all compatible -->
+  <circle cx="270" cy="221" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="270" y="225" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="400" cy="221" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="400" y="225" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="530" cy="221" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="530" y="225" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="660" cy="221" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="660" y="225" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="790" cy="221" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="790" y="225" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+
+  <!-- Row 2: AuthX Pro - all compatible -->
+  <circle cx="270" cy="267" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="270" y="271" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="400" cy="267" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="400" y="271" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="530" cy="267" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="530" y="271" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="660" cy="267" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="660" y="271" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="790" cy="267" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="790" y="271" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+
+  <!-- Row 3: Azure Maps - all compatible -->
+  <circle cx="270" cy="313" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="270" y="317" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="400" cy="313" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="400" y="317" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="530" cy="313" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="530" y="317" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="660" cy="313" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="660" y="317" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="790" cy="313" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="790" y="317" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+
+  <!-- Row 4: General - all compatible -->
+  <circle cx="270" cy="359" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="270" y="363" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="400" cy="359" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="400" y="363" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="530" cy="359" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="530" y="363" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="660" cy="359" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="660" y="363" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="790" cy="359" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="790" y="363" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+
+  <!-- Row 5: Load Balancing - NOT compatible with Simple APIM -->
+  <circle cx="270" cy="405" r="10" fill="#EF5350" opacity="0.9" />
+  <text x="270" y="409" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <circle cx="400" cy="405" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="400" y="409" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="530" cy="405" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="530" y="409" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="660" cy="405" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="660" y="409" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="790" cy="405" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="790" y="409" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+
+  <!-- Row 6: OAuth 3rd-Party - all compatible -->
+  <circle cx="270" cy="451" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="270" y="455" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="400" cy="451" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="400" y="455" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="530" cy="451" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="530" y="455" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="660" cy="451" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="660" y="455" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="790" cy="451" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="790" y="455" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+
+  <!-- Row 7: Secure Blob Access - all compatible -->
+  <circle cx="270" cy="497" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="270" y="501" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="400" cy="497" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="400" y="501" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="530" cy="497" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="530" y="501" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="660" cy="497" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="660" y="501" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="790" cy="497" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="790" y="501" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+
+  <!-- Bottom separator -->
+  <line x1="30" y1="522" x2="855" y2="522" stroke="#BDBDBD" stroke-width="0.5" />
+
+  <!-- Legend -->
+  <circle cx="280" cy="548" r="8" fill="#4CAF50" opacity="0.9" />
+  <text x="280" y="552" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <text x="296" y="552" font-size="12" fill="#555555">Compatible</text>
+
+  <circle cx="420" cy="548" r="8" fill="#EF5350" opacity="0.9" />
+  <text x="420" y="552" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <text x="436" y="552" font-size="12" fill="#555555">Not compatible (requires ACA backends)</text>
+
+</svg>

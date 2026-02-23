@@ -15,8 +15,6 @@ import matplotlib as mpl
 #    CLASSES
 # ------------------------------
 
-# TODO: A specialized barchart for multi-request scenarios should be created and use a more generic base class barchart.
-# TODO: BarChart should be a base class for other chart types once it's more generic.
 class BarChart:
     """
     Class for creating bar charts with colored bars based on backend indexes.

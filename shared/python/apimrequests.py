@@ -107,7 +107,10 @@ class ApimRequests:
     #    PRIVATE METHODS
     # ------------------------------
 
-    def _request(self, method: HTTP_VERB, path: str, headers: list[any] = None, data: any = None, msg: str | None = None, printResponse: bool = True) -> str | None:
+    def _request(
+        self, method: HTTP_VERB, path: str, headers: list[any] = None,
+        data: any = None, msg: str | None = None, printResponse: bool = True,
+    ) -> str | None:
         """
         Make a request to the Azure API Management service.
 
@@ -160,7 +163,11 @@ class ApimRequests:
             print_error(f'Error making request: {e}')
             return None
 
-    def _multiRequest(self, method: HTTP_VERB, path: str, runs: int, headers: list[any] = None, data: any = None, msg: str | None = None, printResponse: bool = True, sleepMs: int | None = None) -> list[dict[str, Any]]:
+    def _multiRequest(
+        self, method: HTTP_VERB, path: str, runs: int, headers: list[any] = None,
+        data: any = None, msg: str | None = None, printResponse: bool = True,
+        sleepMs: int | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Make multiple requests to the Azure API Management service.
 
@@ -343,9 +350,15 @@ class ApimRequests:
             str | None: The JSON response as a string, or None on error.
         """
 
-        return self._request(method = HTTP_VERB.POST, path = path, headers = headers, data = data, msg = msg, printResponse = printResponse)
+        return self._request(
+            method=HTTP_VERB.POST, path=path, headers=headers,
+            data=data, msg=msg, printResponse=printResponse,
+        )
 
-    def multiGet(self, path: str, runs: int, headers = None, data = None, msg: str | None = None, printResponse: bool = True, sleepMs: int | None = None) -> list[dict[str, Any]]:
+    def multiGet(
+        self, path: str, runs: int, headers=None, data=None,
+        msg: str | None = None, printResponse: bool = True, sleepMs: int | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Make multiple GET requests to the Azure API Management service.
 
@@ -361,9 +374,16 @@ class ApimRequests:
             List of response dicts for each run.
         """
 
-        return self._multiRequest(method = HTTP_VERB.GET, path = path, runs = runs, headers = headers, data = data, msg = msg, printResponse = printResponse, sleepMs = sleepMs)
+        return self._multiRequest(
+            method=HTTP_VERB.GET, path=path, runs=runs, headers=headers,
+            data=data, msg=msg, printResponse=printResponse, sleepMs=sleepMs,
+        )
 
-    def singlePostAsync(self, path: str, *, headers = None, data = None, msg: str | None = None, printResponse = True, timeout = 60, poll_interval = 2) -> Any:
+    def singlePostAsync(
+        self, path: str, *, headers=None, data=None,
+        msg: str | None = None, printResponse=True,
+        timeout=60, poll_interval=2,
+    ) -> Any:
         """
         Make an async POST request to the Azure API Management service and poll until completion.
 

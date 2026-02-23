@@ -72,6 +72,12 @@ It's quick and easy to get started!
 | [Azure Maps][sample-azure-maps]                             | Proxying calls to Azure Maps with APIM policies.                                                                    | All infrastructures           |
 </details>
 
+### Compatibility Matrix
+
+Most samples work with all infrastructures, making this a truly _a la carte_ experience. The diagram below shows which samples are compatible with which infrastructures.
+
+<img src="./assets/diagrams/Infrastructure-Sample-Compatibility.svg" alt="Infrastructure and Sample Compatibility Matrix" title="Infrastructure and Sample Compatibility Matrix" />
+
 
 ## 🧰 APIM Samples Developer CLI
 
