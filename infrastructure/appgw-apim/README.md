@@ -2,8 +2,9 @@
 
 This architecture provides secure ingress through Azure Application Gateway (WAF_v2) to Azure API Management (APIM) deployed in a Virtual Network using Internal mode (private IP only). No Private Endpoints are used; traffic stays on private networking after the gateway, and APIM cannot be accessed aside from traversing Application Gateway.
 
-<!-- TODO: Generate diagram -->
-<!-- <img src="./Azure Application Gateway + APIM (Internal).svg" alt="Diagram showing Application Gateway routing to APIM in VNet Internal mode. Optional Container Apps shown behind APIM. Telemetry to Azure Monitor." title="Application Gateway + APIM (Internal)" width="1000" /> -->
+<img src="../../assets/diagrams/Azure Application Gateway, API Management & Container Apps Architecture VNet.svg" alt="Diagram showing Application Gateway routing to APIM in VNet Internal mode. Optional Container Apps shown behind APIM. Telemetry to Azure Monitor." title="Application Gateway + APIM (VNet Internal)" width="1000" />
+
+> Diagram created with the [Azure Draw.io MCP Server](https://github.com/simonkurtz-MSFT/drawio-mcp-server).
 
 ## 🎯 Objectives
 
