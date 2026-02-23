@@ -72,8 +72,9 @@ In case of any conflicting instructions, the following hierarchy shall apply. If
 
   ## Language-specific Instructions
 
-  - Python: see `.github/copilot-instructions.python.md`
-  - Bicep: see `.github/copilot-instructions.bicep.md`
+  - Python: see `.github/python.instructions.md`
+  - Bicep: see `.github/bicep.instructions.md`
+  - JSON: see `.github/json.instructions.md`
 
 ## Formatting and Style
 
