@@ -220,7 +220,13 @@ def test_define_policy_fragments_with_none_input(mock_utils):
 
     # Should only have base policy fragments
     assert len(pfs) == 6
-    assert all(pf.name in ['Api-Id', 'AuthZ-Match-All', 'AuthZ-Match-Any', 'Http-Response-200', 'Product-Match-Any', 'Remove-Request-Headers'] for pf in pfs)
+    assert all(
+        pf.name in [
+            'Api-Id', 'AuthZ-Match-All', 'AuthZ-Match-Any',
+            'Http-Response-200', 'Product-Match-Any', 'Remove-Request-Headers',
+        ]
+        for pf in pfs
+    )
 
 @pytest.mark.unit
 def test_define_policy_fragments_with_custom_input(mock_utils, mock_policy_fragments):
@@ -791,6 +797,8 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
 
     # Create a concrete subclass for testing
     class TestInfrastructure(infrastructures.Infrastructure):
+        """Concrete subclass for testing deploy success."""
+
         def verify_infrastructure(self) -> bool:
             return True
 
@@ -844,6 +852,8 @@ def test_deploy_infrastructure_failure(mock_path_class, mock_chdir, mock_getcwd,
 
     # Create a concrete subclass for testing
     class TestInfrastructure(infrastructures.Infrastructure):
+        """Concrete subclass for testing deploy failure."""
+
         def verify_infrastructure(self) -> bool:
             return True
 
@@ -1301,7 +1311,7 @@ def test_cleanup_resources_exception_handling(monkeypatch):
     exception_caught = []
 
     def mock_run(command, ok_message=None, error_message=None, **kwargs):
-        raise Exception("Simulated Azure CLI error")
+        raise RuntimeError("Simulated Azure CLI error")
 
     def mock_print(message):
         exception_caught.append(message)
@@ -1326,7 +1336,7 @@ def test_cleanup_resources_always_attempts_rg_delete_on_exception(monkeypatch):
         run_commands.append(command)
         # Simulate a hard failure early during cleanup.
         if 'deployment group show' in command:
-            raise Exception('Simulated Azure CLI error')
+            raise RuntimeError('Simulated Azure CLI error')
         return Output(success=True, text='{}')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
@@ -1429,7 +1439,7 @@ def test_cleanup_resources_thread_safe_success(monkeypatch):
 def test_cleanup_resources_thread_safe_failure(monkeypatch):
     """Test the thread-safe cleanup wrapper with exception handling."""
     def mock_cleanup_resources_with_thread_safe_printing(deployment_name, rg_name, thread_prefix, thread_color):
-        raise Exception("Simulated cleanup failure")
+        raise RuntimeError("Simulated cleanup failure")
 
     monkeypatch.setattr(infrastructures, '_cleanup_resources_with_thread_safe_printing', mock_cleanup_resources_with_thread_safe_printing)
 
@@ -2033,7 +2043,7 @@ def test_infrastructure_concrete_class_sku_inheritance():
 def test_cleanup_single_resource_exception_handling(monkeypatch):
     """Test _cleanup_single_resource exception handling."""
     def mock_run(command, ok_message=None, error_message=None):
-        raise Exception("Test exception")
+        raise RuntimeError("Test exception")
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
 
@@ -3118,7 +3128,9 @@ def test_afd_apim_aca_deploy_infrastructure_success_calls_steps(mock_utils, mock
 
     assert result is base_output
     mock_base_deploy.assert_called_once()
-    infra._approve_private_link_connections.assert_called_once_with('/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test')
+    infra._approve_private_link_connections.assert_called_once_with(
+        '/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test'
+    )
     infra._verify_apim_connectivity.assert_called_once_with('https://test-apim.azure-api.net')
     infra._disable_apim_public_access.assert_called_once()
 
@@ -3177,7 +3189,9 @@ def test_appgw_apim_pe_deploy_infrastructure_success_calls_steps_and_sets_appgw_
     infra._create_keyvault.assert_called_once()
     infra._create_keyvault_certificate.assert_called_once()
     mock_base_deploy.assert_called_once()
-    infra._approve_private_link_connections.assert_called_once_with('/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test')
+    infra._approve_private_link_connections.assert_called_once_with(
+        '/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test'
+    )
     infra._verify_apim_connectivity.assert_called_once_with('https://test-apim.azure-api.net')
     infra._disable_apim_public_access.assert_called_once()
     assert infra.appgw_domain_name == 'api.example.com'
@@ -4128,7 +4142,7 @@ def test_cleanup_resources_with_thread_safe_printing_cognitiveservices_list_fail
 def test_cleanup_resources_with_thread_safe_printing_exception_handling(monkeypatch):
     """Test cleanup exception handling and RG cleanup attempt."""
     def mock_run(command, ok_msg=None, error_msg=None):
-        raise Exception("Simulated Azure CLI error")
+        raise RuntimeError("Simulated Azure CLI error")
 
     rg_delete_called = []
 
@@ -4251,7 +4265,7 @@ def test_delete_resource_group_best_effort_no_rg_name(monkeypatch):
     infrastructures._delete_resource_group_best_effort(None)
 
     # No calls should have been captured for thread-safe logging
-    assert print_calls == []
+    assert not print_calls
 
 
 @pytest.mark.unit
@@ -4854,7 +4868,7 @@ def test_cleanup_resources_parallel_thread_safe_logging(monkeypatch, mock_utils)
 def test_cleanup_resources_parallel_exception_in_worker(monkeypatch, mock_utils):
     """Test _cleanup_resources_parallel handles worker exceptions."""
     def mock_cleanup(resource):
-        raise Exception("Worker error")
+        raise RuntimeError("Worker error")
 
     monkeypatch.setattr(infrastructures, '_cleanup_single_resource', mock_cleanup)
     patch_module_thread_safe_printing(monkeypatch, infrastructures)
@@ -5680,7 +5694,7 @@ def test_cleanup_infra_deployments_all_exceptions_no_completed(monkeypatch):
 
     def mock_cleanup_resources_thread_safe(deployment_name, rg_name, thread_prefix, thread_color):
         # Raise exception instead of returning
-        raise Exception("Simulated exception in cleanup")
+        raise RuntimeError("Simulated exception in cleanup")
 
     def mock_get_infra_rg_name(deployment, index):
         return f'apim-infra-{deployment.value}-{index}'

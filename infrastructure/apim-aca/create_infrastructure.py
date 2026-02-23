@@ -1,5 +1,6 @@
 """
-This module provides a reusable way to create API Management with Azure Container Apps infrastructure that can be called from notebooks or other scripts.
+This module provides a reusable way to create API Management with Azure Container Apps infrastructure
+that can be called from notebooks or other scripts.
 """
 
 import sys
@@ -13,6 +14,7 @@ from utils import read_policy_xml
 
 
 def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU) -> None:
+    """Create the APIM + Azure Container Apps infrastructure."""
     # Check if infrastructure already exists to determine messaging
     infrastructure_exists = az.does_resource_group_exist(az.get_infra_rg_name(INFRASTRUCTURE.APIM_ACA, index))
 
@@ -40,15 +42,24 @@ def _create_aca_specific_apis() -> list[API]:
 
     # API 1: Hello World (ACA Backend 1)
     api_hwaca_1_get      = GET_APIOperation('This is a GET for Hello World on ACA Backend 1')
-    api_hwaca_1          = API('hello-world-aca-1', 'Hello World (ACA 1)', '/aca-1', 'This is the ACA API for Backend 1', pol_aca_backend_1, [api_hwaca_1_get])
+    api_hwaca_1          = API(
+        'hello-world-aca-1', 'Hello World (ACA 1)', '/aca-1',
+        'This is the ACA API for Backend 1', pol_aca_backend_1, [api_hwaca_1_get]
+    )
 
     # API 2: Hello World (ACA Backend 2)
     api_hwaca_2_get      = GET_APIOperation('This is a GET for Hello World on ACA Backend 2')
-    api_hwaca_2          = API('hello-world-aca-2', 'Hello World (ACA 2)', '/aca-2', 'This is the ACA API for Backend 2', pol_aca_backend_2, [api_hwaca_2_get])
+    api_hwaca_2          = API(
+        'hello-world-aca-2', 'Hello World (ACA 2)', '/aca-2',
+        'This is the ACA API for Backend 2', pol_aca_backend_2, [api_hwaca_2_get]
+    )
 
     # API 3: Hello World (ACA Backend Pool)
     api_hwaca_pool_get   = GET_APIOperation('This is a GET for Hello World on ACA Backend Pool')
-    api_hwaca_pool       = API('hello-world-aca-pool', 'Hello World (ACA Pool)', '/aca-pool', 'This is the ACA API for Backend Pool', pol_aca_backend_pool, [api_hwaca_pool_get])
+    api_hwaca_pool       = API(
+        'hello-world-aca-pool', 'Hello World (ACA Pool)', '/aca-pool',
+        'This is the ACA API for Backend Pool', pol_aca_backend_pool, [api_hwaca_pool_get]
+    )
 
     return [api_hwaca_1, api_hwaca_2, api_hwaca_pool]
 
