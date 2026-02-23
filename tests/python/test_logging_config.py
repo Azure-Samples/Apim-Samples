@@ -193,6 +193,7 @@ def test_get_configured_level_name_from_env(monkeypatch: pytest.MonkeyPatch) -> 
 
 def test_get_configured_level_name_defaults_to_info(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv('APIM_SAMPLES_LOG_LEVEL', raising=False)
+    monkeypatch.setattr(logging_config, '_find_env_file', lambda: None)
 
     assert logging_config.get_configured_level_name() == 'INFO'
 

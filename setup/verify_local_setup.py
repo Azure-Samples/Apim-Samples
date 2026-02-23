@@ -258,7 +258,10 @@ def check_azure_login():
         subscription = account.get("id", "unknown")
         return True, f"Logged in (sub: {name}, id: {subscription}, tenant: {tenant})"
     except (subprocess.CalledProcessError, json.JSONDecodeError):
-        return False, "Log in via the APIM Developer CLI or `az login --tenant <tenant-id>`, then set the subscription, if needed, via `az account set --subscription <subscription-id>`"
+        return False, (
+            'Log in via the APIM Developer CLI or `az login --tenant <tenant-id>`,'
+            ' then set the subscription, if needed, via `az account set --subscription <subscription-id>`'
+        )
 
 
 def check_azure_providers():

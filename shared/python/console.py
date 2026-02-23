@@ -106,7 +106,11 @@ def _wrap_line(line: str, width: int) -> str:
         break_on_hyphens=False,
     )
 
-def _print_log(message: str, prefix: str = '', color: str = '', output: str = '', duration: str = '', show_time: bool = False, blank_above: bool = False, blank_below: bool = False, wrap_lines: bool = False, level: int | None = None) -> None:
+def _print_log(
+    message: str, prefix: str = '', color: str = '', output: str = '',
+    duration: str = '', show_time: bool = False, blank_above: bool = False,
+    blank_below: bool = False, wrap_lines: bool = False, level: int | None = None,
+) -> None:
     """
     Print a formatted log message with optional prefix, color, output, duration, and time.
     Handles blank lines above and below the message for readability.
