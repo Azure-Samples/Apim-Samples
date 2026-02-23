@@ -1,52 +1,32 @@
-# PlantUML Diagrams
+# Architecture Diagrams
 
-This directory contains PlantUML diagrams for the Azure API Management architecture.
-Azure Symbols are on [GitHub][azure-symbols].
+This directory contains Draw.io architecture diagrams (`.drawio`) and their SVG exports (`.svg`) for the Azure API Management infrastructures.
 
-## Using PlantUML in VS Code
+## Using Draw.io in VS Code
 
 1. **Prerequisites**:
-   - Java is installed (e.g. OpenJDK 22)
-   - PlantUML VS Code extension is installed
-   - Graphviz (optional, for more complex diagrams)
-   - Configure PlantUML settings in `.vscode\settings.json`. Ensure that you set the `plantuml.java` path appropriately for your Java executable:
+   - Install the [Draw.io Integration][vscode-drawio] VS Code extension
 
-   ```json
-   "plantuml.render": "Local",
-   "plantuml.exportFormat": "svg",
-   "plantuml.java": "C:\\Program Files\\OpenJDK\\jdk-22.0.2\\bin\\java.exe",
-   "plantuml.diagramsRoot": "assets/diagrams/src",
-   "plantuml.exportOutDir": "assets/diagrams/out"
-   ```
-
-2. **Viewing Diagrams**:
-   - Open any `.puml` file in this directory
-   - Right-click in the editor and select "PlantUML: Preview Current Diagram"
-   - Alternatively, use the Alt+D keyboard shortcut
+2. **Viewing and Editing Diagrams**:
+   - Open any `.drawio` file in this directory
+   - The Draw.io editor opens directly inside VS Code
+   - **Set the page background to white** to ensure readability in dark mode: Edit > Page Setup > Background > `#FFFFFF`
 
 3. **Exporting Diagrams**:
-   - Right-click in the editor and select "PlantUML: Export Current Diagram"
-   - Select your desired output format (PNG, SVG, PDF, etc.)
+   - Right-click the `.drawio` file in the Explorer and select "Export"
+   - Select SVG as the output format
+   - Save the `.svg` file alongside the `.drawio` source in this directory
 
-## Troubleshooting
+## Conventions
 
-If you encounter issues with PlantUML:
+- Each infrastructure has a corresponding `.drawio` and `.svg` file in this directory.
+- Infrastructure README files reference the `.svg` exports from this folder.
+- Always export SVGs with a **white background**. Transparent backgrounds are difficult to read in dark mode.
+- Keep diagrams simple and focused on major architectural components.
 
-1. **Java Path Issues**:
-   - Ensure Java is on your system PATH
-   - If VS Code terminal can't find Java, try restarting VS Code
-   - You may need to configure the specific Java path in VS Code settings
+## Tooling
 
-2. **PlantUML Extension Configuration**:
-   - Open VS Code settings (Ctrl+,)
-   - Search for "plantuml"
-   - Set "plantuml.java" to the path of your Java executable if needed
-   - You can also set "plantuml.jarPath" to a specific PlantUML jar file
+The Draw.io diagrams in this repository were created with the [Azure Draw.io MCP Server][drawio-mcp-server]. It is an MCP server for Draw.io that provides Azure architecture icons and streamlined diagram generation.
 
-3. **Alternative Rendering**:
-   - If local rendering fails, try using the PlantUML server:
-   - Change "plantuml.render" setting to "PlantUMLServer"
-
-
-
-[azure-symbols]: https://github.com/plantuml-stdlib/Azure-PlantUML/blob/master/AzureSymbols.md
+[drawio-mcp-server]: https://github.com/simonkurtz-MSFT/drawio-mcp-server
+[vscode-drawio]: https://marketplace.visualstudio.com/items?itemName=hediet.vscode-drawio
