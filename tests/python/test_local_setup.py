@@ -306,7 +306,13 @@ def test_check_azure_providers_registered_success():
         with patch("subprocess.run") as mock_run:
             mock_which.return_value = "/usr/bin/az"
             mock_run.return_value = Mock(
-                stdout='["Microsoft.ApiManagement", "Microsoft.Storage", "Microsoft.App", "Microsoft.Authorization", "Microsoft.CognitiveServices", "Microsoft.ContainerRegistry", "Microsoft.KeyVault", "Microsoft.Maps", "Microsoft.ManagedIdentity", "Microsoft.Network", "Microsoft.OperationalInsights", "Microsoft.Resources"]',
+                stdout=(
+                    '["Microsoft.ApiManagement", "Microsoft.Storage", "Microsoft.App",'
+                    ' "Microsoft.Authorization", "Microsoft.CognitiveServices",'
+                    ' "Microsoft.ContainerRegistry", "Microsoft.KeyVault", "Microsoft.Maps",'
+                    ' "Microsoft.ManagedIdentity", "Microsoft.Network",'
+                    ' "Microsoft.OperationalInsights", "Microsoft.Resources"]'
+                ),
                 returncode=0
             )
             result = sps.check_azure_providers_registered()

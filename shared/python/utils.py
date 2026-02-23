@@ -227,7 +227,12 @@ class NotebookHelper:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, sample_folder: str, rg_name: str, rg_location: str, deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE], use_jwt: bool = False, index: int = 1, is_debug = False, apim_sku: APIM_SKU = APIM_SKU.BASICV2):
+    def __init__(
+        self, sample_folder: str, rg_name: str, rg_location: str,
+        deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE],
+        use_jwt: bool = False, index: int = 1, is_debug = False,
+        apim_sku: APIM_SKU = APIM_SKU.BASICV2,
+    ):
         """
         Initialize the NotebookHelper with sample configuration and infrastructure details.
 
@@ -267,8 +272,8 @@ class NotebookHelper:
         # Set up the signing key for the JWT policy
         self.jwt_key_name = f'JwtSigningKey-{self.sample_folder}-{int(time.time())}'
         self.jwt_key_value, self.jwt_key_value_bytes_b64 = generate_signing_key()
-        print_val('JWT key value', self.jwt_key_value)                    # this value is used to create the signed JWT token for requests to APIM
-        print_val('JWT key value (base64)', self.jwt_key_value_bytes_b64) # this value is used in the APIM validate-jwt policy's issuer-signing-key attribute
+        print_val('JWT key value', self.jwt_key_value)                    # used to create the signed JWT token
+        print_val('JWT key value (base64)', self.jwt_key_value_bytes_b64) # used in the validate-jwt policy
 
     def _get_current_index(self) -> int | None:
         """
@@ -350,13 +355,28 @@ class NotebookHelper:
             print_plain('\n   Create a NEW infrastructure:\n')
             # Column headers
             if QUERY_RG_LOCATION:
-                print_plain(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35} {'Location':<15}')
-                print_plain(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35} {'-'*15:<15}')
-                print_plain(f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35} {desired_location:<15}')
+                print_plain(
+                    f'     {"#":>3} {"Infrastructure":<20} {"Index":>8}'
+                    f' {"Resource Group":<35} {"Location":<15}'
+                )
+                print_plain(
+                    f'     {"-"*3:>3} {"-"*20:<20} {"-"*8:>8}'
+                    f' {"-"*35:<35} {"-"*15:<15}'
+                )
+                print_plain(
+                    f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8}'
+                    f' {desired_rg_name:<35} {desired_location:<15}'
+                )
             else:
-                print_plain(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35}')
-                print_plain(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35}')
-                print_plain(f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35}')
+                print_plain(
+                    f'     {"#":>3} {"Infrastructure":<20} {"Index":>8} {"Resource Group":<35}'
+                )
+                print_plain(
+                    f'     {"-"*3:>3} {"-"*20:<20} {"-"*8:>8} {"-"*35:<35}'
+                )
+                print_plain(
+                    f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35}'
+                )
 
             display_options.append(('create_new', self.deployment, self._get_current_index()))
             option_counter += 1
@@ -388,14 +408,16 @@ class NotebookHelper:
 
             # Automatically create the desired infrastructure without user confirmation
             selected_index = self._get_current_index()
-            print_info(f'Creating new infrastructure: {self.deployment.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
+            index_suffix = f' (index: {selected_index})' if selected_index is not None else ''
+            print_info(f'Creating new infrastructure: {self.deployment.value}{index_suffix}')
 
             # Execute the infrastructure creation
             inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, self.apim_sku)
             success = inb_helper.create_infrastructure(True)  # Bypass infrastructure check to force creation
 
             if success:
-                print_ok(f'Successfully created infrastructure: {self.deployment.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
+                index_suffix = f' (index: {selected_index})' if selected_index is not None else ''
+                print_ok(f'Successfully created infrastructure: {self.deployment.value}{index_suffix}')
                 return self.deployment, selected_index
 
             print_error('Failed to create infrastructure.')
@@ -418,18 +440,21 @@ class NotebookHelper:
                     option_type, selected_infra, selected_index = display_options[choice_idx]
 
                     if option_type == 'existing':
-                        print_ok(f'Selected existing: {selected_infra.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
+                        index_suffix = f' (index: {selected_index})' if selected_index is not None else ''
+                        print_ok(f'Selected existing: {selected_infra.value}{index_suffix}')
                         return selected_infra, selected_index
 
                     if option_type == 'create_new':  # pragma: no cover
-                        print_info(f'Creating new infrastructure: {selected_infra.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
+                        index_suffix = f' (index: {selected_index})' if selected_index is not None else ''
+                        print_info(f'Creating new infrastructure: {selected_infra.value}{index_suffix}')
 
                         # Execute the infrastructure creation
                         inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, self.apim_sku)
                         success = inb_helper.create_infrastructure(True)  # Bypass infrastructure check to force creation
 
                         if success:
-                            print_ok(f'Successfully created infrastructure: {selected_infra.value}{' (index: ' + str(selected_index) + ')' if selected_index is not None else ''}')
+                            index_suffix = f' (index: {selected_index})' if selected_index is not None else ''
+                            print_ok(f'Successfully created infrastructure: {selected_infra.value}{index_suffix}')
                             return selected_infra, selected_index
 
                         print_error('Failed to create infrastructure.')
@@ -498,7 +523,9 @@ class NotebookHelper:
         print_plain(f'   Resource group : {self.rg_name}\n')
 
         # Execute the deployment using the utility function that handles working directory management
-        output = create_bicep_deployment_group_for_sample(self.sample_folder, self.rg_name, self.rg_location, bicep_parameters, is_debug = self.is_debug)
+        output = create_bicep_deployment_group_for_sample(
+            self.sample_folder, self.rg_name, self.rg_location, bicep_parameters, is_debug=self.is_debug,
+        )
 
         # Print a deployment summary, if successful; otherwise, exit with an error
         if output.success:
@@ -574,7 +601,11 @@ def _determine_bicep_directory(infrastructure_dir: str) -> str:
 #    PUBLIC METHODS
 # ------------------------------
 
-def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: str | INFRASTRUCTURE, bicep_parameters: dict, bicep_parameters_file: str = 'params.json', rg_tags: dict | None = None, is_debug: bool = False) -> Output:
+def create_bicep_deployment_group(
+    rg_name: str, rg_location: str, deployment: str | INFRASTRUCTURE,
+    bicep_parameters: dict, bicep_parameters_file: str = 'params.json',
+    rg_tags: dict | None = None, is_debug: bool = False,
+) -> Output:
     """
     Create a Bicep deployment in a resource group, writing parameters to a file and running the deployment.
     Creates the resource group if it does not exist.
@@ -630,7 +661,10 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
     if not os.path.exists(main_bicep_path):  # pragma: no cover
         raise FileNotFoundError(f'main.bicep file not found in expected infrastructure directory: {bicep_dir}')
 
-    cmd = f'az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"'
+    cmd = (
+        f'az deployment group create --name {deployment_name} --resource-group {rg_name}'
+        f' --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"'
+    )
 
     if is_debug:
         cmd += ' --debug'
@@ -638,7 +672,6 @@ def create_bicep_deployment_group(rg_name: str, rg_location: str, deployment: st
     print_plain('\nDeploying bicep...\n')
     return az.run(cmd, f"Deployment '{deployment_name}' succeeded", get_deployment_failure_message(deployment_name))
 
-# TODO: Reconcile this with apimtypes.py get_project_root
 def find_project_root() -> str:
     """
     Find the project root directory by looking for specific marker files.
@@ -665,7 +698,11 @@ def find_project_root() -> str:
     # If we can't find the project root, raise an error
     raise FileNotFoundError('Could not determine project root directory')
 
-def create_bicep_deployment_group_for_sample(sample_name: str, rg_name: str, rg_location: str, bicep_parameters: dict, bicep_parameters_file: str = 'params.json', rg_tags: dict | None = None, is_debug: bool = False) -> Output:
+def create_bicep_deployment_group_for_sample(
+    sample_name: str, rg_name: str, rg_location: str, bicep_parameters: dict,
+    bicep_parameters_file: str = 'params.json', rg_tags: dict | None = None,
+    is_debug: bool = False,
+) -> Output:
     """
     Create a Bicep deployment for a sample, handling the working directory change automatically.
     This function ensures that the params.json file is written to the correct sample directory
@@ -861,9 +898,11 @@ def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str,
     return policy_template_xml
 
 def determine_shared_policy_path(policy_xml_filename: str) -> str:
+    """Determine the full path to a shared APIM policy fragment file."""
     return str(Path(find_project_root()) / 'shared' / 'apim-policies' / 'fragments' / policy_xml_filename)
 
 def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str = None) -> str:
+    """Determine the full path to a policy XML file, auto-detecting the sample directory if needed."""
     # Determine if this is a full path or just a filename
     path_obj = Path(policy_xml_filepath_or_filename)
 
@@ -1028,7 +1067,10 @@ def wait_for_apim_blob_permissions(apim_name: str, storage_account_name: str, re
         bool: True if permissions are available, False if timeout or error occurred.
     """
 
-    print_info('Azure role assignments can take several minutes to propagate across Azure AD. This check will verify that APIM can access the blob storage before proceeding with tests.\n')
+    print_info(
+        'Azure role assignments can take several minutes to propagate across Azure AD.'
+        ' This check will verify that APIM can access the blob storage before proceeding with tests.\n'
+    )
 
     success = az.check_apim_blob_permissions(apim_name, storage_account_name, resource_group_name, max_wait_minutes)
 
@@ -1043,7 +1085,9 @@ def wait_for_apim_blob_permissions(apim_name: str, storage_account_name: str, re
     return success
 
 def test_url_preflight_check(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str) -> str:
-    # Preflight: Check if the infrastructure architecture deployment uses Azure Front Door. If so, assume that APIM is not directly accessible and use the Front Door URL instead.
+    """Check if the deployment uses Azure Front Door and return the appropriate endpoint URL."""
+    # Preflight: Check if the infrastructure architecture deployment uses Azure Front Door.
+    # If so, assume that APIM is not directly accessible and use the Front Door URL instead.
 
     print_message('Checking if the infrastructure architecture deployment uses Azure Front Door.', blank_above = True)
 
@@ -1059,6 +1103,7 @@ def test_url_preflight_check(deployment: INFRASTRUCTURE, rg_name: str, apim_gate
     return endpoint_url
 
 def get_endpoints(deployment: INFRASTRUCTURE, rg_name: str) -> Endpoints:
+    """Identify and return all possible endpoints for the given infrastructure deployment."""
     print_message(f'Identifying possible endpoints for infrastructure {deployment}...')
 
     endpoints = Endpoints(deployment)
@@ -1070,6 +1115,7 @@ def get_endpoints(deployment: INFRASTRUCTURE, rg_name: str) -> Endpoints:
     return endpoints
 
 def get_endpoint(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str) -> Tuple[str, dict[str, str] | None]:
+    """Determine the endpoint URL and optional request headers for test execution."""
     # Determine endpoints, URLs, etc. prior to test execution
     endpoints = get_endpoints(deployment, rg_name)
     endpoint_url = None
@@ -1079,7 +1125,8 @@ def get_endpoint(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str
         endpoint_url = f'https://{endpoints.appgw_public_ip}'
         request_headers: dict[str, str] = {"Host": endpoints.appgw_hostname}
     else:
-        # Preflight: Check if the infrastructure architecture deployment uses Azure Front Door. If so, assume that APIM is not directly accessible and use the Front Door URL instead.
+        # Preflight: Check if the deployment uses Azure Front Door.
+        # If so, assume APIM is not directly accessible and use the Front Door URL instead.
         endpoint_url = test_url_preflight_check(deployment, rg_name, apim_gateway_url)
 
     return endpoint_url, request_headers

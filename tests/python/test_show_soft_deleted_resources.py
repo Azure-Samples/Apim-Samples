@@ -331,8 +331,23 @@ def test_main_no_resources_no_purge(monkeypatch):
 
 def test_main_with_resources_show_only(monkeypatch):
     """Test main function showing resources without purge."""
-    services = [{'name': 'apim-1', 'location': 'eastus', 'deletionDate': '2025-12-13T10:00:00Z', 'scheduledPurgeDate': '2026-01-13T10:00:00Z', 'serviceId': 'id-1'}]
-    vaults = [{'name': 'vault-1', 'properties': {'location': 'eastus', 'deletionDate': '2025-12-13T10:00:00Z', 'scheduledPurgeDate': '2026-01-13T10:00:00Z', 'vaultId': 'vid-1', 'purgeProtectionEnabled': False}}]
+    services = [{
+        'name': 'apim-1',
+        'location': 'eastus',
+        'deletionDate': '2025-12-13T10:00:00Z',
+        'scheduledPurgeDate': '2026-01-13T10:00:00Z',
+        'serviceId': 'id-1',
+    }]
+    vaults = [{
+        'name': 'vault-1',
+        'properties': {
+            'location': 'eastus',
+            'deletionDate': '2025-12-13T10:00:00Z',
+            'scheduledPurgeDate': '2026-01-13T10:00:00Z',
+            'vaultId': 'vid-1',
+            'purgeProtectionEnabled': False,
+        },
+    }]
 
     def mock_get_apim():
         return services
@@ -355,7 +370,13 @@ def test_main_with_resources_show_only(monkeypatch):
 
 def test_main_with_purge_flag_confirmed(monkeypatch):
     """Test main with --purge flag and user confirms."""
-    services = [{'name': 'apim-1', 'location': 'eastus', 'deletionDate': '2025-12-13T10:00:00Z', 'scheduledPurgeDate': '2026-01-13T10:00:00Z', 'serviceId': 'id-1'}]
+    services = [{
+        'name': 'apim-1',
+        'location': 'eastus',
+        'deletionDate': '2025-12-13T10:00:00Z',
+        'scheduledPurgeDate': '2026-01-13T10:00:00Z',
+        'serviceId': 'id-1',
+    }]
     vaults = []
 
     def mock_get_apim():
@@ -391,7 +412,13 @@ def test_main_with_purge_flag_confirmed(monkeypatch):
 
 def test_main_with_purge_flag_not_confirmed(monkeypatch):
     """Test main with --purge flag but user cancels."""
-    services = [{'name': 'apim-1', 'location': 'eastus', 'deletionDate': '2025-12-13T10:00:00Z', 'scheduledPurgeDate': '2026-01-13T10:00:00Z', 'serviceId': 'id-1'}]
+    services = [{
+        'name': 'apim-1',
+        'location': 'eastus',
+        'deletionDate': '2025-12-13T10:00:00Z',
+        'scheduledPurgeDate': '2026-01-13T10:00:00Z',
+        'serviceId': 'id-1',
+    }]
     vaults = []
 
     def mock_get_apim():
@@ -419,7 +446,13 @@ def test_main_with_purge_flag_not_confirmed(monkeypatch):
 
 def test_main_with_purge_and_yes_flags(monkeypatch):
     """Test main with both --purge and --yes flags (skip confirmation)."""
-    services = [{'name': 'apim-1', 'location': 'eastus', 'deletionDate': '2025-12-13T10:00:00Z', 'scheduledPurgeDate': '2026-01-13T10:00:00Z', 'serviceId': 'id-1'}]
+    services = [{
+        'name': 'apim-1',
+        'location': 'eastus',
+        'deletionDate': '2025-12-13T10:00:00Z',
+        'scheduledPurgeDate': '2026-01-13T10:00:00Z',
+        'serviceId': 'id-1',
+    }]
     vaults = []
 
     purge_apim_called = []
@@ -437,7 +470,12 @@ def test_main_with_purge_and_yes_flags(monkeypatch):
     monkeypatch.setattr('show_soft_deleted_resources.get_deleted_key_vaults', lambda: vaults)
     monkeypatch.setattr('show_soft_deleted_resources.purge_apim_services', track_purge_apim)
     monkeypatch.setattr('show_soft_deleted_resources.purge_key_vaults', track_purge_kv)
-    monkeypatch.setattr('show_soft_deleted_resources.az.run', lambda cmd, *a, **k: MagicMock(success=True, json_data={'name': 'test-sub', 'id': 'sub-id'}))
+    monkeypatch.setattr(
+        'show_soft_deleted_resources.az.run',
+        lambda cmd, *a, **k: MagicMock(
+            success=True, json_data={'name': 'test-sub', 'id': 'sub-id'}
+        ),
+    )
     mock_module_functions(monkeypatch, builtins, ['print'])
     monkeypatch.setattr('sys.argv', ['script.py', '--purge', '--yes'])
 
@@ -475,7 +513,12 @@ def test_main_with_purge_only_protected_vaults(monkeypatch):
     monkeypatch.setattr('show_soft_deleted_resources.confirm_purge', mock_confirm_purge)
     monkeypatch.setattr('show_soft_deleted_resources.purge_apim_services', mock_purge_apim)
     monkeypatch.setattr('show_soft_deleted_resources.purge_key_vaults', mock_purge_kv)
-    monkeypatch.setattr('show_soft_deleted_resources.az.run', lambda cmd, *a, **k: MagicMock(success=True, json_data={'name': 'test-sub', 'id': 'sub-id'}))
+    monkeypatch.setattr(
+        'show_soft_deleted_resources.az.run',
+        lambda cmd, *a, **k: MagicMock(
+            success=True, json_data={'name': 'test-sub', 'id': 'sub-id'}
+        ),
+    )
     mock_module_functions(monkeypatch, builtins, ['print'])
     monkeypatch.setattr('sys.argv', ['script.py', '--purge'])
 
@@ -559,9 +602,21 @@ def test_get_deleted_key_vaults_non_list_json():
 def test_show_deleted_apim_services_multiple(monkeypatch):
     """Test show_deleted_apim_services with multiple services."""
     services = [
-        {'name': 'apim-1', 'location': 'eastus', 'deletionDate': '2025-12-13T10:00:00Z', 'scheduledPurgeDate': '2026-01-13T10:00:00Z', 'serviceId': 'id-1'},
-        {'name': 'apim-2', 'location': 'westus', 'deletionDate': '2025-12-12T10:00:00Z', 'scheduledPurgeDate': '2026-01-12T10:00:00Z', 'serviceId': 'id-2'},
-        {'name': 'apim-3', 'location': 'northeurope', 'deletionDate': '2025-12-11T10:00:00Z', 'scheduledPurgeDate': '2026-01-11T10:00:00Z', 'serviceId': 'id-3'},
+        {
+            'name': 'apim-1', 'location': 'eastus', 'serviceId': 'id-1',
+            'deletionDate': '2025-12-13T10:00:00Z',
+            'scheduledPurgeDate': '2026-01-13T10:00:00Z',
+        },
+        {
+            'name': 'apim-2', 'location': 'westus', 'serviceId': 'id-2',
+            'deletionDate': '2025-12-12T10:00:00Z',
+            'scheduledPurgeDate': '2026-01-12T10:00:00Z',
+        },
+        {
+            'name': 'apim-3', 'location': 'northeurope', 'serviceId': 'id-3',
+            'deletionDate': '2025-12-11T10:00:00Z',
+            'scheduledPurgeDate': '2026-01-11T10:00:00Z',
+        },
     ]
 
     print_calls = []
@@ -579,8 +634,26 @@ def test_show_deleted_apim_services_multiple(monkeypatch):
 def test_show_deleted_key_vaults_multiple(monkeypatch):
     """Test show_deleted_key_vaults with multiple vaults."""
     vaults = [
-        {'name': 'vault-1', 'properties': {'location': 'eastus', 'deletionDate': '2025-12-13T10:00:00Z', 'scheduledPurgeDate': '2026-01-13T10:00:00Z', 'vaultId': 'vid-1', 'purgeProtectionEnabled': False}},
-        {'name': 'vault-2', 'properties': {'location': 'westus', 'deletionDate': '2025-12-12T10:00:00Z', 'scheduledPurgeDate': '2026-01-12T10:00:00Z', 'vaultId': 'vid-2', 'purgeProtectionEnabled': True}},
+        {
+            'name': 'vault-1',
+            'properties': {
+                'location': 'eastus',
+                'deletionDate': '2025-12-13T10:00:00Z',
+                'scheduledPurgeDate': '2026-01-13T10:00:00Z',
+                'vaultId': 'vid-1',
+                'purgeProtectionEnabled': False,
+            },
+        },
+        {
+            'name': 'vault-2',
+            'properties': {
+                'location': 'westus',
+                'deletionDate': '2025-12-12T10:00:00Z',
+                'scheduledPurgeDate': '2026-01-12T10:00:00Z',
+                'vaultId': 'vid-2',
+                'purgeProtectionEnabled': True,
+            },
+        },
     ]
 
     print_calls = []
@@ -709,7 +782,13 @@ def test_main_purge_with_no_purgeable_resources(monkeypatch):
 
 def test_main_purge_all_resources_successfully(monkeypatch):
     """Test main when all purgeable resources are successfully purged."""
-    services = [{'name': 'apim-1', 'location': 'eastus', 'deletionDate': '2025-12-13T10:00:00Z', 'scheduledPurgeDate': '2026-01-13T10:00:00Z', 'serviceId': 'id-1'}]
+    services = [{
+        'name': 'apim-1',
+        'location': 'eastus',
+        'deletionDate': '2025-12-13T10:00:00Z',
+        'scheduledPurgeDate': '2026-01-13T10:00:00Z',
+        'serviceId': 'id-1',
+    }]
     vaults = [{'name': 'vault-1', 'properties': {'location': 'eastus', 'purgeProtectionEnabled': False}}]
 
     def mock_purge_apim(s):
@@ -722,7 +801,12 @@ def test_main_purge_all_resources_successfully(monkeypatch):
     monkeypatch.setattr('show_soft_deleted_resources.get_deleted_key_vaults', lambda: vaults)
     monkeypatch.setattr('show_soft_deleted_resources.purge_apim_services', mock_purge_apim)
     monkeypatch.setattr('show_soft_deleted_resources.purge_key_vaults', mock_purge_kv)
-    monkeypatch.setattr('show_soft_deleted_resources.az.run', lambda cmd, *a, **k: MagicMock(success=True, json_data={'name': 'test-sub', 'id': 'sub-id'}))
+    monkeypatch.setattr(
+        'show_soft_deleted_resources.az.run',
+        lambda cmd, *a, **k: MagicMock(
+            success=True, json_data={'name': 'test-sub', 'id': 'sub-id'}
+        ),
+    )
     mock_module_functions(monkeypatch, builtins, ['print'])
     monkeypatch.setattr('sys.argv', ['script.py', '--purge', '--yes'])
 

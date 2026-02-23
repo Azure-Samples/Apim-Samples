@@ -8,12 +8,17 @@ import time
 import traceback
 from pathlib import Path
 from typing import List
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed  # pylint: disable=no-name-in-module
 import requests
 
 # APIM Samples imports
 from apimtypes import API, APIM_SKU, APIMNetworkMode, GET_APIOperation, HELLO_WORLD_XML_POLICY_PATH, INFRASTRUCTURE, PolicyFragment
-from console import BOLD_R, BOLD_Y, RESET, THREAD_COLORS, _print_lock, _print_log, print_command, print_error, print_info, print_message, print_ok, print_plain, print_warning, print_val
+from console import (
+    BOLD_R, BOLD_Y, RESET, THREAD_COLORS,
+    _print_lock, _print_log,
+    print_command, print_error, print_info, print_message,
+    print_ok, print_plain, print_warning, print_val,
+)
 from logging_config import should_print_traceback
 import azure_resources as az
 import utils
@@ -32,8 +37,13 @@ class Infrastructure:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, infra: INFRASTRUCTURE, index: int, rg_location: str, apim_sku: APIM_SKU = APIM_SKU.BASICV2, networkMode: APIMNetworkMode = APIMNetworkMode.PUBLIC,
-                 infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
+    def __init__(
+        self, infra: INFRASTRUCTURE, index: int, rg_location: str,
+        apim_sku: APIM_SKU = APIM_SKU.BASICV2,
+        networkMode: APIMNetworkMode = APIMNetworkMode.PUBLIC,
+        infra_pfs: List[PolicyFragment] | None = None,
+        infra_apis: List[API] | None = None,
+    ):
         self.infra = infra
         self.index = index
         self.rg_location = rg_location
@@ -52,6 +62,12 @@ class Infrastructure:
         self.resource_suffix = az.get_unique_suffix_for_resource_group(self.rg_name)
 
         self.current_user, self.current_user_id, self.tenant_id, self.subscription_id = az.get_account_info()
+
+        self.bicep_parameters: dict = {}
+        self.base_pfs: List[PolicyFragment] = []
+        self.pfs: List[PolicyFragment] = []
+        self.base_apis: List[API] = []
+        self.apis: List[API] = []
 
     # ------------------------------
     #    PRIVATE METHODS
@@ -72,7 +88,8 @@ class Infrastructure:
         try:
             # Get all pending private endpoint connections
             output = az.run(
-                f'az network private-endpoint-connection list --id {apim_service_id} --query "[?contains(properties.privateLinkServiceConnectionState.status, \'Pending\')]" -o json'
+                f'az network private-endpoint-connection list --id {apim_service_id}'
+                f' --query "[?contains(properties.privateLinkServiceConnectionState.status, \'Pending\')]" -o json'
             )
 
             if not output.success:
@@ -124,7 +141,8 @@ class Infrastructure:
             # Create Key Vault via Azure CLI with RBAC authorization (consistent with Bicep module)
             print_plain(f'Creating Key Vault: {key_vault_name}')
             create_kv = az.run(
-                f'az keyvault create --name {key_vault_name} --resource-group {self.rg_name} --location {self.rg_location} --enable-rbac-authorization true'
+                f'az keyvault create --name {key_vault_name} --resource-group {self.rg_name}'
+                f' --location {self.rg_location} --enable-rbac-authorization true'
             )
 
             if not create_kv.success:
@@ -139,10 +157,16 @@ class Infrastructure:
 
             # Key Vault Certificates Officer role
             assign_kv_role = az.run(
-                f'az role assignment create --role "Key Vault Certificates Officer" --assignee {self.current_user_id} --scope /subscriptions/{self.subscription_id}/resourceGroups/{self.rg_name}/providers/Microsoft.KeyVault/vaults/{key_vault_name}'
+                f'az role assignment create --role "Key Vault Certificates Officer"'
+                f' --assignee {self.current_user_id}'
+                f' --scope /subscriptions/{self.subscription_id}/resourceGroups/{self.rg_name}'
+                f'/providers/Microsoft.KeyVault/vaults/{key_vault_name}'
             )
             if not assign_kv_role.success:
-                print_error('Failed to assign Key Vault Certificates Officer role to current user.\nThis is an RBAC permission issue - verify your account has sufficient permissions.')
+                print_error(
+                    'Failed to assign Key Vault Certificates Officer role to current user.\n'
+                    'This is an RBAC permission issue - verify your account has sufficient permissions.'
+                )
                 return False
 
             print_ok('Assigned Key Vault Certificates Officer role to current user')
@@ -171,12 +195,36 @@ class Infrastructure:
 
         # The base policy fragments common to all infrastructures
         self.base_pfs = [
-            PolicyFragment('Api-Id', utils.read_policy_xml(utils.determine_shared_policy_path('pf-api-id.xml')), 'Extracts a specific API identifier for tracing.'),
-            PolicyFragment('AuthZ-Match-All', utils.read_policy_xml(utils.determine_shared_policy_path('pf-authz-match-all.xml')), 'Authorizes if all of the specified roles match the JWT role claims.'),
-            PolicyFragment('AuthZ-Match-Any', utils.read_policy_xml(utils.determine_shared_policy_path('pf-authz-match-any.xml')), 'Authorizes if any of the specified roles match the JWT role claims.'),
-            PolicyFragment('Http-Response-200', utils.read_policy_xml(utils.determine_shared_policy_path('pf-http-response-200.xml')), 'Returns a 200 OK response for the current HTTP method.'),
-            PolicyFragment('Product-Match-Any', utils.read_policy_xml(utils.determine_shared_policy_path('pf-product-match-any.xml')), 'Proceeds if any of the specified products match the context product name.'),
-            PolicyFragment('Remove-Request-Headers', utils.read_policy_xml(utils.determine_shared_policy_path('pf-remove-request-headers.xml')), 'Removes request headers from the incoming request.')
+            PolicyFragment(
+                'Api-Id',
+                utils.read_policy_xml(utils.determine_shared_policy_path('pf-api-id.xml')),
+                'Extracts a specific API identifier for tracing.',
+            ),
+            PolicyFragment(
+                'AuthZ-Match-All',
+                utils.read_policy_xml(utils.determine_shared_policy_path('pf-authz-match-all.xml')),
+                'Authorizes if all of the specified roles match the JWT role claims.',
+            ),
+            PolicyFragment(
+                'AuthZ-Match-Any',
+                utils.read_policy_xml(utils.determine_shared_policy_path('pf-authz-match-any.xml')),
+                'Authorizes if any of the specified roles match the JWT role claims.',
+            ),
+            PolicyFragment(
+                'Http-Response-200',
+                utils.read_policy_xml(utils.determine_shared_policy_path('pf-http-response-200.xml')),
+                'Returns a 200 OK response for the current HTTP method.',
+            ),
+            PolicyFragment(
+                'Product-Match-Any',
+                utils.read_policy_xml(utils.determine_shared_policy_path('pf-product-match-any.xml')),
+                'Proceeds if any of the specified products match the context product name.',
+            ),
+            PolicyFragment(
+                'Remove-Request-Headers',
+                utils.read_policy_xml(utils.determine_shared_policy_path('pf-remove-request-headers.xml')),
+                'Removes request headers from the incoming request.',
+            ),
         ]
 
         # Combine base policy fragments with infrastructure-specific ones
@@ -237,7 +285,8 @@ class Infrastructure:
                 # Run the second deployment
                 main_bicep_path = infra_dir / 'main.bicep'
                 output = az.run(
-                    f'az deployment group create --name {self.infra.value}-lockdown --resource-group {self.rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
+                    f'az deployment group create --name {self.infra.value}-lockdown --resource-group {self.rg_name}'
+                    f' --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
                     'Public access disabled successfully',
                     'Failed to disable public access'
                 )
@@ -326,7 +375,7 @@ class Infrastructure:
 
                             if subscription_key:
                                 print_ok('Subscription key available for API testing')
-                        except:
+                        except Exception:
                             pass
 
                 # Call infrastructure-specific verification
@@ -431,7 +480,8 @@ class Infrastructure:
             # Run the deployment directly
             main_bicep_path = infra_dir / 'main.bicep'
             output = az.run(
-                f'az deployment group create --name {self.infra.value} --resource-group {self.rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
+                f'az deployment group create --name {self.infra.value} --resource-group {self.rg_name}'
+                f' --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
                 f"Deployment '{self.infra.value}' succeeded",
                 utils.get_deployment_failure_message(self.infra.value)
             )
@@ -453,7 +503,6 @@ class Infrastructure:
                     print_val('Gateway URL', apim_gateway_url)
                     print_val('APIs Created', len(apim_apis))
 
-                    # TODO: Perform basic verification
                     self._verify_infrastructure(self.rg_name)
             else:
                 print_error('Infrastructure creation failed!')
@@ -470,16 +519,26 @@ class SimpleApimInfrastructure(Infrastructure):
     Represents a simple API Management infrastructure.
     """
 
-    def __init__(self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2, infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
-        super().__init__(INFRASTRUCTURE.SIMPLE_APIM, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis)
+    def __init__(
+        self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2,
+        infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None,
+    ):
+        super().__init__(
+            INFRASTRUCTURE.SIMPLE_APIM, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis,
+        )
 
 class ApimAcaInfrastructure(Infrastructure):
     """
     Represents an API Management with Azure Container Apps infrastructure.
     """
 
-    def __init__(self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2, infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
-        super().__init__(INFRASTRUCTURE.APIM_ACA, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis)
+    def __init__(
+        self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2,
+        infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None,
+    ):
+        super().__init__(
+            INFRASTRUCTURE.APIM_ACA, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis,
+        )
 
     def _verify_infrastructure_specific(self, rg_name: str) -> bool:
         """
@@ -512,8 +571,13 @@ class AfdApimAcaInfrastructure(Infrastructure):
     Represents an Azure Front Door with API Management and Azure Container Apps infrastructure.
     """
 
-    def __init__(self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2, infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
-        super().__init__(INFRASTRUCTURE.AFD_APIM_PE, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis)
+    def __init__(
+        self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2,
+        infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None,
+    ):
+        super().__init__(
+            INFRASTRUCTURE.AFD_APIM_PE, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis,
+        )
 
     def _define_bicep_parameters(self) -> dict:
         """
@@ -630,7 +694,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
                         if pe_output.success:
                             pe_count = int(pe_output.text.strip())
                             print_ok(f'Private endpoint connections: {pe_count}')
-                except:
+                except Exception:
                     # Don't fail verification if private endpoint check fails
                     pass
 
@@ -652,8 +716,15 @@ class AppGwApimPeInfrastructure(Infrastructure):
     CERT_NAME = 'appgw-cert'
     DOMAIN_NAME = 'api.apim-samples.contoso.com'
 
-    def __init__(self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2, infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
-        super().__init__(INFRASTRUCTURE.APPGW_APIM_PE, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis)
+    def __init__(
+        self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2,
+        infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None,
+    ):
+        super().__init__(
+            INFRASTRUCTURE.APPGW_APIM_PE, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis,
+        )
+        self.appgw_domain_name: str | None = None
+        self.appgw_public_ip: str | None = None
 
     def _create_keyvault_certificate(self, key_vault_name: str) -> bool:
         """
@@ -824,9 +895,15 @@ class AppGwApimPeInfrastructure(Infrastructure):
         print_info('Traffic now flows: Internet → Application Gateway → Private Endpoint → APIM')
 
         print_plain('\n\n🧪 TESTING\n')
-        print_plain('As we are using a self-signed certificate (please see README.md for details), we need to test differently.\n' +
-              'A curl command using flags for verbose (v), ignoring cert issues (k), and supplying a host header (h) works to verify connectivity.\n' +
-              'This tests ingress through App Gateway and a response from API Management\'s health endpoint. An "HTTP 200 Service Operational" response indicates success.\n')
+        print_plain(
+            'As we are using a self-signed certificate (please see README.md for details),'
+            ' we need to test differently.\n'
+            'A curl command using flags for verbose (v), ignoring cert issues (k),'
+            ' and supplying a host header (h) works to verify connectivity.\n'
+            'This tests ingress through App Gateway and a response from'
+            ' API Management\'s health endpoint.'
+            ' An "HTTP 200 Service Operational" response indicates success.\n'
+        )
         print_command(f'curl -v -k -H "Host: {self.appgw_domain_name}" https://{self.appgw_public_ip}/status-0123456789abcdef')
 
         return output
@@ -866,7 +943,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
                         if pe_output.success:
                             pe_count = int(pe_output.text.strip())
                             print_ok(f'Private endpoint connections: {pe_count}')
-                except:
+                except Exception:
                     # Don't fail verification if private endpoint check fails
                     pass
 
@@ -888,8 +965,15 @@ class AppGwApimInfrastructure(Infrastructure):
     CERT_NAME = 'appgw-cert'
     DOMAIN_NAME = 'api.apim-samples.contoso.com'
 
-    def __init__(self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.DEVELOPER, infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None):
-        super().__init__(INFRASTRUCTURE.APPGW_APIM, index, rg_location, apim_sku, APIMNetworkMode.INTERNAL_VNET, infra_pfs, infra_apis)
+    def __init__(
+        self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.DEVELOPER,
+        infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None,
+    ):
+        super().__init__(
+            INFRASTRUCTURE.APPGW_APIM, index, rg_location, apim_sku, APIMNetworkMode.INTERNAL_VNET, infra_pfs, infra_apis,
+        )
+        self.appgw_domain_name: str | None = None
+        self.appgw_public_ip: str | None = None
 
     def _create_keyvault_certificate(self, key_vault_name: str) -> bool:
         print_plain('\n🔐 Creating self-signed certificate in Key Vault...\n')
@@ -990,7 +1074,10 @@ class AppGwApimInfrastructure(Infrastructure):
         print_info('Traffic flow: Internet → Application Gateway → APIM (VNet Internal)')
 
         print_plain('\n\n🧪 TESTING\n')
-        print_plain('Using a self-signed certificate; test using curl with Host header against the App Gateway public IP. A 200 from the APIM health endpoint indicates success.')
+        print_plain(
+            'Using a self-signed certificate; test using curl with Host header against the'
+            ' App Gateway public IP. A 200 from the APIM health endpoint indicates success.'
+        )
         print_command(f'curl -v -k -H "Host: {self.appgw_domain_name}" https://{self.appgw_public_ip}/status-0123456789abcdef')
 
         return output
