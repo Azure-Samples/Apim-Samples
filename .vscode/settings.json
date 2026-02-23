@@ -17,11 +17,6 @@
   "jupyter.kernels.trusted": [
     "./.venv/Scripts/python.exe"
   ],
-  "plantuml.diagramsRoot": "assets/diagrams/src",
-  "plantuml.exportFormat": "svg",
-  "plantuml.exportOutDir": "assets/diagrams/out",
-  "plantuml.java": "C:\\Program Files\\OpenJDK\\jdk-22.0.2\\bin\\java.exe",
-  "plantuml.render": "Local",
   "python.analysis.exclude": [
     "**/node_modules",
     "**/__pycache__",

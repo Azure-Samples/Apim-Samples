@@ -74,7 +74,7 @@ Uniformity, clarity, and ease of use are paramount across all infrastructures an
 
 - `/`: Root directory containing the main files and folders. Bicep configuration is stored in `bicepconfig.json`.
 - The following folders are all at the root level:
-    - `assets/`: PlantUML diagrams and images. Static assets such as these should be placed here. Any diagrams should be placed in the /diagrams/src subfolder.
+    - `assets/`: Draw.io diagrams, SVG exports, and images. Static assets such as these should be placed here. Architecture diagrams should be placed in the /diagrams subfolder.
     - `infrastructure/`: Contains Jupyter notebooks for setting up various API Management infrastructures. When modifying samples, these notebooks should not need to be modified.
     - `samples/`: Various policy and scenario samples that can be applied to the infrastructures.
     - `setup/`: General setup scripts and configurations for the repository and dev environment setup.
@@ -372,13 +372,13 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 
 - Use these [configuration settings](https://github.com/microsoft/vscode-jupyter/blob/dd568fde/package.nls.json) as a reference for the VS Code Jupyter extension configuration.
 
-### PlantUML Instructions
+### Diagram Instructions
 
-- Ensure you verify that all include links are correct and up to date. This link provides a starting point: https://github.com/plantuml-stdlib/Azure-PlantUML/blob/master/AzureSymbols.md
+- Architecture diagrams are maintained as Draw.io (`.drawio`) files in `assets/diagrams/`. SVG exports are co-located alongside the `.drawio` source files.
+- The Draw.io diagrams were created with the [Azure Draw.io MCP Server](https://github.com/simonkurtz-MSFT/drawio-mcp-server).
 - Keep diagrams simple. For Azure, include major components, not individual aspects of components. For example, there is no need for individual policies in WAFs or APIs in API Management, Smart Detector Alert Rules, etc.
 - Less is more. Don't be too verbose in the diagrams.
 - Never include subscription IDs, resource group names, or any other sensitive information in the diagrams. That data is not relevant.
-- Don't use the "legend" command if the information is relatively obvious.
 
 ### KQL (Kusto Query Language) Instructions
 
