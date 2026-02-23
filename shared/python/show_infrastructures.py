@@ -128,6 +128,7 @@ def show_subscription() -> None:
 
 
 def main() -> int:
+    """List all deployed APIM infrastructures in the current Azure subscription."""
     parser = argparse.ArgumentParser(
         description='List all deployed APIM infrastructures in the current Azure subscription'
     )

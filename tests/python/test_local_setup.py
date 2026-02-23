@@ -306,7 +306,13 @@ def test_check_azure_providers_registered_success():
         with patch("subprocess.run") as mock_run:
             mock_which.return_value = "/usr/bin/az"
             mock_run.return_value = Mock(
-                stdout='["Microsoft.ApiManagement", "Microsoft.Storage", "Microsoft.App", "Microsoft.Authorization", "Microsoft.CognitiveServices", "Microsoft.ContainerRegistry", "Microsoft.KeyVault", "Microsoft.Maps", "Microsoft.ManagedIdentity", "Microsoft.Network", "Microsoft.OperationalInsights", "Microsoft.Resources"]',
+                stdout=(
+                    '["Microsoft.ApiManagement", "Microsoft.Storage", "Microsoft.App",'
+                    ' "Microsoft.Authorization", "Microsoft.CognitiveServices",'
+                    ' "Microsoft.ContainerRegistry", "Microsoft.KeyVault", "Microsoft.Maps",'
+                    ' "Microsoft.ManagedIdentity", "Microsoft.Network",'
+                    ' "Microsoft.OperationalInsights", "Microsoft.Resources"]'
+                ),
                 returncode=0
             )
             result = sps.check_azure_providers_registered()
@@ -907,6 +913,65 @@ def test_setup_complete_environment_consistency_exception(temp_project_root: Pat
     monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
     monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
     monkeypatch.setattr(sps, "force_kernel_consistency", raise_exception)
+
+    # Should continue despite exception
+    sps.setup_complete_environment()
+
+
+def test_setup_notebook_git_filter_success(temp_project_root: Path):
+    """Test setup_notebook_git_filter succeeds when git and script exist."""
+    (temp_project_root / "setup").mkdir(parents=True, exist_ok=True)
+    (temp_project_root / "setup" / "normalize_notebook_metadata.py").write_text("", encoding="utf-8")
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = Mock(returncode=0)
+        result = sps.setup_notebook_git_filter()
+
+    assert result is True
+    assert mock_run.call_count == 2
+
+
+def test_setup_notebook_git_filter_script_not_found(temp_project_root: Path):
+    """Test setup_notebook_git_filter returns False when normalizer script is missing."""
+    result = sps.setup_notebook_git_filter()
+    assert result is False
+
+
+def test_setup_notebook_git_filter_git_not_found(temp_project_root: Path):
+    """Test setup_notebook_git_filter returns False when git is not in PATH."""
+    (temp_project_root / "setup").mkdir(parents=True, exist_ok=True)
+    (temp_project_root / "setup" / "normalize_notebook_metadata.py").write_text("", encoding="utf-8")
+
+    with patch("subprocess.run", side_effect=FileNotFoundError("git not found")):
+        result = sps.setup_notebook_git_filter()
+
+    assert result is False
+
+
+def test_setup_notebook_git_filter_git_config_fails(temp_project_root: Path):
+    """Test setup_notebook_git_filter returns False when git config fails."""
+    (temp_project_root / "setup").mkdir(parents=True, exist_ok=True)
+    (temp_project_root / "setup" / "normalize_notebook_metadata.py").write_text("", encoding="utf-8")
+
+    with patch("subprocess.run", side_effect=subprocess.CalledProcessError(1, "git config")):
+        result = sps.setup_notebook_git_filter()
+
+    assert result is False
+
+
+def test_setup_complete_environment_notebook_filter_exception(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test setup_complete_environment handles exceptions in setup_notebook_git_filter."""
+    def raise_exception():
+        raise RuntimeError("Git filter setup failed")
+
+    monkeypatch.setattr(sps, "check_uv_installed", lambda: False)
+    monkeypatch.setattr(sps, "check_azure_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_bicep_cli_installed", lambda: True)
+    monkeypatch.setattr(sps, "check_azure_providers_registered", lambda: True)
+    monkeypatch.setattr(sps, "install_jupyter_kernel", lambda: True)
+    monkeypatch.setattr(sps, "create_vscode_settings", lambda: True)
+    monkeypatch.setattr(sps, "force_kernel_consistency", lambda: True)
+    monkeypatch.setattr(sps, "setup_notebook_git_filter", raise_exception)
 
     # Should continue despite exception
     sps.setup_complete_environment()

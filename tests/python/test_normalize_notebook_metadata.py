@@ -10,6 +10,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, cast
 
+import runpy
 import pytest
 
 # Ensure the setup folder is on sys.path so the script is importable.
@@ -107,7 +108,9 @@ def test_missing_kernelspec():
 
 def test_missing_language_info():
     """Should not raise when language_info is absent."""
-    nb = {'cells': [], 'metadata': {'kernelspec': {'display_name': 'X', 'language': 'python', 'name': 'python3'}}, 'nbformat': 4, 'nbformat_minor': 5}
+    nb = {'cells': [], 'metadata': {
+            'kernelspec': {'display_name': 'X', 'language': 'python', 'name': 'python3'}
+        }, 'nbformat': 4, 'nbformat_minor': 5}
     nnm.normalize_notebook_metadata(nb)
     assert nb['metadata']['kernelspec']['display_name'] == nnm.CANONICAL_DISPLAY_NAME
 
@@ -193,6 +196,83 @@ def test_normalize_file_preserves_cells(tmp_path: Path):
 
     result = json.loads(nb_path.read_text(encoding='utf-8'))
     assert result['cells'][0]['source'] == ['print("hello")\n']
+
+
+# ============================================================
+# main()
+# ============================================================
+
+def test_main_normalizes_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """main() should normalize files passed as arguments."""
+    nb = _make_notebook(display_name='custom', version='3.99.0')
+    nb_path = tmp_path / 'a.ipynb'
+    nb_path.write_text(json.dumps(nb, indent=1), encoding='utf-8')
+
+    monkeypatch.setattr(sys, 'argv', ['prog', str(nb_path)])
+    nnm.main()
+
+    result = json.loads(nb_path.read_text(encoding='utf-8'))
+    assert result['metadata']['kernelspec']['display_name'] == nnm.CANONICAL_DISPLAY_NAME
+    assert result['metadata']['language_info']['version'] == nnm.CANONICAL_VERSION
+
+
+def test_main_file_not_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """main() should exit 1 when a file does not exist."""
+    monkeypatch.setattr(sys, 'argv', ['prog', str(tmp_path / 'missing.ipynb')])
+
+    with pytest.raises(SystemExit, match='1'):
+        nnm.main()
+
+
+def test_main_mixed_success_and_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """main() should exit 1 when any file fails, even if others succeed."""
+    good = tmp_path / 'good.ipynb'
+    good.write_text(json.dumps(_make_notebook(), indent=1), encoding='utf-8')
+    bad = tmp_path / 'bad.ipynb'
+    bad.write_text('not json', encoding='utf-8')
+
+    monkeypatch.setattr(sys, 'argv', ['prog', str(good), str(bad)])
+
+    with pytest.raises(SystemExit, match='1'):
+        nnm.main()
+
+    # The good file should still have been normalized
+    result = json.loads(good.read_text(encoding='utf-8'))
+    assert result['metadata']['kernelspec']['display_name'] == nnm.CANONICAL_DISPLAY_NAME
+
+
+def test_main_filter_mode(monkeypatch: pytest.MonkeyPatch):
+    """main() with no args should read stdin and write normalized JSON to stdout."""
+    nb = _make_notebook(display_name='custom', version='3.99.0')
+    stdin_buf = io.StringIO(json.dumps(nb))
+    stdout_buf = io.StringIO()
+
+    monkeypatch.setattr(sys, 'argv', ['prog'])
+    monkeypatch.setattr(sys, 'stdin', stdin_buf)
+    monkeypatch.setattr(sys, 'stdout', stdout_buf)
+
+    nnm.main()
+
+    result = json.loads(stdout_buf.getvalue())
+    assert result['metadata']['kernelspec']['display_name'] == nnm.CANONICAL_DISPLAY_NAME
+    assert result['metadata']['language_info']['version'] == nnm.CANONICAL_VERSION
+
+
+def test_main_guard(monkeypatch: pytest.MonkeyPatch):
+    """The __name__ == '__main__' guard should invoke main() when run as a script."""
+    nb = _make_notebook(display_name='custom', version='3.99.0')
+    stdin_buf = io.StringIO(json.dumps(nb))
+    stdout_buf = io.StringIO()
+
+    monkeypatch.setattr(sys, 'argv', ['prog'])
+    monkeypatch.setattr(sys, 'stdin', stdin_buf)
+    monkeypatch.setattr(sys, 'stdout', stdout_buf)
+
+    runpy.run_path(str(SETUP_PATH / 'normalize_notebook_metadata.py'), run_name='__main__')
+
+    output = json.loads(stdout_buf.getvalue())
+    assert output['metadata']['kernelspec']['display_name'] == nnm.CANONICAL_DISPLAY_NAME
+    assert output['metadata']['language_info']['version'] == nnm.CANONICAL_VERSION
 
 
 # ============================================================

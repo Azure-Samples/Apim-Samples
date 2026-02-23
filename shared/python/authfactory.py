@@ -75,7 +75,10 @@ class SymmetricJwtToken:
         Initialize the SymmetricJwtToken with a signing key and payload.
 
         Args:
-            key (str): The symmetric key as a regular ASCII string. This should NOT be a base64-encoded string. Use the raw ASCII string that will be used for signing the JWT. If you have a base64-encoded key, decode it to its ASCII form before passing it here.
+            key (str): The symmetric key as a regular ASCII string.
+                This should NOT be a base64-encoded string. Use the raw ASCII string
+                that will be used for signing the JWT. If you have a base64-encoded key,
+                decode it to its ASCII form before passing it here.
             payload (JwtPayload): The payload (claims) for the JWT.
         """
         self.key = key
@@ -94,7 +97,11 @@ class SymmetricJwtToken:
             str: The encoded JWT as a string.
 
         Note:
-            The key parameter used for signing must be a regular ASCII string, NOT a base64-encoded string. If you have a base64-encoded key, decode it to its ASCII form before using it here. Passing a base64-encoded string directly will result in signature validation errors in APIM or other JWT consumers.
+            The key parameter used for signing must be a regular ASCII string,
+            NOT a base64-encoded string. If you have a base64-encoded key, decode
+            it to its ASCII form before using it here. Passing a base64-encoded
+            string directly will result in signature validation errors in APIM
+            or other JWT consumers.
         """
         return jwt.encode(self.payload.to_dict(), self.key, algorithm = 'HS256')
 
@@ -110,6 +117,7 @@ class AuthFactory:
 
     @staticmethod
     def create_symmetric_jwt_token_for_user(user: User, jwt_key: str) -> str:
+        """Create a symmetric JWT token for a user."""
         if not user:
             raise ValueError('User is required to create a symmetric JWT token.')
 
