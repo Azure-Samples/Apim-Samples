@@ -2,7 +2,9 @@
 
 This architecture secures API traffic by routing requests through Azure API Management, which is integrated with Azure Container Apps for backend processing. Telemetry is sent to Azure Monitor for observability.
 
-<img src="./API Management & Container Apps Architecture.svg" alt="Diagram showing Azure API Management and Container Apps architecture. API Management routes traffic to Container Apps. Telemetry is sent to Azure Monitor." title="API Management & Container Apps Architecture" width="800" />
+<img src="../../assets/diagrams/API Management & Container Apps Architecture.svg" alt="Diagram showing Azure API Management and Container Apps architecture. API Management routes traffic to Container Apps. Telemetry is sent to Azure Monitor." title="API Management & Container Apps Architecture" width="800" />
+
+> Diagram created with the [Azure Draw.io MCP Server](https://github.com/simonkurtz-MSFT/drawio-mcp-server).
 
 ## 🎯 Objectives
 
