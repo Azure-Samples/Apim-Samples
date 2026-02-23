@@ -103,7 +103,8 @@ resource apimDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-0
 // https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/loggers
 #disable-next-line BCP318
 resource apimLogger 'Microsoft.ApiManagement/service/loggers@2024-06-01-preview' = if (enableApplicationInsights && !empty(appInsightsInstrumentationKey) && !empty(appInsightsResourceId)) {
-  name: '${apimServiceName}/${apimLoggerName}'
+  parent: apimService
+  name: apimLoggerName
   properties: {
     loggerType: 'applicationInsights'
     description: apimLoggerDescription
@@ -120,7 +121,8 @@ resource apimLogger 'Microsoft.ApiManagement/service/loggers@2024-06-01-preview'
 // https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/diagnostics
 #disable-next-line BCP318
 resource apimDiagnostic 'Microsoft.ApiManagement/service/diagnostics@2024-06-01-preview' = if (enableApplicationInsights && !empty(appInsightsInstrumentationKey) && !empty(appInsightsResourceId)) {
-  name: '${apimServiceName}/applicationinsights'
+  parent: apimService
+  name: 'applicationinsights'
   properties: {
     alwaysLog: 'allErrors'
     loggerId: enableApplicationInsights && !empty(appInsightsInstrumentationKey) && !empty(appInsightsResourceId) ? apimLogger.id : ''
@@ -166,7 +168,8 @@ resource apimDiagnostic 'Microsoft.ApiManagement/service/diagnostics@2024-06-01-
 // This ensures gateway logs include subscription IDs and other details
 // https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/diagnostics
 resource apimAzureMonitorDiagnostic 'Microsoft.ApiManagement/service/diagnostics@2024-06-01-preview' = if (enableLogAnalytics) {
-  name: '${apimServiceName}/azuremonitor'
+  parent: apimService
+  name: 'azuremonitor'
   properties: {
     loggerId: '/subscriptions/${subscription().subscriptionId}/resourceGroups/${apimResourceGroupName}/providers/Microsoft.ApiManagement/service/${apimServiceName}/loggers/azuremonitor'
     sampling: {
