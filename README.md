@@ -50,11 +50,11 @@ It's quick and easy to get started!
 
 | Infrastructure Name                                                | Description                                                                                                                                                           |
 |:-------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Simple API Management][infra-simple-apim]                         | **Just the basics with a publicly accessible API Management instance** fronting your APIs. This is the innermost way to experience and experiment with the APIM policies. |
 | [API Management & Container Apps][infra-apim-aca]                  | APIs are often implemented in containers running in **Azure Container Apps**. This architecture accesses the container apps publicly. It's beneficial to test both APIM and container app URLs to contrast and compare experiences of API calls through and bypassing APIM. It is not intended to be a security baseline.    |
-| [Front Door & API Management & Container Apps][infra-afd-apim-pe]  | **A secure implementation of Azure Front Door connecting to APIM via the new private link integration!** This traffic, once it traverses through Front Door, rides entirely on Microsoft-owned and operated networks. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). **APIM Standard V2** is used here to accept a private link from Front Door. |
 | [Application Gateway (Private Endpoint) & API Management & Container Apps][infra-appgw-apim-pe]  | **A secure implementation of Azure Application Gateway connecting to APIM via the new private link integration!** This traffic, once it traverses through App Gateway, uses a private endpoint set up in the VNet's private endpoint subnet. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). APIM Standard V2 is used here to accept a private link from App Gateway. |
 | [Application Gateway (VNet) & API Management & Container Apps][infra-appgw-apim] | Full VNet injection of APIM and ACA! APIM is shielded from any type of traffic unless it comes through App Gateway. This offers maximum isolation for instances in which customers seek VNet injection. |
+| [Front Door & API Management & Container Apps][infra-afd-apim-pe]  | **A secure implementation of Azure Front Door connecting to APIM via the new private link integration!** This traffic, once it traverses through Front Door, rides entirely on Microsoft-owned and operated networks. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). **APIM Standard V2** is used here to accept a private link from Front Door. |
+| [Simple API Management][infra-simple-apim]                         | **Just the basics with a publicly accessible API Management instance** fronting your APIs. This is the innermost way to experience and experiment with the APIM policies. |
 </details>
 
 ## 📁 List of Samples
@@ -65,11 +65,12 @@ It's quick and easy to get started!
 |:------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------|:------------------------------|
 | [AuthX][sample-authx]                                       | Authentication and role-based authorization in a mock HR API.                                                       | All infrastructures           |
 | [AuthX Pro][sample-authx-pro]                               | Authentication and role-based authorization in a mock product with multiple APIs and policy fragments.              | All infrastructures           |
+| [Azure Maps][sample-azure-maps]                             | Proxying calls to Azure Maps with APIM policies.                                                                    | All infrastructures           |
+| [Costing & Showback][sample-costing]                        | Track and allocate API costs per business unit using APIM subscriptions, Log Analytics, and Cost Management.         | All infrastructures           |
+| [Credential Manager (with Spotify)][sample-oauth-3rd-party] | Authenticate with APIM which then uses its Credential Manager with Spotify's REST API.                              | All infrastructures           |
 | [General][sample-general]                                   | Basic demo of APIM sample setup and policy usage.                                                                   | All infrastructures           |
 | [Load Balancing][sample-load-balancing]                     | Priority and weighted load balancing across backends.                                                               | apim-aca, afd-apim (with ACA) |
 | [Secure Blob Access][sample-secure-blob-access]             | Secure blob access via the [valet key pattern][valet-key-pattern].                                                  | All infrastructures           |
-| [Credential Manager (with Spotify)][sample-oauth-3rd-party] | Authenticate with APIM which then uses its Credential Manager with Spotify's REST API.                              | All infrastructures           |
-| [Azure Maps][sample-azure-maps]                             | Proxying calls to Azure Maps with APIM policies.                                                                    | All infrastructures           |
 </details>
 
 ### Compatibility Matrix
@@ -328,6 +329,7 @@ _For much more API Management content, please also check out [APIM Love](https:/
 [sample-authx]: ./samples/authX/README.md
 [sample-authx-pro]: ./samples/authX-pro/README.md
 [sample-azure-maps]: ./samples/azure-maps/README.md
+[sample-costing]: ./samples/costing/README.md
 [sample-general]: ./samples/general/README.md
 [sample-load-balancing]: ./samples/load-balancing/README.md
 [sample-oauth-3rd-party]: ./samples/oauth-3rd-party/README.md
