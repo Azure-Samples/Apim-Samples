@@ -312,7 +312,10 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
         current_key_match = re.match(current_key_pattern, current_jwt_key_name)
 
         if not current_key_match:
-            print_error(f"Current JWT key name '{current_jwt_key_name}' does not match expected pattern 'JwtSigningKey-{{sample_folder}}-{{timestamp}}'")
+            print_error(
+                f"Current JWT key name '{current_jwt_key_name}' does not match"
+                f" expected pattern 'JwtSigningKey-{{sample_folder}}-{{timestamp}}'"
+            )
             return False
 
         sample_folder = current_key_match.group(1)
@@ -322,7 +325,8 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
         print_info(f"Getting all JWT signing key named values from APIM '{apim_name}'...")
 
         output = run(
-            f'az apim nv list --service-name "{apim_name}" --resource-group "{resource_group_name}" --query "[?contains(name, \'JwtSigningKey\')].name" -o tsv',
+            f'az apim nv list --service-name "{apim_name}" --resource-group "{resource_group_name}"'
+            f' --query "[?contains(name, \'JwtSigningKey\')].name" -o tsv',
             'Retrieved JWT signing keys',
             'Failed to retrieve JWT signing keys'
         )
@@ -391,7 +395,10 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
         bool: True if APIM has the required permissions, False otherwise.
     """
 
-    print_info(f"🔍 Checking if APIM '{apim_name}' has Storage Blob Data Reader permissions on '{storage_account_name}' in resource group '{resource_group_name}'...")
+    print_info(
+        f"🔍 Checking if APIM '{apim_name}' has Storage Blob Data Reader"
+        f" permissions on '{storage_account_name}' in resource group '{resource_group_name}'..."
+    )
 
     # Storage Blob Data Reader role definition ID
     blob_reader_role_id = get_azure_role_guid('StorageBlobDataReader')
@@ -449,7 +456,9 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
             # Additional check: try to test blob access using the managed identity
             print_info('Testing actual blob access...')
             test_access_output = run(
-                f"az storage blob list --account-name {storage_account_name} --container-name samples --auth-mode login --only-show-errors --query '[0].name' -o tsv 2>/dev/null || echo 'access-test-failed'",
+                f'az storage blob list --account-name {storage_account_name}'
+                f' --container-name samples --auth-mode login --only-show-errors'
+                f" --query '[0].name' -o tsv 2>/dev/null || echo 'access-test-failed'",
                 error_message=''
             )
 
@@ -644,9 +653,12 @@ def get_account_info() -> Tuple[str, str, str, str]:
     if account_show_output.success and account_show_output.json_data and ad_user_show_output.success and ad_user_show_output.json_data:
         return current_user, current_user_id, tenant_id, subscription_id
 
-    error = 'Failed to retrieve account information. Please ensure the Azure CLI is installed, you are logged in, and the subscription is set correctly.'
+    error = (
+        'Failed to retrieve account information. Please ensure the Azure CLI is installed,'
+        ' you are logged in, and the subscription is set correctly.'
+    )
     print_error(error)
-    raise Exception(error)
+    raise RuntimeError(error)
 
 def get_deployment_name(directory_name: str | None = None) -> str:
     """
@@ -957,7 +969,8 @@ def get_unique_suffix_for_resource_group(rg_name: str) -> str:
     try:
         deployment_name = f'get-suffix-{int(time.time())}'
         output = run(
-            f'az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file "{template_path}" --query "properties.outputs.suffix.value" -o tsv'
+            f'az deployment group create --name {deployment_name} --resource-group {rg_name}'
+            f' --template-file "{template_path}" --query "properties.outputs.suffix.value" -o tsv'
         )
 
         if output.success and output.text.strip():

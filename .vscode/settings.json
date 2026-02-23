@@ -28,6 +28,10 @@
     "**/venv",
     "**/env"
   ],
+  "python.analysis.extraPaths": [
+    "shared/python",
+    "tests/python"
+  ],
   "python.defaultInterpreterPath": "./.venv/Scripts/python.exe",
   "python.envFile": "${workspaceFolder}/.env",
   "python.terminal.activateEnvInCurrentTerminal": true,
