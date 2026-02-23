@@ -25,8 +25,7 @@ def _create_account_output():
         'user': {'name': 'test.user@example.com'},
         'id': 'sub-123',
         'tenantId': 'tenant-123',
-        'name': 'Test Subscription',
-        'tenantDisplayName': 'Contoso'
+        'name': 'Test Subscription'
     }
     return output
 

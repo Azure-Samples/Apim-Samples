@@ -633,7 +633,6 @@ def get_account_info() -> Tuple[str, str, str, str]:
         print_val('Subscription ID', subscription_id)
 
         # Printing informationally for the user, not relevant data to return
-        print_val('Tenant name', account_show_output.json_data['tenantDisplayName'])
         print_val('Subscription name', account_show_output.json_data['name'])
 
     ad_user_show_output = run('az ad signed-in-user show', None, 'Failed to get the current az ad signed-in-user')
