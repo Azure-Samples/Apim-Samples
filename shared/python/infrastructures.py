@@ -8,7 +8,7 @@ import time
 import traceback
 from pathlib import Path
 from typing import List
-from concurrent.futures import ThreadPoolExecutor, as_completed  # pylint: disable=no-name-in-module
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests
 
 # APIM Samples imports

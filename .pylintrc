@@ -5,11 +5,9 @@ persistent = no
 [MESSAGES CONTROL]
 enable = all
 disable =
-    C0103,  # Invalid name
+    C0103,  # Invalid name - removal of this disabled rule will require deliberate and careful  refactoring
     C0302,  # Too many lines in module
-    I0011,  # Suppression of message, 'no-else-continue', has no effect
-    I0021,  # Suppression of message, 'no-else-return', has no effect
-    R0801,  # Duplicate code
+    R0801,  # Duplicate code - removal of this disabled rule will require deliberate and careful  refactoring
     R0902,  # Too many instance attributes
     R0903,  # Too few public methods
     R0911,  # Too many return statements
@@ -19,7 +17,6 @@ disable =
     R0915,  # Too many statements
     R0917,  # Too many positional arguments
     R1702,  # Too many nested blocks
-    R1705,  # No else return
 
 [REPORTS]
 output-format = colorized

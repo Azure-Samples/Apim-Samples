@@ -852,20 +852,20 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
                     return False  # Allow deployment to proceed
                 if choice in ('2', '3'):
                     return True  # Block deployment
-                elif not choice:  # pragma: no cover
+                if not choice:  # pragma: no cover
                     # Empty input (ESC pressed in Jupyter) - cancel
                     raise EOFError()
-                else:
-                    print_plain('❌ Invalid choice. Please enter 1, 2, or 3.')
+
+                print_plain('❌ Invalid choice. Please enter 1, 2, or 3.')
         else:
             print_plain('ℹ️  To redeploy, either:')
             print_plain('     1. Use a different index, or')
             print_plain('     2. Exit, then delete the existing resource group separately via the clean-up notebook\n')
 
         return True
-    else:
-        print_plain('   Infrastructure does not yet exist.')
-        return False
+
+    print_plain('   Infrastructure does not yet exist.')
+    return False
 
 def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str, str], sample_name: str = None) -> str:
     """
