@@ -113,7 +113,7 @@ All infrastructure notebooks must follow this exact cell pattern:
 
 #### Cell 3: Clean Up (Markdown)
 - Heading: `### 🗑️ Clean up resources`
-- Standard text: "When you're finished experimenting, it's advisable to remove all associated resources from Azure to avoid unnecessary cost. Use the [clean-up notebook](clean-up.ipynb) for that."
+- Standard text: "When you're finished experimenting, it's advisable to remove all associated resources from Azure to avoid unnecessary cost. Use the clean-up notebook for that."
 
 ### Infrastructure README.md
 
