@@ -580,7 +580,14 @@ def test_check_azure_login_no_cli() -> None:
 
 def test_check_azure_providers_all_registered() -> None:
     """Azure providers check should pass when all required providers are registered."""
-    providers_json = '["Microsoft.ApiManagement", "Microsoft.App", "Microsoft.Authorization", "Microsoft.CognitiveServices", "Microsoft.ContainerRegistry", "Microsoft.KeyVault", "Microsoft.Maps", "Microsoft.ManagedIdentity", "Microsoft.Network", "Microsoft.OperationalInsights", "Microsoft.Resources", "Microsoft.Storage"]'
+    providers_json = (
+        '["Microsoft.ApiManagement", "Microsoft.App",'
+        ' "Microsoft.Authorization", "Microsoft.CognitiveServices",'
+        ' "Microsoft.ContainerRegistry", "Microsoft.KeyVault",'
+        ' "Microsoft.Maps", "Microsoft.ManagedIdentity",'
+        ' "Microsoft.Network", "Microsoft.OperationalInsights",'
+        ' "Microsoft.Resources", "Microsoft.Storage"]'
+    )
     with patch("shutil.which", return_value="/usr/bin/az"):
         with patch("subprocess.run", return_value=Mock(stdout=providers_json, returncode=0)):
             ok, fix = vls.check_azure_providers()
