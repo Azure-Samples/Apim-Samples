@@ -342,8 +342,9 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 
   ## Language-specific Instructions
 
-  - Python: see `.github/copilot-instructions.python.md`
-  - Bicep: see `.github/copilot-instructions.bicep.md`
+  - Python: see `.github/python.instructions.md`
+  - Bicep: see `.github/bicep.instructions.md`
+  - JSON: see `.github/json.instructions.md`
 
 ## Formatting and Style
 
