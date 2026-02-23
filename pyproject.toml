@@ -9,6 +9,7 @@ license = { file = "LICENSE" }
 
 # Core runtime dependencies
 dependencies = [
+  "pillow>=12.1.1",   # Resolves CVE 2021-25289: https://pillow.readthedocs.io/en/stable/releasenotes/12.1.1.html#security
   "ipykernel",
   "matplotlib",
   "pandas",
