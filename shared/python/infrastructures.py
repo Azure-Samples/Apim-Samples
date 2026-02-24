@@ -6,23 +6,33 @@ import json
 import os
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import List
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import requests
 
-# APIM Samples imports
-from apimtypes import API, APIM_SKU, APIMNetworkMode, GET_APIOperation, HELLO_WORLD_XML_POLICY_PATH, INFRASTRUCTURE, PolicyFragment
-from console import (
-    BOLD_R, BOLD_Y, RESET, THREAD_COLORS,
-    _print_lock, _print_log,
-    print_command, print_error, print_info, print_message,
-    print_ok, print_plain, print_warning, print_val,
-)
-from logging_config import should_print_traceback
 import azure_resources as az
+import requests
 import utils
 
+# APIM Samples imports
+from apimtypes import API, APIM_SKU, HELLO_WORLD_XML_POLICY_PATH, INFRASTRUCTURE, APIMNetworkMode, GET_APIOperation, HttpStatusCode, PolicyFragment
+from console import (
+    BOLD_R,
+    BOLD_Y,
+    RESET,
+    THREAD_COLORS,
+    _print_lock,
+    _print_log,
+    print_command,
+    print_error,
+    print_info,
+    print_message,
+    print_ok,
+    print_plain,
+    print_val,
+    print_warning,
+)
+from logging_config import should_print_traceback
 
 # ------------------------------
 #    INFRASTRUCTURE CLASSES
@@ -319,7 +329,7 @@ class Infrastructure:
 
             response = requests.get(healthcheck_url, timeout=30)
 
-            if response.status_code == 200:
+            if response.status_code == HttpStatusCode.OK:
                 print_ok('APIM connectivity verified - Health check returned 200')
                 return True
 
