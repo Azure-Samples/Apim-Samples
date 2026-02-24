@@ -54,6 +54,18 @@ resource uploadIdentityBlobContributorRole 'Microsoft.Authorization/roleAssignme
   }
 }
 
+// Grant the managed identity Storage File Data Privileged Contributor role (required for deployment script backing storage)
+// https://learn.microsoft.com/azure/templates/microsoft.authorization/roleassignments
+resource uploadIdentityFileContributorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storageAccount.id, uploadManagedIdentity.id, 'Storage File Data Privileged Contributor')
+  scope: storageAccount
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', azureRoles.StorageFileDataPrivilegedContributor)
+    principalId: uploadManagedIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // https://learn.microsoft.com/azure/templates/microsoft.storage/storageaccounts/blobservices/containers
 resource blobContainer 'Microsoft.Storage/storageAccounts/blobServices/containers@2024-01-01' = {
   name: '${storageAccount.name}/default/${containerName}'
@@ -104,9 +116,13 @@ resource deploymentScript 'Microsoft.Resources/deploymentScripts@2023-08-01' = {
       }
     ]
     retentionInterval: 'PT1H'
+    storageAccountSettings: {
+      storageAccountName: storageAccountName
+    }
   }
   dependsOn: [
     uploadIdentityBlobContributorRole
+    uploadIdentityFileContributorRole
     blobContainer
   ]
 }
