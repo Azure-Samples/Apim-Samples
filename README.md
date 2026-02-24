@@ -97,7 +97,7 @@ Use the interactive APIM Samples Developer CLI to verify setup, run tests, and m
 This menu-driven interface provides quick access to:
 - **Setup**: Complete environment setup and verify local setup
 - **Verify**: Show Azure account info, list soft-deleted resources, and list deployed infrastructures
-- **Tests**: Run pylint, pytest, and full Python checks
+- **Tests**: Run ruff, pytest, and full Python checks
 
 <img src="./assets/dev-cli-lint-test-results.png" alt="APIM Samples Developer CLI showing final linting, test, and code coverage results" title="APIM Samples Developer CLI Final Results" />
 
@@ -253,7 +253,7 @@ The repo uses the bicep linter and has rules defined in `bicepconfig.json`. See 
 
 ### 🔍 Code Quality & Linting
 
-The repository uses [pylint][pylint-docs] to maintain Python code quality standards. The configuration is located in `.pylintrc`, and the APIM Samples Developer CLI supports linting.
+The repository uses [Ruff][ruff-docs] to maintain Python code quality standards. The configuration is located in `pyproject.toml` under `[tool.ruff]`, and the APIM Samples Developer CLI supports linting.
 
 ### 🧪 Testing & Code Coverage
 
@@ -327,7 +327,7 @@ _For much more API Management content, please also check out [APIM Love](https:/
 [openssf]: https://www.bestpractices.dev/projects/11057
 [pytest-docs]: https://docs.pytest.org/
 [pytest-docs-versioned]: https://docs.pytest.org/en/8.2.x/
-[pylint-docs]: https://pylint.pycqa.org/
+[ruff-docs]: https://docs.astral.sh/ruff/
 [python]: https://www.python.org/
 [sample-authx]: ./samples/authX/README.md
 [sample-authx-pro]: ./samples/authX-pro/README.md

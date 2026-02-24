@@ -5,11 +5,12 @@ Module for making requests to Azure API Management endpoints with consistent log
 import json
 import time
 from typing import Any
+
 import requests
 import urllib3
 
 # APIM Samples imports
-from apimtypes import HTTP_VERB, SUBSCRIPTION_KEY_PARAMETER_NAME, SLEEP_TIME_BETWEEN_REQUESTS_MS
+from apimtypes import HTTP_VERB, SLEEP_TIME_BETWEEN_REQUESTS_MS, SUBSCRIPTION_KEY_PARAMETER_NAME, HttpStatusCode
 from console import BOLD_G, BOLD_R, RESET, print_error, print_info, print_message, print_ok, print_val
 
 # Disable SSL warnings for self-signed certificates
@@ -253,7 +254,7 @@ class ApimRequests:
         self._print_response_code(response)
         print_val('Response headers', response.headers, True)
 
-        if response.status_code == 200:
+        if response.status_code == HttpStatusCode.OK:
             try:
                 data = json.loads(response.text)
                 print_val('Response body', json.dumps(data, indent = 4), True)
@@ -267,9 +268,9 @@ class ApimRequests:
         Print the response status code with color formatting.
         """
 
-        if 200 <= response.status_code < 300:
+        if HttpStatusCode.OK <= response.status_code < HttpStatusCode.MULTIPLE_CHOICES:
             status_code_str = f'{BOLD_G}{response.status_code} - {response.reason}{RESET}'
-        elif response.status_code >= 400:
+        elif response.status_code >= HttpStatusCode.BAD_REQUEST:
             status_code_str = f'{BOLD_R}{response.status_code} - {response.reason}{RESET}'
         else:
             status_code_str = str(response.status_code)
@@ -299,11 +300,11 @@ class ApimRequests:
 
                 print_info(f'Polling operation - Status: {response.status_code}')
 
-                if response.status_code == 200:
+                if response.status_code == HttpStatusCode.OK:
                     print_ok('Async operation completed successfully!')
                     return response
 
-                if response.status_code == 202:
+                if response.status_code == HttpStatusCode.ACCEPTED:
                     print_info(f'Operation still in progress, waiting {poll_interval} seconds...')
                     time.sleep(poll_interval)
                 else:
@@ -423,7 +424,7 @@ class ApimRequests:
 
             print_info(f'Initial response status: {response.status_code}')
 
-            if response.status_code == 202:  # Accepted - async operation started
+            if response.status_code == HttpStatusCode.ACCEPTED:  # Accepted - async operation started
                 location_header = response.headers.get('Location')
 
                 if location_header:
@@ -432,7 +433,7 @@ class ApimRequests:
                     # Poll the location URL until completion
                     final_response = self._poll_async_operation(location_header, timeout = timeout, poll_interval = poll_interval )
 
-                    if final_response and final_response.status_code == 200:
+                    if final_response and final_response.status_code == HttpStatusCode.OK:
                         if printResponse:
                             self._print_response(final_response)
 

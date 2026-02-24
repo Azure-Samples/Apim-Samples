@@ -1,10 +1,14 @@
 {
+    "unwantedRecommendations": [
+        "ms-python.pylint"
+    ],
     "recommendations": [
         "ms-python.python",
         "ms-python.debugpy",
         "ms-toolsai.jupyter",
         "ms-azuretools.vscode-bicep",
         "ms-vscode.azurecli",
+        "charliermarsh.ruff",
         "GitHub.copilot",
         "GitHub.copilot-chat",
         "donjayamanne.vscode-default-python-kernel"

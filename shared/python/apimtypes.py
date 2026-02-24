@@ -2,28 +2,28 @@
 Types and constants for Azure API Management automation and deployment.
 """
 
-import os
-import json
 import ast
-from enum import StrEnum
+import json
+import os
 from dataclasses import dataclass
+from enum import IntEnum, StrEnum
 from pathlib import Path
-from typing import List, Optional, Any
+from typing import Any, List, Optional
 
 # APIM Samples imports
 from console import print_error, print_val
-from json_utils import is_string_json, extract_json
+from json_utils import extract_json, is_string_json
 
 
 def get_project_root() -> Path:
     """Get the project root directory path."""
     # Try to get from environment variable first (set by .env file)
-    if 'PROJECT_ROOT' in os.environ:
-        return Path(os.environ['PROJECT_ROOT'])
+    if "PROJECT_ROOT" in os.environ:
+        return Path(os.environ["PROJECT_ROOT"])
 
     # Fallback: detect project root by walking up from this file
     current_path = Path(__file__).resolve().parent.parent.parent  # Go up from shared/python/
-    indicators = ['README.md', 'pyproject.toml', 'bicepconfig.json']
+    indicators = ["README.md", "pyproject.toml", "bicepconfig.json"]
 
     while current_path != current_path.parent:
         if all((current_path / indicator).exists() for indicator in indicators):
@@ -33,24 +33,26 @@ def get_project_root() -> Path:
     # Ultimate fallback
     return Path(__file__).resolve().parent.parent.parent
 
+
 # Get project root and construct absolute paths to policy files
 _PROJECT_ROOT = get_project_root()
-_SHARED_XML_POLICY_BASE_PATH = _PROJECT_ROOT / 'shared' / 'apim-policies'
+_SHARED_XML_POLICY_BASE_PATH = _PROJECT_ROOT / "shared" / "apim-policies"
 
 # Policy file paths (now absolute and platform-independent)
-DEFAULT_XML_POLICY_PATH         = str(_SHARED_XML_POLICY_BASE_PATH / 'default.xml')
-HELLO_WORLD_XML_POLICY_PATH     = str(_SHARED_XML_POLICY_BASE_PATH / 'hello-world.xml')
-REQUEST_HEADERS_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / 'request-headers.xml')
-BACKEND_XML_POLICY_PATH         = str(_SHARED_XML_POLICY_BASE_PATH / 'backend.xml')
-API_ID_XML_POLICY_PATH          = str(_SHARED_XML_POLICY_BASE_PATH / 'api-id.xml')
+DEFAULT_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / "default.xml")
+HELLO_WORLD_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / "hello-world.xml")
+REQUEST_HEADERS_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / "request-headers.xml")
+BACKEND_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / "backend.xml")
+API_ID_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / "api-id.xml")
 
-SUBSCRIPTION_KEY_PARAMETER_NAME = 'api-key'
-SLEEP_TIME_BETWEEN_REQUESTS_MS  = 50
+SUBSCRIPTION_KEY_PARAMETER_NAME = "api-key"
+SLEEP_TIME_BETWEEN_REQUESTS_MS = 50
 
 
 # ------------------------------
 #    PRIVATE METHODS
 # ------------------------------
+
 
 # Placing this here privately as putting it into the utils module would constitute a circular import
 def _read_policy_xml(policy_xml_filepath: str) -> str:
@@ -65,7 +67,7 @@ def _read_policy_xml(policy_xml_filepath: str) -> str:
     """
 
     # Read the specified policy XML file with explicit UTF-8 encoding
-    with open(policy_xml_filepath, 'r', encoding = 'utf-8') as policy_xml_file:
+    with open(policy_xml_filepath, "r", encoding="utf-8") as policy_xml_file:
         policy_template_xml = policy_xml_file.read()
 
     return policy_template_xml
@@ -75,27 +77,106 @@ def _read_policy_xml(policy_xml_filepath: str) -> str:
 #    CLASSES
 # ------------------------------
 
+
 # Mock role IDs for testing purposes
 class Role:
     """
     Predefined roles and their GUIDs (mocked for testing purposes).
     """
 
-    NONE                = '00000000-0000-0000-0000-000000000000'  # No role assigned
-    HR_MEMBER           = '316790bc-fbd3-4a14-8867-d1388ffbc195'
-    HR_ASSOCIATE        = 'd3c1b0f2-4a5e-4c8b-9f6d-7c8e1f2a3b4c'
-    HR_ADMINISTRATOR    = 'a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6'
-    MARKETING_MEMBER    = 'b2c3d4e5-f6g7-8h9i-0j1k-2l3m4n5o6p7q'
+    NONE = "00000000-0000-0000-0000-000000000000"  # No role assigned
+    HR_MEMBER = "316790bc-fbd3-4a14-8867-d1388ffbc195"
+    HR_ASSOCIATE = "d3c1b0f2-4a5e-4c8b-9f6d-7c8e1f2a3b4c"
+    HR_ADMINISTRATOR = "a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6"
+    MARKETING_MEMBER = "b2c3d4e5-f6g7-8h9i-0j1k-2l3m4n5o6p7q"
+
+
+class HttpStatusCode(IntEnum):
+    """
+    HTTP status codes for API responses.
+    """
+
+    # 1xx Informational
+    CONTINUE = 100
+    SWITCHING_PROTOCOLS = 101
+    PROCESSING = 102
+    EARLY_HINTS = 103
+
+    # 2xx Success
+    OK = 200
+    CREATED = 201
+    ACCEPTED = 202
+    NON_AUTHORITATIVE_INFORMATION = 203
+    NO_CONTENT = 204
+    RESET_CONTENT = 205
+    PARTIAL_CONTENT = 206
+    MULTI_STATUS = 207
+    ALREADY_REPORTED = 208
+    IM_USED = 226
+
+    # 3xx Redirection
+    MULTIPLE_CHOICES = 300
+    MOVED_PERMANENTLY = 301
+    FOUND = 302
+    SEE_OTHER = 303
+    NOT_MODIFIED = 304
+    TEMPORARY_REDIRECT = 307
+    PERMANENT_REDIRECT = 308
+
+    # 4xx Client Errors
+    BAD_REQUEST = 400
+    UNAUTHORIZED = 401
+    PAYMENT_REQUIRED = 402
+    FORBIDDEN = 403
+    NOT_FOUND = 404
+    METHOD_NOT_ALLOWED = 405
+    NOT_ACCEPTABLE = 406
+    PROXY_AUTHENTICATION_REQUIRED = 407
+    REQUEST_TIMEOUT = 408
+    CONFLICT = 409
+    GONE = 410
+    LENGTH_REQUIRED = 411
+    PRECONDITION_FAILED = 412
+    CONTENT_TOO_LARGE = 413
+    URI_TOO_LONG = 414
+    UNSUPPORTED_MEDIA_TYPE = 415
+    RANGE_NOT_SATISFIABLE = 416
+    EXPECTATION_FAILED = 417
+    IM_A_TEAPOT = 418
+    MISDIRECTED_REQUEST = 421
+    UNPROCESSABLE_CONTENT = 422
+    LOCKED = 423
+    FAILED_DEPENDENCY = 424
+    TOO_EARLY = 425
+    UPGRADE_REQUIRED = 426
+    PRECONDITION_REQUIRED = 428
+    TOO_MANY_REQUESTS = 429
+    REQUEST_HEADER_FIELDS_TOO_LARGE = 431
+    UNAVAILABLE_FOR_LEGAL_REASONS = 451
+
+    # 5xx Server Errors
+    INTERNAL_SERVER_ERROR = 500
+    NOT_IMPLEMENTED = 501
+    BAD_GATEWAY = 502
+    SERVICE_UNAVAILABLE = 503
+    GATEWAY_TIMEOUT = 504
+    HTTP_VERSION_NOT_SUPPORTED = 505
+    VARIANT_ALSO_NEGOTIATES = 506
+    INSUFFICIENT_STORAGE = 507
+    LOOP_DETECTED = 508
+    NOT_EXTENDED = 510
+    NETWORK_AUTHENTICATION_REQUIRED = 511
+
 
 class APIMNetworkMode(StrEnum):
     """
     Networking configuration modes for Azure API Management (APIM).
     """
 
-    PUBLIC        = 'Public'    # APIM is accessible from the public internet
-    EXTERNAL_VNET = 'External'  # APIM is deployed in a VNet with external (public) access
-    INTERNAL_VNET = 'Internal'  # APIM is deployed in a VNet with only internal (private) access
-    NONE          = 'None'      # No explicit network configuration (legacy or default)
+    PUBLIC = "Public"  # APIM is accessible from the public internet
+    EXTERNAL_VNET = "External"  # APIM is deployed in a VNet with external (public) access
+    INTERNAL_VNET = "Internal"  # APIM is deployed in a VNet with only internal (private) access
+    NONE = "None"  # No explicit network configuration (legacy or default)
 
 
 class APIM_SKU(StrEnum):
@@ -103,13 +184,13 @@ class APIM_SKU(StrEnum):
     APIM SKU types.
     """
 
-    DEVELOPER  = 'Developer'
-    BASIC      = 'Basic'
-    STANDARD   = 'Standard'
-    PREMIUM    = 'Premium'
-    BASICV2    = 'Basicv2'
-    STANDARDV2 = 'Standardv2'
-    PREMIUMV2  = 'Premiumv2'
+    DEVELOPER = "Developer"
+    BASIC = "Basic"
+    STANDARD = "Standard"
+    PREMIUM = "Premium"
+    BASICV2 = "Basicv2"
+    STANDARDV2 = "Standardv2"
+    PREMIUMV2 = "Premiumv2"
 
     def is_v1(self):
         """Check if the SKU is a v1 tier."""
@@ -119,18 +200,19 @@ class APIM_SKU(StrEnum):
         """Check if the SKU is a v2 tier."""
         return self in (APIM_SKU.BASICV2, APIM_SKU.STANDARDV2, APIM_SKU.PREMIUMV2)
 
+
 class HTTP_VERB(StrEnum):
     """
     HTTP verbs that can be used for API operations.
     """
 
-    GET     = 'GET'
-    POST    = 'POST'
-    PUT     = 'PUT'
-    DELETE  = 'DELETE'
-    PATCH   = 'PATCH'
-    OPTIONS = 'OPTIONS'
-    HEAD    = 'HEAD'
+    GET = "GET"
+    POST = "POST"
+    PUT = "PUT"
+    DELETE = "DELETE"
+    PATCH = "PATCH"
+    OPTIONS = "OPTIONS"
+    HEAD = "HEAD"
 
 
 class INFRASTRUCTURE(StrEnum):
@@ -138,11 +220,11 @@ class INFRASTRUCTURE(StrEnum):
     Infrastructure types for APIM automation scenarios.
     """
 
-    SIMPLE_APIM   = 'simple-apim'   # Simple API Management with no dependencies
-    APIM_ACA      = 'apim-aca'      # Azure API Management connected to Azure Container Apps
-    AFD_APIM_PE   = 'afd-apim-pe'   # Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
-    APPGW_APIM_PE = 'appgw-apim-pe' # Application Gateway connected to Azure API Management (Standard V2) via Private Link
-    APPGW_APIM    = 'appgw-apim'    # Application Gateway connected to Azure API Management (Developer SKU) via VNet (Internal)
+    SIMPLE_APIM = "simple-apim"  # Simple API Management with no dependencies
+    APIM_ACA = "apim-aca"  # Azure API Management connected to Azure Container Apps
+    AFD_APIM_PE = "afd-apim-pe"  # Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
+    APPGW_APIM_PE = "appgw-apim-pe"  # Application Gateway connected to Azure API Management (Standard V2) via Private Link
+    APPGW_APIM = "appgw-apim"  # Application Gateway connected to Azure API Management (Developer SKU) via VNet (Internal)
 
 
 class Endpoints:
@@ -172,6 +254,8 @@ class Output:
     Represents the output of a command or deployment, including success status, raw text, and parsed JSON data.
     """
 
+    _SECURE_MASK_MIN_LENGTH = 4
+
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
@@ -198,7 +282,7 @@ class Output:
 
         self.is_json = self.json_data is not None
 
-    def get(self, key: str, label: str = '', secure: bool = False, suppress_logging: bool = False) -> str | None:
+    def get(self, key: str, label: str = "", secure: bool = False, suppress_logging: bool = False) -> str | None:
         """
         Retrieve a deployment output property by key, with optional label and secure masking.
 
@@ -215,30 +299,30 @@ class Output:
             deployment_output: Any
 
             if not isinstance(self.json_data, dict):
-                raise KeyError('json_data is not a dict')
+                raise KeyError("json_data is not a dict")
 
-            if 'properties' in self.json_data:
-                properties = self.json_data.get('properties')
+            if "properties" in self.json_data:
+                properties = self.json_data.get("properties")
                 if not isinstance(properties, dict):
                     raise KeyError("'properties' is not a dict in deployment result")
 
-                outputs = properties.get('outputs')
+                outputs = properties.get("outputs")
                 if not isinstance(outputs, dict):
                     raise KeyError("'outputs' is missing or not a dict in deployment result")
 
                 output_entry = outputs.get(key)
-                if not isinstance(output_entry, dict) or 'value' not in output_entry:
+                if not isinstance(output_entry, dict) or "value" not in output_entry:
                     raise KeyError(f"Output key '{key}' not found in deployment outputs")
 
-                deployment_output = output_entry['value']
+                deployment_output = output_entry["value"]
             elif key in self.json_data:
-                deployment_output = self.json_data[key]['value']
+                deployment_output = self.json_data[key]["value"]
             else:
                 raise KeyError(f"Output key '{key}' not found in deployment outputs")
 
             if not suppress_logging and label:
-                if secure and isinstance(deployment_output, str) and len(deployment_output) >= 4:
-                    print_val(label, f'****{deployment_output[-4:]}')
+                if secure and isinstance(deployment_output, str) and len(deployment_output) >= self._SECURE_MASK_MIN_LENGTH:
+                    print_val(label, f"****{deployment_output[-4:]}")
                 else:
                     print_val(label, deployment_output)
 
@@ -253,7 +337,7 @@ class Output:
 
             return None
 
-    def getJson(self, key: str, label: str = '', secure: bool = False, suppress_logging: bool = False) -> Any:
+    def getJson(self, key: str, label: str = "", secure: bool = False, suppress_logging: bool = False) -> Any:
         """
         Retrieve a deployment output property by key and return it as a JSON object.
         This method is independent from get() and retrieves the raw deployment output value.
@@ -271,30 +355,30 @@ class Output:
             deployment_output: Any
 
             if not isinstance(self.json_data, dict):
-                raise KeyError('json_data is not a dict')
+                raise KeyError("json_data is not a dict")
 
-            if 'properties' in self.json_data:
-                properties = self.json_data.get('properties')
+            if "properties" in self.json_data:
+                properties = self.json_data.get("properties")
                 if not isinstance(properties, dict):
                     raise KeyError("'properties' is not a dict in deployment result")
 
-                outputs = properties.get('outputs')
+                outputs = properties.get("outputs")
                 if not isinstance(outputs, dict):
                     raise KeyError("'outputs' is missing or not a dict in deployment result")
 
                 output_entry = outputs.get(key)
-                if not isinstance(output_entry, dict) or 'value' not in output_entry:
+                if not isinstance(output_entry, dict) or "value" not in output_entry:
                     raise KeyError(f"Output key '{key}' not found in deployment outputs")
 
-                deployment_output = output_entry['value']
+                deployment_output = output_entry["value"]
             elif key in self.json_data:
-                deployment_output = self.json_data[key]['value']
+                deployment_output = self.json_data[key]["value"]
             else:
                 raise KeyError(f"Output key '{key}' not found in deployment outputs")  # pragma: no cover
 
             if not suppress_logging and label:
-                if secure and isinstance(deployment_output, str) and len(deployment_output) >= 4:
-                    print_val(label, f'****{deployment_output[-4:]}')
+                if secure and isinstance(deployment_output, str) and len(deployment_output) >= self._SECURE_MASK_MIN_LENGTH:
+                    print_val(label, f"****{deployment_output[-4:]}")
                 else:
                     print_val(label, deployment_output)
 
@@ -310,7 +394,7 @@ class Output:
                 try:
                     return ast.literal_eval(deployment_output)
                 except (ValueError, SyntaxError) as e:
-                    print_error(f'Failed to parse deployment output as Python literal. Error: {e}')
+                    print_error(f"Failed to parse deployment output as Python literal. Error: {e}")
 
             # Return the original result if it's not a string or can't be parsed
             return deployment_output
@@ -324,6 +408,7 @@ class Output:
 
             return None
 
+
 @dataclass
 class API:
     """
@@ -335,7 +420,7 @@ class API:
     path: str
     description: str
     policyXml: Optional[str] = None
-    operations: Optional[List['APIOperation']] = None
+    operations: Optional[List["APIOperation"]] = None
     tags: Optional[List[str]] = None
     productNames: Optional[List[str]] = None
     subscriptionRequired: bool = True
@@ -346,10 +431,17 @@ class API:
     # ------------------------------
 
     def __init__(
-        self, name: str, displayName: str, path: str, description: str,
-        policyXml: Optional[str] = None, operations: Optional[List['APIOperation']] = None,
-        tags: Optional[List[str]] = None, productNames: Optional[List[str]] = None,
-        subscriptionRequired: bool = True, serviceUrl: Optional[str] = None,
+        self,
+        name: str,
+        displayName: str,
+        path: str,
+        description: str,
+        policyXml: Optional[str] = None,
+        operations: Optional[List["APIOperation"]] = None,
+        tags: Optional[List[str]] = None,
+        productNames: Optional[List[str]] = None,
+        subscriptionRequired: bool = True,
+        serviceUrl: Optional[str] = None,
     ):
         self.name = name
         self.displayName = displayName
@@ -369,16 +461,16 @@ class API:
     def to_dict(self) -> dict:
         """Convert the API instance to a dictionary."""
         return {
-            'name': self.name,
-            'displayName': self.displayName,
-            'path': self.path,
-            'description': self.description,
-            'operations': [op.to_dict() for op in self.operations] if self.operations else [],
-            'serviceUrl': self.serviceUrl,
-            'subscriptionRequired': self.subscriptionRequired,
-            'policyXml': self.policyXml,
-            'tags': self.tags,
-            'productNames': self.productNames
+            "name": self.name,
+            "displayName": self.displayName,
+            "path": self.path,
+            "description": self.description,
+            "operations": [op.to_dict() for op in self.operations] if self.operations else [],
+            "serviceUrl": self.serviceUrl,
+            "subscriptionRequired": self.subscriptionRequired,
+            "policyXml": self.policyXml,
+            "tags": self.tags,
+            "productNames": self.productNames,
         }
 
 
@@ -400,8 +492,13 @@ class APIOperation:
     # ------------------------------
 
     def __init__(
-        self, name: str, displayName: str, urlTemplate: str, method: HTTP_VERB,
-        description: str, policyXml: Optional[str] = None,
+        self,
+        name: str,
+        displayName: str,
+        urlTemplate: str,
+        method: HTTP_VERB,
+        description: str,
+        policyXml: Optional[str] = None,
         templateParameters: Optional[List[dict[str, Any]]] = None,
     ) -> None:
         # Validate that method is a valid HTTP_VERB
@@ -409,7 +506,7 @@ class APIOperation:
             try:
                 method = HTTP_VERB(method).value
             except Exception as exc:
-                raise ValueError(f'Invalid HTTP_VERB: {method}') from exc
+                raise ValueError(f"Invalid HTTP_VERB: {method}") from exc
 
         self.name = name
         self.displayName = displayName
@@ -426,13 +523,13 @@ class APIOperation:
     def to_dict(self) -> dict:
         """Convert the API operation to a dictionary."""
         return {
-            'name': self.name,
-            'displayName': self.displayName,
-            'urlTemplate': self.urlTemplate,
-            'description': self.description,
-            'method': self.method,
-            'policyXml': self.policyXml,
-            'templateParameters': self.templateParameters
+            "name": self.name,
+            "displayName": self.displayName,
+            "urlTemplate": self.urlTemplate,
+            "description": self.description,
+            "method": self.method,
+            "policyXml": self.policyXml,
+            "templateParameters": self.templateParameters,
         }
 
 
@@ -447,7 +544,7 @@ class GET_APIOperation(APIOperation):
     # ------------------------------
 
     def __init__(self, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None):
-        super().__init__('GET', 'GET', '/', HTTP_VERB.GET, description, policyXml, templateParameters)
+        super().__init__("GET", "GET", "/", HTTP_VERB.GET, description, policyXml, templateParameters)
 
 
 @dataclass
@@ -461,7 +558,11 @@ class GET_APIOperation2(APIOperation):
     # ------------------------------
 
     def __init__(
-        self, name: str, displayName: str, urlTemplate: str, description: str,
+        self,
+        name: str,
+        displayName: str,
+        urlTemplate: str,
+        description: str,
         policyXml: Optional[str] = None,
         templateParameters: Optional[List[dict[str, Any]]] = None,
     ) -> None:
@@ -479,7 +580,7 @@ class POST_APIOperation(APIOperation):
     # ------------------------------
 
     def __init__(self, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None) -> None:
-        super().__init__('POST', 'POST', '/', HTTP_VERB.POST, description, policyXml, templateParameters)
+        super().__init__("POST", "POST", "/", HTTP_VERB.POST, description, policyXml, templateParameters)
 
 
 @dataclass
@@ -501,18 +602,13 @@ class NamedValue:
         self.value = value
         self.isSecret = isSecret
 
-
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
 
     def to_dict(self) -> dict:
         """Convert the named value to a dictionary."""
-        nv_dict = {
-            'name': self.name,
-            'value': self.value,
-            'isSecret': self.isSecret
-        }
+        nv_dict = {"name": self.name, "value": self.value, "isSecret": self.isSecret}
 
         return nv_dict
 
@@ -531,11 +627,10 @@ class PolicyFragment:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, policyXml: str, description: str = '') -> None:
+    def __init__(self, name: str, policyXml: str, description: str = "") -> None:
         self.name = name
         self.policyXml = policyXml
         self.description = description
-
 
     # ------------------------------
     #    PUBLIC METHODS
@@ -543,11 +638,7 @@ class PolicyFragment:
 
     def to_dict(self) -> dict:
         """Convert the policy fragment to a dictionary."""
-        pf_dict = {
-            'name': self.name,
-            'policyXml': self.policyXml,
-            'description': self.description
-        }
+        pf_dict = {"name": self.name, "policyXml": self.policyXml, "description": self.description}
 
         return pf_dict
 
@@ -563,7 +654,7 @@ class Product:
     name: str
     displayName: str
     description: str
-    state: str = 'published'  # 'published' or 'notPublished'
+    state: str = "published"  # 'published' or 'notPublished'
     subscriptionRequired: bool = True
     approvalRequired: bool = False
     policyXml: Optional[str] = None
@@ -573,9 +664,14 @@ class Product:
     # ------------------------------
 
     def __init__(
-        self, name: str, displayName: str, description: str,
-        state: str = 'published', subscriptionRequired: bool = True,
-        approvalRequired: bool = False, policyXml: Optional[str] = None,
+        self,
+        name: str,
+        displayName: str,
+        description: str,
+        state: str = "published",
+        subscriptionRequired: bool = True,
+        approvalRequired: bool = False,
+        policyXml: Optional[str] = None,
     ) -> None:
         self.name = name
         self.displayName = displayName
@@ -613,11 +709,11 @@ class Product:
     def to_dict(self) -> dict:
         """Convert the product to a dictionary."""
         return {
-            'name': self.name,
-            'displayName': self.displayName,
-            'description': self.description,
-            'state': self.state,
-            'subscriptionRequired': self.subscriptionRequired,
-            'approvalRequired': self.approvalRequired,
-            'policyXml': self.policyXml
+            "name": self.name,
+            "displayName": self.displayName,
+            "description": self.description,
+            "state": self.state,
+            "subscriptionRequired": self.subscriptionRequired,
+            "approvalRequired": self.approvalRequired,
+            "policyXml": self.policyXml,
         }

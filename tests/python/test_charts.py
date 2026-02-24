@@ -2,13 +2,15 @@
 Unit tests for the Charts module.
 """
 
-from unittest.mock import patch, MagicMock
-import sys
-import os
 import json
-import pytest
-import pandas as pd
+import os
+import sys
+from unittest.mock import MagicMock, patch
+
 import charts
+import pandas as pd
+import pytest
+from apimtypes import HttpStatusCode
 from charts import BarChart
 
 # Add the shared/python directory to the Python path
@@ -187,7 +189,7 @@ def test_plot_barchart_data_processing(mock_dataframe, mock_plt, sample_api_resu
     assert first_row['Run'] == 1
     assert first_row['Response Time (ms)'] == 123.0  # 0.123 * 1000
     assert first_row['Backend Index'] == 1
-    assert first_row['Status Code'] == 200
+    assert first_row['Status Code'] == HttpStatusCode.OK
 
 
 @patch('charts.plt')
@@ -464,7 +466,7 @@ def test_average_line_calculation_normal_data(mock_pd, mock_plt, sample_api_resu
         run = entry['run']
         response_time = entry['response_time']
         status_code = entry['status_code']
-        if status_code == 200 and entry['response']:
+        if status_code == HttpStatusCode.OK and entry['response']:
             try:
                 resp = json.loads(entry['response'])
                 backend_index = resp.get('index', 99)
