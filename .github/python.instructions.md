@@ -15,6 +15,12 @@ applyTo: '**/*.py'
 
 This ensures all code changes comply with the project's linting standards from the start.
 
+## Ruff Expectations
+
+- Use explicit imports (avoid `from module import *`), especially in notebooks, to prevent `F403/F405`.
+- Keep lines within the configured length limit (see `pyproject.toml`), and wrap long strings or calls.
+- Avoid f-strings without placeholders (e.g., `F541`).
+
 ## Goals
 
 - Make changes that are easy to review, test, and maintain.

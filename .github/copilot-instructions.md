@@ -70,6 +70,12 @@ Uniformity, clarity, and ease of use are paramount across all infrastructures an
 - Prefer standard libraries and well-maintained dependencies.
 - Use `samples/_TEMPLATE` as the baseline for every new sample. The template provides the canonical structure, cell order, and format. New samples must not deviate from this structure unless the sample has genuinely unique requirements.
 
+## Linting and Style
+
+- Ruff is the Python linter; follow `pyproject.toml` for line length and rule selection.
+- Prefer explicit imports over `from module import *` to avoid `F403/F405`.
+- Wrap long strings or function calls to stay within the configured line length.
+
 ## Repository Structure
 
 - `/`: Root directory containing the main files and folders. Bicep configuration is stored in `bicepconfig.json`.
