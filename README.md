@@ -280,6 +280,8 @@ Furthermore, [Houssem Dellai][houssem-dellai] was instrumental in setting up a w
 
 [Andrew Redman][andrew-redman] for contributing the _Azure Maps_ sample.
 
+[Naga Venkata Cheruvu][naga-cheruvu] for contributing the _Costing & Showback_ sample.
+
 The original author of this project is [Simon Kurtz][simon-kurtz].
 
 
@@ -316,6 +318,7 @@ _For much more API Management content, please also check out [APIM Love](https:/
 [bicep-linter-docs]: https://learn.microsoft.com/azure/azure-resource-manager/bicep/bicep-config-linter
 [houssem-dellai]: https://github.com/HoussemDellai
 [import-troubleshooting]: .devcontainer/IMPORT-TROUBLESHOOTING.md
+[naga-cheruvu]: https://github.com/ncheruvu-MSFT
 [infra-afd-apim-pe]: ./infrastructure/afd-apim-pe
 [infra-apim-aca]: ./infrastructure/apim-aca
 [infra-appgw-apim]: ./infrastructure/appgw-apim/
