@@ -20,8 +20,6 @@ param policyFragments array = []
 @maxLength(63)
 param containerName string
 
-param blobName string
-
 
 // ------------------------------
 //    RESOURCES
@@ -51,7 +49,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   properties: {
     accessTier: 'Hot'
     allowBlobPublicAccess: false
-    allowSharedKeyAccess: true
+    allowSharedKeyAccess: false
     minimumTlsVersion: 'TLS1_2'
     supportsHttpsTrafficOnly: true
   }
@@ -72,27 +70,23 @@ resource blobContainer 'Microsoft.Storage/storageAccounts/blobServices/container
   }
 }
 
-// Upload sample files to blob storage using deployment script
-module uploadSampleFilesModule 'upload-sample-files.bicep' = {
-  name: 'upload-sample-files'
-  params: {
-    location: location
-    resourceSuffix: resourceSuffix
-    storageAccountName: storageAccount.name
-    containerName: containerName
-    blobName: blobName
-  }
-  dependsOn: [
-    blobContainer
-  ]
-}
-
 // https://learn.microsoft.com/azure/templates/microsoft.authorization/roleassignments
 resource apimStorageBlobDataReaderRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(storageAccount.id, apimService.id, 'Storage Blob Data Reader')
   scope: storageAccount
   properties: {
     roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1') // Storage Blob Data Reader
+    principalId: apimService.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// https://learn.microsoft.com/azure/templates/microsoft.authorization/roleassignments
+resource apimStorageBlobDelegatorRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storageAccount.id, apimService.id, 'Storage Blob Delegator')
+  scope: storageAccount
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'db58b8e5-c6ad-4a2a-8342-4190687cbf4a') // Storage Blob Delegator
     principalId: apimService.identity.principalId
     principalType: 'ServicePrincipal'
   }
@@ -109,16 +103,6 @@ resource storageAccountNamedValue 'Microsoft.ApiManagement/service/namedValues@2
   }
 }
 
-// Add storage account key as APIM named value (for demo purposes - use Key Vault in production)
-resource storageAccountKeyNamedValue 'Microsoft.ApiManagement/service/namedValues@2024-06-01-preview' = {
-  parent: apimService
-  name: 'storage-account-key'
-  properties: {
-    displayName: 'storage-account-key'
-    value: storageAccount.listKeys().keys[0].value
-    secret: true
-  }
-}
 
 // APIM Named Values
 module namedValueModule '../../shared/bicep/modules/apim/v1/named-value.bicep' = [for nv in namedValues: {
@@ -160,8 +144,8 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
     namedValueModule              // ensure all named values are created before APIs
     policyFragmentModule          // ensure all policy fragments are created before APIs
     storageAccountNamedValue
-    storageAccountKeyNamedValue
-    apimStorageBlobDataReaderRole // ensure role assignment is complete before APIs
+    apimStorageBlobDataReaderRole // ensure role assignments are complete before APIs
+    apimStorageBlobDelegatorRole
   ]
 }]
 
@@ -177,7 +161,6 @@ output storageAccountName string = storageAccount.name
 output storageAccountId string = storageAccount.id
 output blobContainerName string = containerName
 output storageAccountEndpoint string = storageAccount.properties.primaryEndpoints.blob
-output uploadedFiles array = uploadSampleFilesModule.outputs.uploadedFiles
 
 // API outputs
 output apiOutputs array = [for i in range(0, length(apis)): {
