@@ -98,7 +98,7 @@ while true; do
   echo "  6) Show all deployed infrastructures"
   echo ""
   echo "Tests"
-  echo "  7) Run pylint"
+  echo "  7) Run ruff"
   echo "  8) Run tests (shows detailed test results)"
   echo "  9) Run full Python checks"
   echo ""
@@ -143,7 +143,7 @@ while true; do
       run_cmd pyrun "${REPO_ROOT}/shared/python/show_infrastructures.py"
       ;;
     7)
-      run_cmd bash "${REPO_ROOT}/tests/python/run_pylint.sh"
+      run_cmd bash "${REPO_ROOT}/tests/python/run_ruff.sh"
       ;;
     8)
       run_cmd bash "${REPO_ROOT}/tests/python/run_tests.sh"

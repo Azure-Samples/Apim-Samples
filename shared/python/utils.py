@@ -887,8 +887,8 @@ def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str,
 
     if replacements is not None and isinstance(replacements, dict):
         # Replace placeholders in the policy XML with provided values
-        for placeholder, value in replacements.items():
-            placeholder = '{' + placeholder + '}'
+        for key, value in replacements.items():
+            placeholder = '{' + key + '}'
 
             if placeholder in policy_template_xml:
                 policy_template_xml = policy_template_xml.replace(placeholder, value)

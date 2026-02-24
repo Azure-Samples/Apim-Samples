@@ -266,18 +266,18 @@ def test_display_infrastructures_table_formatting(monkeypatch):
     si.display_infrastructures(data, include_location=True)
 
     # Verify header row exists (contains #)
-    header_line = next((l for l in printed_lines if '#' in l and 'Infrastructure' in l), None)
+    header_line = next((line for line in printed_lines if '#' in line and 'Infrastructure' in line), None)
     assert header_line is not None
     assert 'Index' in header_line
     assert 'Resource Group' in header_line
     assert 'Location' in header_line
 
     # Verify separator row exists (all dashes)
-    separator_line = next((l for l in printed_lines if l and all(c in '- ' for c in l)), None)
+    separator_line = next((line for line in printed_lines if line and all(c in '- ' for c in line)), None)
     assert separator_line is not None
 
     # Verify data row exists
-    data_line = next((l for l in printed_lines if 'test-infra' in l), None)
+    data_line = next((line for line in printed_lines if 'test-infra' in line), None)
     assert data_line is not None
     assert 'test-rg-1' in data_line
     assert 'eastus' in data_line

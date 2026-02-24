@@ -1036,7 +1036,7 @@ def test_multi_get_merges_custom_headers(apim):
         mock_session_cls.return_value = mock_session
 
         with patch.object(apim, '_print_response_code'):
-            result = apim.multiGet('/test', runs=2, headers=custom_headers, printResponse=False)
+            apim.multiGet('/test', runs=2, headers=custom_headers, printResponse=False)
 def test_single_request_merges_custom_headers(apim):
     """Test singleGet merges custom headers with default headers."""
     custom_headers = {'X-Custom-Header': 'test-value'}

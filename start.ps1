@@ -130,7 +130,7 @@ while ($true) {
     Write-Host "  6) Show all deployed infrastructures"
     Write-Host ""
     Write-Host "Tests" -ForegroundColor Yellow
-    Write-Host "  7) Run pylint"
+    Write-Host "  7) Run ruff"
     Write-Host "  8) Run tests (shows detailed test results)"
     Write-Host "  9) Run full Python checks (most statistics)"
     Write-Host ""
@@ -174,7 +174,7 @@ while ($true) {
             PyRun "$RepoRoot/shared/python/show_infrastructures.py" | Out-Null
         }
         '7' {
-            Invoke-Cmd "$RepoRoot/tests/python/run_pylint.ps1" | Out-Null
+            Invoke-Cmd "$RepoRoot/tests/python/run_ruff.ps1" | Out-Null
         }
         '8' {
             Invoke-Cmd "$RepoRoot/tests/python/run_tests.ps1" | Out-Null

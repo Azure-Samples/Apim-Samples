@@ -21,8 +21,41 @@ dependencies = [
 [dependency-groups]
 # Developer tooling (installed automatically by default with `uv sync`)
 dev = [
-  "pylint>=4.0.0",
+  "ruff>=0.9.0",
   "pytest>=9.0.0",
   "pytest-cov>=7.0.0",
   "coverage>=7.6.4",
+]
+
+[tool.ruff]
+line-length = 150
+
+[tool.ruff.lint]
+select = [
+  "E",    # pycodestyle errors
+  "W",    # pycodestyle warnings
+  "F",    # Pyflakes
+  "PLC",  # Pylint convention
+  "PLE",  # Pylint error
+  "PLR",  # Pylint refactoring
+  "PLW",  # Pylint warning
+]
+ignore = [
+  "PLR0911",  # Too many return statements
+  "PLR0912",  # Too many branches
+  "PLR0913",  # Too many arguments
+  "PLR0914",  # Too many local variables
+  "PLR0915",  # Too many statements
+  "PLR0917",  # Too many positional arguments
+  "PLR1702",  # Too many nested blocks
+  "PLR2004",  # Magic value used in comparison
+]
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+_*)|mock_|fixture_|suppress_|temp_|fake_|monkeypatch.*)"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/python/test_*.py" = [
+  "SLF001",  # Private member access
+  "ARG001",  # Unused function argument
+  "ARG002",  # Unused method argument
+  "BLE001",  # Blind exception catch
 ]

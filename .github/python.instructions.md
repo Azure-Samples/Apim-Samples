@@ -5,12 +5,12 @@ applyTo: '**/*.py'
 
 # Copilot Instructions (Python)
 
-## Critical: Load Pylint Configuration First
+## Critical: Load Ruff Configuration First
 
-**BEFORE making any changes to Python files**, always load the pylint configuration into context:
+**BEFORE making any changes to Python files**, always load the ruff configuration into context:
 
-1. Use `read_file` to load `.pylintrc`
-2. Review the disabled rules and enabled checks
+1. Use `read_file` to load `pyproject.toml` and review the `[tool.ruff]` and `[tool.ruff.lint]` sections
+2. Review the ignored rules and per-file exceptions
 3. Apply these rules when writing or modifying Python code
 
 This ensures all code changes comply with the project's linting standards from the start.
@@ -62,8 +62,8 @@ This ensures all code changes comply with the project's linting standards from t
 
 Before completing any Python code changes, verify:
 
-- All pylint warnings and errors are resolved (`pylint --rcfile=.pylintrc <file>`)
-  - Pylint rules cover these, but we don't see .pylintrc being added to the context. Therefore, please pay special attention to these common occurrences:
+- All ruff warnings and errors are resolved (`ruff check <file>`)
+  - Ruff rules cover these, but we don't see `pyproject.toml` being added to context. Therefore, please pay special attention to these common occurrences:
       - No trailing whitespace
       - No assertion of empty strings in tests (use `assert not`)
 - Code follows PEP 8 and the style guidelines in this file

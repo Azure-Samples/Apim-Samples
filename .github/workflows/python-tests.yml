@@ -42,18 +42,18 @@ jobs:
           uv run python -c "import coverage.html; print(coverage.html.__file__)"
 
       # Lint the Python files & upload the result statistics
-      - name: Run pylint analysis
-        id: pylint
+      - name: Run ruff analysis
+        id: ruff
         run: |
-          mkdir -p tests/python/pylint/reports
-          # Use python -m pylint and tee to ensure output is captured and visible in logs
-          uv run python -m pylint --rcfile .pylintrc infrastructure samples setup shared 2>&1 | tee tests/python/pylint/reports/latest.txt
+          mkdir -p tests/python/ruff/reports
+          uv run ruff check infrastructure samples setup shared 2>&1 | tee tests/python/ruff/reports/latest.txt
+          uv run ruff check --output-format json infrastructure samples setup shared > tests/python/ruff/reports/latest.json 2>/dev/null || true
 
-      - name: Upload pylint reports
+      - name: Upload ruff reports
         uses: actions/upload-artifact@v4
         with:
-          name: pylint-reports-${{ matrix.python-version }}
-          path: tests/python/pylint/reports/
+          name: ruff-reports-${{ matrix.python-version }}
+          path: tests/python/ruff/reports/
 
       # Static code analysis through simple compilation to ensure code is syntactically sound
       - name: Verify bytecode compilation
@@ -82,17 +82,13 @@ jobs:
       - name: Extract and Summarize Metrics
         id: metrics
         run: |
-          # Pylint Score
-          TEXT_REPORT="tests/python/pylint/reports/latest.txt"
-          if [ -s "$TEXT_REPORT" ]; then
-            PYLINT_SCORE=$(grep -Eo 'Your code has been rated at [0-9.]+/10' "$TEXT_REPORT" | grep -Eo '[0-9.]+/10' | head -n 1)
-            if [ -n "$PYLINT_SCORE" ]; then
-              echo "pylint_score=$PYLINT_SCORE" >> "$GITHUB_OUTPUT"
-            else
-              echo "pylint_score=N/A" >> "$GITHUB_OUTPUT"
-            fi
+          # Ruff Issue Count
+          JSON_REPORT="tests/python/ruff/reports/latest.json"
+          if [ -f "$JSON_REPORT" ] && command -v jq &> /dev/null; then
+            RUFF_ISSUES=$(jq 'length' "$JSON_REPORT" 2>/dev/null || echo "N/A")
+            echo "ruff_issues=$RUFF_ISSUES" >> "$GITHUB_OUTPUT"
           else
-            echo "pylint_score=N/A" >> "$GITHUB_OUTPUT"
+            echo "ruff_issues=N/A" >> "$GITHUB_OUTPUT"
           fi
 
           # Coverage Percentage
@@ -114,7 +110,7 @@ jobs:
 
             | Metric | Status | Value |
             | :--- | :---: | :--- |
-            | **Pylint Score** | ${{ steps.pylint.outcome == 'success' && '✅' || '⚠️' }} | `${{ steps.metrics.outputs.pylint_score }}` |
+            | **Ruff** | ${{ steps.ruff.outcome == 'success' && '✅' || '⚠️' }} | `${{ steps.metrics.outputs.ruff_issues }} issue(s)` |
             | **Unit Tests** | ${{ steps.pytest.outcome == 'success' && '✅' || '❌' }} | `${{ steps.pytest.outcome }}` |
             | **Code Coverage** | 📊 | `${{ steps.metrics.outputs.coverage }}` |
 
@@ -122,7 +118,7 @@ jobs:
 
       - name: Generate Job Summary
         run: |
-          PYLINT_SCORE="${{ steps.metrics.outputs.pylint_score }}"
+          RUFF_ISSUES="${{ steps.metrics.outputs.ruff_issues }}"
           PYTEST_OUTCOME="${{ steps.pytest.outcome }}"
           COVERAGE="${{ steps.metrics.outputs.coverage }}"
 
@@ -130,7 +126,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Category | Status | Detail |" >> $GITHUB_STEP_SUMMARY
           echo "| :--- | :---: | :--- |" >> $GITHUB_STEP_SUMMARY
-          echo "| **Pylint** | ${{ steps.pylint.outcome == 'success' && '✅' || '⚠️' }} | Score: \`${PYLINT_SCORE:-N/A}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Ruff** | ${{ steps.ruff.outcome == 'success' && '✅' || '⚠️' }} | Issues: \`${RUFF_ISSUES:-N/A}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Pytest** | ${{ steps.pytest.outcome == 'success' && '✅' || '❌' }} | Outcome: \`${PYTEST_OUTCOME:-N/A}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Coverage** | 📊 | Total: \`${COVERAGE:-N/A}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

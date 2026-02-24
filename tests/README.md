@@ -18,7 +18,7 @@ The fastest way to validate your code changes:
 ./tests/python/check_python.sh
 ```
 
-This runs both pylint (code linting) and pytest (unit tests) with a single command.
+This runs both ruff (code linting) and pytest (unit tests) with a single command.
 
 ## Code Quality Tools
 
@@ -29,38 +29,38 @@ This runs both pylint (code linting) and pytest (unit tests) with a single comma
 ```powershell
 # Windows
 .\tests\python\check_python.ps1                 # Run all checks
-.\tests\python\check_python.ps1 -ShowLintReport # Include detailed pylint report
+.\tests\python\check_python.ps1 -ShowLintReport # Include detailed ruff report
 ```
 
 ```bash
 # Linux/macOS
 ./tests/python/check_python.sh                  # Run all checks
-./tests/python/check_python.sh --show-report    # Include detailed pylint report
+./tests/python/check_python.sh --show-report    # Include detailed ruff report
 ```
 
-### Linting Only (pylint)
+### Linting Only (ruff)
 
-Run pylint separately when you only need linting:
+Run ruff separately when you only need linting:
 
 ```powershell
 # Windows - from repository root
-.\tests\python\run_pylint.ps1                   # Default: all Python code
-.\tests\python\run_pylint.ps1 -ShowReport       # Show detailed report
-.\tests\python\run_pylint.ps1 -Target "samples" # Lint specific folder
+.\tests\python\run_ruff.ps1                   # Default: all Python code
+.\tests\python\run_ruff.ps1 -ShowReport       # Show detailed report
+.\tests\python\run_ruff.ps1 -Target "samples" # Lint specific folder
 ```
 
 ```bash
 # Linux/macOS - from repository root
-./tests/python/run_pylint.sh                    # Default: all Python code
-./tests/python/run_pylint.sh samples --show-report # Lint specific folder with report
+./tests/python/run_ruff.sh                    # Default: all Python code
+./tests/python/run_ruff.sh samples --show-report # Lint specific folder with report
 ```
 
-#### Pylint Reports
+#### Ruff Reports
 
-All pylint runs generate timestamped reports in `tests/python/pylint/reports/`:
+All ruff runs generate timestamped reports in `tests/python/ruff/reports/`:
 - **JSON format**: Machine-readable for CI/CD integration
 - **Text format**: Human-readable detailed analysis
-- **Latest symlinks**: `latest.json` and `latest.txt` always point to the most recent run
+- **Latest files**: `latest.json` and `latest.txt` always reflect the most recent run
 
 The script automatically displays a **Top 10 Issues Summary** showing the most frequent code quality issues.
 
@@ -97,7 +97,7 @@ Both scripts:
    ```powershell
    pip install coverage pytest-cov
    ```
-- Note: Running pytest only from the terminal won’t decorate the Explorer. Use the Testing UI to see coverage overlays.
+- Note: Running pytest only from the terminal won't decorate the Explorer. Use the Testing UI to see coverage overlays.
 
 **In Browser:**
 - Open `htmlcov/index.html` in your browser for detailed coverage information
@@ -106,7 +106,7 @@ Both scripts:
 
 ### Configuration Files
 
-- `.pylintrc` - Pylint configuration and rules (in repository root)
+- `pyproject.toml` - Ruff linting configuration and rules (in repository root, under `[tool.ruff]`)
 - `.coveragerc` - Coverage.py configuration
 - `pytest.ini` - Pytest configuration and markers (in repository root)
 - `conftest.py` - Shared pytest fixtures
@@ -127,7 +127,7 @@ Markers are registered in `pytest.ini`.
 On every push or pull request, GitHub Actions will:
 - Install dependencies
 - Run all Python tests with coverage
-- Run pylint on all Python code
+- Run ruff on all Python code
 - Upload coverage reports as artifacts
 
 ## Sample Test Matrix
