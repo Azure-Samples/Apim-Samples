@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1280, height=720" />
+  <title>Azure API Management Samples - Overview</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Helvetica, Arial, sans-serif; background: #1a1a2e; }
+
+    .slide {
+      width: 1280px;
+      height: 720px;
+      margin: 40px auto;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      page-break-after: always;
+    }
+
+    /* ── Slide 1: Title ── */
+    .slide-1 {
+      background: linear-gradient(135deg, #0078D4 0%, #005A9E 40%, #003A6E 100%);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 80px 100px;
+    }
+    .slide-1 .badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 20px;
+      padding: 6px 18px;
+      font-size: 14px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+      width: fit-content;
+    }
+    .slide-1 h1 {
+      font-size: 52px;
+      font-weight: 700;
+      line-height: 1.15;
+      margin-bottom: 20px;
+    }
+    .slide-1 h1 span { color: #50E6FF; }
+    .slide-1 .tagline {
+      font-size: 22px;
+      font-weight: 300;
+      line-height: 1.5;
+      max-width: 800px;
+      opacity: 0.92;
+      margin-bottom: 40px;
+    }
+    .slide-1 .value-props {
+      display: flex;
+      gap: 40px;
+      margin-top: 10px;
+    }
+    .slide-1 .value-prop {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 16px;
+      opacity: 0.9;
+    }
+    .slide-1 .value-prop .icon {
+      font-size: 24px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .slide-1 .value-prop strong { display: block; font-size: 17px; margin-bottom: 2px; }
+    .slide-1 .corner-deco {
+      position: absolute;
+      bottom: -80px;
+      right: -80px;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      background: rgba(80, 230, 255, 0.06);
+    }
+    .slide-1 .corner-deco2 {
+      position: absolute;
+      top: -60px;
+      right: 200px;
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.04);
+    }
+    .slide-1 .footer-url {
+      position: absolute;
+      bottom: 28px;
+      right: 40px;
+      font-size: 13px;
+      opacity: 0.5;
+    }
+
+    /* ── Slide 2: Highlights ── */
+    .slide-2 {
+      background: #fff;
+      color: #222;
+      padding: 50px 70px;
+    }
+    .slide-2 .header-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 36px;
+    }
+    .slide-2 .header-bar .accent {
+      width: 6px;
+      height: 40px;
+      background: #0078D4;
+      border-radius: 3px;
+    }
+    .slide-2 h2 {
+      font-size: 36px;
+      font-weight: 700;
+      color: #0078D4;
+    }
+    .slide-2 .columns {
+      display: flex;
+      gap: 40px;
+    }
+    .slide-2 .col {
+      flex: 1;
+    }
+    .slide-2 .col h3 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #005A9E;
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #0078D4;
+    }
+    .slide-2 .col ul {
+      list-style: none;
+      padding: 0;
+    }
+    .slide-2 .col li {
+      font-size: 15px;
+      line-height: 1.4;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .slide-2 .col li .bullet {
+      flex-shrink: 0;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #0078D4;
+      margin-top: 6px;
+    }
+    .slide-2 .col li:last-child { border-bottom: none; }
+    .slide-2 .bottom-banner {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
+      background: linear-gradient(90deg, #0078D4, #50E6FF);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 40px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    .slide-2 .bottom-banner .sep {
+      width: 1px;
+      height: 20px;
+      background: rgba(255,255,255,0.4);
+    }
+
+    /* ── Slide 3: Compatibility Matrix ── */
+    .slide-3 {
+      background: #f7f9fb;
+      color: #222;
+      padding: 40px 50px;
+      display: flex;
+      flex-direction: column;
+    }
+    .slide-3 .header-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 6px;
+    }
+    .slide-3 .header-bar .accent {
+      width: 6px;
+      height: 40px;
+      background: #0078D4;
+      border-radius: 3px;
+    }
+    .slide-3 h2 {
+      font-size: 34px;
+      font-weight: 700;
+      color: #0078D4;
+    }
+    .slide-3 .subtitle {
+      font-size: 16px;
+      color: #555;
+      margin-bottom: 16px;
+      margin-left: 22px;
+    }
+    .slide-3 .matrix-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .slide-3 .matrix-container img {
+      max-width: 100%;
+      max-height: 520px;
+      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.1));
+    }
+    .slide-3 .footer-note {
+      text-align: center;
+      font-size: 13px;
+      color: #888;
+      margin-top: 8px;
+    }
+
+    @media print {
+      body { background: #fff; }
+      .slide { margin: 0; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- SLIDE 1 : Title & Purpose                                   -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <div class="slide slide-1">
+    <div class="corner-deco"></div>
+    <div class="corner-deco2"></div>
+
+    <div class="badge">Azure &middot; API Management</div>
+    <h1>Azure API Management<br/><span>Samples</span></h1>
+    <p class="tagline">
+      Deploy high-fidelity APIM infrastructures in minutes and experiment with
+      real-world policy samples &mdash; an innovative <em>a la carte</em> approach
+      that is <strong>neither too much nor too little</strong>.
+    </p>
+
+    <div class="value-props">
+      <div class="value-prop">
+        <span class="icon">&#127891;</span>
+        <div>
+          <strong>Educate</strong>
+          Common APIM architectures seen across industries
+        </div>
+      </div>
+      <div class="value-prop">
+        <span class="icon">&#9889;</span>
+        <div>
+          <strong>Empower</strong>
+          Safely experiment with APIM policies
+        </div>
+      </div>
+      <div class="value-prop">
+        <span class="icon">&#128640;</span>
+        <div>
+          <strong>Accelerate</strong>
+          High-fidelity building blocks for integration
+        </div>
+      </div>
+    </div>
+
+    <span class="footer-url">https://aka.ms/apim/samples</span>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- SLIDE 2 : Highlights                                        -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <div class="slide slide-2">
+    <div class="header-bar">
+      <div class="accent"></div>
+      <h2>What's Inside</h2>
+    </div>
+
+    <div class="columns">
+      <!-- Infrastructures -->
+      <div class="col">
+        <h3>5 Production-Grade Infrastructures</h3>
+        <ul>
+          <li><div class="bullet"></div><div><strong>Simple APIM</strong> &mdash; Publicly accessible; fastest to deploy (~5 min)</div></li>
+          <li><div class="bullet"></div><div><strong>APIM & Container Apps</strong> &mdash; APIs in ACA with public access</div></li>
+          <li><div class="bullet"></div><div><strong>Front Door & APIM (PE)</strong> &mdash; Private Link via Microsoft backbone</div></li>
+          <li><div class="bullet"></div><div><strong>App Gateway & APIM (PE)</strong> &mdash; Private endpoint to APIM Standard V2</div></li>
+          <li><div class="bullet"></div><div><strong>App Gateway & APIM (VNet)</strong> &mdash; Full VNet injection, max isolation</div></li>
+        </ul>
+      </div>
+
+      <!-- Samples -->
+      <div class="col">
+        <h3>8 Real-World Policy Samples</h3>
+        <ul>
+          <li><div class="bullet"></div><div><strong>AuthX</strong> &mdash; Authentication & role-based authorization</div></li>
+          <li><div class="bullet"></div><div><strong>AuthX Pro</strong> &mdash; Multi-API auth with policy fragments</div></li>
+          <li><div class="bullet"></div><div><strong>Azure Maps</strong> &mdash; Proxying calls to Azure Maps</div></li>
+          <li><div class="bullet"></div><div><strong>Costing & Showback</strong> &mdash; Cost allocation per business unit</div></li>
+          <li><div class="bullet"></div><div><strong>OAuth 3rd Party</strong> &mdash; Credential Manager with Spotify</div></li>
+          <li><div class="bullet"></div><div><strong>General</strong> &mdash; Basic APIM setup & policy usage</div></li>
+          <li><div class="bullet"></div><div><strong>Load Balancing</strong> &mdash; Priority & weighted backends</div></li>
+          <li><div class="bullet"></div><div><strong>Secure Blob Access</strong> &mdash; Valet key pattern</div></li>
+        </ul>
+      </div>
+
+      <!-- Key Features -->
+      <div class="col">
+        <h3>Key Features</h3>
+        <ul>
+          <li><div class="bullet"></div><div><strong>A la carte</strong> &mdash; Mix any sample with any compatible infrastructure</div></li>
+          <li><div class="bullet"></div><div><strong>Jupyter Notebooks</strong> &mdash; Guided, interactive deployment & experimentation</div></li>
+          <li><div class="bullet"></div><div><strong>Bicep IaC</strong> &mdash; Repeatable, parameterized infrastructure as code</div></li>
+          <li><div class="bullet"></div><div><strong>Dev Container</strong> &mdash; One-click Codespaces or local Dev Container setup</div></li>
+          <li><div class="bullet"></div><div><strong>Developer CLI</strong> &mdash; Interactive menu for setup, testing & verification</div></li>
+          <li><div class="bullet"></div><div><strong>Cross-Platform</strong> &mdash; Windows, Linux, macOS support</div></li>
+          <li><div class="bullet"></div><div><strong>Tested</strong> &mdash; CI with pytest, pylint, and coverage</div></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="bottom-banner">
+      <span>5 Infrastructures</span>
+      <div class="sep"></div>
+      <span>8 Samples</span>
+      <div class="sep"></div>
+      <span>Codespaces Ready</span>
+      <div class="sep"></div>
+      <span>OpenSSF Best Practices</span>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <!-- SLIDE 3 : Compatibility Matrix                              -->
+  <!-- ════════════════════════════════════════════════════════════ -->
+  <div class="slide slide-3">
+    <div class="header-bar">
+      <div class="accent"></div>
+      <h2>Infrastructure &times; Sample Compatibility</h2>
+    </div>
+    <p class="subtitle">
+      Most samples work with all infrastructures &mdash; a truly <em>a la carte</em> experience.
+    </p>
+
+    <div class="matrix-container">
+      <img src="diagrams/Infrastructure-Sample-Compatibility.svg"
+           alt="Infrastructure and Sample Compatibility Matrix" />
+    </div>
+
+    <p class="footer-note">
+      https://aka.ms/apim/samples
+    </p>
+  </div>
+
+</body>
+</html>

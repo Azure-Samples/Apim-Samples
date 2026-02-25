@@ -88,6 +88,9 @@ resource apimTags 'Microsoft.ApiManagement/service/tags@2024-06-01-preview' = [f
 resource apimApiTags 'Microsoft.ApiManagement/service/apis/tags@2024-06-01-preview' = [for tag in tagList: {
   name: tag
   parent: apimApi
+  dependsOn: [
+    apimTags
+  ]
 }]
 
 // https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/apis/policies

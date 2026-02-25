@@ -70,6 +70,12 @@ Uniformity, clarity, and ease of use are paramount across all infrastructures an
 - Prefer standard libraries and well-maintained dependencies.
 - Use `samples/_TEMPLATE` as the baseline for every new sample. The template provides the canonical structure, cell order, and format. New samples must not deviate from this structure unless the sample has genuinely unique requirements.
 
+## Linting and Style
+
+- Ruff is the Python linter; follow `pyproject.toml` for line length and rule selection.
+- Prefer explicit imports over `from module import *` to avoid `F403/F405`.
+- Wrap long strings or function calls to stay within the configured line length.
+
 ## Repository Structure
 
 - `/`: Root directory containing the main files and folders. Bicep configuration is stored in `bicepconfig.json`.
@@ -113,7 +119,7 @@ All infrastructure notebooks must follow this exact cell pattern:
 
 #### Cell 3: Clean Up (Markdown)
 - Heading: `### 🗑️ Clean up resources`
-- Standard text: "When you're finished experimenting, it's advisable to remove all associated resources from Azure to avoid unnecessary cost. Use the [clean-up notebook](clean-up.ipynb) for that."
+- Standard text: "When you're finished experimenting, it's advisable to remove all associated resources from Azure to avoid unnecessary cost. Use the clean-up notebook for that."
 
 ### Infrastructure README.md
 

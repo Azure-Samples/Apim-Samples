@@ -4,20 +4,20 @@
     Run comprehensive Python code quality checks (linting and testing).
 
 .DESCRIPTION
-    This script executes both pylint linting and pytest testing in sequence,
+    This script executes both ruff linting and pytest testing in sequence,
     providing a complete code quality assessment. It's the recommended way
     to validate Python code changes before committing.
 
     The script can be run from anywhere in the repository and will:
-    - Execute pylint on all Python code with detailed reporting
+    - Execute ruff on all Python code with detailed reporting
     - Run the full test suite with coverage analysis
     - Display combined results and exit with appropriate status code
 
 .PARAMETER ShowLintReport
-    Display the full pylint text report after completion.
+    Display the full ruff text report after completion.
 
 .PARAMETER Target
-    Path to analyze for pylint. Defaults to all Python files in the repository.
+    Path to analyze for ruff. Defaults to all Python files in the repository.
 
 .EXAMPLE
     .\check_python.ps1
@@ -25,7 +25,7 @@
 
 .EXAMPLE
     .\check_python.ps1 -ShowLintReport
-    Run checks and show detailed pylint report
+    Run checks and show detailed ruff report
 
 .EXAMPLE
     .\check_python.ps1 -Target "samples"
@@ -48,12 +48,12 @@ Write-Host ""
 
 
 # ------------------------------
-#    STEP 1: RUN PYLINT
+#    STEP 1: RUN RUFF
 # ------------------------------
 
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
-Write-Host "  Step 1/2: Running Pylint   " -ForegroundColor Yellow
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
+Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
+Write-Host "  Step 1/2: Running Ruff    " -ForegroundColor Yellow
+Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
 Write-Host ""
 
 $LintArgs = @{
@@ -63,7 +63,7 @@ if ($ShowLintReport) {
     $LintArgs.ShowReport = $true
 }
 
-& "$ScriptDir\run_pylint.ps1" @LintArgs
+& "$ScriptDir\run_ruff.ps1" @LintArgs
 $LintExitCode = $LASTEXITCODE
 
 Write-Host ""
@@ -72,9 +72,9 @@ Write-Host ""
 # ------------------------------
 #    STEP 2: RUN TESTS
 # ------------------------------
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
-Write-Host "  Step 2/2: Running Tests    " -ForegroundColor Yellow
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
+Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
+Write-Host "  Step 2/2: Running Tests   " -ForegroundColor Yellow
+Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
 Write-Host ""
 
 # Capture test output and pass it through to console while also capturing it
@@ -156,37 +156,28 @@ Write-Host ""
 $LintStatus = if ($LintExitCode -eq 0) { "✅ PASSED" } else { "⚠️  ISSUES FOUND" } # leave two spaces after yellow triangle to display correctly
 $TestStatus = if ($FailedTests -eq 0 -and $TestExitCode -eq 0) { "✅ PASSED" } else { "❌ FAILED" }
 
-# Get pylint score
-$PylintScore = $null
-$PylintIssueCount = $null
-$LatestPylintText = Join-Path $ScriptDir "pylint/reports/latest.txt"
-$LatestPylintJson = Join-Path $ScriptDir "pylint/reports/latest.json"
+# Get ruff issue count
+$RuffIssueCount = $null
+$LatestRuffJson = Join-Path $ScriptDir "ruff/reports/latest.json"
 
-if (Test-Path $LatestPylintText) {
-    $ScoreMatch = Select-String -Path $LatestPylintText -Pattern 'rated at (\d+(?:\.\d+)?/10)' | Select-Object -First 1
-    if ($ScoreMatch -and $ScoreMatch.Matches.Count -gt 0) {
-        $PylintScore = $ScoreMatch.Matches[0].Groups[1].Value
-    }
-}
-
-if (Test-Path $LatestPylintJson) {
+if (Test-Path $LatestRuffJson) {
     try {
-        $RawJson = Get-Content $LatestPylintJson -Raw
+        $RawJson = Get-Content $LatestRuffJson -Raw
         if ($RawJson -and $RawJson.Trim()) {
             $Issues = $RawJson | ConvertFrom-Json
             if ($null -eq $Issues) {
-                $PylintIssueCount = 0
+                $RuffIssueCount = 0
             }
             elseif ($Issues -is [System.Array]) {
-                $PylintIssueCount = $Issues.Count
+                $RuffIssueCount = $Issues.Count
             }
             else {
-                $PylintIssueCount = 1
+                $RuffIssueCount = 1
             }
         }
     }
     catch {
-        $PylintIssueCount = $null
+        $RuffIssueCount = $null
     }
 }
 
@@ -194,21 +185,13 @@ if (Test-Path $LatestPylintJson) {
 $LintColor = if ($LintExitCode -eq 0) { "Green" } else { "Yellow" }
 $TestColor = if ($FailedTests -eq 0 -and $TestExitCode -eq 0) { "Green" } else { "Red" }
 
-# Display Pylint status with score
-Write-Host "Pylint   : " -NoNewline
+# Display Ruff status with issue count
+Write-Host "Ruff     : " -NoNewline
 Write-Host $LintStatus -ForegroundColor $LintColor -NoNewline
-$PylintDetails = @()
-if ($PylintScore) {
-    $PylintDetails += $PylintScore
-}
-if ($PylintIssueCount -ne $null) {
-    $IssueLabel = if ($PylintIssueCount -eq 1) { "1 issue" } else { "$PylintIssueCount issues" }
-    $PylintDetails += $IssueLabel
-}
-
-if ($PylintDetails.Count -gt 0) {
+if ($RuffIssueCount -ne $null) {
+    $IssueLabel = if ($RuffIssueCount -eq 1) { "1 issue" } else { "$RuffIssueCount issues" }
     Write-Host " (" -ForegroundColor Gray -NoNewline
-    Write-Host ($PylintDetails -join " | ") -ForegroundColor Gray -NoNewline
+    Write-Host $IssueLabel -ForegroundColor Gray -NoNewline
     Write-Host ")" -ForegroundColor Gray
 } else {
     Write-Host ""

@@ -5,11 +5,12 @@ This module will likely be moved to the /shared/python directory in the future o
 """
 
 import json
-import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle as pltRectangle
-import matplotlib as mpl
 
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import pandas as pd
+from apimtypes import HttpStatusCode
+from matplotlib.patches import Rectangle as pltRectangle
 
 # ------------------------------
 #    CLASSES
@@ -72,7 +73,7 @@ class BarChart:
             response_time = entry['response_time']
             status_code = entry['status_code']
 
-            if status_code == 200 and entry['response']:
+            if status_code == HttpStatusCode.OK and entry['response']:
                 try:
                     resp = json.loads(entry['response'])
                     backend_index = resp.get('index', 99)
@@ -91,14 +92,14 @@ class BarChart:
 
         mpl.rcParams['figure.figsize'] = [15, 7]
 
-        # Define a color map for each backend index (200) and errors (non-200 always lightcoral)
-        backend_indexes_200 = sorted(df[df['Status Code'] == 200]['Backend Index'].unique())
+        # Define a color map for each backend index (OK) and errors (non-OK always lightcoral)
+        backend_indexes_200 = sorted(df[df['Status Code'] == HttpStatusCode.OK]['Backend Index'].unique())
         color_palette = ['lightyellow', 'lightblue', 'lightgreen', 'plum', 'orange']
         color_map_200 = {idx: color_palette[i % len(color_palette)] for i, idx in enumerate(backend_indexes_200)}
 
         bar_colors = []
         for _, row in df.iterrows():
-            if row['Status Code'] == 200:
+            if row['Status Code'] == HttpStatusCode.OK:
                 bar_colors.append(color_map_200.get(row['Backend Index'], 'gray'))
             else:
                 bar_colors.append('lightcoral')
@@ -129,7 +130,7 @@ class BarChart:
         plt.xticks(rotation = 0)
 
         # Exclude high outliers for average calculation
-        valid_200 = df[(df['Status Code'] == 200)].copy()
+        valid_200 = df[(df['Status Code'] == HttpStatusCode.OK)].copy()
 
         # Exclude high outliers (e.g., above 95th percentile)
         if not valid_200.empty:

@@ -33,7 +33,7 @@ htmlcov/
 tests/python/htmlcov/
 
 # Pylint reports
-tests/python/pylint/reports/
+tests/python/ruff/reports/
 tests/python/$JsonReport
 tests/python/$TextReport
 
