@@ -12,7 +12,7 @@ import pytest
 # APIM Samples imports
 import console
 import infrastructures
-from apimtypes import INFRASTRUCTURE, APIM_SKU, APIMNetworkMode, API, PolicyFragment, Output
+from apimtypes import INFRASTRUCTURE, APIM_SKU, APIMNetworkMode, API, PolicyFragment, Output, Region
 from test_helpers import (
     capture_module_print_log,
     patch_module_thread_safe_printing,
@@ -24,7 +24,7 @@ from test_helpers import (
 #    CONSTANTS
 # ------------------------------
 
-TEST_LOCATION = 'eastus2'
+TEST_LOCATION = Region.EAST_US_2
 TEST_INDEX = 1
 TEST_APIM_SKU = APIM_SKU.BASICV2
 TEST_NETWORK_MODE = APIMNetworkMode.PUBLIC
@@ -73,14 +73,14 @@ def test_infrastructure_creation_with_custom_values(mock_utils):
     infra = infrastructures.Infrastructure(
         infra=INFRASTRUCTURE.APIM_ACA,
         index=2,
-        rg_location='westus2',
+        rg_location=Region.WEST_US_2,
         apim_sku=APIM_SKU.PREMIUM,
         networkMode=APIMNetworkMode.EXTERNAL_VNET
     )
 
     assert infra.infra == INFRASTRUCTURE.APIM_ACA
     assert infra.index == 2
-    assert infra.rg_location == 'westus2'
+    assert infra.rg_location == Region.WEST_US_2
     assert infra.apim_sku == APIM_SKU.PREMIUM
     assert infra.networkMode == APIMNetworkMode.EXTERNAL_VNET
 
