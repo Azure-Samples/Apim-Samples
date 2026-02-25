@@ -168,7 +168,7 @@ Structure:
    - Standard library imports (time, json, tempfile, requests, pathlib, datetime)
    - `utils`, `apimtypes`, `console`, `azure_resources` (including `az`, `get_infra_rg_name`, `get_account_info`)
 2. USER CONFIGURATION section:
-   - `rg_location`: Azure region (default: 'eastus2')
+   - `rg_location`: Azure region (default: `Region.EAST_US_2`)
    - `index`: Deployment index for resource naming (default: 1)
    - `deployment`: Selected infrastructure type (reference INFRASTRUCTURE enum options)
    - `api_prefix`: Prefix for APIs to avoid naming collisions

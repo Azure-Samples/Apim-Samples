@@ -1,6 +1,7 @@
 """
 Shared test configuration and fixtures for pytest.
 """
+
 import os
 import sys
 from typing import Any
@@ -8,51 +9,55 @@ from typing import Any
 import pytest
 
 # Add the shared/python directory to the Python path for all tests
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../shared/python')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../shared/python")))
 
 # Add the tests/python directory to import test_helpers
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 # APIM Samples imports (must come after the sys path inserts)
+from apimtypes import Region
 from test_helpers import (
+    MockApimRequestsPatches,
+    MockInfrastructuresPatches,
     create_mock_http_response,
     create_mock_output,
     create_sample_apis,
     create_sample_policy_fragments,
     get_sample_infrastructure_params,
-    MockApimRequestsPatches,
-    MockInfrastructuresPatches
 )
-
 
 # ------------------------------
 #    SHARED FIXTURES
 # ------------------------------
 
-@pytest.fixture(scope='session')
+
+@pytest.fixture(scope="session")
 def shared_python_path() -> str:
     """Provide the path to the shared Python modules."""
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), '../../shared/python'))
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "../../shared/python"))
 
-@pytest.fixture(scope='session')
+
+@pytest.fixture(scope="session")
 def test_data_path() -> str:
     """Provide the path to test data files."""
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), 'data'))
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "data"))
+
 
 @pytest.fixture
 def sample_test_data() -> dict[str, Any]:
     """Provide sample test data for use across tests."""
     return {
-        'test_url': 'https://test-apim.azure-api.net',
-        'test_subscription_key': 'test-subscription-key-123',
-        'test_resource_group': 'rg-test-apim-01',
-        'test_location': 'eastus2'
+        "test_url": "https://test-apim.azure-api.net",
+        "test_subscription_key": "test-subscription-key-123",
+        "test_resource_group": "rg-test-apim-01",
+        "test_location": Region.EAST_US_2,
     }
 
 
 # ------------------------------
 #    MOCK FIXTURES
 # ------------------------------
+
 
 @pytest.fixture(autouse=True)
 def infrastructures_patches():
@@ -76,13 +81,13 @@ def mock_az(infrastructures_patches):
 @pytest.fixture
 def mock_az_success():
     """Pre-configured successful Azure CLI output."""
-    return create_mock_output(success=True, json_data={'result': 'success'})
+    return create_mock_output(success=True, json_data={"result": "success"})
 
 
 @pytest.fixture
 def mock_az_failure():
     """Pre-configured failed Azure CLI output."""
-    return create_mock_output(success=False, text='Error message')
+    return create_mock_output(success=False, text="Error message")
 
 
 @pytest.fixture
@@ -106,19 +111,13 @@ def sample_infrastructure_params() -> dict[str, Any]:
 @pytest.fixture
 def mock_http_response_200():
     """Pre-configured successful HTTP response."""
-    return create_mock_http_response(
-        status_code=200,
-        json_data={'result': 'ok'}
-    )
+    return create_mock_http_response(status_code=200, json_data={"result": "ok"})
 
 
 @pytest.fixture
 def mock_http_response_error():
     """Pre-configured error HTTP response."""
-    return create_mock_http_response(
-        status_code=500,
-        text='Internal Server Error'
-    )
+    return create_mock_http_response(status_code=500, text="Internal Server Error")
 
 
 @pytest.fixture

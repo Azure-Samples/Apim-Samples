@@ -2,20 +2,20 @@
 Shared test helpers, mock factories, and assertion utilities.
 """
 
-import io
-import logging
 import builtins
-from collections.abc import Callable
-from unittest.mock import Mock, MagicMock, mock_open, patch
+import io
 import json as json_module
+import logging
+from collections.abc import Callable
+from unittest.mock import MagicMock, Mock, mock_open, patch
 
 # APIM Samples imports
-from apimtypes import APIM_SKU, APIMNetworkMode, API, APIOperation, PolicyFragment, Output, HTTP_VERB
-
+from apimtypes import API, APIM_SKU, HTTP_VERB, APIMNetworkMode, APIOperation, Output, PolicyFragment, Region
 
 # ------------------------------
 #    PATCH HELPERS
 # ------------------------------
+
 
 def suppress_module_functions(monkeypatch, module, names: list[str]) -> None:
     """Suppress noisy functions on a module by replacing them with a no-op."""
@@ -47,8 +47,8 @@ def patch_module_thread_safe_printing(
     *,
     print_log: Callable[..., object] | None = None,
     lock: object | None = None,
-    lock_attr: str = '_print_lock',
-    log_attr: str = '_print_log'
+    lock_attr: str = "_print_lock",
+    log_attr: str = "_print_log",
 ) -> object:
     """Patch a module's internal thread-safe printing primitives.
 
@@ -71,6 +71,7 @@ def patch_module_thread_safe_printing(
         lock = MagicMock()
 
     if print_log is None:
+
         def _noop(*args, **kwargs):
             return None
 
@@ -81,13 +82,7 @@ def patch_module_thread_safe_printing(
     return lock
 
 
-def capture_module_print_log(
-    monkeypatch,
-    module,
-    *,
-    lock_attr: str = '_print_lock',
-    log_attr: str = '_print_log'
-) -> list[dict[str, object]]:
+def capture_module_print_log(monkeypatch, module, *, lock_attr: str = "_print_lock", log_attr: str = "_print_log") -> list[dict[str, object]]:
     """Capture calls to a module's internal print-log function.
 
     Returns a list of dict entries with keys: msg, icon, color, kwargs.
@@ -96,24 +91,13 @@ def capture_module_print_log(
     calls: list[dict[str, object]] = []
 
     def _print_log(msg, icon, color, **kwargs):
-        calls.append({'msg': msg, 'icon': icon, 'color': color, 'kwargs': kwargs})
+        calls.append({"msg": msg, "icon": icon, "color": color, "kwargs": kwargs})
 
-    patch_module_thread_safe_printing(
-        monkeypatch,
-        module,
-        print_log=_print_log,
-        lock_attr=lock_attr,
-        log_attr=log_attr
-    )
+    patch_module_thread_safe_printing(monkeypatch, module, print_log=_print_log, lock_attr=lock_attr, log_attr=log_attr)
     return calls
 
-def patch_open_for_text_read(
-    monkeypatch,
-    *,
-    match: str | Callable[[str], bool],
-    read_data: str | None = None,
-    raises: Exception | None = None
-):
+
+def patch_open_for_text_read(monkeypatch, *, match: str | Callable[[str], bool], read_data: str | None = None, raises: Exception | None = None):
     """Patch builtins.open for a specific text-mode path match.
 
     Only intercepts when 'b' is not present in the requested mode.
@@ -123,18 +107,18 @@ def patch_open_for_text_read(
     open_mock = mock_open(read_data=read_data) if read_data is not None else None
 
     def open_selector(file, *args, **kwargs):
-        mode = kwargs.get('mode', args[0] if args else 'r')
+        mode = kwargs.get("mode", args[0] if args else "r")
         file_str = str(file)
         is_match = match(file_str) if callable(match) else file_str == str(match)
 
-        if is_match and 'b' not in mode:
+        if is_match and "b" not in mode:
             if raises is not None:
                 raise raises
             return open_mock(file, *args, **kwargs)
 
         return real_open(file, *args, **kwargs)
 
-    monkeypatch.setattr(builtins, 'open', open_selector)
+    monkeypatch.setattr(builtins, "open", open_selector)
     return open_mock
 
 
@@ -155,28 +139,24 @@ def mock_popen(monkeypatch, *, stdout_lines: list[str], returncode: int = 0) -> 
         def __exit__(self, *args):
             return False
 
-    monkeypatch.setattr('subprocess.Popen', MockProcess)
+    monkeypatch.setattr("subprocess.Popen", MockProcess)
 
 
 def patch_os_paths(
-    monkeypatch,
-    *,
-    cwd: str = '/test/dir',
-    exists: bool | Callable[[str], bool] = True,
-    basename: str | Callable[[str], str] = 'test-dir'
+    monkeypatch, *, cwd: str = "/test/dir", exists: bool | Callable[[str], bool] = True, basename: str | Callable[[str], str] = "test-dir"
 ) -> None:
     """Patch common os.getcwd / os.path.exists / os.path.basename for tests."""
-    monkeypatch.setattr('os.getcwd', MagicMock(return_value=cwd))
+    monkeypatch.setattr("os.getcwd", MagicMock(return_value=cwd))
 
     if callable(exists):
-        monkeypatch.setattr('os.path.exists', exists)
+        monkeypatch.setattr("os.path.exists", exists)
     else:
-        monkeypatch.setattr('os.path.exists', MagicMock(return_value=exists))
+        monkeypatch.setattr("os.path.exists", MagicMock(return_value=exists))
 
     if callable(basename):
-        monkeypatch.setattr('os.path.basename', basename)
+        monkeypatch.setattr("os.path.basename", basename)
     else:
-        monkeypatch.setattr('os.path.basename', MagicMock(return_value=basename))
+        monkeypatch.setattr("os.path.basename", MagicMock(return_value=basename))
 
 
 def patch_create_bicep_deployment_group_dependencies(
@@ -184,9 +164,9 @@ def patch_create_bicep_deployment_group_dependencies(
     *,
     az_module,
     run_success: bool = True,
-    cwd: str = '/test/dir',
+    cwd: str = "/test/dir",
     exists: bool | Callable[[str], bool] = True,
-    basename: str | Callable[[str], str] = 'test-dir'
+    basename: str | Callable[[str], str] = "test-dir",
 ):
     """Patch common dependencies for utils.create_bicep_deployment_group tests.
 
@@ -194,14 +174,14 @@ def patch_create_bicep_deployment_group_dependencies(
         tuple: (mock_create_resource_group, mock_az_run, mock_open)
     """
     mock_create_rg = MagicMock()
-    monkeypatch.setattr(az_module, 'create_resource_group', mock_create_rg)
+    monkeypatch.setattr(az_module, "create_resource_group", mock_create_rg)
 
     mock_run = MagicMock(return_value=MagicMock(success=run_success))
-    monkeypatch.setattr(az_module, 'run', mock_run)
+    monkeypatch.setattr(az_module, "run", mock_run)
 
     open_mock = mock_open()
-    monkeypatch.setattr(builtins, 'open', open_mock)
-    monkeypatch.setattr(builtins, 'print', MagicMock())
+    monkeypatch.setattr(builtins, "open", open_mock)
+    monkeypatch.setattr(builtins, "print", MagicMock())
 
     patch_os_paths(monkeypatch, cwd=cwd, exists=exists, basename=basename)
 
@@ -212,7 +192,8 @@ def patch_create_bicep_deployment_group_dependencies(
 #    MOCK FACTORIES
 # ------------------------------
 
-def create_mock_output(success: bool = True, text: str = '', json_data: dict | None = None) -> Output:
+
+def create_mock_output(success: bool = True, text: str = "", json_data: dict | None = None) -> Output:
     """
     Factory for creating consistent mock Azure CLI Output objects.
 
@@ -232,11 +213,11 @@ def create_mock_output(success: bool = True, text: str = '', json_data: dict | N
 
 def create_mock_az_module(
     rg_exists: bool = True,
-    rg_name: str = 'rg-test-infrastructure-01',
-    account_info: tuple = ('test_user', 'test_user_id', 'test_tenant', 'test_subscription'),
-    resource_suffix: str = 'abc123def456',
+    rg_name: str = "rg-test-infrastructure-01",
+    account_info: tuple = ("test_user", "test_user_id", "test_tenant", "test_subscription"),
+    resource_suffix: str = "abc123def456",
     run_success: bool = True,
-    run_output: dict | str | None = None
+    run_output: dict | str | None = None,
 ):
     """
     Factory for creating a mock azure_resources (az) module.
@@ -261,15 +242,15 @@ def create_mock_az_module(
 
     # Configure default run output
     if run_output is None:
-        run_output = {'outputs': 'test'}
+        run_output = {"outputs": "test"}
 
     mock_output = Mock()
     mock_output.success = run_success
 
     if isinstance(run_output, dict):
         mock_output.json_data = run_output
-        mock_output.get.return_value = 'https://test-apim.azure-api.net'
-        mock_output.getJson.return_value = ['api1', 'api2']
+        mock_output.get.return_value = "https://test-apim.azure-api.net"
+        mock_output.getJson.return_value = ["api1", "api2"]
     else:
         mock_output.text = run_output
 
@@ -280,9 +261,9 @@ def create_mock_az_module(
 
 def create_mock_utils_module(
     tags: dict | None = None,
-    policy_xml: str = '<policies><inbound><base /></inbound></policies>',
-    policy_path: str = '/mock/path/policy.xml',
-    verify_result: bool = True
+    policy_xml: str = "<policies><inbound><base /></inbound></policies>",
+    policy_path: str = "/mock/path/policy.xml",
+    verify_result: bool = True,
 ):
     """
     Factory for creating a mock utils module.
@@ -297,7 +278,7 @@ def create_mock_utils_module(
         Mock configured with common utils patterns
     """
     if tags is None:
-        tags = {'environment': 'test', 'project': 'apim-samples'}
+        tags = {"environment": "test", "project": "apim-samples"}
 
     mock_utils = Mock()
     mock_utils.build_infrastructure_tags.return_value = tags
@@ -318,14 +299,7 @@ def create_sample_policy_fragments(count: int = 2) -> list[PolicyFragment]:
     Returns:
         List of PolicyFragment objects
     """
-    return [
-        PolicyFragment(
-            f'Test-Fragment-{i+1}',
-            f'<policy>test{i+1}</policy>',
-            f'Test fragment {i+1}'
-        )
-        for i in range(count)
-    ]
+    return [PolicyFragment(f"Test-Fragment-{i + 1}", f"<policy>test{i + 1}</policy>", f"Test fragment {i + 1}") for i in range(count)]
 
 
 def create_sample_apis(count: int = 2) -> list[API]:
@@ -339,13 +313,7 @@ def create_sample_apis(count: int = 2) -> list[API]:
         List of API objects
     """
     return [
-        API(
-            f'test-api-{i+1}',
-            f'Test API {i+1}',
-            f'/test{i+1}',
-            f'Test API {i+1} description',
-            f'<policy>api{i+1}</policy>'
-        )
+        API(f"test-api-{i + 1}", f"Test API {i + 1}", f"/test{i + 1}", f"Test API {i + 1} description", f"<policy>api{i + 1}</policy>")
         for i in range(count)
     ]
 
@@ -362,13 +330,7 @@ def create_sample_api_operations(count: int = 2) -> list[APIOperation]:
     """
     verbs = [HTTP_VERB.GET, HTTP_VERB.POST, HTTP_VERB.PUT, HTTP_VERB.DELETE]
     return [
-        APIOperation(
-            f'operation-{i+1}',
-            f'Operation {i+1}',
-            verbs[i % len(verbs)],
-            f'/resource{i+1}',
-            f'<policy>operation{i+1}</policy>'
-        )
+        APIOperation(f"operation-{i + 1}", f"Operation {i + 1}", verbs[i % len(verbs)], f"/resource{i + 1}", f"<policy>operation{i + 1}</policy>")
         for i in range(count)
     ]
 
@@ -376,6 +338,7 @@ def create_sample_api_operations(count: int = 2) -> list[APIOperation]:
 # ------------------------------
 #    ASSERTION HELPERS
 # ------------------------------
+
 
 def assert_bicep_params_structure(params: dict) -> None:
     """
@@ -390,18 +353,13 @@ def assert_bicep_params_structure(params: dict) -> None:
     assert isinstance(params, dict), "Bicep params must be a dict"
 
     # Common required parameters
-    required_keys = ['location', 'resourceSuffix']
+    required_keys = ["location", "resourceSuffix"]
     for key in required_keys:
         assert key in params, f"Missing required bicep parameter: {key}"
-        assert 'value' in params[key], f"Parameter {key} missing 'value' key"
+        assert "value" in params[key], f"Parameter {key} missing 'value' key"
 
 
-def assert_infrastructure_components(
-    infra,
-    expected_min_apis: int = 1,
-    expected_min_pfs: int = 6,
-    check_rg: bool = True
-) -> None:
+def assert_infrastructure_components(infra, expected_min_apis: int = 1, expected_min_pfs: int = 6, check_rg: bool = True) -> None:
     """
     Verify infrastructure instance has expected components initialized.
 
@@ -418,14 +376,12 @@ def assert_infrastructure_components(
     apis = infra._define_apis()
     pfs = infra._define_policy_fragments()
 
-    assert len(apis) >= expected_min_apis, \
-        f"Expected at least {expected_min_apis} APIs, got {len(apis)}"
-    assert len(pfs) >= expected_min_pfs, \
-        f"Expected at least {expected_min_pfs} policy fragments, got {len(pfs)}"
+    assert len(apis) >= expected_min_apis, f"Expected at least {expected_min_apis} APIs, got {len(apis)}"
+    assert len(pfs) >= expected_min_pfs, f"Expected at least {expected_min_pfs} policy fragments, got {len(pfs)}"
 
     if check_rg:
-        assert hasattr(infra, 'rg_name'), "Infrastructure missing rg_name"
-        assert hasattr(infra, 'rg_location'), "Infrastructure missing rg_location"
+        assert hasattr(infra, "rg_name"), "Infrastructure missing rg_name"
+        assert hasattr(infra, "rg_location"), "Infrastructure missing rg_location"
         assert infra.rg_name, "rg_name should not be empty"
 
 
@@ -443,9 +399,9 @@ def assert_api_structure(api: API, check_operations: bool = False) -> None:
     assert api.name, "API name should not be empty"
     assert api.displayName, "API displayName should not be empty"
     assert api.path, "API path should not be empty"
-    assert hasattr(api, 'operations'), "API missing operations attribute"
-    assert hasattr(api, 'tags'), "API missing tags attribute"
-    assert hasattr(api, 'productNames'), "API missing productNames attribute"
+    assert hasattr(api, "operations"), "API missing operations attribute"
+    assert hasattr(api, "tags"), "API missing tags attribute"
+    assert hasattr(api, "productNames"), "API missing productNames attribute"
 
     if check_operations:
         assert isinstance(api.operations, list), "API operations must be a list"
@@ -463,12 +419,13 @@ def assert_policy_fragment_structure(pf: PolicyFragment) -> None:
     """
     assert pf.name, "PolicyFragment name should not be empty"
     assert pf.policyXml, "PolicyFragment policyXml should not be empty"
-    assert hasattr(pf, 'description'), "PolicyFragment missing description"
+    assert hasattr(pf, "description"), "PolicyFragment missing description"
 
 
 # ------------------------------
 #    TEST DATA GENERATORS
 # ------------------------------
+
 
 def get_sample_bicep_params() -> dict:
     """
@@ -478,11 +435,11 @@ def get_sample_bicep_params() -> dict:
         Dictionary with sample bicep parameters
     """
     return {
-        'location': {'value': 'eastus2'},
-        'resourceSuffix': {'value': 'abc123'},
-        'apimSku': {'value': 'BasicV2'},
-        'apis': {'value': []},
-        'policyFragments': {'value': []}
+        "location": {"value": Region.EAST_US_2},
+        "resourceSuffix": {"value": "abc123"},
+        "apimSku": {"value": "BasicV2"},
+        "apis": {"value": []},
+        "policyFragments": {"value": []},
     }
 
 
@@ -493,24 +450,20 @@ def get_sample_infrastructure_params() -> dict:
     Returns:
         Dictionary with common infrastructure parameters
     """
-    return {
-        'rg_location': 'eastus2',
-        'index': 1,
-        'apim_sku': APIM_SKU.BASICV2,
-        'networkMode': APIMNetworkMode.PUBLIC
-    }
+    return {"rg_location": Region.EAST_US_2, "index": 1, "apim_sku": APIM_SKU.BASICV2, "networkMode": APIMNetworkMode.PUBLIC}
 
 
 # ------------------------------
 #    HTTP MOCK FACTORIES
 # ------------------------------
 
+
 def create_mock_http_response(
     status_code: int = 200,
     json_data: dict | None = None,
     text: str | None = None,
     headers: dict | None = None,
-    raise_for_status_error: Exception | None = None
+    raise_for_status_error: Exception | None = None,
 ):
     """
     Factory for creating mock HTTP response objects.
@@ -526,12 +479,12 @@ def create_mock_http_response(
         Mock response object configured for HTTP testing
     """
     if headers is None:
-        headers = {'Content-Type': 'application/json'}
+        headers = {"Content-Type": "application/json"}
 
     if json_data is not None and text is None:
         text = json_module.dumps(json_data, indent=4)
     elif text is None:
-        text = ''
+        text = ""
 
     mock_response = MagicMock()
     mock_response.status_code = status_code
@@ -575,6 +528,7 @@ def create_mock_session_with_response(response):
 #    CONTEXT MANAGERS FOR PATCHING
 # ------------------------------
 
+
 class MockApimRequestsPatches:
     """
     Context manager for common apimrequests module patches.
@@ -592,12 +546,12 @@ class MockApimRequestsPatches:
 
     def __enter__(self):
         patch_targets = [
-            ('apimrequests.requests.request', 'request'),
-            ('apimrequests.print_message', 'print_message'),
-            ('apimrequests.print_info', 'print_info'),
-            ('apimrequests.print_error', 'print_error'),
-            ('apimrequests.print_val', 'print_val'),
-            ('apimrequests.print_ok', 'print_ok')
+            ("apimrequests.requests.request", "request"),
+            ("apimrequests.print_message", "print_message"),
+            ("apimrequests.print_info", "print_info"),
+            ("apimrequests.print_error", "print_error"),
+            ("apimrequests.print_val", "print_val"),
+            ("apimrequests.print_ok", "print_ok"),
         ]
 
         for target, name in patch_targets:
@@ -629,37 +583,37 @@ class MockInfrastructuresPatches:
 
     def __enter__(self):
         # Patch az
-        self.az_patch = patch('infrastructures.az')
+        self.az_patch = patch("infrastructures.az")
         self.az = self.az_patch.__enter__()
-        self.az.get_infra_rg_name.return_value = 'rg-test-infrastructure-01'
+        self.az.get_infra_rg_name.return_value = "rg-test-infrastructure-01"
         self.az.create_resource_group.return_value = None
         self.az.does_resource_group_exist.return_value = True
-        self.az.get_account_info.return_value = ('test_user', 'test_user_id', 'test_tenant', 'test_subscription')
-        self.az.get_unique_suffix_for_resource_group.return_value = 'abc123def456'
+        self.az.get_account_info.return_value = ("test_user", "test_user_id", "test_tenant", "test_subscription")
+        self.az.get_unique_suffix_for_resource_group.return_value = "abc123def456"
 
         mock_output = Mock()
         mock_output.success = True
-        mock_output.json_data = {'outputs': 'test'}
-        mock_output.get.return_value = 'https://test-apim.azure-api.net'
-        mock_output.getJson.return_value = ['api1', 'api2']
+        mock_output.json_data = {"outputs": "test"}
+        mock_output.get.return_value = "https://test-apim.azure-api.net"
+        mock_output.getJson.return_value = ["api1", "api2"]
         self.az.run.return_value = mock_output
 
         self.patches.append(self.az_patch)
 
         # Patch utils
-        self.utils_patch = patch('infrastructures.utils')
+        self.utils_patch = patch("infrastructures.utils")
         self.utils = self.utils_patch.__enter__()
-        self.utils.build_infrastructure_tags.return_value = {'environment': 'test', 'project': 'apim-samples'}
-        self.utils.read_policy_xml.return_value = '<policies><inbound><base /></inbound></policies>'
-        self.utils.determine_shared_policy_path.return_value = '/mock/path/policy.xml'
+        self.utils.build_infrastructure_tags.return_value = {"environment": "test", "project": "apim-samples"}
+        self.utils.read_policy_xml.return_value = "<policies><inbound><base /></inbound></policies>"
+        self.utils.determine_shared_policy_path.return_value = "/mock/path/policy.xml"
         self.utils.verify_infrastructure.return_value = True
 
         self.patches.append(self.utils_patch)
 
         # Patch apimtypes._read_policy_xml to prevent file system access in tests
-        self.apimtypes_read_policy_patch = patch('apimtypes._read_policy_xml')
+        self.apimtypes_read_policy_patch = patch("apimtypes._read_policy_xml")
         self.apimtypes_read_policy = self.apimtypes_read_policy_patch.__enter__()
-        self.apimtypes_read_policy.return_value = '<policies><inbound><base /></inbound></policies>'
+        self.apimtypes_read_policy.return_value = "<policies><inbound><base /></inbound></policies>"
         self.patches.append(self.apimtypes_read_policy_patch)
 
         return self
@@ -672,6 +626,7 @@ class MockInfrastructuresPatches:
 # ------------------------------
 #    CONSOLE OUTPUT CAPTURE
 # ------------------------------
+
 
 def capture_console_output(func: Callable, *args, **kwargs) -> str:
     """
@@ -687,13 +642,13 @@ def capture_console_output(func: Callable, *args, **kwargs) -> str:
     """
     captured_output = io.StringIO()
 
-    logger = logging.getLogger('console')
+    logger = logging.getLogger("console")
     previous_level = logger.level
     previous_handlers = list(logger.handlers)
     previous_propagate = logger.propagate
 
     handler = logging.StreamHandler(captured_output)
-    handler.setFormatter(logging.Formatter('%(message)s'))
+    handler.setFormatter(logging.Formatter("%(message)s"))
 
     logger.handlers = [handler]
     logger.setLevel(logging.DEBUG)
