@@ -38,6 +38,7 @@ from logging_config import should_print_traceback
 #    INFRASTRUCTURE CLASSES
 # ------------------------------
 
+
 class Infrastructure:
     """
     Represents the base Infrastructure class
@@ -48,11 +49,15 @@ class Infrastructure:
     # ------------------------------
 
     def __init__(
-        self, infra: INFRASTRUCTURE, index: int, rg_location: str,
+        self,
+        infra: INFRASTRUCTURE,
+        index: int,
+        rg_location: str,
         apim_sku: APIM_SKU = APIM_SKU.BASICV2,
         networkMode: APIMNetworkMode = APIMNetworkMode.PUBLIC,
         infra_pfs: List[PolicyFragment] | None = None,
         infra_apis: List[API] | None = None,
+        rg_exists: bool | None = None,
     ):
         self.infra = infra
         self.index = index
@@ -65,7 +70,7 @@ class Infrastructure:
         # Define and create the resource group
         self.rg_name = az.get_infra_rg_name(infra, index)
         self.rg_tags = utils.build_infrastructure_tags(infra)
-        az.create_resource_group(self.rg_name, self.rg_location, self.rg_tags)
+        az.create_resource_group(self.rg_name, self.rg_location, self.rg_tags, rg_exists=rg_exists)
 
         # Some infrastructure deployments require knowing the resource suffix that bicep will use prior to the main deployment.
         # Uses subscription ID and resource group name hashing to generate the suffix.
@@ -128,7 +133,7 @@ class Infrastructure:
                 approve_result = az.run(
                     f'az network private-endpoint-connection approve --id {conn_id} --description "Approved by infrastructure deployment"',
                     f'Private Link Connection approved: {conn_name}',
-                    f'Failed to approve Private Link Connection: {conn_name}'
+                    f'Failed to approve Private Link Connection: {conn_name}',
                 )
 
                 if not approve_result.success:
@@ -143,9 +148,7 @@ class Infrastructure:
 
     def _create_keyvault(self, key_vault_name: str) -> bool:
         # Check if Key Vault already exists
-        check_kv = az.run(
-            f'az keyvault show --name {key_vault_name} --resource-group {self.rg_name} -o json'
-        )
+        check_kv = az.run(f'az keyvault show --name {key_vault_name} --resource-group {self.rg_name} -o json')
 
         if not check_kv.success:
             # Create Key Vault via Azure CLI with RBAC authorization (consistent with Bicep module)
@@ -163,7 +166,7 @@ class Infrastructure:
 
             print_ok(f'Key Vault created: {key_vault_name}')
 
-            #Assign Key Vault Certificates Officer role to current user for certificate creation
+            # Assign Key Vault Certificates Officer role to current user for certificate creation
 
             # Key Vault Certificates Officer role
             assign_kv_role = az.run(
@@ -190,10 +193,10 @@ class Infrastructure:
     def _define_bicep_parameters(self) -> dict:
         # Define the Bicep parameters with serialized APIs
         self.bicep_parameters = {
-            'resourceSuffix'  : {'value': self.resource_suffix},
-            'apimSku'         : {'value': self.apim_sku.value},
-            'apis'            : {'value': [api.to_dict() for api in self.apis]},
-            'policyFragments' : {'value': [pf.to_dict() for pf in self.pfs]}
+            'resourceSuffix': {'value': self.resource_suffix},
+            'apimSku': {'value': self.apim_sku.value},
+            'apis': {'value': [api.to_dict() for api in self.apis]},
+            'policyFragments': {'value': [pf.to_dict() for pf in self.pfs]},
         }
 
         return self.bicep_parameters
@@ -251,7 +254,7 @@ class Infrastructure:
         # Hello World API
         pol_hello_world = utils.read_policy_xml(HELLO_WORLD_XML_POLICY_PATH)
         api_hwroot_get = GET_APIOperation('Gets a Hello World message', pol_hello_world)
-        api_hwroot = API('hello-world', 'Hello World', '', 'This is the root API for Hello World', operations = [api_hwroot_get])
+        api_hwroot = API('hello-world', 'Hello World', '', 'This is the root API for Hello World', operations=[api_hwroot_get])
         self.base_apis = [api_hwroot]
 
         # Combine base APIs with infrastructure-specific ones
@@ -283,7 +286,7 @@ class Infrastructure:
                 bicep_parameters_format = {
                     '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
                     'contentVersion': '1.0.0.0',
-                    'parameters': self.bicep_parameters
+                    'parameters': self.bicep_parameters,
                 }
 
                 params_file_path = infra_dir / 'params.json'
@@ -298,7 +301,7 @@ class Infrastructure:
                     f'az deployment group create --name {self.infra.value}-lockdown --resource-group {self.rg_name}'
                     f' --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
                     'Public access disabled successfully',
-                    'Failed to disable public access'
+                    'Failed to disable public access',
                 )
 
                 return output.success
@@ -430,7 +433,7 @@ class Infrastructure:
             is_update (bool): Whether this is an update to existing infrastructure or a new deployment.
         """
 
-        action_verb = "Updating" if is_update else "Creating"
+        action_verb = 'Updating' if is_update else 'Creating'
         print_plain(f'🚀 {action_verb} infrastructure...\n')
         print_val('Infrastructure', self.infra.value)
         print_val('Index', self.index)
@@ -451,13 +454,13 @@ class Infrastructure:
             INFRASTRUCTURE.APIM_ACA: 'apim-aca',
             INFRASTRUCTURE.AFD_APIM_PE: 'afd-apim-pe',
             INFRASTRUCTURE.APPGW_APIM_PE: 'appgw-apim-pe',
-            INFRASTRUCTURE.APPGW_APIM: 'appgw-apim'
+            INFRASTRUCTURE.APPGW_APIM: 'appgw-apim',
         }
 
         # Get the infrastructure directory
         infra_dir_name = infra_dir_map.get(self.infra)
         if not infra_dir_name:
-            raise ValueError(f"Unknown infrastructure type: {self.infra}")
+            raise ValueError(f'Unknown infrastructure type: {self.infra}')
 
         # Navigate to the correct infrastructure directory
         # From shared/python -> ../../infrastructure/{infra_type}/
@@ -466,13 +469,13 @@ class Infrastructure:
 
         try:
             os.chdir(infra_dir)
-            print_plain(f'📁 Changed working directory to: {infra_dir}', blank_above = True)
+            print_plain(f'📁 Changed working directory to: {infra_dir}', blank_above=True)
 
             # Prepare deployment parameters and run directly to avoid path detection issues
             bicep_parameters_format = {
                 '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
                 'contentVersion': '1.0.0.0',
-                'parameters': self.bicep_parameters
+                'parameters': self.bicep_parameters,
             }
 
             # Write the parameters file
@@ -493,7 +496,7 @@ class Infrastructure:
                 f'az deployment group create --name {self.infra.value} --resource-group {self.rg_name}'
                 f' --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
                 f"Deployment '{self.infra.value}' succeeded",
-                utils.get_deployment_failure_message(self.infra.value)
+                utils.get_deployment_failure_message(self.infra.value),
             )
 
             # ------------------------------
@@ -503,8 +506,8 @@ class Infrastructure:
             if output.success:
                 print_ok('Infrastructure creation completed successfully!')
                 if output.json_data:
-                    apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM API Gateway URL', suppress_logging = True)
-                    apim_apis = output.getJson('apiOutputs', 'APIs', suppress_logging = True)
+                    apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM API Gateway URL', suppress_logging=True)
+                    apim_apis = output.getJson('apiOutputs', 'APIs', suppress_logging=True)
 
                     print_plain('\n📋 Infrastructure Details:')
                     print_val('Resource Group', self.rg_name)
@@ -524,18 +527,32 @@ class Infrastructure:
             os.chdir(original_cwd)
             print_plain(f'📁 Restored working directory to: {original_cwd}')
 
+
 class SimpleApimInfrastructure(Infrastructure):
     """
     Represents a simple API Management infrastructure.
     """
 
     def __init__(
-        self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2,
-        infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None,
+        self,
+        rg_location: str,
+        index: int,
+        apim_sku: APIM_SKU = APIM_SKU.BASICV2,
+        infra_pfs: List[PolicyFragment] | None = None,
+        infra_apis: List[API] | None = None,
+        rg_exists: bool | None = None,
     ):
         super().__init__(
-            INFRASTRUCTURE.SIMPLE_APIM, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis,
+            INFRASTRUCTURE.SIMPLE_APIM,
+            index,
+            rg_location,
+            apim_sku,
+            APIMNetworkMode.PUBLIC,
+            infra_pfs,
+            infra_apis,
+            rg_exists=rg_exists,
         )
+
 
 class ApimAcaInfrastructure(Infrastructure):
     """
@@ -543,11 +560,23 @@ class ApimAcaInfrastructure(Infrastructure):
     """
 
     def __init__(
-        self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2,
-        infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None,
+        self,
+        rg_location: str,
+        index: int,
+        apim_sku: APIM_SKU = APIM_SKU.BASICV2,
+        infra_pfs: List[PolicyFragment] | None = None,
+        infra_apis: List[API] | None = None,
+        rg_exists: bool | None = None,
     ):
         super().__init__(
-            INFRASTRUCTURE.APIM_ACA, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis,
+            INFRASTRUCTURE.APIM_ACA,
+            index,
+            rg_location,
+            apim_sku,
+            APIMNetworkMode.PUBLIC,
+            infra_pfs,
+            infra_apis,
+            rg_exists=rg_exists,
         )
 
     def _verify_infrastructure_specific(self, rg_name: str) -> bool:
@@ -576,17 +605,30 @@ class ApimAcaInfrastructure(Infrastructure):
             print_warning(f'Container Apps verification failed with error: {str(e)}')
             return False
 
+
 class AfdApimAcaInfrastructure(Infrastructure):
     """
     Represents an Azure Front Door with API Management and Azure Container Apps infrastructure.
     """
 
     def __init__(
-        self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2,
-        infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None,
+        self,
+        rg_location: str,
+        index: int,
+        apim_sku: APIM_SKU = APIM_SKU.BASICV2,
+        infra_pfs: List[PolicyFragment] | None = None,
+        infra_apis: List[API] | None = None,
+        rg_exists: bool | None = None,
     ):
         super().__init__(
-            INFRASTRUCTURE.AFD_APIM_PE, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis,
+            INFRASTRUCTURE.AFD_APIM_PE,
+            index,
+            rg_location,
+            apim_sku,
+            APIMNetworkMode.PUBLIC,
+            infra_pfs,
+            infra_apis,
+            rg_exists=rg_exists,
         )
 
     def _define_bicep_parameters(self) -> dict:
@@ -599,7 +641,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
         # Add AFD-specific parameters
         afd_params = {
             'apimPublicAccess': {'value': True},  # Initially true for private link approval
-            'useACA': {'value': len(self.infra_apis) > 0 if self.infra_apis else False}  # Enable ACA if custom APIs are provided
+            'useACA': {'value': len(self.infra_apis) > 0 if self.infra_apis else False},  # Enable ACA if custom APIs are provided
         }
 
         # Merge with base parameters
@@ -616,7 +658,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
         Returns:
             utils.Output: The deployment result.
         """
-        action_verb = "Updating" if is_update else "Starting"
+        action_verb = 'Updating' if is_update else 'Starting'
         print_plain(f'🚀 {action_verb} AFD-APIM-PE infrastructure deployment...\n')
         print_plain('   This deployment requires multiple steps:\n')
         print_plain('   1. Initial deployment with public access enabled')
@@ -639,8 +681,8 @@ class AfdApimAcaInfrastructure(Infrastructure):
             print_error('No deployment output data available')
             return output
 
-        apim_service_id = output.get('apimServiceId', 'APIM Service ID', suppress_logging = True)
-        apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM Gateway URL', suppress_logging = True)
+        apim_service_id = output.get('apimServiceId', 'APIM Service ID', suppress_logging=True)
+        apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM Gateway URL', suppress_logging=True)
 
         if not apim_service_id or not apim_gateway_url:
             print_error('Required APIM information not found in deployment output')
@@ -717,6 +759,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
             print_warning(f'AFD-APIM-PE verification failed with error: {str(e)}')
             return False
 
+
 class AppGwApimPeInfrastructure(Infrastructure):
     """
     Represents an Application Gateway with API Management and Azure Container Apps infrastructure.
@@ -727,11 +770,23 @@ class AppGwApimPeInfrastructure(Infrastructure):
     DOMAIN_NAME = 'api.apim-samples.contoso.com'
 
     def __init__(
-        self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.BASICV2,
-        infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None,
+        self,
+        rg_location: str,
+        index: int,
+        apim_sku: APIM_SKU = APIM_SKU.BASICV2,
+        infra_pfs: List[PolicyFragment] | None = None,
+        infra_apis: List[API] | None = None,
+        rg_exists: bool | None = None,
     ):
         super().__init__(
-            INFRASTRUCTURE.APPGW_APIM_PE, index, rg_location, apim_sku, APIMNetworkMode.PUBLIC, infra_pfs, infra_apis,
+            INFRASTRUCTURE.APPGW_APIM_PE,
+            index,
+            rg_location,
+            apim_sku,
+            APIMNetworkMode.PUBLIC,
+            infra_pfs,
+            infra_apis,
+            rg_exists=rg_exists,
         )
         self.appgw_domain_name: str | None = None
         self.appgw_public_ip: str | None = None
@@ -754,37 +809,25 @@ class AppGwApimPeInfrastructure(Infrastructure):
         print_val('Domain', self.DOMAIN_NAME)
 
         # Check if certificate already exists
-        check_output = az.run(
-            f'az keyvault certificate show --vault-name {key_vault_name} --name {self.CERT_NAME} -o json'
-        )
+        check_output = az.run(f'az keyvault certificate show --vault-name {key_vault_name} --name {self.CERT_NAME} -o json')
 
         if check_output.success:
             print_ok('Certificate already exists in Key Vault')
             return True
 
         # Build the certificate policy JSON for Azure CLI
-        cert_policy = json.dumps({
-            "issuerParameters": {
-                "name": "Self"
-            },
-            "keyProperties": {
-                "exportable": True,
-                "keySize": 2048,
-                "keyType": "RSA",
-                "reuseKey": True
-            },
-            "secretProperties": {
-                "contentType": "application/x-pkcs12"
-            },
-            "x509CertificateProperties": {
-                "keyUsage": [
-                    "digitalSignature",
-                    "keyEncipherment"
-                ],
-                "subject": f"CN={self.DOMAIN_NAME}",
-                "validityInMonths": 12
+        cert_policy = json.dumps(
+            {
+                'issuerParameters': {'name': 'Self'},
+                'keyProperties': {'exportable': True, 'keySize': 2048, 'keyType': 'RSA', 'reuseKey': True},
+                'secretProperties': {'contentType': 'application/x-pkcs12'},
+                'x509CertificateProperties': {
+                    'keyUsage': ['digitalSignature', 'keyEncipherment'],
+                    'subject': f'CN={self.DOMAIN_NAME}',
+                    'validityInMonths': 12,
+                },
             }
-        })
+        )
 
         # Create the certificate using Azure CLI
         # Use escaped double quotes for Windows PowerShell compatibility
@@ -792,7 +835,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
         create_output = az.run(
             f'az keyvault certificate create --vault-name {key_vault_name} --name {self.CERT_NAME} --policy "{escaped_policy}"',
             'Certificate created successfully in Key Vault',
-            'Failed to create certificate in Key Vault'
+            'Failed to create certificate in Key Vault',
         )
 
         return create_output.success
@@ -809,7 +852,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
             'apimPublicAccess': {'value': True},  # Initially true for private link approval
             'useACA': {'value': len(self.infra_apis) > 0 if self.infra_apis else False},  # Enable ACA if custom APIs are provided
             'setCurrentUserAsKeyVaultAdmin': {'value': True},
-            'currentUserId': {'value': self.current_user_id}
+            'currentUserId': {'value': self.current_user_id},
         }
 
         # Merge with base parameters
@@ -826,7 +869,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
         Returns:
             utils.Output: The deployment result.
         """
-        action_verb = "Updating" if is_update else "Starting"
+        action_verb = 'Updating' if is_update else 'Starting'
         print_plain(f'🚀 {action_verb} APPGW-APIM-PE infrastructure deployment...\n')
         print_plain('   This deployment requires multiple steps:\n')
         print_plain('   1. Create Key Vault and self-signed certificate')
@@ -847,7 +890,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
         if not self._create_keyvault_certificate(key_vault_name):
             return utils.Output(False, 'Failed to create certificate in Key Vault')
 
-        print_ok('Step 1: Key Vault and certificate creation completed', blank_above = True)
+        print_ok('Step 1: Key Vault and certificate creation completed', blank_above=True)
 
         # Step 2: Initial deployment using base class method
         print_plain('\n📋 Step 2: Deploying initial infrastructure...\n')
@@ -858,17 +901,17 @@ class AppGwApimPeInfrastructure(Infrastructure):
             print_error('Initial deployment failed!')
             return output
 
-        print_ok('Step 2: Initial infrastructure deployment completed', blank_above = True)
+        print_ok('Step 2: Initial infrastructure deployment completed', blank_above=True)
 
         # Extract required values from deployment output
         if not output.json_data:
             print_error('No deployment output data available')
             return output
 
-        apim_service_id = output.get('apimServiceId', 'APIM Service ID', suppress_logging = True)
-        apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM Gateway URL', suppress_logging = True)
-        self.appgw_domain_name = output.get('appGatewayDomainName', 'App Gateway Domain Name', suppress_logging = True)
-        self.appgw_public_ip = output.get('appgwPublicIpAddress', 'App Gateway Public IP', suppress_logging = True)
+        apim_service_id = output.get('apimServiceId', 'APIM Service ID', suppress_logging=True)
+        apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM Gateway URL', suppress_logging=True)
+        self.appgw_domain_name = output.get('appGatewayDomainName', 'App Gateway Domain Name', suppress_logging=True)
+        self.appgw_public_ip = output.get('appgwPublicIpAddress', 'App Gateway Public IP', suppress_logging=True)
 
         if not apim_service_id or not apim_gateway_url:
             print_error('Required APIM information not found in deployment output')
@@ -880,13 +923,13 @@ class AppGwApimPeInfrastructure(Infrastructure):
             print_error('Private link approval failed!')
             return utils.Output(False, 'Private link approval failed')
 
-        print_ok('Step 3: Private link connection approval completed', blank_above = True)
+        print_ok('Step 3: Private link connection approval completed', blank_above=True)
 
         # Step 4: Verify connectivity (optional - continues on failure)
         print_plain('\n📋 Step 4: Verifying API Management connectivity...\n')
         self._verify_apim_connectivity(apim_gateway_url)
 
-        print_ok('Step 4: API Management connectivity verification completed', blank_above = True)
+        print_ok('Step 4: API Management connectivity verification completed', blank_above=True)
 
         # Step 5: Disable public access
         print_plain('\n📋 Step 5: Disabling public access...\n')
@@ -894,7 +937,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
             print_error('Failed to disable public access!')
             return utils.Output(False, 'Failed to disable public access')
 
-        print_ok('Step 5: Public access disabling completed', blank_above = True)
+        print_ok('Step 5: Public access disabling completed', blank_above=True)
 
         print_plain('\n🎉 APPGW-APIM-PE infrastructure deployment completed successfully!\n')
         print_plain('\n📋 Final Configuration:\n')
@@ -911,7 +954,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
             'A curl command using flags for verbose (v), ignoring cert issues (k),'
             ' and supplying a host header (h) works to verify connectivity.\n'
             'This tests ingress through App Gateway and a response from'
-            ' API Management\'s health endpoint.'
+            " API Management's health endpoint."
             ' An "HTTP 200 Service Operational" response indicates success.\n'
         )
         print_command(f'curl -v -k -H "Host: {self.appgw_domain_name}" https://{self.appgw_public_ip}/status-0123456789abcdef')
@@ -966,6 +1009,7 @@ class AppGwApimPeInfrastructure(Infrastructure):
             print_warning(f'APPGW-APIM-PE verification failed with error: {str(e)}')
             return False
 
+
 class AppGwApimInfrastructure(Infrastructure):
     """
     Represents an Application Gateway with API Management (Developer SKU) using VNet Internal mode.
@@ -976,11 +1020,23 @@ class AppGwApimInfrastructure(Infrastructure):
     DOMAIN_NAME = 'api.apim-samples.contoso.com'
 
     def __init__(
-        self, rg_location: str, index: int, apim_sku: APIM_SKU = APIM_SKU.DEVELOPER,
-        infra_pfs: List[PolicyFragment] | None = None, infra_apis: List[API] | None = None,
+        self,
+        rg_location: str,
+        index: int,
+        apim_sku: APIM_SKU = APIM_SKU.DEVELOPER,
+        infra_pfs: List[PolicyFragment] | None = None,
+        infra_apis: List[API] | None = None,
+        rg_exists: bool | None = None,
     ):
         super().__init__(
-            INFRASTRUCTURE.APPGW_APIM, index, rg_location, apim_sku, APIMNetworkMode.INTERNAL_VNET, infra_pfs, infra_apis,
+            INFRASTRUCTURE.APPGW_APIM,
+            index,
+            rg_location,
+            apim_sku,
+            APIMNetworkMode.INTERNAL_VNET,
+            infra_pfs,
+            infra_apis,
+            rg_exists=rg_exists,
         )
         self.appgw_domain_name: str | None = None
         self.appgw_public_ip: str | None = None
@@ -991,30 +1047,30 @@ class AppGwApimInfrastructure(Infrastructure):
         print_val('Certificate', self.CERT_NAME)
         print_val('Domain', self.DOMAIN_NAME)
 
-        check_output = az.run(
-            f'az keyvault certificate show --vault-name {key_vault_name} --name {self.CERT_NAME} -o json'
-        )
+        check_output = az.run(f'az keyvault certificate show --vault-name {key_vault_name} --name {self.CERT_NAME} -o json')
 
         if check_output.success:
             print_ok('Certificate already exists in Key Vault')
             return True
 
-        cert_policy = json.dumps({
-            "issuerParameters": {"name": "Self"},
-            "keyProperties": {"exportable": True, "keySize": 2048, "keyType": "RSA", "reuseKey": True},
-            "secretProperties": {"contentType": "application/x-pkcs12"},
-            "x509CertificateProperties": {
-                "keyUsage": ["digitalSignature", "keyEncipherment"],
-                "subject": f"CN={self.DOMAIN_NAME}",
-                "validityInMonths": 12
+        cert_policy = json.dumps(
+            {
+                'issuerParameters': {'name': 'Self'},
+                'keyProperties': {'exportable': True, 'keySize': 2048, 'keyType': 'RSA', 'reuseKey': True},
+                'secretProperties': {'contentType': 'application/x-pkcs12'},
+                'x509CertificateProperties': {
+                    'keyUsage': ['digitalSignature', 'keyEncipherment'],
+                    'subject': f'CN={self.DOMAIN_NAME}',
+                    'validityInMonths': 12,
+                },
             }
-        })
+        )
 
         escaped_policy = cert_policy.replace('"', '\\"')
         create_output = az.run(
             f'az keyvault certificate create --vault-name {key_vault_name} --name {self.CERT_NAME} --policy "{escaped_policy}"',
             'Certificate created successfully in Key Vault',
-            'Failed to create certificate in Key Vault'
+            'Failed to create certificate in Key Vault',
         )
 
         return create_output.success
@@ -1025,7 +1081,7 @@ class AppGwApimInfrastructure(Infrastructure):
         appgw_params = {
             'useACA': {'value': len(self.infra_apis) > 0 if self.infra_apis else False},
             'setCurrentUserAsKeyVaultAdmin': {'value': True},
-            'currentUserId': {'value': self.current_user_id}
+            'currentUserId': {'value': self.current_user_id},
         }
 
         base_params.update(appgw_params)
@@ -1041,7 +1097,7 @@ class AppGwApimInfrastructure(Infrastructure):
         Returns:
             utils.Output: The deployment result.
         """
-        action_verb = "Updating" if is_update else "Starting"
+        action_verb = 'Updating' if is_update else 'Starting'
         print_plain(f'🚀 {action_verb} APPGW-APIM infrastructure deployment...\n')
         print_plain('   This deployment requires multiple steps:\n')
         print_plain('   1. Create Key Vault and self-signed certificate')
@@ -1057,7 +1113,7 @@ class AppGwApimInfrastructure(Infrastructure):
         if not self._create_keyvault_certificate(key_vault_name):
             return utils.Output(False, 'Failed to create certificate in Key Vault')
 
-        print_ok('Step 1: Key Vault and certificate creation completed', blank_above = True)
+        print_ok('Step 1: Key Vault and certificate creation completed', blank_above=True)
 
         # Step 2: Main deployment
         print_plain('\n📋 Step 2: Deploying infrastructure...\n')
@@ -1067,15 +1123,15 @@ class AppGwApimInfrastructure(Infrastructure):
             print_error('Deployment failed!')
             return output
 
-        print_ok('Step 2: Deployment completed', blank_above = True)
+        print_ok('Step 2: Deployment completed', blank_above=True)
 
         # Extract required values from deployment output
         if not output.json_data:
             print_error('No deployment output data available')
             return output
 
-        self.appgw_domain_name = output.get('appGatewayDomainName', 'App Gateway Domain Name', suppress_logging = True)
-        self.appgw_public_ip = output.get('appgwPublicIpAddress', 'App Gateway Public IP', suppress_logging = True)
+        self.appgw_domain_name = output.get('appGatewayDomainName', 'App Gateway Domain Name', suppress_logging=True)
+        self.appgw_public_ip = output.get('appgwPublicIpAddress', 'App Gateway Public IP', suppress_logging=True)
 
         print_plain('\n📋 Final Configuration:\n')
         print_ok('Application Gateway deployed')
@@ -1096,6 +1152,7 @@ class AppGwApimInfrastructure(Infrastructure):
 # ------------------------------
 #    INFRASTRUCTURE CLEANUP FUNCTIONS
 # ------------------------------
+
 
 def _cleanup_single_resource(resource: dict) -> tuple[bool, str]:
     """
@@ -1120,31 +1177,32 @@ def _cleanup_single_resource(resource: dict) -> tuple[bool, str]:
 
         # Delete the resource
         if resource_type == 'cognitiveservices':
-            delete_cmd = f"az cognitiveservices account delete -g {rg_name} -n {resource_name}"
-            purge_cmd = f"az cognitiveservices account purge -g {rg_name} -n {resource_name} --location \"{location}\""
+            delete_cmd = f'az cognitiveservices account delete -g {rg_name} -n {resource_name}'
+            purge_cmd = f'az cognitiveservices account purge -g {rg_name} -n {resource_name} --location "{location}"'
         elif resource_type == 'apim':
-            delete_cmd = f"az apim delete -n {resource_name} -g {rg_name} -y"
-            purge_cmd = f"az apim deletedservice purge --service-name {resource_name} --location \"{location}\""
+            delete_cmd = f'az apim delete -n {resource_name} -g {rg_name} -y'
+            purge_cmd = f'az apim deletedservice purge --service-name {resource_name} --location "{location}"'
         elif resource_type == 'keyvault':
-            delete_cmd = f"az keyvault delete -n {resource_name} -g {rg_name}"
-            purge_cmd = f"az keyvault purge -n {resource_name} --location \"{location}\" --no-wait"
+            delete_cmd = f'az keyvault delete -n {resource_name} -g {rg_name}'
+            purge_cmd = f'az keyvault purge -n {resource_name} --location "{location}" --no-wait'
         else:
-            return False, f"Unknown resource type: {resource_type}"
+            return False, f'Unknown resource type: {resource_type}'
 
         # Execute delete
         output = az.run(delete_cmd, f"{resource_type} '{resource_name}' deleted", f"Failed to delete {resource_type} '{resource_name}'")
         if not output.success:
-            return False, f"Delete failed for {resource_name}"
+            return False, f'Delete failed for {resource_name}'
 
         # Execute purge
         output = az.run(purge_cmd, f"{resource_type} '{resource_name}' purged", f"Failed to purge {resource_type} '{resource_name}'")
         if not output.success:
-            return False, f"Purge failed for {resource_name}"
+            return False, f'Purge failed for {resource_name}'
 
-        return True, ""
+        return True, ''
 
     except Exception as e:
         return False, str(e)
+
 
 def _cleanup_resources_parallel(resources: list[dict], thread_prefix: str = '', thread_color: str = '') -> None:
     """
@@ -1171,35 +1229,35 @@ def _cleanup_resources_parallel(resources: list[dict], thread_prefix: str = '', 
     def log_info(msg):
         if use_thread_safe_printing:
             with _print_lock:
-                _print_log(f"{thread_prefix}{msg}", '👉 ', thread_color)
+                _print_log(f'{thread_prefix}{msg}', '👉 ', thread_color)
         else:
             print_info(msg)
 
     def log_success(msg):
         if use_thread_safe_printing:
             with _print_lock:
-                _print_log(f"{thread_prefix}{msg}", '✅ ', thread_color, show_time=True)
+                _print_log(f'{thread_prefix}{msg}', '✅ ', thread_color, show_time=True)
         else:
             print_ok(msg)
 
     def log_error(msg):
         if use_thread_safe_printing:
             with _print_lock:
-                _print_log(f"{thread_prefix}{msg}", '❌ ', BOLD_R)
+                _print_log(f'{thread_prefix}{msg}', '❌ ', BOLD_R)
         else:
             print_error(msg)
 
     def log_ok(msg):
         if use_thread_safe_printing:
             with _print_lock:
-                _print_log(f"{thread_prefix}{msg}", '✅ ', thread_color)
+                _print_log(f'{thread_prefix}{msg}', '✅ ', thread_color)
         else:
             print_ok(msg)
 
     def log_warning(msg):
         if use_thread_safe_printing:
             with _print_lock:
-                _print_log(f"{thread_prefix}{msg}", '⚠️ ', BOLD_Y)
+                _print_log(f'{thread_prefix}{msg}', '⚠️ ', BOLD_Y)
         else:
             print_warning(msg)
 
@@ -1210,10 +1268,7 @@ def _cleanup_resources_parallel(resources: list[dict], thread_prefix: str = '', 
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all cleanup tasks
-        future_to_resource = {
-            executor.submit(_cleanup_single_resource, resource): resource
-            for resource in resources
-        }
+        future_to_resource = {executor.submit(_cleanup_single_resource, resource): resource for resource in resources}
 
         # Wait for completion and track results
         for future in as_completed(future_to_resource):
@@ -1240,6 +1295,7 @@ def _cleanup_resources_parallel(resources: list[dict], thread_prefix: str = '', 
         if completed_count - failed_count > 0:
             log_info(f'{completed_count - failed_count} resource(s) cleaned up successfully.')
 
+
 def _cleanup_resources_parallel_thread_safe(resources: list[dict], thread_prefix: str, thread_color: str) -> None:
     """
     Convenience wrapper for parallel cleanup with thread-safe printing.
@@ -1251,12 +1307,8 @@ def _cleanup_resources_parallel_thread_safe(resources: list[dict], thread_prefix
     """
     _cleanup_resources_parallel(resources, thread_prefix, thread_color)
 
-def _delete_resource_group_best_effort(
-    rg_name: str,
-    *,
-    thread_prefix: str = '',
-    thread_color: str = ''
-) -> None:
+
+def _delete_resource_group_best_effort(rg_name: str, *, thread_prefix: str = '', thread_color: str = '') -> None:
     if not rg_name:
         return
 
@@ -1266,11 +1318,7 @@ def _delete_resource_group_best_effort(
         with _print_lock:
             _print_log(f"{thread_prefix}Deleting resource group '{rg_name}'...", 'ℹ️ ', thread_color, show_time=True)
         try:
-            az.run(
-                delete_cmd,
-                f"Initiated deletion of resource group '{rg_name}'",
-                f"Failed to initiate deletion of resource group '{rg_name}'"
-            )
+            az.run(delete_cmd, f"Initiated deletion of resource group '{rg_name}'", f"Failed to initiate deletion of resource group '{rg_name}'")
         except Exception as e:  # pragma: no cover
             with _print_lock:
                 _print_log(f"{thread_prefix}Failed to initiate deletion of resource group '{rg_name}': {e}", '❌ ', BOLD_R, show_time=True)
@@ -1280,15 +1328,12 @@ def _delete_resource_group_best_effort(
 
     print_message(f"Deleting resource group '{rg_name}'...")
     try:
-        az.run(
-            delete_cmd,
-            f"Initiated deletion of resource group '{rg_name}'",
-            f"Failed to initiate deletion of resource group '{rg_name}'"
-        )
+        az.run(delete_cmd, f"Initiated deletion of resource group '{rg_name}'", f"Failed to initiate deletion of resource group '{rg_name}'")
     except Exception as e:
         print_plain(f"Failed to initiate deletion of resource group '{rg_name}': {e}")
         if should_print_traceback():  # pragma: no cover
             traceback.print_exc()
+
 
 def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
     """
@@ -1324,7 +1369,7 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
         output = az.run(
             f'az deployment group show --name {deployment_name} -g {rg_name} -o json',
             'Deployment retrieved',
-            'Deployment not found (may be empty resource group)'
+            'Deployment not found (may be empty resource group)',
         )
 
         # Collect all resources that need to be deleted and purged
@@ -1332,51 +1377,28 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
 
         # List CognitiveService accounts
         output = az.run(
-            f'az cognitiveservices account list -g {rg_name}',
-            'Listed CognitiveService accounts',
-            'Failed to list CognitiveService accounts'
+            f'az cognitiveservices account list -g {rg_name}', 'Listed CognitiveService accounts', 'Failed to list CognitiveService accounts'
         )
 
         if output.success and output.json_data:
             for resource in output.json_data:
-                resources_to_cleanup.append({
-                    'type': 'cognitiveservices',
-                    'name': resource['name'],
-                    'location': resource['location'],
-                    'rg_name': rg_name
-                })
+                resources_to_cleanup.append(
+                    {'type': 'cognitiveservices', 'name': resource['name'], 'location': resource['location'], 'rg_name': rg_name}
+                )
 
         # List APIM resources
-        output = az.run(
-            f'az apim list -g {rg_name}',
-            'Listed APIM resources',
-            'Failed to list APIM resources'
-        )
+        output = az.run(f'az apim list -g {rg_name}', 'Listed APIM resources', 'Failed to list APIM resources')
 
         if output.success and output.json_data:
             for resource in output.json_data:
-                resources_to_cleanup.append({
-                    'type': 'apim',
-                    'name': resource['name'],
-                    'location': resource['location'],
-                    'rg_name': rg_name
-                })
+                resources_to_cleanup.append({'type': 'apim', 'name': resource['name'], 'location': resource['location'], 'rg_name': rg_name})
 
         # List Key Vault resources
-        output = az.run(
-            f'az keyvault list -g {rg_name}',
-            'Listed Key Vault resources',
-            'Failed to list Key Vault resources'
-        )
+        output = az.run(f'az keyvault list -g {rg_name}', 'Listed Key Vault resources', 'Failed to list Key Vault resources')
 
         if output.success and output.json_data:
             for resource in output.json_data:
-                resources_to_cleanup.append({
-                    'type': 'keyvault',
-                    'name': resource['name'],
-                    'location': resource['location'],
-                    'rg_name': rg_name
-                })
+                resources_to_cleanup.append({'type': 'keyvault', 'name': resource['name'], 'location': resource['location'], 'rg_name': rg_name})
 
         # Delete and purge resources in parallel if there are any
         if resources_to_cleanup:
@@ -1402,6 +1424,7 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
         if not rg_delete_attempted:
             _delete_resource_group_best_effort(rg_name)
 
+
 def _cleanup_resources_thread_safe(deployment_name: str, rg_name: str, thread_prefix: str, thread_color: str) -> tuple[bool, str]:
     """
     Thread-safe wrapper for _cleanup_resources with formatted output.
@@ -1417,23 +1440,24 @@ def _cleanup_resources_thread_safe(deployment_name: str, rg_name: str, thread_pr
     """
     try:
         with _print_lock:
-            _print_log(f"{thread_prefix}Starting cleanup for resource group: {rg_name}", '👉 ', thread_color)
+            _print_log(f'{thread_prefix}Starting cleanup for resource group: {rg_name}', '👉 ', thread_color)
 
         # Create a modified version of _cleanup_resources that uses thread-safe printing
         _cleanup_resources_with_thread_safe_printing(deployment_name, rg_name, thread_prefix, thread_color)
 
         with _print_lock:
-            _print_log(f"{thread_prefix}Completed cleanup for resource group: {rg_name}", '👉 ', thread_color)
+            _print_log(f'{thread_prefix}Completed cleanup for resource group: {rg_name}', '👉 ', thread_color)
 
-        return True, ""
+        return True, ''
 
     except Exception as e:
         error_msg = f'An error occurred during cleanup of {rg_name}: {str(e)}'
         with _print_lock:
-            _print_log(f"{thread_prefix}{error_msg}", '❌ ', BOLD_R, show_time=True)
+            _print_log(f'{thread_prefix}{error_msg}', '❌ ', BOLD_R, show_time=True)
             if should_print_traceback():  # pragma: no cover
                 traceback.print_exc()
         return False, error_msg
+
 
 def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: str, thread_prefix: str, thread_color: str) -> None:
     """
@@ -1442,25 +1466,23 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
     """
     if not deployment_name:
         with _print_lock:
-            _print_log(f"{thread_prefix}Missing deployment name parameter.", '❌ ', BOLD_R)
+            _print_log(f'{thread_prefix}Missing deployment name parameter.', '❌ ', BOLD_R)
         return
 
     if not rg_name:
         with _print_lock:
-            _print_log(f"{thread_prefix}Missing resource group name parameter.", '❌ ', BOLD_R)
+            _print_log(f'{thread_prefix}Missing resource group name parameter.', '❌ ', BOLD_R)
         return
 
     rg_delete_attempted = False
 
     try:
         with _print_lock:
-            _print_log(f"{thread_prefix}Resource group : {rg_name}", '👉 ', thread_color)
+            _print_log(f'{thread_prefix}Resource group : {rg_name}', '👉 ', thread_color)
 
         # Show the deployment details
         output = az.run(
-            f'az deployment group show --name {deployment_name} -g {rg_name} -o json',
-            'Deployment retrieved',
-            'Failed to retrieve the deployment'
+            f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment'
         )
 
         # Collect all resources that need to be deleted and purged
@@ -1468,75 +1490,50 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
 
         # List CognitiveService accounts
         output = az.run(
-            f'az cognitiveservices account list -g {rg_name}',
-            'Listed CognitiveService accounts',
-            'Failed to list CognitiveService accounts'
+            f'az cognitiveservices account list -g {rg_name}', 'Listed CognitiveService accounts', 'Failed to list CognitiveService accounts'
         )
 
         if output.success and output.json_data:
             for resource in output.json_data:
-                resources_to_cleanup.append({
-                    'type': 'cognitiveservices',
-                    'name': resource['name'],
-                    'location': resource['location'],
-                    'rg_name': rg_name
-                })
+                resources_to_cleanup.append(
+                    {'type': 'cognitiveservices', 'name': resource['name'], 'location': resource['location'], 'rg_name': rg_name}
+                )
 
         # List APIM resources
-        output = az.run(
-            f'az apim list -g {rg_name}',
-            'Listed APIM resources',
-            'Failed to list APIM resources'
-        )
+        output = az.run(f'az apim list -g {rg_name}', 'Listed APIM resources', 'Failed to list APIM resources')
 
         if output.success and output.json_data:
             for resource in output.json_data:
-                resources_to_cleanup.append({
-                    'type': 'apim',
-                    'name': resource['name'],
-                    'location': resource['location'],
-                    'rg_name': rg_name
-                })
+                resources_to_cleanup.append({'type': 'apim', 'name': resource['name'], 'location': resource['location'], 'rg_name': rg_name})
 
         # List Key Vault resources
-        output = az.run(
-            f'az keyvault list -g {rg_name}',
-            'Listed Key Vault resources',
-            'Failed to list Key Vault resources'
-        )
+        output = az.run(f'az keyvault list -g {rg_name}', 'Listed Key Vault resources', 'Failed to list Key Vault resources')
 
         if output.success and output.json_data:
             for resource in output.json_data:
-                resources_to_cleanup.append({
-                    'type': 'keyvault',
-                    'name': resource['name'],
-                    'location': resource['location'],
-                    'rg_name': rg_name
-                })
+                resources_to_cleanup.append({'type': 'keyvault', 'name': resource['name'], 'location': resource['location'], 'rg_name': rg_name})
 
         # Delete and purge resources in parallel if there are any
         if resources_to_cleanup:
             with _print_lock:
                 _print_log(
-                    f"{thread_prefix}Found {len(resources_to_cleanup)} resource(s) to clean up. Processing in parallel...",
-                    '👉 ',
-                    thread_color
+                    f'{thread_prefix}Found {len(resources_to_cleanup)} resource(s) to clean up. Processing in parallel...', '👉 ', thread_color
                 )
             _cleanup_resources_parallel_thread_safe(resources_to_cleanup, thread_prefix, thread_color)
         else:
             with _print_lock:
-                _print_log(f"{thread_prefix}No resources found to clean up.", '👉 ', thread_color)
+                _print_log(f'{thread_prefix}No resources found to clean up.', '👉 ', thread_color)
 
         # Delete the resource group last
         rg_delete_attempted = True
         _delete_resource_group_best_effort(rg_name, thread_prefix=thread_prefix, thread_color=thread_color)
 
         with _print_lock:
-            _print_log(f"{thread_prefix}Cleanup completed.", 'ℹ️ ', thread_color, show_time=True)
+            _print_log(f'{thread_prefix}Cleanup completed.', 'ℹ️ ', thread_color, show_time=True)
 
     except Exception as e:
         with _print_lock:
-            _print_log(f"{thread_prefix}An error occurred during cleanup: {e}", '❌ ', BOLD_R)
+            _print_log(f'{thread_prefix}An error occurred during cleanup: {e}', '❌ ', BOLD_R)
             if should_print_traceback():  # pragma: no cover
                 traceback.print_exc()
 
@@ -1544,6 +1541,7 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
         # Best-effort: always attempt RG deletion for the specified RG.
         if not rg_delete_attempted:
             _delete_resource_group_best_effort(rg_name, thread_prefix=thread_prefix, thread_color=thread_color)
+
 
 def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[int] | None = None) -> None:
     """
@@ -1584,27 +1582,20 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
     for i, idx in enumerate(indexes_list):
         rg_name = az.get_infra_rg_name(deployment, idx)
         thread_color = THREAD_COLORS[i % len(THREAD_COLORS)]
-        thread_prefix = f"{thread_color}[{deployment.value}-{idx}]{RESET}: "
+        thread_prefix = f'{thread_color}[{deployment.value}-{idx}]{RESET}: '
 
-        cleanup_tasks.append({
-            'deployment_name': deployment.value,
-            'rg_name': rg_name,
-            'thread_prefix': thread_prefix,
-            'thread_color': thread_color,
-            'index': idx
-        })
+        cleanup_tasks.append(
+            {'deployment_name': deployment.value, 'rg_name': rg_name, 'thread_prefix': thread_prefix, 'thread_color': thread_color, 'index': idx}
+        )
 
     # Execute cleanup tasks in parallel
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all tasks
         future_to_task = {
             executor.submit(
-                _cleanup_resources_thread_safe,
-                task['deployment_name'],
-                task['rg_name'],
-                task['thread_prefix'],
-                task['thread_color']
-            ): task for task in cleanup_tasks
+                _cleanup_resources_thread_safe, task['deployment_name'], task['rg_name'], task['thread_prefix'], task['thread_color']
+            ): task
+            for task in cleanup_tasks
         }
 
         # Track results
@@ -1620,16 +1611,16 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
 
                 if success:
                     with _print_lock:
-                        print_ok(f"Completed cleanup for {deployment.value}-{task['index']} ({completed_count}/{len(indexes_list)})")
+                        print_ok(f'Completed cleanup for {deployment.value}-{task["index"]} ({completed_count}/{len(indexes_list)})')
                 else:
                     failed_count += 1
                     with _print_lock:
-                        print_error(f"Failed cleanup for {deployment.value}-{task['index']}: {error_msg}")
+                        print_error(f'Failed cleanup for {deployment.value}-{task["index"]}: {error_msg}')
 
             except Exception as e:
                 failed_count += 1
                 with _print_lock:
-                    print_error(f"Exception during cleanup for {deployment.value}-{task['index']}: {str(e)}")
+                    print_error(f'Exception during cleanup for {deployment.value}-{task["index"]}: {str(e)}')
 
     # Final summary
     if not failed_count:
