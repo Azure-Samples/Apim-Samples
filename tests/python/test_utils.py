@@ -1112,6 +1112,47 @@ def test_query_and_select_infrastructure_with_none_index(monkeypatch, suppress_u
 # ------------------------------
 
 # ------------------------------
+#    TESTS FOR _prompt_for_high_cost_sku_acknowledgement
+# ------------------------------
+
+def test_prompt_for_high_cost_sku_acknowledgement_yes(monkeypatch):
+    """Test _prompt_for_high_cost_sku_acknowledgement when user types 'yes'."""
+    monkeypatch.setattr('builtins.input', lambda prompt: 'yes')
+
+    result = utils._prompt_for_high_cost_sku_acknowledgement(APIM_SKU.PREMIUM)
+    assert result is True
+
+def test_prompt_for_high_cost_sku_acknowledgement_no(monkeypatch):
+    """Test _prompt_for_high_cost_sku_acknowledgement when user types 'no'."""
+    monkeypatch.setattr('builtins.input', lambda prompt: 'no')
+
+    result = utils._prompt_for_high_cost_sku_acknowledgement(APIM_SKU.STANDARDV2)
+    assert result is False
+
+def test_prompt_for_high_cost_sku_acknowledgement_empty(monkeypatch):
+    """Test _prompt_for_high_cost_sku_acknowledgement when user presses Enter (empty input)."""
+    monkeypatch.setattr('builtins.input', lambda prompt: '')
+
+    result = utils._prompt_for_high_cost_sku_acknowledgement(APIM_SKU.PREMIUMV2)
+    assert result is False
+
+def test_prompt_for_high_cost_sku_acknowledgement_invalid_then_yes(monkeypatch):
+    """Test _prompt_for_high_cost_sku_acknowledgement with invalid input then 'yes'."""
+    inputs = iter(['y', 'YES', 'confirm', 'yes'])
+    monkeypatch.setattr('builtins.input', lambda prompt: next(inputs))
+
+    result = utils._prompt_for_high_cost_sku_acknowledgement(APIM_SKU.STANDARD)
+    assert result is True
+
+def test_prompt_for_high_cost_sku_acknowledgement_invalid_then_no(monkeypatch):
+    """Test _prompt_for_high_cost_sku_acknowledgement with invalid input then 'no'."""
+    inputs = iter(['maybe', 'ok', 'no'])
+    monkeypatch.setattr('builtins.input', lambda prompt: next(inputs))
+
+    result = utils._prompt_for_high_cost_sku_acknowledgement(APIM_SKU.PREMIUM)
+    assert result is False
+
+# ------------------------------
 #    TESTS FOR _prompt_for_infrastructure_update
 # ------------------------------
 
@@ -1310,6 +1351,55 @@ def test_infrastructure_notebook_helper_create_eof_error_during_prompt(monkeypat
         helper.create_infrastructure()
 
     assert "User cancelled deployment" in str(exc_info.value)
+
+def test_infrastructure_notebook_helper_create_high_cost_sku_acknowledged(monkeypatch, suppress_builtin_print):
+    """Test InfrastructureNotebookHelper.create_infrastructure proceeds when user acknowledges high-cost SKU."""
+
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.PREMIUM)
+
+    # Mock resource group to not exist
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg_name: False)
+
+    # Mock cost acknowledgement to return True (user consents)
+    monkeypatch.setattr(utils, '_prompt_for_high_cost_sku_acknowledgement', lambda sku: True)
+
+    mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n', 'Success!\n'])
+    monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
+
+    result = helper.create_infrastructure()
+    assert result is True
+
+def test_infrastructure_notebook_helper_create_high_cost_sku_declined(monkeypatch, suppress_builtin_print):
+    """Test InfrastructureNotebookHelper.create_infrastructure cancels when user declines high-cost SKU."""
+
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.STANDARDV2)
+
+    # Mock cost acknowledgement to return False (user declines)
+    monkeypatch.setattr(utils, '_prompt_for_high_cost_sku_acknowledgement', lambda sku: False)
+
+    with pytest.raises(SystemExit) as exc_info:
+        helper.create_infrastructure()
+
+    assert "User cancelled deployment" in str(exc_info.value)
+
+def test_infrastructure_notebook_helper_create_low_cost_sku_no_prompt(monkeypatch, suppress_builtin_print):
+    """Test InfrastructureNotebookHelper.create_infrastructure does not prompt for low-cost SKUs."""
+
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
+
+    # Mock resource group to not exist
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg_name: False)
+
+    # Track whether cost acknowledgement prompt was called
+    cost_prompt_called = []
+    monkeypatch.setattr(utils, '_prompt_for_high_cost_sku_acknowledgement', lambda sku: cost_prompt_called.append(sku) or True)
+
+    mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n'])
+    monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
+
+    result = helper.create_infrastructure()
+    assert result is True
+    assert len(cost_prompt_called) == 0  # Should not have been called
 
 def test_deploy_sample_with_infrastructure_selection(monkeypatch, suppress_console):
     """Test deploy_sample method with infrastructure selection when original doesn't exist."""

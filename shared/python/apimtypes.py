@@ -200,6 +200,10 @@ class APIM_SKU(StrEnum):
         """Check if the SKU is a v2 tier."""
         return self in (APIM_SKU.BASICV2, APIM_SKU.STANDARDV2, APIM_SKU.PREMIUMV2)
 
+    def requires_cost_acknowledgement(self):
+        """Check if the SKU requires explicit cost acknowledgement before provisioning."""
+        return self in (APIM_SKU.STANDARD, APIM_SKU.PREMIUM, APIM_SKU.STANDARDV2, APIM_SKU.PREMIUMV2)
+
 
 class HTTP_VERB(StrEnum):
     """
