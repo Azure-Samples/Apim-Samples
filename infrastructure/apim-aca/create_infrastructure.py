@@ -8,7 +8,7 @@ import argparse
 
 # APIM Samples imports
 import azure_resources as az
-from apimtypes import APIM_SKU, API, GET_APIOperation, BACKEND_XML_POLICY_PATH, INFRASTRUCTURE
+from apimtypes import APIM_SKU, API, GET_APIOperation, BACKEND_XML_POLICY_PATH, INFRASTRUCTURE, Region
 from infrastructures import ApimAcaInfrastructure
 from utils import read_policy_xml
 
@@ -69,7 +69,7 @@ def main():
     """
 
     parser = argparse.ArgumentParser(description = 'Create APIM-ACA infrastructure')
-    parser.add_argument('--location', default = 'eastus2', help = 'Azure region (default: eastus2)')
+    parser.add_argument('--location', default = Region.EAST_US_2, help = f'Azure region (default: {Region.EAST_US_2})')
     parser.add_argument('--index', type = int, help = 'Infrastructure index')
     parser.add_argument('--sku', choices = ['Basicv2', 'Standardv2', 'Premiumv2'], default = 'Basicv2', help = 'APIM SKU (default: Basicv2)')
     args = parser.parse_args()
