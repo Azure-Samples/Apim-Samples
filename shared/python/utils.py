@@ -135,6 +135,15 @@ class InfrastructureNotebookHelper:
         """
 
         try:
+            # For high-cost SKUs, require explicit cost acknowledgement before proceeding
+            if self.apim_sku.requires_cost_acknowledgement():
+                try:
+                    if not _prompt_for_high_cost_sku_acknowledgement(self.apim_sku):
+                        print_error('Infrastructure deployment cancelled by user.')
+                        raise SystemExit('User cancelled deployment')
+                except (KeyboardInterrupt, EOFError) as exc:  # pragma: no cover
+                    raise SystemExit('User cancelled deployment') from exc
+
             # For infrastructure notebooks, check if update is allowed and handle user choice
             if allow_update:
                 rg_name = az.get_infra_rg_name(self.deployment, self.index)
@@ -754,6 +763,33 @@ def create_bicep_deployment_group_for_sample(
         # Always restore the original working directory
         os.chdir(original_cwd)
         print_plain(f'📁 Restored working directory to: {original_cwd}')
+
+def _prompt_for_high_cost_sku_acknowledgement(apim_sku: APIM_SKU) -> bool:
+    """
+    Warn the user about significant costs for Standard and Premium SKUs and require explicit consent.
+
+    Args:
+        apim_sku (APIM_SKU): The selected APIM SKU.
+
+    Returns:
+        bool: True if the user acknowledges and consents to proceed, False otherwise.
+    """
+    print_warning(f'⚠️  Cost Warning: The {apim_sku.value} SKU incurs significant charges.')
+    print_plain('   Standard and Premium tiers are considerably more expensive than Developer or Basic tiers.', blank_above = True)
+    print_plain('   Please review the current pricing before proceeding:')
+    print_plain('   https://azure.microsoft.com/pricing/details/api-management\n')
+    print_plain('ℹ️  Type "yes" to acknowledge the cost and proceed, or press Enter to cancel.')
+
+    while True:
+        choice = input('\nAcknowledge cost and proceed? (yes/no): ').strip().lower()
+
+        if choice == 'yes':
+            return True
+
+        if choice in ('no', ''):
+            return False
+
+        print_plain('❌ Please type "yes" to proceed or "no" (or press Enter) to cancel.')
 
 def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
     """

@@ -73,11 +73,13 @@ It's quick and easy to get started!
 | [Secure Blob Access][sample-secure-blob-access]             | Secure blob access via the [valet key pattern][valet-key-pattern].                                                  | All infrastructures           |
 </details>
 
-### Compatibility Matrix
+### Compatibility Matrices
 
-Most samples work with all infrastructures, making this a truly _a la carte_ experience. The diagram below shows which samples are compatible with which infrastructures.
+Most samples work with all infrastructures, making this a truly _a la carte_ experience. The diagrams below show which samples are compatible with which infrastructures, and which APIM SKUs each infrastructure supports.
 
 <img src="./assets/diagrams/Infrastructure-Sample-Compatibility.svg" alt="Infrastructure and Sample Compatibility Matrix" title="Infrastructure and Sample Compatibility Matrix" />
+
+<img src="./assets/diagrams/Infrastructure-SKU-Compatibility.svg" alt="Infrastructure and SKU Compatibility Matrix" title="Infrastructure and SKU Compatibility Matrix" />
 
 
 ## 🧰 APIM Samples Developer CLI

@@ -1203,6 +1203,25 @@ class TestAPISKUEdgeCases:
         for sku in v2_skus:
             assert sku.is_v2() and not sku.is_v1()
 
+    @pytest.mark.parametrize('sku', [
+        APIM_SKU.STANDARD,
+        APIM_SKU.PREMIUM,
+        APIM_SKU.STANDARDV2,
+        APIM_SKU.PREMIUMV2,
+    ])
+    def test_requires_cost_acknowledgement_high_cost_skus(self, sku):
+        """Test that Standard and Premium SKUs (v1 and v2) require cost acknowledgement."""
+        assert sku.requires_cost_acknowledgement() is True
+
+    @pytest.mark.parametrize('sku', [
+        APIM_SKU.DEVELOPER,
+        APIM_SKU.BASIC,
+        APIM_SKU.BASICV2,
+    ])
+    def test_requires_cost_acknowledgement_low_cost_skus(self, sku):
+        """Test that Developer, Basic, and BasicV2 SKUs do not require cost acknowledgement."""
+        assert sku.requires_cost_acknowledgement() is False
+
 
 class TestAPIOperationStringMethod:
     """Test APIOperation with string method coercion."""
