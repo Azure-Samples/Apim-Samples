@@ -65,19 +65,19 @@ def test_does_resource_group_exist_true():
     """Test checking if resource group exists - returns True."""
 
     with patch('azure_resources.run') as mock_run:
-        mock_run.return_value = Output(True, '{"name": "test-rg"}')
+        mock_run.return_value = Output(True, 'true')
 
         result = az.does_resource_group_exist('test-rg')
 
         assert result is True
-        mock_run.assert_called_once_with('az group show --name test-rg -o json')
+        mock_run.assert_called_once_with('az group exists --name test-rg')
 
 
 def test_does_resource_group_exist_false():
     """Test checking if resource group exists - returns False."""
 
     with patch('azure_resources.run') as mock_run:
-        mock_run.return_value = Output(False, 'ResourceGroupNotFound')
+        mock_run.return_value = Output(True, 'false')
 
         result = az.does_resource_group_exist('nonexistent-rg')
 
@@ -1181,13 +1181,13 @@ def test_get_endpoints_with_partial_data(monkeypatch):
 
 
 def test_does_resource_group_exist_with_malformed_response(monkeypatch):
-    """Test does_resource_group_exist with malformed JSON."""
+    """Test does_resource_group_exist with unexpected response from az group exists."""
     with patch('azure_resources.run') as mock_run:
-        mock_run.return_value = Output(True, '{invalid json}')
+        mock_run.return_value = Output(True, '{invalid}')
 
         result = az.does_resource_group_exist('test-rg')
-        # Should still return True because run succeeded
-        assert result is True
+        # Should return False because response is not 'true'
+        assert result is False
 
 
 def test_create_resource_group_with_empty_tags(monkeypatch):

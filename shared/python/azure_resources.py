@@ -596,9 +596,9 @@ def does_resource_group_exist(resource_group_name: str) -> bool:
         bool: True if the resource group exists, False otherwise.
     """
 
-    output = run(f'az group show --name {resource_group_name} -o json')
+    output = run(f'az group exists --name {resource_group_name}')
 
-    return output.success
+    return output.success and output.text.strip().lower() == 'true'
 
 def get_resource_group_location(resource_group_name: str) -> str | None:
     """
