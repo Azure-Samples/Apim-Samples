@@ -231,6 +231,85 @@ class INFRASTRUCTURE(StrEnum):
     APPGW_APIM = "appgw-apim"  # Application Gateway connected to Azure API Management (Developer SKU) via VNet (Internal)
 
 
+class Region(StrEnum):
+    """
+    Azure region identifiers.
+
+    Note: SKU availability varies by region and changes over time.
+    A deployment may fail if the chosen SKU is unavailable in the selected region.
+    """
+
+    # Americas
+    EAST_US = "eastus"
+    EAST_US_2 = "eastus2"
+    WEST_US = "westus"
+    WEST_US_2 = "westus2"
+    WEST_US_3 = "westus3"
+    CENTRAL_US = "centralus"
+    NORTH_CENTRAL_US = "northcentralus"
+    SOUTH_CENTRAL_US = "southcentralus"
+    WEST_CENTRAL_US = "westcentralus"
+    CANADA_CENTRAL = "canadacentral"
+    CANADA_EAST = "canadaeast"
+    BRAZIL_SOUTH = "brazilsouth"
+    BRAZIL_SOUTHEAST = "brazilsoutheast"
+
+    # Europe
+    NORTH_EUROPE = "northeurope"
+    WEST_EUROPE = "westeurope"
+    UK_SOUTH = "uksouth"
+    UK_WEST = "ukwest"
+    FRANCE_CENTRAL = "francecentral"
+    FRANCE_SOUTH = "francesouth"
+    GERMANY_WEST_CENTRAL = "germanywestcentral"
+    GERMANY_NORTH = "germanynorth"
+    SWITZERLAND_NORTH = "switzerlandnorth"
+    SWITZERLAND_WEST = "switzerlandwest"
+    NORWAY_EAST = "norwayeast"
+    NORWAY_WEST = "norwaywest"
+    SWEDEN_CENTRAL = "swedencentral"
+    POLAND_CENTRAL = "polandcentral"
+    ITALY_NORTH = "italynorth"
+    SPAIN_CENTRAL = "spaincentral"
+
+    # Asia Pacific
+    EAST_ASIA = "eastasia"
+    SOUTHEAST_ASIA = "southeastasia"
+    AUSTRALIA_EAST = "australiaeast"
+    AUSTRALIA_SOUTHEAST = "australiasoutheast"
+    AUSTRALIA_CENTRAL = "australiacentral"
+    AUSTRALIA_CENTRAL_2 = "australiacentral2"
+    JAPAN_EAST = "japaneast"
+    JAPAN_WEST = "japanwest"
+    KOREA_CENTRAL = "koreacentral"
+    KOREA_SOUTH = "koreasouth"
+    INDIA_CENTRAL = "centralindia"
+    INDIA_SOUTH = "southindia"
+    INDIA_WEST = "westindia"
+    NEW_ZEALAND_NORTH = "newzealandnorth"
+
+    # Middle East & Africa
+    UAE_NORTH = "uaenorth"
+    UAE_CENTRAL = "uaecentral"
+    SOUTH_AFRICA_NORTH = "southafricanorth"
+    SOUTH_AFRICA_WEST = "southafricawest"
+    QATAR_CENTRAL = "qatarcentral"
+    ISRAEL_CENTRAL = "israelcentral"
+
+    # China (operated by 21Vianet)
+    CHINA_EAST = "chinaeast"
+    CHINA_EAST_2 = "chinaeast2"
+    CHINA_EAST_3 = "chinaeast3"
+    CHINA_NORTH = "chinanorth"
+    CHINA_NORTH_2 = "chinanorth2"
+    CHINA_NORTH_3 = "chinanorth3"
+
+    # US Government
+    US_GOV_VIRGINIA = "usgovvirginia"
+    US_GOV_TEXAS = "usgovtexas"
+    US_GOV_ARIZONA = "usgovarizona"
+
+
 class Endpoints:
     """
     Represents a set of endpoints to call

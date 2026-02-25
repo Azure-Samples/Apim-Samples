@@ -7,7 +7,7 @@ import argparse
 
 # APIM Samples imports
 import azure_resources as az
-from apimtypes import APIM_SKU, INFRASTRUCTURE
+from apimtypes import APIM_SKU, INFRASTRUCTURE, Region
 from infrastructures import SimpleApimInfrastructure
 from console import print_plain
 
@@ -26,7 +26,7 @@ def main():
     """
 
     parser = argparse.ArgumentParser(description = 'Create Simple APIM infrastructure')
-    parser.add_argument('--location', default = 'eastus2', help = 'Azure region (default: eastus2)')
+    parser.add_argument('--location', default = Region.EAST_US_2, help = f'Azure region (default: {Region.EAST_US_2})')
     parser.add_argument('--index', type = int, help = 'Infrastructure index')
     parser.add_argument('--sku', choices = ['Basicv2', 'Standardv2', 'Premiumv2'], default = 'Basicv2', help = 'APIM SKU (default: Basicv2)')
     args = parser.parse_args()

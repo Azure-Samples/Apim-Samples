@@ -12,7 +12,7 @@ import apimtypes
 # APIM Samples imports
 from apimtypes import API, APIMNetworkMode, APIM_SKU, APIOperation, BACKEND_XML_POLICY_PATH, DEFAULT_XML_POLICY_PATH, GET_APIOperation, \
     GET_APIOperation2, get_project_root, HELLO_WORLD_XML_POLICY_PATH, HTTP_VERB, INFRASTRUCTURE, NamedValue, Output, PolicyFragment, \
-    POST_APIOperation, Product, REQUEST_HEADERS_XML_POLICY_PATH, Role, SUBSCRIPTION_KEY_PARAMETER_NAME, SLEEP_TIME_BETWEEN_REQUESTS_MS
+    POST_APIOperation, Product, Region, REQUEST_HEADERS_XML_POLICY_PATH, Role, SUBSCRIPTION_KEY_PARAMETER_NAME, SLEEP_TIME_BETWEEN_REQUESTS_MS
 from test_helpers import assert_policy_fragment_structure
 
 
@@ -287,7 +287,9 @@ class TestEnums:
     @pytest.mark.parametrize('enum_value,expected', [
         (INFRASTRUCTURE.SIMPLE_APIM, 'simple-apim'),
         (INFRASTRUCTURE.APIM_ACA, 'apim-aca'),
-        (INFRASTRUCTURE.AFD_APIM_PE, 'afd-apim-pe')
+        (INFRASTRUCTURE.AFD_APIM_PE, 'afd-apim-pe'),
+        (INFRASTRUCTURE.APPGW_APIM_PE, 'appgw-apim-pe'),
+        (INFRASTRUCTURE.APPGW_APIM, 'appgw-apim')
     ])
     def test_infrastructure(self, enum_value, expected):
         """Test INFRASTRUCTURE enum values."""
@@ -297,12 +299,95 @@ class TestEnums:
         (APIMNetworkMode, 'invalid'),
         (APIM_SKU, 'invalid'),
         (HTTP_VERB, 'FOO'),
-        (INFRASTRUCTURE, 'bad')
+        (INFRASTRUCTURE, 'bad'),
+        (Region, 'notaregion')
     ])
     def test_invalid_enum_values(self, enum_class, invalid_value):
         """Test that invalid enum values raise ValueError."""
         with pytest.raises(ValueError):
             enum_class(invalid_value)
+
+    @pytest.mark.parametrize('enum_value,expected', [
+        (Region.EAST_US, 'eastus'),
+        (Region.EAST_US_2, 'eastus2'),
+        (Region.WEST_US, 'westus'),
+        (Region.WEST_US_2, 'westus2'),
+        (Region.WEST_US_3, 'westus3'),
+        (Region.CENTRAL_US, 'centralus'),
+        (Region.NORTH_CENTRAL_US, 'northcentralus'),
+        (Region.SOUTH_CENTRAL_US, 'southcentralus'),
+        (Region.WEST_CENTRAL_US, 'westcentralus'),
+        (Region.CANADA_CENTRAL, 'canadacentral'),
+        (Region.CANADA_EAST, 'canadaeast'),
+        (Region.BRAZIL_SOUTH, 'brazilsouth'),
+        (Region.BRAZIL_SOUTHEAST, 'brazilsoutheast'),
+        (Region.NORTH_EUROPE, 'northeurope'),
+        (Region.WEST_EUROPE, 'westeurope'),
+        (Region.UK_SOUTH, 'uksouth'),
+        (Region.UK_WEST, 'ukwest'),
+        (Region.FRANCE_CENTRAL, 'francecentral'),
+        (Region.FRANCE_SOUTH, 'francesouth'),
+        (Region.GERMANY_WEST_CENTRAL, 'germanywestcentral'),
+        (Region.GERMANY_NORTH, 'germanynorth'),
+        (Region.SWITZERLAND_NORTH, 'switzerlandnorth'),
+        (Region.SWITZERLAND_WEST, 'switzerlandwest'),
+        (Region.NORWAY_EAST, 'norwayeast'),
+        (Region.NORWAY_WEST, 'norwaywest'),
+        (Region.SWEDEN_CENTRAL, 'swedencentral'),
+        (Region.POLAND_CENTRAL, 'polandcentral'),
+        (Region.ITALY_NORTH, 'italynorth'),
+        (Region.SPAIN_CENTRAL, 'spaincentral'),
+        (Region.EAST_ASIA, 'eastasia'),
+        (Region.SOUTHEAST_ASIA, 'southeastasia'),
+        (Region.AUSTRALIA_EAST, 'australiaeast'),
+        (Region.AUSTRALIA_SOUTHEAST, 'australiasoutheast'),
+        (Region.AUSTRALIA_CENTRAL, 'australiacentral'),
+        (Region.AUSTRALIA_CENTRAL_2, 'australiacentral2'),
+        (Region.JAPAN_EAST, 'japaneast'),
+        (Region.JAPAN_WEST, 'japanwest'),
+        (Region.KOREA_CENTRAL, 'koreacentral'),
+        (Region.KOREA_SOUTH, 'koreasouth'),
+        (Region.INDIA_CENTRAL, 'centralindia'),
+        (Region.INDIA_SOUTH, 'southindia'),
+        (Region.INDIA_WEST, 'westindia'),
+        (Region.NEW_ZEALAND_NORTH, 'newzealandnorth'),
+        (Region.UAE_NORTH, 'uaenorth'),
+        (Region.UAE_CENTRAL, 'uaecentral'),
+        (Region.SOUTH_AFRICA_NORTH, 'southafricanorth'),
+        (Region.SOUTH_AFRICA_WEST, 'southafricawest'),
+        (Region.QATAR_CENTRAL, 'qatarcentral'),
+        (Region.ISRAEL_CENTRAL, 'israelcentral'),
+        (Region.CHINA_EAST, 'chinaeast'),
+        (Region.CHINA_EAST_2, 'chinaeast2'),
+        (Region.CHINA_EAST_3, 'chinaeast3'),
+        (Region.CHINA_NORTH, 'chinanorth'),
+        (Region.CHINA_NORTH_2, 'chinanorth2'),
+        (Region.CHINA_NORTH_3, 'chinanorth3'),
+        (Region.US_GOV_VIRGINIA, 'usgovvirginia'),
+        (Region.US_GOV_TEXAS, 'usgovtexas'),
+        (Region.US_GOV_ARIZONA, 'usgovarizona'),
+    ])
+    def test_region(self, enum_value, expected):
+        """Test Region enum values match the expected Azure region identifier strings."""
+        assert enum_value == expected
+
+    def test_region_is_str(self):
+        """Test that Region members are strings (StrEnum), usable wherever str is expected."""
+        assert isinstance(Region.EAST_US_2, str)
+        assert Region.EAST_US_2 == 'eastus2'
+
+    def test_region_count(self):
+        """Test that Region enum contains the expected number of members."""
+        # Verify we have all expected regions (Americas, Europe, Asia Pacific, Middle East & Africa, China, US Gov)
+        expected_count = (
+            13  # Americas
+            + 16  # Europe
+            + 14  # Asia Pacific
+            + 6   # Middle East & Africa
+            + 6   # China
+            + 3   # US Government
+        )
+        assert len(Region) == expected_count
 
 
 # ------------------------------

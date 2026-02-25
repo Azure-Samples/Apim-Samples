@@ -7,7 +7,7 @@ import argparse
 
 # APIM Samples imports
 import azure_resources as az
-from apimtypes import APIM_SKU, API, GET_APIOperation, BACKEND_XML_POLICY_PATH, INFRASTRUCTURE
+from apimtypes import APIM_SKU, API, GET_APIOperation, BACKEND_XML_POLICY_PATH, INFRASTRUCTURE, Region
 from infrastructures import AppGwApimInfrastructure
 import utils
 
@@ -74,7 +74,7 @@ def main():
     """
 
     parser = argparse.ArgumentParser(description = 'Create APPGW-APIM infrastructure (VNet Internal)')
-    parser.add_argument('--location', default = 'eastus2', help = 'Azure region (default: eastus2)')
+    parser.add_argument('--location', default = Region.EAST_US_2, help = f'Azure region (default: {Region.EAST_US_2})')
     parser.add_argument('--index', type = int, help = 'Infrastructure index')
     parser.add_argument('--sku', choices = ['Developer', 'Basicv2', 'Standardv2'], default = 'Developer', help = 'APIM SKU (default: Developer)')
     parser.add_argument('--no-aca', action = 'store_true', help = 'Disable Azure Container Apps')
