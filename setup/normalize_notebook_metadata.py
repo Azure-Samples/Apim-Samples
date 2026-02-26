@@ -69,7 +69,7 @@ def normalize_file(path: Path) -> bool:
 
         return True
     except (json.JSONDecodeError, OSError) as exc:
-        print(f"⚠️  Skipping {path}: {exc}", file=sys.stderr)
+        print(f'⚠️  Skipping {path}: {exc}', file=sys.stderr)
 
         return False
 
@@ -83,14 +83,18 @@ def get_uncommitted_notebooks() -> list[Path]:
     try:
         result = subprocess.run(
             ['git', 'diff', '--name-only', '--diff-filter=ACMR', 'HEAD', '--', '*.ipynb'],
-            capture_output=True, text=True, check=True,
+            capture_output=True,
+            text=True,
+            check=True,
         )
         staged = subprocess.run(
             ['git', 'diff', '--name-only', '--diff-filter=ACMR', '--staged', '--', '*.ipynb'],
-            capture_output=True, text=True, check=True,
+            capture_output=True,
+            text=True,
+            check=True,
         )
     except (FileNotFoundError, subprocess.CalledProcessError) as exc:
-        print(f"⚠️  Could not query git for uncommitted files: {exc}", file=sys.stderr)
+        print(f'⚠️  Could not query git for uncommitted files: {exc}', file=sys.stderr)
 
         return []
 
@@ -149,11 +153,11 @@ def main() -> None:
         for arg in args:
             path = Path(arg)
             if not path.exists():
-                print(f"⚠️  File not found: {path}", file=sys.stderr)
+                print(f'⚠️  File not found: {path}', file=sys.stderr)
                 success = False
                 continue
             if normalize_file(path):
-                print(f"✅ Normalized {path}")
+                print(f'✅ Normalized {path}')
             else:
                 success = False
 

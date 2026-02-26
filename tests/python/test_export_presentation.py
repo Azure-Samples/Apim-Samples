@@ -2,6 +2,7 @@
 
 import base64
 import importlib
+import shutil
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -11,11 +12,11 @@ import pytest
 
 # Ensure the setup folder is on sys.path so the module is importable.
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SETUP_PATH = PROJECT_ROOT / "setup"
+SETUP_PATH = PROJECT_ROOT / 'setup'
 if str(SETUP_PATH) not in sys.path:
     sys.path.insert(0, str(SETUP_PATH))
 
-export_pres = cast(ModuleType, importlib.import_module("export_presentation"))
+export_pres = cast(ModuleType, importlib.import_module('export_presentation'))
 
 
 # ============================================================
@@ -103,6 +104,7 @@ MIN_BASE64_LENGTH = 0  # For validation
 # FIXTURES
 # ============================================================
 
+
 @pytest.fixture
 def tmp_repo_structure(tmp_path: Path) -> dict:
     """Create a temporary repo structure with the slide deck under assets/."""
@@ -136,7 +138,7 @@ def tmp_repo_structure(tmp_path: Path) -> dict:
 
     # Create HTML presentation file
     html_file = presentation_dir / TEST_PRESENTATION_FILE
-    html_content = f'''<!DOCTYPE html>
+    html_content = f"""<!DOCTYPE html>
 <html>
 <head><title>Test Presentation</title></head>
 <body>
@@ -147,7 +149,7 @@ def tmp_repo_structure(tmp_path: Path) -> dict:
   <img {SRC_ATTR}="{TEST_WEBP_FILENAME}" {ALT_ATTR}="{MODERN_ALT}" />
   <img {SRC_ATTR}="{TEST_MISSING_PNG}" {ALT_ATTR}="Missing" />
 </body>
-</html>'''
+</html>"""
     html_file.write_text(html_content)
 
     return {
@@ -168,6 +170,7 @@ def tmp_repo_structure(tmp_path: Path) -> dict:
 # TESTS: get_repo_root()
 # ============================================================
 
+
 def test_get_repo_root_returns_path_object() -> None:
     """get_repo_root should return a Path object."""
     result = export_pres.get_repo_root()
@@ -184,6 +187,7 @@ def test_get_repo_root_points_to_project_root() -> None:
 # ============================================================
 # TESTS: inline_images() - Basic Functionality
 # ============================================================
+
 
 def test_inline_images_with_simple_filename(tmp_repo_structure: dict, capsys: pytest.CaptureFixture) -> None:
     """inline_images should inline simple filenames from base_dir."""
@@ -208,11 +212,11 @@ def test_inline_images_with_directory_path(tmp_repo_structure: dict, capsys: pyt
 
 def test_inline_images_with_multiple_images(tmp_repo_structure: dict, capsys: pytest.CaptureFixture) -> None:
     """inline_images should inline multiple images in one HTML."""
-    html = '''
+    html = """
     <img src="logo.png" alt="Logo" />
     <img src="diagrams/diagram.svg" alt="Diagram" />
     <img src="photo.jpg" alt="Photo" />
-    '''
+    """
     result = export_pres.inline_images(html, tmp_repo_structure['presentation_dir'])
 
     # All three images should be inlined
@@ -234,6 +238,7 @@ def test_inline_images_with_href_attribute(tmp_repo_structure: dict, capsys: pyt
 # ============================================================
 # TESTS: inline_images() - Image Format Support
 # ============================================================
+
 
 def test_inline_images_png_format(tmp_repo_structure: dict) -> None:
     """inline_images should support PNG format with correct MIME type."""
@@ -284,6 +289,7 @@ def test_inline_images_jpeg_extension(tmp_repo_structure: dict) -> None:
 # TESTS: inline_images() - Error Handling
 # ============================================================
 
+
 def test_inline_images_missing_file_returns_unchanged(tmp_repo_structure: dict, capsys: pytest.CaptureFixture) -> None:
     """inline_images should return original HTML unchanged if file not found."""
     html = '<img src="nonexistent.png" />'
@@ -310,10 +316,10 @@ def test_inline_images_with_no_images(tmp_repo_structure: dict) -> None:
 
 def test_inline_images_mixed_existing_and_missing(tmp_repo_structure: dict, capsys: pytest.CaptureFixture) -> None:
     """inline_images should inline existing files while leaving missing ones."""
-    html = '''
+    html = """
     <img src="logo.png" />
     <img src="missing.png" />
-    '''
+    """
     result = export_pres.inline_images(html, tmp_repo_structure['presentation_dir'])
 
     # Existing image should be inlined
@@ -325,6 +331,7 @@ def test_inline_images_mixed_existing_and_missing(tmp_repo_structure: dict, caps
 # ============================================================
 # TESTS: inline_images() - Base64 Encoding Correctness
 # ============================================================
+
 
 def test_inline_images_produces_valid_base64(tmp_repo_structure: dict) -> None:
     """inline_images should produce valid base64-encoded data URLs."""
@@ -354,6 +361,7 @@ def test_inline_images_preserves_other_attributes(tmp_repo_structure: dict) -> N
 # TESTS: inline_images() - Case Insensitivity
 # ============================================================
 
+
 def test_inline_images_case_insensitive_extension(tmp_repo_structure: dict) -> None:
     """inline_images should handle uppercase file extensions."""
     # Create a file with uppercase extension
@@ -369,6 +377,7 @@ def test_inline_images_case_insensitive_extension(tmp_repo_structure: dict) -> N
 # ============================================================
 # TESTS: inline_images() - Search Fallback
 # ============================================================
+
 
 def test_inline_images_fallback_search_parent_dir(tmp_repo_structure: dict) -> None:
     """inline_images should search parent directories if file not found in base_dir."""
@@ -387,9 +396,10 @@ def test_inline_images_fallback_search_parent_dir(tmp_repo_structure: dict) -> N
 # TESTS: strip_live_reload()
 # ============================================================
 
+
 def test_strip_live_reload_removes_polling_block() -> None:
-        """strip_live_reload should remove the live-reload polling script."""
-        html = '''<script>
+    """strip_live_reload should remove the live-reload polling script."""
+    html = """<script>
         (function () {
             console.log("presentation engine");
         })();
@@ -400,25 +410,26 @@ def test_strip_live_reload_removes_polling_block() -> None:
                 fetch(window.location.href, { method: 'HEAD', cache: 'no-store' });
             }, 2000);
         })();
-    </script>'''
+    </script>"""
 
-        result = export_pres.strip_live_reload(html)
+    result = export_pres.strip_live_reload(html)
 
-        assert 'presentation engine' in result
-        assert 'Live reload (polls server for changes)' not in result
-        assert "method: 'HEAD'" not in result
+    assert 'presentation engine' in result
+    assert 'Live reload (polls server for changes)' not in result
+    assert "method: 'HEAD'" not in result
 
 
 def test_strip_live_reload_leaves_html_without_polling_unchanged() -> None:
-        """strip_live_reload should leave HTML unchanged when no polling block exists."""
-        html = '<script>(function () { console.log("presentation engine"); })();</script>'
+    """strip_live_reload should leave HTML unchanged when no polling block exists."""
+    html = '<script>(function () { console.log("presentation engine"); })();</script>'
 
-        assert export_pres.strip_live_reload(html) == html
+    assert export_pres.strip_live_reload(html) == html
 
 
 # ============================================================
 # TESTS: export_presentation() - Integration
 # ============================================================
+
 
 def test_export_presentation_creates_build_directory(tmp_repo_structure: dict, monkeypatch: pytest.MonkeyPatch) -> None:
     """export_presentation should create build directory if it doesn't exist."""
@@ -428,7 +439,6 @@ def test_export_presentation_creates_build_directory(tmp_repo_structure: dict, m
     # Remove build dir for this test
     build_dir = tmp_repo_structure['build_dir']
     if build_dir.exists():
-        import shutil
         shutil.rmtree(build_dir)
 
     # Run export
@@ -468,12 +478,12 @@ def test_export_presentation_inlines_images(tmp_repo_structure: dict, monkeypatc
 
 
 def test_export_presentation_strips_live_reload_polling(tmp_repo_structure: dict, monkeypatch: pytest.MonkeyPatch) -> None:
-        """export_presentation should omit authoring-only polling from the build output."""
-        monkeypatch.setattr(export_pres, 'get_repo_root', lambda: tmp_repo_structure['tmp_path'])
+    """export_presentation should omit authoring-only polling from the build output."""
+    monkeypatch.setattr(export_pres, 'get_repo_root', lambda: tmp_repo_structure['tmp_path'])
 
-        html_file = tmp_repo_structure['presentation_dir'] / TEST_PRESENTATION_FILE
-        html_file.write_text(
-                '''<!DOCTYPE html>
+    html_file = tmp_repo_structure['presentation_dir'] / TEST_PRESENTATION_FILE
+    html_file.write_text(
+        """<!DOCTYPE html>
 <html>
 <body>
     <img src="logo.png" alt="Logo" />
@@ -490,17 +500,17 @@ def test_export_presentation_strips_live_reload_polling(tmp_repo_structure: dict
         })();
     </script>
 </body>
-</html>''',
-                encoding = 'utf-8',
-        )
+</html>""",
+        encoding='utf-8',
+    )
 
-        export_pres.export_presentation()
+    export_pres.export_presentation()
 
-        output_content = (tmp_repo_structure['build_dir'] / TEST_PRESENTATION_FILE).read_text(encoding = 'utf-8')
-        assert 'data:image/png;base64,' in output_content
-        assert 'presentation engine' in output_content
-        assert 'Live reload (polls server for changes)' not in output_content
-        assert "method: 'HEAD'" not in output_content
+    output_content = (tmp_repo_structure['build_dir'] / TEST_PRESENTATION_FILE).read_text(encoding='utf-8')
+    assert 'data:image/png;base64,' in output_content
+    assert 'presentation engine' in output_content
+    assert 'Live reload (polls server for changes)' not in output_content
+    assert "method: 'HEAD'" not in output_content
 
 
 def test_export_presentation_missing_source_file_exits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -520,13 +530,14 @@ def test_export_presentation_missing_source_file_exits(tmp_path: Path, monkeypat
 # TESTS: Regex Pattern Matching
 # ============================================================
 
+
 def test_inline_images_regex_ignores_non_image_files(tmp_repo_structure: dict) -> None:
     """inline_images should not match non-image file references."""
-    html = '''
+    html = """
     <img src="logo.png" />
     <script src="app.js"></script>
     <link href="styles.css" rel="stylesheet" />
-    '''
+    """
     result = export_pres.inline_images(html, tmp_repo_structure['presentation_dir'])
 
     # Only PNG should be inlined

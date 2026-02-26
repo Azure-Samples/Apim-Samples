@@ -23,7 +23,7 @@ PRESENTATION_ENTRY_PATH = '/APIM-Samples-Slide-Deck.html'
 def get_local_timestamp() -> str:
     """Return a local timestamp as mm/dd/yyyy hh:mm:ss.mmm."""
     current_time = datetime.now().astimezone()
-    return f"{current_time:%m/%d/%Y %H:%M:%S}.{current_time.microsecond // 1000:03d}"
+    return f'{current_time:%m/%d/%Y %H:%M:%S}.{current_time.microsecond // 1000:03d}'
 
 
 def print_shutdown_message() -> None:
@@ -36,7 +36,7 @@ def get_presentation_dir():
     repo_root = Path(__file__).parent.parent
     assets_dir = repo_root / 'assets'
     if not assets_dir.exists():
-        raise FileNotFoundError(f"Assets directory not found: {assets_dir}")
+        raise FileNotFoundError(f'Assets directory not found: {assets_dir}')
     return assets_dir
 
 
@@ -77,7 +77,7 @@ class PresentationHandler(http.server.SimpleHTTPRequestHandler):
 
         if previous_mtime is not None and current_mtime > previous_mtime:
             rel_path = self.path.lstrip('/') or file_path.name
-            print(f"  [{get_local_timestamp()}] File update detected: {rel_path}")
+            print(f'  [{get_local_timestamp()}] File update detected: {rel_path}')
 
         self._last_polled_mtimes[file_key] = current_mtime
 
@@ -104,7 +104,7 @@ class PresentationHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         if 'HTTP' in request_line or status_code:
-            print(f"  {format % args}", file=sys.stderr)
+            print(f'  {format % args}', file=sys.stderr)
 
 
 def serve_presentation(port: int = 7777):
@@ -151,20 +151,20 @@ def serve_presentation(port: int = 7777):
         presentation_url = f'{url}{PRESENTATION_ENTRY_PATH}'
 
         # Print server info
-        print("\n✨ APIM Samples Presentation Server")
-        print(f"   Serving from: {pres_dir}")
-        print(f"   URL: {url}")
-        print(f"   Presentation URL: {presentation_url}")
+        print('\n✨ APIM Samples Presentation Server')
+        print(f'   Serving from: {pres_dir}')
+        print(f'   URL: {url}')
+        print(f'   Presentation URL: {presentation_url}')
         print()
-        print("   🌐 Browser opening in 1 second...")
+        print('   🌐 Browser opening in 1 second...')
         print()
-        print("   To stop the server: Press Ctrl+C")
+        print('   To stop the server: Press Ctrl+C')
         print()
 
         # Open browser in a background thread
         def open_browser():
             sleep(1)  # Give server time to start
-            print(f"   ✓ Opening browser to {presentation_url}")
+            print(f'   ✓ Opening browser to {presentation_url}')
             webbrowser.open(presentation_url)
 
         Thread(target=open_browser, daemon=True).start()
@@ -190,12 +190,12 @@ if __name__ == '__main__':
     try:
         serve_presentation(port)
     except FileNotFoundError as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(f'Error: {e}', file=sys.stderr)
         sys.exit(1)
     except OSError as e:
         if 'Address already in use' in str(e):
-            print(f"Error: Port {port} is already in use", file=sys.stderr)
-            print("Try a different port: python serve_presentation.py 7778", file=sys.stderr)
+            print(f'Error: Port {port} is already in use', file=sys.stderr)
+            print('Try a different port: python serve_presentation.py 7778', file=sys.stderr)
         else:
-            print(f"Error: {e}", file=sys.stderr)
+            print(f'Error: {e}', file=sys.stderr)
         sys.exit(1)

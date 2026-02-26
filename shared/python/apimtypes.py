@@ -18,12 +18,12 @@ from json_utils import extract_json, is_string_json
 def get_project_root() -> Path:
     """Get the project root directory path."""
     # Try to get from environment variable first (set by .env file)
-    if "PROJECT_ROOT" in os.environ:
-        return Path(os.environ["PROJECT_ROOT"])
+    if 'PROJECT_ROOT' in os.environ:
+        return Path(os.environ['PROJECT_ROOT'])
 
     # Fallback: detect project root by walking up from this file
     current_path = Path(__file__).resolve().parent.parent.parent  # Go up from shared/python/
-    indicators = ["README.md", "pyproject.toml", "bicepconfig.json"]
+    indicators = ['README.md', 'pyproject.toml', 'bicepconfig.json']
 
     while current_path != current_path.parent:
         if all((current_path / indicator).exists() for indicator in indicators):
@@ -36,16 +36,16 @@ def get_project_root() -> Path:
 
 # Get project root and construct absolute paths to policy files
 _PROJECT_ROOT = get_project_root()
-_SHARED_XML_POLICY_BASE_PATH = _PROJECT_ROOT / "shared" / "apim-policies"
+_SHARED_XML_POLICY_BASE_PATH = _PROJECT_ROOT / 'shared' / 'apim-policies'
 
 # Policy file paths (now absolute and platform-independent)
-DEFAULT_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / "default.xml")
-HELLO_WORLD_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / "hello-world.xml")
-REQUEST_HEADERS_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / "request-headers.xml")
-BACKEND_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / "backend.xml")
-API_ID_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / "api-id.xml")
+DEFAULT_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / 'default.xml')
+HELLO_WORLD_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / 'hello-world.xml')
+REQUEST_HEADERS_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / 'request-headers.xml')
+BACKEND_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / 'backend.xml')
+API_ID_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / 'api-id.xml')
 
-SUBSCRIPTION_KEY_PARAMETER_NAME = "api-key"
+SUBSCRIPTION_KEY_PARAMETER_NAME = 'api-key'
 SLEEP_TIME_BETWEEN_REQUESTS_MS = 50
 
 
@@ -67,7 +67,7 @@ def _read_policy_xml(policy_xml_filepath: str) -> str:
     """
 
     # Read the specified policy XML file with explicit UTF-8 encoding
-    with open(policy_xml_filepath, "r", encoding="utf-8") as policy_xml_file:
+    with open(policy_xml_filepath, 'r', encoding='utf-8') as policy_xml_file:
         policy_template_xml = policy_xml_file.read()
 
     return policy_template_xml
@@ -84,11 +84,11 @@ class Role:
     Predefined roles and their GUIDs (mocked for testing purposes).
     """
 
-    NONE = "00000000-0000-0000-0000-000000000000"  # No role assigned
-    HR_MEMBER = "316790bc-fbd3-4a14-8867-d1388ffbc195"
-    HR_ASSOCIATE = "d3c1b0f2-4a5e-4c8b-9f6d-7c8e1f2a3b4c"
-    HR_ADMINISTRATOR = "a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6"
-    MARKETING_MEMBER = "b2c3d4e5-f6g7-8h9i-0j1k-2l3m4n5o6p7q"
+    NONE = '00000000-0000-0000-0000-000000000000'  # No role assigned
+    HR_MEMBER = '316790bc-fbd3-4a14-8867-d1388ffbc195'
+    HR_ASSOCIATE = 'd3c1b0f2-4a5e-4c8b-9f6d-7c8e1f2a3b4c'
+    HR_ADMINISTRATOR = 'a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6'
+    MARKETING_MEMBER = 'b2c3d4e5-f6g7-8h9i-0j1k-2l3m4n5o6p7q'
 
 
 class HttpStatusCode(IntEnum):
@@ -173,10 +173,10 @@ class APIMNetworkMode(StrEnum):
     Networking configuration modes for Azure API Management (APIM).
     """
 
-    PUBLIC = "Public"  # APIM is accessible from the public internet
-    EXTERNAL_VNET = "External"  # APIM is deployed in a VNet with external (public) access
-    INTERNAL_VNET = "Internal"  # APIM is deployed in a VNet with only internal (private) access
-    NONE = "None"  # No explicit network configuration (legacy or default)
+    PUBLIC = 'Public'  # APIM is accessible from the public internet
+    EXTERNAL_VNET = 'External'  # APIM is deployed in a VNet with external (public) access
+    INTERNAL_VNET = 'Internal'  # APIM is deployed in a VNet with only internal (private) access
+    NONE = 'None'  # No explicit network configuration (legacy or default)
 
 
 class APIM_SKU(StrEnum):
@@ -184,13 +184,13 @@ class APIM_SKU(StrEnum):
     APIM SKU types.
     """
 
-    DEVELOPER = "Developer"
-    BASIC = "Basic"
-    STANDARD = "Standard"
-    PREMIUM = "Premium"
-    BASICV2 = "Basicv2"
-    STANDARDV2 = "Standardv2"
-    PREMIUMV2 = "Premiumv2"
+    DEVELOPER = 'Developer'
+    BASIC = 'Basic'
+    STANDARD = 'Standard'
+    PREMIUM = 'Premium'
+    BASICV2 = 'Basicv2'
+    STANDARDV2 = 'Standardv2'
+    PREMIUMV2 = 'Premiumv2'
 
     def is_v1(self):
         """Check if the SKU is a v1 tier."""
@@ -210,13 +210,13 @@ class HTTP_VERB(StrEnum):
     HTTP verbs that can be used for API operations.
     """
 
-    GET = "GET"
-    POST = "POST"
-    PUT = "PUT"
-    DELETE = "DELETE"
-    PATCH = "PATCH"
-    OPTIONS = "OPTIONS"
-    HEAD = "HEAD"
+    GET = 'GET'
+    POST = 'POST'
+    PUT = 'PUT'
+    DELETE = 'DELETE'
+    PATCH = 'PATCH'
+    OPTIONS = 'OPTIONS'
+    HEAD = 'HEAD'
 
 
 class INFRASTRUCTURE(StrEnum):
@@ -224,11 +224,11 @@ class INFRASTRUCTURE(StrEnum):
     Infrastructure types for APIM automation scenarios.
     """
 
-    SIMPLE_APIM = "simple-apim"  # Simple API Management with no dependencies
-    APIM_ACA = "apim-aca"  # Azure API Management connected to Azure Container Apps
-    AFD_APIM_PE = "afd-apim-pe"  # Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
-    APPGW_APIM_PE = "appgw-apim-pe"  # Application Gateway connected to Azure API Management (Standard V2) via Private Link
-    APPGW_APIM = "appgw-apim"  # Application Gateway connected to Azure API Management (Developer SKU) via VNet (Internal)
+    SIMPLE_APIM = 'simple-apim'  # Simple API Management with no dependencies
+    APIM_ACA = 'apim-aca'  # Azure API Management connected to Azure Container Apps
+    AFD_APIM_PE = 'afd-apim-pe'  # Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
+    APPGW_APIM_PE = 'appgw-apim-pe'  # Application Gateway connected to Azure API Management (Standard V2) via Private Link
+    APPGW_APIM = 'appgw-apim'  # Application Gateway connected to Azure API Management (Developer SKU) via VNet (Internal)
 
 
 class Region(StrEnum):
@@ -240,74 +240,74 @@ class Region(StrEnum):
     """
 
     # Americas
-    EAST_US = "eastus"
-    EAST_US_2 = "eastus2"
-    WEST_US = "westus"
-    WEST_US_2 = "westus2"
-    WEST_US_3 = "westus3"
-    CENTRAL_US = "centralus"
-    NORTH_CENTRAL_US = "northcentralus"
-    SOUTH_CENTRAL_US = "southcentralus"
-    WEST_CENTRAL_US = "westcentralus"
-    CANADA_CENTRAL = "canadacentral"
-    CANADA_EAST = "canadaeast"
-    BRAZIL_SOUTH = "brazilsouth"
-    BRAZIL_SOUTHEAST = "brazilsoutheast"
+    EAST_US = 'eastus'
+    EAST_US_2 = 'eastus2'
+    WEST_US = 'westus'
+    WEST_US_2 = 'westus2'
+    WEST_US_3 = 'westus3'
+    CENTRAL_US = 'centralus'
+    NORTH_CENTRAL_US = 'northcentralus'
+    SOUTH_CENTRAL_US = 'southcentralus'
+    WEST_CENTRAL_US = 'westcentralus'
+    CANADA_CENTRAL = 'canadacentral'
+    CANADA_EAST = 'canadaeast'
+    BRAZIL_SOUTH = 'brazilsouth'
+    BRAZIL_SOUTHEAST = 'brazilsoutheast'
 
     # Europe
-    NORTH_EUROPE = "northeurope"
-    WEST_EUROPE = "westeurope"
-    UK_SOUTH = "uksouth"
-    UK_WEST = "ukwest"
-    FRANCE_CENTRAL = "francecentral"
-    FRANCE_SOUTH = "francesouth"
-    GERMANY_WEST_CENTRAL = "germanywestcentral"
-    GERMANY_NORTH = "germanynorth"
-    SWITZERLAND_NORTH = "switzerlandnorth"
-    SWITZERLAND_WEST = "switzerlandwest"
-    NORWAY_EAST = "norwayeast"
-    NORWAY_WEST = "norwaywest"
-    SWEDEN_CENTRAL = "swedencentral"
-    POLAND_CENTRAL = "polandcentral"
-    ITALY_NORTH = "italynorth"
-    SPAIN_CENTRAL = "spaincentral"
+    NORTH_EUROPE = 'northeurope'
+    WEST_EUROPE = 'westeurope'
+    UK_SOUTH = 'uksouth'
+    UK_WEST = 'ukwest'
+    FRANCE_CENTRAL = 'francecentral'
+    FRANCE_SOUTH = 'francesouth'
+    GERMANY_WEST_CENTRAL = 'germanywestcentral'
+    GERMANY_NORTH = 'germanynorth'
+    SWITZERLAND_NORTH = 'switzerlandnorth'
+    SWITZERLAND_WEST = 'switzerlandwest'
+    NORWAY_EAST = 'norwayeast'
+    NORWAY_WEST = 'norwaywest'
+    SWEDEN_CENTRAL = 'swedencentral'
+    POLAND_CENTRAL = 'polandcentral'
+    ITALY_NORTH = 'italynorth'
+    SPAIN_CENTRAL = 'spaincentral'
 
     # Asia Pacific
-    EAST_ASIA = "eastasia"
-    SOUTHEAST_ASIA = "southeastasia"
-    AUSTRALIA_EAST = "australiaeast"
-    AUSTRALIA_SOUTHEAST = "australiasoutheast"
-    AUSTRALIA_CENTRAL = "australiacentral"
-    AUSTRALIA_CENTRAL_2 = "australiacentral2"
-    JAPAN_EAST = "japaneast"
-    JAPAN_WEST = "japanwest"
-    KOREA_CENTRAL = "koreacentral"
-    KOREA_SOUTH = "koreasouth"
-    INDIA_CENTRAL = "centralindia"
-    INDIA_SOUTH = "southindia"
-    INDIA_WEST = "westindia"
-    NEW_ZEALAND_NORTH = "newzealandnorth"
+    EAST_ASIA = 'eastasia'
+    SOUTHEAST_ASIA = 'southeastasia'
+    AUSTRALIA_EAST = 'australiaeast'
+    AUSTRALIA_SOUTHEAST = 'australiasoutheast'
+    AUSTRALIA_CENTRAL = 'australiacentral'
+    AUSTRALIA_CENTRAL_2 = 'australiacentral2'
+    JAPAN_EAST = 'japaneast'
+    JAPAN_WEST = 'japanwest'
+    KOREA_CENTRAL = 'koreacentral'
+    KOREA_SOUTH = 'koreasouth'
+    INDIA_CENTRAL = 'centralindia'
+    INDIA_SOUTH = 'southindia'
+    INDIA_WEST = 'westindia'
+    NEW_ZEALAND_NORTH = 'newzealandnorth'
 
     # Middle East & Africa
-    UAE_NORTH = "uaenorth"
-    UAE_CENTRAL = "uaecentral"
-    SOUTH_AFRICA_NORTH = "southafricanorth"
-    SOUTH_AFRICA_WEST = "southafricawest"
-    QATAR_CENTRAL = "qatarcentral"
-    ISRAEL_CENTRAL = "israelcentral"
+    UAE_NORTH = 'uaenorth'
+    UAE_CENTRAL = 'uaecentral'
+    SOUTH_AFRICA_NORTH = 'southafricanorth'
+    SOUTH_AFRICA_WEST = 'southafricawest'
+    QATAR_CENTRAL = 'qatarcentral'
+    ISRAEL_CENTRAL = 'israelcentral'
 
     # China (operated by 21Vianet)
-    CHINA_EAST = "chinaeast"
-    CHINA_EAST_2 = "chinaeast2"
-    CHINA_EAST_3 = "chinaeast3"
-    CHINA_NORTH = "chinanorth"
-    CHINA_NORTH_2 = "chinanorth2"
-    CHINA_NORTH_3 = "chinanorth3"
+    CHINA_EAST = 'chinaeast'
+    CHINA_EAST_2 = 'chinaeast2'
+    CHINA_EAST_3 = 'chinaeast3'
+    CHINA_NORTH = 'chinanorth'
+    CHINA_NORTH_2 = 'chinanorth2'
+    CHINA_NORTH_3 = 'chinanorth3'
 
     # US Government
-    US_GOV_VIRGINIA = "usgovvirginia"
-    US_GOV_TEXAS = "usgovtexas"
-    US_GOV_ARIZONA = "usgovarizona"
+    US_GOV_VIRGINIA = 'usgovvirginia'
+    US_GOV_TEXAS = 'usgovtexas'
+    US_GOV_ARIZONA = 'usgovarizona'
 
 
 class Endpoints:
@@ -365,7 +365,7 @@ class Output:
 
         self.is_json = self.json_data is not None
 
-    def get(self, key: str, label: str = "", secure: bool = False, suppress_logging: bool = False) -> str | None:
+    def get(self, key: str, label: str = '', secure: bool = False, suppress_logging: bool = False) -> str | None:
         """
         Retrieve a deployment output property by key, with optional label and secure masking.
 
@@ -382,30 +382,30 @@ class Output:
             deployment_output: Any
 
             if not isinstance(self.json_data, dict):
-                raise KeyError("json_data is not a dict")
+                raise KeyError('json_data is not a dict')
 
-            if "properties" in self.json_data:
-                properties = self.json_data.get("properties")
+            if 'properties' in self.json_data:
+                properties = self.json_data.get('properties')
                 if not isinstance(properties, dict):
                     raise KeyError("'properties' is not a dict in deployment result")
 
-                outputs = properties.get("outputs")
+                outputs = properties.get('outputs')
                 if not isinstance(outputs, dict):
                     raise KeyError("'outputs' is missing or not a dict in deployment result")
 
                 output_entry = outputs.get(key)
-                if not isinstance(output_entry, dict) or "value" not in output_entry:
+                if not isinstance(output_entry, dict) or 'value' not in output_entry:
                     raise KeyError(f"Output key '{key}' not found in deployment outputs")
 
-                deployment_output = output_entry["value"]
+                deployment_output = output_entry['value']
             elif key in self.json_data:
-                deployment_output = self.json_data[key]["value"]
+                deployment_output = self.json_data[key]['value']
             else:
                 raise KeyError(f"Output key '{key}' not found in deployment outputs")
 
             if not suppress_logging and label:
                 if secure and isinstance(deployment_output, str) and len(deployment_output) >= self._SECURE_MASK_MIN_LENGTH:
-                    print_val(label, f"****{deployment_output[-4:]}")
+                    print_val(label, f'****{deployment_output[-4:]}')
                 else:
                     print_val(label, deployment_output)
 
@@ -420,7 +420,7 @@ class Output:
 
             return None
 
-    def getJson(self, key: str, label: str = "", secure: bool = False, suppress_logging: bool = False) -> Any:
+    def getJson(self, key: str, label: str = '', secure: bool = False, suppress_logging: bool = False) -> Any:
         """
         Retrieve a deployment output property by key and return it as a JSON object.
         This method is independent from get() and retrieves the raw deployment output value.
@@ -438,30 +438,30 @@ class Output:
             deployment_output: Any
 
             if not isinstance(self.json_data, dict):
-                raise KeyError("json_data is not a dict")
+                raise KeyError('json_data is not a dict')
 
-            if "properties" in self.json_data:
-                properties = self.json_data.get("properties")
+            if 'properties' in self.json_data:
+                properties = self.json_data.get('properties')
                 if not isinstance(properties, dict):
                     raise KeyError("'properties' is not a dict in deployment result")
 
-                outputs = properties.get("outputs")
+                outputs = properties.get('outputs')
                 if not isinstance(outputs, dict):
                     raise KeyError("'outputs' is missing or not a dict in deployment result")
 
                 output_entry = outputs.get(key)
-                if not isinstance(output_entry, dict) or "value" not in output_entry:
+                if not isinstance(output_entry, dict) or 'value' not in output_entry:
                     raise KeyError(f"Output key '{key}' not found in deployment outputs")
 
-                deployment_output = output_entry["value"]
+                deployment_output = output_entry['value']
             elif key in self.json_data:
-                deployment_output = self.json_data[key]["value"]
+                deployment_output = self.json_data[key]['value']
             else:
                 raise KeyError(f"Output key '{key}' not found in deployment outputs")  # pragma: no cover
 
             if not suppress_logging and label:
                 if secure and isinstance(deployment_output, str) and len(deployment_output) >= self._SECURE_MASK_MIN_LENGTH:
-                    print_val(label, f"****{deployment_output[-4:]}")
+                    print_val(label, f'****{deployment_output[-4:]}')
                 else:
                     print_val(label, deployment_output)
 
@@ -477,7 +477,7 @@ class Output:
                 try:
                     return ast.literal_eval(deployment_output)
                 except (ValueError, SyntaxError) as e:
-                    print_error(f"Failed to parse deployment output as Python literal. Error: {e}")
+                    print_error(f'Failed to parse deployment output as Python literal. Error: {e}')
 
             # Return the original result if it's not a string or can't be parsed
             return deployment_output
@@ -503,7 +503,7 @@ class API:
     path: str
     description: str
     policyXml: Optional[str] = None
-    operations: Optional[List["APIOperation"]] = None
+    operations: Optional[List['APIOperation']] = None
     tags: Optional[List[str]] = None
     productNames: Optional[List[str]] = None
     subscriptionRequired: bool = True
@@ -520,7 +520,7 @@ class API:
         path: str,
         description: str,
         policyXml: Optional[str] = None,
-        operations: Optional[List["APIOperation"]] = None,
+        operations: Optional[List['APIOperation']] = None,
         tags: Optional[List[str]] = None,
         productNames: Optional[List[str]] = None,
         subscriptionRequired: bool = True,
@@ -544,16 +544,16 @@ class API:
     def to_dict(self) -> dict:
         """Convert the API instance to a dictionary."""
         return {
-            "name": self.name,
-            "displayName": self.displayName,
-            "path": self.path,
-            "description": self.description,
-            "operations": [op.to_dict() for op in self.operations] if self.operations else [],
-            "serviceUrl": self.serviceUrl,
-            "subscriptionRequired": self.subscriptionRequired,
-            "policyXml": self.policyXml,
-            "tags": self.tags,
-            "productNames": self.productNames,
+            'name': self.name,
+            'displayName': self.displayName,
+            'path': self.path,
+            'description': self.description,
+            'operations': [op.to_dict() for op in self.operations] if self.operations else [],
+            'serviceUrl': self.serviceUrl,
+            'subscriptionRequired': self.subscriptionRequired,
+            'policyXml': self.policyXml,
+            'tags': self.tags,
+            'productNames': self.productNames,
         }
 
 
@@ -589,7 +589,7 @@ class APIOperation:
             try:
                 method = HTTP_VERB(method).value
             except Exception as exc:
-                raise ValueError(f"Invalid HTTP_VERB: {method}") from exc
+                raise ValueError(f'Invalid HTTP_VERB: {method}') from exc
 
         self.name = name
         self.displayName = displayName
@@ -606,13 +606,13 @@ class APIOperation:
     def to_dict(self) -> dict:
         """Convert the API operation to a dictionary."""
         return {
-            "name": self.name,
-            "displayName": self.displayName,
-            "urlTemplate": self.urlTemplate,
-            "description": self.description,
-            "method": self.method,
-            "policyXml": self.policyXml,
-            "templateParameters": self.templateParameters,
+            'name': self.name,
+            'displayName': self.displayName,
+            'urlTemplate': self.urlTemplate,
+            'description': self.description,
+            'method': self.method,
+            'policyXml': self.policyXml,
+            'templateParameters': self.templateParameters,
         }
 
 
@@ -627,7 +627,7 @@ class GET_APIOperation(APIOperation):
     # ------------------------------
 
     def __init__(self, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None):
-        super().__init__("GET", "GET", "/", HTTP_VERB.GET, description, policyXml, templateParameters)
+        super().__init__('GET', 'GET', '/', HTTP_VERB.GET, description, policyXml, templateParameters)
 
 
 @dataclass
@@ -663,7 +663,7 @@ class POST_APIOperation(APIOperation):
     # ------------------------------
 
     def __init__(self, description: str, policyXml: Optional[str] = None, templateParameters: Optional[List[dict[str, Any]]] = None) -> None:
-        super().__init__("POST", "POST", "/", HTTP_VERB.POST, description, policyXml, templateParameters)
+        super().__init__('POST', 'POST', '/', HTTP_VERB.POST, description, policyXml, templateParameters)
 
 
 @dataclass
@@ -691,7 +691,7 @@ class NamedValue:
 
     def to_dict(self) -> dict:
         """Convert the named value to a dictionary."""
-        nv_dict = {"name": self.name, "value": self.value, "isSecret": self.isSecret}
+        nv_dict = {'name': self.name, 'value': self.value, 'isSecret': self.isSecret}
 
         return nv_dict
 
@@ -710,7 +710,7 @@ class PolicyFragment:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, name: str, policyXml: str, description: str = "") -> None:
+    def __init__(self, name: str, policyXml: str, description: str = '') -> None:
         self.name = name
         self.policyXml = policyXml
         self.description = description
@@ -721,7 +721,7 @@ class PolicyFragment:
 
     def to_dict(self) -> dict:
         """Convert the policy fragment to a dictionary."""
-        pf_dict = {"name": self.name, "policyXml": self.policyXml, "description": self.description}
+        pf_dict = {'name': self.name, 'policyXml': self.policyXml, 'description': self.description}
 
         return pf_dict
 
@@ -737,7 +737,7 @@ class Product:
     name: str
     displayName: str
     description: str
-    state: str = "published"  # 'published' or 'notPublished'
+    state: str = 'published'  # 'published' or 'notPublished'
     subscriptionRequired: bool = True
     approvalRequired: bool = False
     policyXml: Optional[str] = None
@@ -751,7 +751,7 @@ class Product:
         name: str,
         displayName: str,
         description: str,
-        state: str = "published",
+        state: str = 'published',
         subscriptionRequired: bool = True,
         approvalRequired: bool = False,
         policyXml: Optional[str] = None,
@@ -792,11 +792,11 @@ class Product:
     def to_dict(self) -> dict:
         """Convert the product to a dictionary."""
         return {
-            "name": self.name,
-            "displayName": self.displayName,
-            "description": self.description,
-            "state": self.state,
-            "subscriptionRequired": self.subscriptionRequired,
-            "approvalRequired": self.approvalRequired,
-            "policyXml": self.policyXml,
+            'name': self.name,
+            'displayName': self.displayName,
+            'description': self.description,
+            'state': self.state,
+            'subscriptionRequired': self.subscriptionRequired,
+            'approvalRequired': self.approvalRequired,
+            'policyXml': self.policyXml,
         }

@@ -48,7 +48,7 @@ def inline_images(html_content: str, base_dir: Path) -> str:
                     break
 
         if not image_path.exists():
-            print(f"  ⚠️  Warning: Image not found: {relative_path}")
+            print(f'  ⚠️  Warning: Image not found: {relative_path}')
             return match.group(0)  # Return unchanged
 
         # Determine MIME type
@@ -72,10 +72,10 @@ def inline_images(html_content: str, base_dir: Path) -> str:
         # Print status message with relative path if possible
         try:
             rel_path = image_path.relative_to(get_repo_root())
-            print(f"  ✓ Inlined: {relative_path} ({rel_path})")
+            print(f'  ✓ Inlined: {relative_path} ({rel_path})')
         except ValueError:
             # Handle case where image_path is not under repo root (e.g., during tests)
-            print(f"  ✓ Inlined: {relative_path}")
+            print(f'  ✓ Inlined: {relative_path}')
 
         return data_url
 
@@ -85,12 +85,12 @@ def inline_images(html_content: str, base_dir: Path) -> str:
 def strip_live_reload(html_content: str) -> str:
     """Remove the authoring-only live reload block from exported HTML."""
     pattern = re.compile(
-        r"\n\s*// ── Live reload \(polls server for changes\) ──\n"
-        r"\s*\(function \(\) \{.*?\}\)\(\);\n",
-        flags = re.DOTALL,
+        r'\n\s*// ── Live reload \(polls server for changes\) ──\n'
+        r'\s*\(function \(\) \{.*?\}\)\(\);\n',
+        flags=re.DOTALL,
     )
 
-    return pattern.sub('\n', html_content, count = 1)
+    return pattern.sub('\n', html_content, count=1)
 
 
 def export_presentation():
@@ -103,37 +103,37 @@ def export_presentation():
 
     # Validate source file exists
     if not html_file.exists():
-        print(f"\n❌ Error: Presentation file not found: {html_file}\n")
+        print(f'\n❌ Error: Presentation file not found: {html_file}\n')
         sys.exit(1)
 
     # Create build directory
     build_dir.mkdir(exist_ok=True)
-    print(f"\n📦 Exporting presentation to: {output_file.relative_to(repo_root)}\n")
+    print(f'\n📦 Exporting presentation to: {output_file.relative_to(repo_root)}\n')
 
     # Read HTML
-    print("Reading presentation file...")
+    print('Reading presentation file...')
     with open(html_file, 'r', encoding='utf-8') as f:
         html_content = f.read()
 
     # Inline images
-    print("\nInlining images...")
+    print('\nInlining images...')
     html_with_inlined = inline_images(html_content, presentation_dir)
 
     # Standalone exports should not keep development-time live reload behavior.
     html_with_inlined = strip_live_reload(html_with_inlined)
 
     # Write output
-    print("\nWriting output file...")
+    print('\nWriting output file...')
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write(html_with_inlined)
 
     # Print summary
     file_size_mb = output_file.stat().st_size / (1024 * 1024)
-    print("\n✅ Export complete!")
-    print(f"   Output: {output_file.relative_to(repo_root)}")
-    print(f"   Size: {file_size_mb:.2f} MB")
-    print("\n   📌 This is a self-contained file with all images inlined.")
-    print("   📌 Ready to share or present offline.\n")
+    print('\n✅ Export complete!')
+    print(f'   Output: {output_file.relative_to(repo_root)}')
+    print(f'   Size: {file_size_mb:.2f} MB')
+    print('\n   📌 This is a self-contained file with all images inlined.')
+    print('   📌 Ready to share or present offline.\n')
 
 
 if __name__ == '__main__':  # pragma: no cover

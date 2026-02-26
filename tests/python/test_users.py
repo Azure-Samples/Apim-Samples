@@ -13,12 +13,14 @@ from apimtypes import Role
 #    TESTS
 # ------------------------------
 
+
 @pytest.mark.unit
 def test_user_init_with_roles():
     user = User(user_id='123', name='Alice', roles=['admin', 'user'])
     assert user.id == '123'
     assert user.name == 'Alice'
     assert user.roles == ['admin', 'user']
+
 
 @pytest.mark.unit
 def test_user_init_without_roles():
@@ -27,11 +29,13 @@ def test_user_init_without_roles():
     assert user.name == 'Bob'
     assert user.roles == []
 
+
 @pytest.mark.unit
 def test_user_role_mutability():
     user = User(user_id='789', name='Charlie')
     user.roles.append('editor')
     assert user.roles == ['editor']
+
 
 @pytest.mark.unit
 def test_user_repr():
@@ -50,6 +54,7 @@ def test_user_repr():
 #    VARIABLES
 # ------------------------------
 
+
 # Save and restore Users for test isolation
 @pytest.fixture(autouse=True)
 def restore_users(monkeypatch):
@@ -58,16 +63,20 @@ def restore_users(monkeypatch):
     Users.clear()
     Users.extend(original_users)
 
+
 # ------------------------------
 #    PRIVATE METHODS
 # ------------------------------
 
+
 def _add_user(id_: str, name: str, roles: list[str]):
     Users.append(User(id_, name, roles))
+
 
 # ------------------------------
 #    PUBLIC METHODS
 # ------------------------------
+
 
 def test_get_user_by_role_single_match():
     """
@@ -101,6 +110,7 @@ def test_get_user_missing_returns_none():
 
     assert UserHelper.get_user('Nonexistent User') is None
 
+
 def test_get_user_by_role_multiple_roles():
     """
     Should return a user with any of the specified roles.
@@ -108,6 +118,7 @@ def test_get_user_by_role_multiple_roles():
     user = UserHelper.get_user_by_role([Role.HR_MEMBER, Role.HR_ADMINISTRATOR])
     assert user is not None
     assert any(r in [Role.HR_MEMBER, Role.HR_ADMINISTRATOR] for r in user.roles)
+
 
 def test_get_user_by_role_none_role_returns_user_with_no_roles():
     """
@@ -119,6 +130,7 @@ def test_get_user_by_role_none_role_returns_user_with_no_roles():
     assert user is not None
     assert user.roles == []
 
+
 def test_get_user_by_role_none_in_list_returns_user_with_no_roles():
     """
     Should return a user with no roles if Role.NONE is in the list.
@@ -128,12 +140,14 @@ def test_get_user_by_role_none_in_list_returns_user_with_no_roles():
     assert user is not None
     assert user.roles == []
 
+
 def test_get_user_by_role_no_matching_roles_returns_none():
     """
     Should return None if no user matches the given role(s).
     """
     user = UserHelper.get_user_by_role('non-existent-role')
     assert user is None
+
 
 def test_get_user_by_role_none_role_and_no_user_with_no_roles():
     """
@@ -143,6 +157,7 @@ def test_get_user_by_role_none_role_and_no_user_with_no_roles():
     Users[:] = [u for u in Users if u.roles]
     user = UserHelper.get_user_by_role(Role.NONE)
     assert user is None
+
 
 def test_get_user_by_role_randomness(monkeypatch):
     """
@@ -156,9 +171,11 @@ def test_get_user_by_role_randomness(monkeypatch):
     user = UserHelper.get_user_by_role(Role.HR_MEMBER)
     assert user.name == 'User2'
 
+
 # ------------------------------
 #   COVERAGE TESTS
 # ------------------------------
+
 
 def test_user_edge_cases():
     """Test User class with edge cases."""

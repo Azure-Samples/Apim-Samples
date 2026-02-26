@@ -9,6 +9,7 @@ from apimtypes import INFRASTRUCTURE
 #    CLASSES
 # ------------------------------
 
+
 class ApimTesting:
     """
     A simple test framework for validating APIM deployments and configurations.
@@ -34,7 +35,6 @@ class ApimTesting:
         self.tests_failed = 0
         self.total_tests = 0
         self.errors = []
-
 
     # ------------------------------
     #    PUBLIC METHODS
@@ -91,18 +91,18 @@ class ApimTesting:
         # Start the fancy display
         print('\n')  # Blank lines for spacing
         print(border_line)
-        print(f'{' ' * title_padding}{title}')
+        print(f'{" " * title_padding}{title}')
         print(border_line)
         print()
 
-        print(f' Sample Name : {self.sample_name if self.sample_name else 'N/A'}')
-        print(f' Deployment  : {self.deployment.name if self.deployment else 'N/A'}\n')
+        print(f' Sample Name : {self.sample_name if self.sample_name else "N/A"}')
+        print(f' Deployment  : {self.deployment.name if self.deployment else "N/A"}\n')
 
         # Test statistics with visual indicators
         print('📊 Test Execution Statistics:')
         print(f'    • Total Tests  : {self.total_tests:>5}')
         print(f'    • Tests Passed : {self.tests_passed:>5}')
-        print(f'    • Tests Failed : {self.tests_failed:>5} {'❌' if self.tests_failed > 0 else ''}')
+        print(f'    • Tests Failed : {self.tests_failed:>5} {"❌" if self.tests_failed > 0 else ""}')
         print(f'    • Success Rate : {success_rate:>5.1f}%\n')
 
         # Overall result

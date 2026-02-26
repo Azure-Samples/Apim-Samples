@@ -6,6 +6,7 @@ import importlib
 import io
 import json
 import runpy
+import subprocess as sp
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -28,6 +29,7 @@ else:
 # ============================================================
 # Helpers
 # ============================================================
+
 
 def _make_notebook(display_name: str = '.venv (3.14.2)', version: str = '3.14.2') -> dict:
     """Return a minimal notebook dict with customizable volatile fields."""
@@ -57,6 +59,7 @@ def _make_notebook(display_name: str = '.venv (3.14.2)', version: str = '3.14.2'
 # ============================================================
 # normalize_notebook_metadata()
 # ============================================================
+
 
 def test_normalizes_display_name():
     """display_name should be replaced with the canonical value."""
@@ -108,9 +111,7 @@ def test_missing_kernelspec():
 
 def test_missing_language_info():
     """Should not raise when language_info is absent."""
-    nb = {'cells': [], 'metadata': {
-            'kernelspec': {'display_name': 'X', 'language': 'python', 'name': 'python3'}
-        }, 'nbformat': 4, 'nbformat_minor': 5}
+    nb = {'cells': [], 'metadata': {'kernelspec': {'display_name': 'X', 'language': 'python', 'name': 'python3'}}, 'nbformat': 4, 'nbformat_minor': 5}
     nnm.normalize_notebook_metadata(nb)
     assert nb['metadata']['kernelspec']['display_name'] == nnm.CANONICAL_DISPLAY_NAME
 
@@ -118,6 +119,7 @@ def test_missing_language_info():
 # ============================================================
 # normalize_stream()
 # ============================================================
+
 
 def test_normalize_stream():
     """Stream mode should read JSON from input and write normalized JSON to output."""
@@ -148,6 +150,7 @@ def test_normalize_stream_trailing_newline():
 # ============================================================
 # normalize_file()
 # ============================================================
+
 
 def test_normalize_file(tmp_path: Path):
     """In-place normalization should update the file on disk."""
@@ -202,8 +205,10 @@ def test_normalize_file_preserves_cells(tmp_path: Path):
 # get_uncommitted_notebooks()
 # ============================================================
 
+
 def test_get_uncommitted_notebooks_returns_paths(monkeypatch: pytest.MonkeyPatch):
     """Should return sorted, deduplicated notebook paths from git diff output."""
+
     def fake_run(cmd, **kwargs):
         # Distinguish the two git diff calls by checking for '--staged'
         if '--staged' in cmd:
@@ -219,6 +224,7 @@ def test_get_uncommitted_notebooks_returns_paths(monkeypatch: pytest.MonkeyPatch
 
 def test_get_uncommitted_notebooks_skips_blank_lines(monkeypatch: pytest.MonkeyPatch):
     """Blank lines in git diff output should be silently ignored."""
+
     def fake_run(cmd, **kwargs):
         return type('Result', (), {'stdout': '\nsamples/a.ipynb\n\n', 'returncode': 0})()
 
@@ -229,6 +235,7 @@ def test_get_uncommitted_notebooks_skips_blank_lines(monkeypatch: pytest.MonkeyP
 
 def test_get_uncommitted_notebooks_empty(monkeypatch: pytest.MonkeyPatch):
     """Should return empty list when no notebooks have changed."""
+
     def fake_run(cmd, **kwargs):
         return type('Result', (), {'stdout': '', 'returncode': 0})()
 
@@ -239,6 +246,7 @@ def test_get_uncommitted_notebooks_empty(monkeypatch: pytest.MonkeyPatch):
 
 def test_get_uncommitted_notebooks_git_not_found(monkeypatch: pytest.MonkeyPatch):
     """Should return empty list and not crash when git is not available."""
+
     def fake_run(cmd, **kwargs):
         raise FileNotFoundError('git not found')
 
@@ -249,7 +257,6 @@ def test_get_uncommitted_notebooks_git_not_found(monkeypatch: pytest.MonkeyPatch
 
 def test_get_uncommitted_notebooks_git_error(monkeypatch: pytest.MonkeyPatch):
     """Should return empty list when git command fails."""
-    import subprocess as sp
 
     def fake_run(cmd, **kwargs):
         raise sp.CalledProcessError(1, cmd)
@@ -262,6 +269,7 @@ def test_get_uncommitted_notebooks_git_error(monkeypatch: pytest.MonkeyPatch):
 # ============================================================
 # main()
 # ============================================================
+
 
 def test_main_normalizes_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """main() should normalize files passed as arguments."""

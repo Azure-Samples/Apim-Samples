@@ -14,6 +14,7 @@ from apimtypes import Role
 #    CLASSES
 # ------------------------------
 
+
 class UserName(StrEnum):
     """
     Predefined user names for testing purposes.
@@ -49,7 +50,6 @@ class User:
         self.name = name
         self.roles = roles if roles is not None else []
 
-
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
@@ -71,8 +71,9 @@ Users: List[User] = [
     User('e461f19b-4795-4153-a0c4-77e4561b1d0e', UserName.ELIZABETH_MOORE, [Role.HR_MEMBER]),
     User('5b873099-8d4b-4563-846e-6c591e660a8f', UserName.MARIO_ROGERS, [Role.HR_MEMBER, Role.HR_ASSOCIATE]),
     User('236af317-ef1e-4a37-918a-f58f51ce421a', UserName.ELLIS_TURNER, [Role.HR_MEMBER, Role.HR_ADMINISTRATOR]),
-    User('d1f8b2c3-4e5f-6a7b-8c9d-e0f1a2b3c4d5', UserName.HARRY_SMITH, [Role.MARKETING_MEMBER])
+    User('d1f8b2c3-4e5f-6a7b-8c9d-e0f1a2b3c4d5', UserName.HARRY_SMITH, [Role.MARKETING_MEMBER]),
 ]
+
 
 class UserHelper:
     """

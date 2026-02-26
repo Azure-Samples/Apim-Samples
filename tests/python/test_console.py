@@ -13,6 +13,7 @@ from test_helpers import capture_console_output as capture_output
 #    CONSTANTS TESTS
 # ------------------------------
 
+
 def test_ansi_color_constants():
     """Test that all ANSI color constants are properly defined."""
     assert console.BOLD_B == '\x1b[1;34m'
@@ -47,6 +48,7 @@ def test_print_lock_exists():
 #    print_command TESTS
 # ------------------------------
 
+
 def test_print_command_basic():
     """Test print_command with basic message."""
     output = capture_output(console.print_command, 'az login')
@@ -73,6 +75,7 @@ def test_print_command_multiline():
 # ------------------------------
 #    print_error TESTS
 # ------------------------------
+
 
 def test_print_error_basic():
     """Test print_error with basic message."""
@@ -109,6 +112,7 @@ def test_print_error_with_all_options():
 #    print_info TESTS
 # ------------------------------
 
+
 def test_print_info_basic():
     """Test print_info with basic message."""
     output = capture_output(console.print_info, 'Information message')
@@ -134,6 +138,7 @@ def test_print_info_no_blank_above():
 # ------------------------------
 #    print_message TESTS
 # ------------------------------
+
 
 def test_print_message_basic():
     """Test print_message with basic message."""
@@ -168,6 +173,7 @@ def test_print_message_blank_above():
 # ------------------------------
 #    print_ok TESTS
 # ------------------------------
+
 
 def test_print_ok_basic():
     """Test print_ok with basic message."""
@@ -204,6 +210,7 @@ def test_print_ok_with_output_and_duration():
 # ------------------------------
 #    print_warning TESTS
 # ------------------------------
+
 
 def test_print_warning_basic():
     """Test print_warning with basic message."""
@@ -263,6 +270,7 @@ def test_print_debug_wrap_lines():
 #    print_val TESTS
 # ------------------------------
 
+
 def test_print_val_inline():
     """Test print_val with value on same line."""
     output = capture_output(console.print_val, 'Name', 'John Doe')
@@ -300,6 +308,7 @@ def test_print_val_empty_value():
 # ------------------------------
 #    _print_log TESTS
 # ------------------------------
+
 
 def test_print_log_basic():
     """Test _print_log with minimal parameters."""
@@ -361,6 +370,7 @@ def test_print_log_wrap_lines():
 #    THREAD SAFETY TESTS
 # ------------------------------
 
+
 def test_print_lock_thread_safety():
     """Test that print operations are thread-safe."""
     results = []
@@ -383,6 +393,7 @@ def test_print_lock_thread_safety():
 
 def test_concurrent_prints():
     """Test multiple concurrent print operations."""
+
     def concurrent_print():
         console.print_command('command')
         console.print_info('info')
@@ -400,6 +411,7 @@ def test_concurrent_prints():
 # ------------------------------
 #    EDGE CASES
 # ------------------------------
+
 
 def test_empty_strings():
     """Test all print functions handle empty strings."""
@@ -446,8 +458,10 @@ def test_null_duration_and_output():
 #    INTEGRATION TESTS
 # ------------------------------
 
+
 def test_mixed_function_calls():
     """Test calling multiple different print functions in sequence."""
+
     def run_all():
         console.print_command('az login')
         console.print_info('Starting test')

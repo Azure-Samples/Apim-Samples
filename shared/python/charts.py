@@ -16,6 +16,7 @@ from matplotlib.patches import Rectangle as pltRectangle
 #    CLASSES
 # ------------------------------
 
+
 class BarChart:
     """
     Class for creating bar charts with colored bars based on backend indexes.
@@ -42,7 +43,6 @@ class BarChart:
         self.api_results = api_results
         self.fig_text = fig_text
 
-
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
@@ -52,7 +52,6 @@ class BarChart:
         Plot the bar chart based on the provided API results.
         """
         self._plot_barchart(self.api_results)
-
 
     # ------------------------------
     #    PRIVATE METHODS
@@ -81,12 +80,14 @@ class BarChart:
                     backend_index = 99
             else:
                 backend_index = 99
-            rows.append({
-                'Run': run,
-                'Response Time (ms)': response_time * 1000,  # Convert to ms
-                'Backend Index': backend_index,
-                'Status Code': status_code
-            })
+            rows.append(
+                {
+                    'Run': run,
+                    'Response Time (ms)': response_time * 1000,  # Convert to ms
+                    'Backend Index': backend_index,
+                    'Status Code': status_code,
+                }
+            )
 
         df = pd.DataFrame(rows)
 
@@ -105,14 +106,7 @@ class BarChart:
                 bar_colors.append('lightcoral')
 
         # Plot the dataframe with colored bars
-        ax = df.plot(
-            kind='bar',
-            x='Run',
-            y='Response Time (ms)',
-            color=bar_colors,
-            legend=False,
-            edgecolor='black'
-        )
+        ax = df.plot(kind='bar', x='Run', y='Response Time (ms)', color=bar_colors, legend=False, edgecolor='black')
 
         # Add dynamic legend based on backend indexes present in the data
         legend_labels = []
@@ -127,7 +121,7 @@ class BarChart:
         plt.title(self.title)
         plt.xlabel(self.x_label)
         plt.ylabel(self.y_label)
-        plt.xticks(rotation = 0)
+        plt.xticks(rotation=0)
 
         # Exclude high outliers for average calculation
         valid_200 = df[(df['Status Code'] == HttpStatusCode.OK)].copy()
@@ -139,10 +133,10 @@ class BarChart:
             if not filtered.empty:
                 avg = filtered['Response Time (ms)'].mean()
                 avg_label = f'Mean APIM response time: {avg:.1f} ms'
-                plt.axhline(y = avg, color = 'b', linestyle = '--')
-                plt.text(len(df) - 1, avg, avg_label, color = 'b', va = 'bottom', ha = 'right', fontsize = 10)
+                plt.axhline(y=avg, color='b', linestyle='--')
+                plt.text(len(df) - 1, avg, avg_label, color='b', va='bottom', ha='right', fontsize=10)
 
         # Add figtext under the chart
-        plt.figtext(0.13, -0.1, wrap = True, ha = 'left', fontsize = 11, s = self.fig_text)
+        plt.figtext(0.13, -0.1, wrap=True, ha='left', fontsize=11, s=self.fig_text)
 
         plt.show()

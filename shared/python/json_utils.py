@@ -6,6 +6,7 @@ import json
 import ast
 from typing import Any
 
+
 def is_string_json(text: str) -> bool:
     """
     Check if the provided string is a valid JSON object or array.
@@ -40,6 +41,7 @@ def is_string_json(text: str) -> bool:
         pass
 
     return False
+
 
 def extract_json(text: str) -> Any:
     """
