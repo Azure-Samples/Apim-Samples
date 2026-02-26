@@ -13,7 +13,7 @@ from threading import Thread, current_thread, main_thread
 from time import sleep
 
 # Ensure UTF-8 encoding for console output on Windows
-if sys.platform == 'win32':
+if sys.platform == 'win32':  # pragma: no cover
     sys.stdout.reconfigure(encoding='utf-8')
 
 
@@ -136,7 +136,7 @@ def serve_presentation(port: int = 7777):
     try:
         if current_thread() is main_thread():
             handled_signals = [signal.SIGINT]
-            if hasattr(signal, 'SIGTERM'):
+            if hasattr(signal, 'SIGTERM'):  # pragma: no branch
                 handled_signals.append(signal.SIGTERM)
 
             for handled_signal in handled_signals:

@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 # Ensure UTF-8 encoding for console output on Windows
-if sys.platform == 'win32':
+if sys.platform == 'win32':  # pragma: no cover
     sys.stdout.reconfigure(encoding='utf-8')
 
 
@@ -136,5 +136,5 @@ def export_presentation():
     print("   📌 Ready to share or present offline.\n")
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     export_presentation()
