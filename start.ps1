@@ -86,7 +86,7 @@ if str(shared) not in sys.path:
 try:
     import azure_resources as az
     info = az.get_account_info()
-except Exception as exc:  # pylint: disable=broad-except
+except Exception as exc:  # noqa: BLE001
     print(f"Failed to read Azure account info: {exc}")
 "@
     Push-Location $RepoRoot
@@ -133,6 +133,10 @@ while ($true) {
     Write-Host "  7) Run ruff"
     Write-Host "  8) Run tests (shows detailed test results)"
     Write-Host "  9) Run full Python checks (most statistics)"
+    Write-Host ""
+    Write-Host "Presentation" -ForegroundColor Yellow
+    Write-Host "  p) Serve & view presentation (auto-opens browser)"
+    Write-Host "  e) Export presentation as self-contained HTML"
     Write-Host ""
     Write-Host "Misc" -ForegroundColor Yellow
     Write-Host "  0) Exit"
@@ -181,6 +185,12 @@ while ($true) {
         }
         '9' {
             Invoke-Cmd "$RepoRoot/tests/python/check_python.ps1" | Out-Null
+        }
+        'p' {
+            PyRun "$RepoRoot/setup/serve_presentation.py" | Out-Null
+        }
+        'e' {
+            PyRun "$RepoRoot/setup/export_presentation.py" | Out-Null
         }
         '0' {
             Write-Host ""

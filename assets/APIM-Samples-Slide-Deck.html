@@ -1,11 +1,59 @@
 <!DOCTYPE html>
+<!--
+  ╔════════════════════════════════════════════════════════════════════════════╗
+  ║                        PUBLIC RELEASE APPROVED                             ║
+  ║                                                                            ║
+  ║  This presentation has been reviewed for confidential information and      ║
+  ║  is approved for public distribution and presentation use.                ║
+  ║  Accessibility verification: Verified against WCAG 2.0 AA guidance.      ║
+  ║                                                                            ║
+  ║  Classification: PUBLIC                                                   ║
+  ║  Date Approved:  2026-02-26                                               ║
+  ║                                                                            ║
+  ╚════════════════════════════════════════════════════════════════════════════╝
+-->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=1280, height=720" />
+  <meta name="classification" content="public" />
+  <meta name="release-approved" content="true" />
+  <meta name="approval-date" content="2026-02-26" />
   <title>Azure API Management Samples - Presentation</title>
+  <link rel="icon" type="image/png" href="favicon.png" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --slide-width: 1280px;
+      --slide-height: 720px;
+      --slide-margin: 40px auto;
+      --slide-position: relative;
+      --slide-top: auto;
+      --slide-left: auto;
+      --slide-transform: none;
+      --slide-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      --help-bottom: 16px;
+      --help-right: 20px;
+      --help-bg: rgba(0,0,0,0.78);
+      --help-radius: 8px;
+      --help-z: 999;
+      --brand-blue: #0078D4;
+      --brand-blue-dark: #005A9E;
+      --brand-blue-deep: #003A6E;
+      --accent-cyan: #50E6FF;
+      --text-dark: #222;
+      --text-body: #444;
+      --text-muted: #555;
+      --text-subtle: #666;
+      --text-footer-light: rgba(255, 255, 255, 0.88);
+      --text-footer-dark: #5c5c5c;
+      --text-footer-note: #5f5f5f;
+      --surface-white: #fff;
+      --surface-light: #f7f9fb;
+      --border-light: #e0e0e0;
+      --content-padding: 50px 70px 90px 70px;
+    }
 
     body {
       font-family: 'Segoe UI', Helvetica, Arial, sans-serif;
@@ -16,62 +64,75 @@
     body.presentation-mode {
       overflow: hidden;
       background: #000;
+      padding: 40px;
+      --slide-margin: 0;
+      --slide-position: fixed;
+      --slide-top: 50%;
+      --slide-left: 50%;
+      --slide-transform: translate(-50%, -50%);
+      --slide-shadow: 0 8px 32px rgba(0,0,0,0.5);
     }
 
     body.presentation-mode .slide {
       display: none;
-      margin: 0;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
       transform-origin: center center;
-      box-shadow: none;
     }
 
     body.presentation-mode .slide.active { display: flex; }
+    body.presentation-mode .slide-title.active { display: grid; }
 
     body.presentation-mode .nav-help { display: block; }
+    body.presentation-mode .overview-help { display: none; }
 
     /* ── Overview mode (default) ── */
     .slide {
-      width: 1280px;
-      height: 720px;
-      margin: 40px auto;
-      position: relative;
+      width: var(--slide-width);
+      height: var(--slide-height);
+      margin: var(--slide-margin);
+      position: var(--slide-position);
+      top: var(--slide-top);
+      left: var(--slide-left);
+      transform: var(--slide-transform);
       overflow: hidden;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+      box-shadow: var(--slide-shadow);
       page-break-after: always;
       display: flex;
       flex-direction: column;
     }
 
     /* ── Navigation help overlay ── */
+    .nav-help,
+    .overview-help,
+    .slide-counter {
+      position: fixed;
+      bottom: var(--help-bottom);
+      background: var(--help-bg);
+      border-radius: var(--help-radius);
+      z-index: var(--help-z);
+    }
+
     .nav-help {
       display: none;
-      position: fixed;
-      bottom: 16px;
-      right: 20px;
-      background: rgba(0,0,0,0.6);
-      color: rgba(255,255,255,0.7);
+      right: var(--help-right);
+      color: rgba(255,255,255,0.92);
       padding: 8px 16px;
-      border-radius: 8px;
       font-size: 12px;
-      z-index: 999;
+    }
+
+    .overview-help {
+      right: var(--help-right);
+      color: rgba(255,255,255,0.95);
+      padding: 10px 16px;
+      font-size: 12px;
     }
 
     /* ── Slide counter ── */
     .slide-counter {
       display: none;
-      position: fixed;
-      bottom: 16px;
       left: 20px;
-      background: rgba(0,0,0,0.6);
-      color: rgba(255,255,255,0.7);
+      color: rgba(255,255,255,0.92);
       padding: 8px 16px;
-      border-radius: 8px;
       font-size: 13px;
-      z-index: 999;
     }
 
     body.presentation-mode .slide-counter { display: block; }
@@ -87,17 +148,35 @@
     .header-bar .accent {
       width: 6px;
       height: 40px;
-      background: #0078D4;
+      background: var(--brand-blue);
       border-radius: 3px;
       flex-shrink: 0;
     }
 
     .footer-url {
       position: absolute;
-      bottom: 28px;
+      bottom: 24px;
       right: 40px;
-      font-size: 13px;
-      opacity: 0.5;
+      font-size: 14px;
+      color: var(--text-footer-light);
+      font-weight: 500;
+    }
+
+    .slide-number {
+      position: absolute;
+      bottom: 24px;
+      left: 40px;
+      font-size: 14px;
+      color: var(--text-footer-light);
+      font-weight: 500;
+    }
+
+    /* Inverted footer colors for slides with light backgrounds */
+    .slide-content .footer-url,
+    .slide-content .slide-number,
+    .slide-light .footer-url,
+    .slide-light .slide-number {
+      color: var(--text-footer-dark);
     }
 
     .bottom-bar {
@@ -106,14 +185,17 @@
       left: 0;
       right: 0;
       height: 6px;
-      background: linear-gradient(90deg, #0078D4, #50E6FF);
+      background: linear-gradient(90deg, var(--brand-blue), var(--accent-cyan));
     }
 
     /* ── Slide type: Title (blue gradient) ── */
     .slide-title {
-      background: linear-gradient(135deg, #0078D4 0%, #005A9E 40%, #003A6E 100%);
+      background: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-blue-dark) 40%, var(--brand-blue-deep) 100%);
       color: #fff;
-      justify-content: center;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 60px;
+      align-items: start;
       padding: 80px 100px;
     }
 
@@ -128,6 +210,8 @@
       text-transform: uppercase;
       margin-bottom: 28px;
       width: fit-content;
+      grid-column: 1;
+      grid-row: 1;
     }
 
     .slide-title h1 {
@@ -135,9 +219,17 @@
       font-weight: 700;
       line-height: 1.15;
       margin-bottom: 20px;
+      grid-column: 1;
+      grid-row: 2;
     }
 
-    .slide-title h1 span { color: #50E6FF; }
+    .slide-title h1 span { color: var(--accent-cyan); }
+
+    .slide-title .footer {
+      grid-column: 1 / -1;
+      position: static;
+      margin-bottom: 0;
+    }
 
     .slide-title .tagline {
       font-size: 22px;
@@ -146,12 +238,26 @@
       max-width: 800px;
       opacity: 0.92;
       margin-bottom: 40px;
+      grid-column: 1;
+      grid-row: 3;
+    }
+
+    .slide-title .title-date {
+      font-size: 16px;
+      font-weight: 400;
+      opacity: 0.75;
+      margin-bottom: 14px;
+      margin-top: -24px;
+      grid-column: 1;
+      grid-row: 4;
     }
 
     .slide-title .value-props {
       display: flex;
       gap: 40px;
-      margin-top: 10px;
+      margin-top: 0;
+      grid-column: 1;
+      grid-row: 5;
     }
 
     .slide-title .value-prop {
@@ -190,9 +296,23 @@
       background: rgba(255,255,255,0.04);
     }
 
+    .slide-title .logo {
+      width: 200px;
+      height: auto;
+      border: 3px solid rgba(255, 255, 255, 0.25);
+      border-radius: 16px;
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      grid-column: 2;
+      grid-row: 2 / 5;
+      align-self: start;
+      margin-top: 0;
+    }
+
     /* ── Slide type: Section divider (dark blue) ── */
     .slide-section {
-      background: linear-gradient(135deg, #003A6E 0%, #001D3D 100%);
+      background: linear-gradient(135deg, var(--brand-blue-deep) 0%, #001D3D 100%);
       color: #fff;
       justify-content: center;
       align-items: center;
@@ -206,7 +326,7 @@
       margin-bottom: 16px;
     }
 
-    .slide-section h2 span { color: #50E6FF; }
+    .slide-section h2 span { color: var(--accent-cyan); }
 
     .slide-section p {
       font-size: 20px;
@@ -223,25 +343,30 @@
     }
 
     /* ── Slide type: Content (white background) ── */
-    .slide-content {
-      background: #fff;
-      color: #222;
-      padding: 50px 70px;
+    .slide-content,
+    .slide-light {
+      color: var(--text-dark);
+      padding: var(--content-padding);
     }
 
-    .slide-content h2 {
+    .slide-content {
+      background: var(--surface-white);
+    }
+
+    .slide-content h2,
+    .slide-light h2 {
       font-size: 34px;
       font-weight: 700;
-      color: #0078D4;
+      color: var(--brand-blue);
     }
 
     .slide-content h3 {
       font-size: 18px;
       font-weight: 700;
-      color: #005A9E;
+      color: var(--brand-blue-dark);
       margin-bottom: 14px;
       padding-bottom: 8px;
-      border-bottom: 2px solid #0078D4;
+      border-bottom: 2px solid var(--brand-blue);
     }
 
     .slide-content .columns {
@@ -273,7 +398,7 @@
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: #0078D4;
+      background: var(--brand-blue);
       margin-top: 7px;
     }
 
@@ -283,7 +408,7 @@
       left: 0;
       right: 0;
       height: 56px;
-      background: linear-gradient(90deg, #0078D4, #50E6FF);
+      background: linear-gradient(90deg, var(--brand-blue), var(--accent-cyan));
       display: flex;
       align-items: center;
       justify-content: center;
@@ -301,20 +426,12 @@
 
     /* ── Slide type: Light gray background ── */
     .slide-light {
-      background: #f7f9fb;
-      color: #222;
-      padding: 50px 70px;
-    }
-
-    .slide-light h2 {
-      font-size: 34px;
-      font-weight: 700;
-      color: #0078D4;
+      background: var(--surface-light);
     }
 
     .slide-light .subtitle {
       font-size: 16px;
-      color: #555;
+      color: var(--text-muted);
       margin-bottom: 16px;
       margin-left: 22px;
     }
@@ -336,7 +453,7 @@
     .footer-note {
       text-align: center;
       font-size: 13px;
-      color: #888;
+      color: var(--text-footer-note);
       margin-top: 8px;
     }
 
@@ -360,9 +477,11 @@
 
     .agenda-list .time {
       font-size: 14px;
-      color: #50E6FF;
-      min-width: 80px;
+      color: var(--accent-cyan);
+      min-width: 100px;
       text-align: right;
+      display: inline-block;
+      vertical-align: middle;
     }
 
     .agenda-list .num {
@@ -381,10 +500,10 @@
 
     .card {
       flex: 1;
-      background: #f7f9fb;
+      background: var(--surface-light);
       border-radius: 12px;
       padding: 30px;
-      border-left: 5px solid #0078D4;
+      border-left: 5px solid var(--brand-blue);
     }
 
     .card.highlight { border-left-color: #50E6FF; background: #EBF5FF; }
@@ -392,7 +511,7 @@
     .card h3 {
       font-size: 18px;
       font-weight: 700;
-      color: #005A9E;
+      color: var(--brand-blue-dark);
       margin-bottom: 12px;
       border-bottom: none !important;
       padding-bottom: 0 !important;
@@ -400,7 +519,7 @@
 
     .card p, .card li {
       font-size: 15px;
-      color: #444;
+      color: var(--text-body);
       line-height: 1.6;
       border-bottom: none !important;
       padding: 4px 0 !important;
@@ -418,10 +537,10 @@
     }
 
     .arch-card {
-      background: #fff;
+      background: var(--surface-white);
       border-radius: 10px;
       padding: 16px 20px;
-      border: 1px solid #e0e0e0;
+      border: 1px solid var(--border-light);
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -429,19 +548,19 @@
 
     .arch-card h4 {
       font-size: 15px;
-      color: #005A9E;
+      color: var(--brand-blue-dark);
       font-weight: 700;
     }
 
     .arch-card p {
       font-size: 13px;
-      color: #666;
+      color: var(--text-subtle);
       line-height: 1.4;
     }
 
     .arch-card .tag {
       display: inline-block;
-      background: #0078D4;
+      background: var(--brand-blue);
       color: #fff;
       padding: 2px 10px;
       border-radius: 10px;
@@ -460,11 +579,11 @@
     }
 
     .benefit-card {
-      background: #f7f9fb;
+      background: var(--surface-light);
       border-radius: 10px;
       padding: 24px;
       text-align: center;
-      border-top: 4px solid #0078D4;
+      border-top: 4px solid var(--brand-blue);
     }
 
     .benefit-card .icon { font-size: 32px; margin-bottom: 10px; }
@@ -472,13 +591,13 @@
     .benefit-card h4 {
       font-size: 16px;
       font-weight: 700;
-      color: #005A9E;
+      color: var(--brand-blue-dark);
       margin-bottom: 8px;
     }
 
     .benefit-card p {
       font-size: 13px;
-      color: #555;
+      color: var(--text-muted);
       line-height: 1.5;
     }
 
@@ -491,11 +610,11 @@
 
     .demo-step {
       flex: 1;
-      background: #fff;
+      background: var(--surface-white);
       border-radius: 12px;
       padding: 28px 24px;
       text-align: center;
-      border: 2px solid #e0e0e0;
+      border: 2px solid var(--border-light);
       position: relative;
     }
 
@@ -507,7 +626,7 @@
       width: 32px;
       height: 32px;
       border-radius: 50%;
-      background: #0078D4;
+      background: var(--brand-blue);
       color: #fff;
       font-weight: 700;
       font-size: 16px;
@@ -518,14 +637,14 @@
 
     .demo-step h4 {
       font-size: 16px;
-      color: #005A9E;
+      color: var(--brand-blue-dark);
       margin: 8px 0;
       font-weight: 700;
     }
 
     .demo-step p {
       font-size: 13px;
-      color: #555;
+      color: var(--text-muted);
       line-height: 1.5;
     }
 
@@ -540,22 +659,22 @@
     }
 
     .usecase-card {
-      background: #f7f9fb;
+      background: var(--surface-light);
       border-radius: 10px;
       padding: 24px;
-      border-left: 4px solid #0078D4;
+      border-left: 4px solid var(--brand-blue);
     }
 
     .usecase-card h4 {
       font-size: 16px;
-      color: #005A9E;
+      color: var(--brand-blue-dark);
       font-weight: 700;
       margin-bottom: 8px;
     }
 
     .usecase-card p {
       font-size: 14px;
-      color: #555;
+      color: var(--text-muted);
       line-height: 1.5;
     }
 
@@ -636,7 +755,7 @@
       font-weight: 700;
     }
 
-    .qa-content h2 span { color: #50E6FF; }
+    .qa-content h2 span { color: var(--accent-cyan); }
 
     .qa-content p {
       font-size: 20px;
@@ -659,7 +778,7 @@
       font-size: 15px;
     }
 
-    .qa-content .link-item strong { display: block; font-size: 14px; margin-bottom: 4px; color: #50E6FF; }
+    .qa-content .link-item strong { display: block; font-size: 14px; margin-bottom: 4px; color: var(--accent-cyan); }
 
     @media print {
       body { background: #fff; }
@@ -672,7 +791,10 @@
 
   <!-- Navigation help (visible in presentation mode) -->
   <div class="nav-help">
-    &#8592; &#8594; Arrow keys &middot; Esc overview &middot; Dbl-click to resume
+    F / F5 toggle mode &middot; Click / &#8592; &#8594; navigate
+  </div>
+  <div class="overview-help">
+    Press <strong>F</strong> or <strong>F5</strong> to toggle presentation mode &middot; Double-click any slide to start there
   </div>
   <div class="slide-counter">
     <span id="currentSlide">1</span> / <span id="totalSlides"></span>
@@ -686,12 +808,15 @@
     <div class="corner-deco2"></div>
 
     <div class="badge">Azure &middot; API Management</div>
-    <h1>Azure API Management<br/><span>Samples</span></h1>
+    <img src="APIM-Samples.png" alt="APIM Samples Logo" class="logo" />
+    <h1>Azure API Management Samples</h1>
     <p class="tagline">
       Deploy high-fidelity APIM infrastructures in minutes and experiment with
-      real-world policy samples &mdash; an innovative <em>a la carte</em> approach
-      that is <strong>neither too much nor too little</strong>.
+      real-world policy samples &mdash; an innovative <em>à la carte</em> approach
+      that is <strong><em>neither too much nor too little</em></strong>.
     </p>
+
+    <p class="title-date">February 2026</p>
 
     <div class="value-props">
       <div class="value-prop">
@@ -717,7 +842,10 @@
       </div>
     </div>
 
-    <span class="footer-url">https://aka.ms/apim/samples</span>
+    <div class="footer">
+      <div class="slide-number">1/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -727,14 +855,18 @@
     <h2>Today's <span>Agenda</span></h2>
     <p style="margin-bottom: 20px;">What we'll cover in the next hour</p>
     <ul class="agenda-list" style="text-align: left; max-width: 700px;">
-      <li><span class="num">1</span> Motivation &mdash; The APIM learning gap <span class="time">~8 min</span></li>
-      <li><span class="num">2</span> What's inside &mdash; Infrastructures & samples <span class="time">~10 min</span></li>
-      <li><span class="num">3</span> Why this approach &mdash; Key differentiators <span class="time">~5 min</span></li>
-      <li><span class="num">4</span> Live demo &mdash; Deploy & explore in Azure <span class="time">~15 min</span></li>
-      <li><span class="num">5</span> Customer scenarios & how you can help <span class="time">~7 min</span></li>
-      <li><span class="num">6</span> Summary & Q&A <span class="time">~15 min</span></li>
+      <li><span class="num">1</span> Motivation &mdash; The APIM learning gap</li>
+      <li><span class="num">2</span> What's inside &mdash; Infrastructures & samples</li>
+      <li><span class="num">3</span> Why this approach &mdash; Key differentiators</li>
+      <li><span class="num">4</span> Live demo &mdash; Deploy & explore in Azure</li>
+      <li><span class="num">5</span> Customer scenarios & how you can help</li>
+      <li><span class="num">6</span> Summary & Q&A</li>
     </ul>
-    <div class="bottom-bar"></div>
+    <div class="footer">
+      <div class="slide-number">2/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+      <div class="bottom-bar"></div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -743,8 +875,12 @@
   <div class="slide slide-section">
     <div class="section-number">01</div>
     <h2>The <span>Motivation</span></h2>
-    <p>Why does APIM Samples exist and what problem does it solve?</p>
-    <div class="bottom-bar"></div>
+    <p>Why does APIM Samples exist, and what problem does it solve?</p>
+    <div class="footer">
+      <div class="slide-number">3/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+      <div class="bottom-bar"></div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -758,7 +894,7 @@
 
     <p style="font-size: 17px; color: #444; margin-bottom: 24px; line-height: 1.6;">
       Experimenting with Azure API Management has historically fallen into two extremes &mdash;
-      both leaving a gap for customers and engineers who need something practical and focused.
+      both leaving a gap for customers and engineers who need something more practical and focused.
     </p>
 
     <div class="card-row">
@@ -790,7 +926,11 @@
         </p>
       </div>
     </div>
-    <div class="bottom-bar"></div>
+    <div class="footer">
+      <div class="slide-number">4/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+      <div class="bottom-bar"></div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -805,6 +945,7 @@
     <p style="font-size: 17px; color: #444; margin-bottom: 20px; line-height: 1.6;">
       APIM Samples decouples <strong>infrastructure</strong> from <strong>samples</strong>.
       Deploy any architecture, then layer on any compatible sample &mdash; mix and match freely.
+      Together, the whole becomes greater than the sum of its parts.
     </p>
 
     <div class="card-row">
@@ -843,12 +984,19 @@
         </ul>
       </div>
       <div class="card highlight" style="flex: 1; text-align: center;">
-        <div class="emoji">&#129513;</div>
-        <h3>Mix & Match</h3>
-        <p>Any infrastructure + any compatible sample = your custom lab</p>
+        <div style="display: flex; align-items: center; justify-content: flex-start; gap: 10px; margin-bottom: 12px;">
+          <div class="emoji" style="margin: 0; font-size: 20px; line-height: 1;">&#129513;</div>
+          <h3 style="margin: 0;">Mix & Match</h3>
+        </div>
+        <p>Any infrastructure <br/>+<br/>any compatible sample <br/>=<br/> your custom lab</p>
+        <p style="font-size: 14px; color: #555; margin-top: 20px;">A flexible combination where <em>1 + 1 feels like 3</em>.</p>
       </div>
     </div>
-    <div class="bottom-bar"></div>
+    <div class="footer">
+      <div class="slide-number">5/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+      <div class="bottom-bar"></div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -858,7 +1006,11 @@
     <div class="section-number">02</div>
     <h2>What's <span>Inside</span></h2>
     <p>Infrastructures, samples, and key features at a glance</p>
-    <div class="bottom-bar"></div>
+    <div class="footer">
+      <div class="slide-number">6/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+      <div class="bottom-bar"></div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -888,8 +1040,8 @@
         <span class="tag">Standard V2</span>
       </div>
       <div class="arch-card">
-        <h4>App Gateway & APIM (Private Endpoint)</h4>
-        <p>Application Gateway to APIM via private endpoint. Secure inbound connectivity.</p>
+        <h4>App Gateway & APIM (Private Link)</h4>
+        <p>Application Gateway to APIM via Private Link, using a private endpoint for the inbound connection.</p>
         <span class="tag">Standard V2</span>
       </div>
       <div class="arch-card" style="grid-column: span 2;">
@@ -898,45 +1050,61 @@
         <span class="tag">Max Isolation</span>
       </div>
     </div>
-    <div class="bottom-bar"></div>
+    <div class="footer">
+      <div class="slide-number">7/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+      <div class="bottom-bar"></div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
   <!-- SLIDE 8 : Samples Overview                                  -->
   <!-- ════════════════════════════════════════════════════════════ -->
-  <div class="slide slide-content">
+  <div class="slide slide-light">
     <div class="header-bar">
       <div class="accent"></div>
       <h2>8 Real-World Policy Samples</h2>
     </div>
+    <p class="subtitle">From authentication & authorization to cost tracking and secure access patterns</p>
 
-    <div class="columns">
-      <div class="col">
-        <ul>
-          <li><div class="bullet"></div><div><strong>General</strong> &mdash; Basic APIM setup & policy usage. Perfect starting point.</div></li>
-          <li><div class="bullet"></div><div><strong>AuthX</strong> &mdash; JWT authentication & role-based authorization with a mock HR API.</div></li>
-          <li><div class="bullet"></div><div><strong>AuthX Pro</strong> &mdash; Advanced multi-API auth with reusable policy fragments.</div></li>
-          <li><div class="bullet"></div><div><strong>Azure Maps</strong> &mdash; Proxying calls to Azure Maps through APIM policies.</div></li>
-        </ul>
+    <div class="arch-grid" style="flex: 1;">
+      <div class="arch-card">
+        <h4>General</h4>
+        <p>Basic APIM setup & policy usage. Perfect starting point.</p>
       </div>
-      <div class="col">
-        <ul>
-          <li><div class="bullet"></div><div><strong>Costing & Showback</strong> &mdash; Track API costs per business unit via subscriptions & Log Analytics.</div></li>
-          <li><div class="bullet"></div><div><strong>Credential Manager</strong> &mdash; APIM Credential Manager with Spotify's REST API.</div></li>
-          <li><div class="bullet"></div><div><strong>Load Balancing</strong> &mdash; Priority & weighted load balancing across backends.</div></li>
-          <li><div class="bullet"></div><div><strong>Secure Blob Access</strong> &mdash; Valet key pattern for secure Azure Blob Storage access.</div></li>
-        </ul>
+      <div class="arch-card">
+        <h4>AuthX</h4>
+        <p>JWT authentication & role-based authorization with a mock HR API.</p>
+      </div>
+      <div class="arch-card">
+        <h4>AuthX Pro</h4>
+        <p>Advanced multi-API auth with reusable policy fragments.</p>
+      </div>
+      <div class="arch-card">
+        <h4>Azure Maps</h4>
+        <p>Proxying calls to Azure Maps through APIM policies.</p>
+      </div>
+      <div class="arch-card">
+        <h4>Costing & Showback</h4>
+        <p>Track API costs per business unit via subscriptions & Log Analytics.</p>
+      </div>
+      <div class="arch-card">
+        <h4>Credential Manager</h4>
+        <p>APIM Credential Manager with Spotify's REST API.</p>
+      </div>
+      <div class="arch-card">
+        <h4>Load Balancing</h4>
+        <p>Priority & weighted load balancing across backends.</p>
+      </div>
+      <div class="arch-card">
+        <h4>Secure Blob Access</h4>
+        <p>Valet key pattern for secure Azure Blob Storage access.</p>
       </div>
     </div>
-
-    <div class="bottom-banner">
-      <span>Jupyter Notebooks</span>
-      <div class="sep"></div>
-      <span>Bicep IaC</span>
-      <div class="sep"></div>
-      <span>APIM Policies</span>
-      <div class="sep"></div>
-      <span>Guided & Interactive</span>
+    <div class="footer">
+      <div class="slide-number">8/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+      <div class="bottom-bar"></div>
     </div>
   </div>
 
@@ -949,7 +1117,7 @@
       <h2>Infrastructure &times; Sample Compatibility</h2>
     </div>
     <p class="subtitle">
-      Most samples work with all infrastructures &mdash; a truly <em>a la carte</em> experience.
+      Most samples work with all infrastructures &mdash; a truly <em>à la carte</em> experience.
     </p>
 
     <div class="matrix-container">
@@ -957,7 +1125,10 @@
            alt="Infrastructure and Sample Compatibility Matrix" />
     </div>
 
-    <p class="footer-note">https://aka.ms/apim/samples</p>
+    <div class="footer">
+      <p class="footer-note">https://aka.ms/apim/samples</p>
+      <div class="slide-number">9/20</div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -977,7 +1148,10 @@
            alt="Infrastructure and SKU Compatibility Matrix" />
     </div>
 
-    <p class="footer-note">https://aka.ms/apim/samples</p>
+    <div class="footer">
+      <p class="footer-note">https://aka.ms/apim/samples</p>
+      <div class="slide-number">10/20</div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -987,7 +1161,11 @@
     <div class="section-number">03</div>
     <h2>Why <span>This Approach</span></h2>
     <p>Key differentiators that set APIM Samples apart</p>
-    <div class="bottom-bar"></div>
+    <div class="footer">
+      <div class="slide-number">11/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+      <div class="bottom-bar"></div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1003,7 +1181,7 @@
       <div class="benefit-card">
         <div class="icon">&#129513;</div>
         <h4>Modular & Flexible</h4>
-        <p>Mix any infrastructure with any compatible sample. Not a monolith &mdash; truly a la carte.</p>
+        <p>Mix any infrastructure with any compatible sample. Not a monolith &mdash; truly à la carte.</p>
       </div>
       <div class="benefit-card">
         <div class="icon">&#128221;</div>
@@ -1031,7 +1209,11 @@
         <p>OpenSSF Best Practices certified. CI/CD pipeline. Cross-platform (Windows, Linux, macOS).</p>
       </div>
     </div>
-    <div class="bottom-bar"></div>
+    <div class="footer">
+      <div class="slide-number">12/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+      <div class="bottom-bar"></div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1041,7 +1223,11 @@
     <div class="section-number">04</div>
     <h2>Live <span>Demo</span></h2>
     <p>Deploying an infrastructure, running a sample, and exploring in Azure Portal</p>
-    <div class="bottom-bar"></div>
+    <div class="footer">
+      <div class="slide-number">13/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+      <div class="bottom-bar"></div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1083,7 +1269,11 @@
     <div style="margin-top: 32px; text-align: center; font-size: 15px; color: #555;">
       <strong>Let's see it in action!</strong> &mdash; We'll deploy an infrastructure and run a sample live.
     </div>
-    <div class="bottom-bar"></div>
+    <div class="footer">
+      <div class="slide-number">14/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+      <div class="bottom-bar"></div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1119,7 +1309,11 @@
         </ul>
       </div>
     </div>
-    <div class="bottom-bar"></div>
+    <div class="footer">
+      <div class="slide-number">15/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+      <div class="bottom-bar"></div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1127,43 +1321,51 @@
   <!-- ════════════════════════════════════════════════════════════ -->
   <div class="slide slide-section">
     <div class="section-number">05</div>
-    <h2>Using It <span>with Customers</span></h2>
-    <p>Practical ways to leverage APIM Samples in the field</p>
-    <div class="bottom-bar"></div>
+    <h2>Empowering <span>Customers</span></h2>
+    <p>Unlock your API management potential</p>
+    <div class="footer">
+      <div class="slide-number">16/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+      <div class="bottom-bar"></div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
-  <!-- SLIDE 17 : How to Use with Customers                        -->
+  <!-- SLIDE 17 : Customer Success Scenarios                         -->
   <!-- ════════════════════════════════════════════════════════════ -->
   <div class="slide slide-content">
     <div class="header-bar">
       <div class="accent"></div>
-      <h2>How to Use with Customers</h2>
+      <h2>Customer Success Scenarios</h2>
     </div>
 
     <div class="usecase-grid">
       <div class="usecase-card">
         <div class="emoji">&#127891;</div>
         <h4>Discovery & Education</h4>
-        <p>Walk customers through architecture options. Show them how different APIM configurations work in practice, not just on paper.</p>
+        <p>Show customers real architectures in action. Experience different APIM configurations hands-on, not just on paper.</p>
       </div>
       <div class="usecase-card">
         <div class="emoji">&#128300;</div>
         <h4>Proof of Concept</h4>
-        <p>Deploy an infrastructure that matches the customer's scenario and apply relevant samples. Demonstrate policy behaviors in a real environment.</p>
+        <p>Deploy an infrastructure matching your scenario and test relevant samples. See policy behaviors in a real, risk-free environment.</p>
       </div>
       <div class="usecase-card">
         <div class="emoji">&#128736;</div>
         <h4>Policy Prototyping</h4>
-        <p>Experiment with policies before committing to production. Test auth flows, rate limiting, transformations, and more in a safe sandbox.</p>
+        <p>Safely experiment with policies before production. Test auth flows, rate limiting, transformations, and more in a sandbox environment.</p>
       </div>
       <div class="usecase-card">
         <div class="emoji">&#128640;</div>
-        <h4>Handoff & Independence</h4>
-        <p>Customers can fork the repo and continue independently. The guided notebooks and documentation make self-service exploration easy.</p>
+        <h4>Empower Independence</h4>
+        <p>Fork the repo and build your own solutions. Guided notebooks and clear documentation make self-service success straightforward.</p>
       </div>
     </div>
-    <div class="bottom-bar"></div>
+    <div class="footer">
+      <div class="slide-number">17/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+      <div class="bottom-bar"></div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1195,15 +1397,19 @@
         <p>Leverage it with customers and share what you learn back.</p>
       </div>
     </div>
-    <div class="bottom-bar"></div>
+    <div class="footer">
+      <div class="slide-number">18/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+      <div class="bottom-bar"></div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
   <!-- SLIDE 19 : Summary                                          -->
   <!-- ════════════════════════════════════════════════════════════ -->
-  <div class="slide slide-title" style="padding: 60px 80px;">
-    <h2 style="font-size: 38px; font-weight: 700; margin-bottom: 8px;">What We Covered</h2>
-    <p style="font-size: 17px; opacity: 0.8; margin-bottom: 28px;">
+  <div class="slide slide-section" style="background: linear-gradient(135deg, #0078D4 0%, #005A9E 40%, #003A6E 100%); color: #fff; padding: 60px 80px;">
+    <h2 style="font-size: 38px; font-weight: 700; margin-bottom: 8px; color: #fff;">What We Covered</h2>
+    <p style="font-size: 17px; opacity: 0.8; margin-bottom: 28px; color: #fff;">
       APIM Samples fills the gap between "too much" and "too little" &mdash;
       offering a flexible, modular, and guided approach to learning and experimenting with Azure API Management.
     </p>
@@ -1217,7 +1423,7 @@
       <div class="summary-item">
         <div class="big-icon">&#9889;</div>
         <h4 style="color: #50E6FF;">Empower</h4>
-        <p>8 real-world samples with guided Jupyter notebooks and a la carte flexibility.</p>
+        <p>8 real-world samples with guided Jupyter notebooks and à la carte flexibility.</p>
       </div>
       <div class="summary-item">
         <div class="big-icon">&#128640;</div>
@@ -1226,19 +1432,22 @@
       </div>
     </div>
 
-    <div style="text-align: center; margin-top: 28px; font-size: 20px; font-weight: 300; opacity: 0.9;">
+    <div style="text-align: center; margin-top: 28px; font-size: 20px; font-weight: 300; opacity: 0.9; color: #fff;">
       <em>"Neither too much nor too little. Just right."</em>
     </div>
-    <span class="footer-url">https://aka.ms/apim/samples</span>
+    <div class="footer">
+      <div class="slide-number">19/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
-  <!-- SLIDE 20 : Resources & Q&A                                  -->
+  <!-- SLIDE 20 : Resources & Q&A                               -->
   <!-- ════════════════════════════════════════════════════════════ -->
   <div class="slide slide-section">
     <div class="qa-content">
       <h2>Questions & <span>Discussion</span></h2>
-      <p>Thank you for your time. Let's discuss!</p>
+      <p>Thank you for your time! Let's discuss!</p>
 
       <div class="links">
         <div class="link-item">
@@ -1255,7 +1464,11 @@
         </div>
       </div>
     </div>
-    <div class="bottom-bar"></div>
+    <div class="footer">
+      <div class="slide-number">20/20</div>
+      <span class="footer-url">https://aka.ms/apim/samples</span>
+      <div class="bottom-bar"></div>
+    </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1305,12 +1518,19 @@
       window.addEventListener('resize', scaleSlides);
 
       document.addEventListener('keydown', function (e) {
-        if (!document.body.classList.contains('presentation-mode')) {
-          // Enter presentation mode with F5 or F key
-          if (e.key === 'F5' || e.key === 'f' || e.key === 'F') {
-            e.preventDefault();
+        if (e.key === 'F5' || e.key === 'f' || e.key === 'F') {
+          e.preventDefault();
+
+          if (document.body.classList.contains('presentation-mode')) {
+            exitPresentation();
+          } else {
             enterPresentation();
           }
+
+          return;
+        }
+
+        if (!document.body.classList.contains('presentation-mode')) {
           return;
         }
 
@@ -1336,9 +1556,20 @@
             e.preventDefault();
             showSlide(slides.length - 1);
             break;
-          case 'Escape':
-            exitPresentation();
-            break;
+        }
+      });
+
+      document.addEventListener('click', function (e) {
+        if (!document.body.classList.contains('presentation-mode')) {
+          return;
+        }
+
+        if (e.target.closest('.nav-help') || e.target.closest('.slide-counter')) {
+          return;
+        }
+
+        if (current < slides.length - 1) {
+          showSlide(current + 1);
         }
       });
 
@@ -1350,8 +1581,32 @@
         });
       });
 
-      // Start in presentation mode by default
-      enterPresentation();
+      // Start in overview mode by default
+      // enterPresentation();
+    })();
+
+    // ── Live reload (polls server for changes) ──
+    (function () {
+      let lastModified = new Date().getTime();
+      const checkInterval = 2000; // Check every 2 seconds
+
+      setInterval(function () {
+        fetch(window.location.href, {
+          method: 'HEAD',
+          cache: 'no-store',
+        })
+          .then(function (response) {
+            const modified = new Date(response.headers.get('last-modified')).getTime();
+            if (modified > lastModified && lastModified !== 0) {
+              console.log('File updated, reloading...');
+              window.location.reload();
+            }
+            lastModified = modified;
+          })
+          .catch(function (error) {
+            console.log('Live reload check failed:', error);
+          });
+      }, checkInterval);
     })();
   </script>
 </body>
