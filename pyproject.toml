@@ -30,6 +30,9 @@ dev = [
 [tool.ruff]
 line-length = 150
 
+[tool.ruff.format]
+exclude = ["**"]
+
 [tool.ruff.lint]
 select = [
   "E",    # pycodestyle errors
