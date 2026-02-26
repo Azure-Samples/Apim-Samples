@@ -6,22 +6,19 @@ including resource groups, deployments, and various Azure services.
 """
 
 import json
-import time
-import tempfile
+import logging
 import os
 import re
 import subprocess
+import tempfile
 import threading
+import time
 from typing import Any, Literal, Optional, Tuple
-
-import logging
-
-from logging_config import is_debug_enabled
 
 # APIM Samples imports
 from apimtypes import INFRASTRUCTURE, Endpoints, Output
-from console import print_ok, print_warning, print_error, print_plain, print_val, print_message, print_info, print_command
-
+from console import print_command, print_error, print_info, print_message, print_ok, print_plain, print_val, print_warning
+from logging_config import is_debug_enabled
 
 _SECRET_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     # JSON-style token fields
@@ -179,6 +176,7 @@ def _looks_like_json(text: str) -> bool:
     except json.JSONDecodeError:
         return False
 
+
 def run(
     command: str,
     ok_message: str | None = None,
@@ -288,6 +286,7 @@ def run(
 #    PUBLIC FUNCTIONS
 # ------------------------------
 
+
 def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, current_jwt_key_name: str) -> bool:
     """
     Clean up old JWT signing keys from APIM named values for the same sample folder, keeping only the current key.
@@ -304,7 +303,7 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
     """
 
     try:
-        print_message('🧹 Cleaning up old JWT signing keys for the same sample folder...', blank_above = True)
+        print_message('🧹 Cleaning up old JWT signing keys for the same sample folder...', blank_above=True)
 
         # Extract sample folder name from current JWT key using regex
         # Pattern: JwtSigningKey-{sample_folder}-{timestamp}
@@ -313,8 +312,7 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
 
         if not current_key_match:
             print_error(
-                f"Current JWT key name '{current_jwt_key_name}' does not match"
-                f" expected pattern 'JwtSigningKey-{{sample_folder}}-{{timestamp}}'"
+                f"Current JWT key name '{current_jwt_key_name}' does not match expected pattern 'JwtSigningKey-{{sample_folder}}-{{timestamp}}'"
             )
             return False
 
@@ -328,7 +326,7 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
             f'az apim nv list --service-name "{apim_name}" --resource-group "{resource_group_name}"'
             f' --query "[?contains(name, \'JwtSigningKey\')].name" -o tsv',
             'Retrieved JWT signing keys',
-            'Failed to retrieve JWT signing keys'
+            'Failed to retrieve JWT signing keys',
         )
 
         if not output.success:
@@ -363,7 +361,7 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
                 delete_output = run(
                     f'az apim nv delete --service-name "{apim_name}" --resource-group "{resource_group_name}" --named-value-id "{jwt_key}" --yes',
                     f'Deleted old JWT key: {jwt_key}',
-                    f'Failed to delete JWT key: {jwt_key}'
+                    f'Failed to delete JWT key: {jwt_key}',
                 )
 
                 if delete_output.success:
@@ -379,6 +377,7 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
     except Exception as e:
         print_error(f'Error during JWT key cleanup: {str(e)}')
         return False
+
 
 def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resource_group_name: str, max_wait_minutes: int = 10) -> bool:
     """
@@ -407,7 +406,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
     print_info('Getting APIM managed identity...')
     apim_identity_output = run(
         f'az apim show --name {apim_name} --resource-group {resource_group_name} --query identity.principalId -o tsv',
-        error_message='Failed to get APIM managed identity'
+        error_message='Failed to get APIM managed identity',
     )
 
     if not apim_identity_output.success or not apim_identity_output.text.strip():
@@ -415,11 +414,11 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
         return False
 
     principal_id = apim_identity_output.text.strip()
-    print_info(f'APIM managed identity principal ID: {principal_id}')    # Get storage account resource ID
+    print_info(f'APIM managed identity principal ID: {principal_id}')  # Get storage account resource ID
     # Remove suppression flags to get raw output, then extract resource ID with regex
     storage_account_output = run(
         f'az storage account show --name {storage_account_name} --resource-group {resource_group_name} --query id -o tsv',
-        error_message='Failed to get storage account resource ID'
+        error_message='Failed to get storage account resource ID',
     )
 
     if not storage_account_output.success:
@@ -447,7 +446,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
         # Check if role assignment exists
         role_assignment_output = run(
             f"az role assignment list --assignee {principal_id} --scope {storage_account_id} --role {blob_reader_role_id} --query '[0].id' -o tsv",
-            error_message='Failed to check role assignment'
+            error_message='Failed to check role assignment',
         )
 
         if role_assignment_output.success and role_assignment_output.text.strip():
@@ -459,7 +458,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
                 f'az storage blob list --account-name {storage_account_name}'
                 f' --container-name samples --auth-mode login --only-show-errors'
                 f" --query '[0].name' -o tsv 2>/dev/null || echo 'access-test-failed'",
-                error_message=''
+                error_message='',
             )
 
             if test_access_output.success and test_access_output.text.strip() != 'access-test-failed':
@@ -486,6 +485,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
     print_info('3. Check the deployment logs for any errors')
 
     return False
+
 
 def find_infrastructure_instances(infrastructure: INFRASTRUCTURE) -> list[tuple[INFRASTRUCTURE, int | None]]:
     """
@@ -518,7 +518,7 @@ def find_infrastructure_instances(infrastructure: INFRASTRUCTURE) -> list[tuple[
             elif rg_name.startswith(prefix + '-'):
                 # Has index
                 try:
-                    index_str = rg_name[len(prefix + '-'):]
+                    index_str = rg_name[len(prefix + '-') :]
                     index = int(index_str)
                     instances.append((infrastructure, index))
                 except ValueError:
@@ -527,7 +527,8 @@ def find_infrastructure_instances(infrastructure: INFRASTRUCTURE) -> list[tuple[
 
     return instances
 
-def create_resource_group(rg_name: str, resource_group_location: str | None = None, tags: dict | None = None) -> None:
+
+def create_resource_group(rg_name: str, resource_group_location: str | None = None, tags: dict | None = None, rg_exists: bool | None = None) -> None:
     """
     Create a resource group in Azure if it does not already exist.
 
@@ -535,25 +536,30 @@ def create_resource_group(rg_name: str, resource_group_location: str | None = No
         rg_name (str): Name of the resource group.
         resource_group_location (str, optional): Azure region for the resource group.
         tags (dict, optional): Additional tags to apply to the resource group.
+        rg_exists (bool, optional): Pre-checked existence state. When provided, skips the existence check.
 
     Returns:
         None
     """
 
-    if not does_resource_group_exist(rg_name):
+    if rg_exists is None:
+        rg_exists = does_resource_group_exist(rg_name)
+
+    if not rg_exists:
         # Build the tags string for the Azure CLI command
         tag_string = 'source=apim-sample'
         if tags:
             for key, value in tags.items():
                 # Escape values that contain spaces or special characters
                 escaped_value = value.replace('"', '\\"') if isinstance(value, str) else str(value)
-                tag_string += f' {key}=\"{escaped_value}\"'
+                tag_string += f' {key}="{escaped_value}"'
 
         run(
             f'az group create --name {rg_name} --location {resource_group_location} --tags {tag_string}',
             f"Resource group '{rg_name}' created",
-            f"Failed to create the resource group '{rg_name}'"
+            f"Failed to create the resource group '{rg_name}'",
         )
+
 
 def get_azure_role_guid(role_name: str) -> Optional[str]:
     """
@@ -585,6 +591,7 @@ def get_azure_role_guid(role_name: str) -> Optional[str]:
 
         return None
 
+
 def does_resource_group_exist(resource_group_name: str) -> bool:
     """
     Check if a resource group exists in the current Azure subscription.
@@ -596,9 +603,10 @@ def does_resource_group_exist(resource_group_name: str) -> bool:
         bool: True if the resource group exists, False otherwise.
     """
 
-    output = run(f'az group show --name {resource_group_name} -o json')
+    output = run(f'az group exists --name {resource_group_name}')
 
-    return output.success
+    return output.success and output.text.strip().lower() == 'true'
+
 
 def get_resource_group_location(resource_group_name: str) -> str | None:
     """
@@ -617,6 +625,7 @@ def get_resource_group_location(resource_group_name: str) -> str | None:
         return output.text.strip()
 
     return None
+
 
 def get_account_info() -> Tuple[str, str, str, str]:
     """
@@ -654,11 +663,11 @@ def get_account_info() -> Tuple[str, str, str, str]:
         return current_user, current_user_id, tenant_id, subscription_id
 
     error = (
-        'Failed to retrieve account information. Please ensure the Azure CLI is installed,'
-        ' you are logged in, and the subscription is set correctly.'
+        'Failed to retrieve account information. Please ensure the Azure CLI is installed, you are logged in, and the subscription is set correctly.'
     )
     print_error(error)
     raise RuntimeError(error)
+
 
 def get_deployment_name(directory_name: str | None = None) -> str:
     """
@@ -679,6 +688,7 @@ def get_deployment_name(directory_name: str | None = None) -> str:
 
     return deployment_name
 
+
 def get_frontdoor_url(deployment_name: INFRASTRUCTURE, rg_name: str) -> str | None:
     """
     Retrieve the secure URL for the first endpoint in the first Azure Front Door Standard/Premium profile in the specified resource group.
@@ -698,7 +708,7 @@ def get_frontdoor_url(deployment_name: INFRASTRUCTURE, rg_name: str) -> str | No
 
         if output.success and output.json_data:
             afd_profile_name = output.json_data[0]['name']
-            print_ok(f'Front Door Profile Name: {afd_profile_name}', blank_above = False)
+            print_ok(f'Front Door Profile Name: {afd_profile_name}', blank_above=False)
 
             if afd_profile_name:
                 output = run(f'az afd endpoint list -g {rg_name} --profile-name {afd_profile_name} -o json')
@@ -710,11 +720,12 @@ def get_frontdoor_url(deployment_name: INFRASTRUCTURE, rg_name: str) -> str | No
                         afd_endpoint_url = f'https://{afd_hostname}'
 
     if afd_endpoint_url:
-        print_ok(f'Front Door Endpoint URL: {afd_endpoint_url}', blank_above = False)
+        print_ok(f'Front Door Endpoint URL: {afd_endpoint_url}', blank_above=False)
     else:
         print_warning('No Front Door endpoint URL found.')
 
     return afd_endpoint_url
+
 
 def get_apim_url(rg_name: str) -> str | None:
     """
@@ -733,13 +744,13 @@ def get_apim_url(rg_name: str) -> str | None:
 
     if output.success and output.json_data:
         apim_gateway_url = output.json_data[0]['gatewayUrl']
-        print_ok(f'APIM Service Name: {output.json_data[0]["name"]}', blank_above = False)
+        print_ok(f'APIM Service Name: {output.json_data[0]["name"]}', blank_above=False)
 
         if apim_gateway_url:
             apim_endpoint_url = apim_gateway_url
 
     if apim_endpoint_url:
-        print_ok(f'APIM Gateway URL: {apim_endpoint_url}', blank_above = False)
+        print_ok(f'APIM Gateway URL: {apim_endpoint_url}', blank_above=False)
     else:
         print_warning('No APIM gateway URL found.')
 
@@ -753,7 +764,7 @@ def get_apim_subscription_key(
     key_name: Literal['primaryKey', 'secondaryKey'] = 'primaryKey',
     subscription_id: str | None = None,
     sid: str | None = None,
-    api_version: str = '2022-08-01'
+    api_version: str = '2022-08-01',
 ) -> str | None:
     """Retrieve an API Management subscription key.
 
@@ -778,19 +789,14 @@ def get_apim_subscription_key(
 
     resolved_subscription_id = subscription_id
     if not resolved_subscription_id:
-        sub_output = run('az account show --query id -o tsv', log_command = False)
+        sub_output = run('az account show --query id -o tsv', log_command=False)
         if not sub_output.success or not sub_output.text.strip():
             return None
         resolved_subscription_id = sub_output.text.strip()
 
     resolved_sid = sid
     if not resolved_sid:
-        subs = list_apim_subscriptions(
-            apim_name,
-            rg_name,
-            subscription_id = resolved_subscription_id,
-            api_version = api_version
-        )
+        subs = list_apim_subscriptions(apim_name, rg_name, subscription_id=resolved_subscription_id, api_version=api_version)
         if not subs:
             return None
 
@@ -808,10 +814,7 @@ def get_apim_subscription_key(
         f'/subscriptions/{resolved_sid}/listSecrets?api-version={api_version}'
     )
 
-    secrets_output = run(
-        f'az rest --method post --url "{secrets_url}" -o json',
-        log_command = False
-    )
+    secrets_output = run(f'az rest --method post --url "{secrets_url}" -o json', log_command=False)
 
     if not secrets_output.success or not isinstance(secrets_output.json_data, dict):
         return None
@@ -824,11 +827,7 @@ def get_apim_subscription_key(
 
 
 def list_apim_subscriptions(
-    apim_name: str,
-    rg_name: str,
-    *,
-    subscription_id: str | None = None,
-    api_version: str = '2022-08-01'
+    apim_name: str, rg_name: str, *, subscription_id: str | None = None, api_version: str = '2022-08-01'
 ) -> list[dict[str, Any]]:
     """List APIM subscriptions for an API Management instance.
 
@@ -840,7 +839,7 @@ def list_apim_subscriptions(
 
     resolved_subscription_id = subscription_id
     if not resolved_subscription_id:
-        sub_output = run('az account show --query id -o tsv', log_command = False)
+        sub_output = run('az account show --query id -o tsv', log_command=False)
         if not sub_output.success or not sub_output.text.strip():
             return []
         resolved_subscription_id = sub_output.text.strip()
@@ -851,10 +850,7 @@ def list_apim_subscriptions(
         f'/subscriptions?api-version={api_version}'
     )
 
-    output = run(
-        f'az rest --method get --url "{list_url}" -o json',
-        log_command = False
-    )
+    output = run(f'az rest --method get --url "{list_url}" -o json', log_command=False)
 
     if not output.success or not isinstance(output.json_data, dict):
         return []
@@ -864,6 +860,7 @@ def list_apim_subscriptions(
         return [v for v in value if isinstance(v, dict)]
 
     return []
+
 
 def get_appgw_endpoint(rg_name: str) -> Tuple[str | None, str | None]:
     """
@@ -884,7 +881,7 @@ def get_appgw_endpoint(rg_name: str) -> Tuple[str | None, str | None]:
 
     if output.success and output.json_data:
         appgw_name = output.json_data[0]['name']
-        print_ok(f'Application Gateway Name: {appgw_name}', blank_above = False)
+        print_ok(f'Application Gateway Name: {appgw_name}', blank_above=False)
 
         # Get hostname
         http_listeners = output.json_data[0].get('httpListeners', [])
@@ -915,6 +912,7 @@ def get_appgw_endpoint(rg_name: str) -> Tuple[str | None, str | None]:
 
     return hostname, public_ip
 
+
 def get_infra_rg_name(deployment_name: INFRASTRUCTURE, index: int | None = None) -> str:
     """
     Generate a resource group name for infrastructure deployments, optionally with an index.
@@ -934,6 +932,7 @@ def get_infra_rg_name(deployment_name: INFRASTRUCTURE, index: int | None = None)
 
     return rg_name
 
+
 def get_unique_suffix_for_resource_group(rg_name: str) -> str:
     """
     Get the exact uniqueString value that Bicep/ARM generates for a resource group.
@@ -949,20 +948,17 @@ def get_unique_suffix_for_resource_group(rg_name: str) -> str:
     """
 
     # Minimal ARM template that just outputs the uniqueString
-    template = json.dumps({
-        "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
-        "contentVersion": "1.0.0.0",
-        "resources": [],
-        "outputs": {
-            "suffix": {
-                "type": "string",
-                "value": "[uniqueString(subscription().id, resourceGroup().id)]"
-            }
+    template = json.dumps(
+        {
+            '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#',
+            'contentVersion': '1.0.0.0',
+            'resources': [],
+            'outputs': {'suffix': {'type': 'string', 'value': '[uniqueString(subscription().id, resourceGroup().id)]'}},
         }
-    })
+    )
 
     # Write template to temp file
-    with tempfile.NamedTemporaryFile(mode = 'w', suffix = '.json', delete = False) as f:
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
         f.write(template)
         template_path = f.name
 
@@ -984,6 +980,7 @@ def get_unique_suffix_for_resource_group(rg_name: str) -> str:
         except Exception:  # pragma: no cover
             pass
 
+
 def get_rg_name(deployment_name: str, index: int | None = None) -> str:
     """
     Generate a resource group name for a sample deployment, optionally with an index.
@@ -1004,6 +1001,7 @@ def get_rg_name(deployment_name: str, index: int | None = None) -> str:
     print_val('Resource group name', rg_name)
 
     return rg_name
+
 
 def get_endpoints(deployment: INFRASTRUCTURE, rg_name: str) -> Endpoints:
     """

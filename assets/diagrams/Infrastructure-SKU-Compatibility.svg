@@ -1,0 +1,166 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 500" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="skuHeaderGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0078D4" />
+      <stop offset="100%" stop-color="#005A9E" />
+    </linearGradient>
+    <linearGradient id="infraLabelGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00796B" />
+      <stop offset="100%" stop-color="#00897B" />
+    </linearGradient>
+    <filter id="sh" x="-2%" y="-2%" width="104%" height="104%">
+      <feDropShadow dx="1" dy="1" stdDeviation="2" flood-opacity="0.12" />
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="940" height="500" rx="12" fill="#FAFAFA" />
+  <rect x="4" y="4" width="932" height="492" rx="10" fill="none" stroke="#E0E0E0" stroke-width="1" />
+
+  <g transform="translate(0,20)">
+  <!-- Title -->
+  <text x="470" y="15" text-anchor="middle" font-size="20" font-weight="700" fill="#1A1A1A">Infrastructure &amp; SKU Compatibility</text>
+  <text x="470" y="35" text-anchor="middle" font-size="12" fill="#666666">Which APIM SKUs are supported by each infrastructure</text>
+
+  <!-- Section Labels -->
+  <text x="560" y="82" text-anchor="middle" font-size="16" font-weight="700" font-style="italic" fill="#0078D4" letter-spacing="2">APIM SKUs</text>
+  <text x="22" y="304" text-anchor="middle" font-size="16" font-weight="700" font-style="italic" fill="#00796B" letter-spacing="2" transform="rotate(-90 22 304)">INFRASTRUCTURES</text>
+
+  <!-- Tier group headers -->
+  <!-- Classic (v1): x=210-610, width=400 -->
+  <rect x="210" y="90" width="400" height="22" rx="4" fill="#E3F2FD" opacity="0.85" />
+  <text x="410" y="105" text-anchor="middle" font-size="11" font-weight="700" fill="#0078D4">Classic Tiers (V1)</text>
+  <!-- V2: x=612-910, width=298 -->
+  <rect x="612" y="90" width="298" height="22" rx="4" fill="#E8F5E9" opacity="0.85" />
+  <text x="761" y="105" text-anchor="middle" font-size="11" font-weight="700" fill="#2E7D32">V2 Tiers</text>
+
+  <!-- Column header backgrounds (7 cols x 100px = 700px, starting at x=210) -->
+  <rect x="210" y="114" width="100" height="78" rx="6" fill="#E3F2FD" opacity="0.5" />
+  <rect x="310" y="114" width="100" height="78" rx="6" fill="#EDE7F6" opacity="0.5" />
+  <rect x="410" y="114" width="100" height="78" rx="6" fill="#E3F2FD" opacity="0.5" />
+  <rect x="510" y="114" width="100" height="78" rx="6" fill="#EDE7F6" opacity="0.5" />
+  <rect x="610" y="114" width="100" height="78" rx="6" fill="#E8F5E9" opacity="0.5" />
+  <rect x="710" y="114" width="100" height="78" rx="6" fill="#F3E5F5" opacity="0.5" />
+  <rect x="810" y="114" width="100" height="78" rx="6" fill="#E8F5E9" opacity="0.5" />
+
+  <!-- Column header text (SKU names + tier note) -->
+  <text x="260" y="141" text-anchor="middle" font-size="11" font-weight="600" fill="#0078D4">Developer</text>
+  <text x="360" y="141" text-anchor="middle" font-size="11" font-weight="600" fill="#0078D4">Basic</text>
+  <text x="460" y="141" text-anchor="middle" font-size="11" font-weight="600" fill="#0078D4">Standard</text>
+  <text x="560" y="141" text-anchor="middle" font-size="11" font-weight="600" fill="#0078D4">Premium</text>
+  <text x="660" y="141" text-anchor="middle" font-size="11" font-weight="600" fill="#2E7D32">BasicV2</text>
+  <text x="760" y="141" text-anchor="middle" font-size="11" font-weight="600" fill="#2E7D32">StandardV2</text>
+  <text x="860" y="141" text-anchor="middle" font-size="11" font-weight="600" fill="#2E7D32">PremiumV2</text>
+
+  <!-- Separator line between headers and grid -->
+  <line x1="30" y1="196" x2="915" y2="196" stroke="#BDBDBD" stroke-width="1" />
+
+  <!-- Row backgrounds (alternating) and infrastructure row labels -->
+  <!-- Row 1: simple-apim -->
+  <rect x="30" y="200" width="885" height="42" rx="4" fill="#FFFFFF" />
+  <rect x="35" y="202" width="170" height="38" rx="6" fill="url(#infraLabelGrad)" filter="url(#sh)" />
+  <text x="120" y="217" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Simple APIM</text>
+  <text x="120" y="233" text-anchor="middle" font-size="9" fill="#E0F2F1">(simple-apim)</text>
+
+  <!-- Row 2: apim-aca -->
+  <rect x="30" y="242" width="885" height="42" rx="4" fill="#F5F5F5" />
+  <rect x="35" y="244" width="170" height="38" rx="6" fill="url(#infraLabelGrad)" filter="url(#sh)" />
+  <text x="120" y="259" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">APIM + ACA</text>
+  <text x="120" y="275" text-anchor="middle" font-size="9" fill="#E0F2F1">(apim-aca)</text>
+
+  <!-- Row 3: afd-apim-pe -->
+  <rect x="30" y="284" width="885" height="42" rx="4" fill="#FFFFFF" />
+  <rect x="35" y="286" width="170" height="38" rx="6" fill="url(#infraLabelGrad)" filter="url(#sh)" />
+  <text x="120" y="301" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">AFD + APIM (PE)</text>
+  <text x="120" y="317" text-anchor="middle" font-size="9" fill="#E0F2F1">(afd-apim-pe)</text>
+
+  <!-- Row 4: appgw-apim -->
+  <rect x="30" y="326" width="885" height="42" rx="4" fill="#F5F5F5" />
+  <rect x="35" y="328" width="170" height="38" rx="6" fill="url(#infraLabelGrad)" filter="url(#sh)" />
+  <text x="120" y="343" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">App GW + APIM</text>
+  <text x="120" y="359" text-anchor="middle" font-size="9" fill="#E0F2F1">(appgw-apim)</text>
+
+  <!-- Row 5: appgw-apim-pe -->
+  <rect x="30" y="368" width="885" height="42" rx="4" fill="#FFFFFF" />
+  <rect x="35" y="370" width="170" height="38" rx="6" fill="url(#infraLabelGrad)" filter="url(#sh)" />
+  <text x="120" y="383" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">App GW + APIM (PE)</text>
+  <text x="120" y="399" text-anchor="middle" font-size="9" fill="#E0F2F1">(appgw-apim-pe)</text>
+
+  <!-- Vertical grid lines -->
+  <line x1="210" y1="90" x2="210" y2="412" stroke="#E0E0E0" stroke-width="0.5" />
+  <line x1="310" y1="90" x2="310" y2="412" stroke="#E0E0E0" stroke-width="0.5" />
+  <line x1="410" y1="90" x2="410" y2="412" stroke="#E0E0E0" stroke-width="0.5" />
+  <line x1="510" y1="90" x2="510" y2="412" stroke="#E0E0E0" stroke-width="0.5" />
+  <line x1="610" y1="90" x2="610" y2="412" stroke="#E0E0E0" stroke-width="0.5" />
+  <line x1="710" y1="90" x2="710" y2="412" stroke="#E0E0E0" stroke-width="0.5" />
+  <line x1="810" y1="90" x2="810" y2="412" stroke="#E0E0E0" stroke-width="0.5" />
+
+  <!--
+    Compatibility indicators
+    Green (#4CAF50)  = compatible
+    Red   (#EF5350)  = not compatible
+
+    Row y-centers: simple-apim=221, apim-aca=263, afd-apim-pe=305, appgw-apim=347, appgw-apim-pe=389
+    Col x-centers: Developer=260, Basic=360, Standard=460, Premium=560, BasicV2=660, StandardV2=760, PremiumV2=860
+  -->
+
+  <!-- Row 1: simple-apim - all 7 SKUs supported -->
+  <circle cx="260" cy="221" r="10" fill="#4CAF50" opacity="0.9" /><text x="260" y="225" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="360" cy="221" r="10" fill="#4CAF50" opacity="0.9" /><text x="360" y="225" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="460" cy="221" r="10" fill="#4CAF50" opacity="0.9" /><text x="460" y="225" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="560" cy="221" r="10" fill="#4CAF50" opacity="0.9" /><text x="560" y="225" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="660" cy="221" r="10" fill="#4CAF50" opacity="0.9" /><text x="660" y="225" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="760" cy="221" r="10" fill="#4CAF50" opacity="0.9" /><text x="760" y="225" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="860" cy="221" r="10" fill="#4CAF50" opacity="0.9" /><text x="860" y="225" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+
+  <!-- Row 2: apim-aca - same as simple-apim -->
+  <circle cx="260" cy="263" r="10" fill="#4CAF50" opacity="0.9" /><text x="260" y="267" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="360" cy="263" r="10" fill="#4CAF50" opacity="0.9" /><text x="360" y="267" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="460" cy="263" r="10" fill="#4CAF50" opacity="0.9" /><text x="460" y="267" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="560" cy="263" r="10" fill="#4CAF50" opacity="0.9" /><text x="560" y="267" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="660" cy="263" r="10" fill="#4CAF50" opacity="0.9" /><text x="660" y="267" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="760" cy="263" r="10" fill="#4CAF50" opacity="0.9" /><text x="760" y="267" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="860" cy="263" r="10" fill="#4CAF50" opacity="0.9" /><text x="860" y="267" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+
+  <!-- Row 3: afd-apim-pe - private endpoint requires StandardV2 or PremiumV2 only -->
+  <circle cx="260" cy="305" r="10" fill="#EF5350" opacity="0.9" /><text x="260" y="309" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <circle cx="360" cy="305" r="10" fill="#EF5350" opacity="0.9" /><text x="360" y="309" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <circle cx="460" cy="305" r="10" fill="#EF5350" opacity="0.9" /><text x="460" y="309" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <circle cx="560" cy="305" r="10" fill="#EF5350" opacity="0.9" /><text x="560" y="309" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <circle cx="660" cy="305" r="10" fill="#EF5350" opacity="0.9" /><text x="660" y="309" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <circle cx="760" cy="305" r="10" fill="#4CAF50" opacity="0.9" /><text x="760" y="309" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="860" cy="305" r="10" fill="#4CAF50" opacity="0.9" /><text x="860" y="309" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+
+  <!-- Row 4: appgw-apim - VNet injection requires Developer or Premium (v1) only -->
+  <circle cx="260" cy="347" r="10" fill="#4CAF50" opacity="0.9" /><text x="260" y="351" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="360" cy="347" r="10" fill="#EF5350" opacity="0.9" /><text x="360" y="351" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <circle cx="460" cy="347" r="10" fill="#EF5350" opacity="0.9" /><text x="460" y="351" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <circle cx="560" cy="347" r="10" fill="#4CAF50" opacity="0.9" /><text x="560" y="351" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="660" cy="347" r="10" fill="#EF5350" opacity="0.9" /><text x="660" y="351" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <circle cx="760" cy="347" r="10" fill="#EF5350" opacity="0.9" /><text x="760" y="351" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <circle cx="860" cy="347" r="10" fill="#EF5350" opacity="0.9" /><text x="860" y="351" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+
+  <!-- Row 5: appgw-apim-pe - private endpoint requires StandardV2 or PremiumV2 only -->
+  <circle cx="260" cy="389" r="10" fill="#EF5350" opacity="0.9" /><text x="260" y="393" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <circle cx="360" cy="389" r="10" fill="#EF5350" opacity="0.9" /><text x="360" y="393" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <circle cx="460" cy="389" r="10" fill="#EF5350" opacity="0.9" /><text x="460" y="393" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <circle cx="560" cy="389" r="10" fill="#EF5350" opacity="0.9" /><text x="560" y="393" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <circle cx="660" cy="389" r="10" fill="#EF5350" opacity="0.9" /><text x="660" y="393" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <circle cx="760" cy="389" r="10" fill="#4CAF50" opacity="0.9" /><text x="760" y="393" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="860" cy="389" r="10" fill="#4CAF50" opacity="0.9" /><text x="860" y="393" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+
+  <!-- Bottom separator -->
+  <line x1="30" y1="414" x2="915" y2="414" stroke="#BDBDBD" stroke-width="0.5" />
+
+  <!-- Legend -->
+  <circle cx="280" cy="440" r="8" fill="#4CAF50" opacity="0.9" /><text x="280" y="444" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <text x="296" y="444" font-size="12" fill="#555555">Compatible</text>
+
+  <circle cx="420" cy="440" r="8" fill="#EF5350" opacity="0.9" /><text x="420" y="444" text-anchor="middle" font-size="11" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <text x="436" y="444" font-size="12" fill="#555555">Not compatible</text>
+
+  <!-- Footnote -->
+  <text x="40" y="470" font-size="10" fill="#888888">Private-endpoint infrastructures (PE) require StandardV2 or PremiumV2. VNet injection (appgw-apim internal mode) requires Developer or Premium (v1).</text>
+  </g>
+
+</svg>

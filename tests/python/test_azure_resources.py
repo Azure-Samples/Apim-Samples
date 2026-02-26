@@ -10,6 +10,8 @@ from unittest.mock import Mock, call, mock_open, patch
 import azure_resources as az
 import pytest
 from apimtypes import INFRASTRUCTURE, Endpoints, Output, Region
+import pytest
+from apimtypes import INFRASTRUCTURE, Endpoints, Output
 from test_helpers import suppress_module_functions
 
 # ------------------------------
@@ -62,20 +64,20 @@ def test_get_azure_role_guid_failure():
 def test_does_resource_group_exist_true():
     """Test checking if resource group exists - returns True."""
 
-    with patch("azure_resources.run") as mock_run:
-        mock_run.return_value = Output(True, '{"name": "test-rg"}')
+    with patch('azure_resources.run') as mock_run:
+        mock_run.return_value = Output(True, 'true')
 
         result = az.does_resource_group_exist("test-rg")
 
         assert result is True
-        mock_run.assert_called_once_with("az group show --name test-rg -o json")
+        mock_run.assert_called_once_with('az group exists --name test-rg')
 
 
 def test_does_resource_group_exist_false():
     """Test checking if resource group exists - returns False."""
 
-    with patch("azure_resources.run") as mock_run:
-        mock_run.return_value = Output(False, "ResourceGroupNotFound")
+    with patch('azure_resources.run') as mock_run:
+        mock_run.return_value = Output(True, 'false')
 
         result = az.does_resource_group_exist("nonexistent-rg")
 
@@ -1187,13 +1189,13 @@ def test_get_endpoints_with_partial_data(monkeypatch):
 
 
 def test_does_resource_group_exist_with_malformed_response(monkeypatch):
-    """Test does_resource_group_exist with malformed JSON."""
-    with patch("azure_resources.run") as mock_run:
-        mock_run.return_value = Output(True, "{invalid json}")
+    """Test does_resource_group_exist with unexpected response from az group exists."""
+    with patch('azure_resources.run') as mock_run:
+        mock_run.return_value = Output(True, '{invalid}')
 
-        result = az.does_resource_group_exist("test-rg")
-        # Should still return True because run succeeded
-        assert result is True
+        result = az.does_resource_group_exist('test-rg')
+        # Should return False because response is not 'true'
+        assert result is False
 
 
 def test_create_resource_group_with_empty_tags(monkeypatch):
@@ -1212,6 +1214,25 @@ def test_create_resource_group_with_empty_tags(monkeypatch):
 
     assert len(run_calls) > 0
     assert "--tags" in run_calls[0]  # Tags should still be included (with defaults)
+
+
+def test_create_resource_group_skips_existence_check_when_rg_exists_provided(monkeypatch):
+    """Test create_resource_group skips does_resource_group_exist when rg_exists is explicitly passed."""
+    existence_called = []
+    monkeypatch.setattr('azure_resources.does_resource_group_exist', lambda x: existence_called.append(x) or False)
+
+    run_calls = []
+
+    def capture_run(cmd, *args, **kwargs):
+        run_calls.append(cmd)
+        return Output(True, '{}')
+
+    monkeypatch.setattr('azure_resources.run', capture_run)
+
+    az.create_resource_group('test-rg', 'eastus', rg_exists=False)
+
+    assert len(existence_called) == 0  # does_resource_group_exist should NOT be called
+    assert len(run_calls) == 1  # az group create should be called
 
 
 def test_get_azure_role_guid_with_multiple_roles(monkeypatch):
