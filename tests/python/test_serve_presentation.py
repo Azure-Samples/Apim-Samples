@@ -414,7 +414,8 @@ def test_main_default_port(mock_repo_root: Path, monkeypatch: pytest.MonkeyPatch
 
             with patch.object(sys, 'argv', ['serve_presentation.py']):
                 with pytest.raises(KeyboardInterrupt):
-                    exec(open(SETUP_PATH / 'serve_presentation.py').read(), {'__name__': '__main__'})
+                    with open(SETUP_PATH / 'serve_presentation.py') as f:
+                        exec(f.read(), {'__name__': '__main__'})
 
 
 def test_main_custom_port(mock_repo_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
