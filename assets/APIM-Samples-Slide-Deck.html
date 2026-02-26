@@ -25,6 +25,7 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
+      transform-origin: center center;
       box-shadow: none;
     }
 
@@ -671,7 +672,7 @@
 
   <!-- Navigation help (visible in presentation mode) -->
   <div class="nav-help">
-    &#8592; &#8594; Arrow keys &middot; F to start &middot; Esc to exit
+    &#8592; &#8594; Arrow keys &middot; Esc overview &middot; Dbl-click to resume
   </div>
   <div class="slide-counter">
     <span id="currentSlide">1</span> / <span id="totalSlides"></span>
@@ -1269,6 +1270,15 @@
 
       totalEl.textContent = slides.length;
 
+      function scaleSlides() {
+        if (!document.body.classList.contains('presentation-mode')) return;
+        var sw = 1280, sh = 720;
+        var scale = Math.min(window.innerWidth / sw, window.innerHeight / sh);
+        slides.forEach(function (s) {
+          s.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
+        });
+      }
+
       function showSlide(idx) {
         slides.forEach(function (s) { s.classList.remove('active'); });
         if (idx >= 0 && idx < slides.length) {
@@ -1280,13 +1290,19 @@
 
       function enterPresentation() {
         document.body.classList.add('presentation-mode');
+        scaleSlides();
         showSlide(current);
       }
 
       function exitPresentation() {
         document.body.classList.remove('presentation-mode');
-        slides.forEach(function (s) { s.classList.remove('active'); });
+        slides.forEach(function (s) {
+          s.classList.remove('active');
+          s.style.transform = '';
+        });
       }
+
+      window.addEventListener('resize', scaleSlides);
 
       document.addEventListener('keydown', function (e) {
         if (!document.body.classList.contains('presentation-mode')) {
@@ -1333,6 +1349,9 @@
           enterPresentation();
         });
       });
+
+      // Start in presentation mode by default
+      enterPresentation();
     })();
   </script>
 </body>
