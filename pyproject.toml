@@ -51,6 +51,7 @@ ignore = [
   "PLR0915",  # Too many statements
   "PLR0917",  # Too many positional arguments
   "PLR1702",  # Too many nested blocks
+  "PLR2004",  # Magic value used in comparison
 ]
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+_*)|mock_|fixture_|suppress_|temp_|fake_|monkeypatch.*)"
 

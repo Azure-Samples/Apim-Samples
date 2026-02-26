@@ -18,6 +18,9 @@ params*.json
 policy-updated.xml
 labs-in-progress/
 
+# Build exports
+/build/
+
 # Misc
 *.log
 
