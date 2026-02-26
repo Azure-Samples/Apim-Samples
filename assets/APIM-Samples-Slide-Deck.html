@@ -671,7 +671,7 @@
 
   <!-- Navigation help (visible in presentation mode) -->
   <div class="nav-help">
-    &#8592; &#8594; Arrow keys &middot; F to toggle fullscreen &middot; Esc to exit
+    &#8592; &#8594; Arrow keys &middot; F to start &middot; Esc to exit
   </div>
   <div class="slide-counter">
     <span id="currentSlide">1</span> / <span id="totalSlides"></span>
@@ -1063,7 +1063,7 @@
         <div class="step-num">2</div>
         <div class="icon">&#128295;</div>
         <h4>Developer CLI</h4>
-        <p>Run <code>./start.sh</code> to access the interactive menu. Verify setup, run tests, manage workflows.</p>
+        <p>Run <code>./start.sh</code> (macOS/Linux) or <code>.\start.ps1</code> (Windows) to access the interactive menu. Verify setup, run tests, manage workflows.</p>
       </div>
       <div class="demo-step">
         <div class="step-num">3</div>
@@ -1291,7 +1291,7 @@
       document.addEventListener('keydown', function (e) {
         if (!document.body.classList.contains('presentation-mode')) {
           // Enter presentation mode with F5 or F key
-          if (e.key === 'F5' || e.key === 'f') {
+          if (e.key === 'F5' || e.key === 'f' || e.key === 'F') {
             e.preventDefault();
             enterPresentation();
           }
