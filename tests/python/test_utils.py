@@ -1614,6 +1614,15 @@ def test_notebookhelper_initialization_with_supported_infrastructures():
     assert nb_helper.use_jwt is False
 
 
+def test_notebookhelper_initialization_defaults_to_selected_infrastructure():
+    """Test NotebookHelper defaults supported infrastructures to the selected deployment."""
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM)
+
+    assert nb_helper.deployment == INFRASTRUCTURE.SIMPLE_APIM
+    assert nb_helper.supported_infrastructures == [INFRASTRUCTURE.SIMPLE_APIM]
+    assert nb_helper.use_jwt is False
+
+
 def test_notebookhelper_initialization_with_jwt(monkeypatch):
     """Test NotebookHelper initialization with JWT enabled."""
     # Mock JWT-related functions

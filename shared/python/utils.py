@@ -3,24 +3,24 @@ Module providing utility functions.
 """
 
 import ast
-import json
-import sys
-import os
-import subprocess
-import time
-import string
-import secrets
 import base64
 import inspect
+import json
+import os
+import secrets
+import string
+import subprocess
+import sys
+import time
 import warnings
 from pathlib import Path
 from typing import Any, Tuple
 
 # APIM Samples imports
 import azure_resources as az
-from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, get_project_root
-from console import print_error, print_info, print_message, print_ok, print_plain, print_warning, print_val
 import logging_config
+from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, get_project_root
+from console import print_error, print_info, print_message, print_ok, print_plain, print_val, print_warning
 
 # Configure warning filter to suppress IPython exit warnings
 warnings.filterwarnings(
@@ -249,10 +249,10 @@ class NotebookHelper:
         rg_name: str,
         rg_location: str,
         deployment: INFRASTRUCTURE,
-        supported_infrastructures=list[INFRASTRUCTURE],
+        supported_infrastructures: list[INFRASTRUCTURE] | None = None,
         use_jwt: bool = False,
         index: int = 1,
-        is_debug=False,
+        is_debug: bool = False,
         apim_sku: APIM_SKU = APIM_SKU.BASICV2,
     ):
         """
@@ -263,23 +263,27 @@ class NotebookHelper:
             rg_name (str): The name of the resource group associated with the notebook.
             rg_location (str): The Azure region for deployment.
             deployment (INFRASTRUCTURE): The infrastructure type to use.
-            supported_infrastructures (list[INFRASTRUCTURE]): List of supported infrastructure types.
+            supported_infrastructures (list[INFRASTRUCTURE] | None): List of supported infrastructure types.
+                Defaults to the selected deployment when omitted.
             use_jwt (bool): Whether to generate JWT tokens. Defaults to False.
             index (int): Index for multi-instance deployments. Defaults to 1.
             is_debug (bool): Whether to enable debug mode. Defaults to False.
         """
 
+        if supported_infrastructures is None:
+            supported_infrastructures = [deployment]
+
         self.sample_folder = sample_folder
         self.rg_name = rg_name
         self.rg_location = rg_location
         self.deployment = deployment
-        self.supported_infrastructures = supported_infrastructures
+        self.supported_infrastructures = list(supported_infrastructures)
         self.use_jwt = use_jwt
         self.index = index
         self.is_debug = is_debug
         self.apim_sku = apim_sku
 
-        validate_infrastructure(deployment, supported_infrastructures)
+        validate_infrastructure(deployment, self.supported_infrastructures)
 
         if use_jwt:
             self._create_jwt()
