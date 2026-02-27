@@ -1,6 +1,7 @@
 """
 Shared test configuration and fixtures for pytest.
 """
+
 import os
 import sys
 from typing import Any
@@ -21,7 +22,7 @@ from test_helpers import (
     create_sample_policy_fragments,
     get_sample_infrastructure_params,
     MockApimRequestsPatches,
-    MockInfrastructuresPatches
+    MockInfrastructuresPatches,
 )
 
 
@@ -29,15 +30,18 @@ from test_helpers import (
 #    SHARED FIXTURES
 # ------------------------------
 
+
 @pytest.fixture(scope='session')
 def shared_python_path() -> str:
     """Provide the path to the shared Python modules."""
     return os.path.abspath(os.path.join(os.path.dirname(__file__), '../../shared/python'))
 
+
 @pytest.fixture(scope='session')
 def test_data_path() -> str:
     """Provide the path to test data files."""
     return os.path.abspath(os.path.join(os.path.dirname(__file__), 'data'))
+
 
 @pytest.fixture
 def sample_test_data() -> dict[str, Any]:
@@ -46,13 +50,14 @@ def sample_test_data() -> dict[str, Any]:
         'test_url': 'https://test-apim.azure-api.net',
         'test_subscription_key': 'test-subscription-key-123',
         'test_resource_group': 'rg-test-apim-01',
-        'test_location': 'eastus2'
+        'test_location': 'eastus2',
     }
 
 
 # ------------------------------
 #    MOCK FIXTURES
 # ------------------------------
+
 
 @pytest.fixture(autouse=True)
 def infrastructures_patches():
@@ -106,19 +111,13 @@ def sample_infrastructure_params() -> dict[str, Any]:
 @pytest.fixture
 def mock_http_response_200():
     """Pre-configured successful HTTP response."""
-    return create_mock_http_response(
-        status_code=200,
-        json_data={'result': 'ok'}
-    )
+    return create_mock_http_response(status_code=200, json_data={'result': 'ok'})
 
 
 @pytest.fixture
 def mock_http_response_error():
     """Pre-configured error HTTP response."""
-    return create_mock_http_response(
-        status_code=500,
-        text='Internal Server Error'
-    )
+    return create_mock_http_response(status_code=500, text='Internal Server Error')
 
 
 @pytest.fixture

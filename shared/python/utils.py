@@ -25,15 +25,16 @@ import logging_config
 # Configure warning filter to suppress IPython exit warnings
 warnings.filterwarnings(
     'ignore',
-    message = r"To exit: use 'exit', 'quit', or Ctrl-D\.",
-    category = UserWarning,
-    module = r'IPython\.core\.interactiveshell',
+    message=r"To exit: use 'exit', 'quit', or Ctrl-D\.",
+    category=UserWarning,
+    module=r'IPython\.core\.interactiveshell',
 )
 
 
 # ------------------------------
 #    HELPER FUNCTIONS
 # ------------------------------
+
 
 def get_deployment_failure_message(deployment_name: str) -> str:
     """
@@ -50,9 +51,10 @@ def get_deployment_failure_message(deployment_name: str) -> str:
     # Only suggest enabling DEBUG logging if it's not already enabled
     current_level = logging_config.get_configured_level_name()
     if current_level != 'DEBUG':
-        return f"{base_message} Enable DEBUG logging in workspace root .env file, then rerun to see details."
+        return f'{base_message} Enable DEBUG logging in workspace root .env file, then rerun to see details.'
 
     return base_message
+
 
 def build_infrastructure_tags(infrastructure: str | INFRASTRUCTURE, custom_tags: dict | None = None) -> dict:
     """
@@ -86,6 +88,7 @@ def build_infrastructure_tags(infrastructure: str | INFRASTRUCTURE, custom_tags:
 #    CLASSES
 # ------------------------------
 
+
 class InfrastructureNotebookHelper:
     """
     Helper class for managing infrastructure notebooks.
@@ -112,7 +115,7 @@ class InfrastructureNotebookHelper:
         self.index = index
         self.apim_sku = apim_sku
 
-        print_message('Initializing Infrastructure Notebook Helper with the following parameters:', blank_above = True, blank_below = True)
+        print_message('Initializing Infrastructure Notebook Helper with the following parameters:', blank_above=True, blank_below=True)
         print_val('Location', self.rg_location)
         print_val('Infrastructure', self.deployment.value)
         print_val('Index', self.index)
@@ -160,9 +163,9 @@ class InfrastructureNotebookHelper:
 
                         if not should_proceed:  # pragma: no cover
                             print_error('Infrastructure deployment cancelled by user.')
-                            raise SystemExit("User cancelled deployment")
+                            raise SystemExit('User cancelled deployment')
                     except (KeyboardInterrupt, EOFError) as exc:  # pragma: no cover
-                        raise SystemExit("User cancelled deployment") from exc
+                        raise SystemExit('User cancelled deployment') from exc
 
             # Check infrastructure existence for the normal flow
             infrastructure_exists = az.does_resource_group_exist(az.get_infra_rg_name(self.deployment, self.index)) if not allow_update else False
@@ -174,7 +177,7 @@ class InfrastructureNotebookHelper:
                     INFRASTRUCTURE.AFD_APIM_PE: 'afd-apim-pe',
                     INFRASTRUCTURE.APIM_ACA: 'apim-aca',
                     INFRASTRUCTURE.APPGW_APIM_PE: 'appgw-apim-pe',
-                    INFRASTRUCTURE.APPGW_APIM: 'appgw-apim'
+                    INFRASTRUCTURE.APPGW_APIM: 'appgw-apim',
                 }
 
                 infra_folder = infra_folder_map.get(self.deployment)
@@ -186,9 +189,12 @@ class InfrastructureNotebookHelper:
                 cmd_args = [
                     sys.executable,
                     os.path.join(find_project_root(), 'infrastructure', infra_folder, 'create_infrastructure.py'),
-                    '--location', self.rg_location,
-                    '--index', str(self.index),
-                    '--sku', str(self.apim_sku.value)
+                    '--location',
+                    self.rg_location,
+                    '--index',
+                    str(self.index),
+                    '--sku',
+                    str(self.apim_sku.value),
                 ]
 
                 # Execute the infrastructure creation script with real-time output streaming and UTF-8 encoding to handle Unicode characters properly
@@ -196,14 +202,14 @@ class InfrastructureNotebookHelper:
 
                 with subprocess.Popen(
                     cmd_args,
-                    cwd = project_root,
-                    stdout = subprocess.PIPE,
-                    stderr = subprocess.STDOUT,
-                    text = True,
-                    bufsize = 1,
-                    universal_newlines = True,
-                    encoding = 'utf-8',
-                    errors = 'replace'
+                    cwd=project_root,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    bufsize=1,
+                    universal_newlines=True,
+                    encoding='utf-8',
+                    errors='replace',
                 ) as process:
                     try:
                         # Stream output in real-time
@@ -227,6 +233,7 @@ class InfrastructureNotebookHelper:
             print_error(f'Infrastructure deployment failed with error: {e}')
             raise SystemExit(1) from e
 
+
 class NotebookHelper:
     """
     Helper class for managing sample notebook deployments and infrastructure interaction.
@@ -237,9 +244,15 @@ class NotebookHelper:
     # ------------------------------
 
     def __init__(
-        self, sample_folder: str, rg_name: str, rg_location: str,
-        deployment: INFRASTRUCTURE, supported_infrastructures = list[INFRASTRUCTURE],
-        use_jwt: bool = False, index: int = 1, is_debug = False,
+        self,
+        sample_folder: str,
+        rg_name: str,
+        rg_location: str,
+        deployment: INFRASTRUCTURE,
+        supported_infrastructures=list[INFRASTRUCTURE],
+        use_jwt: bool = False,
+        index: int = 1,
+        is_debug=False,
         apim_sku: APIM_SKU = APIM_SKU.BASICV2,
     ):
         """
@@ -281,8 +294,8 @@ class NotebookHelper:
         # Set up the signing key for the JWT policy
         self.jwt_key_name = f'JwtSigningKey-{self.sample_folder}-{int(time.time())}'
         self.jwt_key_value, self.jwt_key_value_bytes_b64 = generate_signing_key()
-        print_val('JWT key value', self.jwt_key_value)                    # used to create the signed JWT token
-        print_val('JWT key value (base64)', self.jwt_key_value_bytes_b64) # used in the validate-jwt policy
+        print_val('JWT key value', self.jwt_key_value)  # used to create the signed JWT token
+        print_val('JWT key value (base64)', self.jwt_key_value_bytes_b64)  # used in the validate-jwt policy
 
     def _get_current_index(self) -> int | None:
         """
@@ -299,7 +312,7 @@ class NotebookHelper:
 
         if self.rg_name.startswith(f'{prefix}-'):
             try:
-                index_str = self.rg_name[len(f'{prefix}-'):]
+                index_str = self.rg_name[len(f'{prefix}-') :]
                 return int(index_str)
             except ValueError:
                 return None
@@ -336,10 +349,7 @@ class NotebookHelper:
 
         # Check if the desired infrastructure/index combination exists
         desired_rg_name = az.get_infra_rg_name(self.deployment, self._get_current_index())
-        desired_exists = any(
-            az.get_infra_rg_name(infra, idx) == desired_rg_name
-            for infra, idx in available_options
-        )
+        desired_exists = any(az.get_infra_rg_name(infra, idx) == desired_rg_name for infra, idx in available_options)
 
         if desired_exists:
             # Scenario 1: Desired infrastructure exists, use it directly
@@ -347,7 +357,7 @@ class NotebookHelper:
             return self.deployment, self._get_current_index()
 
         # Sort available options by infrastructure type, then by index
-        available_options.sort(key = lambda x: (x[0].value, x[1] if x[1] is not None else 0))
+        available_options.sort(key=lambda x: (x[0].value, x[1] if x[1] is not None else 0))
 
         # Prepare display options
         display_options = []
@@ -364,28 +374,15 @@ class NotebookHelper:
             print_plain('\n   Create a NEW infrastructure:\n')
             # Column headers
             if QUERY_RG_LOCATION:
+                print_plain(f'     {"#":>3} {"Infrastructure":<20} {"Index":>8} {"Resource Group":<35} {"Location":<15}')
+                print_plain(f'     {"-" * 3:>3} {"-" * 20:<20} {"-" * 8:>8} {"-" * 35:<35} {"-" * 15:<15}')
                 print_plain(
-                    f'     {"#":>3} {"Infrastructure":<20} {"Index":>8}'
-                    f' {"Resource Group":<35} {"Location":<15}'
-                )
-                print_plain(
-                    f'     {"-"*3:>3} {"-"*20:<20} {"-"*8:>8}'
-                    f' {"-"*35:<35} {"-"*15:<15}'
-                )
-                print_plain(
-                    f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8}'
-                    f' {desired_rg_name:<35} {desired_location:<15}'
+                    f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35} {desired_location:<15}'
                 )
             else:
-                print_plain(
-                    f'     {"#":>3} {"Infrastructure":<20} {"Index":>8} {"Resource Group":<35}'
-                )
-                print_plain(
-                    f'     {"-"*3:>3} {"-"*20:<20} {"-"*8:>8} {"-"*35:<35}'
-                )
-                print_plain(
-                    f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35}'
-                )
+                print_plain(f'     {"#":>3} {"Infrastructure":<20} {"Index":>8} {"Resource Group":<35}')
+                print_plain(f'     {"-" * 3:>3} {"-" * 20:<20} {"-" * 8:>8} {"-" * 35:<35}')
+                print_plain(f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35}')
 
             display_options.append(('create_new', self.deployment, self._get_current_index()))
             option_counter += 1
@@ -393,11 +390,11 @@ class NotebookHelper:
             print_plain('\n   Or select an EXISTING infrastructure:\n')
             # Column headers
             if QUERY_RG_LOCATION:
-                print_plain(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35} {'Location':<15}')
-                print_plain(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35} {'-'*15:<15}')
+                print_plain(f'     {"#":>3} {"Infrastructure":<20} {"Index":>8} {"Resource Group":<35} {"Location":<15}')
+                print_plain(f'     {"-" * 3:>3} {"-" * 20:<20} {"-" * 8:>8} {"-" * 35:<35} {"-" * 15:<15}')
             else:
-                print_plain(f'     {'#':>3} {'Infrastructure':<20} {'Index':>8} {'Resource Group':<35}')
-                print_plain(f'     {'-'*3:>3} {'-'*20:<20} {'-'*8:>8} {'-'*35:<35}')
+                print_plain(f'     {"#":>3} {"Infrastructure":<20} {"Index":>8} {"Resource Group":<35}')
+                print_plain(f'     {"-" * 3:>3} {"-" * 20:<20} {"-" * 8:>8} {"-" * 35:<35}')
 
             for infra, index in available_options:
                 index_str = index if index is not None else 'N/A'
@@ -474,7 +471,6 @@ class NotebookHelper:
             except ValueError:
                 print_error('Invalid input. Please enter a number.')
 
-
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
@@ -533,7 +529,11 @@ class NotebookHelper:
 
         # Execute the deployment using the utility function that handles working directory management
         output = create_bicep_deployment_group_for_sample(
-            self.sample_folder, self.rg_name, self.rg_location, bicep_parameters, is_debug=self.is_debug,
+            self.sample_folder,
+            self.rg_name,
+            self.rg_location,
+            bicep_parameters,
+            is_debug=self.is_debug,
         )
 
         # Print a deployment summary, if successful; otherwise, exit with an error
@@ -542,17 +542,17 @@ class NotebookHelper:
                 apim_name = output.get('apimServiceName')
                 self._clean_up_jwt(apim_name)
 
-            print_ok('Deployment succeeded', blank_above = True)
+            print_ok('Deployment succeeded', blank_above=True)
         else:
             raise SystemExit('Deployment failed')
 
         return output
 
 
-
 # ------------------------------
 #    PRIVATE METHODS
 # ------------------------------
+
 
 def _determine_bicep_directory(infrastructure_dir: str) -> str:
     """
@@ -610,10 +610,15 @@ def _determine_bicep_directory(infrastructure_dir: str) -> str:
 #    PUBLIC METHODS
 # ------------------------------
 
+
 def create_bicep_deployment_group(
-    rg_name: str, rg_location: str, deployment: str | INFRASTRUCTURE,
-    bicep_parameters: dict, bicep_parameters_file: str = 'params.json',
-    rg_tags: dict | None = None, is_debug: bool = False,
+    rg_name: str,
+    rg_location: str,
+    deployment: str | INFRASTRUCTURE,
+    bicep_parameters: dict,
+    bicep_parameters_file: str = 'params.json',
+    rg_tags: dict | None = None,
+    is_debug: bool = False,
 ) -> Output:
     """
     Create a Bicep deployment in a resource group, writing parameters to a file and running the deployment.
@@ -643,7 +648,7 @@ def create_bicep_deployment_group(
     bicep_parameters_format = {
         '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
         'contentVersion': '1.0.0.0',
-        'parameters': bicep_parameters
+        'parameters': bicep_parameters,
     }
 
     # Determine the correct deployment name and find the Bicep directory
@@ -681,6 +686,7 @@ def create_bicep_deployment_group(
     print_plain('\nDeploying bicep...\n')
     return az.run(cmd, f"Deployment '{deployment_name}' succeeded", get_deployment_failure_message(deployment_name))
 
+
 def find_project_root() -> str:
     """
     Find the project root directory by looking for specific marker files.
@@ -707,9 +713,14 @@ def find_project_root() -> str:
     # If we can't find the project root, raise an error
     raise FileNotFoundError('Could not determine project root directory')
 
+
 def create_bicep_deployment_group_for_sample(
-    sample_name: str, rg_name: str, rg_location: str, bicep_parameters: dict,
-    bicep_parameters_file: str = 'params.json', rg_tags: dict | None = None,
+    sample_name: str,
+    rg_name: str,
+    rg_location: str,
+    bicep_parameters: dict,
+    bicep_parameters_file: str = 'params.json',
+    rg_tags: dict | None = None,
     is_debug: bool = False,
 ) -> Output:
     """
@@ -754,7 +765,7 @@ def create_bicep_deployment_group_for_sample(
 
         # Change to the sample directory to ensure params.json is written there
         os.chdir(sample_dir)
-        print_plain(f'📁 Changed working directory to: {sample_dir}', blank_above = True)
+        print_plain(f'📁 Changed working directory to: {sample_dir}', blank_above=True)
 
         # Call the original deployment function
         return create_bicep_deployment_group(rg_name, rg_location, sample_name, bicep_parameters, bicep_parameters_file, rg_tags, is_debug)
@@ -763,6 +774,7 @@ def create_bicep_deployment_group_for_sample(
         # Always restore the original working directory
         os.chdir(original_cwd)
         print_plain(f'📁 Restored working directory to: {original_cwd}')
+
 
 def _prompt_for_high_cost_sku_acknowledgement(apim_sku: APIM_SKU) -> bool:
     """
@@ -775,7 +787,7 @@ def _prompt_for_high_cost_sku_acknowledgement(apim_sku: APIM_SKU) -> bool:
         bool: True if the user acknowledges and consents to proceed, False otherwise.
     """
     print_warning(f'⚠️  Cost Warning: The {apim_sku.value} SKU incurs significant charges.')
-    print_plain('   Standard and Premium tiers are considerably more expensive than Developer or Basic tiers.', blank_above = True)
+    print_plain('   Standard and Premium tiers are considerably more expensive than Developer or Basic tiers.', blank_above=True)
     print_plain('   Please review the current pricing before proceeding:')
     print_plain('   https://azure.microsoft.com/pricing/details/api-management\n')
     print_plain('ℹ️  Type "yes" to acknowledge the cost and proceed, or press Enter to cancel.')
@@ -791,6 +803,7 @@ def _prompt_for_high_cost_sku_acknowledgement(apim_sku: APIM_SKU) -> bool:
 
         print_plain('❌ Please type "yes" to proceed or "no" (or press Enter) to cancel.')
 
+
 def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
     """
     Prompt the user for infrastructure update confirmation.
@@ -804,7 +817,7 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
             - new_index: None if no index change, integer if user selected option 2
     """
     print_ok(f'Infrastructure already exists: {rg_name}')
-    print_plain('🔄 Infrastructure Update Options:\n', blank_above = True)
+    print_plain('🔄 Infrastructure Update Options:\n', blank_above=True)
     print_plain('   This infrastructure notebook can update the existing infrastructure.')
     print_plain('   Updates are additive and will:')
     print_plain('   • Add new APIs and policy fragments defined in the infrastructure')
@@ -848,6 +861,7 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
 
         print_plain('❌ Invalid choice. Please enter 1, 2, or 3.')
 
+
 def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_update_option: bool = False) -> bool:
     """
     Check if a specific infrastructure exists by querying the resource group.
@@ -869,7 +883,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
         print_ok(f'Infrastructure already exists: {rg_name}')
 
         if allow_update_option:
-            print_plain('🔄 Infrastructure Update Options:\n', blank_above = True)
+            print_plain('🔄 Infrastructure Update Options:\n', blank_above=True)
             print_plain('   This infrastructure notebook can update the existing infrastructure. Updates are additive and will:\n')
             print_plain('   • Add new APIs and policy fragments defined in the infrastructure')
             print_plain('   • Update existing infrastructure components to match the template')
@@ -903,6 +917,7 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
     print_plain('   Infrastructure does not yet exist.')
     return False
 
+
 def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str, str], sample_name: str = None) -> str:
     """
     Read and return the contents of a policy XML file, then modifies it by replacing placeholders with provided values.
@@ -933,9 +948,11 @@ def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str,
 
     return policy_template_xml
 
+
 def determine_shared_policy_path(policy_xml_filename: str) -> str:
     """Determine the full path to a shared APIM policy fragment file."""
     return str(Path(find_project_root()) / 'shared' / 'apim-policies' / 'fragments' / policy_xml_filename)
+
 
 def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str = None) -> str:
     """Determine the full path to a policy XML file, auto-detecting the sample directory if needed."""
@@ -945,10 +962,12 @@ def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str
     # Legacy mode check: if named_values is None, always treat as legacy (backwards compatibility)
     # OR if it looks like a path (contains separators or is absolute)
     # Note: Check for leading slash to handle POSIX paths on Windows
-    if (path_obj.is_absolute() or
-        policy_xml_filepath_or_filename.startswith('/') or
-        '/' in policy_xml_filepath_or_filename or
-        '\\' in policy_xml_filepath_or_filename):
+    if (
+        path_obj.is_absolute()
+        or policy_xml_filepath_or_filename.startswith('/')
+        or '/' in policy_xml_filepath_or_filename
+        or '\\' in policy_xml_filepath_or_filename
+    ):
         # Legacy mode: treat as full path
         policy_xml_filepath = policy_xml_filepath_or_filename
     else:
@@ -989,6 +1008,7 @@ def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str
         policy_xml_filepath = str(Path(project_root) / 'samples' / sample_name / policy_xml_filepath_or_filename)
 
     return policy_xml_filepath
+
 
 def read_policy_xml(policy_xml_filepath_or_filename: str, named_values: dict[str, str] = None, sample_name: str = None) -> str:
     """
@@ -1036,15 +1056,19 @@ def read_policy_xml(policy_xml_filepath_or_filename: str, named_values: dict[str
 
     return policy_template_xml
 
+
 # Validation functions will raise ValueError if the value is not valid
+
 
 def validate_http_verb(val):
     """Validate HTTP verb value."""
     return HTTP_VERB(val)
 
+
 def validate_sku(val):
     """Validate APIM SKU value."""
     return APIM_SKU(val)
+
 
 def validate_infrastructure(infra: INFRASTRUCTURE, supported_infras: list[INFRASTRUCTURE]) -> None:
     """
@@ -1061,6 +1085,7 @@ def validate_infrastructure(infra: INFRASTRUCTURE, supported_infras: list[INFRAS
     if infra not in supported_infras:
         supported_names = ', '.join([i.value for i in supported_infras])
         raise ValueError(f'Unsupported infrastructure: {infra}. Supported infrastructures are: {supported_names}')
+
 
 def generate_signing_key() -> tuple[str, str]:
     """
@@ -1087,6 +1112,7 @@ def generate_signing_key() -> tuple[str, str]:
     b64 = base64.b64encode(string_in_bytes).decode('utf-8')
 
     return random_string, b64
+
 
 def wait_for_apim_blob_permissions(apim_name: str, storage_account_name: str, resource_group_name: str, max_wait_minutes: int = 15) -> bool:
     """
@@ -1120,23 +1146,25 @@ def wait_for_apim_blob_permissions(apim_name: str, storage_account_name: str, re
 
     return success
 
+
 def test_url_preflight_check(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str) -> str:
     """Check if the deployment uses Azure Front Door and return the appropriate endpoint URL."""
     # Preflight: Check if the infrastructure architecture deployment uses Azure Front Door.
     # If so, assume that APIM is not directly accessible and use the Front Door URL instead.
 
-    print_message('Checking if the infrastructure architecture deployment uses Azure Front Door.', blank_above = True)
+    print_message('Checking if the infrastructure architecture deployment uses Azure Front Door.', blank_above=True)
 
     afd_endpoint_url = az.get_frontdoor_url(deployment, rg_name)
 
     if afd_endpoint_url:
         endpoint_url = afd_endpoint_url
-        print_message(f'Using Azure Front Door URL: {afd_endpoint_url}', blank_above = True)
+        print_message(f'Using Azure Front Door URL: {afd_endpoint_url}', blank_above=True)
     else:
         endpoint_url = apim_gateway_url
-        print_message(f'Using APIM Gateway URL: {apim_gateway_url}', blank_above = True)
+        print_message(f'Using APIM Gateway URL: {apim_gateway_url}', blank_above=True)
 
     return endpoint_url
+
 
 def get_endpoints(deployment: INFRASTRUCTURE, rg_name: str) -> Endpoints:
     """Identify and return all possible endpoints for the given infrastructure deployment."""
@@ -1150,6 +1178,7 @@ def get_endpoints(deployment: INFRASTRUCTURE, rg_name: str) -> Endpoints:
 
     return endpoints
 
+
 def get_endpoint(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str) -> Tuple[str, dict[str, str] | None]:
     """Determine the endpoint URL and optional request headers for test execution."""
     # Determine endpoints, URLs, etc. prior to test execution
@@ -1157,15 +1186,16 @@ def get_endpoint(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str
     endpoint_url = None
     request_headers = None
 
-    if (endpoints.appgw_hostname and endpoints.appgw_public_ip):
+    if endpoints.appgw_hostname and endpoints.appgw_public_ip:
         endpoint_url = f'https://{endpoints.appgw_public_ip}'
-        request_headers: dict[str, str] = {"Host": endpoints.appgw_hostname}
+        request_headers: dict[str, str] = {'Host': endpoints.appgw_hostname}
     else:
         # Preflight: Check if the deployment uses Azure Front Door.
         # If so, assume APIM is not directly accessible and use the Front Door URL instead.
         endpoint_url = test_url_preflight_check(deployment, rg_name, apim_gateway_url)
 
     return endpoint_url, request_headers
+
 
 def get_json(json_str: str) -> Any:
     """
