@@ -1,13 +1,12 @@
 """Miscellaneous tests that are used sporadically to assess test harness behavior."""
 
-#import pytest
-#from __future__ import annotations
+# import pytest
+# from __future__ import annotations
 
 
 # @pytest.mark.unit
 # def test_true_is_false():
 #     assert True is False
-
 
 
 # @pytest.mark.unit

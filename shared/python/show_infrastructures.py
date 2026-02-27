@@ -89,10 +89,11 @@ def display_infrastructures(infrastructures: list[dict[str, str | int | None]], 
     print(separator_line)
 
     # Index column (column 2) is right-aligned; others are left-aligned
+    index_column = 2
     for row in rows:
         formatted_row = []
         for i, value in enumerate(row):
-            if i == 2:  # Index column
+            if i == index_column:
                 formatted_row.append(str(value).rjust(widths[i]))
             else:
                 formatted_row.append(str(value).ljust(widths[i]))
@@ -104,8 +105,8 @@ def display_infrastructures(infrastructures: list[dict[str, str | int | None]], 
         infra_totals[infra_name] = infra_totals.get(infra_name, 0) + 1
 
     print('\nSummary:')
-    print(f"  Resource groups found : {len(infrastructures)}")
-    print(f"  Infrastructure types  : {len(infra_totals)}")
+    print(f'  Resource groups found : {len(infrastructures)}')
+    print(f'  Infrastructure types  : {len(infra_totals)}')
     print('\n')
 
 
@@ -129,9 +130,7 @@ def show_subscription() -> None:
 
 def main() -> int:
     """List all deployed APIM infrastructures in the current Azure subscription."""
-    parser = argparse.ArgumentParser(
-        description='List all deployed APIM infrastructures in the current Azure subscription'
-    )
+    parser = argparse.ArgumentParser(description='List all deployed APIM infrastructures in the current Azure subscription')
     parser.add_argument(
         '--no-location',
         action='store_true',

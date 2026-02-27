@@ -5,12 +5,13 @@ from __future__ import annotations
 import importlib
 import io
 import json
+import runpy
+import subprocess as sp
 import sys
 from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, cast
 
-import runpy
 import pytest
 
 # Ensure the setup folder is on sys.path so the script is importable.
@@ -28,6 +29,7 @@ else:
 # ============================================================
 # Helpers
 # ============================================================
+
 
 def _make_notebook(display_name: str = '.venv (3.14.2)', version: str = '3.14.2') -> dict:
     """Return a minimal notebook dict with customizable volatile fields."""
@@ -57,6 +59,7 @@ def _make_notebook(display_name: str = '.venv (3.14.2)', version: str = '3.14.2'
 # ============================================================
 # normalize_notebook_metadata()
 # ============================================================
+
 
 def test_normalizes_display_name():
     """display_name should be replaced with the canonical value."""
@@ -108,9 +111,7 @@ def test_missing_kernelspec():
 
 def test_missing_language_info():
     """Should not raise when language_info is absent."""
-    nb = {'cells': [], 'metadata': {
-            'kernelspec': {'display_name': 'X', 'language': 'python', 'name': 'python3'}
-        }, 'nbformat': 4, 'nbformat_minor': 5}
+    nb = {'cells': [], 'metadata': {'kernelspec': {'display_name': 'X', 'language': 'python', 'name': 'python3'}}, 'nbformat': 4, 'nbformat_minor': 5}
     nnm.normalize_notebook_metadata(nb)
     assert nb['metadata']['kernelspec']['display_name'] == nnm.CANONICAL_DISPLAY_NAME
 
@@ -118,6 +119,7 @@ def test_missing_language_info():
 # ============================================================
 # normalize_stream()
 # ============================================================
+
 
 def test_normalize_stream():
     """Stream mode should read JSON from input and write normalized JSON to output."""
@@ -148,6 +150,7 @@ def test_normalize_stream_trailing_newline():
 # ============================================================
 # normalize_file()
 # ============================================================
+
 
 def test_normalize_file(tmp_path: Path):
     """In-place normalization should update the file on disk."""
@@ -199,8 +202,74 @@ def test_normalize_file_preserves_cells(tmp_path: Path):
 
 
 # ============================================================
+# get_uncommitted_notebooks()
+# ============================================================
+
+
+def test_get_uncommitted_notebooks_returns_paths(monkeypatch: pytest.MonkeyPatch):
+    """Should return sorted, deduplicated notebook paths from git diff output."""
+
+    def fake_run(cmd, **kwargs):
+        # Distinguish the two git diff calls by checking for '--staged'
+        if '--staged' in cmd:
+            return type('Result', (), {'stdout': 'samples/b.ipynb\n', 'returncode': 0})()
+
+        return type('Result', (), {'stdout': 'samples/a.ipynb\nsamples/b.ipynb\n', 'returncode': 0})()
+
+    monkeypatch.setattr('subprocess.run', fake_run)
+
+    result = nnm.get_uncommitted_notebooks()
+    assert result == [Path('samples/a.ipynb'), Path('samples/b.ipynb')]
+
+
+def test_get_uncommitted_notebooks_skips_blank_lines(monkeypatch: pytest.MonkeyPatch):
+    """Blank lines in git diff output should be silently ignored."""
+
+    def fake_run(cmd, **kwargs):
+        return type('Result', (), {'stdout': '\nsamples/a.ipynb\n\n', 'returncode': 0})()
+
+    monkeypatch.setattr('subprocess.run', fake_run)
+
+    assert nnm.get_uncommitted_notebooks() == [Path('samples/a.ipynb')]
+
+
+def test_get_uncommitted_notebooks_empty(monkeypatch: pytest.MonkeyPatch):
+    """Should return empty list when no notebooks have changed."""
+
+    def fake_run(cmd, **kwargs):
+        return type('Result', (), {'stdout': '', 'returncode': 0})()
+
+    monkeypatch.setattr('subprocess.run', fake_run)
+
+    assert nnm.get_uncommitted_notebooks() == []
+
+
+def test_get_uncommitted_notebooks_git_not_found(monkeypatch: pytest.MonkeyPatch):
+    """Should return empty list and not crash when git is not available."""
+
+    def fake_run(cmd, **kwargs):
+        raise FileNotFoundError('git not found')
+
+    monkeypatch.setattr('subprocess.run', fake_run)
+
+    assert nnm.get_uncommitted_notebooks() == []
+
+
+def test_get_uncommitted_notebooks_git_error(monkeypatch: pytest.MonkeyPatch):
+    """Should return empty list when git command fails."""
+
+    def fake_run(cmd, **kwargs):
+        raise sp.CalledProcessError(1, cmd)
+
+    monkeypatch.setattr('subprocess.run', fake_run)
+
+    assert nnm.get_uncommitted_notebooks() == []
+
+
+# ============================================================
 # main()
 # ============================================================
+
 
 def test_main_normalizes_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """main() should normalize files passed as arguments."""
@@ -256,6 +325,80 @@ def test_main_filter_mode(monkeypatch: pytest.MonkeyPatch):
     result = json.loads(stdout_buf.getvalue())
     assert result['metadata']['kernelspec']['display_name'] == nnm.CANONICAL_DISPLAY_NAME
     assert result['metadata']['language_info']['version'] == nnm.CANONICAL_VERSION
+
+
+def test_main_uncommitted_normalizes_changed_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """--uncommitted should discover and normalize only changed notebooks."""
+    nb = _make_notebook(display_name='custom', version='3.99.0')
+    nb_path = tmp_path / 'changed.ipynb'
+    nb_path.write_text(json.dumps(nb, indent=1), encoding='utf-8')
+
+    def fake_get():
+        return [nb_path]
+
+    monkeypatch.setattr(nnm, 'get_uncommitted_notebooks', fake_get)
+    monkeypatch.setattr(sys, 'argv', ['prog', '--uncommitted'])
+
+    nnm.main()
+
+    result = json.loads(nb_path.read_text(encoding='utf-8'))
+    assert result['metadata']['kernelspec']['display_name'] == nnm.CANONICAL_DISPLAY_NAME
+    assert result['metadata']['language_info']['version'] == nnm.CANONICAL_VERSION
+
+
+def test_main_uncommitted_no_changes(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture):
+    """--uncommitted with no changed files should print info and return cleanly."""
+    monkeypatch.setattr(nnm, 'get_uncommitted_notebooks', lambda: [])
+    monkeypatch.setattr(sys, 'argv', ['prog', '--uncommitted'])
+
+    nnm.main()
+
+    captured = capsys.readouterr()
+    assert 'No uncommitted notebook changes found' in captured.out
+
+
+def test_main_uncommitted_rejects_extra_args(monkeypatch: pytest.MonkeyPatch):
+    """--uncommitted should reject extra file arguments."""
+    monkeypatch.setattr(sys, 'argv', ['prog', '--uncommitted', 'extra.ipynb'])
+
+    with pytest.raises(SystemExit, match='1'):
+        nnm.main()
+
+
+def test_main_defaults_to_uncommitted_on_tty(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """No args + interactive TTY should default to --uncommitted behaviour."""
+    nb = _make_notebook(display_name='custom', version='3.99.0')
+    nb_path = tmp_path / 'pending.ipynb'
+    nb_path.write_text(json.dumps(nb, indent=1), encoding='utf-8')
+
+    monkeypatch.setattr(nnm, 'get_uncommitted_notebooks', lambda: [nb_path])
+    monkeypatch.setattr(sys, 'argv', ['prog'])
+
+    # Simulate an interactive terminal (stdin.isatty() returns True)
+    fake_stdin = io.StringIO()
+    fake_stdin.isatty = lambda: True
+    monkeypatch.setattr(sys, 'stdin', fake_stdin)
+
+    nnm.main()
+
+    result = json.loads(nb_path.read_text(encoding='utf-8'))
+    assert result['metadata']['kernelspec']['display_name'] == nnm.CANONICAL_DISPLAY_NAME
+    assert result['metadata']['language_info']['version'] == nnm.CANONICAL_VERSION
+
+
+def test_main_defaults_to_uncommitted_no_changes_on_tty(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture):
+    """No args + interactive TTY + no changes should print info and return."""
+    monkeypatch.setattr(nnm, 'get_uncommitted_notebooks', lambda: [])
+    monkeypatch.setattr(sys, 'argv', ['prog'])
+
+    fake_stdin = io.StringIO()
+    fake_stdin.isatty = lambda: True
+    monkeypatch.setattr(sys, 'stdin', fake_stdin)
+
+    nnm.main()
+
+    captured = capsys.readouterr()
+    assert 'No uncommitted notebook changes found' in captured.out
 
 
 def test_main_guard(monkeypatch: pytest.MonkeyPatch):

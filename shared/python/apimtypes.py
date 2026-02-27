@@ -2,17 +2,17 @@
 Types and constants for Azure API Management automation and deployment.
 """
 
-import os
-import json
 import ast
-from enum import StrEnum
+import json
+import os
 from dataclasses import dataclass
+from enum import IntEnum, StrEnum
 from pathlib import Path
-from typing import List, Optional, Any
+from typing import Any, List, Optional
 
 # APIM Samples imports
 from console import print_error, print_val
-from json_utils import is_string_json, extract_json
+from json_utils import extract_json, is_string_json
 
 
 def get_project_root() -> Path:
@@ -33,24 +33,26 @@ def get_project_root() -> Path:
     # Ultimate fallback
     return Path(__file__).resolve().parent.parent.parent
 
+
 # Get project root and construct absolute paths to policy files
 _PROJECT_ROOT = get_project_root()
 _SHARED_XML_POLICY_BASE_PATH = _PROJECT_ROOT / 'shared' / 'apim-policies'
 
 # Policy file paths (now absolute and platform-independent)
-DEFAULT_XML_POLICY_PATH         = str(_SHARED_XML_POLICY_BASE_PATH / 'default.xml')
-HELLO_WORLD_XML_POLICY_PATH     = str(_SHARED_XML_POLICY_BASE_PATH / 'hello-world.xml')
+DEFAULT_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / 'default.xml')
+HELLO_WORLD_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / 'hello-world.xml')
 REQUEST_HEADERS_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / 'request-headers.xml')
-BACKEND_XML_POLICY_PATH         = str(_SHARED_XML_POLICY_BASE_PATH / 'backend.xml')
-API_ID_XML_POLICY_PATH          = str(_SHARED_XML_POLICY_BASE_PATH / 'api-id.xml')
+BACKEND_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / 'backend.xml')
+API_ID_XML_POLICY_PATH = str(_SHARED_XML_POLICY_BASE_PATH / 'api-id.xml')
 
 SUBSCRIPTION_KEY_PARAMETER_NAME = 'api-key'
-SLEEP_TIME_BETWEEN_REQUESTS_MS  = 50
+SLEEP_TIME_BETWEEN_REQUESTS_MS = 50
 
 
 # ------------------------------
 #    PRIVATE METHODS
 # ------------------------------
+
 
 # Placing this here privately as putting it into the utils module would constitute a circular import
 def _read_policy_xml(policy_xml_filepath: str) -> str:
@@ -65,7 +67,7 @@ def _read_policy_xml(policy_xml_filepath: str) -> str:
     """
 
     # Read the specified policy XML file with explicit UTF-8 encoding
-    with open(policy_xml_filepath, 'r', encoding = 'utf-8') as policy_xml_file:
+    with open(policy_xml_filepath, 'r', encoding='utf-8') as policy_xml_file:
         policy_template_xml = policy_xml_file.read()
 
     return policy_template_xml
@@ -75,27 +77,106 @@ def _read_policy_xml(policy_xml_filepath: str) -> str:
 #    CLASSES
 # ------------------------------
 
+
 # Mock role IDs for testing purposes
 class Role:
     """
     Predefined roles and their GUIDs (mocked for testing purposes).
     """
 
-    NONE                = '00000000-0000-0000-0000-000000000000'  # No role assigned
-    HR_MEMBER           = '316790bc-fbd3-4a14-8867-d1388ffbc195'
-    HR_ASSOCIATE        = 'd3c1b0f2-4a5e-4c8b-9f6d-7c8e1f2a3b4c'
-    HR_ADMINISTRATOR    = 'a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6'
-    MARKETING_MEMBER    = 'b2c3d4e5-f6g7-8h9i-0j1k-2l3m4n5o6p7q'
+    NONE = '00000000-0000-0000-0000-000000000000'  # No role assigned
+    HR_MEMBER = '316790bc-fbd3-4a14-8867-d1388ffbc195'
+    HR_ASSOCIATE = 'd3c1b0f2-4a5e-4c8b-9f6d-7c8e1f2a3b4c'
+    HR_ADMINISTRATOR = 'a1b2c3d4-e5f6-7g8h-9i0j-k1l2m3n4o5p6'
+    MARKETING_MEMBER = 'b2c3d4e5-f6g7-8h9i-0j1k-2l3m4n5o6p7q'
+
+
+class HttpStatusCode(IntEnum):
+    """
+    HTTP status codes for API responses.
+    """
+
+    # 1xx Informational
+    CONTINUE = 100
+    SWITCHING_PROTOCOLS = 101
+    PROCESSING = 102
+    EARLY_HINTS = 103
+
+    # 2xx Success
+    OK = 200
+    CREATED = 201
+    ACCEPTED = 202
+    NON_AUTHORITATIVE_INFORMATION = 203
+    NO_CONTENT = 204
+    RESET_CONTENT = 205
+    PARTIAL_CONTENT = 206
+    MULTI_STATUS = 207
+    ALREADY_REPORTED = 208
+    IM_USED = 226
+
+    # 3xx Redirection
+    MULTIPLE_CHOICES = 300
+    MOVED_PERMANENTLY = 301
+    FOUND = 302
+    SEE_OTHER = 303
+    NOT_MODIFIED = 304
+    TEMPORARY_REDIRECT = 307
+    PERMANENT_REDIRECT = 308
+
+    # 4xx Client Errors
+    BAD_REQUEST = 400
+    UNAUTHORIZED = 401
+    PAYMENT_REQUIRED = 402
+    FORBIDDEN = 403
+    NOT_FOUND = 404
+    METHOD_NOT_ALLOWED = 405
+    NOT_ACCEPTABLE = 406
+    PROXY_AUTHENTICATION_REQUIRED = 407
+    REQUEST_TIMEOUT = 408
+    CONFLICT = 409
+    GONE = 410
+    LENGTH_REQUIRED = 411
+    PRECONDITION_FAILED = 412
+    CONTENT_TOO_LARGE = 413
+    URI_TOO_LONG = 414
+    UNSUPPORTED_MEDIA_TYPE = 415
+    RANGE_NOT_SATISFIABLE = 416
+    EXPECTATION_FAILED = 417
+    IM_A_TEAPOT = 418
+    MISDIRECTED_REQUEST = 421
+    UNPROCESSABLE_CONTENT = 422
+    LOCKED = 423
+    FAILED_DEPENDENCY = 424
+    TOO_EARLY = 425
+    UPGRADE_REQUIRED = 426
+    PRECONDITION_REQUIRED = 428
+    TOO_MANY_REQUESTS = 429
+    REQUEST_HEADER_FIELDS_TOO_LARGE = 431
+    UNAVAILABLE_FOR_LEGAL_REASONS = 451
+
+    # 5xx Server Errors
+    INTERNAL_SERVER_ERROR = 500
+    NOT_IMPLEMENTED = 501
+    BAD_GATEWAY = 502
+    SERVICE_UNAVAILABLE = 503
+    GATEWAY_TIMEOUT = 504
+    HTTP_VERSION_NOT_SUPPORTED = 505
+    VARIANT_ALSO_NEGOTIATES = 506
+    INSUFFICIENT_STORAGE = 507
+    LOOP_DETECTED = 508
+    NOT_EXTENDED = 510
+    NETWORK_AUTHENTICATION_REQUIRED = 511
+
 
 class APIMNetworkMode(StrEnum):
     """
     Networking configuration modes for Azure API Management (APIM).
     """
 
-    PUBLIC        = 'Public'    # APIM is accessible from the public internet
+    PUBLIC = 'Public'  # APIM is accessible from the public internet
     EXTERNAL_VNET = 'External'  # APIM is deployed in a VNet with external (public) access
     INTERNAL_VNET = 'Internal'  # APIM is deployed in a VNet with only internal (private) access
-    NONE          = 'None'      # No explicit network configuration (legacy or default)
+    NONE = 'None'  # No explicit network configuration (legacy or default)
 
 
 class APIM_SKU(StrEnum):
@@ -103,13 +184,13 @@ class APIM_SKU(StrEnum):
     APIM SKU types.
     """
 
-    DEVELOPER  = 'Developer'
-    BASIC      = 'Basic'
-    STANDARD   = 'Standard'
-    PREMIUM    = 'Premium'
-    BASICV2    = 'Basicv2'
+    DEVELOPER = 'Developer'
+    BASIC = 'Basic'
+    STANDARD = 'Standard'
+    PREMIUM = 'Premium'
+    BASICV2 = 'Basicv2'
     STANDARDV2 = 'Standardv2'
-    PREMIUMV2  = 'Premiumv2'
+    PREMIUMV2 = 'Premiumv2'
 
     def is_v1(self):
         """Check if the SKU is a v1 tier."""
@@ -119,18 +200,23 @@ class APIM_SKU(StrEnum):
         """Check if the SKU is a v2 tier."""
         return self in (APIM_SKU.BASICV2, APIM_SKU.STANDARDV2, APIM_SKU.PREMIUMV2)
 
+    def requires_cost_acknowledgement(self):
+        """Check if the SKU requires explicit cost acknowledgement before provisioning."""
+        return self in (APIM_SKU.STANDARD, APIM_SKU.PREMIUM, APIM_SKU.STANDARDV2, APIM_SKU.PREMIUMV2)
+
+
 class HTTP_VERB(StrEnum):
     """
     HTTP verbs that can be used for API operations.
     """
 
-    GET     = 'GET'
-    POST    = 'POST'
-    PUT     = 'PUT'
-    DELETE  = 'DELETE'
-    PATCH   = 'PATCH'
+    GET = 'GET'
+    POST = 'POST'
+    PUT = 'PUT'
+    DELETE = 'DELETE'
+    PATCH = 'PATCH'
     OPTIONS = 'OPTIONS'
-    HEAD    = 'HEAD'
+    HEAD = 'HEAD'
 
 
 class INFRASTRUCTURE(StrEnum):
@@ -138,11 +224,90 @@ class INFRASTRUCTURE(StrEnum):
     Infrastructure types for APIM automation scenarios.
     """
 
-    SIMPLE_APIM   = 'simple-apim'   # Simple API Management with no dependencies
-    APIM_ACA      = 'apim-aca'      # Azure API Management connected to Azure Container Apps
-    AFD_APIM_PE   = 'afd-apim-pe'   # Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
-    APPGW_APIM_PE = 'appgw-apim-pe' # Application Gateway connected to Azure API Management (Standard V2) via Private Link
-    APPGW_APIM    = 'appgw-apim'    # Application Gateway connected to Azure API Management (Developer SKU) via VNet (Internal)
+    SIMPLE_APIM = 'simple-apim'  # Simple API Management with no dependencies
+    APIM_ACA = 'apim-aca'  # Azure API Management connected to Azure Container Apps
+    AFD_APIM_PE = 'afd-apim-pe'  # Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
+    APPGW_APIM_PE = 'appgw-apim-pe'  # Application Gateway connected to Azure API Management (Standard V2) via Private Link
+    APPGW_APIM = 'appgw-apim'  # Application Gateway connected to Azure API Management (Developer SKU) via VNet (Internal)
+
+
+class Region(StrEnum):
+    """
+    Azure region identifiers.
+
+    Note: SKU availability varies by region and changes over time.
+    A deployment may fail if the chosen SKU is unavailable in the selected region.
+    """
+
+    # Americas
+    EAST_US = 'eastus'
+    EAST_US_2 = 'eastus2'
+    WEST_US = 'westus'
+    WEST_US_2 = 'westus2'
+    WEST_US_3 = 'westus3'
+    CENTRAL_US = 'centralus'
+    NORTH_CENTRAL_US = 'northcentralus'
+    SOUTH_CENTRAL_US = 'southcentralus'
+    WEST_CENTRAL_US = 'westcentralus'
+    CANADA_CENTRAL = 'canadacentral'
+    CANADA_EAST = 'canadaeast'
+    BRAZIL_SOUTH = 'brazilsouth'
+    BRAZIL_SOUTHEAST = 'brazilsoutheast'
+
+    # Europe
+    NORTH_EUROPE = 'northeurope'
+    WEST_EUROPE = 'westeurope'
+    UK_SOUTH = 'uksouth'
+    UK_WEST = 'ukwest'
+    FRANCE_CENTRAL = 'francecentral'
+    FRANCE_SOUTH = 'francesouth'
+    GERMANY_WEST_CENTRAL = 'germanywestcentral'
+    GERMANY_NORTH = 'germanynorth'
+    SWITZERLAND_NORTH = 'switzerlandnorth'
+    SWITZERLAND_WEST = 'switzerlandwest'
+    NORWAY_EAST = 'norwayeast'
+    NORWAY_WEST = 'norwaywest'
+    SWEDEN_CENTRAL = 'swedencentral'
+    POLAND_CENTRAL = 'polandcentral'
+    ITALY_NORTH = 'italynorth'
+    SPAIN_CENTRAL = 'spaincentral'
+
+    # Asia Pacific
+    EAST_ASIA = 'eastasia'
+    SOUTHEAST_ASIA = 'southeastasia'
+    AUSTRALIA_EAST = 'australiaeast'
+    AUSTRALIA_SOUTHEAST = 'australiasoutheast'
+    AUSTRALIA_CENTRAL = 'australiacentral'
+    AUSTRALIA_CENTRAL_2 = 'australiacentral2'
+    JAPAN_EAST = 'japaneast'
+    JAPAN_WEST = 'japanwest'
+    KOREA_CENTRAL = 'koreacentral'
+    KOREA_SOUTH = 'koreasouth'
+    INDIA_CENTRAL = 'centralindia'
+    INDIA_SOUTH = 'southindia'
+    INDIA_WEST = 'westindia'
+    NEW_ZEALAND_NORTH = 'newzealandnorth'
+
+    # Middle East & Africa
+    UAE_NORTH = 'uaenorth'
+    UAE_CENTRAL = 'uaecentral'
+    SOUTH_AFRICA_NORTH = 'southafricanorth'
+    SOUTH_AFRICA_WEST = 'southafricawest'
+    QATAR_CENTRAL = 'qatarcentral'
+    ISRAEL_CENTRAL = 'israelcentral'
+
+    # China (operated by 21Vianet)
+    CHINA_EAST = 'chinaeast'
+    CHINA_EAST_2 = 'chinaeast2'
+    CHINA_EAST_3 = 'chinaeast3'
+    CHINA_NORTH = 'chinanorth'
+    CHINA_NORTH_2 = 'chinanorth2'
+    CHINA_NORTH_3 = 'chinanorth3'
+
+    # US Government
+    US_GOV_VIRGINIA = 'usgovvirginia'
+    US_GOV_TEXAS = 'usgovtexas'
+    US_GOV_ARIZONA = 'usgovarizona'
 
 
 class Endpoints:
@@ -171,6 +336,8 @@ class Output:
     """
     Represents the output of a command or deployment, including success status, raw text, and parsed JSON data.
     """
+
+    _SECURE_MASK_MIN_LENGTH = 4
 
     # ------------------------------
     #    CONSTRUCTOR
@@ -237,7 +404,7 @@ class Output:
                 raise KeyError(f"Output key '{key}' not found in deployment outputs")
 
             if not suppress_logging and label:
-                if secure and isinstance(deployment_output, str) and len(deployment_output) >= 4:
+                if secure and isinstance(deployment_output, str) and len(deployment_output) >= self._SECURE_MASK_MIN_LENGTH:
                     print_val(label, f'****{deployment_output[-4:]}')
                 else:
                     print_val(label, deployment_output)
@@ -293,7 +460,7 @@ class Output:
                 raise KeyError(f"Output key '{key}' not found in deployment outputs")  # pragma: no cover
 
             if not suppress_logging and label:
-                if secure and isinstance(deployment_output, str) and len(deployment_output) >= 4:
+                if secure and isinstance(deployment_output, str) and len(deployment_output) >= self._SECURE_MASK_MIN_LENGTH:
                     print_val(label, f'****{deployment_output[-4:]}')
                 else:
                     print_val(label, deployment_output)
@@ -324,6 +491,7 @@ class Output:
 
             return None
 
+
 @dataclass
 class API:
     """
@@ -346,10 +514,17 @@ class API:
     # ------------------------------
 
     def __init__(
-        self, name: str, displayName: str, path: str, description: str,
-        policyXml: Optional[str] = None, operations: Optional[List['APIOperation']] = None,
-        tags: Optional[List[str]] = None, productNames: Optional[List[str]] = None,
-        subscriptionRequired: bool = True, serviceUrl: Optional[str] = None,
+        self,
+        name: str,
+        displayName: str,
+        path: str,
+        description: str,
+        policyXml: Optional[str] = None,
+        operations: Optional[List['APIOperation']] = None,
+        tags: Optional[List[str]] = None,
+        productNames: Optional[List[str]] = None,
+        subscriptionRequired: bool = True,
+        serviceUrl: Optional[str] = None,
     ):
         self.name = name
         self.displayName = displayName
@@ -378,7 +553,7 @@ class API:
             'subscriptionRequired': self.subscriptionRequired,
             'policyXml': self.policyXml,
             'tags': self.tags,
-            'productNames': self.productNames
+            'productNames': self.productNames,
         }
 
 
@@ -400,8 +575,13 @@ class APIOperation:
     # ------------------------------
 
     def __init__(
-        self, name: str, displayName: str, urlTemplate: str, method: HTTP_VERB,
-        description: str, policyXml: Optional[str] = None,
+        self,
+        name: str,
+        displayName: str,
+        urlTemplate: str,
+        method: HTTP_VERB,
+        description: str,
+        policyXml: Optional[str] = None,
         templateParameters: Optional[List[dict[str, Any]]] = None,
     ) -> None:
         # Validate that method is a valid HTTP_VERB
@@ -432,7 +612,7 @@ class APIOperation:
             'description': self.description,
             'method': self.method,
             'policyXml': self.policyXml,
-            'templateParameters': self.templateParameters
+            'templateParameters': self.templateParameters,
         }
 
 
@@ -461,7 +641,11 @@ class GET_APIOperation2(APIOperation):
     # ------------------------------
 
     def __init__(
-        self, name: str, displayName: str, urlTemplate: str, description: str,
+        self,
+        name: str,
+        displayName: str,
+        urlTemplate: str,
+        description: str,
         policyXml: Optional[str] = None,
         templateParameters: Optional[List[dict[str, Any]]] = None,
     ) -> None:
@@ -501,18 +685,13 @@ class NamedValue:
         self.value = value
         self.isSecret = isSecret
 
-
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
 
     def to_dict(self) -> dict:
         """Convert the named value to a dictionary."""
-        nv_dict = {
-            'name': self.name,
-            'value': self.value,
-            'isSecret': self.isSecret
-        }
+        nv_dict = {'name': self.name, 'value': self.value, 'isSecret': self.isSecret}
 
         return nv_dict
 
@@ -536,18 +715,13 @@ class PolicyFragment:
         self.policyXml = policyXml
         self.description = description
 
-
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
 
     def to_dict(self) -> dict:
         """Convert the policy fragment to a dictionary."""
-        pf_dict = {
-            'name': self.name,
-            'policyXml': self.policyXml,
-            'description': self.description
-        }
+        pf_dict = {'name': self.name, 'policyXml': self.policyXml, 'description': self.description}
 
         return pf_dict
 
@@ -573,9 +747,14 @@ class Product:
     # ------------------------------
 
     def __init__(
-        self, name: str, displayName: str, description: str,
-        state: str = 'published', subscriptionRequired: bool = True,
-        approvalRequired: bool = False, policyXml: Optional[str] = None,
+        self,
+        name: str,
+        displayName: str,
+        description: str,
+        state: str = 'published',
+        subscriptionRequired: bool = True,
+        approvalRequired: bool = False,
+        policyXml: Optional[str] = None,
     ) -> None:
         self.name = name
         self.displayName = displayName
@@ -619,5 +798,5 @@ class Product:
             'state': self.state,
             'subscriptionRequired': self.subscriptionRequired,
             'approvalRequired': self.approvalRequired,
-            'policyXml': self.policyXml
+            'policyXml': self.policyXml,
         }

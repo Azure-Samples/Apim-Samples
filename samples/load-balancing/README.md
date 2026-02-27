@@ -2,7 +2,7 @@
 
 Sets up an APIM instance that demonstrates load balancing and circuit breaking across backends. 
 
-⚙️ **Supported infrastructures**: apim-aca, afd-apim (with ACA)
+⚙️ **Supported infrastructures**: apim-aca, afd-apim-pe
 
 👟 **Expected *Run All* runtime (excl. infrastructure prerequisite): ~3 minutes**
 

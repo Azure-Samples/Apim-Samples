@@ -1,23 +1,26 @@
-import builtins
-import os
-import inspect
 import base64
-import subprocess
+import builtins
+import inspect
+import json
 import logging
+import os
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock
-import json
+
+import azure_resources as az
+import console as console_module
+import json_utils
 import pytest
+import utils
 
 # APIM Samples imports
-from apimtypes import INFRASTRUCTURE, APIM_SKU, HTTP_VERB, Endpoints
-import utils
-import json_utils
-import azure_resources as az
+from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints
 from console import print_error, print_info, print_message, print_ok, print_val, print_warning
-import console as console_module
 from test_helpers import (
     capture_console_output as capture_output,
+)
+from test_helpers import (
     mock_popen,
     patch_create_bicep_deployment_group_dependencies,
     patch_open_for_text_read,
@@ -69,19 +72,24 @@ def suppress_builtin_print(monkeypatch):
 #    get_infra_rg_name & get_rg_name
 # ------------------------------
 
+
 def test_get_infra_rg_name(monkeypatch):
     class DummyInfra:
         value = 'foo'
+
     assert az.get_infra_rg_name(DummyInfra) == 'apim-infra-foo'
     assert az.get_infra_rg_name(DummyInfra, 2) == 'apim-infra-foo-2'
+
 
 def test_get_rg_name():
     assert az.get_rg_name('foo') == 'apim-sample-foo'
     assert az.get_rg_name('foo', 3) == 'apim-sample-foo-3'
 
+
 # ------------------------------
 #    run
 # ------------------------------
+
 
 def test_run_success(monkeypatch):
     monkeypatch.setattr(
@@ -92,6 +100,7 @@ def test_run_success(monkeypatch):
     assert out.success is True
     assert out.json_data == {'a': 1}
 
+
 def test_run_failure(monkeypatch):
     monkeypatch.setattr(
         'subprocess.run',
@@ -101,9 +110,11 @@ def test_run_failure(monkeypatch):
     assert out.success is False
     assert isinstance(out.text, str)
 
+
 # ------------------------------
 #    read_policy_xml
 # ------------------------------
+
 
 def test_read_policy_xml_success(monkeypatch):
     """Test reading a valid XML file returns its contents."""
@@ -114,17 +125,20 @@ def test_read_policy_xml_success(monkeypatch):
     result = utils.read_policy_xml('/path/to/dummy.xml')
     assert result == xml_content
 
+
 def test_read_policy_xml_file_not_found(monkeypatch):
     """Test reading a missing XML file raises FileNotFoundError."""
     patch_open_for_text_read(monkeypatch, match='/path/to/missing.xml', raises=FileNotFoundError('File not found'))
     with pytest.raises(FileNotFoundError):
         utils.read_policy_xml('/path/to/missing.xml')
 
+
 def test_read_policy_xml_empty_file(monkeypatch):
     """Test reading an empty XML file returns an empty string."""
     patch_open_for_text_read(monkeypatch, match='/path/to/empty.xml', read_data='')
     result = utils.read_policy_xml('/path/to/empty.xml')
     assert not result
+
 
 def test_read_policy_xml_with_named_values(monkeypatch):
     """Test reading policy XML with named values formatting."""
@@ -142,13 +156,12 @@ def test_read_policy_xml_with_named_values(monkeypatch):
     monkeypatch.setattr('inspect.currentframe', mock_inspect_currentframe)
     monkeypatch.setattr('utils.get_project_root', lambda: Path('/project'))
 
-    named_values = {
-        'jwt_signing_key': 'JwtSigningKey123'
-    }
+    named_values = {'jwt_signing_key': 'JwtSigningKey123'}
 
     result = utils.read_policy_xml('hr_all_operations.xml', named_values)
     expected = '<policy><validate-jwt><issuer-signing-keys><key>{{JwtSigningKey123}}</key></issuer-signing-keys></validate-jwt></policy>'
     assert result == expected
+
 
 def test_read_policy_xml_legacy_mode(monkeypatch):
     """Test that legacy mode (full path) still works."""
@@ -156,6 +169,7 @@ def test_read_policy_xml_legacy_mode(monkeypatch):
     patch_open_for_text_read(monkeypatch, match='/full/path/to/policy.xml', read_data=xml_content)
     result = utils.read_policy_xml('/full/path/to/policy.xml')
     assert result == xml_content
+
 
 def test_read_policy_xml_auto_detection_failure(monkeypatch):
     """Test that auto-detection failure provides helpful error."""
@@ -174,13 +188,16 @@ def test_read_policy_xml_auto_detection_failure(monkeypatch):
     with pytest.raises(ValueError, match='Could not auto-detect sample name'):
         utils.read_policy_xml('policy.xml', {'key': 'value'})
 
+
 # ------------------------------
 #    validate_infrastructure
 # ------------------------------
 
+
 def test_validate_infrastructure_supported():
     # Should return None for supported infra
     assert utils.validate_infrastructure(INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]) is None
+
 
 def test_validate_infrastructure_unsupported():
     # Should raise ValueError for unsupported infra
@@ -188,23 +205,28 @@ def test_validate_infrastructure_unsupported():
         utils.validate_infrastructure(INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.APIM_ACA])
     assert 'Unsupported infrastructure' in str(exc.value)
 
+
 def test_validate_infrastructure_multiple_supported():
     # Should return True if infra is in the supported list
     supported = [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA]
     assert utils.validate_infrastructure(INFRASTRUCTURE.APIM_ACA, supported) is None
 
+
 # ------------------------------
 #    generate_signing_key
 # ------------------------------
+
 
 def test_generate_signing_key():
     s, b64 = utils.generate_signing_key()
     assert isinstance(s, str)
     assert isinstance(b64, str)
 
+
 # ------------------------------
 #    build_infrastructure_tags
 # ------------------------------
+
 
 def test_build_infrastructure_tags_with_enum():
     """Test build_infrastructure_tags with INFRASTRUCTURE enum."""
@@ -212,22 +234,21 @@ def test_build_infrastructure_tags_with_enum():
     expected = {'infrastructure': 'simple-apim'}
     assert result == expected
 
+
 def test_build_infrastructure_tags_with_string():
     """Test build_infrastructure_tags with string infrastructure."""
     result = utils.build_infrastructure_tags('test-infra')
     expected = {'infrastructure': 'test-infra'}
     assert result == expected
 
+
 def test_build_infrastructure_tags_with_custom_tags():
     """Test build_infrastructure_tags with custom tags."""
     custom_tags = {'env': 'dev', 'team': 'platform'}
     result = utils.build_infrastructure_tags(INFRASTRUCTURE.APIM_ACA, custom_tags)
-    expected = {
-        'infrastructure': 'apim-aca',
-        'env': 'dev',
-        'team': 'platform'
-    }
+    expected = {'infrastructure': 'apim-aca', 'env': 'dev', 'team': 'platform'}
     assert result == expected
+
 
 def test_build_infrastructure_tags_custom_tags_override():
     """Test that custom tags can override standard tags."""
@@ -236,11 +257,13 @@ def test_build_infrastructure_tags_custom_tags_override():
     expected = {'infrastructure': 'custom-override'}
     assert result == expected
 
+
 def test_build_infrastructure_tags_empty_custom_tags():
     """Test build_infrastructure_tags with empty custom tags dict."""
     result = utils.build_infrastructure_tags(INFRASTRUCTURE.SIMPLE_APIM, {})
     expected = {'infrastructure': 'simple-apim'}
     assert result == expected
+
 
 def test_build_infrastructure_tags_none_custom_tags():
     """Test build_infrastructure_tags with None custom tags."""
@@ -248,9 +271,11 @@ def test_build_infrastructure_tags_none_custom_tags():
     expected = {'infrastructure': 'apim-aca'}
     assert result == expected
 
+
 # ------------------------------
 #    create_bicep_deployment_group
 # ------------------------------
+
 
 def test_create_bicep_deployment_group_with_enum(monkeypatch):
     """Test create_bicep_deployment_group with INFRASTRUCTURE enum."""
@@ -266,9 +291,7 @@ def test_create_bicep_deployment_group_with_enum(monkeypatch):
     bicep_params = {'param1': {'value': 'test'}}
     rg_tags = {'infrastructure': 'simple-apim'}
 
-    _result = utils.create_bicep_deployment_group(
-        'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, bicep_params, 'params.json', rg_tags
-    )
+    _result = utils.create_bicep_deployment_group('test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, bicep_params, 'params.json', rg_tags)
 
     # Verify create_resource_group was called with correct parameters
     mock_create_rg.assert_called_once_with('test-rg', 'eastus', rg_tags)
@@ -279,6 +302,7 @@ def test_create_bicep_deployment_group_with_enum(monkeypatch):
     assert 'az deployment group create' in actual_cmd
     assert '--name simple-apim' in actual_cmd
     assert '--resource-group test-rg' in actual_cmd
+
 
 def test_create_bicep_deployment_group_with_string(monkeypatch):
     """Test create_bicep_deployment_group with string deployment name."""
@@ -293,9 +317,7 @@ def test_create_bicep_deployment_group_with_string(monkeypatch):
 
     bicep_params = {'param1': {'value': 'test'}}
 
-    _result = utils.create_bicep_deployment_group(
-        'test-rg', 'eastus', 'custom-deployment', bicep_params
-    )
+    utils.create_bicep_deployment_group('test-rg', 'eastus', 'custom-deployment', bicep_params)
 
     # Verify create_resource_group was called without tags
     mock_create_rg.assert_called_once_with('test-rg', 'eastus', None)
@@ -304,6 +326,7 @@ def test_create_bicep_deployment_group_with_string(monkeypatch):
     mock_run.assert_called_once()
     actual_cmd = mock_run.call_args[0][0]
     assert '--name custom-deployment' in actual_cmd
+
 
 def test_create_bicep_deployment_group_params_file_written(monkeypatch):
     """Test that bicep parameters are correctly written to file."""
@@ -325,14 +348,9 @@ def test_create_bicep_deployment_group_params_file_written(monkeypatch):
         basename='apim-aca',
     )
 
-    bicep_params = {
-        'apiManagementName': {'value': 'test-apim'},
-        'location': {'value': 'eastus'}
-    }
+    bicep_params = {'apiManagementName': {'value': 'test-apim'}, 'location': {'value': 'eastus'}}
 
-    utils.create_bicep_deployment_group(
-        'test-rg', 'eastus', INFRASTRUCTURE.APIM_ACA, bicep_params, 'custom-params.json'
-    )
+    utils.create_bicep_deployment_group('test-rg', 'eastus', INFRASTRUCTURE.APIM_ACA, bicep_params, 'custom-params.json')
 
     # With our new logic, when current directory name matches infrastructure_dir,
     # it should use the current directory
@@ -346,6 +364,7 @@ def test_create_bicep_deployment_group_params_file_written(monkeypatch):
     assert written_data['$schema'] == 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#'
     assert written_data['contentVersion'] == '1.0.0.0'
     assert written_data['parameters'] == bicep_params
+
 
 def test_create_bicep_deployment_group_no_tags(monkeypatch):
     """Test create_bicep_deployment_group without tags."""
@@ -364,6 +383,7 @@ def test_create_bicep_deployment_group_no_tags(monkeypatch):
 
     # Verify create_resource_group was called with None tags
     mock_create_rg.assert_called_once_with('test-rg', 'eastus', None)
+
 
 def test_create_bicep_deployment_group_deployment_failure(monkeypatch):
     """Test create_bicep_deployment_group when deployment fails."""
@@ -386,9 +406,11 @@ def test_create_bicep_deployment_group_deployment_failure(monkeypatch):
     # Result should indicate failure
     assert result.success is False
 
+
 # ------------------------------
 #   COVERAGE TESTS
 # ------------------------------
+
 
 def test_print_functions_comprehensive():
     """Test all print utility functions for coverage."""
@@ -503,7 +525,7 @@ def test_read_policy_xml_with_named_values_formatting(monkeypatch):
         (INFRASTRUCTURE.SIMPLE_APIM, 'simple-apim'),
         (INFRASTRUCTURE.AFD_APIM_PE, 'afd-apim-pe'),
         (INFRASTRUCTURE.APIM_ACA, 'apim-aca'),
-    ]
+    ],
 )
 def test_get_infra_rg_name_different_types(infra_type, expected_suffix):
     """Test get_infra_rg_name with different infrastructure types."""
@@ -616,16 +638,18 @@ def test_create_resource_group_edge_cases(monkeypatch):
 
     az.create_resource_group('test-rg', 'eastus', {})  # Empty dict, function doesn't return anything
 
+
 # ------------------------------
 #    ROLE AND PERMISSION TESTS
 # ------------------------------
+
 
 def test_get_azure_role_guid_comprehensive(monkeypatch):
     """Test get_azure_role_guid with comprehensive scenarios."""
     # Mock the azure-roles.json file content
     mock_roles = {
         'Storage Blob Data Reader': '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1',
-        'Storage Account Contributor': '17d1049b-9a84-46fb-8f53-869881c3d3ab'
+        'Storage Account Contributor': '17d1049b-9a84-46fb-8f53-869881c3d3ab',
     }
 
     patch_open_for_text_read(
@@ -645,6 +669,7 @@ def test_get_azure_role_guid_comprehensive(monkeypatch):
     # Test invalid role
     result = az.get_azure_role_guid('Nonexistent Role')
     assert result is None
+
 
 # ------------------------------
 #    INFRASTRUCTURE SELECTION TESTS
@@ -1112,8 +1137,56 @@ def test_query_and_select_infrastructure_with_none_index(monkeypatch, suppress_u
 # ------------------------------
 
 # ------------------------------
+#    TESTS FOR _prompt_for_high_cost_sku_acknowledgement
+# ------------------------------
+
+
+def test_prompt_for_high_cost_sku_acknowledgement_yes(monkeypatch):
+    """Test _prompt_for_high_cost_sku_acknowledgement when user types 'yes'."""
+    monkeypatch.setattr('builtins.input', lambda prompt: 'yes')
+
+    result = utils._prompt_for_high_cost_sku_acknowledgement(APIM_SKU.PREMIUM)
+    assert result is True
+
+
+def test_prompt_for_high_cost_sku_acknowledgement_no(monkeypatch):
+    """Test _prompt_for_high_cost_sku_acknowledgement when user types 'no'."""
+    monkeypatch.setattr('builtins.input', lambda prompt: 'no')
+
+    result = utils._prompt_for_high_cost_sku_acknowledgement(APIM_SKU.STANDARDV2)
+    assert result is False
+
+
+def test_prompt_for_high_cost_sku_acknowledgement_empty(monkeypatch):
+    """Test _prompt_for_high_cost_sku_acknowledgement when user presses Enter (empty input)."""
+    monkeypatch.setattr('builtins.input', lambda prompt: '')
+
+    result = utils._prompt_for_high_cost_sku_acknowledgement(APIM_SKU.PREMIUMV2)
+    assert result is False
+
+
+def test_prompt_for_high_cost_sku_acknowledgement_invalid_then_yes(monkeypatch):
+    """Test _prompt_for_high_cost_sku_acknowledgement with invalid input then 'yes'."""
+    inputs = iter(['y', 'YES', 'confirm', 'yes'])
+    monkeypatch.setattr('builtins.input', lambda prompt: next(inputs))
+
+    result = utils._prompt_for_high_cost_sku_acknowledgement(APIM_SKU.STANDARD)
+    assert result is True
+
+
+def test_prompt_for_high_cost_sku_acknowledgement_invalid_then_no(monkeypatch):
+    """Test _prompt_for_high_cost_sku_acknowledgement with invalid input then 'no'."""
+    inputs = iter(['maybe', 'ok', 'no'])
+    monkeypatch.setattr('builtins.input', lambda prompt: next(inputs))
+
+    result = utils._prompt_for_high_cost_sku_acknowledgement(APIM_SKU.PREMIUM)
+    assert result is False
+
+
+# ------------------------------
 #    TESTS FOR _prompt_for_infrastructure_update
 # ------------------------------
+
 
 def test_prompt_for_infrastructure_update_option_1(monkeypatch):
     """Test _prompt_for_infrastructure_update when user selects option 1 (update)."""
@@ -1122,12 +1195,14 @@ def test_prompt_for_infrastructure_update_option_1(monkeypatch):
     result = utils._prompt_for_infrastructure_update('test-rg')
     assert result == (True, None)
 
+
 def test_prompt_for_infrastructure_update_option_1_default(monkeypatch):
     """Test _prompt_for_infrastructure_update when user selects option 1 explicitly."""
     monkeypatch.setattr('builtins.input', lambda prompt: '1')
 
     result = utils._prompt_for_infrastructure_update('test-rg')
     assert result == (True, None)
+
 
 def test_prompt_for_infrastructure_update_option_2_valid_index(monkeypatch):
     """Test _prompt_for_infrastructure_update when user selects option 2 with valid index."""
@@ -1137,6 +1212,7 @@ def test_prompt_for_infrastructure_update_option_2_valid_index(monkeypatch):
     result = utils._prompt_for_infrastructure_update('test-rg')
     assert result == (False, 5)
 
+
 def test_prompt_for_infrastructure_update_option_2_invalid_then_valid_index(monkeypatch):
     """Test _prompt_for_infrastructure_update when user provides invalid index then valid one."""
     inputs = iter(['2', '', '0', '-1', 'abc', '3'])  # Option 2, then empty, zero, negative, non-number, finally valid
@@ -1145,12 +1221,14 @@ def test_prompt_for_infrastructure_update_option_2_invalid_then_valid_index(monk
     result = utils._prompt_for_infrastructure_update('test-rg')
     assert result == (False, 3)
 
+
 def test_prompt_for_infrastructure_update_option_3(monkeypatch):
     """Test _prompt_for_infrastructure_update when user selects option 3 (delete first)."""
     monkeypatch.setattr('builtins.input', lambda prompt: '3')
 
     result = utils._prompt_for_infrastructure_update('test-rg')
     assert result == (False, None)
+
 
 def test_prompt_for_infrastructure_update_invalid_choice_then_valid(monkeypatch):
     """Test _prompt_for_infrastructure_update with invalid choice followed by valid choice."""
@@ -1160,9 +1238,11 @@ def test_prompt_for_infrastructure_update_invalid_choice_then_valid(monkeypatch)
     result = utils._prompt_for_infrastructure_update('test-rg')
     assert result == (True, None)
 
+
 # ------------------------------
 #    TESTS FOR InfrastructureNotebookHelper.create_infrastructure WITH INDEX RETRY
 # ------------------------------
+
 
 def test_infrastructure_notebook_helper_create_with_index_retry(monkeypatch, suppress_builtin_print):
     """Test InfrastructureNotebookHelper.create_infrastructure with option 2 (different index) retry."""
@@ -1171,6 +1251,7 @@ def test_infrastructure_notebook_helper_create_with_index_retry(monkeypatch, sup
 
     # Mock resource group existence to return True initially
     call_count = 0
+
     def mock_rg_exists(rg_name):
         nonlocal call_count
         call_count += 1
@@ -1189,6 +1270,7 @@ def test_infrastructure_notebook_helper_create_with_index_retry(monkeypatch, sup
     assert result is True
     assert helper.index == 3  # Verify index was updated
 
+
 def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch, suppress_builtin_print):
     """Test InfrastructureNotebookHelper.create_infrastructure with multiple recursive retries."""
 
@@ -1206,6 +1288,7 @@ def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch,
 
     # Mock the prompt to first return index 2, then index 3
     prompt_calls = 0
+
     def mock_prompt(rg_name):
         nonlocal prompt_calls
         prompt_calls += 1
@@ -1223,6 +1306,7 @@ def test_infrastructure_notebook_helper_create_with_recursive_retry(monkeypatch,
     result = helper.create_infrastructure()
     assert result is True
     assert helper.index == 3  # Verify final index
+
 
 def test_infrastructure_notebook_helper_create_with_update_option_1(monkeypatch, suppress_builtin_print):
     """Test InfrastructureNotebookHelper.create_infrastructure when user selects option 1 (update)."""
@@ -1242,6 +1326,7 @@ def test_infrastructure_notebook_helper_create_with_update_option_1(monkeypatch,
     result = helper.create_infrastructure()
     assert result is True
 
+
 def test_infrastructure_notebook_helper_create_with_allow_update_false(monkeypatch, suppress_builtin_print):
     """Test InfrastructureNotebookHelper.create_infrastructure with allow_update=False when infrastructure exists."""
 
@@ -1257,6 +1342,7 @@ def test_infrastructure_notebook_helper_create_with_allow_update_false(monkeypat
     result = helper.create_infrastructure(allow_update=False)
     assert result is True
 
+
 def test_infrastructure_notebook_helper_create_user_cancellation(monkeypatch, suppress_builtin_print):
     """Test InfrastructureNotebookHelper.create_infrastructure when user cancels during retry."""
 
@@ -1271,7 +1357,8 @@ def test_infrastructure_notebook_helper_create_user_cancellation(monkeypatch, su
     with pytest.raises(SystemExit) as exc_info:
         helper.create_infrastructure()
 
-    assert "User cancelled deployment" in str(exc_info.value)
+    assert 'User cancelled deployment' in str(exc_info.value)
+
 
 def test_infrastructure_notebook_helper_create_keyboard_interrupt_during_prompt(monkeypatch, suppress_builtin_print):
     """Test InfrastructureNotebookHelper.create_infrastructure when KeyboardInterrupt occurs during prompt."""
@@ -1290,7 +1377,8 @@ def test_infrastructure_notebook_helper_create_keyboard_interrupt_during_prompt(
     with pytest.raises(SystemExit) as exc_info:
         helper.create_infrastructure()
 
-    assert "User cancelled deployment" in str(exc_info.value)
+    assert 'User cancelled deployment' in str(exc_info.value)
+
 
 def test_infrastructure_notebook_helper_create_eof_error_during_prompt(monkeypatch, suppress_builtin_print):
     """Test InfrastructureNotebookHelper.create_infrastructure when EOFError occurs during prompt."""
@@ -1309,13 +1397,65 @@ def test_infrastructure_notebook_helper_create_eof_error_during_prompt(monkeypat
     with pytest.raises(SystemExit) as exc_info:
         helper.create_infrastructure()
 
-    assert "User cancelled deployment" in str(exc_info.value)
+    assert 'User cancelled deployment' in str(exc_info.value)
+
+
+def test_infrastructure_notebook_helper_create_high_cost_sku_acknowledged(monkeypatch, suppress_builtin_print):
+    """Test InfrastructureNotebookHelper.create_infrastructure proceeds when user acknowledges high-cost SKU."""
+
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.PREMIUM)
+
+    # Mock resource group to not exist
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg_name: False)
+
+    # Mock cost acknowledgement to return True (user consents)
+    monkeypatch.setattr(utils, '_prompt_for_high_cost_sku_acknowledgement', lambda sku: True)
+
+    mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n', 'Success!\n'])
+    monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
+
+    result = helper.create_infrastructure()
+    assert result is True
+
+
+def test_infrastructure_notebook_helper_create_high_cost_sku_declined(monkeypatch, suppress_builtin_print):
+    """Test InfrastructureNotebookHelper.create_infrastructure cancels when user declines high-cost SKU."""
+
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.STANDARDV2)
+
+    # Mock cost acknowledgement to return False (user declines)
+    monkeypatch.setattr(utils, '_prompt_for_high_cost_sku_acknowledgement', lambda sku: False)
+
+    with pytest.raises(SystemExit) as exc_info:
+        helper.create_infrastructure()
+
+    assert 'User cancelled deployment' in str(exc_info.value)
+
+
+def test_infrastructure_notebook_helper_create_low_cost_sku_no_prompt(monkeypatch, suppress_builtin_print):
+    """Test InfrastructureNotebookHelper.create_infrastructure does not prompt for low-cost SKUs."""
+
+    helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
+
+    # Mock resource group to not exist
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg_name: False)
+
+    # Track whether cost acknowledgement prompt was called
+    cost_prompt_called = []
+    monkeypatch.setattr(utils, '_prompt_for_high_cost_sku_acknowledgement', lambda sku: cost_prompt_called.append(sku) or True)
+
+    mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n'])
+    monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
+
+    result = helper.create_infrastructure()
+    assert result is True
+    assert len(cost_prompt_called) == 0  # Should not have been called
+
 
 def test_deploy_sample_with_infrastructure_selection(monkeypatch, suppress_console):
     """Test deploy_sample method with infrastructure selection when original doesn't exist."""
     nb_helper = utils.NotebookHelper(
-        'test-sample', 'test-rg', 'eastus',
-        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA]
+        'test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA]
     )
 
     # Mock does_resource_group_exist to return False for original, triggering selection
@@ -1324,17 +1464,14 @@ def test_deploy_sample_with_infrastructure_selection(monkeypatch, suppress_conso
     # Mock infrastructure selection to return a valid infrastructure
     selected_infra = INFRASTRUCTURE.APIM_ACA
     selected_index = 2
-    monkeypatch.setattr(nb_helper, '_query_and_select_infrastructure',
-                       lambda: (selected_infra, selected_index))
+    monkeypatch.setattr(nb_helper, '_query_and_select_infrastructure', lambda: (selected_infra, selected_index))
 
     # Mock successful deployment
     mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
-    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample',
-                       lambda *args, **kwargs: mock_output)
+    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample', lambda *args, **kwargs: mock_output)
 
     # Mock utility functions
-    monkeypatch.setattr(az, 'get_infra_rg_name',
-                       lambda infra, idx: f'apim-infra-{infra.value}-{idx}')
+    monkeypatch.setattr(az, 'get_infra_rg_name', lambda infra, idx: f'apim-infra-{infra.value}-{idx}')
 
     # Test the deployment
     result = nb_helper.deploy_sample({'test': {'value': 'param'}})
@@ -1344,19 +1481,16 @@ def test_deploy_sample_with_infrastructure_selection(monkeypatch, suppress_conso
     assert nb_helper.rg_name == 'apim-infra-apim-aca-2'
     assert result.success is True
 
+
 def test_deploy_sample_no_infrastructure_found(monkeypatch):
     """Test deploy_sample method when no suitable infrastructure is found."""
-    nb_helper = utils.NotebookHelper(
-        'test-sample', 'test-rg', 'eastus',
-        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
-    )
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM])
 
     # Mock does_resource_group_exist to return False for original
     monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: False)
 
     # Mock infrastructure selection to return None (no infrastructure found)
-    monkeypatch.setattr(nb_helper, '_query_and_select_infrastructure',
-                       lambda: (None, None))
+    monkeypatch.setattr(nb_helper, '_query_and_select_infrastructure', lambda: (None, None))
 
     # Mock utility functions
     monkeypatch.setattr(utils, 'print_error', lambda *args, **kwargs: None)
@@ -1365,20 +1499,17 @@ def test_deploy_sample_no_infrastructure_found(monkeypatch):
     with pytest.raises(SystemExit):
         nb_helper.deploy_sample({'test': {'value': 'param'}})
 
+
 def test_deploy_sample_existing_infrastructure(monkeypatch):
     """Test deploy_sample method when the specified infrastructure already exists."""
-    nb_helper = utils.NotebookHelper(
-        'test-sample', 'test-rg', 'eastus',
-        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
-    )
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM])
 
     # Mock does_resource_group_exist to return True (infrastructure exists)
     monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: True)
 
     # Mock successful deployment
     mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
-    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample',
-                       lambda *args, **kwargs: mock_output)
+    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample', lambda *args, **kwargs: mock_output)
 
     # Mock utility functions
     monkeypatch.setattr(utils, 'print_ok', lambda *args, **kwargs: None)
@@ -1391,24 +1522,22 @@ def test_deploy_sample_existing_infrastructure(monkeypatch):
     assert nb_helper.rg_name == 'test-rg'
     assert result.success is True
 
+
 def test_deploy_sample_deployment_failure(monkeypatch):
     """Test deploy_sample method when Bicep deployment fails."""
-    nb_helper = utils.NotebookHelper(
-        'test-sample', 'test-rg', 'eastus',
-        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
-    )
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM])
 
     # Mock does_resource_group_exist to return True
     monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: True)
 
     # Mock failed deployment
     mock_output = utils.Output(success=False, text='Deployment failed')
-    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample',
-                       lambda *args, **kwargs: mock_output)
+    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample', lambda *args, **kwargs: mock_output)
 
     # Test should raise SystemExit
     with pytest.raises(SystemExit):
         nb_helper.deploy_sample({'test': {'value': 'param'}})
+
 
 def test_deploy_sample_with_jwt(monkeypatch, suppress_console):
     """Test deploy_sample method with JWT enabled."""
@@ -1416,23 +1545,21 @@ def test_deploy_sample_with_jwt(monkeypatch, suppress_console):
     monkeypatch.setattr(utils, 'generate_signing_key', lambda: ('test-key', 'test-key-b64'))
     monkeypatch.setattr('time.time', lambda: 1234567890)
 
-    nb_helper = utils.NotebookHelper(
-        'test-sample', 'test-rg', 'eastus',
-        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM], use_jwt=True
-    )
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM], use_jwt=True)
 
     # Mock does_resource_group_exist to return True
     monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: True)
 
     # Mock successful deployment
     mock_output = utils.Output(success=True, text='{"outputs": {"apimServiceName": {"value": "test-apim"}}}')
-    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample',
-                       lambda *args, **kwargs: mock_output)
+    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample', lambda *args, **kwargs: mock_output)
 
     # Mock _clean_up_jwt method
     cleanup_called = []
+
     def mock_cleanup(apim_name):
         cleanup_called.append(apim_name)
+
     monkeypatch.setattr(nb_helper, '_clean_up_jwt', mock_cleanup)
 
     # Test the deployment
@@ -1442,28 +1569,27 @@ def test_deploy_sample_with_jwt(monkeypatch, suppress_console):
     assert len(cleanup_called) == 1
     assert result.success is True
 
+
 def test_deploy_sample_infrastructure_selection_already_completed(monkeypatch, suppress_console):
     """Test deploy_sample when infrastructure selection was already completed in globals."""
-    nb_helper = utils.NotebookHelper(
-        'test-sample', 'test-rg', 'eastus',
-        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
-    )
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM])
 
     # Mock does_resource_group_exist to return False (infrastructure doesn't exist)
     monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: False)
 
     # Set the global variable to simulate previous infrastructure selection
     original_globals = builtins.globals
+
     def mock_globals():
         result = original_globals()
         result['infrastructure_selection_completed'] = True
         return result
+
     monkeypatch.setattr('builtins.globals', mock_globals)
 
     # Mock successful deployment
     mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
-    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample',
-                       lambda *args, **kwargs: mock_output)
+    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample', lambda *args, **kwargs: mock_output)
 
     # Test the deployment - should skip infrastructure selection
     result = nb_helper.deploy_sample({'test': {'value': 'param'}})
@@ -1473,14 +1599,12 @@ def test_deploy_sample_infrastructure_selection_already_completed(monkeypatch, s
     assert nb_helper.rg_name == 'test-rg'
     assert result.success is True
 
+
 def test_notebookhelper_initialization_with_supported_infrastructures():
     """Test NotebookHelper initialization with supported infrastructures list."""
     supported_infras = [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA]
 
-    nb_helper = utils.NotebookHelper(
-        'test-sample', 'test-rg', 'eastus',
-        INFRASTRUCTURE.SIMPLE_APIM, supported_infras
-    )
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, supported_infras)
 
     assert nb_helper.deployment == INFRASTRUCTURE.SIMPLE_APIM
     assert nb_helper.supported_infrastructures == supported_infras
@@ -1489,6 +1613,16 @@ def test_notebookhelper_initialization_with_supported_infrastructures():
     assert nb_helper.rg_location == 'eastus'
     assert nb_helper.use_jwt is False
 
+
+def test_notebookhelper_initialization_defaults_to_selected_infrastructure():
+    """Test NotebookHelper defaults supported infrastructures to the selected deployment."""
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM)
+
+    assert nb_helper.deployment == INFRASTRUCTURE.SIMPLE_APIM
+    assert nb_helper.supported_infrastructures == [INFRASTRUCTURE.SIMPLE_APIM]
+    assert nb_helper.use_jwt is False
+
+
 def test_notebookhelper_initialization_with_jwt(monkeypatch):
     """Test NotebookHelper initialization with JWT enabled."""
     # Mock JWT-related functions
@@ -1496,15 +1630,13 @@ def test_notebookhelper_initialization_with_jwt(monkeypatch):
     monkeypatch.setattr(utils, 'print_val', lambda *args, **kwargs: None)
     monkeypatch.setattr('time.time', lambda: 1234567890)
 
-    nb_helper = utils.NotebookHelper(
-        'test-sample', 'test-rg', 'eastus',
-        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM], use_jwt=True
-    )
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM], use_jwt=True)
 
     assert nb_helper.use_jwt is True
     assert nb_helper.jwt_key_name == 'JwtSigningKey-test-sample-1234567890'
     assert nb_helper.jwt_key_value == 'test-key'
     assert nb_helper.jwt_key_value_bytes_b64 == 'test-key-b64'
+
 
 def test_get_deployment_failure_message_debug_disabled(monkeypatch):
     """Test get_deployment_failure_message when DEBUG is not enabled."""
@@ -1515,6 +1647,7 @@ def test_get_deployment_failure_message_debug_disabled(monkeypatch):
     assert 'DEBUG' in msg
     assert 'Enable DEBUG' in msg
 
+
 def test_get_deployment_failure_message_debug_enabled(monkeypatch):
     """Test get_deployment_failure_message when DEBUG is enabled."""
     monkeypatch.setattr('logging_config.get_configured_level_name', lambda: 'DEBUG')
@@ -1522,6 +1655,7 @@ def test_get_deployment_failure_message_debug_enabled(monkeypatch):
     msg = utils.get_deployment_failure_message('test-deployment')
     assert 'test-deployment' in msg
     assert 'Enable DEBUG' not in msg
+
 
 def test_find_project_root_in_current_dir(monkeypatch, tmp_path):
     """Test find_project_root when called from subdirectory."""
@@ -1539,11 +1673,13 @@ def test_find_project_root_in_current_dir(monkeypatch, tmp_path):
     result = utils.find_project_root()
     assert isinstance(result, str)
 
+
 def test_determine_policy_path_with_full_path():
     """Test determine_policy_path with full file path."""
     full_path = '/full/path/to/policy.xml'
     result = utils.determine_policy_path(full_path)
     assert result == full_path
+
 
 def test_determine_policy_path_with_sample_name(monkeypatch):
     """Test determine_policy_path with sample name."""
@@ -1553,6 +1689,7 @@ def test_determine_policy_path_with_sample_name(monkeypatch):
     result = utils.determine_policy_path('policy.xml', 'test-sample')
     expected = str(mock_root / 'samples' / 'test-sample' / 'policy.xml')
     assert result == expected
+
 
 def test_get_infra_rg_name_with_different_types(monkeypatch):
     """Test get_infra_rg_name with various infrastructure types."""
@@ -1565,11 +1702,13 @@ def test_get_infra_rg_name_with_different_types(monkeypatch):
     result = az.get_infra_rg_name(INFRASTRUCTURE.AFD_APIM_PE, 10)
     assert result == 'apim-infra-afd-apim-pe-10'
 
+
 def test_create_resource_group_doesnt_exist(monkeypatch):
     """Test create_resource_group when RG doesn't exist."""
     monkeypatch.setattr(az, 'does_resource_group_exist', lambda x: False)
 
     run_calls = []
+
     def fake_run(cmd, *args, **kwargs):
         run_calls.append(cmd)
         return utils.Output(True, '')
@@ -1584,11 +1723,13 @@ def test_create_resource_group_doesnt_exist(monkeypatch):
     assert 'eastus' in run_calls[0]
     assert 'tag1' in run_calls[0]
 
+
 def test_create_resource_group_already_exists(monkeypatch):
     """Test create_resource_group when RG already exists."""
     monkeypatch.setattr(az, 'does_resource_group_exist', lambda x: True)
 
     run_calls = []
+
     def fake_run(cmd, *args, **kwargs):
         run_calls.append(cmd)
         return utils.Output(True, '')
@@ -1600,6 +1741,7 @@ def test_create_resource_group_already_exists(monkeypatch):
     # Should not call run when RG exists
     assert not run_calls
 
+
 def test_find_infrastructure_instances_no_results(monkeypatch):
     """Test find_infrastructure_instances when no instances found."""
     monkeypatch.setattr(az, 'run', lambda cmd, *args, **kwargs: utils.Output(False, 'no results'))
@@ -1607,8 +1749,10 @@ def test_find_infrastructure_instances_no_results(monkeypatch):
     result = az.find_infrastructure_instances(INFRASTRUCTURE.SIMPLE_APIM)
     assert not result
 
+
 def test_find_infrastructure_instances_with_index(monkeypatch):
     """Test find_infrastructure_instances with indexed resource groups."""
+
     def fake_run(cmd, *args, **kwargs):
         if 'simple-apim' in cmd:
             return utils.Output(True, 'apim-infra-simple-apim-1\napim-infra-simple-apim-2\n')
@@ -1626,12 +1770,10 @@ def test_find_infrastructure_instances_with_index(monkeypatch):
 #    NotebookHelper._get_current_index TESTS
 # ------------------------------
 
+
 def test_notebookhelper_get_current_index_with_index(monkeypatch):
     """Test _get_current_index when resource group has an index."""
-    nb_helper = utils.NotebookHelper(
-        'test-sample', 'apim-infra-simple-apim-5', 'eastus',
-        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
-    )
+    nb_helper = utils.NotebookHelper('test-sample', 'apim-infra-simple-apim-5', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM])
 
     result = nb_helper._get_current_index()
     assert result == 5
@@ -1639,10 +1781,7 @@ def test_notebookhelper_get_current_index_with_index(monkeypatch):
 
 def test_notebookhelper_get_current_index_without_index(monkeypatch):
     """Test _get_current_index when resource group has no index."""
-    nb_helper = utils.NotebookHelper(
-        'test-sample', 'apim-infra-simple-apim', 'eastus',
-        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
-    )
+    nb_helper = utils.NotebookHelper('test-sample', 'apim-infra-simple-apim', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM])
 
     result = nb_helper._get_current_index()
     assert result is None
@@ -1650,10 +1789,7 @@ def test_notebookhelper_get_current_index_without_index(monkeypatch):
 
 def test_notebookhelper_get_current_index_invalid_format(monkeypatch):
     """Test _get_current_index with invalid resource group format."""
-    nb_helper = utils.NotebookHelper(
-        'test-sample', 'custom-rg-name', 'eastus',
-        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
-    )
+    nb_helper = utils.NotebookHelper('test-sample', 'custom-rg-name', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM])
 
     result = nb_helper._get_current_index()
     assert result is None
@@ -1661,10 +1797,7 @@ def test_notebookhelper_get_current_index_invalid_format(monkeypatch):
 
 def test_notebookhelper_get_current_index_non_numeric_suffix(monkeypatch):
     """Test _get_current_index with non-numeric suffix."""
-    nb_helper = utils.NotebookHelper(
-        'test-sample', 'apim-infra-simple-apim-abc', 'eastus',
-        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM]
-    )
+    nb_helper = utils.NotebookHelper('test-sample', 'apim-infra-simple-apim-abc', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM])
 
     result = nb_helper._get_current_index()
     assert result is None
@@ -1674,6 +1807,7 @@ def test_notebookhelper_get_current_index_non_numeric_suffix(monkeypatch):
 #    NotebookHelper._clean_up_jwt TESTS
 # ------------------------------
 
+
 def test_notebookhelper_clean_up_jwt_success(monkeypatch, suppress_console):
     """Test _clean_up_jwt with successful cleanup."""
     monkeypatch.setattr(az, 'cleanup_old_jwt_signing_keys', lambda *args: True)
@@ -1681,10 +1815,7 @@ def test_notebookhelper_clean_up_jwt_success(monkeypatch, suppress_console):
     monkeypatch.setattr(utils, 'print_val', lambda *args, **kwargs: None)
     monkeypatch.setattr('time.time', lambda: 1234567890)
 
-    nb_helper = utils.NotebookHelper(
-        'test-sample', 'test-rg', 'eastus',
-        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM], use_jwt=True
-    )
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM], use_jwt=True)
 
     # Should not raise or print warning
     nb_helper._clean_up_jwt('test-apim')
@@ -1697,10 +1828,7 @@ def test_notebookhelper_clean_up_jwt_failure(monkeypatch, caplog):
     monkeypatch.setattr(utils, 'print_val', lambda *args, **kwargs: None)
     monkeypatch.setattr('time.time', lambda: 1234567890)
 
-    nb_helper = utils.NotebookHelper(
-        'test-sample', 'test-rg', 'eastus',
-        INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM], use_jwt=True
-    )
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM], use_jwt=True)
 
     with caplog.at_level(logging.WARNING):
         nb_helper._clean_up_jwt('test-apim')
@@ -1712,6 +1840,7 @@ def test_notebookhelper_clean_up_jwt_failure(monkeypatch, caplog):
 # ------------------------------
 #    get_endpoints TESTS
 # ------------------------------
+
 
 def test_get_endpoints_comprehensive(monkeypatch, suppress_console):
     """Test get_endpoints function."""
@@ -1743,6 +1872,7 @@ def test_get_endpoints_no_frontdoor(monkeypatch, suppress_console):
 #    get_json TESTS
 # ------------------------------
 
+
 def test_get_json_valid_json_string():
     """Test get_json with valid JSON string."""
     json_str = '{"key": "value", "number": 42}'
@@ -1759,7 +1889,7 @@ def test_get_json_python_dict_string():
 
 def test_get_json_invalid_string(monkeypatch, suppress_console):
     """Test get_json with invalid string."""
-    invalid_str = "not valid json or python literal"
+    invalid_str = 'not valid json or python literal'
     result = utils.get_json(invalid_str)
     # Should return the original string when parsing fails
     assert result == invalid_str
@@ -1777,6 +1907,7 @@ def test_get_json_non_string():
 # ------------------------------
 #    does_infrastructure_exist TESTS
 # ------------------------------
+
 
 def test_does_infrastructure_exist_not_exist(monkeypatch, suppress_console):
     """Test does_infrastructure_exist when infrastructure doesn't exist."""
@@ -1820,15 +1951,13 @@ def test_does_infrastructure_exist_without_update_option(monkeypatch, suppress_c
 #    read_and_modify_policy_xml TESTS
 # ------------------------------
 
+
 def test_read_and_modify_policy_xml_with_replacements(monkeypatch):
     """Test read_and_modify_policy_xml with placeholders."""
     xml_content = '<policy><key>{jwt_key}</key><value>{api_value}</value></policy>'
     patch_open_for_text_read(monkeypatch, match=lambda p: 'test-policy.xml' in p, read_data=xml_content)
 
-    replacements = {
-        'jwt_key': 'JwtSigningKey123',
-        'api_value': 'test-api'
-    }
+    replacements = {'jwt_key': 'JwtSigningKey123', 'api_value': 'test-api'}
 
     result = utils.read_and_modify_policy_xml('/path/to/test-policy.xml', replacements)
     expected = '<policy><key>JwtSigningKey123</key><value>test-api</value></policy>'
@@ -1863,6 +1992,7 @@ def test_read_and_modify_policy_xml_none_replacements(monkeypatch):
 #    determine_shared_policy_path TESTS
 # ------------------------------
 
+
 def test_determine_shared_policy_path(monkeypatch):
     """Test determine_shared_policy_path function."""
     monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\project')
@@ -1876,6 +2006,7 @@ def test_determine_shared_policy_path(monkeypatch):
 # ------------------------------
 #    InfrastructureNotebookHelper TESTS
 # ------------------------------
+
 
 def test_infrastructure_notebook_helper_bypass_check(monkeypatch, suppress_builtin_print):
     """Test InfrastructureNotebookHelper with bypass_infrastructure_check=True."""
@@ -1901,13 +2032,14 @@ def test_infrastructure_notebook_helper_allow_update_false(monkeypatch, suppress
     result = helper.create_infrastructure(allow_update=False, bypass_infrastructure_check=True)
     assert result is True
 
+
 def test_infrastructure_notebook_helper_missing_args():
     """Test InfrastructureNotebookHelper requires all arguments."""
     with pytest.raises(TypeError):
-        utils.InfrastructureNotebookHelper()  # pylint: disable=no-value-for-parameter
+        utils.InfrastructureNotebookHelper()
 
     with pytest.raises(TypeError):
-        utils.InfrastructureNotebookHelper('eastus')  # pylint: disable=no-value-for-parameter
+        utils.InfrastructureNotebookHelper('eastus')
 
 
 def test_does_infrastructure_exist_with_prompt_multiple_retries(monkeypatch, suppress_console):
@@ -1939,6 +2071,7 @@ def test_get_endpoints_with_none_values(monkeypatch, suppress_console):
 #    get_endpoint
 # ------------------------------
 
+
 def test_get_endpoint_with_appgw_both_values(monkeypatch, suppress_console):
     """Test get_endpoint when both appgw hostname and IP are present."""
     mock_endpoints = Endpoints(INFRASTRUCTURE.APPGW_APIM)
@@ -1949,9 +2082,7 @@ def test_get_endpoint_with_appgw_both_values(monkeypatch, suppress_console):
 
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
 
-    endpoint_url, request_headers = utils.get_endpoint(
-        INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net'
-    )
+    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
 
     assert endpoint_url == 'https://1.2.3.4'
     assert request_headers == {'Host': 'api.contoso.com'}
@@ -1966,14 +2097,9 @@ def test_get_endpoint_with_appgw_hostname_only(monkeypatch, suppress_console):
     mock_endpoints.appgw_public_ip = None
 
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
-    monkeypatch.setattr(
-        utils, 'test_url_preflight_check',
-        lambda d, r, a: 'https://afd.azurefd.net'
-    )
+    monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://afd.azurefd.net')
 
-    endpoint_url, request_headers = utils.get_endpoint(
-        INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net'
-    )
+    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
 
     assert endpoint_url == 'https://afd.azurefd.net'
     assert request_headers is None
@@ -1988,14 +2114,9 @@ def test_get_endpoint_with_appgw_ip_only(monkeypatch, suppress_console):
     mock_endpoints.appgw_public_ip = '1.2.3.4'
 
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
-    monkeypatch.setattr(
-        utils, 'test_url_preflight_check',
-        lambda d, r, a: 'https://afd.azurefd.net'
-    )
+    monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://afd.azurefd.net')
 
-    endpoint_url, request_headers = utils.get_endpoint(
-        INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net'
-    )
+    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
 
     assert endpoint_url == 'https://afd.azurefd.net'
     assert request_headers is None
@@ -2010,14 +2131,9 @@ def test_get_endpoint_with_no_appgw_uses_preflight(monkeypatch, suppress_console
     mock_endpoints.appgw_public_ip = None
 
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
-    monkeypatch.setattr(
-        utils, 'test_url_preflight_check',
-        lambda d, r, a: 'https://apim.azure-api.net'
-    )
+    monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://apim.azure-api.net')
 
-    endpoint_url, request_headers = utils.get_endpoint(
-        INFRASTRUCTURE.SIMPLE_APIM, 'test-rg', 'https://apim.azure-api.net'
-    )
+    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg', 'https://apim.azure-api.net')
 
     assert endpoint_url == 'https://apim.azure-api.net'
     assert request_headers is None
@@ -2032,14 +2148,9 @@ def test_get_endpoint_with_afd_via_preflight(monkeypatch, suppress_console):
     mock_endpoints.appgw_public_ip = None
 
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
-    monkeypatch.setattr(
-        utils, 'test_url_preflight_check',
-        lambda d, r, a: 'https://myapp.azurefd.net'
-    )
+    monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://myapp.azurefd.net')
 
-    endpoint_url, request_headers = utils.get_endpoint(
-        INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim-internal.azure-api.net'
-    )
+    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim-internal.azure-api.net')
 
     assert endpoint_url == 'https://myapp.azurefd.net'
     assert request_headers is None
@@ -2054,14 +2165,9 @@ def test_get_endpoint_appgw_with_empty_strings(monkeypatch, suppress_console):
     mock_endpoints.appgw_public_ip = ''
 
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
-    monkeypatch.setattr(
-        utils, 'test_url_preflight_check',
-        lambda d, r, a: 'https://apim.azure-api.net'
-    )
+    monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://apim.azure-api.net')
 
-    endpoint_url, request_headers = utils.get_endpoint(
-        INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net'
-    )
+    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
 
     assert endpoint_url == 'https://apim.azure-api.net'
     assert request_headers is None
@@ -2084,14 +2190,9 @@ def test_get_endpoint_various_infrastructures(monkeypatch, suppress_console):
         mock_endpoints.appgw_public_ip = None
 
         monkeypatch.setattr(utils, 'get_endpoints', lambda d, r, m=mock_endpoints: m)
-        monkeypatch.setattr(
-            utils, 'test_url_preflight_check',
-            lambda d, r, a: 'https://apim.azure-api.net'
-        )
+        monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://apim.azure-api.net')
 
-        endpoint_url, request_headers = utils.get_endpoint(
-            infra, 'test-rg', 'https://apim.azure-api.net'
-        )
+        endpoint_url, request_headers = utils.get_endpoint(infra, 'test-rg', 'https://apim.azure-api.net')
 
         assert endpoint_url == 'https://apim.azure-api.net'
         assert request_headers is None
@@ -2174,9 +2275,7 @@ def test_create_bicep_deployment_group_with_debug_mode(monkeypatch):
 
     bicep_params = {'param1': {'value': 'test'}}
 
-    result = utils.create_bicep_deployment_group(
-        'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, bicep_params, is_debug=True
-    )
+    result = utils.create_bicep_deployment_group('test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, bicep_params, is_debug=True)
 
     # Verify debug flag was included in command
     mock_run.assert_called_once()
@@ -2190,11 +2289,7 @@ def test_read_policy_xml_complex_replacements(monkeypatch):
     xml_content = '<policy><key1>{placeholder1}</key1><key2>{placeholder2}</key2><key3>{placeholder3}</key3></policy>'
     patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in p, read_data=xml_content)
 
-    replacements = {
-        'placeholder1': 'value1',
-        'placeholder2': 'value2',
-        'placeholder3': 'value3'
-    }
+    replacements = {'placeholder1': 'value1', 'placeholder2': 'value2', 'placeholder3': 'value3'}
 
     result = utils.read_and_modify_policy_xml('/path/to/policy.xml', replacements)
 
@@ -2209,11 +2304,7 @@ def test_read_policy_xml_complex_replacements(monkeypatch):
 
 def test_infrastructure_tags_with_special_characters():
     """Test build_infrastructure_tags with special characters in tags."""
-    special_tags = {
-        'environment': 'prod-test',
-        'team-name': 'api-management',
-        'cost-center': 'cc-123'
-    }
+    special_tags = {'environment': 'prod-test', 'team-name': 'api-management', 'cost-center': 'cc-123'}
 
     result = utils.build_infrastructure_tags(INFRASTRUCTURE.AFD_APIM_PE, special_tags)
 
@@ -2247,12 +2338,10 @@ def test_bicep_parameters_serialization(monkeypatch):
     bicep_params = {
         'apiManagementName': {'value': 'test-apim'},
         'location': {'value': 'eastus'},
-        'apis': {'value': [{'name': 'api1'}, {'name': 'api2'}]}
+        'apis': {'value': [{'name': 'api1'}, {'name': 'api2'}]},
     }
 
-    utils.create_bicep_deployment_group(
-        'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, bicep_params
-    )
+    utils.create_bicep_deployment_group('test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, bicep_params)
 
     # Verify JSON was properly written
     written_text = ''.join(written_content)
@@ -2357,9 +2446,15 @@ def test_output_class_json_extraction():
 def test_notebookhelper_with_all_parameters():
     """Test NotebookHelper initialization with all possible parameters."""
     nb_helper = utils.NotebookHelper(
-        'test-sample', 'test-rg', 'westus2',
-        INFRASTRUCTURE.APIM_ACA, [INFRASTRUCTURE.APIM_ACA, INFRASTRUCTURE.SIMPLE_APIM],
-        use_jwt=False, index=2, is_debug=True, apim_sku=APIM_SKU.PREMIUM
+        'test-sample',
+        'test-rg',
+        'westus2',
+        INFRASTRUCTURE.APIM_ACA,
+        [INFRASTRUCTURE.APIM_ACA, INFRASTRUCTURE.SIMPLE_APIM],
+        use_jwt=False,
+        index=2,
+        is_debug=True,
+        apim_sku=APIM_SKU.PREMIUM,
     )
 
     assert nb_helper.sample_folder == 'test-sample'
@@ -2369,6 +2464,7 @@ def test_notebookhelper_with_all_parameters():
     assert nb_helper.index == 2
     assert nb_helper.is_debug is True
     assert nb_helper.apim_sku == APIM_SKU.PREMIUM
+
 
 def test_create_bicep_deployment_group_for_sample_with_custom_params_file(monkeypatch):
     """Test determine_shared_policy_path constructs correct path."""
@@ -2389,9 +2485,7 @@ def test_wait_for_apim_blob_permissions_with_custom_timeout(monkeypatch, suppres
     mock_check = MagicMock(return_value=True)
     monkeypatch.setattr(az, 'check_apim_blob_permissions', mock_check)
 
-    result = utils.wait_for_apim_blob_permissions(
-        'test-apim', 'test-storage', 'test-rg', max_wait_minutes=5
-    )
+    result = utils.wait_for_apim_blob_permissions('test-apim', 'test-storage', 'test-rg', max_wait_minutes=5)
 
     assert result is True
     # Verify custom timeout was passed
@@ -2402,9 +2496,7 @@ def test_test_url_preflight_check_with_afd_endpoint(monkeypatch, suppress_consol
     """Test test_url_preflight_check selects AFD when available."""
     monkeypatch.setattr(az, 'get_frontdoor_url', lambda x, y: 'https://afd-endpoint.azurefd.net')
 
-    result = utils.test_url_preflight_check(
-        INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim.azure-api.net'
-    )
+    result = utils.test_url_preflight_check(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim.azure-api.net')
 
     assert result == 'https://afd-endpoint.azurefd.net'
 
@@ -2413,9 +2505,7 @@ def test_test_url_preflight_check_without_afd(monkeypatch, suppress_console):
     """Test test_url_preflight_check uses APIM when no AFD."""
     monkeypatch.setattr(az, 'get_frontdoor_url', lambda x, y: None)
 
-    result = utils.test_url_preflight_check(
-        INFRASTRUCTURE.SIMPLE_APIM, 'test-rg', 'https://apim.azure-api.net'
-    )
+    result = utils.test_url_preflight_check(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg', 'https://apim.azure-api.net')
 
     assert result == 'https://apim.azure-api.net'
 
@@ -2464,28 +2554,19 @@ def test_get_json_with_boolean_string():
 def test_validate_infrastructure_single_supported():
     """Test validate_infrastructure with single supported infrastructure."""
     # Should not raise
-    utils.validate_infrastructure(
-        INFRASTRUCTURE.SIMPLE_APIM,
-        [INFRASTRUCTURE.SIMPLE_APIM]
-    )
+    utils.validate_infrastructure(INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM])
 
 
 def test_validate_infrastructure_multiple_supported_v2():
     """Test validate_infrastructure with multiple supported infrastructures."""
     # Should not raise
-    utils.validate_infrastructure(
-        INFRASTRUCTURE.APIM_ACA,
-        [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA, INFRASTRUCTURE.APPGW_APIM]
-    )
+    utils.validate_infrastructure(INFRASTRUCTURE.APIM_ACA, [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA, INFRASTRUCTURE.APPGW_APIM])
 
 
 def test_validate_infrastructure_unsupported_raises():
     """Test validate_infrastructure raises for unsupported infrastructure."""
     with pytest.raises(ValueError) as exc_info:
-        utils.validate_infrastructure(
-            INFRASTRUCTURE.AFD_APIM_PE,
-            [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA]
-        )
+        utils.validate_infrastructure(INFRASTRUCTURE.AFD_APIM_PE, [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA])
 
     assert 'Unsupported infrastructure' in str(exc_info.value)
     assert 'afd-apim-pe' in str(exc_info.value)
@@ -2508,12 +2589,7 @@ def test_generate_signing_key_uniqueness():
 
 def test_build_infrastructure_tags_preserves_custom():
     """Test build_infrastructure_tags preserves all custom tags."""
-    custom_tags = {
-        'environment': 'production',
-        'cost-center': 'engineering',
-        'owner': 'platform-team',
-        'project': 'api-gateway'
-    }
+    custom_tags = {'environment': 'production', 'cost-center': 'engineering', 'owner': 'platform-team', 'project': 'api-gateway'}
 
     result = utils.build_infrastructure_tags(INFRASTRUCTURE.SIMPLE_APIM, custom_tags)
 
@@ -2565,11 +2641,7 @@ def test_read_policy_xml_with_multiple_named_values(monkeypatch):
     xml_content = '<policy><key1>{var1}</key1><key2>{var2}</key2><key3>{var3}</key3></policy>'
     patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in p, read_data=xml_content)
 
-    named_values = {
-        'var1': 'jwt-signing-key',
-        'var2': 'api-key',
-        'var3': 'role-id'
-    }
+    named_values = {'var1': 'jwt-signing-key', 'var2': 'api-key', 'var3': 'role-id'}
 
     result = utils.read_policy_xml('/path/to/policy.xml', named_values=named_values)
 
@@ -2592,12 +2664,12 @@ def test_read_and_modify_policy_xml_with_empty_replacements(monkeypatch):
 
 def test_read_and_modify_policy_xml_preserves_formatting(monkeypatch):
     """Test read_and_modify_policy_xml preserves XML formatting."""
-    xml_content = '''<policy>
+    xml_content = """<policy>
     <inbound>
         <base />
         <set-variable name="test" value="{placeholder}" />
     </inbound>
-</policy>'''
+</policy>"""
     patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in p, read_data=xml_content)
 
     replacements = {'placeholder': 'actual-value'}
@@ -2721,6 +2793,7 @@ def test_output_get_with_deep_nesting():
 #   coverage
 # ------------------------------
 
+
 def test_create_infrastructure_unsupported_type(monkeypatch, suppress_utils_console):
     class Unsupported:
         value = 'unsupported'
@@ -2764,6 +2837,7 @@ def test_create_infrastructure_stream_error(monkeypatch, tmp_path, suppress_util
 
     with pytest.raises(SystemExit):
         helper.create_infrastructure(bypass_infrastructure_check=False, allow_update=False)
+
 
 def test_create_infrastructure_with_allow_update(monkeypatch, tmp_path, suppress_utils_console):
     """Test create_infrastructure with allow_update=True, which skips infrastructure check."""

@@ -39,13 +39,15 @@ def _quiet_console(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_run_adds_az_debug_flag_and_keeps_stdout_clean_when_success(_quiet_console: None) -> None:
     completed = SimpleNamespace(stdout='{"ok": true}', stderr='DEBUG: noisy stderr', returncode=0)
 
-    with patch.object(az, 'is_debug_enabled', return_value=True), \
-         patch.object(az.subprocess, 'run', return_value=completed) as sp_run, \
-         patch.object(az, 'print_plain') as mock_print_plain:
+    with (
+        patch.object(az, 'is_debug_enabled', return_value=True),
+        patch.object(az.subprocess, 'run', return_value=completed) as sp_run,
+        patch.object(az, 'print_plain') as mock_print_plain,
+    ):
         output = az.run('az group list -o json')
 
     assert output.success is True
-    assert output.text == '{\"ok\": true}'
+    assert output.text == '{"ok": true}'
 
     called_command = sp_run.call_args.args[0]
     assert called_command.startswith('az group list')

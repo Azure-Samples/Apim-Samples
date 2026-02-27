@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'shared',
 #    TEST INITIALIZATION
 # ------------------------------
 
+
 def test_apimtesting_init_default():
     """Test ApimTesting initialization with default parameters."""
     testing = ApimTesting()
@@ -33,11 +34,7 @@ def test_apimtesting_init_default():
 
 def test_apimtesting_init_with_parameters():
     """Test ApimTesting initialization with custom parameters."""
-    testing = ApimTesting(
-        test_suite_name='Custom Tests',
-        sample_name='test-sample',
-        deployment=INFRASTRUCTURE.SIMPLE_APIM
-    )
+    testing = ApimTesting(test_suite_name='Custom Tests', sample_name='test-sample', deployment=INFRASTRUCTURE.SIMPLE_APIM)
 
     assert not testing.tests_passed
     assert not testing.tests_failed
@@ -48,6 +45,7 @@ def test_apimtesting_init_with_parameters():
 # ------------------------------
 #    TEST VERIFY METHOD
 # ------------------------------
+
 
 def test_verify_success():
     """Test the verify method with matching values."""
@@ -175,6 +173,7 @@ def test_verify_with_label_failure():
 #    TEST PRINT_SUMMARY METHOD
 # ------------------------------
 
+
 def test_print_summary_all_passed():
     """Test print_summary when all tests pass."""
     testing = ApimTesting('Test Suite', 'sample-1', INFRASTRUCTURE.SIMPLE_APIM)
@@ -276,6 +275,7 @@ def test_print_summary_with_none_values():
 #    INTEGRATION TESTS
 # ------------------------------
 
+
 def test_full_testing_workflow():
     """Test a complete testing workflow with mixed results."""
     testing = ApimTesting('Integration Test', 'test-sample', INFRASTRUCTURE.APIM_ACA)
@@ -318,12 +318,7 @@ def test_edge_cases():
         assert testing.verify(float('inf'), float('inf')) is True
 
         # Complex data structures
-        complex_dict = {
-            'nested': {
-                'list': [1, 2, {'deep': 'value'}],
-                'tuple': (1, 2, 3)
-            }
-        }
+        complex_dict = {'nested': {'list': [1, 2, {'deep': 'value'}], 'tuple': (1, 2, 3)}}
         assert testing.verify(complex_dict, complex_dict) is True
 
         # Unicode strings

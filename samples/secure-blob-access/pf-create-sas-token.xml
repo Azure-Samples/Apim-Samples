@@ -1,18 +1,27 @@
-<!-- 
-    This code generates a Shared Access Signature (SAS) token for Azure Blob Storage. The policy fragment is not (yet) sanitized for general
-    use and is closely tied to the sample scenario. Input and output variables need to be more clearly defined and checked for general use.
+<!--
+    This code generates a User Delegation SAS token for Azure Blob Storage.
+    It uses APIM's managed identity to obtain a user delegation key, eliminating the need for storage account keys.
+    The policy fragment is not (yet) sanitized for general use and is closely tied to the sample scenario.
 
     Permissions: r
     Lifetime (in minutes): 10
-    StorageAccount
-    ContainerName
-    BlobName
-    StorageAccountKey
+
+    Required context variables (set before including this fragment):
+        storageAccount  : Storage account name
+        containerName   : Container name
+        blobName        : Blob name
+
+    APIM managed identity requirements:
+        Storage Blob Delegator role on the storage account
+        Storage Blob Data Reader role on the storage account
+
+    Output variable:
+        sasToken : The SAS token query string (empty on failure)
  -->
 
 <fragment>
     <set-variable name="permissions" value="r" />
-    <set-variable name="expiry" value="@(DateTime.UtcNow.AddMinutes(10).ToString("yyyy-MM-ddTHH:mm:ssZ"))" />
+    <set-variable name="sasExpiry" value="@(DateTime.UtcNow.AddMinutes(10).ToString("yyyy-MM-ddTHH:mm:ssZ"))" />
     <set-variable name="signedProtocol" value="https" />
     <set-variable name="signedVersion" value="2020-12-06" />
     <set-variable name="signedResource" value="b" />
@@ -21,74 +30,106 @@
     <set-variable name="canonicalizedResource" value="@{
         return $"/blob/{(string)context.Variables["storageAccount"]}/{(string)context.Variables["containerName"]}/{(string)context.Variables["blobName"]}";
     }" />
-    
-    <set-variable name="stringToSign" value="@{
-        var start = "";
-        var signedIdentifier = "";
-        var signedIP = "";
-        var signedProtocol = "https";
-        var signedVersion = "2020-12-06";
-        var signedResource = "b";
-        var signedSnapshotTime = "";
-        var signedEncryptionScope = "";
-        var rscc = "";
-        var rscd = "";
-        var rsce = "";
-        var rscl = "";
-        var rsct = "";
 
-        return $"{(string)context.Variables["permissions"]}\n" +
-            $"{start}\n" +
-            $"{(string)context.Variables["expiry"]}\n" +
-            $"{(string)context.Variables["canonicalizedResource"]}\n" +
-            $"{signedIdentifier}\n" +
-            $"{signedIP}\n" +
-            $"{(string)context.Variables["signedProtocol"]}\n" +
-            $"{(string)context.Variables["signedVersion"]}\n" +
-            $"{(string)context.Variables["signedResource"]}\n" +
-            $"{signedSnapshotTime}\n" +
-            $"{signedEncryptionScope}\n" +
-            $"{rscc}\n" +
-            $"{rscd}\n" +
-            $"{rsce}\n" +
-            $"{rscl}\n" +
-            $"{rsct}";
-    }" />
+    <!-- Get User Delegation Key from Azure Storage using managed identity -->
+    <send-request mode="new" response-variable-name="delegationKeyResponse" timeout="10" ignore-error="false">
+        <set-url>@($"https://{(string)context.Variables["storageAccount"]}.blob.core.windows.net/?restype=service&comp=userdelegationkey")</set-url>
+        <set-method>POST</set-method>
+        <set-header name="x-ms-version" exists-action="override">
+            <value>2020-12-06</value>
+        </set-header>
+        <set-body>@{
+            var start = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+            var expiry = DateTime.UtcNow.AddMinutes(10).ToString("yyyy-MM-ddTHH:mm:ssZ");
+            return $"<?xml version=\"1.0\" encoding=\"utf-8\"?><KeyInfo><Start>{start}</Start><Expiry>{expiry}</Expiry></KeyInfo>";
+        }</set-body>
+        <authentication-managed-identity resource="https://storage.azure.com/" />
+    </send-request>
 
-    <!-- Generate signature using HMAC-SHA256 following Azure Storage Service SAS specification -->
-    <set-variable name="signature" value="@{
-        try {
-            var stringToSign = (string)context.Variables["stringToSign"];
-            var key = Convert.FromBase64String((string)context.Variables["storageAccountKey"]);
+    <!-- Parse the User Delegation Key response and generate the SAS token -->
+    <set-variable name="sasToken" value="@{
+        try
+        {
+            var response = ((IResponse)context.Variables["delegationKeyResponse"]);
+            if (response.StatusCode != 200)
+            {
+                context.Trace("User delegation key request failed with status: " + response.StatusCode);
+                return "";
+            }
 
+            var body = response.Body.As<string>();
+            var xml = System.Xml.Linq.XDocument.Parse(body);
+            var root = xml.Root;
+
+            var signedOid = root.Element("SignedOid")?.Value ?? "";
+            var signedTid = root.Element("SignedTid")?.Value ?? "";
+            var signedKeyStart = root.Element("SignedStart")?.Value ?? "";
+            var signedKeyExpiry = root.Element("SignedExpiry")?.Value ?? "";
+            var signedKeyService = root.Element("SignedService")?.Value ?? "";
+            var signedKeyVersion = root.Element("SignedVersion")?.Value ?? "";
+            var keyValue = root.Element("Value")?.Value ?? "";
+
+            var permissions = (string)context.Variables["permissions"];
+            var expiry = (string)context.Variables["sasExpiry"];
+            var canonicalizedResource = (string)context.Variables["canonicalizedResource"];
+            var signedProtocol = (string)context.Variables["signedProtocol"];
+            var signedVersion = (string)context.Variables["signedVersion"];
+            var signedResource = (string)context.Variables["signedResource"];
+
+            // User Delegation SAS string-to-sign (v2020-12-06)
+            var stringToSign =
+                permissions + "\n" +
+                "" + "\n" +                 // signedStart (empty = now)
+                expiry + "\n" +
+                canonicalizedResource + "\n" +
+                signedOid + "\n" +
+                signedTid + "\n" +
+                signedKeyStart + "\n" +
+                signedKeyExpiry + "\n" +
+                signedKeyService + "\n" +
+                signedKeyVersion + "\n" +
+                "" + "\n" +                 // signedAuthorizedUserObjectId
+                "" + "\n" +                 // signedUnauthorizedUserObjectId
+                "" + "\n" +                 // signedCorrelationId
+                "" + "\n" +                 // signedIP
+                signedProtocol + "\n" +
+                signedVersion + "\n" +
+                signedResource + "\n" +
+                "" + "\n" +                 // signedSnapshotTime
+                "" + "\n" +                 // signedEncryptionScope
+                "" + "\n" +                 // rscc
+                "" + "\n" +                 // rscd
+                "" + "\n" +                 // rsce
+                "" + "\n" +                 // rscl
+                "";                         // rsct
+
+            // Sign with the user delegation key using HMAC-SHA256
+            var key = Convert.FromBase64String(keyValue);
+            string signature;
             using (var hmac = new System.Security.Cryptography.HMACSHA256(key))
             {
                 var hash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(stringToSign));
-                return Convert.ToBase64String(hash);
+                signature = Convert.ToBase64String(hash);
             }
+
+            // Build User Delegation SAS token
+            return $"sp={permissions}" +
+                $"&se={expiry}" +
+                $"&spr={signedProtocol}" +
+                $"&sv={signedVersion}" +
+                $"&sr={signedResource}" +
+                $"&skoid={signedOid}" +
+                $"&sktid={signedTid}" +
+                $"&skt={signedKeyStart}" +
+                $"&ske={signedKeyExpiry}" +
+                $"&sks={signedKeyService}" +
+                $"&skv={signedKeyVersion}" +
+                $"&sig={System.Net.WebUtility.UrlEncode(signature)}";
         }
         catch (Exception ex)
         {
-            context.Trace("SAS signature generation failed: " + ex.Message);
-            return "SIGNATURE_GENERATION_FAILED";
+            context.Trace("User delegation SAS generation failed: " + ex.Message);
+            return "";
         }
     }" />
-
-    <!-- Validate signature generation -->
-    <choose>
-        <when condition="@((string)context.Variables["signature"] != "SIGNATURE_GENERATION_FAILED")">                
-            <!-- Construct the SAS token -->
-            <set-variable name="sasToken" value="@{
-                return $"sp={(string)context.Variables["permissions"]}" +
-                    $"&se={(string)context.Variables["expiry"]}" +
-                    $"&spr={(string)context.Variables["signedProtocol"]}" +
-                    $"&sv={(string)context.Variables["signedVersion"]}" +
-                    $"&sr={(string)context.Variables["signedResource"]}" +
-                    $"&sig={System.Net.WebUtility.UrlEncode((string)context.Variables["signature"])}";
-            }" />
-        </when>
-        <otherwise>
-            <set-variable name="sasToken" value="" />
-        </otherwise>
-    </choose>
 </fragment>

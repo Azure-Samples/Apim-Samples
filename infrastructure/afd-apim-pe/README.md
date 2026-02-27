@@ -1,6 +1,6 @@
 # Front Door & API Management & Container Apps Infrastructure
 
-Secure architecture that takes all traffic off the public Internet once Azure Front Door is traversed. Traffic behind the Front Door is subsequently inaccessible to the public. This is due to Front Door's use of a private link to Azure API Management.
+Secure architecture that takes all traffic off the public Internet once Azure Front Door is traversed. Traffic behind Front Door is subsequently inaccessible to the public. This is due to Front Door's use of Private Link to Azure API Management.
 
 <img src="../../assets/diagrams/Azure Front Door, API Management & Container Apps Architecture.svg" alt="Diagram showing Azure Front Door, API Management, and Container Apps architecture. Azure Front Door routes traffic to API Management, which then routes to Container Apps. Telemetry is sent to Azure Monitor." title="Azure Front Door, API Management & Container Apps Architecture" width="1000" />
 
@@ -8,8 +8,8 @@ Secure architecture that takes all traffic off the public Internet once Azure Fr
 
 ## 🎯 Objectives
 
-1. Provide a secure pathway to API Management via a private link from Front Door
-1. Maintain private networking by integrating API Management with a VNet to communicate with Azure Container Apps. (This can also be achieved via a private link there)
+1. Provide a secure pathway to API Management via Private Link from Front Door
+1. Maintain private networking by integrating API Management with a VNet to communicate with Azure Container Apps. (This can also be achieved via Private Link there)
 1. Empower users to use Azure Container Apps, if desired
 1. Enable observability by sending telemetry to Azure Monitor
 

@@ -17,6 +17,7 @@ from apimtypes import APIM_SKU, APIMNetworkMode, API, APIOperation, PolicyFragme
 #    PATCH HELPERS
 # ------------------------------
 
+
 def suppress_module_functions(monkeypatch, module, names: list[str]) -> None:
     """Suppress noisy functions on a module by replacing them with a no-op."""
 
@@ -48,7 +49,7 @@ def patch_module_thread_safe_printing(
     print_log: Callable[..., object] | None = None,
     lock: object | None = None,
     lock_attr: str = '_print_lock',
-    log_attr: str = '_print_log'
+    log_attr: str = '_print_log',
 ) -> object:
     """Patch a module's internal thread-safe printing primitives.
 
@@ -71,6 +72,7 @@ def patch_module_thread_safe_printing(
         lock = MagicMock()
 
     if print_log is None:
+
         def _noop(*args, **kwargs):
             return None
 
@@ -81,13 +83,7 @@ def patch_module_thread_safe_printing(
     return lock
 
 
-def capture_module_print_log(
-    monkeypatch,
-    module,
-    *,
-    lock_attr: str = '_print_lock',
-    log_attr: str = '_print_log'
-) -> list[dict[str, object]]:
+def capture_module_print_log(monkeypatch, module, *, lock_attr: str = '_print_lock', log_attr: str = '_print_log') -> list[dict[str, object]]:
     """Capture calls to a module's internal print-log function.
 
     Returns a list of dict entries with keys: msg, icon, color, kwargs.
@@ -98,22 +94,11 @@ def capture_module_print_log(
     def _print_log(msg, icon, color, **kwargs):
         calls.append({'msg': msg, 'icon': icon, 'color': color, 'kwargs': kwargs})
 
-    patch_module_thread_safe_printing(
-        monkeypatch,
-        module,
-        print_log=_print_log,
-        lock_attr=lock_attr,
-        log_attr=log_attr
-    )
+    patch_module_thread_safe_printing(monkeypatch, module, print_log=_print_log, lock_attr=lock_attr, log_attr=log_attr)
     return calls
 
-def patch_open_for_text_read(
-    monkeypatch,
-    *,
-    match: str | Callable[[str], bool],
-    read_data: str | None = None,
-    raises: Exception | None = None
-):
+
+def patch_open_for_text_read(monkeypatch, *, match: str | Callable[[str], bool], read_data: str | None = None, raises: Exception | None = None):
     """Patch builtins.open for a specific text-mode path match.
 
     Only intercepts when 'b' is not present in the requested mode.
@@ -159,11 +144,7 @@ def mock_popen(monkeypatch, *, stdout_lines: list[str], returncode: int = 0) -> 
 
 
 def patch_os_paths(
-    monkeypatch,
-    *,
-    cwd: str = '/test/dir',
-    exists: bool | Callable[[str], bool] = True,
-    basename: str | Callable[[str], str] = 'test-dir'
+    monkeypatch, *, cwd: str = '/test/dir', exists: bool | Callable[[str], bool] = True, basename: str | Callable[[str], str] = 'test-dir'
 ) -> None:
     """Patch common os.getcwd / os.path.exists / os.path.basename for tests."""
     monkeypatch.setattr('os.getcwd', MagicMock(return_value=cwd))
@@ -186,7 +167,7 @@ def patch_create_bicep_deployment_group_dependencies(
     run_success: bool = True,
     cwd: str = '/test/dir',
     exists: bool | Callable[[str], bool] = True,
-    basename: str | Callable[[str], str] = 'test-dir'
+    basename: str | Callable[[str], str] = 'test-dir',
 ):
     """Patch common dependencies for utils.create_bicep_deployment_group tests.
 
@@ -212,6 +193,7 @@ def patch_create_bicep_deployment_group_dependencies(
 #    MOCK FACTORIES
 # ------------------------------
 
+
 def create_mock_output(success: bool = True, text: str = '', json_data: dict | None = None) -> Output:
     """
     Factory for creating consistent mock Azure CLI Output objects.
@@ -236,7 +218,7 @@ def create_mock_az_module(
     account_info: tuple = ('test_user', 'test_user_id', 'test_tenant', 'test_subscription'),
     resource_suffix: str = 'abc123def456',
     run_success: bool = True,
-    run_output: dict | str | None = None
+    run_output: dict | str | None = None,
 ):
     """
     Factory for creating a mock azure_resources (az) module.
@@ -282,7 +264,7 @@ def create_mock_utils_module(
     tags: dict | None = None,
     policy_xml: str = '<policies><inbound><base /></inbound></policies>',
     policy_path: str = '/mock/path/policy.xml',
-    verify_result: bool = True
+    verify_result: bool = True,
 ):
     """
     Factory for creating a mock utils module.
@@ -318,14 +300,7 @@ def create_sample_policy_fragments(count: int = 2) -> list[PolicyFragment]:
     Returns:
         List of PolicyFragment objects
     """
-    return [
-        PolicyFragment(
-            f'Test-Fragment-{i+1}',
-            f'<policy>test{i+1}</policy>',
-            f'Test fragment {i+1}'
-        )
-        for i in range(count)
-    ]
+    return [PolicyFragment(f'Test-Fragment-{i + 1}', f'<policy>test{i + 1}</policy>', f'Test fragment {i + 1}') for i in range(count)]
 
 
 def create_sample_apis(count: int = 2) -> list[API]:
@@ -339,13 +314,7 @@ def create_sample_apis(count: int = 2) -> list[API]:
         List of API objects
     """
     return [
-        API(
-            f'test-api-{i+1}',
-            f'Test API {i+1}',
-            f'/test{i+1}',
-            f'Test API {i+1} description',
-            f'<policy>api{i+1}</policy>'
-        )
+        API(f'test-api-{i + 1}', f'Test API {i + 1}', f'/test{i + 1}', f'Test API {i + 1} description', f'<policy>api{i + 1}</policy>')
         for i in range(count)
     ]
 
@@ -362,13 +331,7 @@ def create_sample_api_operations(count: int = 2) -> list[APIOperation]:
     """
     verbs = [HTTP_VERB.GET, HTTP_VERB.POST, HTTP_VERB.PUT, HTTP_VERB.DELETE]
     return [
-        APIOperation(
-            f'operation-{i+1}',
-            f'Operation {i+1}',
-            verbs[i % len(verbs)],
-            f'/resource{i+1}',
-            f'<policy>operation{i+1}</policy>'
-        )
+        APIOperation(f'operation-{i + 1}', f'Operation {i + 1}', verbs[i % len(verbs)], f'/resource{i + 1}', f'<policy>operation{i + 1}</policy>')
         for i in range(count)
     ]
 
@@ -376,6 +339,7 @@ def create_sample_api_operations(count: int = 2) -> list[APIOperation]:
 # ------------------------------
 #    ASSERTION HELPERS
 # ------------------------------
+
 
 def assert_bicep_params_structure(params: dict) -> None:
     """
@@ -387,21 +351,16 @@ def assert_bicep_params_structure(params: dict) -> None:
     Raises:
         AssertionError: If structure is invalid
     """
-    assert isinstance(params, dict), "Bicep params must be a dict"
+    assert isinstance(params, dict), 'Bicep params must be a dict'
 
     # Common required parameters
     required_keys = ['location', 'resourceSuffix']
     for key in required_keys:
-        assert key in params, f"Missing required bicep parameter: {key}"
+        assert key in params, f'Missing required bicep parameter: {key}'
         assert 'value' in params[key], f"Parameter {key} missing 'value' key"
 
 
-def assert_infrastructure_components(
-    infra,
-    expected_min_apis: int = 1,
-    expected_min_pfs: int = 6,
-    check_rg: bool = True
-) -> None:
+def assert_infrastructure_components(infra, expected_min_apis: int = 1, expected_min_pfs: int = 6, check_rg: bool = True) -> None:
     """
     Verify infrastructure instance has expected components initialized.
 
@@ -418,15 +377,13 @@ def assert_infrastructure_components(
     apis = infra._define_apis()
     pfs = infra._define_policy_fragments()
 
-    assert len(apis) >= expected_min_apis, \
-        f"Expected at least {expected_min_apis} APIs, got {len(apis)}"
-    assert len(pfs) >= expected_min_pfs, \
-        f"Expected at least {expected_min_pfs} policy fragments, got {len(pfs)}"
+    assert len(apis) >= expected_min_apis, f'Expected at least {expected_min_apis} APIs, got {len(apis)}'
+    assert len(pfs) >= expected_min_pfs, f'Expected at least {expected_min_pfs} policy fragments, got {len(pfs)}'
 
     if check_rg:
-        assert hasattr(infra, 'rg_name'), "Infrastructure missing rg_name"
-        assert hasattr(infra, 'rg_location'), "Infrastructure missing rg_location"
-        assert infra.rg_name, "rg_name should not be empty"
+        assert hasattr(infra, 'rg_name'), 'Infrastructure missing rg_name'
+        assert hasattr(infra, 'rg_location'), 'Infrastructure missing rg_location'
+        assert infra.rg_name, 'rg_name should not be empty'
 
 
 def assert_api_structure(api: API, check_operations: bool = False) -> None:
@@ -440,15 +397,15 @@ def assert_api_structure(api: API, check_operations: bool = False) -> None:
     Raises:
         AssertionError: If API structure is invalid
     """
-    assert api.name, "API name should not be empty"
-    assert api.displayName, "API displayName should not be empty"
-    assert api.path, "API path should not be empty"
-    assert hasattr(api, 'operations'), "API missing operations attribute"
-    assert hasattr(api, 'tags'), "API missing tags attribute"
-    assert hasattr(api, 'productNames'), "API missing productNames attribute"
+    assert api.name, 'API name should not be empty'
+    assert api.displayName, 'API displayName should not be empty'
+    assert api.path, 'API path should not be empty'
+    assert hasattr(api, 'operations'), 'API missing operations attribute'
+    assert hasattr(api, 'tags'), 'API missing tags attribute'
+    assert hasattr(api, 'productNames'), 'API missing productNames attribute'
 
     if check_operations:
-        assert isinstance(api.operations, list), "API operations must be a list"
+        assert isinstance(api.operations, list), 'API operations must be a list'
 
 
 def assert_policy_fragment_structure(pf: PolicyFragment) -> None:
@@ -461,14 +418,15 @@ def assert_policy_fragment_structure(pf: PolicyFragment) -> None:
     Raises:
         AssertionError: If PolicyFragment structure is invalid
     """
-    assert pf.name, "PolicyFragment name should not be empty"
-    assert pf.policyXml, "PolicyFragment policyXml should not be empty"
-    assert hasattr(pf, 'description'), "PolicyFragment missing description"
+    assert pf.name, 'PolicyFragment name should not be empty'
+    assert pf.policyXml, 'PolicyFragment policyXml should not be empty'
+    assert hasattr(pf, 'description'), 'PolicyFragment missing description'
 
 
 # ------------------------------
 #    TEST DATA GENERATORS
 # ------------------------------
+
 
 def get_sample_bicep_params() -> dict:
     """
@@ -482,7 +440,7 @@ def get_sample_bicep_params() -> dict:
         'resourceSuffix': {'value': 'abc123'},
         'apimSku': {'value': 'BasicV2'},
         'apis': {'value': []},
-        'policyFragments': {'value': []}
+        'policyFragments': {'value': []},
     }
 
 
@@ -493,24 +451,20 @@ def get_sample_infrastructure_params() -> dict:
     Returns:
         Dictionary with common infrastructure parameters
     """
-    return {
-        'rg_location': 'eastus2',
-        'index': 1,
-        'apim_sku': APIM_SKU.BASICV2,
-        'networkMode': APIMNetworkMode.PUBLIC
-    }
+    return {'rg_location': 'eastus2', 'index': 1, 'apim_sku': APIM_SKU.BASICV2, 'networkMode': APIMNetworkMode.PUBLIC}
 
 
 # ------------------------------
 #    HTTP MOCK FACTORIES
 # ------------------------------
 
+
 def create_mock_http_response(
     status_code: int = 200,
     json_data: dict | None = None,
     text: str | None = None,
     headers: dict | None = None,
-    raise_for_status_error: Exception | None = None
+    raise_for_status_error: Exception | None = None,
 ):
     """
     Factory for creating mock HTTP response objects.
@@ -541,7 +495,7 @@ def create_mock_http_response(
     if json_data is not None:
         mock_response.json.return_value = json_data
     else:
-        mock_response.json.side_effect = ValueError("No JSON")
+        mock_response.json.side_effect = ValueError('No JSON')
 
     if raise_for_status_error:
         mock_response.raise_for_status.side_effect = raise_for_status_error
@@ -575,6 +529,7 @@ def create_mock_session_with_response(response):
 #    CONTEXT MANAGERS FOR PATCHING
 # ------------------------------
 
+
 class MockApimRequestsPatches:
     """
     Context manager for common apimrequests module patches.
@@ -597,7 +552,7 @@ class MockApimRequestsPatches:
             ('apimrequests.print_info', 'print_info'),
             ('apimrequests.print_error', 'print_error'),
             ('apimrequests.print_val', 'print_val'),
-            ('apimrequests.print_ok', 'print_ok')
+            ('apimrequests.print_ok', 'print_ok'),
         ]
 
         for target, name in patch_targets:
@@ -672,6 +627,7 @@ class MockInfrastructuresPatches:
 # ------------------------------
 #    CONSOLE OUTPUT CAPTURE
 # ------------------------------
+
 
 def capture_console_output(func: Callable, *args, **kwargs) -> str:
     """

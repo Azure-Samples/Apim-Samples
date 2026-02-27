@@ -4,35 +4,31 @@ Tests for azure_resources module.
 
 import json
 import time
-from unittest.mock import Mock, patch, mock_open, call
-import pytest
+from unittest.mock import Mock, call, mock_open, patch
 
 # APIM Samples imports
 import azure_resources as az
+import pytest
 from apimtypes import INFRASTRUCTURE, Endpoints, Output
 from test_helpers import suppress_module_functions
-
 
 # ------------------------------
 #    TEST DATA
 # ------------------------------
 
+
 # Static account info data for reuse across tests
 def _create_account_output():
     """Create a standard account output for testing."""
     output = Output(True, '{}')
-    output.json_data = {
-        'user': {'name': 'test.user@example.com'},
-        'id': 'sub-123',
-        'tenantId': 'tenant-123',
-        'name': 'Test Subscription'
-    }
+    output.json_data = {'user': {'name': 'test.user@example.com'}, 'id': 'sub-123', 'tenantId': 'tenant-123', 'name': 'Test Subscription'}
     return output
 
 
 # ------------------------------
 #    AZURE ROLE TESTS
 # ------------------------------
+
 
 def test_get_azure_role_guid_success():
     """Test successful retrieval of Azure role GUID."""
@@ -57,27 +53,29 @@ def test_get_azure_role_guid_failure():
 
                     assert result is None
 
+
 # ------------------------------
 #    RESOURCE GROUP TESTS
 # ------------------------------
+
 
 def test_does_resource_group_exist_true():
     """Test checking if resource group exists - returns True."""
 
     with patch('azure_resources.run') as mock_run:
-        mock_run.return_value = Output(True, '{"name": "test-rg"}')
+        mock_run.return_value = Output(True, 'true')
 
         result = az.does_resource_group_exist('test-rg')
 
         assert result is True
-        mock_run.assert_called_once_with('az group show --name test-rg -o json')
+        mock_run.assert_called_once_with('az group exists --name test-rg')
 
 
 def test_does_resource_group_exist_false():
     """Test checking if resource group exists - returns False."""
 
     with patch('azure_resources.run') as mock_run:
-        mock_run.return_value = Output(False, 'ResourceGroupNotFound')
+        mock_run.return_value = Output(True, 'false')
 
         result = az.does_resource_group_exist('nonexistent-rg')
 
@@ -121,6 +119,7 @@ def test_get_resource_group_location_empty():
 # ------------------------------
 #    ACCOUNT INFO TESTS
 # ------------------------------
+
 
 def test_get_account_info_success():
     """Test successful retrieval of account information."""
@@ -243,7 +242,7 @@ def test_get_apim_subscription_key_uses_provided_sid(monkeypatch):
 
     monkeypatch.setattr(az, 'run', fake_run)
 
-    key = az.get_apim_subscription_key('apim-name', 'rg-name', sid = 'sid-explicit')
+    key = az.get_apim_subscription_key('apim-name', 'rg-name', sid='sid-explicit')
     assert key == 'pk-xyz'
     assert not any('az rest --method get' in c and '/subscriptions?' in c for c in calls)
 
@@ -425,7 +424,7 @@ def test_get_apim_subscription_key_returns_secondary_key(monkeypatch):
 
     monkeypatch.setattr(az, 'run', fake_run)
 
-    key = az.get_apim_subscription_key('apim-name', 'rg-name', key_name = 'secondaryKey')
+    key = az.get_apim_subscription_key('apim-name', 'rg-name', key_name='secondaryKey')
 
     assert key == 'sk-xyz'
 
@@ -529,11 +528,7 @@ def test_get_apim_subscription_key_uses_provided_subscription_id(monkeypatch):
 
     monkeypatch.setattr(az, 'run', fake_run)
 
-    key = az.get_apim_subscription_key(
-        'apim-name',
-        'rg-name',
-        subscription_id = 'custom-sub-id'
-    )
+    key = az.get_apim_subscription_key('apim-name', 'rg-name', subscription_id='custom-sub-id')
 
     assert key == 'pk-custom'
     assert not any('az account show' in c for c in calls)
@@ -542,6 +537,7 @@ def test_get_apim_subscription_key_uses_provided_subscription_id(monkeypatch):
 # ------------------------------
 #    JWT SIGNING KEY CLEANUP TESTS
 # ------------------------------
+
 
 def test_cleanup_old_jwt_signing_keys_success(monkeypatch):
     """Test successful cleanup of old JWT signing keys."""
@@ -587,6 +583,7 @@ def test_cleanup_old_jwt_signing_keys_invalid_pattern(monkeypatch):
 #    APIM BLOB PERMISSIONS TESTS
 # ------------------------------
 
+
 def test_check_apim_blob_permissions_success(monkeypatch):
     """Test blob permission check succeeds when role assignment and access test succeed."""
 
@@ -615,7 +612,7 @@ def test_check_apim_blob_permissions_success(monkeypatch):
     monkeypatch.setattr(az, 'run', fake_run)
     monkeypatch.setattr(az.time, 'sleep', lambda *a, **k: None)
 
-    result = az.check_apim_blob_permissions('apim', 'storage', 'rg', max_wait_minutes = 1)
+    result = az.check_apim_blob_permissions('apim', 'storage', 'rg', max_wait_minutes=1)
 
     assert result is True
     assert any('role assignment list' in c for c in run_calls)
@@ -647,6 +644,7 @@ def test_check_apim_blob_permissions_missing_resource_id(monkeypatch):
 # ------------------------------
 #    DEPLOYMENT NAME TESTS
 # ------------------------------
+
 
 @patch('azure_resources.time.time')
 @patch('azure_resources.os.path.basename')
@@ -685,16 +683,17 @@ def test_get_deployment_name_current_directory(mock_getcwd, mock_basename, mock_
 #    FRONT DOOR TESTS
 # ------------------------------
 
+
 def test_get_frontdoor_url_afd_success():
     """Test successful Front Door URL retrieval."""
 
     with patch('azure_resources.run') as mock_run:
         # Create mock outputs
         profile_output = Output(True, '')
-        profile_output.json_data = [{"name": "test-afd"}]
+        profile_output.json_data = [{'name': 'test-afd'}]
 
         endpoint_output = Output(True, '')
-        endpoint_output.json_data = [{"hostName": "test.azurefd.net"}]
+        endpoint_output.json_data = [{'hostName': 'test.azurefd.net'}]
 
         mock_run.side_effect = [profile_output, endpoint_output]
 
@@ -702,10 +701,7 @@ def test_get_frontdoor_url_afd_success():
 
         assert result == 'https://test.azurefd.net'
 
-        expected_calls = [
-            call('az afd profile list -g test-rg -o json'),
-            call('az afd endpoint list -g test-rg --profile-name test-afd -o json')
-        ]
+        expected_calls = [call('az afd profile list -g test-rg -o json'), call('az afd endpoint list -g test-rg --profile-name test-afd -o json')]
         mock_run.assert_has_calls(expected_calls)
 
 
@@ -748,6 +744,7 @@ def test_get_frontdoor_url_no_endpoints():
 #    APIM URL TESTS
 # ------------------------------
 
+
 def test_get_apim_url_success():
     """Test successful APIM URL retrieval."""
 
@@ -788,18 +785,21 @@ def test_get_apim_url_no_gateway():
 #    APPLICATION GATEWAY TESTS
 # ------------------------------
 
+
 def test_get_appgw_endpoint_success():
     """Test successful Application Gateway endpoint retrieval."""
 
     with patch('azure_resources.run') as mock_run:
         appgw_output = Output(True, '')
-        appgw_output.json_data = [{
-            'name': 'test-appgw',
-            'httpListeners': [{'hostName': 'api.contoso.com'}],
-            'frontendIPConfigurations': [{
-                'publicIPAddress': {'id': '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/publicIPAddresses/test-pip'}
-            }]
-        }]
+        appgw_output.json_data = [
+            {
+                'name': 'test-appgw',
+                'httpListeners': [{'hostName': 'api.contoso.com'}],
+                'frontendIPConfigurations': [
+                    {'publicIPAddress': {'id': '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/publicIPAddresses/test-pip'}}
+                ],
+            }
+        ]
         ip_output = Output(True, '')
         ip_output.json_data = {'ipAddress': '1.2.3.4'}
         mock_run.side_effect = [appgw_output, ip_output]
@@ -811,7 +811,7 @@ def test_get_appgw_endpoint_success():
 
         expected_calls = [
             call('az network application-gateway list -g test-rg -o json'),
-            call('az network public-ip show -g test-rg -n test-pip -o json')
+            call('az network public-ip show -g test-rg -n test-pip -o json'),
         ]
         mock_run.assert_has_calls(expected_calls)
 
@@ -833,11 +833,7 @@ def test_get_appgw_endpoint_no_listeners():
 
     with patch('azure_resources.run') as mock_run:
         mock_run.return_value = Output(True, '')
-        mock_run.return_value.json_data = [{
-            'name': 'test-appgw',
-            'httpListeners': [],
-            'frontendIPConfigurations': []
-        }]
+        mock_run.return_value.json_data = [{'name': 'test-appgw', 'httpListeners': [], 'frontendIPConfigurations': []}]
 
         hostname, ip = az.get_appgw_endpoint('test-rg')
 
@@ -848,6 +844,7 @@ def test_get_appgw_endpoint_no_listeners():
 # ------------------------------
 #    NAMING FUNCTION TESTS
 # ------------------------------
+
 
 def test_get_infra_rg_name_without_index():
     """Test infrastructure resource group name generation without index."""
@@ -884,6 +881,7 @@ def test_get_rg_name_with_index():
 # ------------------------------
 #    UNIQUE SUFFIX TESTS
 # ------------------------------
+
 
 @patch('azure_resources.tempfile.NamedTemporaryFile')
 @patch('azure_resources.time.time')
@@ -930,6 +928,7 @@ def test_get_unique_suffix_for_resource_group_failure(mock_unlink, mock_time, mo
 #    ENDPOINTS TESTS
 # ------------------------------
 
+
 @patch('azure_resources.get_frontdoor_url')
 @patch('azure_resources.get_apim_url')
 @patch('azure_resources.get_appgw_endpoint')
@@ -952,9 +951,11 @@ def test_get_endpoints_success(mock_appgw, mock_apim, mock_afd):
     mock_apim.assert_called_once_with('test-rg')
     mock_appgw.assert_called_once_with('test-rg')
 
+
 # ------------------------------
 #   ERROR HANDLING TESTS
 # ------------------------------
+
 
 def test_run_with_debug_flag_injection(monkeypatch):
     """Test that --debug flag is injected when logging is in DEBUG level."""
@@ -1039,7 +1040,7 @@ def test_get_apim_url_multiple_services(monkeypatch):
         mock_run.return_value = Output(True, '')
         mock_run.return_value.json_data = [
             {'name': 'apim-1', 'gatewayUrl': 'https://apim-1.azure-api.net'},
-            {'name': 'apim-2', 'gatewayUrl': 'https://apim-2.azure-api.net'}
+            {'name': 'apim-2', 'gatewayUrl': 'https://apim-2.azure-api.net'},
         ]
 
         result = az.get_apim_url('test-rg')
@@ -1050,13 +1051,15 @@ def test_get_appgw_endpoint_no_public_ip(monkeypatch):
     """Test get_appgw_endpoint when public IP retrieval fails."""
     with patch('azure_resources.run') as mock_run:
         appgw_output = Output(True, '')
-        appgw_output.json_data = [{
-            'name': 'test-appgw',
-            'httpListeners': [{'hostName': 'api.contoso.com'}],
-            'frontendIPConfigurations': [{
-                'publicIPAddress': {'id': '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/publicIPAddresses/pip'}
-            }]
-        }]
+        appgw_output.json_data = [
+            {
+                'name': 'test-appgw',
+                'httpListeners': [{'hostName': 'api.contoso.com'}],
+                'frontendIPConfigurations': [
+                    {'publicIPAddress': {'id': '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/publicIPAddresses/pip'}}
+                ],
+            }
+        ]
 
         ip_output = Output(False, 'IP not found')
         mock_run.side_effect = [appgw_output, ip_output]
@@ -1097,6 +1100,7 @@ def test_get_deployment_name_different_samples(monkeypatch):
 
 def test_find_infrastructure_instances_multiple_indexes(monkeypatch):
     """Test find_infrastructure_instances with multiple indexes."""
+
     def fake_run(cmd, *args, **kwargs):
         if 'apim-aca' in cmd:
             return Output(True, 'apim-infra-apim-aca-1\napim-infra-apim-aca-2\napim-infra-apim-aca-3\n')
@@ -1113,6 +1117,7 @@ def test_find_infrastructure_instances_multiple_indexes(monkeypatch):
 
 def test_find_infrastructure_instances_invalid_format(monkeypatch):
     """Test find_infrastructure_instances handles invalid response format."""
+
     def fake_run(cmd, *args, **kwargs):
         return Output(True, 'invalid-format-no-index\n')
 
@@ -1125,6 +1130,7 @@ def test_find_infrastructure_instances_invalid_format(monkeypatch):
 # ------------------------------
 #    COMMAND STRING GENERATION TESTS
 # ------------------------------
+
 
 def test_run_command_building_with_output_format(monkeypatch):
     """Test that run constructs proper Azure CLI commands."""
@@ -1165,12 +1171,12 @@ def test_get_unique_suffix_with_empty_rg_list(monkeypatch):
 #    INTEGRATION AND EDGE CASES
 # ------------------------------
 
+
 def test_get_endpoints_with_partial_data(monkeypatch):
     """Test get_endpoints when some endpoints are missing."""
     with patch('azure_resources.get_frontdoor_url', return_value=None):
         with patch('azure_resources.get_apim_url', return_value='https://test-apim.azure-api.net'):
             with patch('azure_resources.get_appgw_endpoint', return_value=(None, None)):
-
                 result = az.get_endpoints(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg')
 
                 assert isinstance(result, Endpoints)
@@ -1181,13 +1187,13 @@ def test_get_endpoints_with_partial_data(monkeypatch):
 
 
 def test_does_resource_group_exist_with_malformed_response(monkeypatch):
-    """Test does_resource_group_exist with malformed JSON."""
+    """Test does_resource_group_exist with unexpected response from az group exists."""
     with patch('azure_resources.run') as mock_run:
-        mock_run.return_value = Output(True, '{invalid json}')
+        mock_run.return_value = Output(True, '{invalid}')
 
         result = az.does_resource_group_exist('test-rg')
-        # Should still return True because run succeeded
-        assert result is True
+        # Should return False because response is not 'true'
+        assert result is False
 
 
 def test_create_resource_group_with_empty_tags(monkeypatch):
@@ -1206,6 +1212,25 @@ def test_create_resource_group_with_empty_tags(monkeypatch):
 
     assert len(run_calls) > 0
     assert '--tags' in run_calls[0]  # Tags should still be included (with defaults)
+
+
+def test_create_resource_group_skips_existence_check_when_rg_exists_provided(monkeypatch):
+    """Test create_resource_group skips does_resource_group_exist when rg_exists is explicitly passed."""
+    existence_called = []
+    monkeypatch.setattr('azure_resources.does_resource_group_exist', lambda x: existence_called.append(x) or False)
+
+    run_calls = []
+
+    def capture_run(cmd, *args, **kwargs):
+        run_calls.append(cmd)
+        return Output(True, '{}')
+
+    monkeypatch.setattr('azure_resources.run', capture_run)
+
+    az.create_resource_group('test-rg', 'eastus', rg_exists=False)
+
+    assert len(existence_called) == 0  # does_resource_group_exist should NOT be called
+    assert len(run_calls) == 1  # az group create should be called
 
 
 def test_get_azure_role_guid_with_multiple_roles(monkeypatch):
@@ -1227,6 +1252,7 @@ def test_get_azure_role_guid_with_multiple_roles(monkeypatch):
 
 def test_check_apim_blob_permissions_no_principal_id(monkeypatch):
     """Test check_apim_blob_permissions when APIM has no principal ID."""
+
     def fake_run(cmd, *args, **kwargs):
         if 'apim show' in cmd:
             return Output(True, '')  # No principal ID
@@ -1241,6 +1267,7 @@ def test_check_apim_blob_permissions_no_principal_id(monkeypatch):
 
 def test_check_apim_blob_permissions_timeout_waiting_for_propagation(monkeypatch):
     """Test blob permission check times out when waiting for role assignment propagation."""
+
     def fake_run(cmd, *args, **kwargs):
         if 'apim show' in cmd:
             return Output(True, 'principal-id\n')
@@ -1262,6 +1289,7 @@ def test_check_apim_blob_permissions_timeout_waiting_for_propagation(monkeypatch
 
 def test_check_apim_blob_permissions_storage_account_retrieval_fails(monkeypatch):
     """Test blob permission check fails when storage account retrieval fails."""
+
     def fake_run(cmd, *args, **kwargs):
         if 'apim show' in cmd:
             return Output(True, 'principal-id\n')
@@ -1279,6 +1307,7 @@ def test_check_apim_blob_permissions_storage_account_retrieval_fails(monkeypatch
 
 def test_check_apim_blob_permissions_role_assignment_exists_but_blob_access_fails(monkeypatch):
     """Test when role assignment exists but blob access test fails."""
+
     def fake_run(cmd, *args, **kwargs):
         if 'apim show' in cmd:
             return Output(True, 'principal-id\n')
@@ -1347,6 +1376,7 @@ def test_get_account_info_all_fields_present(monkeypatch):
 # ------------------------------
 #    UTILITY FUNCTION TESTS
 # ------------------------------
+
 
 def test_redact_secrets_with_access_token():
     """Test _redact_secrets redacts accessToken in JSON."""
@@ -1677,6 +1707,7 @@ def test_run_with_complex_shell_expression():
             debug_pos = called_command.find('--debug')
             pipe_pos = called_command.find('||')
             assert debug_pos < pipe_pos
+
 
 # ========================================
 # ADDITIONAL COVERAGE TESTS (MIGRATED)
@@ -2128,12 +2159,7 @@ class TestListApimSubscriptions:
 
         mock_output = Mock()
         mock_output.success = True
-        mock_output.json_data = {
-            'value': [
-                {'id': 'sub-1', 'displayName': 'Subscription 1'},
-                {'id': 'sub-2', 'displayName': 'Subscription 2'}
-            ]
-        }
+        mock_output.json_data = {'value': [{'id': 'sub-1', 'displayName': 'Subscription 1'}, {'id': 'sub-2', 'displayName': 'Subscription 2'}]}
         mock_output.is_json = True
 
         monkeypatch.setattr('azure_resources.run', lambda *a, **k: mock_output)
@@ -2547,10 +2573,7 @@ class TestGetApimSubscriptionKeyEdgeCases:
                 output = Mock()
                 output.success = True
                 output.json_data = {
-                    'value': [
-                        {'name': 'sid-1', 'properties': {'state': 'suspended'}},
-                        {'name': 'sid-2', 'properties': {'state': 'cancelled'}}
-                    ]
+                    'value': [{'name': 'sid-1', 'properties': {'state': 'suspended'}}, {'name': 'sid-2', 'properties': {'state': 'cancelled'}}]
                 }
                 return output
             else:  # listSecrets
@@ -2581,9 +2604,7 @@ class TestGetApimSubscriptionKeyEdgeCases:
             elif 'subscriptions?' in cmd:  # list subscriptions
                 output = Mock()
                 output.success = True
-                output.json_data = {
-                    'value': [{'name': 'sid-1', 'properties': {'state': 'active'}}]
-                }
+                output.json_data = {'value': [{'name': 'sid-1', 'properties': {'state': 'active'}}]}
                 return output
             else:  # listSecrets fails
                 output = Mock()
@@ -2612,9 +2633,7 @@ class TestGetApimSubscriptionKeyEdgeCases:
             elif 'subscriptions?' in cmd:  # list subscriptions
                 output = Mock()
                 output.success = True
-                output.json_data = {
-                    'value': [{'name': 'sid-1', 'properties': {'state': 'active'}}]
-                }
+                output.json_data = {'value': [{'name': 'sid-1', 'properties': {'state': 'active'}}]}
                 return output
             else:  # listSecrets returns empty key
                 output = Mock()
@@ -2689,12 +2708,14 @@ class TestGetRgNameWithIndex:
         assert 'apim-sample-my-sample' == result
         assert not result.count('-5')  # Should not have index suffix
 
+
 # Test run() method success = not completed.returncode branch (returncode = 0)
 class TestRunMethodBranches:
     """Test specific branches in the run() method."""
 
     def test_run_success_returncode_zero(self, monkeypatch):
         """Test run() when subprocess returncode is 0 (success = True)."""
+
         def mock_run(*args, **kwargs):
             completed = Mock()
             completed.stdout = 'output text'
@@ -2711,6 +2732,7 @@ class TestRunMethodBranches:
 
     def test_run_failure_nonzero_returncode(self, monkeypatch):
         """Test run() when subprocess returncode is non-zero (success = False)."""
+
         def mock_run(*args, **kwargs):
             completed = Mock()
             completed.stdout = 'some output'
@@ -2728,6 +2750,7 @@ class TestRunMethodBranches:
 # Test cleanup_old_jwt_signing_keys with different key counts
 def test_cleanup_old_jwt_signing_keys_with_multiple_old_keys(monkeypatch):
     """Test cleanup_old_jwt_signing_keys when there are multiple old keys to delete."""
+
     def mock_run(cmd, *args, **kwargs):
         if 'list' in cmd:
             output = Mock()
@@ -2751,6 +2774,7 @@ def test_cleanup_old_jwt_signing_keys_with_multiple_old_keys(monkeypatch):
 # Test cleanup_old_jwt_signing_keys when current key is first
 def test_cleanup_old_jwt_signing_keys_current_is_first(monkeypatch):
     """Test cleanup_old_jwt_signing_keys when current key is the first one."""
+
     def mock_run(cmd, *args, **kwargs):
         if 'list' in cmd:
             output = Mock()
@@ -2772,6 +2796,7 @@ def test_cleanup_old_jwt_signing_keys_current_is_first(monkeypatch):
 # Test get_frontdoor_url with empty hostname
 def test_get_frontdoor_url_endpoint_no_hostname(monkeypatch):
     """Test get_frontdoor_url when endpoint has no hostname."""
+
     def mock_run(cmd, *args, **kwargs):
         if 'profile list' in cmd:
             return Mock(success=True, json_data=[{'name': 'profile-123'}])
@@ -2789,6 +2814,7 @@ def test_get_frontdoor_url_endpoint_no_hostname(monkeypatch):
 # Test get_frontdoor_url with empty profile name
 def test_get_frontdoor_url_empty_profile_name(monkeypatch):
     """Test get_frontdoor_url when profile name is empty."""
+
     def mock_run(cmd, *args, **kwargs):
         if 'profile list' in cmd:
             return Mock(success=True, json_data=[{'name': ''}])
@@ -2804,6 +2830,7 @@ def test_get_frontdoor_url_empty_profile_name(monkeypatch):
 # Test list_apim_subscriptions with non-dict json_data
 def test_list_apim_subscriptions_invalid_json_data(monkeypatch):
     """Test list_apim_subscriptions when json_data is not a dict."""
+
     def mock_run(cmd, *args, **kwargs):
         output = Mock()
         output.success = True
@@ -2820,6 +2847,7 @@ def test_list_apim_subscriptions_invalid_json_data(monkeypatch):
 # Test list_apim_subscriptions with missing value key
 def test_list_apim_subscriptions_missing_value_key(monkeypatch):
     """Test list_apim_subscriptions when value key is missing in response."""
+
     def mock_run(cmd, *args, **kwargs):
         output = Mock()
         output.success = True
@@ -2836,14 +2864,11 @@ def test_list_apim_subscriptions_missing_value_key(monkeypatch):
 # Test get_appgw_endpoint with empty hostname
 def test_get_appgw_endpoint_empty_hostname(monkeypatch):
     """Test get_appgw_endpoint when hostname is empty in listener."""
+
     def mock_run(cmd, *args, **kwargs):
         output = Mock()
         output.success = True
-        output.json_data = [{
-            'name': 'appgw-123',
-            'httpListeners': [{'hostName': ''}],
-            'frontendIPConfigurations': []
-        }]
+        output.json_data = [{'name': 'appgw-123', 'httpListeners': [{'hostName': ''}], 'frontendIPConfigurations': []}]
         return output
 
     monkeypatch.setattr('azure_resources.run', mock_run)
@@ -2866,11 +2891,7 @@ def test_run_with_az_lock_acquired(monkeypatch):
                 mock_lock.__exit__ = Mock(return_value=None)
 
                 with patch('subprocess.run') as mock_subprocess:
-                    mock_subprocess.return_value = Mock(
-                        returncode=0,
-                        stdout='success output',
-                        stderr=''
-                    )
+                    mock_subprocess.return_value = Mock(returncode=0, stdout='success output', stderr='')
 
                     result = az.run('az group list')
 
@@ -2887,11 +2908,7 @@ def test_run_with_explicit_log_command_false(monkeypatch):
 
     with patch('azure_resources.is_debug_enabled', return_value=False):
         with patch('subprocess.run') as mock_subprocess:
-            mock_subprocess.return_value = Mock(
-                returncode=0,
-                stdout='test output',
-                stderr=''
-            )
+            mock_subprocess.return_value = Mock(returncode=0, stdout='test output', stderr='')
 
             result = az.run('echo test', log_command=False)
 
@@ -2906,11 +2923,7 @@ def test_run_with_explicit_log_command_true(monkeypatch):
 
     with patch('azure_resources.is_debug_enabled', return_value=False):
         with patch('subprocess.run') as mock_subprocess:
-            mock_subprocess.return_value = Mock(
-                returncode=0,
-                stdout='test output',
-                stderr=''
-            )
+            mock_subprocess.return_value = Mock(returncode=0, stdout='test output', stderr='')
 
             result = az.run('echo test', log_command=True)
 
@@ -2927,9 +2940,7 @@ def test_cleanup_old_jwt_signing_keys_no_deletions(monkeypatch):
 
     with patch('azure_resources.run') as mock_run:
         mock_run.side_effect = [
-            Output(True, json.dumps([
-                {'name': current_key}
-            ])),
+            Output(True, json.dumps([{'name': current_key}])),
         ]
 
         result = az.cleanup_old_jwt_signing_keys('test-apim', 'test-rg', current_key)
@@ -2975,13 +2986,10 @@ def test_get_appgw_endpoint_no_public_ip_id(monkeypatch):
     suppress_module_functions(monkeypatch, az, ['print_ok', 'print_warning'])
 
     with patch('azure_resources.run') as mock_run:
-        mock_run.return_value = Output(True, json.dumps([{
-            'name': 'appgw',
-            'httpListeners': [{'hostName': 'test.example.com'}],
-            'frontendIPConfigurations': [
-                {'name': 'config1'}
-            ]
-        }]))
+        mock_run.return_value = Output(
+            True,
+            json.dumps([{'name': 'appgw', 'httpListeners': [{'hostName': 'test.example.com'}], 'frontendIPConfigurations': [{'name': 'config1'}]}]),
+        )
 
         hostname, ip = az.get_appgw_endpoint('test-rg')
 

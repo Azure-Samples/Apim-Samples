@@ -48,8 +48,10 @@ function Invoke-Cmd {
             $cmdArgs = @($flatArgs[1..($flatArgs.Count - 1)])
         }
 
-        & $exe @cmdArgs 2>&1 | Write-Host
-        $exitCode = $LASTEXITCODE
+        $global:LASTEXITCODE = 0
+        & $exe @cmdArgs
+        $commandSucceeded = $?
+        $exitCode = if ($commandSucceeded) { $LASTEXITCODE } else { [Math]::Max($LASTEXITCODE, 1) }
     }
     catch {
         Write-Host ""
@@ -86,7 +88,7 @@ if str(shared) not in sys.path:
 try:
     import azure_resources as az
     info = az.get_account_info()
-except Exception as exc:  # pylint: disable=broad-except
+except Exception as exc:  # noqa: BLE001
     print(f"Failed to read Azure account info: {exc}")
 "@
     Push-Location $RepoRoot
@@ -130,9 +132,13 @@ while ($true) {
     Write-Host "  6) Show all deployed infrastructures"
     Write-Host ""
     Write-Host "Tests" -ForegroundColor Yellow
-    Write-Host "  7) Run pylint"
+    Write-Host "  7) Run ruff"
     Write-Host "  8) Run tests (shows detailed test results)"
     Write-Host "  9) Run full Python checks (most statistics)"
+    Write-Host ""
+    Write-Host "Presentation" -ForegroundColor Yellow
+    Write-Host "  p) Serve & view presentation (auto-opens browser)"
+    Write-Host "  e) Export presentation as self-contained HTML"
     Write-Host ""
     Write-Host "Misc" -ForegroundColor Yellow
     Write-Host "  0) Exit"
@@ -141,7 +147,7 @@ while ($true) {
 
     switch ($choice) {
         '1' {
-            PyRun "$RepoRoot/setup/local_setup.py" "--complete-setup" | Out-Null
+            PyRun "$RepoRoot/setup/local_setup.py" "--complete-setup"
         }
         '2' {
             Write-Host ""
@@ -151,36 +157,42 @@ while ($true) {
                 if ($tenantId) {
                     $cmd = "az login --tenant $tenantId"
                     Write-Host "`n>>> $cmd`n" -ForegroundColor Cyan
-                    & az login --tenant $tenantId 2>&1 | Out-Null
+                    & az login --tenant $tenantId
                 } else {
                     Write-Host "Tenant ID is required." -ForegroundColor Red
                 }
             } else {
                 $cmd = "az login"
                 Write-Host "`n>>> $cmd`n" -ForegroundColor Cyan
-                & az login 2>&1 | Out-Null
+                & az login
             }
         }
         '3' {
-            PyRun "$RepoRoot/setup/verify_local_setup.py" | Out-Null
+            PyRun "$RepoRoot/setup/verify_local_setup.py"
         }
         '4' {
             Show-AccountInfo
         }
         '5' {
-            PyRun "$RepoRoot/shared/python/show_soft_deleted_resources.py" | Out-Null
+            PyRun "$RepoRoot/shared/python/show_soft_deleted_resources.py"
         }
         '6' {
-            PyRun "$RepoRoot/shared/python/show_infrastructures.py" | Out-Null
+            PyRun "$RepoRoot/shared/python/show_infrastructures.py"
         }
         '7' {
-            Invoke-Cmd "$RepoRoot/tests/python/run_pylint.ps1" | Out-Null
+            Invoke-Cmd "$RepoRoot/tests/python/run_ruff.ps1"
         }
         '8' {
-            Invoke-Cmd "$RepoRoot/tests/python/run_tests.ps1" | Out-Null
+            Invoke-Cmd "$RepoRoot/tests/python/run_tests.ps1"
         }
         '9' {
-            Invoke-Cmd "$RepoRoot/tests/python/check_python.ps1" | Out-Null
+            Invoke-Cmd "$RepoRoot/tests/python/check_python.ps1"
+        }
+        'p' {
+            PyRun "$RepoRoot/setup/serve_presentation.py"
+        }
+        'e' {
+            PyRun "$RepoRoot/setup/export_presentation.py"
         }
         '0' {
             Write-Host ""
