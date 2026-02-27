@@ -100,10 +100,52 @@ This menu-driven interface provides quick access to:
 - **Setup**: Complete environment setup and verify local setup
 - **Verify**: Show Azure account info, list soft-deleted resources, and list deployed infrastructures
 - **Tests**: Run ruff, pytest, and full Python checks
+- **Presentation**: Serve the slide deck in a browser or export a self-contained HTML copy
 
 <img src="./assets/dev-cli-lint-test-results.png" alt="APIM Samples Developer CLI showing final linting, test, and code coverage results" title="APIM Samples Developer CLI Final Results" />
 
 > The _APIM Samples Developer CLI_ is not synonomous with the _Azure Developer CLI_. These are two separate CLIs.
+
+## 🖥️ APIM Samples Slide Deck
+
+This repo includes a ready-to-use APIM Samples presentation deck for demos, workshops, and stakeholder walkthroughs.
+
+Source deck: `assets/APIM-Samples-Slide-Deck.html`
+
+Presentation PDF: [Azure API Management Samples - Presentation.pdf](assets/Azure%20API%20Management%20Samples%20-%20Presentation.pdf)
+
+### View the deck locally
+
+To open the deck in your browser with a lightweight local server:
+
+```bash
+uv run python setup/serve_presentation.py
+```
+
+You can also launch it from the APIM Samples Developer CLI by choosing `p) Serve & view presentation (auto-opens browser)`.
+
+The server hosts files from `assets/` and opens `http://localhost:7777/APIM-Samples-Slide-Deck.html` automatically. You can optionally pass a different port:
+
+```bash
+uv run python setup/serve_presentation.py 7778
+```
+
+### Export a shareable standalone copy
+
+To build a self-contained HTML file with images inlined for offline use or sharing:
+
+```bash
+uv run python setup/export_presentation.py
+```
+
+You can also run this from the APIM Samples Developer CLI by choosing `e) Export presentation as self-contained HTML`.
+
+This writes the output to `build/APIM-Samples-Slide-Deck.html`.
+
+### When to use each file
+
+- Use `assets/APIM-Samples-Slide-Deck.html` while editing or iterating on the presentation.
+- Use `build/APIM-Samples-Slide-Deck.html` when you want a portable deck that is ready to share or present offline.
 
 ## 🧭 Setup
 
