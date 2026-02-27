@@ -1,23 +1,26 @@
-import builtins
-import os
-import inspect
 import base64
-import subprocess
+import builtins
+import inspect
+import json
 import logging
+import os
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock
-import json
+
+import azure_resources as az
+import console as console_module
+import json_utils
 import pytest
+import utils
 
 # APIM Samples imports
-from apimtypes import INFRASTRUCTURE, APIM_SKU, HTTP_VERB, Endpoints
-import utils
-import json_utils
-import azure_resources as az
+from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints
 from console import print_error, print_info, print_message, print_ok, print_val, print_warning
-import console as console_module
 from test_helpers import (
     capture_console_output as capture_output,
+)
+from test_helpers import (
     mock_popen,
     patch_create_bicep_deployment_group_dependencies,
     patch_open_for_text_read,
@@ -314,7 +317,7 @@ def test_create_bicep_deployment_group_with_string(monkeypatch):
 
     bicep_params = {'param1': {'value': 'test'}}
 
-    _result = utils.create_bicep_deployment_group('test-rg', 'eastus', 'custom-deployment', bicep_params)
+    utils.create_bicep_deployment_group('test-rg', 'eastus', 'custom-deployment', bicep_params)
 
     # Verify create_resource_group was called without tags
     mock_create_rg.assert_called_once_with('test-rg', 'eastus', None)
