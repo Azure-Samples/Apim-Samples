@@ -172,7 +172,7 @@ resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
 }
 
 // NSG for APIM with Private Link from Application Gateway
-module nsgApimModule '../../shared/bicep/modules/vnet/v1/nsg-apim-pe.bicep' = {
+module nsgApimModule '../../shared/bicep/modules/vnet/v1/nsg-apim-vnet.bicep' = {
   name: 'nsgApimModule'
   params: {
     location: location
@@ -180,6 +180,8 @@ module nsgApimModule '../../shared/bicep/modules/vnet/v1/nsg-apim-pe.bicep' = {
     apimSubnetPrefix: apimSubnetPrefix
     allowAppGateway: true
     appgwSubnetPrefix: appgwSubnetPrefix
+    apimSku: apimSku
+    vnetMode: 'integration'
   }
 }
 

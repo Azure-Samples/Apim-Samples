@@ -68,6 +68,7 @@ var CERT_NAME = 'appgw-cert'
 var DOMAIN_NAME = 'api.apim-samples.contoso.com'
 var APIM_V1_SKUS = ['Developer', 'Basic', 'Standard', 'Premium']
 var APIM_V2_SKUS = ['Basicv2', 'Standardv2', 'Premiumv2']
+var NO_VNET_SKUS = ['Basic', 'Standard']
 
 
 // ------------------------------
@@ -75,6 +76,8 @@ var APIM_V2_SKUS = ['Basicv2', 'Standardv2', 'Premiumv2']
 // ------------------------------
 
 var azureRoles = loadJsonContent('../../shared/azure-roles.json')
+var hasVNetSupport = !contains(NO_VNET_SKUS, apimSku)
+var apimVnetMode = is_apim_sku_v2(apimSku) ? 'integration' : 'injection'
 
 // ------------------
 //    FUNCTIONS
@@ -176,119 +179,18 @@ resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
   }
 }
 
-// APIM V1 needs a specific NSG: https://learn.microsoft.com/en-us/azure/api-management/api-management-using-with-internal-vnet#configure-nsg-rules
-// https://learn.microsoft.com/azure/templates/microsoft.network/networksecuritygroups
-resource nsgApimV1 'Microsoft.Network/networkSecurityGroups@2025-01-01' = if (is_apim_sku_v1(apimSku)) {
-  name: 'nsg-apim'
-  location: location
-  properties: {
-    securityRules: [
-      // INBOUND Security Rules
-      {
-        name: 'AllowApimManagement'
-        properties: {
-          description: 'Allow Management endpoint for Azure portal and PowerShell traffic'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '3443'
-          sourceAddressPrefix: 'ApiManagement'
-          destinationAddressPrefix: 'VirtualNetwork'
-          access: 'Allow'
-          priority: 100
-          direction: 'Inbound'
-        }
-      }
-      {
-        name: 'AllowAzureLoadBalancerInbound'
-        properties: {
-          description: 'Allow Azure Load Balancer health probes'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '6390'
-          sourceAddressPrefix: 'AzureLoadBalancer'
-          destinationAddressPrefix: apimSubnetPrefix
-          access: 'Allow'
-          priority: 110
-          direction: 'Inbound'
-        }
-      }
-      // Limit ingress to traffic from App Gateway subnet, forcing both internal and external traffic to traverse App Gateway
-      {
-        name: 'AllowAppGatewayToApim'
-        properties: {
-          description: 'Allow inbound HTTPS traffic from Application Gateway to APIM'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '443'
-          sourceAddressPrefix: appgwSubnetPrefix
-          destinationAddressPrefix: apimSubnetPrefix
-          access: 'Allow'
-          priority: 120
-          direction: 'Inbound'
-        }
-      }
-      nsgsr_denyAllInbound
-      // OUTBOUND Security Rules
-      {
-        name: 'AllowApimToStorage'
-        properties: {
-          description: 'Allow APIM to reach Azure Storage for core service functionality'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '443'
-          sourceAddressPrefix: 'VirtualNetwork'
-          destinationAddressPrefix: 'Storage'
-          access: 'Allow'
-          priority: 100
-          direction: 'Outbound'
-        }
-      }
-      {
-        name: 'AllowApimToSql'
-        properties: {
-          description: 'Allow APIM to reach Azure SQL for core service functionality'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '1433'
-          sourceAddressPrefix: 'VirtualNetwork'
-          destinationAddressPrefix: 'Sql'
-          access: 'Allow'
-          priority: 110
-          direction: 'Outbound'
-        }
-      }
-      {
-        name: 'AllowApimToKeyVault'
-        properties: {
-          description: 'Allow APIM to reach Azure Key Vault for core service functionality'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '443'
-          sourceAddressPrefix: 'VirtualNetwork'
-          destinationAddressPrefix: 'AzureKeyVault'
-          access: 'Allow'
-          priority: 120
-          direction: 'Outbound'
-        }
-      }
-      {
-        name: 'AllowApimToMonitor'
-        properties: {
-          description: 'Allow APIM to reach Azure Monitor for diagnostics logs, metrics, and Application Insights'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRanges: [
-            '1886'
-            '443'
-          ]
-          sourceAddressPrefix: 'VirtualNetwork'
-          destinationAddressPrefix: 'AzureMonitor'
-          access: 'Allow'
-          priority: 130
-          direction: 'Outbound'
-        }
-      }
-    ]
+// APIM V1 needs a specific NSG: https://learn.microsoft.com/azure/api-management/api-management-using-with-internal-vnet#configure-nsg-rules
+// V2 tiers need outbound rules for Storage and Key Vault: https://learn.microsoft.com/azure/api-management/inject-vnet-v2#network-security-group
+module nsgApimModule '../../shared/bicep/modules/vnet/v1/nsg-apim-vnet.bicep' = if (hasVNetSupport) {
+  name: 'nsgApimModule'
+  params: {
+    location: location
+    nsgName: 'nsg-apim'
+    apimSubnetPrefix: apimSubnetPrefix
+    allowAppGateway: true
+    appgwSubnetPrefix: appgwSubnetPrefix
+    apimSku: apimSku
+    vnetMode: apimVnetMode
   }
 }
 
@@ -315,7 +217,7 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
         properties: {
           addressPrefix: apimSubnetPrefix
           networkSecurityGroup: {
-            id: is_apim_sku_v1(apimSku) ? nsgApimV1.id : nsgDefault.id
+            id: hasVNetSupport ? nsgApimModule!.outputs.nsgId : nsgDefault.id
           }
           // Delegations need to be conditional. If using V1 SKU (Developer), then we cannot delegate the subnet, so we need to check for V2.
           delegations: is_apim_sku_v2(apimSku) ? [
@@ -381,12 +283,12 @@ module nsgFlowLogsAppGwModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.
 }
 
 // NSG Flow Logs for APIM
-module nsgFlowLogsApimModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.bicep' = if (is_apim_sku_v1(apimSku)) {
+module nsgFlowLogsApimModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.bicep' = if (hasVNetSupport) {
   name: 'nsgFlowLogsApimModule'
   params: {
     location: location
     flowLogName: 'fl-nsg-apim-${resourceSuffix}'
-    nsgResourceId: nsgApimV1.id
+    nsgResourceId: nsgApimModule!.outputs.nsgId
     storageAccountResourceId: storageFlowLogsModule.outputs.storageAccountId
     logAnalyticsWorkspaceResourceId: lawId
     retentionDays: 7

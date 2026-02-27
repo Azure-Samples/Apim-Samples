@@ -1,24 +1,26 @@
 /**
  * @module nsg-apim-vnet-v1
- * @description Network Security Group for Azure API Management in VNet mode with traffic from Application Gateway.
- *              Inbound rules (management, load balancer, App Gateway) apply regardless of VNet mode.
+ * @description Network Security Group for Azure API Management in VNet mode.
+ *              Supports inbound traffic from Application Gateway, Azure Front Door (via Private Link), or both.
+ *              Inbound rules (management, load balancer, deny all) always apply.
+ *              App Gateway and Front Door inbound rules are conditionally included via parameters.
  *              Outbound rules are conditionally included based on the VNet mode and APIM SKU:
  *              - Storage and Key Vault are required for all tiers (injection and integration alike).
  *              - SQL and Monitor are additionally required for classic VNet-injection tiers (Developer, Premium).
  *
  * Inbound NSG rule matrix (as of 02/27/2026):
  *
- *   SKU          | VNet Mode   | APIM Mgmt (3443) | Load Balancer (6390) | App Gateway (443) | Deny All
- *   -------------|-------------|------------------|----------------------|-------------------|----------
- *   Developer    | injection   | Yes              | Yes                  | Yes               | Yes
- *   Basic        | (none)      |  -               |  -                   |  -                |  -
- *   Standard     | (none)      |  -               |  -                   |  -                |  -
- *   Premium      | injection   | Yes              | Yes                  | Yes               | Yes
- *   Basicv2      | integration | Yes              | Yes                  | Yes               | Yes
- *   Standardv2   | injection   | Yes              | Yes                  | Yes               | Yes
- *   Standardv2   | integration | Yes              | Yes                  | Yes               | Yes
- *   Premiumv2    | injection   | Yes              | Yes                  | Yes               | Yes
- *   Premiumv2    | integration | Yes              | Yes                  | Yes               | Yes
+ *   SKU          | VNet Mode   | APIM Mgmt (3443) | Load Balancer (6390) | App Gateway (443)  | Front Door (443)   | Deny All
+ *   -------------|-------------|------------------|----------------------|--------------------|--------------------|---------
+ *   Developer    | injection   | Yes              | Yes                  | If allowAppGateway | If allowFrontDoor  | Yes
+ *   Basic        | (none)      |  -               |  -                   |  -                 |  -                 |  -
+ *   Standard     | (none)      |  -               |  -                   |  -                 |  -                 |  -
+ *   Premium      | injection   | Yes              | Yes                  | If allowAppGateway | If allowFrontDoor  | Yes
+ *   Basicv2      | integration | Yes              | Yes                  | If allowAppGateway | If allowFrontDoor  | Yes
+ *   Standardv2   | injection   | Yes              | Yes                  | If allowAppGateway | If allowFrontDoor  | Yes
+ *   Standardv2   | integration | Yes              | Yes                  | If allowAppGateway | If allowFrontDoor  | Yes
+ *   Premiumv2    | injection   | Yes              | Yes                  | If allowAppGateway | If allowFrontDoor  | Yes
+ *   Premiumv2    | integration | Yes              | Yes                  | If allowAppGateway | If allowFrontDoor  | Yes
  *
  * Outbound NSG rule matrix (as of 02/27/2026):
  *
@@ -57,8 +59,14 @@ param nsgName string = 'nsg-apim'
 @description('APIM subnet prefix for destination filtering')
 param apimSubnetPrefix string
 
-@description('Application Gateway subnet prefix for source filtering')
-param appgwSubnetPrefix string
+@description('Whether to allow inbound HTTPS traffic from an Application Gateway subnet')
+param allowAppGateway bool = false
+
+@description('Application Gateway subnet prefix for source filtering (required when allowAppGateway is true)')
+param appgwSubnetPrefix string = ''
+
+@description('Whether to allow inbound HTTPS traffic from Azure Front Door Backend service tag (via Private Link)')
+param allowFrontDoorBackend bool = false
 
 @description('APIM SKU name. Classic tiers (Developer, Premium) with injection require additional outbound NSG rules for SQL and Monitor.')
 param apimSku string
@@ -99,8 +107,8 @@ resource nsgApim 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
   location: location
   properties: {
     securityRules: concat(
+      // INBOUND Security Rules
       [
-        // INBOUND Security Rules
         {
           name: 'AllowApimManagement'
           properties: {
@@ -129,6 +137,9 @@ resource nsgApim 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
             direction: 'Inbound'
           }
         }
+      ],
+      // INBOUND: Application Gateway (conditional)
+      allowAppGateway && !empty(appgwSubnetPrefix) ? [
         {
           name: 'AllowAppGatewayToApim'
           properties: {
@@ -143,6 +154,25 @@ resource nsgApim 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
             direction: 'Inbound'
           }
         }
+      ] : [],
+      // INBOUND: Azure Front Door Backend via Private Link (conditional)
+      allowFrontDoorBackend ? [
+        {
+          name: 'AllowFrontDoorBackendToApim'
+          properties: {
+            description: 'Allow inbound HTTPS traffic from Azure Front Door Backend to APIM via Private Link'
+            protocol: 'Tcp'
+            sourcePortRange: '*'
+            destinationPortRange: '443'
+            sourceAddressPrefix: 'AzureFrontDoor.Backend'
+            destinationAddressPrefix: apimSubnetPrefix
+            access: 'Allow'
+            priority: 130
+            direction: 'Inbound'
+          }
+        }
+      ] : [],
+      [
         nsgsr_denyAllInbound
       ],
       // OUTBOUND: Storage + Key Vault — required for all tiers (injection and integration)

@@ -84,13 +84,15 @@ module storageFlowLogsModule '../../shared/bicep/modules/vnet/v1/storage-flowlog
 // 4. Network Security Groups
 
 // NSG for API Management with Private Link from Front Door
-module nsgApimModule '../../shared/bicep/modules/vnet/v1/nsg-apim-pe.bicep' = {
+module nsgApimModule '../../shared/bicep/modules/vnet/v1/nsg-apim-vnet.bicep' = {
   name: 'nsgApimModule'
   params: {
     location: location
     nsgName: 'nsg-apim'
     apimSubnetPrefix: apimSubnetPrefix
     allowFrontDoorBackend: true
+    apimSku: apimSku
+    vnetMode: 'integration'
   }
 }
 
