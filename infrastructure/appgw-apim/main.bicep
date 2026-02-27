@@ -67,7 +67,7 @@ var IMG_MOCK_WEB_API = 'simonkurtzmsft/mockwebapi:1.0.0-alpha.1'
 var CERT_NAME = 'appgw-cert'
 var DOMAIN_NAME = 'api.apim-samples.contoso.com'
 var APIM_V1_SKUS = ['Developer', 'Basic', 'Standard', 'Premium']
-var APIM_V2_SKUS = ['BasicV2', 'StandardV2', 'PremiumV2']
+var APIM_V2_SKUS = ['Basicv2', 'Standardv2', 'Premiumv2']
 
 
 // ------------------------------
@@ -179,7 +179,6 @@ resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
 // APIM V1 needs a specific NSG: https://learn.microsoft.com/en-us/azure/api-management/api-management-using-with-internal-vnet#configure-nsg-rules
 // https://learn.microsoft.com/azure/templates/microsoft.network/networksecuritygroups
 resource nsgApimV1 'Microsoft.Network/networkSecurityGroups@2025-01-01' = if (is_apim_sku_v1(apimSku)) {
-// resource nsgApimV1 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
   name: 'nsg-apim'
   location: location
   properties: {

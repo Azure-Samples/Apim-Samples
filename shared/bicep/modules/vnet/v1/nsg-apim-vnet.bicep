@@ -1,6 +1,47 @@
 /**
  * @module nsg-apim-vnet-v1
- * @description Network Security Group for Azure API Management in VNet mode with traffic from Application Gateway
+ * @description Network Security Group for Azure API Management in VNet mode with traffic from Application Gateway.
+ *              Inbound rules (management, load balancer, App Gateway) apply regardless of VNet mode.
+ *              Outbound rules are conditionally included based on the VNet mode and APIM SKU:
+ *              - Storage and Key Vault are required for all tiers (injection and integration alike).
+ *              - SQL and Monitor are additionally required for classic VNet-injection tiers (Developer, Premium).
+ *
+ * Inbound NSG rule matrix (as of 02/27/2026):
+ *
+ *   SKU          | VNet Mode   | APIM Mgmt (3443) | Load Balancer (6390) | App Gateway (443) | Deny All
+ *   -------------|-------------|------------------|----------------------|-------------------|----------
+ *   Developer    | injection   | Yes              | Yes                  | Yes               | Yes
+ *   Basic        | (none)      |  -               |  -                   |  -                |  -
+ *   Standard     | (none)      |  -               |  -                   |  -                |  -
+ *   Premium      | injection   | Yes              | Yes                  | Yes               | Yes
+ *   Basicv2      | integration | Yes              | Yes                  | Yes               | Yes
+ *   Standardv2   | injection   | Yes              | Yes                  | Yes               | Yes
+ *   Standardv2   | integration | Yes              | Yes                  | Yes               | Yes
+ *   Premiumv2    | injection   | Yes              | Yes                  | Yes               | Yes
+ *   Premiumv2    | integration | Yes              | Yes                  | Yes               | Yes
+ *
+ * Outbound NSG rule matrix (as of 02/27/2026):
+ *
+ *   SKU          | VNet Mode   | Storage          | Key Vault            | SQL               | Monitor
+ *   -------------|-------------|------------------|----------------------|-------------------|----------
+ *   Developer    | injection   | Yes              | Yes                  | Yes               | Yes
+ *   Basic        | (none)      |  -               |  -                   |  -                |  -
+ *   Standard     | (none)      |  -               |  -                   |  -                |  -
+ *   Premium      | injection   | Yes              | Yes                  | Yes               | Yes
+ *   Basicv2      | integration | Yes              | Yes                  | No                | No
+ *   Standardv2   | injection   | Yes              | Yes                  | No                | No
+ *   Standardv2   | integration | Yes              | Yes                  | No                | No
+ *   Premiumv2    | injection   | Yes              | Yes                  | No                | No
+ *   Premiumv2    | integration | Yes              | Yes                  | No                | No
+ *
+ * @see Classic tiers - required NSG rules for VNet injection:
+ *      https://learn.microsoft.com/azure/api-management/api-management-using-with-internal-vnet#configure-nsg-rules
+ * @see V2 tiers - VNet integration (outbound only, no specific NSG rules required):
+ *      https://learn.microsoft.com/azure/api-management/integrate-vnet-outbound#network-security-group
+ * @see V2 tiers - VNet injection (outbound rules for Storage and Key Vault, but not SQL or Monitor):
+ *      https://learn.microsoft.com/azure/api-management/inject-vnet-v2#network-security-group
+ * @see Comprehensive VNet reference (all tiers):
+ *      https://learn.microsoft.com/azure/api-management/virtual-network-reference
  */
 
 // ------------------------------
@@ -19,14 +60,34 @@ param apimSubnetPrefix string
 @description('Application Gateway subnet prefix for source filtering')
 param appgwSubnetPrefix string
 
-@description('Log Analytics Workspace ID for NSG flow logs')
-param logAnalyticsWorkspaceId string = ''
+@description('APIM SKU name. Classic tiers (Developer, Premium) with injection require additional outbound NSG rules for SQL and Monitor.')
+param apimSku string
 
-@description('Storage Account ID for NSG flow logs')
-param storageAccountId string = ''
+@allowed([
+  'injection'
+  'integration'
+])
+@description('VNet mode for the APIM instance. Classic tiers with injection require SQL and Monitor outbound rules beyond the baseline Storage and Key Vault rules.')
+param vnetMode string
 
 // Import the deny all inbound rule
 import {nsgsr_denyAllInbound} from './nsg_rules.bicep'
+
+
+// ------------------------------
+//    CONSTANTS
+// ------------------------------
+
+// Classic tiers that additionally require SQL and Monitor outbound rules when VNet-injected
+var CLASSIC_SKUS = ['Developer', 'Premium']
+
+
+// ------------------------------
+//    VARIABLES
+// ------------------------------
+
+var isClassicInjection = vnetMode == 'injection' && contains(CLASSIC_SKUS, apimSku)
+
 
 // ------------------------------
 //    RESOURCES
@@ -37,112 +98,119 @@ resource nsgApim 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
   name: nsgName
   location: location
   properties: {
-    securityRules: [
-      // INBOUND Security Rules
-      {
-        name: 'AllowApimManagement'
-        properties: {
-          description: 'Allow Management endpoint for Azure portal and PowerShell traffic'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '3443'
-          sourceAddressPrefix: 'ApiManagement'
-          destinationAddressPrefix: 'VirtualNetwork'
-          access: 'Allow'
-          priority: 100
-          direction: 'Inbound'
+    securityRules: concat(
+      [
+        // INBOUND Security Rules
+        {
+          name: 'AllowApimManagement'
+          properties: {
+            description: 'Allow Management endpoint for Azure portal and PowerShell traffic'
+            protocol: 'Tcp'
+            sourcePortRange: '*'
+            destinationPortRange: '3443'
+            sourceAddressPrefix: 'ApiManagement'
+            destinationAddressPrefix: 'VirtualNetwork'
+            access: 'Allow'
+            priority: 100
+            direction: 'Inbound'
+          }
         }
-      }
-      {
-        name: 'AllowAzureLoadBalancerInbound'
-        properties: {
-          description: 'Allow Azure Load Balancer health probes'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '6390'
-          sourceAddressPrefix: 'AzureLoadBalancer'
-          destinationAddressPrefix: apimSubnetPrefix
-          access: 'Allow'
-          priority: 110
-          direction: 'Inbound'
+        {
+          name: 'AllowAzureLoadBalancerInbound'
+          properties: {
+            description: 'Allow Azure Load Balancer health probes'
+            protocol: 'Tcp'
+            sourcePortRange: '*'
+            destinationPortRange: '6390'
+            sourceAddressPrefix: 'AzureLoadBalancer'
+            destinationAddressPrefix: apimSubnetPrefix
+            access: 'Allow'
+            priority: 110
+            direction: 'Inbound'
+          }
         }
-      }
-      {
-        name: 'AllowAppGatewayToApim'
-        properties: {
-          description: 'Allow inbound HTTPS traffic from Application Gateway to APIM'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '443'
-          sourceAddressPrefix: appgwSubnetPrefix
-          destinationAddressPrefix: apimSubnetPrefix
-          access: 'Allow'
-          priority: 120
-          direction: 'Inbound'
+        {
+          name: 'AllowAppGatewayToApim'
+          properties: {
+            description: 'Allow inbound HTTPS traffic from Application Gateway to APIM'
+            protocol: 'Tcp'
+            sourcePortRange: '*'
+            destinationPortRange: '443'
+            sourceAddressPrefix: appgwSubnetPrefix
+            destinationAddressPrefix: apimSubnetPrefix
+            access: 'Allow'
+            priority: 120
+            direction: 'Inbound'
+          }
         }
-      }
-      nsgsr_denyAllInbound
-      // OUTBOUND Security Rules
-      {
-        name: 'AllowApimToStorage'
-        properties: {
-          description: 'Allow APIM to reach Azure Storage for core service functionality'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '443'
-          sourceAddressPrefix: 'VirtualNetwork'
-          destinationAddressPrefix: 'Storage'
-          access: 'Allow'
-          priority: 100
-          direction: 'Outbound'
+        nsgsr_denyAllInbound
+      ],
+      // OUTBOUND: Storage + Key Vault — required for all tiers (injection and integration)
+      [
+        {
+          name: 'AllowApimToStorage'
+          properties: {
+            description: 'Allow APIM to reach Azure Storage for core service functionality'
+            protocol: 'Tcp'
+            sourcePortRange: '*'
+            destinationPortRange: '443'
+            sourceAddressPrefix: 'VirtualNetwork'
+            destinationAddressPrefix: 'Storage'
+            access: 'Allow'
+            priority: 100
+            direction: 'Outbound'
+          }
         }
-      }
-      {
-        name: 'AllowApimToSql'
-        properties: {
-          description: 'Allow APIM to reach Azure SQL for core service functionality'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '1433'
-          sourceAddressPrefix: 'VirtualNetwork'
-          destinationAddressPrefix: 'Sql'
-          access: 'Allow'
-          priority: 110
-          direction: 'Outbound'
+        {
+          name: 'AllowApimToKeyVault'
+          properties: {
+            description: 'Allow APIM to reach Azure Key Vault for core service functionality'
+            protocol: 'Tcp'
+            sourcePortRange: '*'
+            destinationPortRange: '443'
+            sourceAddressPrefix: 'VirtualNetwork'
+            destinationAddressPrefix: 'AzureKeyVault'
+            access: 'Allow'
+            priority: 110
+            direction: 'Outbound'
+          }
         }
-      }
-      {
-        name: 'AllowApimToKeyVault'
-        properties: {
-          description: 'Allow APIM to reach Azure Key Vault for core service functionality'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '443'
-          sourceAddressPrefix: 'VirtualNetwork'
-          destinationAddressPrefix: 'AzureKeyVault'
-          access: 'Allow'
-          priority: 120
-          direction: 'Outbound'
+      ],
+      // OUTBOUND: SQL + Monitor — additionally required for classic VNet-injected tiers (Developer, Premium)
+      isClassicInjection ? [
+        {
+          name: 'AllowApimToSql'
+          properties: {
+            description: 'Allow APIM to reach Azure SQL for core service functionality'
+            protocol: 'Tcp'
+            sourcePortRange: '*'
+            destinationPortRange: '1433'
+            sourceAddressPrefix: 'VirtualNetwork'
+            destinationAddressPrefix: 'Sql'
+            access: 'Allow'
+            priority: 120
+            direction: 'Outbound'
+          }
         }
-      }
-      {
-        name: 'AllowApimToMonitor'
-        properties: {
-          description: 'Allow APIM to reach Azure Monitor for diagnostics logs, metrics, and Application Insights'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRanges: [
-            '1886'
-            '443'
-          ]
-          sourceAddressPrefix: 'VirtualNetwork'
-          destinationAddressPrefix: 'AzureMonitor'
-          access: 'Allow'
-          priority: 130
-          direction: 'Outbound'
+        {
+          name: 'AllowApimToMonitor'
+          properties: {
+            description: 'Allow APIM to reach Azure Monitor for diagnostics logs, metrics, and Application Insights'
+            protocol: 'Tcp'
+            sourcePortRange: '*'
+            destinationPortRanges: [
+              '1886'
+              '443'
+            ]
+            sourceAddressPrefix: 'VirtualNetwork'
+            destinationAddressPrefix: 'AzureMonitor'
+            access: 'Allow'
+            priority: 130
+            direction: 'Outbound'
+          }
         }
-      }
-    ]
+      ] : []
+    )
   }
 }
 

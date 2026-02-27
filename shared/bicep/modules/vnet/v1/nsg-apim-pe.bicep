@@ -123,7 +123,7 @@ resource nsgApim 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
           properties: {
             description: 'Allow APIM to reach Azure SQL for core service functionality'
             protocol: 'Tcp'
-          sourcePortRange: '*'
+            sourcePortRange: '*'
             destinationPortRange: '1433'
             sourceAddressPrefix: 'VirtualNetwork'
             destinationAddressPrefix: 'Sql'
