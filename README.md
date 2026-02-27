@@ -69,7 +69,7 @@ It's quick and easy to get started!
 | [Costing & Showback][sample-costing]                        | Track and allocate API costs per business unit using APIM subscriptions, Log Analytics, and Cost Management.         | All infrastructures           |
 | [Credential Manager (with Spotify)][sample-oauth-3rd-party] | Authenticate with APIM which then uses its Credential Manager with Spotify's REST API.                              | All infrastructures           |
 | [General][sample-general]                                   | Basic demo of APIM sample setup and policy usage.                                                                   | All infrastructures           |
-| [Load Balancing][sample-load-balancing]                     | Priority and weighted load balancing across backends.                                                               | apim-aca, afd-apim (with ACA) |
+| [Load Balancing][sample-load-balancing]                     | Priority and weighted load balancing across backends.                                                               | apim-aca, afd-apim-pe         |
 | [Secure Blob Access][sample-secure-blob-access]             | Secure blob access via the [valet key pattern][valet-key-pattern].                                                  | All infrastructures           |
 </details>
 
@@ -253,7 +253,7 @@ The Python helpers in this repo use standard-library `logging`, empowering you t
 
 ## Troubleshooting
 
-Encountering issues? Check our comprehensive **[Troubleshooting Guide](troubleshooting)**! which covers:
+Encountering issues? Check our comprehensive **[Troubleshooting Guide][troubleshooting]**! which covers:
 
 - **Deployment Errors** - Including the common "content already consumed" error and parameter mismatches
 - **Authentication Issues** - Azure CLI login problems and permission errors
