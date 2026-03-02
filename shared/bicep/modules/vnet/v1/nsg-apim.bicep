@@ -1,5 +1,5 @@
 /**
- * @module nsg-apim-vnet-v1
+ * @module nsg-apim-v1
  * @description Network Security Group for Azure API Management in VNet mode.
  *              Supports inbound traffic from Application Gateway, Azure Front Door (via Private Link), or both.
  *              Inbound rules (management, load balancer, deny all) always apply.
@@ -8,33 +8,36 @@
  *              - Storage and Key Vault are required for all tiers (injection and integration alike).
  *              - SQL and Monitor are additionally required for classic VNet-injection tiers (Developer, Premium).
  *
- * Inbound NSG rule matrix (as of 02/27/2026):
+ * INBOUND NSG rule matrix (as of 03/02/2026):
+ *   PE = Private Endpoint-backed inbound path.
+ *   If allowAppGateway = Application Gateway scenario.
+ *   If allowFrontDoorBackend = Azure Front Door via PE scenario.
  *
- *   SKU          | VNet Mode   | APIM Mgmt (3443) | Load Balancer (6390) | App Gateway (443)  | Front Door (443)   | Deny All
- *   -------------|-------------|------------------|----------------------|--------------------|--------------------|---------
- *   Developer    | injection   | Yes              | Yes                  | If allowAppGateway | If allowFrontDoor  | Yes
- *   Basic        | (none)      |  -               |  -                   |  -                 |  -                 |  -
- *   Standard     | (none)      |  -               |  -                   |  -                 |  -                 |  -
- *   Premium      | injection   | Yes              | Yes                  | If allowAppGateway | If allowFrontDoor  | Yes
- *   Basicv2      | integration | Yes              | Yes                  | If allowAppGateway | If allowFrontDoor  | Yes
- *   Standardv2   | injection   | Yes              | Yes                  | If allowAppGateway | If allowFrontDoor  | Yes
- *   Standardv2   | integration | Yes              | Yes                  | If allowAppGateway | If allowFrontDoor  | Yes
- *   Premiumv2    | injection   | Yes              | Yes                  | If allowAppGateway | If allowFrontDoor  | Yes
- *   Premiumv2    | integration | Yes              | Yes                  | If allowAppGateway | If allowFrontDoor  | Yes
+ *   SKU          | VNet Mode   | APIM Mgmt (3443) | Load Balancer (6390) | App Gateway (443)  | Front Door PE (443)      | Deny All
+ *   -------------|-------------|------------------|----------------------|--------------------|--------------------------|---------
+ *   Developer    | injection   | Yes              | Yes                  | If allowAppGateway | If allowFrontDoorBackend | Yes
+ *   Basic        | (none)      |  -               |  -                   |  -                 |  -                       |  -
+ *   Standard     | (none)      |  -               |  -                   |  -                 |  -                       |  -
+ *   Premium      | injection   | Yes              | Yes                  | If allowAppGateway | If allowFrontDoorBackend | Yes
+ *   Basicv2      | integration | Yes              | Yes                  | If allowAppGateway | If allowFrontDoorBackend | Yes
+ *   Standardv2   | injection   | Yes              | Yes                  | If allowAppGateway | If allowFrontDoorBackend | Yes
+ *   Standardv2   | integration | Yes              | Yes                  | If allowAppGateway | If allowFrontDoorBackend | Yes
+ *   Premiumv2    | injection   | Yes              | Yes                  | If allowAppGateway | If allowFrontDoorBackend | Yes
+ *   Premiumv2    | integration | Yes              | Yes                  | If allowAppGateway | If allowFrontDoorBackend | Yes
  *
- * Outbound NSG rule matrix (as of 02/27/2026):
+ * OUTBOUND NSG rule matrix (as of 03/02/2026):
  *
- *   SKU          | VNet Mode   | Storage          | Key Vault            | SQL               | Monitor
- *   -------------|-------------|------------------|----------------------|-------------------|----------
- *   Developer    | injection   | Yes              | Yes                  | Yes               | Yes
- *   Basic        | (none)      |  -               |  -                   |  -                |  -
- *   Standard     | (none)      |  -               |  -                   |  -                |  -
- *   Premium      | injection   | Yes              | Yes                  | Yes               | Yes
- *   Basicv2      | integration | Yes              | Yes                  | No                | No
- *   Standardv2   | injection   | Yes              | Yes                  | No                | No
- *   Standardv2   | integration | Yes              | Yes                  | No                | No
- *   Premiumv2    | injection   | Yes              | Yes                  | No                | No
- *   Premiumv2    | integration | Yes              | Yes                  | No                | No
+ *   SKU          | VNet Mode   | Storage          | Key Vault            | SQL                | Monitor
+ *   -------------|-------------|------------------|----------------------|--------------------|----------
+ *   Developer    | injection   | Yes              | Yes                  | Yes                | Yes
+ *   Basic        | (none)      |  -               |  -                   |  -                 |  -
+ *   Standard     | (none)      |  -               |  -                   |  -                 |  -
+ *   Premium      | injection   | Yes              | Yes                  | Yes                | Yes
+ *   Basicv2      | integration | Yes              | Yes                  | No                 | No
+ *   Standardv2   | injection   | Yes              | Yes                  | No                 | No
+ *   Standardv2   | integration | Yes              | Yes                  | No                 | No
+ *   Premiumv2    | injection   | Yes              | Yes                  | No                 | No
+ *   Premiumv2    | integration | Yes              | Yes                  | No                 | No
  *
  * @see Classic tiers - required NSG rules for VNet injection:
  *      https://learn.microsoft.com/azure/api-management/api-management-using-with-internal-vnet#configure-nsg-rules

@@ -1,11 +1,4 @@
 // ------------------
-//    IMPORTS
-// ------------------
-
-import {nsgsr_denyAllInbound} from '../../shared/bicep/modules/vnet/v1/nsg_rules.bicep'
-
-
-// ------------------
 //    PARAMETERS
 // ------------------
 
@@ -118,61 +111,16 @@ resource nsgDefault 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
   location: location
 }
 
-// App Gateway needs a specific NSG
-resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
-  name: 'nsg-appgw'
-  location: location
-  properties: {
-    securityRules: [
-      {
-        name: 'AllowGatewayManagerInbound'
-        properties: {
-          description: 'Allow Azure infrastructure communication'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '65200-65535'
-          sourceAddressPrefix: 'GatewayManager'
-          destinationAddressPrefix: '*'
-          access: 'Allow'
-          priority: 100
-          direction: 'Inbound'
-        }
-      }
-      {
-        name: 'AllowHTTPSInbound'
-        properties: {
-          description: 'Allow HTTPS traffic from internet'
-          protocol: 'Tcp'
-          sourcePortRange: '*'
-          destinationPortRange: '443'
-          sourceAddressPrefix: '*'
-          destinationAddressPrefix: '*'
-          access: 'Allow'
-          priority: 110
-          direction: 'Inbound'
-        }
-      }
-      {
-        name: 'AllowAzureLoadBalancerInbound'
-        properties: {
-          description: 'Allow Azure Load Balancer health probes'
-          protocol: '*'
-          sourcePortRange: '*'
-          destinationPortRange: '*'
-          sourceAddressPrefix: 'AzureLoadBalancer'
-          destinationAddressPrefix: '*'
-          access: 'Allow'
-          priority: 120
-          direction: 'Inbound'
-        }
-      }
-      nsgsr_denyAllInbound
-    ]
+module nsgAppGwModule '../../shared/bicep/modules/vnet/v1/nsg-appgw.bicep' = {
+  name: 'nsgAppGwModule'
+  params: {
+    location: location
+    nsgName: 'nsg-appgw'
   }
 }
 
 // NSG for APIM with Private Link from Application Gateway
-module nsgApimModule '../../shared/bicep/modules/vnet/v1/nsg-apim-vnet.bicep' = {
+module nsgApimModule '../../shared/bicep/modules/vnet/v1/nsg-apim.bicep' = {
   name: 'nsgApimModule'
   params: {
     location: location
@@ -244,7 +192,7 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
         properties: {
           addressPrefix: appgwSubnetPrefix
           networkSecurityGroup: {
-            id: nsgAppGw.id
+            id: nsgAppGwModule.outputs.nsgId
           }
         }
       }
@@ -276,7 +224,7 @@ module nsgFlowLogsAppGwModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.
   params: {
     location: location
     flowLogName: 'fl-nsg-appgw-${resourceSuffix}'
-    nsgResourceId: nsgAppGw.id
+    nsgResourceId: nsgAppGwModule.outputs.nsgId
     storageAccountResourceId: storageFlowLogsModule.outputs.storageAccountId
     logAnalyticsWorkspaceResourceId: lawId
     retentionDays: 7
