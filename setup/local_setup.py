@@ -26,15 +26,15 @@ from pathlib import Path  # Cross-platform path handling (Windows: \, Unix: /)
 
 
 DEFAULT_PYTHON_ANALYSIS_EXCLUDE = [
-    "**/node_modules",
-    "**/__pycache__",
-    ".git",
-    "**/build",
-    "env/**",
+    '**/node_modules',
+    '**/__pycache__',
+    '.git',
+    '**/build',
+    'env/**',
 ]
 
-KERNEL_NAME = "python-venv"
-KERNEL_DISPLAY_NAME = "Python (.venv)"
+KERNEL_NAME = 'python-venv'
+KERNEL_DISPLAY_NAME = 'Python (.venv)'
 
 
 def _ensure_utf8_streams() -> None:
@@ -48,16 +48,16 @@ def _ensure_utf8_streams() -> None:
     """
 
     try:
-        if hasattr(sys.stdout, "reconfigure"):
-            sys.stdout.reconfigure(encoding="utf-8")
-        if hasattr(sys.stderr, "reconfigure"):
-            sys.stderr.reconfigure(encoding="utf-8")
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+        if hasattr(sys.stderr, 'reconfigure'):
+            sys.stderr.reconfigure(encoding='utf-8')
     except Exception:
         # If reconfigure is unavailable or fails, fall back to env var.
         pass
 
     # Encourage UTF-8 for any child processes that honor PYTHONIOENCODING.
-    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
 
 
 # Configure streams immediately on import so all prints are safe.
@@ -67,61 +67,63 @@ _ensure_utf8_streams()
 def _venv_python_path() -> str:
     """Return the workspace-local virtualenv interpreter path (platform aware)."""
 
-    return "./.venv/Scripts/python.exe" if os.name == "nt" else "./.venv/bin/python"
+    return './.venv/Scripts/python.exe' if os.name == 'nt' else './.venv/bin/python'
 
 
 def check_azure_cli_installed():
     """Check if Azure CLI is installed."""
     az_path = shutil.which('az') or shutil.which('az.cmd') or shutil.which('az.bat')
     if not az_path:
-        print("❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli")
+        print('❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli')
         return False
     try:
         subprocess.run([az_path, '--version'], capture_output=True, text=True, check=True)
-        print("✅ Azure CLI is installed")
+        print('✅ Azure CLI is installed')
         return True
     except subprocess.CalledProcessError:
-        print("❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli")
+        print('❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli')
         return False
+
 
 def check_bicep_cli_installed():
     """Check if Azure Bicep CLI is installed."""
     az_path = shutil.which('az') or shutil.which('az.cmd') or shutil.which('az.bat')
     if not az_path:
-        print("❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli")
+        print('❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli')
         return False
 
     try:
         subprocess.run([az_path, 'bicep', 'version'], capture_output=True, text=True, check=True)
-        print("✅ Azure Bicep CLI is installed (via az bicep)")
+        print('✅ Azure Bicep CLI is installed (via az bicep)')
         return True
     except subprocess.CalledProcessError:
-        print("❌ Azure Bicep CLI is not installed. Install with: az bicep install")
+        print('❌ Azure Bicep CLI is not installed. Install with: az bicep install')
         return False
+
 
 def check_uv_installed():
     """Check if uv is installed and provide installation guidance if not."""
     uv_path = shutil.which('uv')
     if not uv_path:
-        print("❌ uv is not installed.")
-        print("   uv provides fast Python package management and is recommended for this project.")
-        print("   Installation instructions:")
+        print('❌ uv is not installed.')
+        print('   uv provides fast Python package management and is recommended for this project.')
+        print('   Installation instructions:')
         if os.name == 'nt':  # Windows
-            print("   • PowerShell: irm https://astral.sh/uv/install.ps1 | iex")
-            print("   • Or download from: https://github.com/astral-sh/uv/releases")
+            print('   • PowerShell: irm https://astral.sh/uv/install.ps1 | iex')
+            print('   • Or download from: https://github.com/astral-sh/uv/releases')
         else:  # macOS/Linux
-            print("   • curl -LsSf https://astral.sh/uv/install.sh | sh")
-        print("   • Official docs: https://docs.astral.sh/uv/getting-started/installation/")
+            print('   • curl -LsSf https://astral.sh/uv/install.sh | sh')
+        print('   • Official docs: https://docs.astral.sh/uv/getting-started/installation/')
         return False
 
     try:
         result = subprocess.run([uv_path, '--version'], capture_output=True, text=True, check=True)
         version = result.stdout.strip()
-        print(f"✅ uv is installed ({version})")
+        print(f'✅ uv is installed ({version})')
         return True
     except subprocess.CalledProcessError:
-        print("❌ uv is installed but not functioning correctly")
-        print("   Try reinstalling: https://docs.astral.sh/uv/getting-started/installation/")
+        print('❌ uv is installed but not functioning correctly')
+        print('   Try reinstalling: https://docs.astral.sh/uv/getting-started/installation/')
         return False
 
 
@@ -129,7 +131,7 @@ def check_azure_providers_registered():
     """Check if required Azure resource providers are registered in the current subscription."""
     az_path = shutil.which('az') or shutil.which('az.cmd') or shutil.which('az.bat')
     if not az_path:
-        print("   ❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli")
+        print('   ❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli')
         return False
     required_providers = [
         'Microsoft.ApiManagement',
@@ -143,34 +145,30 @@ def check_azure_providers_registered():
         'Microsoft.Network',
         'Microsoft.OperationalInsights',
         'Microsoft.Resources',
-        'Microsoft.Storage'
+        'Microsoft.Storage',
     ]
 
     try:
         # Get list of registered providers
-        result = subprocess.run(
-            [az_path, 'provider', 'list', '--query', '[].namespace', '-o', 'json'],
-            capture_output=True,
-            text=True,
-            check=True
-        )
+        result = subprocess.run([az_path, 'provider', 'list', '--query', '[].namespace', '-o', 'json'], capture_output=True, text=True, check=True)
         registered_providers = json.loads(result.stdout)
 
         missing_providers = [p for p in required_providers if p not in registered_providers]
 
         if not missing_providers:
-            print("✅ All required Azure resource providers are registered")
+            print('✅ All required Azure resource providers are registered')
             return True
 
-        print(f"❌ Missing {len(missing_providers)} Azure provider(s):")
+        print(f'❌ Missing {len(missing_providers)} Azure provider(s):')
         for provider in missing_providers:
-            print(f"      • {provider}")
-        print("   Register with: az provider register -n <provider-namespace>")
+            print(f'      • {provider}')
+        print('   Register with: az provider register -n <provider-namespace>')
         return False
 
     except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError):
-        print("   ⚠️  Could not verify Azure provider registrations (Azure CLI may not be configured)")
+        print('   ⚠️  Could not verify Azure provider registrations (Azure CLI may not be configured)')
         return False
+
 
 def _normalize_string_list(value: object) -> list[str]:
     if value is None:
@@ -258,7 +256,7 @@ def setup_python_path() -> None:
         if shared_path_str not in sys.path:
             # Insert at beginning to prioritize our modules over system modules
             sys.path.insert(0, shared_path_str)
-            print(f"Added to PYTHONPATH: {shared_path_str}")
+            print(f'Added to PYTHONPATH: {shared_path_str}')
 
 
 def generate_env_file() -> None:
@@ -301,38 +299,36 @@ def generate_env_file() -> None:
         'SPOTIFY_CLIENT_SECRET': existing_vars.get('SPOTIFY_CLIENT_SECRET', ''),
     }
 
-    preserved_extras = {
-        k: v for k, v in existing_vars.items() if k not in managed_keys
-    }
+    preserved_extras = {k: v for k, v in existing_vars.items() if k not in managed_keys}
 
     # Create .env file content with absolute paths
     # These paths will be automatically correct for the current platform
     lines: list[str] = [
-        "# Auto-generated environment for VS Code and local tooling",
+        '# Auto-generated environment for VS Code and local tooling',
         "# Run 'python setup/local_setup.py --generate-env' to regenerate",
-        "# Good to set console width to 220, 221 - whatever it takes",
-        "",
-        f"APIM_SAMPLES_CONSOLE_WIDTH={managed_keys['APIM_SAMPLES_CONSOLE_WIDTH']}",
-        f"APIM_SAMPLES_LOG_LEVEL={managed_keys['APIM_SAMPLES_LOG_LEVEL']}",
-        f"PROJECT_ROOT={managed_keys['PROJECT_ROOT']}",
-        f"PYTHONPATH={managed_keys['PYTHONPATH']}",
-        f"SPOTIFY_CLIENT_ID={managed_keys['SPOTIFY_CLIENT_ID']}",
-        f"SPOTIFY_CLIENT_SECRET={managed_keys['SPOTIFY_CLIENT_SECRET']}",
+        '# Good to set console width to 220, 221 - whatever it takes',
+        '',
+        f'APIM_SAMPLES_CONSOLE_WIDTH={managed_keys["APIM_SAMPLES_CONSOLE_WIDTH"]}',
+        f'APIM_SAMPLES_LOG_LEVEL={managed_keys["APIM_SAMPLES_LOG_LEVEL"]}',
+        f'PROJECT_ROOT={managed_keys["PROJECT_ROOT"]}',
+        f'PYTHONPATH={managed_keys["PYTHONPATH"]}',
+        f'SPOTIFY_CLIENT_ID={managed_keys["SPOTIFY_CLIENT_ID"]}',
+        f'SPOTIFY_CLIENT_SECRET={managed_keys["SPOTIFY_CLIENT_SECRET"]}',
     ]
 
     if preserved_extras:
-        lines.extend(["", "# Preserved custom variables (not managed by the generator)"])
+        lines.extend(['', '# Preserved custom variables (not managed by the generator)'])
         for key in sorted(preserved_extras):
-            lines.append(f"{key}={preserved_extras[key]}")
+            lines.append(f'{key}={preserved_extras[key]}')
 
-    env_content = "\n".join(lines) + "\n"
+    env_content = '\n'.join(lines) + '\n'
 
     # Use explicit UTF-8 encoding for cross-platform text file compatibility
     # This ensures the file reads correctly on all operating systems
     with open(env_file_path, 'w', encoding='utf-8') as f:
         f.write(env_content)
 
-    print(f"\n✅ Successfully generated .env file: {env_file_path}\n")
+    print(f'\n✅ Successfully generated .env file: {env_file_path}\n')
 
 
 def install_jupyter_kernel():
@@ -345,22 +341,19 @@ def install_jupyter_kernel():
 
     try:
         # Check if ipykernel is available
-        subprocess.run([sys.executable, '-m', 'ipykernel', '--version'],
-                      check=True, capture_output=True, text=True)
+        subprocess.run([sys.executable, '-m', 'ipykernel', '--version'], check=True, capture_output=True, text=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
-        print("Installing ipykernel...")
+        print('Installing ipykernel...')
         try:
             # Try uv first, fallback to pip
             uv_cmd = shutil.which('uv')
             if uv_cmd:
-                subprocess.run([uv_cmd, 'pip', 'install', 'ipykernel'],
-                              check=True, capture_output=True, text=True)
+                subprocess.run([uv_cmd, 'pip', 'install', 'ipykernel'], check=True, capture_output=True, text=True)
             else:
-                subprocess.run([sys.executable, '-m', 'pip', 'install', 'ipykernel'],
-                              check=True, capture_output=True, text=True)
-            print("✅ ipykernel installed successfully")
+                subprocess.run([sys.executable, '-m', 'pip', 'install', 'ipykernel'], check=True, capture_output=True, text=True)
+            print('✅ ipykernel installed successfully')
         except subprocess.CalledProcessError as e:
-            print(f"❌ Failed to install ipykernel: {e}")
+            print(f'❌ Failed to install ipykernel: {e}')
             return False
 
     kernel_name = KERNEL_NAME
@@ -368,23 +361,23 @@ def install_jupyter_kernel():
 
     try:
         # Install the kernel for the current user
-        subprocess.run([
-            sys.executable, '-m', 'ipykernel', 'install',
-            '--user',
-            f'--name={kernel_name}',
-            f'--display-name={display_name}'
-        ], check=True, capture_output=True, text=True)
+        subprocess.run(
+            [sys.executable, '-m', 'ipykernel', 'install', '--user', f'--name={kernel_name}', f'--display-name={display_name}'],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
 
-        print("✅ Jupyter kernel registered successfully:")
-        print(f"   Name         : {kernel_name}")
-        print(f"   Display Name : {display_name}")
+        print('✅ Jupyter kernel registered successfully:')
+        print(f'   Name         : {kernel_name}')
+        print(f'   Display Name : {display_name}')
 
         return True
 
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to register Jupyter kernel: {e}")
+        print(f'❌ Failed to register Jupyter kernel: {e}')
         if e.stderr:
-            print(f"Error details: {e.stderr}")
+            print(f'Error details: {e.stderr}')
         return False
 
 
@@ -407,12 +400,12 @@ def create_vscode_settings():
     # Settings to update for Python and notebook flow. Trusted kernels
     # are merged to avoid overwriting user customizations.
     required_settings = {
-        "python.defaultInterpreterPath": venv_python,
-        "python.envFile": "${workspaceFolder}/.env",
-        "python.terminal.activateEnvironment": True,
-        "python.terminal.activateEnvInCurrentTerminal": True,
-        "python.testing.pytestEnabled": True,
-        "jupyter.kernels.trusted": [venv_python],
+        'python.defaultInterpreterPath': venv_python,
+        'python.envFile': '${workspaceFolder}/.env',
+        'python.terminal.activateEnvironment': True,
+        'python.terminal.activateEnvInCurrentTerminal': True,
+        'python.testing.pytestEnabled': True,
+        'jupyter.kernels.trusted': [venv_python],
     }
 
     # Check if settings.json already exists
@@ -425,15 +418,15 @@ def create_vscode_settings():
             # Try to parse as JSON (will fail if it has comments)
             existing_settings = json.loads(content)
         except (json.JSONDecodeError, IOError):
-            print("⚠️  Existing settings.json has comments or formatting issues; keeping your file untouched.")
-            print("   Please manually merge these minimal settings:")
+            print('⚠️  Existing settings.json has comments or formatting issues; keeping your file untouched.')
+            print('   Please manually merge these minimal settings:')
             for key, value in required_settings.items():
-                print(f"   - {key}: {value}")
+                print(f'   - {key}: {value}')
             return False
 
         merged_settings = existing_settings | required_settings
-        merged_settings["python.analysis.exclude"] = _merge_string_list(
-            existing_settings.get("python.analysis.exclude"),
+        merged_settings['python.analysis.exclude'] = _merge_string_list(
+            existing_settings.get('python.analysis.exclude'),
             DEFAULT_PYTHON_ANALYSIS_EXCLUDE,
         )
 
@@ -441,22 +434,22 @@ def create_vscode_settings():
             json.dump(merged_settings, f, indent=2, sort_keys=True)
             f.write('\n')
 
-        print(f"✅ VS Code settings updated: {settings_file}")
-        print("   - Existing settings preserved")
-        print("   - Python interpreter set to .venv")
+        print(f'✅ VS Code settings updated: {settings_file}')
+        print('   - Existing settings preserved')
+        print('   - Python interpreter set to .venv')
     else:
         # Create new settings file
         try:
-            required_settings["python.analysis.exclude"] = DEFAULT_PYTHON_ANALYSIS_EXCLUDE
+            required_settings['python.analysis.exclude'] = DEFAULT_PYTHON_ANALYSIS_EXCLUDE
 
             with open(settings_file, 'w', encoding='utf-8') as f:
                 json.dump(required_settings, f, indent=2, sort_keys=True)
                 f.write('\n')
 
-            print(f"✅ VS Code settings created: {settings_file}")
-            print("   - Python interpreter configured for .venv")
+            print(f'✅ VS Code settings created: {settings_file}')
+            print('   - Python interpreter configured for .venv')
         except (ImportError, IOError) as e:
-            print(f"❌ Failed to create VS Code settings: {e}")
+            print(f'❌ Failed to create VS Code settings: {e}')
             return False
 
     return True
@@ -472,22 +465,21 @@ def validate_kernel_setup():
 
     try:
         # Check if ipykernel is available
-        result = subprocess.run([sys.executable, '-m', 'jupyter', 'kernelspec', 'list'],
-                              check=True, capture_output=True, text=True)
+        result = subprocess.run([sys.executable, '-m', 'jupyter', 'kernelspec', 'list'], check=True, capture_output=True, text=True)
 
         # Check if our kernel is in the list
         if KERNEL_NAME in result.stdout:
-            print(f"✅ {KERNEL_NAME} kernel found in kernelspec list")
+            print(f'✅ {KERNEL_NAME} kernel found in kernelspec list')
             return True
 
-        print(f"❌ {KERNEL_NAME} kernel not found in kernelspec list")
+        print(f'❌ {KERNEL_NAME} kernel not found in kernelspec list')
         return False
 
     except subprocess.CalledProcessError as e:
-        print(f"❌ Failed to check kernel list: {e}")
+        print(f'❌ Failed to check kernel list: {e}')
         return False
     except FileNotFoundError:
-        print("❌ Jupyter not found - please ensure Jupyter is installed")
+        print('❌ Jupyter not found - please ensure Jupyter is installed')
         return False
 
 
@@ -498,12 +490,12 @@ def force_kernel_consistency():
     stay idempotent.
     """
 
-    print("🔧 Enforcing kernel consistency...")
+    print('🔧 Enforcing kernel consistency...')
 
     if not validate_kernel_setup():
-        print("⚠️ Kernel not found, attempting to register...")
+        print('⚠️ Kernel not found, attempting to register...')
         if not install_jupyter_kernel():
-            print("❌ Failed to register kernel - manual intervention required")
+            print('❌ Failed to register kernel - manual intervention required')
             return False
 
     project_root = get_project_root()
@@ -520,16 +512,16 @@ def force_kernel_consistency():
                 with open(settings_file, 'r', encoding='utf-8') as f:
                     existing_settings = json.load(f)
             except json.JSONDecodeError:
-                print("⚠️ Existing settings.json has issues; leaving it untouched.")
+                print('⚠️ Existing settings.json has issues; leaving it untouched.')
                 return False
 
         merged_settings = existing_settings.copy()
-        merged_settings["jupyter.kernels.trusted"] = _merge_string_list(
-            existing_settings.get("jupyter.kernels.trusted"),
+        merged_settings['jupyter.kernels.trusted'] = _merge_string_list(
+            existing_settings.get('jupyter.kernels.trusted'),
             [venv_python],
         )
-        merged_settings["python.analysis.exclude"] = _merge_string_list(
-            existing_settings.get("python.analysis.exclude"),
+        merged_settings['python.analysis.exclude'] = _merge_string_list(
+            existing_settings.get('python.analysis.exclude'),
             DEFAULT_PYTHON_ANALYSIS_EXCLUDE,
         )
 
@@ -537,11 +529,11 @@ def force_kernel_consistency():
             json.dump(merged_settings, f, indent=2)
             f.write('\n')
 
-        print("✅ Kernel trust refreshed without overriding user settings")
+        print('✅ Kernel trust refreshed without overriding user settings')
         return True
 
     except Exception as e:
-        print(f"❌ Failed to update VS Code settings: {e}")
+        print(f'❌ Failed to update VS Code settings: {e}')
         return False
 
 
@@ -556,7 +548,7 @@ def setup_notebook_git_filter():
     script = project_root / 'setup' / 'normalize_notebook_metadata.py'
 
     if not script.exists():
-        print(f"❌ Normalizer script not found at {script}")
+        print(f'❌ Normalizer script not found at {script}')
         return False
 
     # Use a forward-slash relative path so the command works on every OS.
@@ -565,21 +557,27 @@ def setup_notebook_git_filter():
     try:
         subprocess.run(
             ['git', 'config', 'filter.notebook-metadata.clean', clean_cmd],
-            check=True, capture_output=True, text=True, cwd=str(project_root),
+            check=True,
+            capture_output=True,
+            text=True,
+            cwd=str(project_root),
         )
         # The smudge filter is intentionally left as the default (cat / no-op)
         # so checked-out files receive the real metadata from the user's kernel.
         subprocess.run(
             ['git', 'config', 'filter.notebook-metadata.smudge', 'cat'],
-            check=True, capture_output=True, text=True, cwd=str(project_root),
+            check=True,
+            capture_output=True,
+            text=True,
+            cwd=str(project_root),
         )
-        print("✅ Git clean filter for notebook metadata configured")
+        print('✅ Git clean filter for notebook metadata configured')
         return True
     except FileNotFoundError:
-        print("⚠️  git not found in PATH; skipping notebook filter setup")
+        print('⚠️  git not found in PATH; skipping notebook filter setup')
         return False
     except subprocess.CalledProcessError as exc:
-        print(f"❌ Failed to configure git filter: {exc}")
+        print(f'❌ Failed to configure git filter: {exc}')
         return False
 
 
@@ -591,19 +589,19 @@ def setup_complete_environment():
     as easy to use as the dev container.
     """
 
-    print("🚀 Setting up complete APIM Samples environment...\n")
+    print('🚀 Setting up complete APIM Samples environment...\n')
 
     # Step 1: Check uv installation (recommended but not blocking)
-    print("1/8) Checking uv installation (recommended)...\n")
+    print('1/8) Checking uv installation (recommended)...\n')
     uv_ok = False
     try:
         uv_ok = check_uv_installed()
     except Exception as e:
-        print(f"⚠️  Error checking uv installation: {e}")
-        print("   Continuing with setup...")
+        print(f'⚠️  Error checking uv installation: {e}')
+        print('   Continuing with setup...')
 
     # Step 2: Check Azure prerequisites
-    print("\n2/8) Checking Azure prerequisites...\n")
+    print('\n2/8) Checking Azure prerequisites...\n')
     azure_cli_ok = False
     bicep_ok = False
     providers_ok = False
@@ -611,205 +609,205 @@ def setup_complete_environment():
     try:
         azure_cli_ok = check_azure_cli_installed()
     except Exception as e:
-        print(f"⚠️  Error checking Azure CLI: {e}")
-        print("   Continuing with setup...")
+        print(f'⚠️  Error checking Azure CLI: {e}')
+        print('   Continuing with setup...')
 
     try:
         bicep_ok = check_bicep_cli_installed()
     except Exception as e:
-        print(f"⚠️  Error checking Bicep CLI: {e}")
-        print("   Continuing with setup...")
+        print(f'⚠️  Error checking Bicep CLI: {e}')
+        print('   Continuing with setup...')
 
     try:
         providers_ok = check_azure_providers_registered()
     except Exception as e:
-        print(f"⚠️  Error checking Azure providers: {e}")
-        print("   Continuing with setup...")
+        print(f'⚠️  Error checking Azure providers: {e}')
+        print('   Continuing with setup...')
 
     if not (azure_cli_ok and bicep_ok):
-        print("\n⚠️  Some Azure prerequisites are missing. Please address the issues above.")
-        print("   Continuing with environment setup...\n")
+        print('\n⚠️  Some Azure prerequisites are missing. Please address the issues above.')
+        print('   Continuing with environment setup...\n')
 
     # Step 3: Generate .env file
-    print("\n3/8) Generating .env file for Python path configuration...")
+    print('\n3/8) Generating .env file for Python path configuration...')
     env_success = False
     try:
         generate_env_file()
         env_success = True
     except Exception as e:
-        print(f"❌ Failed to generate .env file: {e}")
-        print("   Continuing with setup...")
+        print(f'❌ Failed to generate .env file: {e}')
+        print('   Continuing with setup...')
 
     # Step 4: Register Jupyter kernel
-    print("\n4/8) Registering standardized Jupyter kernel...\n")
+    print('\n4/8) Registering standardized Jupyter kernel...\n')
     kernel_success = False
     try:
         kernel_success = install_jupyter_kernel()
     except Exception as e:
-        print(f"❌ Error installing Jupyter kernel: {e}")
-        print("   Continuing with setup...")
+        print(f'❌ Error installing Jupyter kernel: {e}')
+        print('   Continuing with setup...')
 
     # Step 5: Configure VS Code settings with minimal, merged defaults
-    print("\n5/8) Configuring VS Code workspace settings...\n")
+    print('\n5/8) Configuring VS Code workspace settings...\n')
     vscode_success = False
     try:
         vscode_success = create_vscode_settings()
     except Exception as e:
-        print(f"❌ Error creating VS Code settings: {e}")
-        print("   Continuing with setup...")
+        print(f'❌ Error creating VS Code settings: {e}')
+        print('   Continuing with setup...')
 
     # Step 6: Enforce kernel consistency
-    print("\n6/8) Enforcing kernel consistency for future reliability...\n")
+    print('\n6/8) Enforcing kernel consistency for future reliability...\n')
     consistency_success = False
     try:
         consistency_success = force_kernel_consistency()
     except Exception as e:
-        print(f"❌ Error enforcing kernel consistency: {e}")
-        print("   Continuing with setup...")
+        print(f'❌ Error enforcing kernel consistency: {e}')
+        print('   Continuing with setup...')
 
     # Step 7: Configure notebook git filter
-    print("\n7/8) Configuring notebook metadata git filter...\n")
+    print('\n7/8) Configuring notebook metadata git filter...\n')
     nb_filter_success = False
     try:
         nb_filter_success = setup_notebook_git_filter()
     except Exception as e:
-        print(f"❌ Error configuring notebook git filter: {e}")
-        print("   Continuing with setup...")
+        print(f'❌ Error configuring notebook git filter: {e}')
+        print('   Continuing with setup...')
 
     # Step 8: Run uv sync if uv is available
-    print("\n8/8) Syncing dependencies with uv (if available)...\n")
+    print('\n8/8) Syncing dependencies with uv (if available)...\n')
     sync_success = False
     if uv_ok:
         try:
             uv_path = shutil.which('uv')
             if uv_path:
                 subprocess.run([uv_path, 'sync'], check=True, capture_output=True, text=True)
-                print("✅ Dependencies synced successfully with uv")
+                print('✅ Dependencies synced successfully with uv')
                 sync_success = True
             else:
-                print("⚠️  uv reported installed but executable not found in PATH; skipping sync")
+                print('⚠️  uv reported installed but executable not found in PATH; skipping sync')
                 print("   Install uv and run 'uv sync' for dependency management")
         except subprocess.CalledProcessError as e:
-            print(f"⚠️  Failed to sync dependencies with uv: {e}")
+            print(f'⚠️  Failed to sync dependencies with uv: {e}')
             print("   You can manually run 'uv sync' after setup")
         except Exception as e:
-            print(f"⚠️  Error during uv sync: {e}")
+            print(f'⚠️  Error during uv sync: {e}')
             print("   You can manually run 'uv sync' after setup")
     else:
-        print("⚠️  Skipping dependency sync (uv not available)")
+        print('⚠️  Skipping dependency sync (uv not available)')
         print("   Install uv and run 'uv sync' for dependency management")
 
     # Summary
-    print("\n" + "="*50)
-    print("📋 Setup Summary:")
-    print(f"   {'✅' if uv_ok else '⚠️ '} uv installation: {'Available' if uv_ok else 'Not installed (recommended)'}")
-    print(f"   {'✅' if azure_cli_ok else '❌'} Azure CLI: {'Available' if azure_cli_ok else 'Not installed'}")
-    print(f"   {'✅' if bicep_ok else '❌'} Azure Bicep: {'Available' if bicep_ok else 'Not installed'}")
-    print(f"   {'✅' if providers_ok else '⚠️ '} Azure resource providers: {'Registered' if providers_ok else 'Not all registered'}")
-    print(f"   {'✅' if env_success else '❌'} Python path configuration: {'Complete' if env_success else 'Failed'}")
-    print(f"   {'✅' if kernel_success else '❌'} Jupyter kernel registration: {'Complete' if kernel_success else 'Failed'}")
-    print(f"   {'✅' if vscode_success else '❌'} VS Code settings: {'Complete' if vscode_success else 'Failed'}")
-    print(f"   {'✅' if consistency_success else '❌'} Kernel trust refresh: {'Complete' if consistency_success else 'Failed'}")
-    print(f"   {'✅' if nb_filter_success else '⚠️ '} Notebook git filter: {'Configured' if nb_filter_success else 'Skipped or failed'}")
-    print(f"   {'✅' if sync_success else '⚠️ '} Dependency sync: {'Complete' if sync_success else 'Skipped or failed'}")
+    print('\n' + '=' * 50)
+    print('📋 Setup Summary:')
+    print(f'   {"✅" if uv_ok else "⚠️ "} uv installation: {"Available" if uv_ok else "Not installed (recommended)"}')
+    print(f'   {"✅" if azure_cli_ok else "❌"} Azure CLI: {"Available" if azure_cli_ok else "Not installed"}')
+    print(f'   {"✅" if bicep_ok else "❌"} Azure Bicep: {"Available" if bicep_ok else "Not installed"}')
+    print(f'   {"✅" if providers_ok else "⚠️ "} Azure resource providers: {"Registered" if providers_ok else "Not all registered"}')
+    print(f'   {"✅" if env_success else "❌"} Python path configuration: {"Complete" if env_success else "Failed"}')
+    print(f'   {"✅" if kernel_success else "❌"} Jupyter kernel registration: {"Complete" if kernel_success else "Failed"}')
+    print(f'   {"✅" if vscode_success else "❌"} VS Code settings: {"Complete" if vscode_success else "Failed"}')
+    print(f'   {"✅" if consistency_success else "❌"} Kernel trust refresh: {"Complete" if consistency_success else "Failed"}')
+    print(f'   {"✅" if nb_filter_success else "⚠️ "} Notebook git filter: {"Configured" if nb_filter_success else "Skipped or failed"}')
+    print(f'   {"✅" if sync_success else "⚠️ "} Dependency sync: {"Complete" if sync_success else "Skipped or failed"}')
 
     critical_success = env_success and kernel_success and vscode_success and consistency_success
 
     if critical_success:
-        print("\n🎉 Setup complete! Your local environment is configured.")
+        print('\n🎉 Setup complete! Your local environment is configured.')
         print(f"   • Notebooks can use the '{KERNEL_DISPLAY_NAME}' kernel")
-        print("   • Python modules from shared/ directory are available")
-        print("   • VS Code is configured for optimal workflow")
-        print("   • User customizations are preserved across reruns")
+        print('   • Python modules from shared/ directory are available')
+        print('   • VS Code is configured for optimal workflow')
+        print('   • User customizations are preserved across reruns')
         if not uv_ok:
-            print("\n⚠️  Note: uv is not installed but is recommended for faster dependency management")
-            print("   See installation instructions above")
-        print("\n💡 Next steps:")
-        print("   1. Restart VS Code to apply all settings")
+            print('\n⚠️  Note: uv is not installed but is recommended for faster dependency management')
+            print('   See installation instructions above')
+        print('\n💡 Next steps:')
+        print('   1. Restart VS Code to apply all settings')
         if uv_ok and sync_success:
-            print("   2. Dependencies are synced and ready to use")
+            print('   2. Dependencies are synced and ready to use')
         elif uv_ok:
             print("   2. Run 'uv sync' to install dependencies")
         else:
             print("   2. Install uv and run 'uv sync' for dependency management")
-        print("   3. Open any notebook - it should automatically use the correct kernel")
+        print('   3. Open any notebook - it should automatically use the correct kernel')
     else:
-        print("\n⚠️  Setup completed with some issues. Check error messages above.")
-        print("   The environment may still be partially functional.")
+        print('\n⚠️  Setup completed with some issues. Check error messages above.')
+        print('   The environment may still be partially functional.')
 
 
 def show_help():
     """
     Display comprehensive help information about the script's functionality and available options.
     """
-    print("\n" + "="*80)
-    print("                      APIM Samples Python Environment Setup")
-    print("="*80)
+    print('\n' + '=' * 80)
+    print('                      APIM Samples Python Environment Setup')
+    print('=' * 80)
 
-    print("\nThis script configures the Python environment for APIM Samples development.")
-    print("It handles PYTHONPATH setup, Jupyter kernel registration, and VS Code integration.")
+    print('\nThis script configures the Python environment for APIM Samples development.')
+    print('It handles PYTHONPATH setup, Jupyter kernel registration, and VS Code integration.')
 
-    print("\nUSAGE:")
-    print("  python setup/local_setup.py [OPTION]")
+    print('\nUSAGE:')
+    print('  python setup/local_setup.py [OPTION]')
 
-    print("\nOPTIONS:")
-    print("  (no options)        Show this help information")
+    print('\nOPTIONS:')
+    print('  (no options)        Show this help information')
     print("  --run-only          Only modify current session's PYTHONPATH (basic setup)")
-    print("  --generate-env      Generate .env file for VS Code and terminal integration")
-    print("  --setup-kernel      Register the standardized Jupyter kernel")
-    print("  --setup-vscode      Configure VS Code settings for optimal workflow")
-    print("  --setup-nb-filter   Configure git clean filter for notebook metadata")
-    print("  --complete-setup    Perform complete environment setup (recommended)")
+    print('  --generate-env      Generate .env file for VS Code and terminal integration')
+    print('  --setup-kernel      Register the standardized Jupyter kernel')
+    print('  --setup-vscode      Configure VS Code settings for optimal workflow')
+    print('  --setup-nb-filter   Configure git clean filter for notebook metadata')
+    print('  --complete-setup    Perform complete environment setup (recommended)')
 
-    print("\nDETAILS:")
-    print("  --run-only:")
+    print('\nDETAILS:')
+    print('  --run-only:')
     print("    • Modifies the current Python session's sys.path")
-    print("    • Adds shared/python directory to PYTHONPATH")
-    print("    • Changes are temporary (only for current session)")
-    print("    • Use this for quick testing in the current terminal")
+    print('    • Adds shared/python directory to PYTHONPATH')
+    print('    • Changes are temporary (only for current session)')
+    print('    • Use this for quick testing in the current terminal')
 
-    print("\n  --generate-env:")
-    print("    • Creates a .env file at project root")
-    print("    • Sets PROJECT_ROOT and PYTHONPATH variables")
-    print("    • Used by VS Code and can be sourced in shells")
-    print("    • Ensures consistent paths across platforms")
+    print('\n  --generate-env:')
+    print('    • Creates a .env file at project root')
+    print('    • Sets PROJECT_ROOT and PYTHONPATH variables')
+    print('    • Used by VS Code and can be sourced in shells')
+    print('    • Ensures consistent paths across platforms')
 
-    print("\n  --setup-kernel:")
+    print('\n  --setup-kernel:')
     print(f"    • Registers a standardized Jupyter kernel named '{KERNEL_NAME}'")
     print(f"    • Display name will be '{KERNEL_DISPLAY_NAME}'")
-    print("    • Ensures consistent notebook experience")
-    print("    • Installs ipykernel if not already available")
+    print('    • Ensures consistent notebook experience')
+    print('    • Installs ipykernel if not already available')
 
-    print("\n  --setup-vscode:")
-    print("    • Creates/updates .vscode/settings.json")
-    print("    • Configures Python interpreter, linting, testing, and trusted kernels")
-    print("    • Preserves existing VS Code settings by merging changes")
+    print('\n  --setup-vscode:')
+    print('    • Creates/updates .vscode/settings.json')
+    print('    • Configures Python interpreter, linting, testing, and trusted kernels')
+    print('    • Preserves existing VS Code settings by merging changes')
 
-    print("\n  --setup-nb-filter:")
-    print("    • Configures a git clean filter for *.ipynb files")
-    print("    • Normalizes kernelspec.display_name and language_info.version on commit")
-    print("    • Prevents environment-specific Python version diffs")
-    print("    • Working-tree files are left untouched")
+    print('\n  --setup-nb-filter:')
+    print('    • Configures a git clean filter for *.ipynb files')
+    print('    • Normalizes kernelspec.display_name and language_info.version on commit')
+    print('    • Prevents environment-specific Python version diffs')
+    print('    • Working-tree files are left untouched')
 
-    print("\n  --complete-setup:")
-    print("    • Performs all of the above steps")
-    print("    • Recommended for new development environments")
-    print("    • Recreates dev container experience locally")
+    print('\n  --complete-setup:')
+    print('    • Performs all of the above steps')
+    print('    • Recommended for new development environments')
+    print('    • Recreates dev container experience locally')
 
-    print("\nEXAMPLES:")
-    print("  # Show this help information:")
-    print("  python setup/local_setup.py")
-    print("\n  # Perform complete setup (recommended for new users):")
-    print("  python setup/local_setup.py --complete-setup")
-    print("\n  # Only generate the .env file:")
-    print("  python setup/local_setup.py --generate-env")
+    print('\nEXAMPLES:')
+    print('  # Show this help information:')
+    print('  python setup/local_setup.py')
+    print('\n  # Perform complete setup (recommended for new users):')
+    print('  python setup/local_setup.py --complete-setup')
+    print('\n  # Only generate the .env file:')
+    print('  python setup/local_setup.py --generate-env')
 
-    print("\nNOTES:")
-    print("  • Running this script without options now displays this help screen")
-    print("  • For basic PYTHONPATH setup, use the --run-only option")
-    print("  • The --complete-setup option is recommended for new environments")
-    print("  • Changes to .vscode/settings.json require restarting VS Code")
-    print("="*80)
+    print('\nNOTES:')
+    print('  • Running this script without options now displays this help screen')
+    print('  • For basic PYTHONPATH setup, use the --run-only option')
+    print('  • The --complete-setup option is recommended for new environments')
+    print('  • Changes to .vscode/settings.json require restarting VS Code')
+    print('=' * 80)
 
 
 # Script entry point - handles command-line arguments
@@ -818,25 +816,25 @@ if __name__ == '__main__':  # pragma: no cover
     if len(sys.argv) > 1:
         command = sys.argv[1]
 
-        if command == "--generate-env":
+        if command == '--generate-env':
             # Legacy: just generate .env file
             generate_env_file()
-        elif command == "--setup-kernel":
+        elif command == '--setup-kernel':
             # Just register the Jupyter kernel
             install_jupyter_kernel()
-        elif command == "--setup-vscode":
+        elif command == '--setup-vscode':
             # Just configure VS Code settings
             create_vscode_settings()
-        elif command == "--setup-nb-filter":
+        elif command == '--setup-nb-filter':
             # Configure git clean filter for notebook metadata
             setup_notebook_git_filter()
-        elif command == "--force-kernel":
+        elif command == '--force-kernel':
             # Force kernel consistency and prevent changes
             force_kernel_consistency()
-        elif command == "--complete-setup":
+        elif command == '--complete-setup':
             # Full setup: everything needed for local development
             setup_complete_environment()
-        elif command == "--run-only":
+        elif command == '--run-only':
             # Only modify current session's PYTHONPATH
             setup_python_path()
         else:

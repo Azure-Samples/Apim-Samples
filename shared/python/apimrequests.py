@@ -21,6 +21,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 #    CLASSES
 # ------------------------------
 
+
 class ApimRequests:
     """
     Methods for making requests to the Azure API Management service.
@@ -29,7 +30,6 @@ class ApimRequests:
     Note: This class intentionally uses camelCase naming for methods and parameters
     to maintain consistency with API naming conventions and existing usage.
     """
-
 
     # ------------------------------
     #    CONSTRUCTOR
@@ -109,8 +109,13 @@ class ApimRequests:
     # ------------------------------
 
     def _request(
-        self, method: HTTP_VERB, path: str, headers: list[any] = None,
-        data: any = None, msg: str | None = None, printResponse: bool = True,
+        self,
+        method: HTTP_VERB,
+        path: str,
+        headers: list[any] = None,
+        data: any = None,
+        msg: str | None = None,
+        printResponse: bool = True,
     ) -> str | None:
         """
         Make a request to the Azure API Management service.
@@ -128,7 +133,7 @@ class ApimRequests:
 
         try:
             if msg:
-                print_message(msg, blank_above = True)
+                print_message(msg, blank_above=True)
 
             # Ensure path has a leading slash
             if not path.startswith('/'):
@@ -144,14 +149,14 @@ class ApimRequests:
 
             print_info(merged_headers)
 
-            response = requests.request(method.value, url, headers = merged_headers, json = data, verify = False, timeout = 30)
+            response = requests.request(method.value, url, headers=merged_headers, json=data, verify=False, timeout=30)
 
             content_type = response.headers.get('Content-Type')
 
             responseBody = None
 
             if content_type and 'application/json' in content_type:
-                responseBody = json.dumps(response.json(), indent = 4)
+                responseBody = json.dumps(response.json(), indent=4)
             else:
                 responseBody = response.text
 
@@ -165,8 +170,14 @@ class ApimRequests:
             return None
 
     def _multiRequest(
-        self, method: HTTP_VERB, path: str, runs: int, headers: list[any] = None,
-        data: any = None, msg: str | None = None, printResponse: bool = True,
+        self,
+        method: HTTP_VERB,
+        path: str,
+        runs: int,
+        headers: list[any] = None,
+        data: any = None,
+        msg: str | None = None,
+        printResponse: bool = True,
         sleepMs: int | None = None,
     ) -> list[dict[str, Any]]:
         """
@@ -197,7 +208,7 @@ class ApimRequests:
 
         try:
             if msg:
-                print_message(msg, blank_above = True)
+                print_message(msg, blank_above=True)
 
             # Ensure path has a leading slash
             if not path.startswith('/'):
@@ -210,7 +221,7 @@ class ApimRequests:
                 print_info(f'▶️ Run {i + 1}/{runs}:')
 
                 start_time = time.time()
-                response = session.request(method.value, url, json = data, verify = False)
+                response = session.request(method.value, url, json=data, verify=False)
                 response_time = time.time() - start_time
                 print_info(f'⌚ {response_time:.2f} seconds')
 
@@ -222,17 +233,19 @@ class ApimRequests:
                 content_type = response.headers.get('Content-Type')
 
                 if content_type and 'application/json' in content_type:
-                    resp_data = json.dumps(response.json(), indent = 4)
+                    resp_data = json.dumps(response.json(), indent=4)
                 else:
                     resp_data = response.text
 
-                api_runs.append({
-                    'run': i + 1,
-                    'response': resp_data,
-                    'status_code': response.status_code,
-                    'response_time': response_time,
-                    'headers': dict(response.headers)
-                })
+                api_runs.append(
+                    {
+                        'run': i + 1,
+                        'response': resp_data,
+                        'status_code': response.status_code,
+                        'response_time': response_time,
+                        'headers': dict(response.headers),
+                    }
+                )
 
                 # Sleep only between requests (not after the final run)
                 if i < runs - 1:
@@ -240,7 +253,7 @@ class ApimRequests:
                         if sleepMs > 0:
                             time.sleep(sleepMs / 1000)
                     else:
-                        time.sleep(SLEEP_TIME_BETWEEN_REQUESTS_MS / 1000)   # default sleep time
+                        time.sleep(SLEEP_TIME_BETWEEN_REQUESTS_MS / 1000)  # default sleep time
         finally:
             session.close()
 
@@ -257,7 +270,7 @@ class ApimRequests:
         if response.status_code == HttpStatusCode.OK:
             try:
                 data = json.loads(response.text)
-                print_val('Response body', json.dumps(data, indent = 4), True)
+                print_val('Response body', json.dumps(data, indent=4), True)
             except Exception:
                 print_val('Response body', response.text, True)
         else:
@@ -296,7 +309,7 @@ class ApimRequests:
             try:
                 print_info(f'GET {location_url}', True)
                 print_info(headers)
-                response = requests.get(location_url, headers = headers or {}, verify = False, timeout = 30)
+                response = requests.get(location_url, headers=headers or {}, verify=False, timeout=30)
 
                 print_info(f'Polling operation - Status: {response.status_code}')
 
@@ -322,7 +335,7 @@ class ApimRequests:
     #    PUBLIC METHODS
     # ------------------------------
 
-    def singleGet(self, path: str, headers = None, msg: str | None = None, printResponse: bool = True) -> Any:
+    def singleGet(self, path: str, headers=None, msg: str | None = None, printResponse: bool = True) -> Any:
         """
         Make a GET request to the Azure API Management service.
 
@@ -335,9 +348,9 @@ class ApimRequests:
             str | None: The JSON response as a string, or None on error.
         """
 
-        return self._request(method = HTTP_VERB.GET, path = path, headers = headers, msg = msg, printResponse = printResponse)
+        return self._request(method=HTTP_VERB.GET, path=path, headers=headers, msg=msg, printResponse=printResponse)
 
-    def singlePost(self, path: str, *, headers = None, data = None, msg: str | None = None, printResponse: bool = True) -> Any:
+    def singlePost(self, path: str, *, headers=None, data=None, msg: str | None = None, printResponse: bool = True) -> Any:
         """
         Make a POST request to the Azure API Management service.
 
@@ -352,13 +365,23 @@ class ApimRequests:
         """
 
         return self._request(
-            method=HTTP_VERB.POST, path=path, headers=headers,
-            data=data, msg=msg, printResponse=printResponse,
+            method=HTTP_VERB.POST,
+            path=path,
+            headers=headers,
+            data=data,
+            msg=msg,
+            printResponse=printResponse,
         )
 
     def multiGet(
-        self, path: str, runs: int, headers=None, data=None,
-        msg: str | None = None, printResponse: bool = True, sleepMs: int | None = None,
+        self,
+        path: str,
+        runs: int,
+        headers=None,
+        data=None,
+        msg: str | None = None,
+        printResponse: bool = True,
+        sleepMs: int | None = None,
     ) -> list[dict[str, Any]]:
         """
         Make multiple GET requests to the Azure API Management service.
@@ -376,14 +399,26 @@ class ApimRequests:
         """
 
         return self._multiRequest(
-            method=HTTP_VERB.GET, path=path, runs=runs, headers=headers,
-            data=data, msg=msg, printResponse=printResponse, sleepMs=sleepMs,
+            method=HTTP_VERB.GET,
+            path=path,
+            runs=runs,
+            headers=headers,
+            data=data,
+            msg=msg,
+            printResponse=printResponse,
+            sleepMs=sleepMs,
         )
 
     def singlePostAsync(
-        self, path: str, *, headers=None, data=None,
-        msg: str | None = None, printResponse=True,
-        timeout=60, poll_interval=2,
+        self,
+        path: str,
+        *,
+        headers=None,
+        data=None,
+        msg: str | None = None,
+        printResponse=True,
+        timeout=60,
+        poll_interval=2,
     ) -> Any:
         """
         Make an async POST request to the Azure API Management service and poll until completion.
@@ -403,7 +438,7 @@ class ApimRequests:
 
         try:
             if msg:
-                print_message(msg, blank_above = True)
+                print_message(msg, blank_above=True)
 
             # Ensure path has a leading slash
             if not path.startswith('/'):
@@ -420,7 +455,7 @@ class ApimRequests:
             print_info(merged_headers)
 
             # Make the initial async request
-            response = requests.request(HTTP_VERB.POST.value, url, headers = merged_headers, json = data, verify = False, timeout = 30)
+            response = requests.request(HTTP_VERB.POST.value, url, headers=merged_headers, json=data, verify=False, timeout=30)
 
             print_info(f'Initial response status: {response.status_code}')
 
@@ -431,7 +466,7 @@ class ApimRequests:
                     print_info(f'Found Location header: {location_header}')
 
                     # Poll the location URL until completion
-                    final_response = self._poll_async_operation(location_header, timeout = timeout, poll_interval = poll_interval )
+                    final_response = self._poll_async_operation(location_header, timeout=timeout, poll_interval=poll_interval)
 
                     if final_response and final_response.status_code == HttpStatusCode.OK:
                         if printResponse:
@@ -441,7 +476,7 @@ class ApimRequests:
                         responseBody = None
 
                         if content_type and 'application/json' in content_type:
-                            responseBody = json.dumps(final_response.json(), indent = 4)
+                            responseBody = json.dumps(final_response.json(), indent=4)
                         else:
                             responseBody = final_response.text
 
@@ -463,7 +498,7 @@ class ApimRequests:
             responseBody = None
 
             if content_type and 'application/json' in content_type:
-                responseBody = json.dumps(response.json(), indent = 4)
+                responseBody = json.dumps(response.json(), indent=4)
             else:
                 responseBody = response.text
 

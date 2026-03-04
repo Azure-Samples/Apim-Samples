@@ -1,6 +1,6 @@
 # Application Gateway & API Management (VNet Internal) Infrastructure
 
-This architecture provides secure ingress through Azure Application Gateway (WAF_v2) to Azure API Management (APIM) deployed in a Virtual Network using Internal mode (private IP only). No Private Endpoints are used; traffic stays on private networking after the gateway, and APIM cannot be accessed aside from traversing Application Gateway.
+This architecture provides secure ingress through Azure Application Gateway (WAF_v2) to Azure API Management (APIM) deployed in a Virtual Network using Internal mode (private IP only). No private endpoints are used; traffic stays on private networking after the gateway, and APIM cannot be accessed aside from traversing Application Gateway.
 
 <img src="../../assets/diagrams/Azure Application Gateway, API Management & Container Apps Architecture VNet.svg" alt="Diagram showing Application Gateway routing to APIM in VNet Internal mode. Optional Container Apps shown behind APIM. Telemetry to Azure Monitor." title="Application Gateway + APIM (VNet Internal)" width="1000" />
 
@@ -9,7 +9,7 @@ This architecture provides secure ingress through Azure Application Gateway (WAF
 ## 🎯 Objectives
 
 1. Expose APIs publicly via Application Gateway while keeping APIM private (VNet Internal)
-2. Maintain private networking end-to-end without Private Endpoints
+2. Maintain private networking end-to-end without private endpoints
 3. Enable optional backends with Azure Container Apps (ACA)
 4. Provide observability via Log Analytics and Application Insights
 
@@ -21,7 +21,7 @@ This architecture provides secure ingress through Azure Application Gateway (WAF
 - Trade-offs:
   - Longer deployment times compared to v2/Premium SKUs (APIM creation can be slow)
 
-We choose the Developer SKU here to dramatically lower costs for experimentation. If you need SLAs, scaling, or production-grade features, use Premium/Premiumv2 as those are the only SKUs that support VNet *injection*.
+We choose the Developer SKU here to dramatically lower costs for experimentation. If you need SLAs, scaling, or production-grade features, use Premium or Premiumv2 because those SKUs also support VNet *injection*.
 
 ## ⚙️ Configuration
 

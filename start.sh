@@ -57,7 +57,7 @@ if str(shared) not in sys.path:
 try:
     import azure_resources as az
     info = az.get_account_info()
-except Exception as exc:  # pylint: disable=broad-except
+except Exception as exc:  # noqa: BLE001
     print(f"Failed to read Azure account info: {exc}")
 PY
   )
@@ -101,6 +101,10 @@ while true; do
   echo "  7) Run ruff"
   echo "  8) Run tests (shows detailed test results)"
   echo "  9) Run full Python checks"
+  echo ""
+  echo "Presentation"
+  echo "  p) Serve & view presentation (auto-opens browser)"
+  echo "  e) Export presentation as self-contained HTML"
   echo ""
   echo "Misc"
   echo "  0) Exit"
@@ -150,6 +154,12 @@ while true; do
       ;;
     9)
       run_cmd bash "${REPO_ROOT}/tests/python/check_python.sh"
+      ;;
+    p)
+      run_cmd pyrun "${REPO_ROOT}/setup/serve_presentation.py"
+      ;;
+    e)
+      run_cmd pyrun "${REPO_ROOT}/setup/export_presentation.py"
       ;;
     0)
       echo ""

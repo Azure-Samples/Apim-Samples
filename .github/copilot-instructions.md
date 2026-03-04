@@ -379,6 +379,16 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 
 - Use these [configuration settings](https://github.com/microsoft/vscode-jupyter/blob/dd568fde/package.nls.json) as a reference for the VS Code Jupyter extension configuration.
 
+### Presentation Instructions
+
+- Presentation source files should remain accessible to a broad audience and should target WCAG 2.0 AA color contrast as the default baseline.
+- Do not rely on color alone to communicate meaning. If a color distinguishes state, priority, or emphasis, pair it with text, icons, labels, or structure.
+- Body text and other normal-sized text on slides should meet at least `4.5:1` contrast against their background. Large text (roughly `24px` regular or `18.66px` bold and above) and essential UI indicators should meet at least `3:1`.
+- Pay special attention to helper text, footer text, captions, badge text, and text placed on gradients or translucent overlays. These are the most common places where contrast regressions appear.
+- When using muted text on light backgrounds, prefer dark neutral tones over mid-gray decorative values. When using text on dark or gradient backgrounds, prefer near-white text unless the accent color has been checked for sufficient contrast.
+- Preserve meaningful `alt` text for presentation images and diagrams, and avoid conveying critical information only inside images when the same message can be stated in text on the slide.
+- If you introduce a new presentation theme or palette, validate the shared color tokens first so accessibility is enforced consistently across all slides.
+
 ### Diagram Instructions
 
 - Architecture diagrams are maintained as Draw.io (`.drawio`) files in `assets/diagrams/`. SVG exports are co-located alongside the `.drawio` source files.

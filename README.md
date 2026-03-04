@@ -51,9 +51,9 @@ It's quick and easy to get started!
 | Infrastructure Name                                                | Description                                                                                                                                                           |
 |:-------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [API Management & Container Apps][infra-apim-aca]                  | APIs are often implemented in containers running in **Azure Container Apps**. This architecture accesses the container apps publicly. It's beneficial to test both APIM and container app URLs to contrast and compare experiences of API calls through and bypassing APIM. It is not intended to be a security baseline.    |
-| [Application Gateway (Private Endpoint) & API Management & Container Apps][infra-appgw-apim-pe]  | **A secure implementation of Azure Application Gateway connecting to APIM via the new private link integration!** This traffic, once it traverses through App Gateway, uses a private endpoint set up in the VNet's private endpoint subnet. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). APIM Standard V2 is used here to accept a private link from App Gateway. |
+| [Application Gateway (Private Link) & API Management & Container Apps][infra-appgw-apim-pe]  | **A secure implementation of Azure Application Gateway connecting to APIM via Private Link integration!** Once traffic traverses App Gateway, it reaches APIM through a private endpoint in the VNet's private endpoint subnet. The connection from APIM to Container Apps is secured through VNet integration (and could also use Private Link). APIM Standard V2 is used here to accept the private link connection from App Gateway. |
 | [Application Gateway (VNet) & API Management & Container Apps][infra-appgw-apim] | Full VNet injection of APIM and ACA! APIM is shielded from any type of traffic unless it comes through App Gateway. This offers maximum isolation for instances in which customers seek VNet injection. |
-| [Front Door & API Management & Container Apps][infra-afd-apim-pe]  | **A secure implementation of Azure Front Door connecting to APIM via the new private link integration!** This traffic, once it traverses through Front Door, rides entirely on Microsoft-owned and operated networks. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). **APIM Standard V2** is used here to accept a private link from Front Door. |
+| [Front Door & API Management & Container Apps][infra-afd-apim-pe]  | **A secure implementation of Azure Front Door connecting to APIM via Private Link integration!** This traffic, once it traverses through Front Door, rides entirely on Microsoft-owned and operated networks. The connection from APIM to Container Apps is secured through VNet integration (and could also use Private Link). **APIM Standard V2** is used here to accept the private link connection from Front Door. |
 | [Simple API Management][infra-simple-apim]                         | **Just the basics with a publicly accessible API Management instance** fronting your APIs. This is the innermost way to experience and experiment with the APIM policies. |
 </details>
 
@@ -69,13 +69,13 @@ It's quick and easy to get started!
 | [Costing & Showback][sample-costing]                        | Track and allocate API costs per business unit using APIM subscriptions, Log Analytics, and Cost Management.         | All infrastructures           |
 | [Credential Manager (with Spotify)][sample-oauth-3rd-party] | Authenticate with APIM which then uses its Credential Manager with Spotify's REST API.                              | All infrastructures           |
 | [General][sample-general]                                   | Basic demo of APIM sample setup and policy usage.                                                                   | All infrastructures           |
-| [Load Balancing][sample-load-balancing]                     | Priority and weighted load balancing across backends.                                                               | apim-aca, afd-apim (with ACA) |
+| [Load Balancing][sample-load-balancing]                     | Priority and weighted load balancing across backends.                                                               | apim-aca, afd-apim-pe         |
 | [Secure Blob Access][sample-secure-blob-access]             | Secure blob access via the [valet key pattern][valet-key-pattern].                                                  | All infrastructures           |
 </details>
 
 ### Compatibility Matrices
 
-Most samples work with all infrastructures, making this a truly _a la carte_ experience. The diagrams below show which samples are compatible with which infrastructures, and which APIM SKUs each infrastructure supports.
+Most samples work with all infrastructures, making this a truly _à la carte_ experience. The diagrams below show which samples are compatible with which infrastructures, and which APIM SKUs each infrastructure supports.
 
 <img src="./assets/diagrams/Infrastructure-Sample-Compatibility.svg" alt="Infrastructure and Sample Compatibility Matrix" title="Infrastructure and Sample Compatibility Matrix" />
 
@@ -100,10 +100,52 @@ This menu-driven interface provides quick access to:
 - **Setup**: Complete environment setup and verify local setup
 - **Verify**: Show Azure account info, list soft-deleted resources, and list deployed infrastructures
 - **Tests**: Run ruff, pytest, and full Python checks
+- **Presentation**: Serve the slide deck in a browser or export a self-contained HTML copy
 
 <img src="./assets/dev-cli-lint-test-results.png" alt="APIM Samples Developer CLI showing final linting, test, and code coverage results" title="APIM Samples Developer CLI Final Results" />
 
 > The _APIM Samples Developer CLI_ is not synonomous with the _Azure Developer CLI_. These are two separate CLIs.
+
+## 🖥️ APIM Samples Slide Deck
+
+This repo includes a ready-to-use APIM Samples presentation deck for demos, workshops, and stakeholder walkthroughs.
+
+Source deck: `assets/APIM-Samples-Slide-Deck.html`
+
+Presentation PDF: [Azure API Management Samples - Presentation.pdf](assets/Azure%20API%20Management%20Samples%20-%20Presentation.pdf)
+
+### View the deck locally
+
+To open the deck in your browser with a lightweight local server:
+
+```bash
+uv run python setup/serve_presentation.py
+```
+
+You can also launch it from the APIM Samples Developer CLI by choosing `p) Serve & view presentation (auto-opens browser)`.
+
+The server hosts files from `assets/` and opens `http://localhost:7777/APIM-Samples-Slide-Deck.html` automatically. You can optionally pass a different port:
+
+```bash
+uv run python setup/serve_presentation.py 7778
+```
+
+### Export a shareable standalone copy
+
+To build a self-contained HTML file with images inlined for offline use or sharing:
+
+```bash
+uv run python setup/export_presentation.py
+```
+
+You can also run this from the APIM Samples Developer CLI by choosing `e) Export presentation as self-contained HTML`.
+
+This writes the output to `build/APIM-Samples-Slide-Deck.html`.
+
+### When to use each file
+
+- Use `assets/APIM-Samples-Slide-Deck.html` while editing or iterating on the presentation.
+- Use `build/APIM-Samples-Slide-Deck.html` when you want a portable deck that is ready to share or present offline.
 
 ## 🧭 Setup
 
@@ -211,7 +253,7 @@ The Python helpers in this repo use standard-library `logging`, empowering you t
 
 ## Troubleshooting
 
-Encountering issues? Check our comprehensive **[Troubleshooting Guide](troubleshooting)**! which covers:
+Encountering issues? Check our comprehensive **[Troubleshooting Guide][troubleshooting]**! which covers:
 
 - **Deployment Errors** - Including the common "content already consumed" error and parameter mismatches
 - **Authentication Issues** - Azure CLI login problems and permission errors

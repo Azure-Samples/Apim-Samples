@@ -6,6 +6,7 @@ __pycache__/
 venv/
 env/
 .pytest_cache/
+.ruff_cache/
 
 # Jupyter
 .ipynb_checkpoints/
@@ -17,6 +18,9 @@ env/
 params*.json
 policy-updated.xml
 labs-in-progress/
+
+# Build exports
+/build/
 
 # Misc
 *.log
