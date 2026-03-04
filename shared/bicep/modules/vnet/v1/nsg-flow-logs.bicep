@@ -1,6 +1,8 @@
 /**
  * @module nsg-flow-logs-v1
- * @description Enable NSG Flow Logs and Traffic Analytics for Network Security Groups
+ * @description Enable legacy NSG Flow Logs and Traffic Analytics for Network Security Groups.
+ *              Azure blocks creation of new NSG flow logs as of 2025-06-30, so this
+ *              module is only suitable for managing previously created flow log resources.
  */
 
 // ------------------------------
@@ -42,7 +44,7 @@ param trafficAnalyticsInterval int = 60
 //    RESOURCES
 // ------------------------------
 
-// Network Watcher - using existing instance in the region
+// This module is intended to be deployed at the Network Watcher resource group scope.
 resource networkWatcher 'Microsoft.Network/networkWatchers@2025-01-01' existing = {
   name: 'NetworkWatcher_${location}'
 }

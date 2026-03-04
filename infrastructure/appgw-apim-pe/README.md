@@ -17,6 +17,15 @@ Secure architecture that takes all traffic off the public Internet once Azure Ap
 
 Adjust the `user-defined parameters` in this lab's Jupyter Notebook's [Initialize notebook variables][init-notebook-variables] section.
 
+The notebook also includes a `SYSTEM CONFIGURATION` flag named `use_strict_nsg`. It defaults to `False`.
+
+We provide NSG deployment as an option for teams that want to explore subnet-level restrictions, but we intentionally keep it disabled by default. That keeps the sample focused on Application Gateway, private endpoints, and API Management without sliding too far toward Azure Landing Zone-style baseline networking complexity.
+
+NSG behavior:
+- `nsg-default`: Generic fallback NSG for subnets that do not have a service-specific NSG. It stays intentionally generic.
+- `use_strict_nsg = False`: Service subnets get permissive service-aware NSGs: `nsg-appgw`, `nsg-apim`, and `nsg-aca`. These preserve Azure platform requirements and avoid unnecessary ingress restrictions.
+- `use_strict_nsg = True`: Service subnets get strict NSGs: `nsg-appgw-strict`, `nsg-apim-strict`, and `nsg-aca-strict`. These keep required platform rules but restrict ingress so traffic follows App Gateway -> APIM -> ACA.
+
 ## ▶️ Execution
 
 👟 **Expected *Run All* runtime: ~13 minutes**

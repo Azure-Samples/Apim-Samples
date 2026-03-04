@@ -57,6 +57,7 @@ class Infrastructure:
         networkMode: APIMNetworkMode = APIMNetworkMode.PUBLIC,
         infra_pfs: List[PolicyFragment] | None = None,
         infra_apis: List[API] | None = None,
+        use_strict_nsg: bool = False,
         rg_exists: bool | None = None,
     ):
         self.infra = infra
@@ -66,6 +67,7 @@ class Infrastructure:
         self.networkMode = networkMode
         self.infra_apis = infra_apis
         self.infra_pfs = infra_pfs
+        self.use_strict_nsg = use_strict_nsg
 
         # Define and create the resource group
         self.rg_name = az.get_infra_rg_name(infra, index)
@@ -189,6 +191,12 @@ class Infrastructure:
             time.sleep(15)
 
         return True
+
+    def _keyvault_exists(self, key_vault_name: str) -> bool:
+        """Return True when the Key Vault already exists in the resource group."""
+        output = az.run(f'az keyvault show --name {key_vault_name} --resource-group {self.rg_name} -o json')
+
+        return output.success
 
     def _define_bicep_parameters(self) -> dict:
         # Define the Bicep parameters with serialized APIs
@@ -440,6 +448,7 @@ class Infrastructure:
         print_val('Resource group', self.rg_name)
         print_val('Location', self.rg_location)
         print_val('APIM SKU', self.apim_sku.value)
+        print_val('Use strict NSGs', self.use_strict_nsg)
 
         self._define_policy_fragments()
         self._define_apis()
@@ -618,6 +627,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
         apim_sku: APIM_SKU = APIM_SKU.BASICV2,
         infra_pfs: List[PolicyFragment] | None = None,
         infra_apis: List[API] | None = None,
+        use_strict_nsg: bool = False,
         rg_exists: bool | None = None,
     ):
         super().__init__(
@@ -628,6 +638,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
             APIMNetworkMode.PUBLIC,
             infra_pfs,
             infra_apis,
+            use_strict_nsg=use_strict_nsg,
             rg_exists=rg_exists,
         )
 
@@ -642,6 +653,7 @@ class AfdApimAcaInfrastructure(Infrastructure):
         afd_params = {
             'apimPublicAccess': {'value': True},  # Initially true for private link approval
             'useACA': {'value': len(self.infra_apis) > 0 if self.infra_apis else False},  # Enable ACA if custom APIs are provided
+            'useStrictNsg': {'value': self.use_strict_nsg},
         }
 
         # Merge with base parameters
@@ -760,49 +772,67 @@ class AfdApimAcaInfrastructure(Infrastructure):
             return False
 
 
-class AppGwApimPeInfrastructure(Infrastructure):
-    """
-    Represents an Application Gateway with API Management and Azure Container Apps infrastructure.
-    """
+class AppGatewayInfrastructure(Infrastructure):
+    """Shared Application Gateway infrastructure behavior."""
 
-    # Class constants for certificate configuration
     CERT_NAME = 'appgw-cert'
     DOMAIN_NAME = 'api.apim-samples.contoso.com'
 
     def __init__(
         self,
+        infra: INFRASTRUCTURE,
         rg_location: str,
         index: int,
-        apim_sku: APIM_SKU = APIM_SKU.BASICV2,
+        apim_sku: APIM_SKU,
+        networkMode: APIMNetworkMode,
         infra_pfs: List[PolicyFragment] | None = None,
         infra_apis: List[API] | None = None,
+        use_strict_nsg: bool = False,
         rg_exists: bool | None = None,
     ):
         super().__init__(
-            INFRASTRUCTURE.APPGW_APIM_PE,
+            infra,
             index,
             rg_location,
             apim_sku,
-            APIMNetworkMode.PUBLIC,
+            networkMode,
             infra_pfs,
             infra_apis,
+            use_strict_nsg=use_strict_nsg,
             rg_exists=rg_exists,
         )
         self.appgw_domain_name: str | None = None
         self.appgw_public_ip: str | None = None
+        self._last_keyvault_preparation_error: str | None = None
+
+    def _keyvault_certificate_endpoint_reachable(self, key_vault_name: str) -> bool:
+        """Check whether the Key Vault certificate data plane is reachable from this environment."""
+        print_plain('🔎 Checking Key Vault certificate endpoint reachability...')
+
+        output = az.run(f'az keyvault certificate list --vault-name {key_vault_name} -o json')
+
+        if output.success:
+            print_ok('Key Vault certificate endpoint is reachable')
+            return True
+
+        print_warning(
+            'Unable to reach the Key Vault certificate endpoint from the current environment. '
+            'This can be expected when the Key Vault only allows private access.'
+        )
+        return False
+
+    def _has_existing_infrastructure_deployment(self) -> bool:
+        """Return True when the infrastructure deployment already exists in the resource group."""
+        output = az.run(f'az deployment group show --name {self.infra.value} -g {self.rg_name} -o json')
+
+        if output.success:
+            print_ok(f'Found existing deployment for {self.infra.value}')
+            return True
+
+        return False
 
     def _create_keyvault_certificate(self, key_vault_name: str) -> bool:
-        """
-        Create a self-signed certificate in Key Vault for Application Gateway TLS.
-        This is done via Azure CLI because deployment scripts require storage accounts with
-        shared key access enabled, which may be blocked by Azure Policy.
-
-        Args:
-            key_vault_name (str): Name of the Key Vault.
-
-        Returns:
-            bool: True if certificate was created or already exists, False on failure.
-        """
+        """Create a self-signed certificate in Key Vault for Application Gateway TLS."""
         print_plain('\n🔐 Creating self-signed certificate in Key Vault...\n')
         print_val('Key Vault', key_vault_name)
         print_val('Certificate', self.CERT_NAME)
@@ -840,23 +870,83 @@ class AppGwApimPeInfrastructure(Infrastructure):
 
         return create_output.success
 
+    def _prepare_keyvault_certificate(self, key_vault_name: str) -> bool:
+        """Ensure the Application Gateway certificate is available before deployment."""
+        self._last_keyvault_preparation_error = None
+        key_vault_exists = self._keyvault_exists(key_vault_name)
+
+        if not self._create_keyvault(key_vault_name):
+            self._last_keyvault_preparation_error = 'Failed to create Key Vault'
+            return False
+
+        if key_vault_exists and not self._keyvault_certificate_endpoint_reachable(key_vault_name):
+            if self._has_existing_infrastructure_deployment():
+                print_warning(
+                    'Continuing without certificate creation because the Key Vault is not reachable, '
+                    'and this infrastructure appears to have been deployed previously. '
+                    'It is assumed that the certificate may already exist.'
+                )
+                return True
+
+            print_error(
+                'The Key Vault already exists but its certificate endpoint is not reachable from the current environment. '
+                'No previous infrastructure deployment was found, so certificate creation cannot continue.'
+            )
+            self._last_keyvault_preparation_error = 'Failed to access Key Vault certificate endpoint'
+            return False
+
+        if not self._create_keyvault_certificate(key_vault_name):
+            self._last_keyvault_preparation_error = 'Failed to create certificate in Key Vault'
+            return False
+
+        return True
+
     def _define_bicep_parameters(self) -> dict:
-        """
-        Define APPGW-APIM-PE specific Bicep parameters.
-        """
-        # Get base parameters
+        """Define common Application Gateway Bicep parameters."""
         base_params = super()._define_bicep_parameters()
 
-        # Add AppGw-specific parameters
         appgw_params = {
-            'apimPublicAccess': {'value': True},  # Initially true for private link approval
-            'useACA': {'value': len(self.infra_apis) > 0 if self.infra_apis else False},  # Enable ACA if custom APIs are provided
+            'useACA': {'value': len(self.infra_apis) > 0 if self.infra_apis else False},
+            'useStrictNsg': {'value': self.use_strict_nsg},
             'setCurrentUserAsKeyVaultAdmin': {'value': True},
             'currentUserId': {'value': self.current_user_id},
         }
 
-        # Merge with base parameters
         base_params.update(appgw_params)
+        return base_params
+
+
+class AppGwApimPeInfrastructure(AppGatewayInfrastructure):
+    """
+    Represents an Application Gateway with API Management and Azure Container Apps infrastructure.
+    """
+
+    def __init__(
+        self,
+        rg_location: str,
+        index: int,
+        apim_sku: APIM_SKU = APIM_SKU.BASICV2,
+        infra_pfs: List[PolicyFragment] | None = None,
+        infra_apis: List[API] | None = None,
+        use_strict_nsg: bool = False,
+        rg_exists: bool | None = None,
+    ):
+        super().__init__(
+            INFRASTRUCTURE.APPGW_APIM_PE,
+            rg_location,
+            index,
+            apim_sku,
+            APIMNetworkMode.PUBLIC,
+            infra_pfs,
+            infra_apis,
+            use_strict_nsg=use_strict_nsg,
+            rg_exists=rg_exists,
+        )
+
+    def _define_bicep_parameters(self) -> dict:
+        """Define APPGW-APIM-PE specific Bicep parameters."""
+        base_params = super()._define_bicep_parameters()
+        base_params.update({'apimPublicAccess': {'value': True}})
         return base_params
 
     def deploy_infrastructure(self, is_update: bool = False) -> utils.Output:
@@ -882,13 +972,9 @@ class AppGwApimPeInfrastructure(Infrastructure):
         print_plain('\n📋 Step 1: Creating Key Vault and certificate...')
         key_vault_name = f'kv-{self.resource_suffix}'
 
-        # Create the Key Vault
-        if not self._create_keyvault(key_vault_name):
-            return utils.Output(False, 'Failed to create Key Vault')
-
-        # Create the certificate
-        if not self._create_keyvault_certificate(key_vault_name):
-            return utils.Output(False, 'Failed to create certificate in Key Vault')
+        if not self._prepare_keyvault_certificate(key_vault_name):
+            error_message = self._last_keyvault_preparation_error or 'Failed to prepare certificate in Key Vault'
+            return utils.Output(False, error_message)
 
         print_ok('Step 1: Key Vault and certificate creation completed', blank_above=True)
 
@@ -1010,14 +1096,11 @@ class AppGwApimPeInfrastructure(Infrastructure):
             return False
 
 
-class AppGwApimInfrastructure(Infrastructure):
+class AppGwApimInfrastructure(AppGatewayInfrastructure):
     """
     Represents an Application Gateway with API Management (Developer SKU) using VNet Internal mode.
     No Private Endpoints are used; App Gateway routes directly to APIM's private IP.
     """
-
-    CERT_NAME = 'appgw-cert'
-    DOMAIN_NAME = 'api.apim-samples.contoso.com'
 
     def __init__(
         self,
@@ -1026,66 +1109,20 @@ class AppGwApimInfrastructure(Infrastructure):
         apim_sku: APIM_SKU = APIM_SKU.DEVELOPER,
         infra_pfs: List[PolicyFragment] | None = None,
         infra_apis: List[API] | None = None,
+        use_strict_nsg: bool = False,
         rg_exists: bool | None = None,
     ):
         super().__init__(
             INFRASTRUCTURE.APPGW_APIM,
-            index,
             rg_location,
+            index,
             apim_sku,
             APIMNetworkMode.INTERNAL_VNET,
             infra_pfs,
             infra_apis,
+            use_strict_nsg=use_strict_nsg,
             rg_exists=rg_exists,
         )
-        self.appgw_domain_name: str | None = None
-        self.appgw_public_ip: str | None = None
-
-    def _create_keyvault_certificate(self, key_vault_name: str) -> bool:
-        print_plain('\n🔐 Creating self-signed certificate in Key Vault...\n')
-        print_val('Key Vault', key_vault_name)
-        print_val('Certificate', self.CERT_NAME)
-        print_val('Domain', self.DOMAIN_NAME)
-
-        check_output = az.run(f'az keyvault certificate show --vault-name {key_vault_name} --name {self.CERT_NAME} -o json')
-
-        if check_output.success:
-            print_ok('Certificate already exists in Key Vault')
-            return True
-
-        cert_policy = json.dumps(
-            {
-                'issuerParameters': {'name': 'Self'},
-                'keyProperties': {'exportable': True, 'keySize': 2048, 'keyType': 'RSA', 'reuseKey': True},
-                'secretProperties': {'contentType': 'application/x-pkcs12'},
-                'x509CertificateProperties': {
-                    'keyUsage': ['digitalSignature', 'keyEncipherment'],
-                    'subject': f'CN={self.DOMAIN_NAME}',
-                    'validityInMonths': 12,
-                },
-            }
-        )
-
-        escaped_policy = cert_policy.replace('"', '\\"')
-        create_output = az.run(
-            f'az keyvault certificate create --vault-name {key_vault_name} --name {self.CERT_NAME} --policy "{escaped_policy}"',
-            'Certificate created successfully in Key Vault',
-            'Failed to create certificate in Key Vault',
-        )
-
-        return create_output.success
-
-    def _define_bicep_parameters(self) -> dict:
-        base_params = super()._define_bicep_parameters()
-
-        appgw_params = {
-            'useACA': {'value': len(self.infra_apis) > 0 if self.infra_apis else False},
-            'setCurrentUserAsKeyVaultAdmin': {'value': True},
-            'currentUserId': {'value': self.current_user_id},
-        }
-
-        base_params.update(appgw_params)
-        return base_params
 
     def deploy_infrastructure(self, is_update: bool = False) -> utils.Output:
         """
@@ -1107,11 +1144,9 @@ class AppGwApimInfrastructure(Infrastructure):
         print_plain('\n📋 Step 1: Creating Key Vault and certificate...\n')
         key_vault_name = f'kv-{self.resource_suffix}'
 
-        if not self._create_keyvault(key_vault_name):
-            return utils.Output(False, 'Failed to create Key Vault')
-
-        if not self._create_keyvault_certificate(key_vault_name):
-            return utils.Output(False, 'Failed to create certificate in Key Vault')
+        if not self._prepare_keyvault_certificate(key_vault_name):
+            error_message = self._last_keyvault_preparation_error or 'Failed to prepare certificate in Key Vault'
+            return utils.Output(False, error_message)
 
         print_ok('Step 1: Key Vault and certificate creation completed', blank_above=True)
 

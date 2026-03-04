@@ -1,8 +1,6 @@
 /**
- * @module nsg-aca-v1
- * @description Permissive Network Security Group for Azure Container Apps.
- *              Builds on Azure's default NSG behavior and adds only the platform rules
- *              needed for ACA while keeping inbound access permissive for learning scenarios.
+ * @module nsg-aca-strict-v1
+ * @description Strict Network Security Group for Azure Container Apps allowing traffic only from API Management.
  */
 
 // ------------------------------
@@ -13,10 +11,15 @@
 param location string = resourceGroup().location
 
 @description('Name of the NSG')
-param nsgName string = 'nsg-aca'
+param nsgName string = 'nsg-aca-strict'
 
 @description('ACA subnet prefix for destination filtering')
 param acaSubnetPrefix string
+
+@description('APIM subnet prefix for source filtering')
+param apimSubnetPrefix string
+
+import {nsgsr_denyAllInbound} from './nsg_rules.bicep'
 
 // ------------------------------
 //    RESOURCES
@@ -29,13 +32,13 @@ resource nsgAca 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
   properties: {
     securityRules: [
       {
-        name: 'AllowHttpsInbound'
+        name: 'AllowApimToAca'
         properties: {
-          description: 'Allow inbound HTTPS traffic to Container Apps'
+          description: 'Allow inbound HTTPS traffic from APIM to Container Apps'
           protocol: 'Tcp'
           sourcePortRange: '*'
           destinationPortRange: '443'
-          sourceAddressPrefix: '*'
+          sourceAddressPrefix: apimSubnetPrefix
           destinationAddressPrefix: acaSubnetPrefix
           access: 'Allow'
           priority: 100
@@ -75,6 +78,7 @@ resource nsgAca 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
           direction: 'Inbound'
         }
       }
+      nsgsr_denyAllInbound
       {
         name: 'AllowAcaToInternet'
         properties: {

@@ -2875,6 +2875,49 @@ def test_create_infrastructure_with_allow_update(monkeypatch, tmp_path, suppress
     assert result is True
 
 
+def test_create_infrastructure_with_strict_nsg_flag(monkeypatch, tmp_path, suppress_utils_console):
+    """Test create_infrastructure appends the optional NSG flag to the subprocess command."""
+    helper = utils.InfrastructureNotebookHelper(
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        1,
+        APIM_SKU.BASICV2,
+        use_strict_nsg=True,
+    )
+
+    infra_dir = tmp_path / 'infrastructure' / 'simple-apim'
+    infra_dir.mkdir(parents=True)
+    script_path = infra_dir / 'create_infrastructure.py'
+    script_path.write_text('print("Infrastructure created")', encoding='utf-8')
+
+    monkeypatch.setattr(utils, 'find_project_root', lambda: str(tmp_path))
+    monkeypatch.setattr(az, 'get_infra_rg_name', lambda *_, **__: 'rg')
+
+    captured_cmd_args: list[str] = []
+
+    class FakeProcess:
+        def __init__(self, cmd_args, **kwargs):
+            captured_cmd_args.extend(cmd_args)
+            self.stdout = iter(['Infrastructure created\n'])
+            self.returncode = 0
+
+        def wait(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            return False
+
+    monkeypatch.setattr(subprocess, 'Popen', FakeProcess)
+
+    result = helper.create_infrastructure(bypass_infrastructure_check=False, allow_update=True)
+
+    assert result is True
+    assert '--use-strict-nsg' in captured_cmd_args
+
+
 def test_determine_bicep_directory_current_infra(monkeypatch, tmp_path):
     infra_dir = tmp_path / 'foo'
     infra_dir.mkdir()

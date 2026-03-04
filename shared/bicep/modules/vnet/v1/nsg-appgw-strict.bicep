@@ -1,8 +1,8 @@
 /**
- * @module nsg-appgw-v1
- * @description Permissive Network Security Group for Azure Application Gateway subnets.
- *              Builds on Azure's default NSG behavior and adds only the platform rules
- *              required for Application Gateway v2 to function without hindering the user.
+ * @module nsg-appgw-strict-v1
+ * @description Strict Network Security Group for Azure Application Gateway subnets.
+ *              Includes the required inbound rules for GatewayManager, HTTPS listener traffic,
+ *              Azure Load Balancer probes, and a final deny-all inbound rule.
  *
  * @see Application Gateway infrastructure configuration:
  *      https://learn.microsoft.com/azure/application-gateway/configuration-infrastructure
@@ -16,7 +16,10 @@
 param location string = resourceGroup().location
 
 @description('Name of the NSG')
-param nsgName string = 'nsg-appgw'
+param nsgName string = 'nsg-appgw-strict'
+
+// Import the deny all inbound rule
+import {nsgsr_denyAllInbound} from './nsg_rules.bicep'
 
 
 // ------------------------------
@@ -71,6 +74,7 @@ resource nsgAppGw 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
           direction: 'Inbound'
         }
       }
+      nsgsr_denyAllInbound
     ]
   }
 }

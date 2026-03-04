@@ -40,6 +40,12 @@ param policyFragments array = []
 @description('Set to true to make APIM publicly accessible. If false, APIM will be deployed into a VNet subnet for egress only.')
 param apimPublicAccess bool = true
 
+@description('Whether to deploy strict, service-specific Network Security Groups for supported subnets. When false, a default (empty-rules) NSG is still attached to every subnet.')
+param useStrictNsg bool = false
+
+@description('Enable legacy NSG flow logs. Azure blocks creation of new NSG flow logs, so keep this disabled unless updating an existing flow log resource.')
+param enableLegacyNsgFlowLogs bool = false
+
 @description('Reveals the backend API information. Defaults to true. *** WARNING: This will expose backend API information to the caller - For learning & testing only! ***')
 param revealBackendApiInfo bool = true
 
@@ -96,8 +102,8 @@ module appInsightsModule '../../shared/bicep/modules/monitor/v1/appinsights.bice
 var appInsightsId = appInsightsModule.outputs.id
 var appInsightsInstrumentationKey = appInsightsModule.outputs.instrumentationKey
 
-// 3. Storage Account for NSG Flow Logs
-module storageFlowLogsModule '../../shared/bicep/modules/vnet/v1/storage-flowlogs.bicep' = {
+// 3. Storage Account for legacy NSG Flow Logs
+module storageFlowLogsModule '../../shared/bicep/modules/vnet/v1/storage-flowlogs.bicep' = if (useStrictNsg && enableLegacyNsgFlowLogs) {
   name: 'storageFlowLogsModule'
   params: {
     location: location
@@ -106,12 +112,25 @@ module storageFlowLogsModule '../../shared/bicep/modules/vnet/v1/storage-flowlog
 }
 
 // 4. Virtual Network and Subnets
+// NSG model:
+// - nsg-default stays generic and is only used as a fallback for subnets without a service-aware NSG.
+// - When useStrictNsg is false, service subnets get permissive NSGs (nsg-appgw, nsg-apim, nsg-aca).
+// - When useStrictNsg is true, service subnets get restrictive NSGs (nsg-appgw-strict, nsg-apim-strict, nsg-aca-strict).
 resource nsgDefault 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
   name: 'nsg-default'
   location: location
 }
 
-module nsgAppGwModule '../../shared/bicep/modules/vnet/v1/nsg-appgw.bicep' = {
+// Application Gateway V2 - strict vs default NSGs
+module nsgAppGwStrictModule '../../shared/bicep/modules/vnet/v1/nsg-appgw-strict.bicep' = if (useStrictNsg) {
+  name: 'nsgAppGwStrictModule'
+  params: {
+    location: location
+    nsgName: 'nsg-appgw-strict'
+  }
+}
+
+module nsgAppGwModule '../../shared/bicep/modules/vnet/v1/nsg-appgw.bicep' = if (!useStrictNsg) {
   name: 'nsgAppGwModule'
   params: {
     location: location
@@ -119,28 +138,48 @@ module nsgAppGwModule '../../shared/bicep/modules/vnet/v1/nsg-appgw.bicep' = {
   }
 }
 
-// NSG for APIM with Private Link from Application Gateway
-module nsgApimModule '../../shared/bicep/modules/vnet/v1/nsg-apim.bicep' = {
-  name: 'nsgApimModule'
+// NSG for APIM with Private Link from Application Gateway - strict vs default
+module nsgApimStrictModule '../../shared/bicep/modules/vnet/v1/nsg-apim-strict.bicep' = if (useStrictNsg) {
+  name: 'nsgApimStrictModule'
   params: {
     location: location
-    nsgName: 'nsg-apim'
+    nsgName: 'nsg-apim-strict'
     apimSubnetPrefix: apimSubnetPrefix
-    allowAppGateway: true
+    allowAppGateway: true  // APIM gateway (port 443) is always routed through App Gateway in this architecture
     appgwSubnetPrefix: appgwSubnetPrefix
     apimSku: apimSku
     vnetMode: 'integration'
   }
 }
 
-// NSG for Container Apps - only allow traffic from APIM
-module nsgAcaModule '../../shared/bicep/modules/vnet/v1/nsg-aca.bicep' = if (useACA) {
+module nsgApimModule '../../shared/bicep/modules/vnet/v1/nsg-apim.bicep' = if (!useStrictNsg) {
+  name: 'nsgApimModule'
+  params: {
+    location: location
+    nsgName: 'nsg-apim'
+    apimSubnetPrefix: apimSubnetPrefix
+    apimSku: apimSku
+    vnetMode: 'integration'
+  }
+}
+
+// NSG for Container Apps - strict NSG only when using strict NSGs (and only if ACA is enabled)
+module nsgAcaStrictModule '../../shared/bicep/modules/vnet/v1/nsg-aca-strict.bicep' = if (useStrictNsg && useACA) {
+  name: 'nsgAcaStrictModule'
+  params: {
+    location: location
+    nsgName: 'nsg-aca-strict'
+    acaSubnetPrefix: acaSubnetPrefix
+    apimSubnetPrefix: apimSubnetPrefix
+  }
+}
+
+module nsgAcaModule '../../shared/bicep/modules/vnet/v1/nsg-aca.bicep' = if (!useStrictNsg && useACA) {
   name: 'nsgAcaModule'
   params: {
     location: location
     nsgName: 'nsg-aca'
     acaSubnetPrefix: acaSubnetPrefix
-    apimSubnetPrefix: apimSubnetPrefix
   }
 }
 
@@ -156,7 +195,7 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
         properties: {
           addressPrefix: apimSubnetPrefix
           networkSecurityGroup: {
-            id: nsgApimModule.outputs.nsgId
+            id: useStrictNsg ? nsgApimStrictModule!.outputs.nsgId : nsgApimModule!.outputs.nsgId
           }
           delegations: [
             {
@@ -174,7 +213,9 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
         properties: {
           addressPrefix: acaSubnetPrefix
           networkSecurityGroup: {
-            id: useACA ? nsgAcaModule!.outputs.nsgId : nsgDefault.id
+            id: useACA
+              ? (useStrictNsg ? nsgAcaStrictModule!.outputs.nsgId : nsgAcaModule!.outputs.nsgId)
+              : nsgDefault.id
           }
           delegations: [
             {
@@ -192,7 +233,7 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
         properties: {
           addressPrefix: appgwSubnetPrefix
           networkSecurityGroup: {
-            id: nsgAppGwModule.outputs.nsgId
+            id: useStrictNsg ? nsgAppGwStrictModule!.outputs.nsgId : nsgAppGwModule!.outputs.nsgId
           }
         }
       }
@@ -216,44 +257,47 @@ var acaSubnetResourceId   = '${vnetModule.outputs.vnetId}/subnets/${acaSubnetNam
 var appgwSubnetResourceId = '${vnetModule.outputs.vnetId}/subnets/${appgwSubnetName}'
 var peSubnetResourceId    = '${vnetModule.outputs.vnetId}/subnets/${privateEndpointSubnetName}'
 
-// 5. NSG Flow Logs and Traffic Analytics
+// 5. Legacy NSG Flow Logs and Traffic Analytics
 
-// NSG Flow Logs for Application Gateway
-module nsgFlowLogsAppGwModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.bicep' = {
+// NSG flow logs are retired and blocked for new deployments. Keep disabled by default.
+module nsgFlowLogsAppGwModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.bicep' = if (useStrictNsg && enableLegacyNsgFlowLogs) {
   name: 'nsgFlowLogsAppGwModule'
+  scope: resourceGroup(subscription().subscriptionId, 'NetworkWatcherRG')
   params: {
     location: location
-    flowLogName: 'fl-nsg-appgw-${resourceSuffix}'
-    nsgResourceId: nsgAppGwModule.outputs.nsgId
-    storageAccountResourceId: storageFlowLogsModule.outputs.storageAccountId
+    flowLogName: 'fl-nsg-appgw-strict-${resourceSuffix}'
+    nsgResourceId: nsgAppGwStrictModule!.outputs.nsgId
+    storageAccountResourceId: storageFlowLogsModule!.outputs.storageAccountId
     logAnalyticsWorkspaceResourceId: lawId
     retentionDays: 7
     enableTrafficAnalytics: true
   }
 }
 
-// NSG Flow Logs for APIM
-module nsgFlowLogsApimModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.bicep' = {
+// NSG flow logs are retired and blocked for new deployments. Keep disabled by default.
+module nsgFlowLogsApimModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.bicep' = if (useStrictNsg && enableLegacyNsgFlowLogs) {
   name: 'nsgFlowLogsApimModule'
+  scope: resourceGroup(subscription().subscriptionId, 'NetworkWatcherRG')
   params: {
     location: location
-    flowLogName: 'fl-nsg-apim-${resourceSuffix}'
-    nsgResourceId: nsgApimModule.outputs.nsgId
-    storageAccountResourceId: storageFlowLogsModule.outputs.storageAccountId
+    flowLogName: 'fl-nsg-apim-strict-${resourceSuffix}'
+    nsgResourceId: nsgApimStrictModule!.outputs.nsgId
+    storageAccountResourceId: storageFlowLogsModule!.outputs.storageAccountId
     logAnalyticsWorkspaceResourceId: lawId
     retentionDays: 7
     enableTrafficAnalytics: true
   }
 }
 
-// NSG Flow Logs for ACA
-module nsgFlowLogsAcaModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.bicep' = if (useACA) {
+// NSG flow logs are retired and blocked for new deployments. Keep disabled by default.
+module nsgFlowLogsAcaModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.bicep' = if (useACA && useStrictNsg && enableLegacyNsgFlowLogs) {
   name: 'nsgFlowLogsAcaModule'
+  scope: resourceGroup(subscription().subscriptionId, 'NetworkWatcherRG')
   params: {
     location: location
-    flowLogName: 'fl-nsg-aca-${resourceSuffix}'
-    nsgResourceId: nsgAcaModule!.outputs.nsgId
-    storageAccountResourceId: storageFlowLogsModule.outputs.storageAccountId
+    flowLogName: 'fl-nsg-aca-strict-${resourceSuffix}'
+    nsgResourceId: nsgAcaStrictModule!.outputs.nsgId
+    storageAccountResourceId: storageFlowLogsModule!.outputs.storageAccountId
     logAnalyticsWorkspaceResourceId: lawId
     retentionDays: 7
     enableTrafficAnalytics: true
