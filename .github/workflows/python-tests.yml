@@ -31,13 +31,19 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
         with:
+          # Pin uv itself so the tool does not drift even though the action SHA is fixed.
+          # Bump this deliberately alongside local dev (`uv --version`).
+          version: "0.9.24"
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          # uv.lock is the resolution source of truth, not pyproject.toml.
+          cache-dependency-glob: "uv.lock"
 
       - name: Install dependencies
         run: |
           uv venv
-          uv sync
+          # --locked asserts uv.lock is in sync with pyproject.toml; fails the build
+          # if someone changed deps but forgot to regenerate the lockfile.
+          uv sync --locked
           # Verify coverage HTML templates are present
           uv run python -c "import coverage.html; print(coverage.html.__file__)"
 
