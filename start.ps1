@@ -135,6 +135,7 @@ while ($true) {
     Write-Host "  7) Run ruff"
     Write-Host "  8) Run tests (shows detailed test results)"
     Write-Host "  9) Run full Python checks (most statistics)"
+    Write-Host " 10) Run Bicep lint"
     Write-Host ""
     Write-Host "Presentation" -ForegroundColor Yellow
     Write-Host "  p) Serve & view presentation (auto-opens browser)"
@@ -147,7 +148,7 @@ while ($true) {
 
     switch ($choice) {
         '1' {
-            PyRun "$RepoRoot/setup/local_setup.py" "--complete-setup"
+            $null = PyRun "$RepoRoot/setup/local_setup.py" "--complete-setup"
         }
         '2' {
             Write-Host ""
@@ -168,31 +169,34 @@ while ($true) {
             }
         }
         '3' {
-            PyRun "$RepoRoot/setup/verify_local_setup.py"
+            $null = PyRun "$RepoRoot/setup/verify_local_setup.py"
         }
         '4' {
             Show-AccountInfo
         }
         '5' {
-            PyRun "$RepoRoot/shared/python/show_soft_deleted_resources.py"
+            $null = PyRun "$RepoRoot/shared/python/show_soft_deleted_resources.py"
         }
         '6' {
-            PyRun "$RepoRoot/shared/python/show_infrastructures.py"
+            $null = PyRun "$RepoRoot/shared/python/show_infrastructures.py"
         }
         '7' {
-            Invoke-Cmd "$RepoRoot/tests/python/run_ruff.ps1"
+            $null = Invoke-Cmd "$RepoRoot/tests/python/run_ruff.ps1"
         }
         '8' {
-            Invoke-Cmd "$RepoRoot/tests/python/run_tests.ps1"
+            $null = Invoke-Cmd "$RepoRoot/tests/python/run_tests.ps1"
         }
         '9' {
-            Invoke-Cmd "$RepoRoot/tests/python/check_python.ps1"
+            $null = Invoke-Cmd "$RepoRoot/tests/python/check_python.ps1"
+        }
+        '10' {
+            $null = Invoke-Cmd "$RepoRoot/tests/bicep/run_bicep_lint.ps1"
         }
         'p' {
-            PyRun "$RepoRoot/setup/serve_presentation.py"
+            $null = PyRun "$RepoRoot/setup/serve_presentation.py"
         }
         'e' {
-            PyRun "$RepoRoot/setup/export_presentation.py"
+            $null = PyRun "$RepoRoot/setup/export_presentation.py"
         }
         '0' {
             Write-Host ""

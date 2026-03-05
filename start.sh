@@ -101,6 +101,7 @@ while true; do
   echo "  7) Run ruff"
   echo "  8) Run tests (shows detailed test results)"
   echo "  9) Run full Python checks"
+  echo " 10) Run Bicep lint"
   echo ""
   echo "Presentation"
   echo "  p) Serve & view presentation (auto-opens browser)"
@@ -154,6 +155,9 @@ while true; do
       ;;
     9)
       run_cmd bash "${REPO_ROOT}/tests/python/check_python.sh"
+      ;;
+    10)
+      run_cmd bash "${REPO_ROOT}/tests/bicep/run_bicep_lint.sh"
       ;;
     p)
       run_cmd pyrun "${REPO_ROOT}/setup/serve_presentation.py"
