@@ -332,15 +332,15 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 
 - Use the `ApimRequests` and `ApimTesting` classes from `apimrequests.py` and `apimtesting.py` for all API testing and traffic generation in notebooks.
 - Do not use the `requests` library directly for calling APIM endpoints.
-- Use `utils.get_endpoint(deployment, rg_name, apim_gateway_url)` to determine the correct endpoint URL and headers based on the infrastructure type.
+- Use `utils.get_endpoint(deployment, rg_name, apim_gateway_url)` to determine the correct endpoint URL, headers, and TLS verification flag based on the infrastructure type. `allow_insecure_tls` is returned as `True` only for Application Gateway infrastructures because they use a self-signed certificate; it defaults to `False` everywhere else.
 - Example:
   ```python
   from apimrequests import ApimRequests
   from apimtesting import ApimTesting
 
   tests = ApimTesting("Sample Tests", sample_folder, nb_helper.deployment)
-  endpoint_url, request_headers = utils.get_endpoint(deployment, rg_name, apim_gateway_url)
-  reqs = ApimRequests(endpoint_url, subscription_key, request_headers)
+  endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(deployment, rg_name, apim_gateway_url)
+  reqs = ApimRequests(endpoint_url, subscription_key, request_headers, allowInsecureTls=allow_insecure_tls)
 
   output = reqs.singleGet('/api-path', msg='Calling API')
   tests.verify('Expected String' in output, True)

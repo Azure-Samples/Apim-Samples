@@ -2082,10 +2082,12 @@ def test_get_endpoint_with_appgw_both_values(monkeypatch, suppress_console):
 
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
 
-    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
+    endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
 
     assert endpoint_url == 'https://1.2.3.4'
     assert request_headers == {'Host': 'api.contoso.com'}
+    # App Gateway uses a self-signed cert; insecure TLS must be allowed.
+    assert allow_insecure_tls is True
 
 
 def test_get_endpoint_with_appgw_hostname_only(monkeypatch, suppress_console):
@@ -2099,10 +2101,11 @@ def test_get_endpoint_with_appgw_hostname_only(monkeypatch, suppress_console):
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
     monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://afd.azurefd.net')
 
-    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
+    endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
 
     assert endpoint_url == 'https://afd.azurefd.net'
     assert request_headers is None
+    assert allow_insecure_tls is False
 
 
 def test_get_endpoint_with_appgw_ip_only(monkeypatch, suppress_console):
@@ -2116,10 +2119,11 @@ def test_get_endpoint_with_appgw_ip_only(monkeypatch, suppress_console):
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
     monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://afd.azurefd.net')
 
-    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
+    endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
 
     assert endpoint_url == 'https://afd.azurefd.net'
     assert request_headers is None
+    assert allow_insecure_tls is False
 
 
 def test_get_endpoint_with_no_appgw_uses_preflight(monkeypatch, suppress_console):
@@ -2133,10 +2137,11 @@ def test_get_endpoint_with_no_appgw_uses_preflight(monkeypatch, suppress_console
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
     monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://apim.azure-api.net')
 
-    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg', 'https://apim.azure-api.net')
+    endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg', 'https://apim.azure-api.net')
 
     assert endpoint_url == 'https://apim.azure-api.net'
     assert request_headers is None
+    assert allow_insecure_tls is False
 
 
 def test_get_endpoint_with_afd_via_preflight(monkeypatch, suppress_console):
@@ -2150,10 +2155,13 @@ def test_get_endpoint_with_afd_via_preflight(monkeypatch, suppress_console):
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
     monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://myapp.azurefd.net')
 
-    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim-internal.azure-api.net')
+    endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(
+        INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim-internal.azure-api.net'
+    )
 
     assert endpoint_url == 'https://myapp.azurefd.net'
     assert request_headers is None
+    assert allow_insecure_tls is False
 
 
 def test_get_endpoint_appgw_with_empty_strings(monkeypatch, suppress_console):
@@ -2167,10 +2175,11 @@ def test_get_endpoint_appgw_with_empty_strings(monkeypatch, suppress_console):
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
     monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://apim.azure-api.net')
 
-    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
+    endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
 
     assert endpoint_url == 'https://apim.azure-api.net'
     assert request_headers is None
+    assert allow_insecure_tls is False
 
 
 def test_get_endpoint_various_infrastructures(monkeypatch, suppress_console):
@@ -2192,10 +2201,11 @@ def test_get_endpoint_various_infrastructures(monkeypatch, suppress_console):
         monkeypatch.setattr(utils, 'get_endpoints', lambda d, r, m=mock_endpoints: m)
         monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://apim.azure-api.net')
 
-        endpoint_url, request_headers = utils.get_endpoint(infra, 'test-rg', 'https://apim.azure-api.net')
+        endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(infra, 'test-rg', 'https://apim.azure-api.net')
 
         assert endpoint_url == 'https://apim.azure-api.net'
         assert request_headers is None
+        assert allow_insecure_tls is False
 
 
 def test_json_parsing_various_formats():
