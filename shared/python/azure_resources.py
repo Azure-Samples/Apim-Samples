@@ -42,6 +42,7 @@ _AZ_COMMAND_RE = re.compile(r'^\s*az(\s|$)')
 # failures and corrupted/partial output. Serialize `az` invocations to keep multi-index
 # cleanups reliable.
 _AZ_CLI_LOCK = threading.Lock()
+_NESTED_DEPLOYMENT_RESOURCE_TYPE = 'microsoft.resources/deployments'
 
 
 def _strip_ansi(text: str) -> str:
@@ -161,6 +162,238 @@ def _extract_az_cli_error_message(output_text: str) -> str:
     return ''
 
 
+def _tokenize_command(command: str) -> list[str]:
+    """Split a shell command into simple tokens while preserving quoted segments."""
+
+    if not command:
+        return []
+
+    raw_tokens = re.findall(r'"[^"]*"|\'[^\']*\'|\S+', command)
+    return [token[1:-1] if len(token) >= 2 and token[0] == token[-1] and token[0] in {'"', "'"} else token for token in raw_tokens]
+
+
+def _extract_group_deployment_context(command: str) -> tuple[str, str] | None:
+    """Return deployment name and resource group for `az deployment group create` commands."""
+
+    tokens = _tokenize_command(command)
+    lowered = [token.lower() for token in tokens]
+
+    if len(lowered) < 4 or lowered[:4] != ['az', 'deployment', 'group', 'create']:
+        return None
+
+    deployment_name = ''
+    resource_group_name = ''
+    index = 4
+
+    while index < len(tokens):
+        current = lowered[index]
+
+        if current == '--name' and index + 1 < len(tokens):
+            deployment_name = tokens[index + 1]
+            index += 2
+            continue
+
+        if current in {'--resource-group', '-g'} and index + 1 < len(tokens):
+            resource_group_name = tokens[index + 1]
+            index += 2
+            continue
+
+        index += 1
+
+    if deployment_name and resource_group_name:
+        return deployment_name, resource_group_name
+
+    return None
+
+
+def _extract_arm_error_details(error_payload: Any) -> tuple[str, str]:
+    """Extract the most useful code/message pair from an ARM error payload."""
+
+    if not isinstance(error_payload, dict):
+        return '', ''
+
+    code = error_payload.get('code') if isinstance(error_payload.get('code'), str) else ''
+    message = error_payload.get('message') if isinstance(error_payload.get('message'), str) else ''
+
+    if message:
+        return code, message
+
+    details = error_payload.get('details')
+    if isinstance(details, list):
+        for detail in details:
+            nested_code, nested_message = _extract_arm_error_details(detail)
+            if nested_message:
+                return nested_code or code, nested_message
+
+    inner_error = error_payload.get('innererror')
+    if isinstance(inner_error, dict):
+        nested_code, nested_message = _extract_arm_error_details(inner_error)
+        if nested_message:
+            return nested_code or code, nested_message
+
+    return code, message
+
+
+def _extract_operation_status_details(status_message: Any) -> tuple[str, str]:
+    """Extract code and message from an ARM deployment operation status message."""
+
+    parsed_status = status_message
+
+    if isinstance(status_message, str):
+        try:
+            parsed_status = json.loads(status_message)
+        except json.JSONDecodeError:
+            return '', status_message.strip()
+
+    if not isinstance(parsed_status, dict):
+        return '', ''
+
+    error_payload = parsed_status.get('error')
+    if isinstance(error_payload, dict):
+        return _extract_arm_error_details(error_payload)
+
+    code = parsed_status.get('code') if isinstance(parsed_status.get('code'), str) else ''
+    message = parsed_status.get('message') if isinstance(parsed_status.get('message'), str) else ''
+    return code, message
+
+
+def _fetch_group_deployment_operations(deployment_name: str, resource_group_name: str) -> list[dict[str, Any]] | None:
+    """Return deployment operations for a group deployment when the Azure CLI call succeeds."""
+
+    operations_command = _maybe_add_az_debug_flag(
+        f'az deployment operation group list --name "{deployment_name}" --resource-group "{resource_group_name}" -o json'
+    )
+
+    try:
+        with _AZ_CLI_LOCK:
+            completed = subprocess.run(
+                operations_command,
+                shell=True,
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+            )
+    except Exception:
+        return None
+
+    if completed.returncode:
+        return None
+
+    try:
+        operations = json.loads(completed.stdout or '[]')
+    except json.JSONDecodeError:
+        return None
+
+    if not isinstance(operations, list):
+        return None
+
+    return operations
+
+
+def _collect_failed_group_deployment_operation_lines(
+    operations: list[dict[str, Any]],
+    resource_group_name: str,
+    *,
+    depth: int = 0,
+    visited_deployments: set[tuple[str, str]] | None = None,
+) -> list[str]:
+    """Collect failed deployment operation lines, recursing into nested deployments.
+
+    Deeply nested errors (depth >= 2) are highlighted in red for visibility.
+    Nested deployment headers are highlighted in bold red with visual marker for prominence.
+    """
+
+    RED = '\033[91m'
+    BOLD = '\033[1m'
+    RESET = '\033[0m'
+
+    failed_operation_lines: list[str] = []
+    indent = '  ' * depth
+    visited = visited_deployments or set()
+
+    for operation in operations:
+        properties = operation.get('properties')
+        if not isinstance(properties, dict) or properties.get('provisioningState') != 'Failed':
+            continue
+
+        target_resource = properties.get('targetResource') if isinstance(properties.get('targetResource'), dict) else {}
+        resource_type = target_resource.get('resourceType') if isinstance(target_resource.get('resourceType'), str) else ''
+        resource_name = target_resource.get('resourceName') if isinstance(target_resource.get('resourceName'), str) else ''
+        operation_id = operation.get('operationId') if isinstance(operation.get('operationId'), str) else ''
+
+        resource_label = ' / '.join(part for part in [resource_type, resource_name] if part)
+        if not resource_label:
+            resource_label = operation_id or 'Unknown resource'
+
+        code, message = _extract_operation_status_details(properties.get('statusMessage'))
+        detail = f'{code}: {message}' if code and message else message or code or 'Operation failed'
+
+        # Highlight deeply nested errors (depth >= 2) in red
+        if depth >= 2:
+            failed_operation_lines.append(f'{indent}- {resource_label}: {RED}{detail}{RESET}')
+        else:
+            failed_operation_lines.append(f'{indent}- {resource_label}: {detail}')
+
+        if resource_type.lower() != _NESTED_DEPLOYMENT_RESOURCE_TYPE or not resource_name:
+            continue
+
+        child_key = (resource_group_name, resource_name)
+        if child_key in visited:
+            continue
+
+        child_operations = _fetch_group_deployment_operations(resource_name, resource_group_name)
+        if not child_operations:
+            continue
+
+        nested_lines = _collect_failed_group_deployment_operation_lines(
+            child_operations,
+            resource_group_name,
+            depth=depth + 1,
+            visited_deployments=visited | {child_key},
+        )
+        if nested_lines:
+            failed_operation_lines.append(f'{indent}  {RED}{BOLD}>>> Nested deployment {resource_name} failed operations:{RESET}')
+            failed_operation_lines.extend(nested_lines)
+
+    return failed_operation_lines
+
+
+def _summarize_failed_group_deployment_operations(operations: list[dict[str, Any]], resource_group_name: str) -> str:
+    """Build a compact human-readable summary of failed ARM deployment operations."""
+
+    failed_operation_lines = _collect_failed_group_deployment_operation_lines(operations, resource_group_name)
+
+    if not failed_operation_lines:
+        return ''
+
+    max_operations = 5
+    shown_lines = failed_operation_lines[:max_operations]
+    remaining_count = len(failed_operation_lines) - len(shown_lines)
+
+    summary_lines = [f'Failed deployment operations ({len(failed_operation_lines)}):', *shown_lines]
+    if remaining_count > 0:
+        summary_lines.append(f'- ... and {remaining_count} more failed operation(s)')
+
+    return '\n'.join(summary_lines)
+
+
+def _get_group_deployment_failure_summary(command: str) -> str:
+    """Fetch and summarize failed operations for a failed group deployment when possible."""
+
+    deployment_context = _extract_group_deployment_context(command)
+    if not deployment_context:
+        return ''
+
+    deployment_name, resource_group_name = deployment_context
+    operations = _fetch_group_deployment_operations(deployment_name, resource_group_name)
+    if not operations:
+        return ''
+
+    return _summarize_failed_group_deployment_operations(operations, resource_group_name)
+
+
 def _format_duration(start_time: float) -> str:
     minutes, seconds = divmod(time.time() - start_time, 60)
     return f'[{int(minutes)}m:{int(seconds)}s]'
@@ -254,8 +487,10 @@ def run(
         output_text = combined_text
 
     display_error = ''
+    deployment_failure_summary = ''
     if not success and _is_az_command(command_to_run):
         display_error = _extract_az_cli_error_message(combined_text)
+        deployment_failure_summary = _get_group_deployment_failure_summary(command_to_run)
 
     if is_debug_enabled():
         # Azure CLI debug output is commonly written to stderr; log it at DEBUG without
@@ -273,6 +508,8 @@ def run(
             print_ok(normalized_ok_message, duration=duration)
     else:
         summary_output = (display_error or combined_text).strip()
+        if deployment_failure_summary:
+            summary_output = f'{summary_output}\n\n{deployment_failure_summary}' if summary_output else deployment_failure_summary
 
         if normalized_error_message:
             print_error(normalized_error_message, summary_output, duration)

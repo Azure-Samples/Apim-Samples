@@ -19,9 +19,9 @@ This instructions file is designed to guide GitHub Copilot's behavior specifical
 
 ## Instruction Hierarchy
 
-- When the user asks about **Python** or a Python file is referenced in the chat context, prefer guidance and examples from [python instructions](./python.instructions.md).
-- When the user asks about **Bicep** or a Bicep file is referenced in the chat context, prefer guidance and examples from [bicep instructions](./bicep.instructions.md).
-- When the user asks about **JSON** or a JSON file is referenced in the chat context, prefer guidance and examples from [json instructions](./json.instructions.md).
+- When the user asks about **Python** or a Python file is referenced in the chat context, prefer guidance and examples from `./python.instructions.md`.
+- When the user asks about **Bicep** or a Bicep file is referenced in the chat context, prefer guidance and examples from `./bicep.instructions.md`.
+- When the user asks about **JSON** or a JSON file is referenced in the chat context, prefer guidance and examples from `./json.instructions.md`.
 - When other languages are used, look for a relevant instructions file to be included. The format is `./[language].instructions.md` where `[language]` acts as a placeholder. Also consider synonyms
   such as `JavaScript`, `JScript`, etc.
 
@@ -378,6 +378,15 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 ## Jupyter Notebook Instructions
 
 - Use these [configuration settings](https://github.com/microsoft/vscode-jupyter/blob/dd568fde/package.nls.json) as a reference for the VS Code Jupyter extension configuration.
+- When generating or editing notebook files as JSON, structure the document with a top-level `cells` array.
+- Each cell must be a valid JSON object with:
+  - `cell_type`
+  - `metadata.language`
+  - `source`
+- Existing cells must keep a unique `metadata.id` value.
+- New cells do not need a `metadata.id` value unless an editor or tool assigns one.
+- Keep notebook JSON logically structured and valid. Do not emit partial notebook fragments when a full notebook document is required.
+- When describing notebook changes to users, refer to cells by visible cell number (Cell 1, Cell 2, etc.), not by internal cell IDs.
 
 ### Presentation Instructions
 

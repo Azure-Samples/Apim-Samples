@@ -835,19 +835,22 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
             - proceed_with_update: True if user wants to proceed with update, False to cancel
             - new_index: None if no index change, integer if user selected option 2
     """
-    print_ok(f'Infrastructure already exists: {rg_name}')
-    print_plain('🔄 Infrastructure Update Options:\n', blank_above=True)
+    print_ok(f'Infrastructure already exists: {rg_name}\n')
+
+    print_plain('🔄 Infrastructure Update Options:\n')
     print_plain('   This infrastructure notebook can update the existing infrastructure.')
     print_plain('   Updates are additive and will:')
     print_plain('   • Add new APIs and policy fragments defined in the infrastructure')
     print_plain('   • Update existing infrastructure components to match the template')
     print_plain('   • Preserve manually added samples and configurations\n')
 
-    print_plain('ℹ️ Choose an option (input box at the top of the screen):')
+    print_plain('ℹ️ Choose an option (input box at the top of the screen):\n')
+
     print_plain('     1. Update the existing infrastructure (recommended)')
     print_plain('     2. Use a different index')
-    print_plain('     3. Delete the existing resource group first using the clean-up notebook')
-    print_plain('     (Press ESC to cancel)\n')
+    print_plain('     3. Delete the existing resource group first using the clean-up notebook\n')
+
+    print_plain('     Press ESC to cancel\n')
 
     while True:
         choice = input('\nEnter your choice (1, 2, or 3): ').strip()

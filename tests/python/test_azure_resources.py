@@ -1233,6 +1233,23 @@ def test_create_resource_group_skips_existence_check_when_rg_exists_provided(mon
     assert len(run_calls) == 1  # az group create should be called
 
 
+def test_create_resource_group_noops_when_resource_group_already_exists(monkeypatch):
+    """Test create_resource_group does not call Azure when the resource group already exists."""
+    monkeypatch.setattr('azure_resources.does_resource_group_exist', lambda x: True)
+
+    run_calls = []
+
+    def capture_run(cmd, *args, **kwargs):
+        run_calls.append(cmd)
+        return Output(True, '{}')
+
+    monkeypatch.setattr('azure_resources.run', capture_run)
+
+    az.create_resource_group('existing-rg', 'eastus')
+
+    assert run_calls == []
+
+
 def test_get_azure_role_guid_with_multiple_roles(monkeypatch):
     """Test get_azure_role_guid retrieval from file with multiple roles."""
     mock_data = {
