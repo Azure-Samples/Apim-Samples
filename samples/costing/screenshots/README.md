@@ -33,3 +33,17 @@ This directory contains screenshots showing expected results after running the c
 ### Response Code Analysis
 
 ![Dashboard - Response Code Analysis](Dashboard-05.png)
+
+## Entra ID Application Costing Tab
+
+### Usage by Caller ID
+
+![Entra ID - Usage by Caller ID](EntraID-01.png)
+
+### Cost Allocation
+
+![Entra ID - Cost Allocation](EntraID-02.png)
+
+### Request Trend
+
+![Entra ID - Request Trend](EntraID-03.png)
