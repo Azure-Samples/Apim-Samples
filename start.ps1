@@ -49,7 +49,9 @@ function Invoke-Cmd {
         }
 
         $global:LASTEXITCODE = 0
-        & $exe @cmdArgs
+            # Send command stdout directly to the host so menu callers can ignore the
+            # boolean return value without swallowing the child command output.
+            & $exe @cmdArgs | Out-Host
         $commandSucceeded = $?
         $exitCode = if ($commandSucceeded) { $LASTEXITCODE } else { [Math]::Max($LASTEXITCODE, 1) }
     }
