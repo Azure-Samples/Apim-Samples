@@ -7,10 +7,11 @@ on:
   pull_request:
     branches: [ main ]
 
+# Workflow-level default is least privilege. Write scopes (checks, pull-requests)
+# are granted only on the publish job below, so third-party PyPI code executed
+# by pytest/ruff in the test job never holds a write-capable GITHUB_TOKEN.
 permissions:
   contents: read
-  checks: write
-  pull-requests: write
 
 jobs:
   test:
@@ -105,22 +106,30 @@ jobs:
             echo "coverage=N/A" >> "$GITHUB_OUTPUT"
           fi
 
-      # Publish general statistics for linting, test success, and code coverage as well as detailed tests results
-      - name: Publish Consolidated Results to PR
-        if: github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405 # v2
+      # Persist metrics + step outcomes to an artifact so the publish job can post
+      # PR comments without this job needing write scopes. jq -n builds the JSON
+      # from env vars to avoid any interpolation-injection surprises.
+      - name: Write metrics for publish job
+        env:
+          RUFF_ISSUES: ${{ steps.metrics.outputs.ruff_issues }}
+          COVERAGE: ${{ steps.metrics.outputs.coverage }}
+          RUFF_OUTCOME: ${{ steps.ruff.outcome }}
+          PYTEST_OUTCOME: ${{ steps.pytest.outcome }}
+        run: |
+          mkdir -p tests/python/metrics
+          jq -n \
+            --arg ruff_issues "$RUFF_ISSUES" \
+            --arg coverage "$COVERAGE" \
+            --arg ruff_outcome "$RUFF_OUTCOME" \
+            --arg pytest_outcome "$PYTEST_OUTCOME" \
+            '{ruff_issues: $ruff_issues, coverage: $coverage, ruff_outcome: $ruff_outcome, pytest_outcome: $pytest_outcome}' \
+            > tests/python/metrics/metrics.json
+
+      - name: Upload metrics
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          header: python-results-${{ matrix.python-version }}
-          message: |
-            ## 🐍 Python ${{ matrix.python-version }} Results
-
-            | Metric | Status | Value |
-            | :--- | :---: | :--- |
-            | **Ruff** | ${{ steps.ruff.outcome == 'success' && '✅' || '⚠️' }} | `${{ steps.metrics.outputs.ruff_issues }} issue(s)` |
-            | **Unit Tests** | ${{ steps.pytest.outcome == 'success' && '✅' || '❌' }} | `${{ steps.pytest.outcome }}` |
-            | **Code Coverage** | 📊 | `${{ steps.metrics.outputs.coverage }}` |
-
-            [Full Workflow Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          name: metrics-${{ matrix.python-version }}
+          path: tests/python/metrics/metrics.json
 
       - name: Generate Job Summary
         run: |
@@ -138,8 +147,58 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
 
+  # Post PR comments and check runs. Separate job so write scopes are never
+  # exposed to steps that execute PyPI-sourced code. This job only runs
+  # SHA-pinned actions against artifacts produced by the read-only test job.
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    strategy:
+      matrix:
+        python-version: [ '3.12', '3.13', '3.14' ]
+    steps:
+      - name: Download JUnit results
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: junit-results-${{ matrix.python-version }}
+          path: junit
+
+      - name: Download metrics
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: metrics-${{ matrix.python-version }}
+          path: metrics
+
+      - name: Read metrics
+        id: metrics
+        run: |
+          echo "ruff_issues=$(jq -r '.ruff_issues' metrics/metrics.json)" >> "$GITHUB_OUTPUT"
+          echo "coverage=$(jq -r '.coverage' metrics/metrics.json)" >> "$GITHUB_OUTPUT"
+          echo "ruff_outcome=$(jq -r '.ruff_outcome' metrics/metrics.json)" >> "$GITHUB_OUTPUT"
+          echo "pytest_outcome=$(jq -r '.pytest_outcome' metrics/metrics.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish Consolidated Results to PR
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405 # v2
+        with:
+          header: python-results-${{ matrix.python-version }}
+          message: |
+            ## 🐍 Python ${{ matrix.python-version }} Results
+
+            | Metric | Status | Value |
+            | :--- | :---: | :--- |
+            | **Ruff** | ${{ steps.metrics.outputs.ruff_outcome == 'success' && '✅' || '⚠️' }} | `${{ steps.metrics.outputs.ruff_issues }} issue(s)` |
+            | **Unit Tests** | ${{ steps.metrics.outputs.pytest_outcome == 'success' && '✅' || '❌' }} | `${{ steps.metrics.outputs.pytest_outcome }}` |
+            | **Code Coverage** | 📊 | `${{ steps.metrics.outputs.coverage }}` |
+
+            [Full Workflow Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action@c950f6fb443cb5af20a377fd0dfaa78838901040 # v2
         with:
-          files: tests/python/junit-${{ matrix.python-version }}.xml
+          files: junit/junit-${{ matrix.python-version }}.xml
           comment_title: Python ${{ matrix.python-version }} Detailed Test Results
