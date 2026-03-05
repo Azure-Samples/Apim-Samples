@@ -157,49 +157,16 @@ jobs:
       contents: read
       checks: write
       pull-requests: write
-    strategy:
-      matrix:
-        python-version: [ '3.12', '3.13', '3.14' ]
     steps:
-      - name: Download JUnit results
+      - name: Download all JUnit results
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: junit-results-${{ matrix.python-version }}
           path: junit
-
-      - name: Download metrics
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: metrics-${{ matrix.python-version }}
-          path: metrics
-
-      - name: Read metrics
-        id: metrics
-        run: |
-          echo "ruff_issues=$(jq -r '.ruff_issues' metrics/metrics.json)" >> "$GITHUB_OUTPUT"
-          echo "coverage=$(jq -r '.coverage' metrics/metrics.json)" >> "$GITHUB_OUTPUT"
-          echo "ruff_outcome=$(jq -r '.ruff_outcome' metrics/metrics.json)" >> "$GITHUB_OUTPUT"
-          echo "pytest_outcome=$(jq -r '.pytest_outcome' metrics/metrics.json)" >> "$GITHUB_OUTPUT"
-
-      - name: Publish Consolidated Results to PR
-        if: github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@773744901bac0e8cbb5a0dc842800d45e9b2b405 # v2
-        with:
-          header: python-results-${{ matrix.python-version }}
-          message: |
-            ## 🐍 Python ${{ matrix.python-version }} Results
-
-            | Metric | Status | Value |
-            | :--- | :---: | :--- |
-            | **Ruff** | ${{ steps.metrics.outputs.ruff_outcome == 'success' && '✅' || '⚠️' }} | `${{ steps.metrics.outputs.ruff_issues }} issue(s)` |
-            | **Unit Tests** | ${{ steps.metrics.outputs.pytest_outcome == 'success' && '✅' || '❌' }} | `${{ steps.metrics.outputs.pytest_outcome }}` |
-            | **Code Coverage** | 📊 | `${{ steps.metrics.outputs.coverage }}` |
-
-            [Full Workflow Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          pattern: junit-results-*
 
       - name: Publish Unit Test Results
         uses: EnricoMi/publish-unit-test-result-action@c950f6fb443cb5af20a377fd0dfaa78838901040 # v2
         with:
-          files: junit/junit-${{ matrix.python-version }}.xml
-          check_name: Test Results (Python ${{ matrix.python-version }})
-          comment_title: Python ${{ matrix.python-version }} Detailed Test Results
+          files: junit/**/junit-*.xml
+          check_name: Python Test Results
+          comment_title: Python Test Results
