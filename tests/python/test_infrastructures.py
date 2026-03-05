@@ -2,19 +2,18 @@
 Unit tests for infrastructures.py.
 """
 
+import inspect
 import json
 import os
 import time
-import inspect
-from unittest.mock import Mock, patch, MagicMock
-import pytest
+from unittest.mock import MagicMock, Mock, patch
 
 # APIM Samples imports
 import console
 import infrastructures
-from apimtypes import INFRASTRUCTURE, APIM_SKU, APIMNetworkMode, API, PolicyFragment, Output, Region
+import pytest
+from apimtypes import API, APIM_SKU, INFRASTRUCTURE, APIMNetworkMode, Output, PolicyFragment, Region
 from test_helpers import capture_module_print_log, patch_module_thread_safe_printing, suppress_module_functions
-
 
 # ------------------------------
 #    CONSTANTS
@@ -184,6 +183,132 @@ def test_appgw_apim_create_keyvault_certificate_returns_false_when_create_fails(
     mock_az.run.side_effect = [Mock(success=False), Mock(success=False)]
 
     assert infra._create_keyvault_certificate('test-kv') is False
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    'infra_class, default_sku',
+    [
+        (infrastructures.AppGwApimPeInfrastructure, APIM_SKU.BASICV2),
+        (infrastructures.AppGwApimInfrastructure, APIM_SKU.DEVELOPER),
+    ],
+)
+def test_appgw_keyvault_certificate_endpoint_reachable_returns_true(mock_utils, mock_az, infra_class, default_sku):
+    """The Key Vault certificate endpoint helper should return True on a successful CLI call."""
+    infra = infra_class(rg_location='eastus', index=1, apim_sku=default_sku)
+    mock_az.run.return_value = Mock(success=True)
+
+    assert infra._keyvault_certificate_endpoint_reachable('test-kv') is True
+    mock_az.run.assert_called_once_with('az keyvault certificate list --vault-name test-kv -o json')
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    'infra_class, default_sku',
+    [
+        (infrastructures.AppGwApimPeInfrastructure, APIM_SKU.BASICV2),
+        (infrastructures.AppGwApimInfrastructure, APIM_SKU.DEVELOPER),
+    ],
+)
+def test_appgw_keyvault_certificate_endpoint_reachable_returns_false(mock_utils, mock_az, infra_class, default_sku):
+    """The Key Vault certificate endpoint helper should return False when the CLI call fails."""
+    infra = infra_class(rg_location='eastus', index=1, apim_sku=default_sku)
+    mock_az.run.return_value = Mock(success=False)
+
+    assert infra._keyvault_certificate_endpoint_reachable('test-kv') is False
+    mock_az.run.assert_called_once_with('az keyvault certificate list --vault-name test-kv -o json')
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    'infra_class, default_sku, expected',
+    [
+        (infrastructures.AppGwApimPeInfrastructure, APIM_SKU.BASICV2, True),
+        (infrastructures.AppGwApimInfrastructure, APIM_SKU.DEVELOPER, False),
+    ],
+)
+def test_appgw_has_existing_infrastructure_deployment_returns_cli_result(mock_utils, mock_az, infra_class, default_sku, expected):
+    """The prior-deployment helper should mirror whether the deployment lookup succeeds."""
+    infra = infra_class(rg_location='eastus', index=1, apim_sku=default_sku)
+    mock_az.run.return_value = Mock(success=expected)
+
+    assert infra._has_existing_infrastructure_deployment() is expected
+    mock_az.run.assert_called_once_with(f'az deployment group show --name {infra.infra.value} -g {infra.rg_name} -o json')
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    'infra_class, default_sku',
+    [
+        (infrastructures.AppGwApimPeInfrastructure, APIM_SKU.BASICV2),
+        (infrastructures.AppGwApimInfrastructure, APIM_SKU.DEVELOPER),
+    ],
+)
+def test_appgw_prepare_keyvault_certificate_skips_creation_for_unreachable_existing_keyvault_with_prior_deployment(
+    mock_utils, infra_class, default_sku
+):
+    """Skip certificate creation when an existing private Key Vault is unreachable but the infra already exists."""
+    infra = infra_class(rg_location='eastus', index=1, apim_sku=default_sku)
+    infra._keyvault_exists = Mock(return_value=True)
+    infra._create_keyvault = Mock(return_value=True)
+    infra._keyvault_certificate_endpoint_reachable = Mock(return_value=False)
+    infra._has_existing_infrastructure_deployment = Mock(return_value=True)
+    infra._create_keyvault_certificate = Mock(return_value=True)
+
+    assert infra._prepare_keyvault_certificate('test-kv') is True
+
+    infra._create_keyvault.assert_called_once_with('test-kv')
+    infra._keyvault_certificate_endpoint_reachable.assert_called_once_with('test-kv')
+    infra._has_existing_infrastructure_deployment.assert_called_once_with()
+    infra._create_keyvault_certificate.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    'infra_class, default_sku',
+    [
+        (infrastructures.AppGwApimPeInfrastructure, APIM_SKU.BASICV2),
+        (infrastructures.AppGwApimInfrastructure, APIM_SKU.DEVELOPER),
+    ],
+)
+def test_appgw_prepare_keyvault_certificate_fails_for_unreachable_existing_keyvault_without_prior_deployment(mock_utils, infra_class, default_sku):
+    """Fail certificate preparation when an existing Key Vault is unreachable and no deployment is present."""
+    infra = infra_class(rg_location='eastus', index=1, apim_sku=default_sku)
+    infra._keyvault_exists = Mock(return_value=True)
+    infra._create_keyvault = Mock(return_value=True)
+    infra._keyvault_certificate_endpoint_reachable = Mock(return_value=False)
+    infra._has_existing_infrastructure_deployment = Mock(return_value=False)
+    infra._create_keyvault_certificate = Mock(return_value=True)
+
+    assert infra._prepare_keyvault_certificate('test-kv') is False
+
+    infra._create_keyvault.assert_called_once_with('test-kv')
+    infra._keyvault_certificate_endpoint_reachable.assert_called_once_with('test-kv')
+    infra._has_existing_infrastructure_deployment.assert_called_once_with()
+    infra._create_keyvault_certificate.assert_not_called()
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    'infra_class, default_sku',
+    [
+        (infrastructures.AppGwApimPeInfrastructure, APIM_SKU.BASICV2),
+        (infrastructures.AppGwApimInfrastructure, APIM_SKU.DEVELOPER),
+    ],
+)
+def test_appgw_prepare_keyvault_certificate_does_not_probe_reachability_for_new_keyvault(mock_utils, infra_class, default_sku):
+    """A newly created Key Vault should proceed directly to certificate creation."""
+    infra = infra_class(rg_location='eastus', index=1, apim_sku=default_sku)
+    infra._keyvault_exists = Mock(return_value=False)
+    infra._create_keyvault = Mock(return_value=True)
+    infra._keyvault_certificate_endpoint_reachable = Mock(return_value=True)
+    infra._create_keyvault_certificate = Mock(return_value=True)
+
+    assert infra._prepare_keyvault_certificate('test-kv') is True
+
+    infra._create_keyvault.assert_called_once_with('test-kv')
+    infra._keyvault_certificate_endpoint_reachable.assert_not_called()
+    infra._create_keyvault_certificate.assert_called_once_with('test-kv')
 
 
 # ------------------------------
@@ -3202,12 +3327,10 @@ def test_deploy_infrastructure_appgw_failure_main_deployment(mock_path_class, mo
 
     infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
 
-    # Mock successful Key Vault and certificate, but failed deployment
-    kv_output = Output(True, 'Found')
-    cert_output = Output(True, 'Found')
+    # Mock successful Key Vault preparation, but failed deployment
     deploy_output = Output(False, 'Deployment failed')
 
-    mock_az.run.side_effect = [kv_output, cert_output, deploy_output]
+    mock_az.run.return_value = deploy_output
 
     with (
         patch('builtins.open', MagicMock()),
@@ -3215,6 +3338,7 @@ def test_deploy_infrastructure_appgw_failure_main_deployment(mock_path_class, mo
         patch('infrastructures.print_plain'),
         patch('infrastructures.print_ok'),
         patch('infrastructures.print_error'),
+        patch.object(infra, '_prepare_keyvault_certificate', return_value=True),
     ):
         result = infra.deploy_infrastructure(is_update=False)
 

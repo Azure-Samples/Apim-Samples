@@ -99,7 +99,14 @@ class InfrastructureNotebookHelper:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, rg_location: str, deployment: INFRASTRUCTURE, index: int, apim_sku: APIM_SKU):
+    def __init__(
+        self,
+        rg_location: str,
+        deployment: INFRASTRUCTURE,
+        index: int,
+        apim_sku: APIM_SKU,
+        use_strict_nsg: bool = False,
+    ):
         """
         Initialize the InfrastructureNotebookHelper.
 
@@ -108,18 +115,21 @@ class InfrastructureNotebookHelper:
             deployment (INFRASTRUCTURE): Infrastructure type to deploy.
             index (int): Index for multi-instance deployments.
             apim_sku (APIM_SKU): SKU for API Management service.
+            use_strict_nsg (bool): Whether to deploy strict NSGs for supported infrastructures.
         """
 
         self.rg_location = rg_location
         self.deployment = deployment
         self.index = index
         self.apim_sku = apim_sku
+        self.use_strict_nsg = use_strict_nsg
 
         print_message('Initializing Infrastructure Notebook Helper with the following parameters:', blank_above=True, blank_below=True)
         print_val('Location', self.rg_location)
         print_val('Infrastructure', self.deployment.value)
         print_val('Index', self.index)
         print_val('APIM SKU', self.apim_sku.value)
+        print_val('Use strict NSGs', self.use_strict_nsg)
 
     # ------------------------------
     #    PUBLIC METHODS
@@ -196,6 +206,9 @@ class InfrastructureNotebookHelper:
                     '--sku',
                     str(self.apim_sku.value),
                 ]
+
+                if self.use_strict_nsg:
+                    cmd_args.append('--use-strict-nsg')
 
                 # Execute the infrastructure creation script with real-time output streaming and UTF-8 encoding to handle Unicode characters properly
                 project_root = find_project_root()
@@ -790,7 +803,9 @@ def _prompt_for_high_cost_sku_acknowledgement(apim_sku: APIM_SKU) -> bool:
     Returns:
         bool: True if the user acknowledges and consents to proceed, False otherwise.
     """
-    print_warning(f'⚠️  Cost Warning: The {apim_sku.value} SKU incurs significant charges.')
+
+    print_plain()
+    print_warning(f'Cost Warning: The {apim_sku.value} SKU incurs significant charges.')
     print_plain('   Standard and Premium tiers are considerably more expensive than Developer or Basic tiers.', blank_above=True)
     print_plain('   Please review the current pricing before proceeding:')
     print_plain('   https://azure.microsoft.com/pricing/details/api-management\n')
