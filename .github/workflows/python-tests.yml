@@ -201,4 +201,5 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@c950f6fb443cb5af20a377fd0dfaa78838901040 # v2
         with:
           files: junit/junit-${{ matrix.python-version }}.xml
+          check_name: Test Results (Python ${{ matrix.python-version }})
           comment_title: Python ${{ matrix.python-version }} Detailed Test Results
