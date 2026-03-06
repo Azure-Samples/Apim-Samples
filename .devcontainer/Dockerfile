@@ -11,7 +11,8 @@ FROM mcr.microsoft.com/devcontainers/python:${PYTHON_VERSION}-bookworm
 ARG PYTHON_VERSION
 
 # Set environment variables
-ENV PYTHONPATH=/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples \
+ENV UV_VERSION=0.9.24 \
+    PYTHONPATH=/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_SYSTEM_PYTHON=1
@@ -24,7 +25,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get install -y --no-install-recommends --no-install-suggests curl ca-certificates && \
     rm -rf /var/lib/apt/lists/* && \
     apt-get clean && \
-    curl -LsSf https://astral.sh/uv/install.sh | sh && \
+    curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh && \
     mv /root/.local/bin/uv /usr/local/bin/uv && \
     chmod +x /usr/local/bin/uv
 
@@ -38,6 +39,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     rm /tmp/pyproject.toml
 
 # Install Azure CLI (prebuild optimization)
+# Note: The installer script cannot be pinned by hash (aka.ms redirect). This is an accepted
+# trade-off; the script is maintained by Microsoft and installs from the official apt repository.
 USER root
 RUN curl -sL https://aka.ms/InstallAzureCLIDeb | bash && \
     az --version
