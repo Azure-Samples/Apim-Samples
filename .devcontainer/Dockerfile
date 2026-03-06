@@ -5,19 +5,28 @@
 # PYTHON_VERSION must be passed as a build argument. We deliberately do not default it.
 ARG PYTHON_VERSION
 
+# Note: The base image cannot be pinned by digest because PYTHON_VERSION is a build argument;
+# a digest would lock us to a single tag. This is an accepted trade-off. The image is published
+# by Microsoft (mcr.microsoft.com) and Dependabot monitors it for updates. This yields a very high
+# degree of safety and backwards compatibility while allowing flexibility to choose Python versions.
 FROM mcr.microsoft.com/devcontainers/python:${PYTHON_VERSION}-bookworm
 
 # Set build arguments
 ARG PYTHON_VERSION
 
 # Set environment variables
+# When bumping UV_VERSION, recompute UV_INSTALL_SHA256:
+#   curl -LsSf https://astral.sh/uv/<version>/install.sh | sha256sum
 ENV UV_VERSION=0.9.24 \
+    UV_INSTALL_SHA256=f6e468855afb4e653fa96ed68a7cad0b2534794ece25ec202f6543c589eb04dc \
     PYTHONPATH=/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_SYSTEM_PYTHON=1
 
 # Install uv (https://docs.astral.sh/uv/) for fast Python package management
+# The installer script is downloaded to disk, verified against a known SHA-256 checksum,
+# and only then executed. This satisfies OpenSSF Scorecard's Pinned-Dependencies check.
 USER root
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt/lists \
@@ -25,7 +34,10 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get install -y --no-install-recommends --no-install-suggests curl ca-certificates && \
     rm -rf /var/lib/apt/lists/* && \
     apt-get clean && \
-    curl -LsSf https://astral.sh/uv/${UV_VERSION}/install.sh | sh && \
+    curl -LsSf -o /tmp/uv-install.sh https://astral.sh/uv/${UV_VERSION}/install.sh && \
+    echo "${UV_INSTALL_SHA256}  /tmp/uv-install.sh" | sha256sum -c - && \
+    sh /tmp/uv-install.sh && \
+    rm /tmp/uv-install.sh && \
     mv /root/.local/bin/uv /usr/local/bin/uv && \
     chmod +x /usr/local/bin/uv
 
