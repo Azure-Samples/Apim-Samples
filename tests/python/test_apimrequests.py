@@ -29,6 +29,7 @@ def test_init_sets_headers():
     apim = ApimRequests(DEFAULT_URL, DEFAULT_KEY)
     assert apim._url == DEFAULT_URL
     assert apim.subscriptionKey == DEFAULT_KEY
+    assert apim.allowInsecureTls is False
     assert apim.headers[SUBSCRIPTION_KEY_PARAMETER_NAME] == DEFAULT_KEY
 
 
@@ -229,6 +230,32 @@ def test_request_with_custom_headers(apim, apimrequests_patches):
     call_kwargs = apimrequests_patches.request.call_args[1]
     assert 'Custom' in call_kwargs['headers']
     assert SUBSCRIPTION_KEY_PARAMETER_NAME in call_kwargs['headers']
+    assert call_kwargs['verify'] is True
+
+
+@pytest.mark.unit
+def test_request_verifies_tls_by_default(apim, apimrequests_patches):
+    """Test requests verify TLS certificates by default."""
+    apimrequests_patches.request.return_value = create_mock_http_response(status_code=200, json_data={'result': 'ok'})
+
+    with patch.object(apim, '_print_response'):
+        apim.singleGet(DEFAULT_PATH)
+
+    call_kwargs = apimrequests_patches.request.call_args[1]
+    assert call_kwargs['verify'] is True
+
+
+@pytest.mark.unit
+def test_request_can_opt_in_to_insecure_tls(apimrequests_patches):
+    """Test requests can explicitly disable TLS verification for self-signed certs."""
+    apim = ApimRequests(DEFAULT_URL, DEFAULT_KEY, allowInsecureTls=True)
+    apimrequests_patches.request.return_value = create_mock_http_response(status_code=200, json_data={'result': 'ok'})
+
+    with patch.object(apim, '_print_response'):
+        apim.singleGet(DEFAULT_PATH)
+
+    call_kwargs = apimrequests_patches.request.call_args[1]
+    assert call_kwargs['verify'] is False
 
 
 @pytest.mark.unit
@@ -810,6 +837,21 @@ def test_poll_async_operation_with_custom_headers(apim, apimrequests_patches):
     # Verify custom headers were passed
     call_kwargs = mock_get.call_args[1]
     assert call_kwargs['headers'] == custom_headers
+    assert call_kwargs['verify'] is True
+
+
+@pytest.mark.unit
+def test_poll_async_operation_can_opt_in_to_insecure_tls():
+    """Test async polling can explicitly disable TLS verification for self-signed certs."""
+    apim = ApimRequests(DEFAULT_URL, allowInsecureTls=True)
+    mock_response = create_mock_http_response(status_code=200)
+
+    with patch('apimrequests.requests.get', return_value=mock_response) as mock_get:
+        result = apim._poll_async_operation('http://example.com/op')
+
+    assert result == mock_response
+    call_kwargs = mock_get.call_args[1]
+    assert call_kwargs['verify'] is False
 
 
 @pytest.mark.unit

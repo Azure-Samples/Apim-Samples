@@ -1201,22 +1201,32 @@ def get_endpoints(deployment: INFRASTRUCTURE, rg_name: str) -> Endpoints:
     return endpoints
 
 
-def get_endpoint(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str) -> Tuple[str, dict[str, str] | None]:
-    """Determine the endpoint URL and optional request headers for test execution."""
+def get_endpoint(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str) -> Tuple[str, dict[str, str] | None, bool]:
+    """Determine the endpoint URL, optional request headers, and TLS verification flag for test execution.
+
+    Returns:
+        Tuple[str, dict[str, str] | None, bool]: (endpoint_url, request_headers, allow_insecure_tls).
+            allow_insecure_tls is True only when routing through Application Gateway, which uses a
+            self-signed certificate that we create in the infrastructure deployment.
+    """
     # Determine endpoints, URLs, etc. prior to test execution
     endpoints = get_endpoints(deployment, rg_name)
     endpoint_url = None
     request_headers = None
+    allow_insecure_tls = False
 
     if endpoints.appgw_hostname and endpoints.appgw_public_ip:
         endpoint_url = f'https://{endpoints.appgw_public_ip}'
         request_headers: dict[str, str] = {'Host': endpoints.appgw_hostname}
+        # Application Gateway infrastructures use a self-signed certificate that we create
+        # during deployment, so TLS verification must be disabled for requests to succeed.
+        allow_insecure_tls = True
     else:
         # Preflight: Check if the deployment uses Azure Front Door.
         # If so, assume APIM is not directly accessible and use the Front Door URL instead.
         endpoint_url = test_url_preflight_check(deployment, rg_name, apim_gateway_url)
 
-    return endpoint_url, request_headers
+    return endpoint_url, request_headers, allow_insecure_tls
 
 
 def get_json(json_str: str) -> Any:
