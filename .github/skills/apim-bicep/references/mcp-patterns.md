@@ -26,8 +26,6 @@ APIM supports MCP servers through the `type: 'mcp'` API type. There are two main
 
 Creates an MCP server that exposes existing API operations as MCP tools.
 
-**Source**: [labs/mcp-from-api/src/weather/mcp-server/mcp.bicep](../../../../labs/mcp-from-api/src/weather/mcp-server/mcp.bicep)
-
 ```bicep
 param apimServiceName string
 param apiName string = 'weather-api'
@@ -109,8 +107,6 @@ output endpoint string = '${apim.properties.gatewayUrl}/${mcpPath}/mcp'
 
 Creates an MCP server that proxies to an external MCP backend service.
 
-**Source**: [modules/apim-streamable-mcp/api.bicep](../../../../modules/apim-streamable-mcp/api.bicep)
-
 ```bicep
 param apimServiceName string
 param MCPServiceURL string
@@ -174,8 +170,6 @@ resource APIPolicy 'Microsoft.ApiManagement/service/apis/policies@2021-12-01-pre
 
 ### Alternative: Streamable MCP with Backend ID Reference
 
-**Source**: [labs/mcp-client-authorization/src/weather/apim-mcp-server/mcp.bicep](../../../../labs/mcp-client-authorization/src/weather/apim-mcp-server/mcp.bicep)
-
 ```bicep
 param apimServiceName string
 param backendName string
@@ -219,8 +213,6 @@ resource mcp 'Microsoft.ApiManagement/service/apis@2024-06-01-preview' = {
 ## MCP with Custom Operations
 
 Creates an MCP-compatible API with custom SSE and message endpoints.
-
-**Source**: [labs/mcp-a2a-agents/src/mcp_sk_servers/apim-mcp/mcp-api.bicep](../../../../labs/mcp-a2a-agents/src/mcp_sk_servers/apim-mcp/mcp-api.bicep)
 
 ```bicep
 @description('The name of the API Management service')
@@ -297,8 +289,6 @@ output apiId string = mcpApi.id
 ## MCP with Azure API Center Registration
 
 Registers the MCP server in Azure API Center for discovery.
-
-**Source**: [labs/mcp-from-api/src/weather/mcp-server/mcp.bicep](../../../../labs/mcp-from-api/src/weather/mcp-server/mcp.bicep)
 
 ```bicep
 param apimServiceName string

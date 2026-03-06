@@ -1,6 +1,6 @@
 ---
 name: apim-terraform
-description: Guide for creating Terraform files for Azure API Management (APIM) and related Azure services. Use when users want to create, modify, or understand Terraform configurations for APIM instances, APIs, backends, subscriptions, policies, products, loggers, diagnostics, and supporting infrastructure using the azurerm provider. This skill provides HCL syntax, resource definitions, and patterns from the Terraform Registry and this repository.
+description: Guide for creating Terraform files for Azure API Management (APIM) and related Azure services. Use when users want to create, modify, or understand Terraform configurations for APIM instances, APIs, backends, subscriptions, policies, products, loggers, diagnostics, and supporting infrastructure using the azurerm provider. This skill provides HCL syntax, resource definitions, and patterns from the Terraform Registry.
 ---
 
 # APIM Terraform Skill
@@ -397,4 +397,4 @@ provider "azurerm" {
 ## References
 
 - [references/apim-resources.md](references/apim-resources.md) - Complete APIM resource definitions
-- [references/ai-gateway-patterns.md](references/ai-gateway-patterns.md) - AI Gateway patterns from this repository
+- [references/ai-gateway-patterns.md](references/ai-gateway-patterns.md) - AI Gateway deployment patterns

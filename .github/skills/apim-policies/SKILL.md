@@ -61,7 +61,7 @@ Route requests to a specific backend:
 Authenticate to Azure services using APIM's managed identity:
 
 ```xml
-<authentication-managed-identity resource="https://cognitiveservices.azure.com" 
+<authentication-managed-identity resource="https://cognitiveservices.azure.com"
     output-token-variable-name="managed-id-access-token" ignore-error="false" />
 <set-header name="Authorization" exists-action="override">
     <value>@("Bearer " + (string)context.Variables["managed-id-access-token"])</value>
@@ -114,7 +114,7 @@ Return an immediate response without calling the backend:
 Retry failed requests with conditions:
 
 ```xml
-<retry count="3" interval="1" first-fast-retry="true" 
+<retry count="3" interval="1" first-fast-retry="true"
     condition="@(context.Response.StatusCode == 429 || context.Response.StatusCode >= 500)">
     <forward-request buffer-request-body="true" />
 </retry>
@@ -127,16 +127,16 @@ Retry failed requests with conditions:
 Limit LLM token consumption:
 
 ```xml
-<llm-token-limit counter-key="@(context.Subscription.Id)" 
-    tokens-per-minute="10000" estimate-prompt-tokens="false" 
+<llm-token-limit counter-key="@(context.Subscription.Id)"
+    tokens-per-minute="10000" estimate-prompt-tokens="false"
     remaining-tokens-variable-name="remainingTokens" />
 ```
 
 For Azure OpenAI specifically:
 
 ```xml
-<azure-openai-token-limit counter-key="@(context.Subscription.Id)" 
-    tokens-per-minute="10000" estimate-prompt-tokens="false" 
+<azure-openai-token-limit counter-key="@(context.Subscription.Id)"
+    tokens-per-minute="10000" estimate-prompt-tokens="false"
     remaining-tokens-variable-name="remainingTokens" />
 ```
 
@@ -159,8 +159,8 @@ Cache LLM responses using semantic similarity:
 
 ```xml
 <!-- Inbound: Check cache -->
-<azure-openai-semantic-cache-lookup score-threshold="0.8" 
-    embeddings-backend-id="embeddings-backend" 
+<azure-openai-semantic-cache-lookup score-threshold="0.8"
+    embeddings-backend-id="embeddings-backend"
     embeddings-backend-auth="system-assigned" />
 
 <!-- Outbound: Store in cache -->
@@ -239,10 +239,10 @@ For detailed information, see:
 
 - **[Policy Reference](references/policy-reference.md)**: Complete list of all APIM policies with syntax
 - **[Policy Expressions](references/policy-expressions.md)**: C# expressions, context variable, and allowed types
-- **[AI Gateway Examples](references/ai-gateway-examples.md)**: Real-world examples from this repository
+- **[AI Gateway Examples](references/ai-gateway-examples.md)**: Real-world AI gateway policy patterns
 
 ## Official Documentation
 
-- [APIM Policy Reference](https://learn.microsoft.com/en-us/azure/api-management/api-management-policies)
-- [Policy Expressions](https://learn.microsoft.com/en-us/azure/api-management/api-management-policy-expressions)
+- [APIM Policy Reference](https://learn.microsoft.com/azure/api-management/api-management-policies)
+- [Policy Expressions](https://learn.microsoft.com/azure/api-management/api-management-policy-expressions)
 - [Policy Snippets Repository](https://github.com/Azure/api-management-policy-snippets)

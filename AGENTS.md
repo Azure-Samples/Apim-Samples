@@ -26,6 +26,7 @@ This repository provides resources to deploy Azure API Management infrastructure
 │   ├── authX/               # Authentication and authorization
 │   ├── authX-pro/           # Advanced auth with policy fragments
 │   ├── azure-maps/          # Azure Maps integration
+│   ├── costing/             # APIM costing and showback
 │   ├── general/             # Basic policy demonstrations
 │   ├── load-balancing/      # Backend pool load balancing
 │   ├── oauth-3rd-party/     # Credential Manager (Spotify example)
@@ -134,7 +135,7 @@ from apimtypes import API, GET_APIOperation, POST_APIOperation
 
 # Create operations
 get_op = GET_APIOperation('Description of the operation')
-post_op = POST_APIOperation('Description', policy_xml = '<policy-xml>')
+post_op = POST_APIOperation('Description', policyXml = '<policy-xml>')
 
 # Create API
 api = API(
@@ -175,9 +176,9 @@ Shared modules in `shared/bicep/modules/`:
 
 ### Python
 
-- Follow `.pylintrc` configuration
+- Follow Ruff configuration in `pyproject.toml`
 - Use type hints and docstrings
-- Run `pylint` before committing
+- Run `ruff check` before committing
 - Tests in `tests/python/` with pytest
 
 ### Bicep
@@ -205,7 +206,7 @@ Shared modules in `shared/bicep/modules/`:
 
 # Or directly
 pytest tests/python/
-pylint shared/python/
+ruff check shared/python/
 ```
 
 ### Writing Tests
@@ -223,7 +224,6 @@ pylint shared/python/
 | Write APIM policies | apim-policies | `shared/apim-policies/*.xml` |
 | Create Bicep templates | apim-bicep | `shared/bicep/modules/` |
 | Create Terraform configs | apim-terraform | N/A |
-| Build MCP servers | mcp-builder | N/A |
 | Create new skills | skill-creator | `.github/skills/` |
 
 ## Additional Resources

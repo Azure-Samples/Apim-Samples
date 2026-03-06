@@ -372,6 +372,6 @@ For detailed patterns and examples, see:
 
 ## Official Documentation
 
-- [APIM Bicep Quickstart](https://learn.microsoft.com/en-us/azure/api-management/quickstart-bicep)
-- [ARM Template Reference](https://learn.microsoft.com/en-us/azure/templates/microsoft.apimanagement/service)
+- [APIM Bicep Quickstart](https://learn.microsoft.com/azure/api-management/quickstart-bicep)
+- [ARM Template Reference](https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service)
 - [Azure Verified Modules - APIM](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/api-management)

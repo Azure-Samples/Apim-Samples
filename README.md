@@ -333,8 +333,8 @@ The original author of this project is [Simon Kurtz][simon-kurtz].
 ## 🥇 Other resources
 
 - [AI Gateway][ai-gateway]
-- [Landing Zone Accelerator](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/scenarios/app-platform/api-management/landing-zone-accelerator#generative-ai-gateway-scenario)
-- [Learning Modules](https://learn.microsoft.com/en-us/training/browse/?products=azure-api-management)
+- [Landing Zone Accelerator](https://learn.microsoft.com/azure/cloud-adoption-framework/scenarios/app-platform/api-management/landing-zone-accelerator#generative-ai-gateway-scenario)
+- [Learning Modules](https://learn.microsoft.com/training/browse/?products=azure-api-management)
 - [News and announcements](https://techcommunity.microsoft.com/tag/API%20Management?nodeId=board%3AIntegrationsonAzureBlog)
 - [APIM Releases](https://github.com/Azure/API-Management/releases)
 - [APIM policy snippets repo][apim-snippets]

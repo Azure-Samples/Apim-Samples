@@ -1,6 +1,6 @@
 # AI Gateway Terraform Patterns
 
-Patterns from this repository for AI Gateway scenarios with Azure API Management.
+Terraform patterns for AI Gateway scenarios with Azure API Management. These are reference examples you can adapt for your own deployments.
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@ Patterns from this repository for AI Gateway scenarios with Azure API Management
 
 ## Complete AI Gateway Example
 
-Full example from `labs/backend-pool-load-balancing-tf`:
+Full example deployment:
 
 ```hcl
 # Random suffix for unique names

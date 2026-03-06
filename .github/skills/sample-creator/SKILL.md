@@ -71,13 +71,6 @@ Use this template:
 
 <Describe what the lab sets up and how it benefits the learner.>
 
-## 🔗 APIs
-
-| API Name | What does it do? |
-|:---------|:-----------------|
-| <API 1>  | <Description>    |
-| <API 2>  | <Description>    |
-
 ## ⚙️ Configuration
 
 1. Decide which of the [Infrastructure Architectures](../../README.md#infrastructure-architectures) you wish to use.
@@ -101,7 +94,8 @@ The notebook must contain these cells in order:
 
 ```python
 import utils
-from apimtypes import *
+from typing import List
+from apimtypes import API, APIM_SKU, GET_APIOperation, INFRASTRUCTURE, POST_APIOperation, Region
 from console import print_error, print_ok
 from azure_resources import get_infra_rg_name
 
@@ -109,9 +103,9 @@ from azure_resources import get_infra_rg_name
 #    USER CONFIGURATION
 # ------------------------------
 
-rg_location = 'eastus2'
+rg_location = Region.EAST_US_2
 index       = 1
-apim_sku    = APIM_SKU.BASICV2              # Options: 'BASICV2', 'STANDARDV2', 'PREMIUMV2'
+apim_sku    = APIM_SKU.BASICV2              # Options: 'DEVELOPER', 'BASIC', 'STANDARD', 'PREMIUM', 'BASICV2', 'STANDARDV2', 'PREMIUMV2'
 deployment  = INFRASTRUCTURE.<DEFAULT>      # Options: see supported_infras below
 api_prefix  = '<prefix>-'                   # ENTER A PREFIX FOR THE APIS TO REDUCE COLLISION POTENTIAL
 tags        = ['<tag1>', '<tag2>']          # ENTER DESCRIPTIVE TAGS
@@ -172,7 +166,7 @@ if output.success:
 
     print_ok('Deployment completed successfully')
 else:
-    print_error("Deployment failed!")
+    print_error('Deployment failed!')
     raise SystemExit(1)
 ```
 
@@ -191,17 +185,17 @@ from apimrequests import ApimRequests
 from apimtesting import ApimTesting
 
 # Initialize testing framework
-tests = ApimTesting("<Sample Name> Tests", sample_folder, nb_helper.deployment)
+tests = ApimTesting('<Sample Name> Tests', sample_folder, nb_helper.deployment)
 
 # Determine endpoints
-# endpoint_url, request_headers = utils.get_endpoint(deployment, rg_name, apim_gateway_url)
+# endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(deployment, rg_name, apim_gateway_url)
 
 # ********** TEST EXECUTIONS **********
 
 # Example: Test API response
-# reqs = ApimRequests(endpoint_url)
-# response = reqs.singleGet('/<api-route>', msg = 'Testing API. Expect 200.')
-# tests.verify('API returns expected response', response.status_code == 200)
+# reqs = ApimRequests(endpoint_url, subscription_key, request_headers, allowInsecureTls = allow_insecure_tls)
+# output = reqs.singleGet('/<api-route>', msg = 'Testing API. Expect 200.')
+# tests.verify('Expected String' in output, True)
 
 tests.print_summary()
 
@@ -318,14 +312,16 @@ pol_example = utils.read_policy_xml('example-policy.xml', sample_name = sample_f
 ### Creating Operations
 
 ```python
-# Standard operations
+# Standard operations (available in apimtypes)
 get_op = GET_APIOperation('Description')
 post_op = POST_APIOperation('Description')
-put_op = PUT_APIOperation('Description')
-delete_op = DELETE_APIOperation('Description')
 
 # With custom policy
-get_op = GET_APIOperation('Description', policy_xml = '<policy-xml-string>')
+get_op = GET_APIOperation('Description', policyXml = '<policy-xml-string>')
+
+# For other HTTP methods, use the base APIOperation class directly
+# from apimtypes import APIOperation, HTTP_VERB
+# put_op = APIOperation('put-op', 'PUT operation', '/', HTTP_VERB.PUT, 'Description')
 ```
 
 ### Creating APIs
@@ -370,7 +366,7 @@ Available infrastructure types:
 - **Folder name**: kebab-case (e.g., `oauth-validation`)
 - **API prefix**: short, unique, ending with hyphen (e.g., `oauth-`)
 - **Policy files**: descriptive, kebab-case with `.xml` extension
-- **Variable names**: camelCase in Python, snake_case for constants
+- **Python variable names**: snake_case per PEP 8 (note: `apimtypes` constructor parameters use camelCase for JSON mapping)
 
 ## Validation Checklist
 
