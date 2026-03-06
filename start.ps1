@@ -134,10 +134,10 @@ while ($true) {
     Write-Host "  6) Show all deployed infrastructures"
     Write-Host ""
     Write-Host "Tests" -ForegroundColor Yellow
-    Write-Host "  7) Run ruff"
-    Write-Host "  8) Run tests (shows detailed test results)"
-    Write-Host "  9) Run full Python checks (most statistics)"
-    Write-Host " 10) Run Bicep lint"
+    Write-Host "  7) Run python ruff"
+    Write-Host "  8) Run python tests (shows detailed test results)"
+    Write-Host "  9) Run Bicep lint"
+    Write-Host " 10) Run full checks (most statistics)"
     Write-Host ""
     Write-Host "Presentation" -ForegroundColor Yellow
     Write-Host "  p) Serve & view presentation (auto-opens browser)"
@@ -189,10 +189,10 @@ while ($true) {
             $null = Invoke-Cmd "$RepoRoot/tests/python/run_tests.ps1"
         }
         '9' {
-            $null = Invoke-Cmd "$RepoRoot/tests/python/check_python.ps1"
+            $null = Invoke-Cmd "$RepoRoot/tests/bicep/run_bicep_lint.ps1"
         }
         '10' {
-            $null = Invoke-Cmd "$RepoRoot/tests/bicep/run_bicep_lint.ps1"
+            $null = Invoke-Cmd "$RepoRoot/tests/python/check_python.ps1"
         }
         'p' {
             $null = PyRun "$RepoRoot/setup/serve_presentation.py"

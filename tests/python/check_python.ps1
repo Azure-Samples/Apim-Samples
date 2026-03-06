@@ -1,16 +1,17 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Run comprehensive Python code quality checks (linting and testing).
+    Run comprehensive code quality checks (Python linting, Python tests, Bicep linting).
 
 .DESCRIPTION
-    This script executes both ruff linting and pytest testing in sequence,
-    providing a complete code quality assessment. It's the recommended way
-    to validate Python code changes before committing.
+    This script executes ruff linting, pytest testing, and Bicep linting in
+    sequence, providing a complete code quality assessment across the repo.
+    It is the recommended way to validate changes before committing.
 
     The script can be run from anywhere in the repository and will:
     - Execute ruff on all Python code with detailed reporting
     - Run the full test suite with coverage analysis
+    - Lint every Bicep template in the repository
     - Display combined results and exit with appropriate status code
 
 .PARAMETER ShowLintReport
@@ -42,7 +43,7 @@ $ScriptDir = $PSScriptRoot
 
 Write-Host ""
 Write-Host "╔════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║         Python Code Quality Check          ║" -ForegroundColor Cyan
+Write-Host "║         Code Quality Check                 ║" -ForegroundColor Cyan
 Write-Host "╚════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
@@ -52,7 +53,7 @@ Write-Host ""
 # ------------------------------
 
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
-Write-Host "  Step 1/2: Running Ruff    " -ForegroundColor Yellow
+Write-Host "  Step 1/3: Running Ruff    " -ForegroundColor Yellow
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
 Write-Host ""
 
@@ -73,7 +74,7 @@ Write-Host ""
 #    STEP 2: RUN TESTS
 # ------------------------------
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
-Write-Host "  Step 2/2: Running Tests   " -ForegroundColor Yellow
+Write-Host "  Step 2/3: Running Tests   " -ForegroundColor Yellow
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
 Write-Host ""
 
@@ -144,6 +145,32 @@ Write-Host ""
 
 
 # ------------------------------
+#    STEP 3: RUN BICEP LINT
+# ------------------------------
+
+Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
+Write-Host "  Step 3/3: Running Bicep Lint   " -ForegroundColor Yellow
+Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Yellow
+Write-Host ""
+
+$BicepOutput = @()
+& "$ScriptDir\..\bicep\run_bicep_lint.ps1" 2>&1 | Tee-Object -Variable BicepOutput | Write-Host
+$BicepExitCode = $LASTEXITCODE
+
+# Parse bicep file count from "Files     : N"
+$BicepFileCount = $null
+foreach ($Line in $BicepOutput) {
+    $LineStr = $Line.ToString()
+    if ($LineStr -match 'Files\s*:\s*(\d+)') {
+        $BicepFileCount = [int]::Parse($matches[1])
+        break
+    }
+}
+
+Write-Host ""
+
+
+# ------------------------------
 #    FINAL SUMMARY
 # ------------------------------
 
@@ -155,6 +182,7 @@ Write-Host ""
 # Determine statuses - tests need both 0 failures AND 0 exit code
 $LintStatus = if ($LintExitCode -eq 0) { "✅ PASSED" } else { "⚠️  ISSUES FOUND" } # leave two spaces after yellow triangle to display correctly
 $TestStatus = if ($FailedTests -eq 0 -and $TestExitCode -eq 0) { "✅ PASSED" } else { "❌ FAILED" }
+$BicepStatus = if ($BicepExitCode -eq 0) { "✅ PASSED" } else { "⚠️  ISSUES FOUND" } # leave two spaces after yellow triangle to display correctly
 
 # Get ruff issue count
 $RuffIssueCount = $null
@@ -184,6 +212,7 @@ if (Test-Path $LatestRuffJson) {
 # Set colors
 $LintColor = if ($LintExitCode -eq 0) { "Green" } else { "Yellow" }
 $TestColor = if ($FailedTests -eq 0 -and $TestExitCode -eq 0) { "Green" } else { "Red" }
+$BicepColor = if ($BicepExitCode -eq 0) { "Green" } else { "Yellow" }
 
 # Display Ruff status with issue count
 Write-Host "Ruff     : " -NoNewline
@@ -223,6 +252,18 @@ if ($TotalTests -gt 0) {
     Write-Host "%)" -ForegroundColor Gray
 }
 
+# Display Bicep status with file count
+Write-Host "Bicep    : " -NoNewline
+Write-Host $BicepStatus -ForegroundColor $BicepColor -NoNewline
+if ($BicepFileCount -ne $null) {
+    $FileLabel = if ($BicepFileCount -eq 1) { "1 file" } else { "$BicepFileCount files" }
+    Write-Host " (" -ForegroundColor Gray -NoNewline
+    Write-Host $FileLabel -ForegroundColor Gray -NoNewline
+    Write-Host ")" -ForegroundColor Gray
+} else {
+    Write-Host ""
+}
+
 # Display code coverage
 if ($CoveragePercent -ne $null) {
     Write-Host "Coverage : " -NoNewline
@@ -247,6 +288,9 @@ if ($LintExitCode -ne 0) {
 # Tests must have both 0 failures AND 0 exit code to pass
 if ($FailedTests -ne 0 -or $TestExitCode -ne 0) {
     $OverallExitCode = if ($TestExitCode -ne 0) { $TestExitCode } else { 1 }
+}
+if ($BicepExitCode -ne 0) {
+    $OverallExitCode = $BicepExitCode
 }
 
 if ($OverallExitCode -eq 0) {
