@@ -5,7 +5,7 @@
 @description('Location to be used for resources. Defaults to the resource group location')
 param location string = resourceGroup().location
 
-param mapsLocation string = 'eastus' // Azure Maps is only available in certain regions: https://learn.microsoft.com/en-us/azure/azure-maps/creator-geographic-scope#geographic-and-regional-mapping
+param mapsLocation string = 'eastus' // Azure Maps is only available in certain regions: https://learn.microsoft.com/azure/azure-maps/creator-geographic-scope#geographic-and-regional-mapping
 
 @description('The unique suffix to append. Defaults to a unique string based on subscription and resource group IDs.')
 param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id)

@@ -97,7 +97,7 @@ resource spotifyAuthorizationProvider 'Microsoft.ApiManagement/service/authoriza
   }
 }
 
-// https://learn.microsoft.com/en-us/azure/templates/microsoft.apimanagement/service/authorizationproviders/authorizations
+// https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/authorizationproviders/authorizations
 resource spotifyAuthorization 'Microsoft.ApiManagement/service/authorizationProviders/authorizations@2024-06-01-preview' = {
   parent: spotifyAuthorizationProvider
   name: 'spotify-auth'
@@ -107,7 +107,7 @@ resource spotifyAuthorization 'Microsoft.ApiManagement/service/authorizationProv
   }
 }
 
-// https://learn.microsoft.com/en-us/azure/templates/microsoft.apimanagement/service/authorizationproviders/authorizations/accesspolicies
+// https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/authorizationproviders/authorizations/accesspolicies
 resource spotifyAccessPolicies 'Microsoft.ApiManagement/service/authorizationProviders/authorizations/accessPolicies@2024-06-01-preview' = {
   parent: spotifyAuthorization
   name: 'spotify-auth-access-policies'
