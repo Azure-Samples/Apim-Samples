@@ -219,7 +219,7 @@ Untrusted input includes:
 ```yaml
 # SAFE: Use actions designed to handle untrusted input
 - name: Comment on PR
-  uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea
+  uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
   with:
     script: |
       github.rest.issues.createComment({
@@ -418,12 +418,12 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@e8893c57a1f3a2b659b6b55564fdfdbbd2982911
+        uses: github/codeql-action/init@0d579ffd059c29b07949a3cce3983f0780820c98 # v4.32.6
         with:
           languages: ${{ matrix.language }}
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@e8893c57a1f3a2b659b6b55564fdfdbbd2982911
+        uses: github/codeql-action/analyze@0d579ffd059c29b07949a3cce3983f0780820c98 # v4.32.6
 ```
 
 #### 2. Dependency Review (Prevent Vulnerable Dependencies)
@@ -447,7 +447,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Review Dependencies
-        uses: actions/dependency-review-action@5a2ce3f5b92ee19cbb1541a4984c76d921601d7c
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
         with:
           fail-on-severity: moderate
           deny-licenses: GPL-2.0, AGPL-3.0
@@ -457,7 +457,7 @@ jobs:
 
 ```yaml
 - name: Scan Container Image
-  uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2
+  uses: aquasecurity/trivy-action@915b19bbe73b92a6cf82a1bc12b087c9a19a5fe2 # v0.28.0
   with:
     image-ref: 'myregistry.azurecr.io/myapp:${{ github.sha }}'
     format: 'sarif'
@@ -465,7 +465,7 @@ jobs:
     severity: 'CRITICAL,HIGH'
 
 - name: Upload Trivy Results
-  uses: github/codeql-action/upload-sarif@e8893c57a1f3a2b659b6b55564fdfdbbd2982911
+  uses: github/codeql-action/upload-sarif@0d579ffd059c29b07949a3cce3983f0780820c98 # v4.32.6
   with:
     sarif_file: 'trivy-results.sarif'
 ```
