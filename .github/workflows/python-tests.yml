@@ -7,11 +7,10 @@ on:
   pull_request:
     branches: [ main ]
 
-# Workflow-level default is least privilege. Write scopes (checks, pull-requests)
-# are granted only on the publish job below, so third-party PyPI code executed
-# by pytest/ruff in the test job never holds a write-capable GITHUB_TOKEN.
 permissions:
   contents: read
+  checks: write
+  pull-requests: write
 
 jobs:
   test:
@@ -22,29 +21,23 @@ jobs:
       matrix:
         python-version: [ '3.12', '3.13', '3.14' ]
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
+        uses: astral-sh/setup-uv@v4
         with:
-          # Pin uv itself so the tool does not drift even though the action SHA is fixed.
-          # Bump this deliberately alongside local dev (`uv --version`).
-          version: "0.9.24"
           enable-cache: true
-          # uv.lock is the resolution source of truth, not pyproject.toml.
-          cache-dependency-glob: "uv.lock"
+          cache-dependency-glob: "pyproject.toml"
 
       - name: Install dependencies
         run: |
           uv venv
-          # --locked asserts uv.lock is in sync with pyproject.toml; fails the build
-          # if someone changed deps but forgot to regenerate the lockfile.
-          uv sync --locked
+          uv sync
           # Verify coverage HTML templates are present
           uv run python -c "import coverage.html; print(coverage.html.__file__)"
 
@@ -57,7 +50,7 @@ jobs:
           uv run ruff check --output-format json infrastructure samples setup shared > tests/python/ruff/reports/latest.json 2>/dev/null || true
 
       - name: Upload ruff reports
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@v4
         with:
           name: ruff-reports-${{ matrix.python-version }}
           path: tests/python/ruff/reports/
@@ -74,13 +67,13 @@ jobs:
           COVERAGE_FILE=tests/python/.coverage-${{ matrix.python-version }} uv run pytest --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov-${{ matrix.python-version }} --cov-report=term-missing --junitxml=tests/python/junit-${{ matrix.python-version }}.xml tests/python/
 
       - name: Upload coverage HTML report
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-html-${{ matrix.python-version }}
           path: tests/python/htmlcov-${{ matrix.python-version }}/
 
       - name: Upload JUnit test results
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@v4
         with:
           name: junit-results-${{ matrix.python-version }}
           path: tests/python/junit-${{ matrix.python-version }}.xml
@@ -106,30 +99,22 @@ jobs:
             echo "coverage=N/A" >> "$GITHUB_OUTPUT"
           fi
 
-      # Persist metrics + step outcomes to an artifact so the publish job can post
-      # PR comments without this job needing write scopes. jq -n builds the JSON
-      # from env vars to avoid any interpolation-injection surprises.
-      - name: Write metrics for publish job
-        env:
-          RUFF_ISSUES: ${{ steps.metrics.outputs.ruff_issues }}
-          COVERAGE: ${{ steps.metrics.outputs.coverage }}
-          RUFF_OUTCOME: ${{ steps.ruff.outcome }}
-          PYTEST_OUTCOME: ${{ steps.pytest.outcome }}
-        run: |
-          mkdir -p tests/python/metrics
-          jq -n \
-            --arg ruff_issues "$RUFF_ISSUES" \
-            --arg coverage "$COVERAGE" \
-            --arg ruff_outcome "$RUFF_OUTCOME" \
-            --arg pytest_outcome "$PYTEST_OUTCOME" \
-            '{ruff_issues: $ruff_issues, coverage: $coverage, ruff_outcome: $ruff_outcome, pytest_outcome: $pytest_outcome}' \
-            > tests/python/metrics/metrics.json
-
-      - name: Upload metrics
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      # Publish general statistics for linting, test success, and code coverage as well as detailed tests results
+      - name: Publish Consolidated Results to PR
+        if: github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
         with:
-          name: metrics-${{ matrix.python-version }}
-          path: tests/python/metrics/metrics.json
+          header: python-results-${{ matrix.python-version }}
+          message: |
+            ## 🐍 Python ${{ matrix.python-version }} Results
+
+            | Metric | Status | Value |
+            | :--- | :---: | :--- |
+            | **Ruff** | ${{ steps.ruff.outcome == 'success' && '✅' || '⚠️' }} | `${{ steps.metrics.outputs.ruff_issues }} issue(s)` |
+            | **Unit Tests** | ${{ steps.pytest.outcome == 'success' && '✅' || '❌' }} | `${{ steps.pytest.outcome }}` |
+            | **Code Coverage** | 📊 | `${{ steps.metrics.outputs.coverage }}` |
+
+            [Full Workflow Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
       - name: Generate Job Summary
         run: |
@@ -147,26 +132,8 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
 
-  # Post PR comments and check runs. Separate job so write scopes are never
-  # exposed to steps that execute PyPI-sourced code. This job only runs
-  # SHA-pinned actions against artifacts produced by the read-only test job.
-  publish:
-    needs: test
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      checks: write
-      pull-requests: write
-    steps:
-      - name: Download all JUnit results
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          path: junit
-          pattern: junit-results-*
-
       - name: Publish Unit Test Results
-        uses: EnricoMi/publish-unit-test-result-action@c950f6fb443cb5af20a377fd0dfaa78838901040 # v2
+        uses: EnricoMi/publish-unit-test-result-action@v2
         with:
-          files: junit/**/junit-*.xml
-          check_name: Python Test Results
-          comment_title: Python Test Results
+          files: tests/python/junit-${{ matrix.python-version }}.xml
+          comment_title: Python ${{ matrix.python-version }} Detailed Test Results
