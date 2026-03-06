@@ -1,13 +1,12 @@
 #!/bin/bash
-# Run pylint on the Apim-Samples project with comprehensive reporting
+# Run ruff on the Apim-Samples project with comprehensive reporting
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 TARGET="${1:-infrastructure samples setup shared}"
-REPORT_DIR="$SCRIPT_DIR/pylint/reports"
-PYLINT_RC="$REPO_ROOT/.pylintrc"
+REPORT_DIR="$SCRIPT_DIR/ruff/reports"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 
 # Set UTF-8 encoding for Python and console output
@@ -19,53 +18,63 @@ export LANG=C.UTF-8
 mkdir -p "$REPORT_DIR"
 
 echo ""
-echo "🔍 Running pylint analysis..."
+echo "🔍 Running ruff analysis..."
 echo ""
 echo "   Target            : $TARGET"
 echo "   Reports           : $REPORT_DIR"
 echo "   Working Directory : $REPO_ROOT"
 echo ""
 
-# Run pylint with multiple output formats
-JSON_REPORT="$REPORT_DIR/pylint_${TIMESTAMP}.json"
-TEXT_REPORT="$REPORT_DIR/pylint_${TIMESTAMP}.txt"
-LATEST_JSON="$REPORT_DIR/latest.json"
+# Run ruff with multiple output formats
+TEXT_REPORT="$REPORT_DIR/ruff_${TIMESTAMP}.txt"
+JSON_REPORT="$REPORT_DIR/ruff_${TIMESTAMP}.json"
 LATEST_TEXT="$REPORT_DIR/latest.txt"
+LATEST_JSON="$REPORT_DIR/latest.json"
 
-# Change to repository root and execute pylint (allow non-zero exit for reporting)
+# Change to repository root and execute ruff (allow non-zero exit for reporting)
 cd "$REPO_ROOT"
 set +e
-pylint --rcfile "$PYLINT_RC" \
-    --output-format=json:"$JSON_REPORT",colorized,text:"$TEXT_REPORT" \
-    $TARGET
-EXIT_CODE=$?
+# shellcheck disable=SC2086
+ruff check $TARGET 2>&1 | tee "$TEXT_REPORT"
+EXIT_CODE=${PIPESTATUS[0]}
+# shellcheck disable=SC2086
+ruff check --output-format json $TARGET > "$JSON_REPORT" 2>/dev/null || true
 set -e
 
-# Create symlinks to latest reports
+# Copy to latest reports
+if [ -f "$TEXT_REPORT" ]; then
+    cp "$TEXT_REPORT" "$LATEST_TEXT"
+fi
 if [ -f "$JSON_REPORT" ]; then
     cp "$JSON_REPORT" "$LATEST_JSON"
-    cp "$TEXT_REPORT" "$LATEST_TEXT"
 fi
 
 # Display summary
 echo ""
-echo "📊 Pylint Summary"
+echo "📊 Ruff Summary"
 echo ""
 if [ $EXIT_CODE -eq 0 ]; then
     echo "   Exit code: $EXIT_CODE ✅"
 else
     echo "   Exit code: $EXIT_CODE ⚠️"
 fi
-echo "   JSON report       : $JSON_REPORT"
-echo "   Text report       : $TEXT_REPORT"
+echo "   Text report : $TEXT_REPORT"
+echo "   JSON report : $JSON_REPORT"
 
 # Parse and display top issues from JSON
 if [ -f "$JSON_REPORT" ] && command -v jq &> /dev/null; then
+    ISSUE_COUNT=$(jq 'length' "$JSON_REPORT" 2>/dev/null || echo "0")
     echo ""
-    echo "🔝 Top 10 Issues:"
-    jq -r 'group_by(.symbol) | map({symbol: .[0].symbol, msgid: .[0]."message-id", msg: .[0].message, count: length}) | sort_by(-.count) | limit(10; .[]) | "   [\(.count | tostring | tonumber)] \(.symbol) (\(.msgid))\n        \(.msg)"' "$JSON_REPORT"
+    if [ "$ISSUE_COUNT" -eq 0 ]; then
+        echo "✅ No issues found!"
+    else
+        echo "   $ISSUE_COUNT issue(s) found."
+        echo ""
+        echo "🔝 Top 10 Issues:"
+        jq -r 'group_by(.code) | map({code: .[0].code, message: .[0].message, count: length}) | sort_by(-.count) | limit(10; .[]) | "   [\(.count | tostring)] \(.code)\n        \(.message)"' "$JSON_REPORT"
+    fi
 elif [ -f "$JSON_REPORT" ]; then
-    ISSUE_COUNT=$(grep -c '"symbol"' "$JSON_REPORT" || true)
+    ISSUE_COUNT=$(grep -c '"code"' "$JSON_REPORT" || true)
     echo ""
     if [ "$ISSUE_COUNT" -eq 0 ]; then
         echo "✅ No issues found!"

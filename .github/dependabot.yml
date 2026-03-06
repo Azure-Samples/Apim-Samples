@@ -14,3 +14,18 @@ updates:
     python-packages:
       patterns:
         - "*"
+
+# GitHub Actions in .github/workflows/ are SHA-pinned with a trailing `# vN`
+# comment (e.g. `uses: actions/checkout@<sha> # v4`). Dependabot reads that
+# comment to detect when the tag has moved and will bump both the SHA and the
+# comment in a single PR — the pin never drifts back to a floating tag.
+- package-ecosystem: github-actions
+  directory: "/"
+  schedule:
+    # Weekly is plenty — actions release far less often than PyPI packages.
+    # Dependabot security advisories bypass this schedule and fire immediately.
+    interval: weekly
+  groups:
+    github-actions:
+      patterns:
+        - "*"

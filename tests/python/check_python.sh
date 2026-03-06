@@ -1,13 +1,13 @@
 #!/bin/bash
-# Run comprehensive Python code quality checks (linting and testing)
+# Run comprehensive code quality checks (Python linting, Python tests, Bicep linting)
 #
-# This script executes both pylint linting and pytest testing in sequence,
-# providing a complete code quality assessment. It's the recommended way
-# to validate Python code changes before committing.
+# This script executes ruff linting, pytest testing, and Bicep linting in
+# sequence, providing a complete code quality assessment across the repo.
+# It is the recommended way to validate changes before committing.
 #
 # Usage:
 #   ./check_python.sh              # Run with default settings
-#   ./check_python.sh --show-report  # Include detailed pylint report
+#   ./check_python.sh --show-report  # Include detailed ruff report
 #   ./check_python.sh samples      # Only lint the samples folder
 
 set -e
@@ -17,7 +17,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 SHOW_REPORT=""
 TARGET="${1:-infrastructure samples setup shared}"
 
-PYLINT_SCORE=""
+RUFF_ISSUE_COUNT=""
 
 # Parse arguments
 if [ "$1" = "--show-report" ]; then
@@ -29,29 +29,29 @@ fi
 
 echo ""
 echo "╔═══════════════════════════════════════════════════════════╗"
-echo "║         Python Code Quality Check                         ║"
+echo "║         Code Quality Check                                ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
 echo ""
 
 
 # ------------------------------
-#    STEP 1: RUN PYLINT
+#    STEP 1: RUN RUFF
 # ------------------------------
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Step 1/2: Running Pylint"
+echo "  Step 1/3: Running Ruff"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
 set +e
-bash "$SCRIPT_DIR/run_pylint.sh" "$TARGET" $SHOW_REPORT
+bash "$SCRIPT_DIR/run_ruff.sh" "$TARGET" $SHOW_REPORT
 LINT_EXIT_CODE=$?
 set -e
 
-# Extract pylint score from the latest report, if available
-PYLINT_LATEST_TEXT="$SCRIPT_DIR/pylint/reports/latest.txt"
-if [ -f "$PYLINT_LATEST_TEXT" ]; then
-    PYLINT_SCORE=$(grep -Eo 'rated at [0-9]+(\.[0-9]+)?/10' "$PYLINT_LATEST_TEXT" | head -n 1 | awk '{print $3}')
+# Extract ruff issue count from the latest JSON report, if available
+RUFF_LATEST_JSON="$SCRIPT_DIR/ruff/reports/latest.json"
+if [ -f "$RUFF_LATEST_JSON" ] && command -v jq &> /dev/null; then
+    RUFF_ISSUE_COUNT=$(jq 'length' "$RUFF_LATEST_JSON" 2>/dev/null || echo "")
 fi
 
 echo ""
@@ -62,7 +62,7 @@ echo ""
 # ------------------------------
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Step 2/2: Running Tests"
+echo "  Step 2/3: Running Tests"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -105,6 +105,29 @@ echo ""
 
 
 # ------------------------------
+#    STEP 3: RUN BICEP LINT
+# ------------------------------
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Step 3/3: Running Bicep Lint"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+set +e
+BICEP_OUTPUT=$(bash "$SCRIPT_DIR/../bicep/run_bicep_lint.sh" 2>&1)
+BICEP_EXIT_CODE=$?
+set -e
+
+# Print the bicep output
+echo "$BICEP_OUTPUT"
+
+# Parse bicep file count from "Files     : N"
+BICEP_FILE_COUNT=$(echo "$BICEP_OUTPUT" | grep -oE 'Files\s*:\s*[0-9]+' | grep -oE '[0-9]+' | head -1 || echo "")
+
+echo ""
+
+
+# ------------------------------
 #    FINAL SUMMARY
 # ------------------------------
 
@@ -113,7 +136,7 @@ echo "║         Final Results                                     ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
 echo ""
 
-# Determine Pylint status
+# Determine Ruff status
 if [ $LINT_EXIT_CODE -eq 0 ]; then
     LINT_STATUS="✅ PASSED"
 else
@@ -127,10 +150,17 @@ else
     TEST_STATUS="❌ FAILED"
 fi
 
+# Determine Bicep status
+if [ $BICEP_EXIT_CODE -eq 0 ]; then
+    BICEP_STATUS="✅ PASSED"
+else
+    BICEP_STATUS="⚠️  ISSUES FOUND" # leave two spaces after yellow triangle to display correctly
+fi
+
 # Display results with proper alignment
-echo "Pylint   : $LINT_STATUS"
-if [ -n "$PYLINT_SCORE" ]; then
-    echo "             ($PYLINT_SCORE)"
+echo "Ruff     : $LINT_STATUS"
+if [ -n "$RUFF_ISSUE_COUNT" ]; then
+    echo "             ($RUFF_ISSUE_COUNT issues)"
 fi
 
 if [ $FAILED_TESTS -eq 0 ] && [ $TEST_EXIT_CODE -eq 0 ]; then
@@ -147,6 +177,16 @@ if [ $TOTAL_TESTS -gt 0 ]; then
     printf "            • Total  : %5d\n" "$TOTAL_TESTS"
     printf "            • Passed : %5d (%6.2f%%)\n" "$PASSED_TESTS" "$PASSED_PERCENT"
     printf "            • Failed : %5d (%6.2f%%)\n" "$FAILED_TESTS" "$FAILED_PERCENT"
+fi
+
+# Display Bicep status with file count
+if [ $BICEP_EXIT_CODE -eq 0 ]; then
+    echo "Bicep    : $BICEP_STATUS"
+else
+    echo -e "Bicep    : \e[33m$BICEP_STATUS\e[0m"  # Yellow color for issues
+fi
+if [ -n "$BICEP_FILE_COUNT" ]; then
+    echo "             ($BICEP_FILE_COUNT files)"
 fi
 
 # Display code coverage
@@ -172,6 +212,9 @@ if [ $TEST_EXIT_CODE -ne 0 ] || [ $FAILED_TESTS -ne 0 ]; then
     if [ $OVERALL_EXIT_CODE -eq 0 ]; then
         OVERALL_EXIT_CODE=1
     fi
+fi
+if [ $BICEP_EXIT_CODE -ne 0 ]; then
+    OVERALL_EXIT_CODE=$BICEP_EXIT_CODE
 fi
 
 if [ $OVERALL_EXIT_CODE -eq 0 ]; then

@@ -2,58 +2,35 @@
 Unit tests for the Charts module.
 """
 
-from unittest.mock import patch, MagicMock
-import sys
-import os
 import json
-import pytest
-import pandas as pd
+import os
+import sys
+from unittest.mock import MagicMock, patch
+
 import charts
+import pandas as pd
+import pytest
+from apimtypes import HttpStatusCode
 from charts import BarChart
 
 # Add the shared/python directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'shared', 'python'))
 
 
-
 # ------------------------------
 #    TEST DATA FIXTURES
 # ------------------------------
+
 
 @pytest.fixture
 def sample_api_results():
     """Sample API results for testing."""
     return [
-        {
-            'run': 1,
-            'response_time': 0.123,
-            'status_code': 200,
-            'response': '{"index": 1, "message": "success"}'
-        },
-        {
-            'run': 2,
-            'response_time': 0.156,
-            'status_code': 200,
-            'response': '{"index": 2, "message": "success"}'
-        },
-        {
-            'run': 3,
-            'response_time': 0.089,
-            'status_code': 200,
-            'response': '{"index": 1, "message": "success"}'
-        },
-        {
-            'run': 4,
-            'response_time': 0.201,
-            'status_code': 500,
-            'response': 'Internal Server Error'
-        },
-        {
-            'run': 5,
-            'response_time': 0.134,
-            'status_code': 200,
-            'response': '{"index": 3, "message": "success"}'
-        }
+        {'run': 1, 'response_time': 0.123, 'status_code': 200, 'response': '{"index": 1, "message": "success"}'},
+        {'run': 2, 'response_time': 0.156, 'status_code': 200, 'response': '{"index": 2, "message": "success"}'},
+        {'run': 3, 'response_time': 0.089, 'status_code': 200, 'response': '{"index": 1, "message": "success"}'},
+        {'run': 4, 'response_time': 0.201, 'status_code': 500, 'response': 'Internal Server Error'},
+        {'run': 5, 'response_time': 0.134, 'status_code': 200, 'response': '{"index": 3, "message": "success"}'},
     ]
 
 
@@ -65,20 +42,15 @@ def malformed_api_results():
             'run': 1,
             'response_time': 0.123,
             'status_code': 200,
-            'response': '{"index": 1, "incomplete'  # Malformed JSON
+            'response': '{"index": 1, "incomplete',  # Malformed JSON
         },
-        {
-            'run': 2,
-            'response_time': 0.156,
-            'status_code': 200,
-            'response': 'not json at all'
-        },
+        {'run': 2, 'response_time': 0.156, 'status_code': 200, 'response': 'not json at all'},
         {
             'run': 3,
             'response_time': 0.089,
             'status_code': 200,
-            'response': '{"no_index_field": "value"}'  # Missing index field
-        }
+            'response': '{"no_index_field": "value"}',  # Missing index field
+        },
     ]
 
 
@@ -92,16 +64,12 @@ def empty_api_results():
 #    TEST BARCHART INITIALIZATION
 # ------------------------------
 
+
 def test_barchart_init_basic():
     """Test BarChart initialization with basic parameters."""
     api_results = [{'run': 1, 'response_time': 0.1, 'status_code': 200, 'response': '{}'}]
 
-    chart = BarChart(
-        title='Test Chart',
-        x_label='Request Number',
-        y_label='Response Time',
-        api_results=api_results
-    )
+    chart = BarChart(title='Test Chart', x_label='Request Number', y_label='Response Time', api_results=api_results)
 
     assert chart.title == 'Test Chart'
     assert chart.x_label == 'Request Number'
@@ -115,25 +83,14 @@ def test_barchart_init_with_fig_text():
     api_results = [{'run': 1, 'response_time': 0.1, 'status_code': 200, 'response': '{}'}]
     fig_text = 'This is additional chart information'
 
-    chart = BarChart(
-        title='Test Chart',
-        x_label='X Axis',
-        y_label='Y Axis',
-        api_results=api_results,
-        fig_text=fig_text
-    )
+    chart = BarChart(title='Test Chart', x_label='X Axis', y_label='Y Axis', api_results=api_results, fig_text=fig_text)
 
     assert chart.fig_text == fig_text
 
 
 def test_barchart_init_empty_results():
     """Test BarChart initialization with empty results."""
-    chart = BarChart(
-        title='Empty Chart',
-        x_label='X Axis',
-        y_label='Y Axis',
-        api_results=[]
-    )
+    chart = BarChart(title='Empty Chart', x_label='X Axis', y_label='Y Axis', api_results=[])
 
     assert chart.api_results == []
 
@@ -141,6 +98,7 @@ def test_barchart_init_empty_results():
 # ------------------------------
 #    TEST PLOT METHOD
 # ------------------------------
+
 
 @patch('charts.plt')
 @patch('charts.pd.DataFrame')
@@ -156,6 +114,7 @@ def test_plot_calls_internal_method(mock_dataframe, mock_plt, sample_api_results
 # ------------------------------
 #    TEST _PLOT_BARCHART METHOD
 # ------------------------------
+
 
 @patch('charts.plt')
 @patch('charts.pd.DataFrame')
@@ -187,7 +146,7 @@ def test_plot_barchart_data_processing(mock_dataframe, mock_plt, sample_api_resu
     assert first_row['Run'] == 1
     assert first_row['Response Time (ms)'] == 123.0  # 0.123 * 1000
     assert first_row['Backend Index'] == 1
-    assert first_row['Status Code'] == 200
+    assert first_row['Status Code'] == HttpStatusCode.OK
 
 
 @patch('charts.plt')
@@ -221,18 +180,8 @@ def test_plot_barchart_malformed_json_handling(mock_dataframe, mock_plt, malform
 def test_plot_barchart_error_status_codes(mock_dataframe, mock_plt):
     """Test that _plot_barchart handles non-200 status codes."""
     error_results = [
-        {
-            'run': 1,
-            'response_time': 0.5,
-            'status_code': 404,
-            'response': 'Not Found'
-        },
-        {
-            'run': 2,
-            'response_time': 1.0,
-            'status_code': 500,
-            'response': 'Internal Server Error'
-        }
+        {'run': 1, 'response_time': 0.5, 'status_code': 404, 'response': 'Not Found'},
+        {'run': 2, 'response_time': 1.0, 'status_code': 500, 'response': 'Internal Server Error'},
     ]
 
     mock_df = MagicMock()
@@ -264,11 +213,9 @@ def test_plot_barchart_matplotlib_calls(mock_dataframe, mock_plt, sample_api_res
     mock_df = MagicMock()
     mock_dataframe.return_value = mock_df
     mock_df.__getitem__.return_value = mock_df
-    mock_df.iterrows.return_value = iter([
-        (0, {'Status Code': 200, 'Backend Index': 1}),
-        (1, {'Status Code': 200, 'Backend Index': 2}),
-        (2, {'Status Code': 500, 'Backend Index': 99})
-    ])
+    mock_df.iterrows.return_value = iter(
+        [(0, {'Status Code': 200, 'Backend Index': 1}), (1, {'Status Code': 200, 'Backend Index': 2}), (2, {'Status Code': 500, 'Backend Index': 99})]
+    )
     mock_df.plot.return_value = MagicMock()
     mock_df.empty = False
     mock_df.quantile.return_value = 200
@@ -337,6 +284,7 @@ def test_plot_barchart_figure_text(mock_dataframe, mock_plt, sample_api_results)
 #    TEST COLOR MAPPING
 # ------------------------------
 
+
 @patch('charts.plt')
 @patch('charts.pd.DataFrame')
 def test_color_mapping_logic(mock_dataframe, mock_plt):
@@ -351,12 +299,14 @@ def test_color_mapping_logic(mock_dataframe, mock_plt):
     mock_df = MagicMock()
     mock_dataframe.return_value = mock_df
     mock_df.__getitem__.return_value = mock_df
-    mock_df.iterrows.return_value = iter([
-        (0, {'Status Code': 200, 'Backend Index': 1}),
-        (1, {'Status Code': 200, 'Backend Index': 2}),
-        (2, {'Status Code': 500, 'Backend Index': 99}),
-        (3, {'Status Code': 200, 'Backend Index': 1}),
-    ])
+    mock_df.iterrows.return_value = iter(
+        [
+            (0, {'Status Code': 200, 'Backend Index': 1}),
+            (1, {'Status Code': 200, 'Backend Index': 2}),
+            (2, {'Status Code': 500, 'Backend Index': 99}),
+            (3, {'Status Code': 200, 'Backend Index': 1}),
+        ]
+    )
 
     # Mock the unique backend indexes for 200 responses
     mock_200_df = MagicMock()
@@ -379,11 +329,10 @@ def test_color_mapping_logic(mock_dataframe, mock_plt):
 #    INTEGRATION TESTS
 # ------------------------------
 
+
 def test_full_chart_workflow(sample_api_results):
     """Test the complete chart creation workflow."""
-    with patch('charts.plt') as mock_plt, \
-         patch('charts.pd.DataFrame') as mock_dataframe:
-
+    with patch('charts.plt') as mock_plt, patch('charts.pd.DataFrame') as mock_dataframe:
         # Setup mock DataFrame
         mock_df = MagicMock()
         mock_dataframe.return_value = mock_df
@@ -401,7 +350,7 @@ def test_full_chart_workflow(sample_api_results):
             x_label='Request Number',
             y_label='Response Time (ms)',
             api_results=sample_api_results,
-            fig_text='Performance analysis results'
+            fig_text='Performance analysis results',
         )
 
         chart.plot()
@@ -444,10 +393,10 @@ def test_backend_index_edge_cases():
         call_args = mock_dataframe.call_args[0][0]
 
         # Check backend index assignments
-        assert not call_args[0]['Backend Index']    # Valid index 0
-        assert call_args[1]['Backend Index'] == 99   # Missing index field
-        assert call_args[2]['Backend Index'] == 99   # Empty JSON
-        assert call_args[3]['Backend Index'] == 99   # Non-200 status
+        assert not call_args[0]['Backend Index']  # Valid index 0
+        assert call_args[1]['Backend Index'] == 99  # Missing index field
+        assert call_args[2]['Backend Index'] == 99  # Empty JSON
+        assert call_args[3]['Backend Index'] == 99  # Non-200 status
 
 
 @patch('charts.plt')
@@ -464,7 +413,7 @@ def test_average_line_calculation_normal_data(mock_pd, mock_plt, sample_api_resu
         run = entry['run']
         response_time = entry['response_time']
         status_code = entry['status_code']
-        if status_code == 200 and entry['response']:
+        if status_code == HttpStatusCode.OK and entry['response']:
             try:
                 resp = json.loads(entry['response'])
                 backend_index = resp.get('index', 99)
@@ -472,12 +421,7 @@ def test_average_line_calculation_normal_data(mock_pd, mock_plt, sample_api_resu
                 backend_index = 99
         else:
             backend_index = 99
-        rows.append({
-            'Run': run,
-            'Response Time (ms)': response_time * 1000,
-            'Backend Index': backend_index,
-            'Status Code': status_code
-        })
+        rows.append({'Run': run, 'Response Time (ms)': response_time * 1000, 'Backend Index': backend_index, 'Status Code': status_code})
 
     real_df = pd.DataFrame(rows)
     mock_pd.DataFrame.return_value = real_df
@@ -512,12 +456,14 @@ def test_average_line_calculation_with_outlier(mock_pd, mock_plt):
     rows = []
     for entry in results_with_outlier:
         resp = json.loads(entry['response'])
-        rows.append({
-            'Run': entry['run'],
-            'Response Time (ms)': entry['response_time'] * 1000,
-            'Backend Index': resp.get('index', 99),
-            'Status Code': entry['status_code']
-        })
+        rows.append(
+            {
+                'Run': entry['run'],
+                'Response Time (ms)': entry['response_time'] * 1000,
+                'Backend Index': resp.get('index', 99),
+                'Status Code': entry['status_code'],
+            }
+        )
 
     real_df = pd.DataFrame(rows)
     mock_pd.DataFrame.return_value = real_df
@@ -548,12 +494,14 @@ def test_average_line_all_data_outliers(mock_pd, mock_plt):
     rows = []
     for entry in all_outlier_results:
         resp = json.loads(entry['response'])
-        rows.append({
-            'Run': entry['run'],
-            'Response Time (ms)': entry['response_time'] * 1000,
-            'Backend Index': resp.get('index', 99),
-            'Status Code': entry['status_code']
-        })
+        rows.append(
+            {
+                'Run': entry['run'],
+                'Response Time (ms)': entry['response_time'] * 1000,
+                'Backend Index': resp.get('index', 99),
+                'Status Code': entry['status_code'],
+            }
+        )
 
     real_df = pd.DataFrame(rows)
     mock_pd.DataFrame.return_value = real_df

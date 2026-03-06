@@ -13,6 +13,7 @@ from users import User
 #    CLASSES
 # ------------------------------
 
+
 class JwtPayload:
     """
     Represents the payload (claims) of a JSON Web Token for APIM testing.
@@ -25,7 +26,6 @@ class JwtPayload:
 
     DEFAULT_LIFETIME_SECONDS = 3600 * 24  # Default lifetime of 24 hours
 
-
     # ------------------------------
     #    CONSTRUCTOR
     # ------------------------------
@@ -37,7 +37,6 @@ class JwtPayload:
         self.exp = expires if expires is not None else self.iat + self.DEFAULT_LIFETIME_SECONDS
         self.roles = roles if roles is not None else []
 
-
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
@@ -46,12 +45,7 @@ class JwtPayload:
         """
         Convert the payload to a dictionary for encoding.
         """
-        pl: dict[str, Any] = {
-            'sub': self.sub,
-            'name': self.name,
-            'iat': self.iat,
-            'exp': self.exp
-        }
+        pl: dict[str, Any] = {'sub': self.sub, 'name': self.name, 'iat': self.iat, 'exp': self.exp}
 
         if bool(self.roles):
             pl['roles'] = self.roles
@@ -84,7 +78,6 @@ class SymmetricJwtToken:
         self.key = key
         self.payload = payload
 
-
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
@@ -103,7 +96,7 @@ class SymmetricJwtToken:
             string directly will result in signature validation errors in APIM
             or other JWT consumers.
         """
-        return jwt.encode(self.payload.to_dict(), self.key, algorithm = 'HS256')
+        return jwt.encode(self.payload.to_dict(), self.key, algorithm='HS256')
 
 
 class AuthFactory:
@@ -124,7 +117,7 @@ class AuthFactory:
         if not str(jwt_key):
             raise ValueError('JWT key is required to create a symmetric JWT token.')
 
-        jwt_payload = JwtPayload(subject = user.id, name = user.name, roles = user.roles)
+        jwt_payload = JwtPayload(subject=user.id, name=user.name, roles=user.roles)
         symmetric_jwt = SymmetricJwtToken(jwt_key, jwt_payload)
 
         return symmetric_jwt.encode()
@@ -144,8 +137,4 @@ class AuthFactory:
         if not user:
             raise ValueError('User is required to create JWT payload.')
 
-        return {
-            'sub': user.id,
-            'name': user.name,
-            'roles': user.roles
-        }
+        return {'sub': user.id, 'name': user.name, 'roles': user.roles}

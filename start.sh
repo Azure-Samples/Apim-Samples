@@ -57,7 +57,7 @@ if str(shared) not in sys.path:
 try:
     import azure_resources as az
     info = az.get_account_info()
-except Exception as exc:  # pylint: disable=broad-except
+except Exception as exc:  # noqa: BLE001
     print(f"Failed to read Azure account info: {exc}")
 PY
   )
@@ -98,9 +98,14 @@ while true; do
   echo "  6) Show all deployed infrastructures"
   echo ""
   echo "Tests"
-  echo "  7) Run pylint"
-  echo "  8) Run tests (shows detailed test results)"
-  echo "  9) Run full Python checks"
+  echo "  7) Run python ruff"
+  echo "  8) Run python tests (shows detailed test results)"
+  echo "  9) Run Bicep lint"
+  echo " 10) Run full checks (most statistics)"
+  echo ""
+  echo "Presentation"
+  echo "  p) Serve & view presentation (auto-opens browser)"
+  echo "  e) Export presentation as self-contained HTML"
   echo ""
   echo "Misc"
   echo "  0) Exit"
@@ -143,13 +148,22 @@ while true; do
       run_cmd pyrun "${REPO_ROOT}/shared/python/show_infrastructures.py"
       ;;
     7)
-      run_cmd bash "${REPO_ROOT}/tests/python/run_pylint.sh"
+      run_cmd bash "${REPO_ROOT}/tests/python/run_ruff.sh"
       ;;
     8)
       run_cmd bash "${REPO_ROOT}/tests/python/run_tests.sh"
       ;;
     9)
+      run_cmd bash "${REPO_ROOT}/tests/bicep/run_bicep_lint.sh"
+      ;;
+    10)
       run_cmd bash "${REPO_ROOT}/tests/python/check_python.sh"
+      ;;
+    p)
+      run_cmd pyrun "${REPO_ROOT}/setup/serve_presentation.py"
+      ;;
+    e)
+      run_cmd pyrun "${REPO_ROOT}/setup/export_presentation.py"
       ;;
     0)
       echo ""

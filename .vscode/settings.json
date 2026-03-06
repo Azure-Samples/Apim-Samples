@@ -4,9 +4,10 @@
   },
   "[python]": {
     "editor.codeActionsOnSave": {
-      "source.organizeImports": "explicit",
-      "source.unusedImports": "explicit"
+      "source.fixAll.ruff": "explicit",
+      "source.organizeImports.ruff": "explicit"
     },
+    "editor.defaultFormatter": "charliermarsh.ruff",
     "editor.formatOnSave": true
   },
   "editor.renderWhitespace": "trailing",
@@ -17,6 +18,7 @@
   "jupyter.kernels.trusted": [
     "./.venv/Scripts/python.exe"
   ],
+  "pylint.enabled": false,
   "python.analysis.exclude": [
     "**/node_modules",
     "**/__pycache__",

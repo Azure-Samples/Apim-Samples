@@ -14,11 +14,16 @@ but git only ever sees the normalized output.
 Usage as a git clean filter (configured automatically by local_setup.py):
     git config filter.notebook-metadata.clean "python setup/normalize_notebook_metadata.py"
 
-Usage standalone (normalizes a file in-place):
+Usage standalone (normalizes only uncommitted notebooks — the default):
+    python setup/normalize_notebook_metadata.py
+    python setup/normalize_notebook_metadata.py --uncommitted
+
+Usage standalone (normalizes specific files in-place):
     python setup/normalize_notebook_metadata.py <file.ipynb> [<file2.ipynb> ...]
 """
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -64,24 +69,95 @@ def normalize_file(path: Path) -> bool:
 
         return True
     except (json.JSONDecodeError, OSError) as exc:
-        print(f"⚠️  Skipping {path}: {exc}", file=sys.stderr)
+        print(f'⚠️  Skipping {path}: {exc}', file=sys.stderr)
 
         return False
 
 
+def get_uncommitted_notebooks() -> list[Path]:
+    """Return notebook paths that have uncommitted changes (staged or unstaged).
+
+    Runs ``git diff`` to find modified/added ``.ipynb`` files in both the
+    working tree and the index relative to HEAD.
+    """
+    try:
+        result = subprocess.run(
+            ['git', 'diff', '--name-only', '--diff-filter=ACMR', 'HEAD', '--', '*.ipynb'],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        staged = subprocess.run(
+            ['git', 'diff', '--name-only', '--diff-filter=ACMR', '--staged', '--', '*.ipynb'],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError) as exc:
+        print(f'⚠️  Could not query git for uncommitted files: {exc}', file=sys.stderr)
+
+        return []
+
+    paths: set[str] = set()
+    for line in (result.stdout + staged.stdout).splitlines():
+        stripped = line.strip()
+        if stripped:
+            paths.add(stripped)
+
+    return [Path(p) for p in sorted(paths)]
+
+
 def main() -> None:
-    """Entry point: filter stdin->stdout or normalize files given as arguments."""
-    if len(sys.argv) > 1:
+    """Entry point: normalize uncommitted notebooks, specific files, or filter stdin.
+
+    When invoked with no arguments from an interactive terminal, the script
+    defaults to ``--uncommitted`` behaviour and normalizes only ``.ipynb``
+    files with pending changes.  When stdin is piped (e.g. by the git clean
+    filter), it reads a notebook from stdin and writes the normalised version
+    to stdout.
+
+    Flags:
+        --uncommitted   Discover and normalize only ``.ipynb`` files with
+                        pending (uncommitted) changes.  This is the default
+                        when no file arguments are given interactively.
+    """
+    args = sys.argv[1:]
+    uncommitted = '--uncommitted' in args
+
+    if uncommitted:
+        args.remove('--uncommitted')
+
+    # Default to --uncommitted when no files are given and stdin is a TTY
+    # (interactive terminal).  When stdin is piped, fall through to filter mode.
+    if not args and not uncommitted and sys.stdin.isatty():
+        uncommitted = True
+
+    if uncommitted:
+        if args:
+            print('⚠️  --uncommitted does not accept extra file arguments.', file=sys.stderr)
+            sys.exit(1)
+
+        files = get_uncommitted_notebooks()
+        if not files:
+            print('ℹ️  No uncommitted notebook changes found.')
+
+            return
+
+        # Normalize the discovered files
+        sys.argv = [sys.argv[0]] + [str(f) for f in files]
+        args = sys.argv[1:]
+
+    if args:
         # In-place mode: normalize listed files
         success = True
-        for arg in sys.argv[1:]:
+        for arg in args:
             path = Path(arg)
             if not path.exists():
-                print(f"⚠️  File not found: {path}", file=sys.stderr)
+                print(f'⚠️  File not found: {path}', file=sys.stderr)
                 success = False
                 continue
             if normalize_file(path):
-                print(f"✅ Normalized {path}")
+                print(f'✅ Normalized {path}')
             else:
                 success = False
 

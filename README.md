@@ -1,6 +1,7 @@
 # Azure API Management Samples
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11057/badge)][openssf]
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Azure-Samples/Apim-Samples/badge)][openssf-scorecard]
 [![Python Tests][badge-python-tests]][workflow-python-tests]
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Azure-Samples/Apim-Samples?devcontainer_path=.devcontainer%2Fpython314%2Fdevcontainer.json)
@@ -50,11 +51,11 @@ It's quick and easy to get started!
 
 | Infrastructure Name                                                | Description                                                                                                                                                           |
 |:-------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [Simple API Management][infra-simple-apim]                         | **Just the basics with a publicly accessible API Management instance** fronting your APIs. This is the innermost way to experience and experiment with the APIM policies. |
 | [API Management & Container Apps][infra-apim-aca]                  | APIs are often implemented in containers running in **Azure Container Apps**. This architecture accesses the container apps publicly. It's beneficial to test both APIM and container app URLs to contrast and compare experiences of API calls through and bypassing APIM. It is not intended to be a security baseline.    |
-| [Front Door & API Management & Container Apps][infra-afd-apim-pe]  | **A secure implementation of Azure Front Door connecting to APIM via the new private link integration!** This traffic, once it traverses through Front Door, rides entirely on Microsoft-owned and operated networks. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). **APIM Standard V2** is used here to accept a private link from Front Door. |
-| [Application Gateway (Private Endpoint) & API Management & Container Apps][infra-appgw-apim-pe]  | **A secure implementation of Azure Application Gateway connecting to APIM via the new private link integration!** This traffic, once it traverses through App Gateway, uses a private endpoint set up in the VNet's private endpoint subnet. The connection from APIM to Container Apps is secured but through a VNet configuration (it is also entirely possible to do this via private link). APIM Standard V2 is used here to accept a private link from App Gateway. |
+| [Application Gateway (Private Link) & API Management & Container Apps][infra-appgw-apim-pe]  | **A secure implementation of Azure Application Gateway connecting to APIM via Private Link integration!** Once traffic traverses App Gateway, it reaches APIM through a private endpoint in the VNet's private endpoint subnet. The connection from APIM to Container Apps is secured through VNet integration (and could also use Private Link). APIM Standard V2 is used here to accept the private link connection from App Gateway. |
 | [Application Gateway (VNet) & API Management & Container Apps][infra-appgw-apim] | Full VNet injection of APIM and ACA! APIM is shielded from any type of traffic unless it comes through App Gateway. This offers maximum isolation for instances in which customers seek VNet injection. |
+| [Front Door & API Management & Container Apps][infra-afd-apim-pe]  | **A secure implementation of Azure Front Door connecting to APIM via Private Link integration!** This traffic, once it traverses through Front Door, rides entirely on Microsoft-owned and operated networks. The connection from APIM to Container Apps is secured through VNet integration (and could also use Private Link). **APIM Standard V2** is used here to accept the private link connection from Front Door. |
+| [Simple API Management][infra-simple-apim]                         | **Just the basics with a publicly accessible API Management instance** fronting your APIs. This is the innermost way to experience and experiment with the APIM policies. |
 </details>
 
 ## 📁 List of Samples
@@ -65,18 +66,21 @@ It's quick and easy to get started!
 |:------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------|:------------------------------|
 | [AuthX][sample-authx]                                       | Authentication and role-based authorization in a mock HR API.                                                       | All infrastructures           |
 | [AuthX Pro][sample-authx-pro]                               | Authentication and role-based authorization in a mock product with multiple APIs and policy fragments.              | All infrastructures           |
-| [General][sample-general]                                   | Basic demo of APIM sample setup and policy usage.                                                                   | All infrastructures           |
-| [Load Balancing][sample-load-balancing]                     | Priority and weighted load balancing across backends.                                                               | apim-aca, afd-apim (with ACA) |
-| [Secure Blob Access][sample-secure-blob-access]             | Secure blob access via the [valet key pattern][valet-key-pattern].                                                  | All infrastructures           |
-| [Credential Manager (with Spotify)][sample-oauth-3rd-party] | Authenticate with APIM which then uses its Credential Manager with Spotify's REST API.                              | All infrastructures           |
 | [Azure Maps][sample-azure-maps]                             | Proxying calls to Azure Maps with APIM policies.                                                                    | All infrastructures           |
+| [Costing & Showback][sample-costing]                        | Track and allocate API costs per business unit using APIM subscriptions, Log Analytics, and Cost Management.         | All infrastructures           |
+| [Credential Manager (with Spotify)][sample-oauth-3rd-party] | Authenticate with APIM which then uses its Credential Manager with Spotify's REST API.                              | All infrastructures           |
+| [General][sample-general]                                   | Basic demo of APIM sample setup and policy usage.                                                                   | All infrastructures           |
+| [Load Balancing][sample-load-balancing]                     | Priority and weighted load balancing across backends.                                                               | apim-aca, afd-apim-pe         |
+| [Secure Blob Access][sample-secure-blob-access]             | Secure blob access via the [valet key pattern][valet-key-pattern].                                                  | All infrastructures           |
 </details>
 
-### Compatibility Matrix
+### Compatibility Matrices
 
-Most samples work with all infrastructures, making this a truly _a la carte_ experience. The diagram below shows which samples are compatible with which infrastructures.
+Most samples work with all infrastructures, making this a truly _à la carte_ experience. The diagrams below show which samples are compatible with which infrastructures, and which APIM SKUs each infrastructure supports.
 
 <img src="./assets/diagrams/Infrastructure-Sample-Compatibility.svg" alt="Infrastructure and Sample Compatibility Matrix" title="Infrastructure and Sample Compatibility Matrix" />
+
+<img src="./assets/diagrams/Infrastructure-SKU-Compatibility.svg" alt="Infrastructure and SKU Compatibility Matrix" title="Infrastructure and SKU Compatibility Matrix" />
 
 
 ## 🧰 APIM Samples Developer CLI
@@ -96,11 +100,53 @@ Use the interactive APIM Samples Developer CLI to verify setup, run tests, and m
 This menu-driven interface provides quick access to:
 - **Setup**: Complete environment setup and verify local setup
 - **Verify**: Show Azure account info, list soft-deleted resources, and list deployed infrastructures
-- **Tests**: Run pylint, pytest, and full Python checks
+- **Tests**: Run ruff, pytest, and full Python checks
+- **Presentation**: Serve the slide deck in a browser or export a self-contained HTML copy
 
 <img src="./assets/dev-cli-lint-test-results.png" alt="APIM Samples Developer CLI showing final linting, test, and code coverage results" title="APIM Samples Developer CLI Final Results" />
 
 > The _APIM Samples Developer CLI_ is not synonomous with the _Azure Developer CLI_. These are two separate CLIs.
+
+## 🖥️ APIM Samples Slide Deck
+
+This repo includes a ready-to-use APIM Samples presentation deck for demos, workshops, and stakeholder walkthroughs.
+
+Source deck: `assets/APIM-Samples-Slide-Deck.html`
+
+Presentation PDF: [Azure API Management Samples - Presentation.pdf](assets/Azure%20API%20Management%20Samples%20-%20Presentation.pdf)
+
+### View the deck locally
+
+To open the deck in your browser with a lightweight local server:
+
+```bash
+uv run python setup/serve_presentation.py
+```
+
+You can also launch it from the APIM Samples Developer CLI by choosing `p) Serve & view presentation (auto-opens browser)`.
+
+The server hosts files from `assets/` and opens `http://localhost:7777/APIM-Samples-Slide-Deck.html` automatically. You can optionally pass a different port:
+
+```bash
+uv run python setup/serve_presentation.py 7778
+```
+
+### Export a shareable standalone copy
+
+To build a self-contained HTML file with images inlined for offline use or sharing:
+
+```bash
+uv run python setup/export_presentation.py
+```
+
+You can also run this from the APIM Samples Developer CLI by choosing `e) Export presentation as self-contained HTML`.
+
+This writes the output to `build/APIM-Samples-Slide-Deck.html`.
+
+### When to use each file
+
+- Use `assets/APIM-Samples-Slide-Deck.html` while editing or iterating on the presentation.
+- Use `build/APIM-Samples-Slide-Deck.html` when you want a portable deck that is ready to share or present offline.
 
 ## 🧭 Setup
 
@@ -208,7 +254,7 @@ The Python helpers in this repo use standard-library `logging`, empowering you t
 
 ## Troubleshooting
 
-Encountering issues? Check our comprehensive **[Troubleshooting Guide](troubleshooting)**! which covers:
+Encountering issues? Check our comprehensive **[Troubleshooting Guide][troubleshooting]**! which covers:
 
 - **Deployment Errors** - Including the common "content already consumed" error and parameter mismatches
 - **Authentication Issues** - Azure CLI login problems and permission errors
@@ -252,7 +298,7 @@ The repo uses the bicep linter and has rules defined in `bicepconfig.json`. See 
 
 ### 🔍 Code Quality & Linting
 
-The repository uses [pylint][pylint-docs] to maintain Python code quality standards. The configuration is located in `.pylintrc`, and the APIM Samples Developer CLI supports linting.
+The repository uses [Ruff][ruff-docs] to maintain Python code quality standards. The configuration is located in `pyproject.toml` under `[tool.ruff]`, and the APIM Samples Developer CLI supports linting.
 
 ### 🧪 Testing & Code Coverage
 
@@ -278,6 +324,8 @@ This project has its roots in work done by [Alex Vieira][alex-vieira] on the exc
 Furthermore, [Houssem Dellai][houssem-dellai] was instrumental in setting up a working Front Door to API Management [private connectivity lab][ai-gateway-private-connectivity]. This created a working baseline for one of this repository's infrastructures. Thank you, Houssem!
 
 [Andrew Redman][andrew-redman] for contributing the _Azure Maps_ sample.
+
+[Naga Venkata Cheruvu][naga-cheruvu] for contributing the _Costing & Showback_ sample.
 
 The original author of this project is [Simon Kurtz][simon-kurtz].
 
@@ -315,19 +363,22 @@ _For much more API Management content, please also check out [APIM Love](https:/
 [bicep-linter-docs]: https://learn.microsoft.com/azure/azure-resource-manager/bicep/bicep-config-linter
 [houssem-dellai]: https://github.com/HoussemDellai
 [import-troubleshooting]: .devcontainer/IMPORT-TROUBLESHOOTING.md
+[naga-cheruvu]: https://github.com/ncheruvu-MSFT
 [infra-afd-apim-pe]: ./infrastructure/afd-apim-pe
 [infra-apim-aca]: ./infrastructure/apim-aca
 [infra-appgw-apim]: ./infrastructure/appgw-apim/
 [infra-appgw-apim-pe]: ./infrastructure/appgw-apim-pe/
 [infra-simple-apim]: ./infrastructure/simple-apim
 [openssf]: https://www.bestpractices.dev/projects/11057
+[openssf-scorecard]: https://scorecard.dev/viewer/?uri=github.com/Azure-Samples/Apim-Samples
 [pytest-docs]: https://docs.pytest.org/
 [pytest-docs-versioned]: https://docs.pytest.org/en/8.2.x/
-[pylint-docs]: https://pylint.pycqa.org/
+[ruff-docs]: https://docs.astral.sh/ruff/
 [python]: https://www.python.org/
 [sample-authx]: ./samples/authX/README.md
 [sample-authx-pro]: ./samples/authX-pro/README.md
 [sample-azure-maps]: ./samples/azure-maps/README.md
+[sample-costing]: ./samples/costing/README.md
 [sample-general]: ./samples/general/README.md
 [sample-load-balancing]: ./samples/load-balancing/README.md
 [sample-oauth-3rd-party]: ./samples/oauth-3rd-party/README.md
