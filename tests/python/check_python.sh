@@ -1,9 +1,9 @@
 #!/bin/bash
-# Run comprehensive Python code quality checks (linting and testing)
+# Run comprehensive code quality checks (Python linting, Python tests, Bicep linting)
 #
-# This script executes both ruff linting and pytest testing in sequence,
-# providing a complete code quality assessment. It's the recommended way
-# to validate Python code changes before committing.
+# This script executes ruff linting, pytest testing, and Bicep linting in
+# sequence, providing a complete code quality assessment across the repo.
+# It is the recommended way to validate changes before committing.
 #
 # Usage:
 #   ./check_python.sh              # Run with default settings
@@ -29,7 +29,7 @@ fi
 
 echo ""
 echo "╔═══════════════════════════════════════════════════════════╗"
-echo "║         Python Code Quality Check                         ║"
+echo "║         Code Quality Check                                ║"
 echo "╚═══════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -39,7 +39,7 @@ echo ""
 # ------------------------------
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Step 1/2: Running Ruff"
+echo "  Step 1/3: Running Ruff"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -62,7 +62,7 @@ echo ""
 # ------------------------------
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Step 2/2: Running Tests"
+echo "  Step 2/3: Running Tests"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
@@ -105,6 +105,29 @@ echo ""
 
 
 # ------------------------------
+#    STEP 3: RUN BICEP LINT
+# ------------------------------
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Step 3/3: Running Bicep Lint"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+
+set +e
+BICEP_OUTPUT=$(bash "$SCRIPT_DIR/../bicep/run_bicep_lint.sh" 2>&1)
+BICEP_EXIT_CODE=$?
+set -e
+
+# Print the bicep output
+echo "$BICEP_OUTPUT"
+
+# Parse bicep file count from "Files     : N"
+BICEP_FILE_COUNT=$(echo "$BICEP_OUTPUT" | grep -oE 'Files\s*:\s*[0-9]+' | grep -oE '[0-9]+' | head -1 || echo "")
+
+echo ""
+
+
+# ------------------------------
 #    FINAL SUMMARY
 # ------------------------------
 
@@ -127,6 +150,13 @@ else
     TEST_STATUS="❌ FAILED"
 fi
 
+# Determine Bicep status
+if [ $BICEP_EXIT_CODE -eq 0 ]; then
+    BICEP_STATUS="✅ PASSED"
+else
+    BICEP_STATUS="⚠️  ISSUES FOUND" # leave two spaces after yellow triangle to display correctly
+fi
+
 # Display results with proper alignment
 echo "Ruff     : $LINT_STATUS"
 if [ -n "$RUFF_ISSUE_COUNT" ]; then
@@ -147,6 +177,16 @@ if [ $TOTAL_TESTS -gt 0 ]; then
     printf "            • Total  : %5d\n" "$TOTAL_TESTS"
     printf "            • Passed : %5d (%6.2f%%)\n" "$PASSED_TESTS" "$PASSED_PERCENT"
     printf "            • Failed : %5d (%6.2f%%)\n" "$FAILED_TESTS" "$FAILED_PERCENT"
+fi
+
+# Display Bicep status with file count
+if [ $BICEP_EXIT_CODE -eq 0 ]; then
+    echo "Bicep    : $BICEP_STATUS"
+else
+    echo -e "Bicep    : \e[33m$BICEP_STATUS\e[0m"  # Yellow color for issues
+fi
+if [ -n "$BICEP_FILE_COUNT" ]; then
+    echo "             ($BICEP_FILE_COUNT files)"
 fi
 
 # Display code coverage
@@ -173,6 +213,9 @@ if [ $TEST_EXIT_CODE -ne 0 ] || [ $FAILED_TESTS -ne 0 ]; then
         OVERALL_EXIT_CODE=1
     fi
 fi
+if [ $BICEP_EXIT_CODE -ne 0 ]; then
+    OVERALL_EXIT_CODE=$BICEP_EXIT_CODE
+fi
 
 if [ $OVERALL_EXIT_CODE -eq 0 ]; then
     echo "🎉 All checks passed! Code is ready to commit."
@@ -182,4 +225,3 @@ fi
 
 echo ""
 exit $OVERALL_EXIT_CODE
-

@@ -98,10 +98,10 @@ while true; do
   echo "  6) Show all deployed infrastructures"
   echo ""
   echo "Tests"
-  echo "  7) Run ruff"
-  echo "  8) Run tests (shows detailed test results)"
-  echo "  9) Run full Python checks"
-  echo " 10) Run Bicep lint"
+  echo "  7) Run python ruff"
+  echo "  8) Run python tests (shows detailed test results)"
+  echo "  9) Run Bicep lint"
+  echo " 10) Run full checks (most statistics)"
   echo ""
   echo "Presentation"
   echo "  p) Serve & view presentation (auto-opens browser)"
@@ -154,10 +154,10 @@ while true; do
       run_cmd bash "${REPO_ROOT}/tests/python/run_tests.sh"
       ;;
     9)
-      run_cmd bash "${REPO_ROOT}/tests/python/check_python.sh"
+      run_cmd bash "${REPO_ROOT}/tests/bicep/run_bicep_lint.sh"
       ;;
     10)
-      run_cmd bash "${REPO_ROOT}/tests/bicep/run_bicep_lint.sh"
+      run_cmd bash "${REPO_ROOT}/tests/python/check_python.sh"
       ;;
     p)
       run_cmd pyrun "${REPO_ROOT}/setup/serve_presentation.py"
