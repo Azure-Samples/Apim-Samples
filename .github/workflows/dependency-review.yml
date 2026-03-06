@@ -1,0 +1,33 @@
+name: Dependency Review (FLOSS)
+
+on:
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8ade135a41d8b85ea433769d2a06a6bf422dcda2
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@17f38f85b6f2b61bb8a05de5fa6e4a43b9b60bda
+        with:
+          # ✅ Fail PRs that introduce disallowed licenses
+          allow-licenses: |
+            MIT
+            Apache-2.0
+            BSD-2-Clause
+            BSD-3-Clause
+
+          # ✅ Optional: explicitly block copyleft
+          deny-licenses: |
+            GPL-2.0
+            GPL-3.0
+            AGPL-3.0
+            LGPL-3.0
