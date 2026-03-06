@@ -7,14 +7,18 @@ on:
   pull_request:
     branches: [ main ]
 
+# Top-level default is read-only. Write permissions are scoped to the job that
+# needs them, satisfying OpenSSF Scorecard's Token-Permissions check.
 permissions:
   contents: read
-  checks: write
-  pull-requests: write
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write          # EnricoMi/publish-unit-test-result-action
+      pull-requests: write   # marocchino/sticky-pull-request-comment
     env:
       PYTHONPATH: ${{ github.workspace }}/shared/python:${{ github.workspace }}
     strategy:
