@@ -15,7 +15,7 @@ This instructions file provides guidelines for creating and maintaining GitHub A
 **CRITICAL: All GitHub Actions MUST use commit hashes instead of version tags or branches.**
 
 - ❌ **DO NOT** use: `uses: actions/checkout@v4`, `uses: actions/setup-python@v6`, `uses: astral-sh/setup-uv@v7`
-- ✅ **DO** use: `uses: actions/checkout@8ade135a41d8b85ea433769d2a06a6bf422dcda2`
+- ✅ **DO** use: `uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2`
 
 **Why commit hashes?**
 
@@ -117,20 +117,20 @@ This instructions file provides guidelines for creating and maintaining GitHub A
 
 ```yaml
 - name: Checkout Code
-  uses: actions/checkout@8ade135a41d8b85ea433769d2a06a6bf422dcda2
+  uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
 - name: Set up Python
-  uses: actions/setup-python@82c7e631bb3cdc910f68850056da6ecd0d4afc81
+  uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
   with:
     python-version: '3.12'
 
 - name: Install uv
-  uses: astral-sh/setup-uv@c40cdc2b6f3156d4e64f5b2f09cc1e6c4e658e18
+  uses: astral-sh/setup-uv@5a095e7a2014a4212f075830d4f7277575a9d098 # v7.3.1
   with:
     enable-cache: true
 
 - name: Upload Artifacts
-  uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
+  uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
   with:
     name: test-results
     path: tests/results/
@@ -262,7 +262,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8ade135a41d8b85ea433769d2a06a6bf422dcda2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: ${{ github.event.pull_request.head.sha }}  # DANGEROUS!
 
@@ -285,7 +285,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8ade135a41d8b85ea433769d2a06a6bf422dcda2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Run tests
         run: npm test  # Safe: runs in isolated environment without write access
@@ -374,7 +374,7 @@ Risks:
    ```yaml
    # Good: Vetted, pinned, documented
    - name: Setup Python
-     uses: actions/setup-python@82c7e631bb3cdc910f68850056da6ecd0d4afc81  # v5.0.0
+     uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
      # Vetted on: 2024-01-15
      # Review: Standard action from GitHub, well-maintained
      # Next review: 2024-04-15
@@ -415,7 +415,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@8ade135a41d8b85ea433769d2a06a6bf422dcda2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@e8893c57a1f3a2b659b6b55564fdfdbbd2982911
@@ -444,7 +444,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@8ade135a41d8b85ea433769d2a06a6bf422dcda2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Review Dependencies
         uses: actions/dependency-review-action@5a2ce3f5b92ee19cbb1541a4984c76d921601d7c
