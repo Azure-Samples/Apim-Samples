@@ -4,6 +4,7 @@ Module for making requests to Azure API Management endpoints with consistent log
 
 import json
 import time
+import warnings
 from typing import Any
 
 import requests
@@ -12,9 +13,6 @@ import urllib3
 # APIM Samples imports
 from apimtypes import HTTP_VERB, SLEEP_TIME_BETWEEN_REQUESTS_MS, SUBSCRIPTION_KEY_PARAMETER_NAME, HttpStatusCode
 from console import BOLD_G, BOLD_R, RESET, print_error, print_info, print_message, print_ok, print_val
-
-# Disable SSL warnings for self-signed certificates
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 # ------------------------------
@@ -35,7 +33,13 @@ class ApimRequests:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, url: str, apimSubscriptionKey: str | None = None, headers: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        url: str,
+        apimSubscriptionKey: str | None = None,
+        headers: dict[str, str] | None = None,
+        allowInsecureTls: bool = False,
+    ) -> None:
         """
         Initialize the ApimRequests object.
 
@@ -43,11 +47,13 @@ class ApimRequests:
             url: The base URL for the APIM endpoint.
             apimSubscriptionKey: Optional subscription key for APIM.
             headers: Optional additional headers to include in requests.
+            allowInsecureTls: Whether to bypass TLS certificate verification.
         """
 
         self._url = url
         self._headers: dict[str, str] = headers.copy() if headers else {}
         self.subscriptionKey = apimSubscriptionKey
+        self.allowInsecureTls = allowInsecureTls
 
         self._headers['Accept'] = 'application/json'
 
@@ -104,9 +110,52 @@ class ApimRequests:
         """
         self._headers = value
 
+    # allowInsecureTls
+    @property
+    def allowInsecureTls(self) -> bool:
+        """
+        Get whether TLS certificate verification is disabled for requests.
+
+        Returns:
+            bool: True when TLS verification is bypassed; otherwise False.
+        """
+        return self._allowInsecureTls
+
+    @allowInsecureTls.setter
+    def allowInsecureTls(self, value: bool) -> None:
+        """
+        Set whether TLS certificate verification is disabled for requests.
+
+        Args:
+            value: True to bypass TLS certificate verification; otherwise False.
+        """
+        self._allowInsecureTls = value
+
     # ------------------------------
     #    PRIVATE METHODS
     # ------------------------------
+
+    def _execute_request(self, request_callable, *args, **kwargs) -> requests.Response:
+        """
+        Execute a request with the configured TLS verification behavior.
+
+        Args:
+            request_callable: Request function to invoke.
+            *args: Positional arguments for the request function.
+            **kwargs: Keyword arguments for the request function.
+
+        Returns:
+            requests.Response: The HTTP response.
+        """
+        request_kwargs = kwargs.copy()
+        request_kwargs['verify'] = not self.allowInsecureTls
+
+        if self.allowInsecureTls:
+            with warnings.catch_warnings():
+                warnings.simplefilter('ignore', urllib3.exceptions.InsecureRequestWarning)
+                return request_callable(*args, **request_kwargs)
+
+        return request_callable(*args, **request_kwargs)
 
     def _request(
         self,
@@ -149,7 +198,7 @@ class ApimRequests:
 
             print_info(merged_headers)
 
-            response = requests.request(method.value, url, headers=merged_headers, json=data, verify=False, timeout=30)
+            response = self._execute_request(requests.request, method.value, url, headers=merged_headers, json=data, timeout=30)
 
             content_type = response.headers.get('Content-Type')
 
@@ -221,7 +270,7 @@ class ApimRequests:
                 print_info(f'▶️ Run {i + 1}/{runs}:')
 
                 start_time = time.time()
-                response = session.request(method.value, url, json=data, verify=False)
+                response = self._execute_request(session.request, method.value, url, json=data)
                 response_time = time.time() - start_time
                 print_info(f'⌚ {response_time:.2f} seconds')
 
@@ -309,7 +358,7 @@ class ApimRequests:
             try:
                 print_info(f'GET {location_url}', True)
                 print_info(headers)
-                response = requests.get(location_url, headers=headers or {}, verify=False, timeout=30)
+                response = self._execute_request(requests.get, location_url, headers=headers or {}, timeout=30)
 
                 print_info(f'Polling operation - Status: {response.status_code}')
 
@@ -455,7 +504,14 @@ class ApimRequests:
             print_info(merged_headers)
 
             # Make the initial async request
-            response = requests.request(HTTP_VERB.POST.value, url, headers=merged_headers, json=data, verify=False, timeout=30)
+            response = self._execute_request(
+                requests.request,
+                HTTP_VERB.POST.value,
+                url,
+                headers=merged_headers,
+                json=data,
+                timeout=30,
+            )
 
             print_info(f'Initial response status: {response.status_code}')
 

@@ -13,7 +13,14 @@ from apimtypes import API, APIM_SKU, BACKEND_XML_POLICY_PATH, INFRASTRUCTURE, GE
 from infrastructures import AppGwApimPeInfrastructure
 
 
-def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU, no_aca: bool = False, rg_exists: bool | None = None) -> None:
+def create_infrastructure(
+    location: str,
+    index: int,
+    apim_sku: APIM_SKU,
+    no_aca: bool = False,
+    use_strict_nsg: bool = False,
+    rg_exists: bool | None = None,
+) -> None:
     """Create the Application Gateway + APIM Private Endpoint infrastructure."""
     if rg_exists is None:
         infrastructure_exists = az.does_resource_group_exist(az.get_infra_rg_name(INFRASTRUCTURE.APPGW_APIM_PE, index))
@@ -23,7 +30,14 @@ def create_infrastructure(location: str, index: int, apim_sku: APIM_SKU, no_aca:
     # Create custom APIs for APPGW-APIM-PE with optional Container Apps backends
     custom_apis = _create_appgw_specific_apis(not no_aca)
 
-    infra = AppGwApimPeInfrastructure(location, index, apim_sku, infra_apis=custom_apis, rg_exists=rg_exists)
+    infra = AppGwApimPeInfrastructure(
+        location,
+        index,
+        apim_sku,
+        infra_apis=custom_apis,
+        use_strict_nsg=use_strict_nsg,
+        rg_exists=rg_exists,
+    )
     result = infra.deploy_infrastructure(infrastructure_exists)
 
     raise SystemExit(0 if result.success else 1)
@@ -85,6 +99,7 @@ def main():
     parser.add_argument('--index', type=int, help='Infrastructure index')
     parser.add_argument('--sku', choices=['Standardv2', 'Premiumv2'], default='Standardv2', help='APIM SKU (default: Standardv2)')
     parser.add_argument('--no-aca', action='store_true', help='Disable Azure Container Apps')
+    parser.add_argument('--use-strict-nsg', action='store_true', help='Deploy strict NSGs for supported subnets')
     parser.add_argument('--rg-exists', action=argparse.BooleanOptionalAction, default=None, help='Pre-checked resource group existence state')
     args = parser.parse_args()
 
@@ -95,7 +110,14 @@ def main():
         print(f"Error: Invalid SKU '{args.sku}'. Valid options are: {', '.join([sku.value for sku in APIM_SKU])}")
         sys.exit(1)
 
-    create_infrastructure(args.location, args.index, apim_sku, args.no_aca, rg_exists=args.rg_exists)
+    create_infrastructure(
+        args.location,
+        args.index,
+        apim_sku,
+        args.no_aca,
+        use_strict_nsg=args.use_strict_nsg,
+        rg_exists=args.rg_exists,
+    )
 
 
 if __name__ == '__main__':  # pragma: no cover

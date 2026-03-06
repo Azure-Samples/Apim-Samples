@@ -1,0 +1,9 @@
+# CODEOWNERS
+#
+# These owners will be the default owners for everything in the repo.
+# They will be requested for review when someone opens a pull request,
+# unless a later match takes precedence.
+#
+# See: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+*  @Azure-Samples/apim-samples-admins

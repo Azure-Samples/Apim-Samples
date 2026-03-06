@@ -99,7 +99,14 @@ class InfrastructureNotebookHelper:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, rg_location: str, deployment: INFRASTRUCTURE, index: int, apim_sku: APIM_SKU):
+    def __init__(
+        self,
+        rg_location: str,
+        deployment: INFRASTRUCTURE,
+        index: int,
+        apim_sku: APIM_SKU,
+        use_strict_nsg: bool = False,
+    ):
         """
         Initialize the InfrastructureNotebookHelper.
 
@@ -108,18 +115,21 @@ class InfrastructureNotebookHelper:
             deployment (INFRASTRUCTURE): Infrastructure type to deploy.
             index (int): Index for multi-instance deployments.
             apim_sku (APIM_SKU): SKU for API Management service.
+            use_strict_nsg (bool): Whether to deploy strict NSGs for supported infrastructures.
         """
 
         self.rg_location = rg_location
         self.deployment = deployment
         self.index = index
         self.apim_sku = apim_sku
+        self.use_strict_nsg = use_strict_nsg
 
         print_message('Initializing Infrastructure Notebook Helper with the following parameters:', blank_above=True, blank_below=True)
         print_val('Location', self.rg_location)
         print_val('Infrastructure', self.deployment.value)
         print_val('Index', self.index)
         print_val('APIM SKU', self.apim_sku.value)
+        print_val('Use strict NSGs', self.use_strict_nsg)
 
     # ------------------------------
     #    PUBLIC METHODS
@@ -196,6 +206,9 @@ class InfrastructureNotebookHelper:
                     '--sku',
                     str(self.apim_sku.value),
                 ]
+
+                if self.use_strict_nsg:
+                    cmd_args.append('--use-strict-nsg')
 
                 # Execute the infrastructure creation script with real-time output streaming and UTF-8 encoding to handle Unicode characters properly
                 project_root = find_project_root()
@@ -790,7 +803,9 @@ def _prompt_for_high_cost_sku_acknowledgement(apim_sku: APIM_SKU) -> bool:
     Returns:
         bool: True if the user acknowledges and consents to proceed, False otherwise.
     """
-    print_warning(f'⚠️  Cost Warning: The {apim_sku.value} SKU incurs significant charges.')
+
+    print_plain()
+    print_warning(f'Cost Warning: The {apim_sku.value} SKU incurs significant charges.')
     print_plain('   Standard and Premium tiers are considerably more expensive than Developer or Basic tiers.', blank_above=True)
     print_plain('   Please review the current pricing before proceeding:')
     print_plain('   https://azure.microsoft.com/pricing/details/api-management\n')
@@ -820,19 +835,22 @@ def _prompt_for_infrastructure_update(rg_name: str) -> tuple[bool, int | None]:
             - proceed_with_update: True if user wants to proceed with update, False to cancel
             - new_index: None if no index change, integer if user selected option 2
     """
-    print_ok(f'Infrastructure already exists: {rg_name}')
-    print_plain('🔄 Infrastructure Update Options:\n', blank_above=True)
+    print_ok(f'Infrastructure already exists: {rg_name}\n')
+
+    print_plain('🔄 Infrastructure Update Options:\n')
     print_plain('   This infrastructure notebook can update the existing infrastructure.')
     print_plain('   Updates are additive and will:')
     print_plain('   • Add new APIs and policy fragments defined in the infrastructure')
     print_plain('   • Update existing infrastructure components to match the template')
     print_plain('   • Preserve manually added samples and configurations\n')
 
-    print_plain('ℹ️ Choose an option (input box at the top of the screen):')
+    print_plain('ℹ️ Choose an option (input box at the top of the screen):\n')
+
     print_plain('     1. Update the existing infrastructure (recommended)')
     print_plain('     2. Use a different index')
-    print_plain('     3. Delete the existing resource group first using the clean-up notebook')
-    print_plain('     (Press ESC to cancel)\n')
+    print_plain('     3. Delete the existing resource group first using the clean-up notebook\n')
+
+    print_plain('     Press ESC to cancel\n')
 
     while True:
         choice = input('\nEnter your choice (1, 2, or 3): ').strip()
@@ -1183,22 +1201,32 @@ def get_endpoints(deployment: INFRASTRUCTURE, rg_name: str) -> Endpoints:
     return endpoints
 
 
-def get_endpoint(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str) -> Tuple[str, dict[str, str] | None]:
-    """Determine the endpoint URL and optional request headers for test execution."""
+def get_endpoint(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str) -> Tuple[str, dict[str, str] | None, bool]:
+    """Determine the endpoint URL, optional request headers, and TLS verification flag for test execution.
+
+    Returns:
+        Tuple[str, dict[str, str] | None, bool]: (endpoint_url, request_headers, allow_insecure_tls).
+            allow_insecure_tls is True only when routing through Application Gateway, which uses a
+            self-signed certificate that we create in the infrastructure deployment.
+    """
     # Determine endpoints, URLs, etc. prior to test execution
     endpoints = get_endpoints(deployment, rg_name)
     endpoint_url = None
     request_headers = None
+    allow_insecure_tls = False
 
     if endpoints.appgw_hostname and endpoints.appgw_public_ip:
         endpoint_url = f'https://{endpoints.appgw_public_ip}'
         request_headers: dict[str, str] = {'Host': endpoints.appgw_hostname}
+        # Application Gateway infrastructures use a self-signed certificate that we create
+        # during deployment, so TLS verification must be disabled for requests to succeed.
+        allow_insecure_tls = True
     else:
         # Preflight: Check if the deployment uses Azure Front Door.
         # If so, assume APIM is not directly accessible and use the Front Door URL instead.
         endpoint_url = test_url_preflight_check(deployment, rg_name, apim_gateway_url)
 
-    return endpoint_url, request_headers
+    return endpoint_url, request_headers, allow_insecure_tls
 
 
 def get_json(json_str: str) -> Any:

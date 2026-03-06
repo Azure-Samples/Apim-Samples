@@ -2082,10 +2082,12 @@ def test_get_endpoint_with_appgw_both_values(monkeypatch, suppress_console):
 
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
 
-    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
+    endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
 
     assert endpoint_url == 'https://1.2.3.4'
     assert request_headers == {'Host': 'api.contoso.com'}
+    # App Gateway uses a self-signed cert; insecure TLS must be allowed.
+    assert allow_insecure_tls is True
 
 
 def test_get_endpoint_with_appgw_hostname_only(monkeypatch, suppress_console):
@@ -2099,10 +2101,11 @@ def test_get_endpoint_with_appgw_hostname_only(monkeypatch, suppress_console):
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
     monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://afd.azurefd.net')
 
-    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
+    endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
 
     assert endpoint_url == 'https://afd.azurefd.net'
     assert request_headers is None
+    assert allow_insecure_tls is False
 
 
 def test_get_endpoint_with_appgw_ip_only(monkeypatch, suppress_console):
@@ -2116,10 +2119,11 @@ def test_get_endpoint_with_appgw_ip_only(monkeypatch, suppress_console):
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
     monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://afd.azurefd.net')
 
-    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
+    endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
 
     assert endpoint_url == 'https://afd.azurefd.net'
     assert request_headers is None
+    assert allow_insecure_tls is False
 
 
 def test_get_endpoint_with_no_appgw_uses_preflight(monkeypatch, suppress_console):
@@ -2133,10 +2137,11 @@ def test_get_endpoint_with_no_appgw_uses_preflight(monkeypatch, suppress_console
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
     monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://apim.azure-api.net')
 
-    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg', 'https://apim.azure-api.net')
+    endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg', 'https://apim.azure-api.net')
 
     assert endpoint_url == 'https://apim.azure-api.net'
     assert request_headers is None
+    assert allow_insecure_tls is False
 
 
 def test_get_endpoint_with_afd_via_preflight(monkeypatch, suppress_console):
@@ -2150,10 +2155,13 @@ def test_get_endpoint_with_afd_via_preflight(monkeypatch, suppress_console):
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
     monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://myapp.azurefd.net')
 
-    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim-internal.azure-api.net')
+    endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(
+        INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim-internal.azure-api.net'
+    )
 
     assert endpoint_url == 'https://myapp.azurefd.net'
     assert request_headers is None
+    assert allow_insecure_tls is False
 
 
 def test_get_endpoint_appgw_with_empty_strings(monkeypatch, suppress_console):
@@ -2167,10 +2175,11 @@ def test_get_endpoint_appgw_with_empty_strings(monkeypatch, suppress_console):
     monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
     monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://apim.azure-api.net')
 
-    endpoint_url, request_headers = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
+    endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
 
     assert endpoint_url == 'https://apim.azure-api.net'
     assert request_headers is None
+    assert allow_insecure_tls is False
 
 
 def test_get_endpoint_various_infrastructures(monkeypatch, suppress_console):
@@ -2192,10 +2201,11 @@ def test_get_endpoint_various_infrastructures(monkeypatch, suppress_console):
         monkeypatch.setattr(utils, 'get_endpoints', lambda d, r, m=mock_endpoints: m)
         monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://apim.azure-api.net')
 
-        endpoint_url, request_headers = utils.get_endpoint(infra, 'test-rg', 'https://apim.azure-api.net')
+        endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(infra, 'test-rg', 'https://apim.azure-api.net')
 
         assert endpoint_url == 'https://apim.azure-api.net'
         assert request_headers is None
+        assert allow_insecure_tls is False
 
 
 def test_json_parsing_various_formats():
@@ -2873,6 +2883,49 @@ def test_create_infrastructure_with_allow_update(monkeypatch, tmp_path, suppress
     result = helper.create_infrastructure(bypass_infrastructure_check=False, allow_update=True)
 
     assert result is True
+
+
+def test_create_infrastructure_with_strict_nsg_flag(monkeypatch, tmp_path, suppress_utils_console):
+    """Test create_infrastructure appends the optional NSG flag to the subprocess command."""
+    helper = utils.InfrastructureNotebookHelper(
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        1,
+        APIM_SKU.BASICV2,
+        use_strict_nsg=True,
+    )
+
+    infra_dir = tmp_path / 'infrastructure' / 'simple-apim'
+    infra_dir.mkdir(parents=True)
+    script_path = infra_dir / 'create_infrastructure.py'
+    script_path.write_text('print("Infrastructure created")', encoding='utf-8')
+
+    monkeypatch.setattr(utils, 'find_project_root', lambda: str(tmp_path))
+    monkeypatch.setattr(az, 'get_infra_rg_name', lambda *_, **__: 'rg')
+
+    captured_cmd_args: list[str] = []
+
+    class FakeProcess:
+        def __init__(self, cmd_args, **kwargs):
+            captured_cmd_args.extend(cmd_args)
+            self.stdout = iter(['Infrastructure created\n'])
+            self.returncode = 0
+
+        def wait(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            return False
+
+    monkeypatch.setattr(subprocess, 'Popen', FakeProcess)
+
+    result = helper.create_infrastructure(bypass_infrastructure_check=False, allow_update=True)
+
+    assert result is True
+    assert '--use-strict-nsg' in captured_cmd_args
 
 
 def test_determine_bicep_directory_current_infra(monkeypatch, tmp_path):

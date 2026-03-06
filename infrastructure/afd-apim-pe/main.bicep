@@ -32,6 +32,12 @@ param policyFragments array = []
 @description('Set to true to make APIM publicly accessible. If false, APIM will be deployed into a VNet subnet for egress only.')
 param apimPublicAccess bool = true
 
+@description('Whether to deploy strict, service-specific Network Security Groups for supported subnets. When false, a default (empty-rules) NSG is still attached to every subnet.')
+param useStrictNsg bool = false
+
+@description('Enable legacy NSG flow logs. Azure blocks creation of new NSG flow logs, so keep this disabled unless updating an existing flow log resource.')
+param enableLegacyNsgFlowLogs bool = false
+
 @description('Reveals the backend API information. Defaults to true. *** WARNING: This will expose backend API information to the caller - For learning & testing only! ***')
 param revealBackendApiInfo bool = true
 
@@ -72,17 +78,71 @@ module appInsightsModule '../../shared/bicep/modules/monitor/v1/appinsights.bice
 var appInsightsId = appInsightsModule.outputs.id
 var appInsightsInstrumentationKey = appInsightsModule.outputs.instrumentationKey
 
-// 3. Virtual Network and Subnets
+// 3. Storage Account for legacy NSG Flow Logs
+module storageFlowLogsModule '../../shared/bicep/modules/vnet/v1/storage-flowlogs.bicep' = if (useStrictNsg && enableLegacyNsgFlowLogs) {
+  name: 'storageFlowLogsModule'
+  params: {
+    location: location
+    resourceSuffix: resourceSuffix
+  }
+}
 
-// We are using a standard NSG for our subnets here. Production workloads should use a relevant, custom NSG for each subnet.
-// We also do not presently use a custom route table for the subnets, which is a best practice for production workloads.
+// 4. Network Security Groups
+// NSG model:
+// - nsg-default stays generic and is only used as a fallback for subnets without a service-aware NSG.
+// - When useStrictNsg is false, service subnets get permissive NSGs (nsg-apim, nsg-aca).
+// - When useStrictNsg is true, service subnets get restrictive NSGs (nsg-apim-strict, nsg-aca-strict).
 
-// https://learn.microsoft.com/azure/templates/microsoft.network/networksecuritygroups
-resource nsg 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
+resource nsgDefault 'Microsoft.Network/networkSecurityGroups@2025-01-01' = {
   name: 'nsg-default'
   location: location
 }
 
+// NSG for API Management with Private Link from Front Door - strict vs default
+module nsgApimStrictModule '../../shared/bicep/modules/vnet/v1/nsg-apim-strict.bicep' = if (useStrictNsg) {
+  name: 'nsgApimStrictModule'
+  params: {
+    location: location
+    nsgName: 'nsg-apim-strict'
+    apimSubnetPrefix: apimSubnetPrefix
+    allowFrontDoorBackend: true  // APIM is always accessed through Front Door in this architecture
+    apimSku: apimSku
+    vnetMode: 'integration'
+  }
+}
+
+module nsgApimModule '../../shared/bicep/modules/vnet/v1/nsg-apim.bicep' = if (!useStrictNsg) {
+  name: 'nsgApimModule'
+  params: {
+    location: location
+    nsgName: 'nsg-apim'
+    apimSubnetPrefix: apimSubnetPrefix
+    apimSku: apimSku
+    vnetMode: 'integration'
+  }
+}
+
+// NSG for Container Apps - strict NSG only when using strict NSGs (and only if ACA is enabled)
+module nsgAcaStrictModule '../../shared/bicep/modules/vnet/v1/nsg-aca-strict.bicep' = if (useStrictNsg && useACA) {
+  name: 'nsgAcaStrictModule'
+  params: {
+    location: location
+    nsgName: 'nsg-aca-strict'
+    acaSubnetPrefix: acaSubnetPrefix
+    apimSubnetPrefix: apimSubnetPrefix
+  }
+}
+
+module nsgAcaModule '../../shared/bicep/modules/vnet/v1/nsg-aca.bicep' = if (!useStrictNsg && useACA) {
+  name: 'nsgAcaModule'
+  params: {
+    location: location
+    nsgName: 'nsg-aca'
+    acaSubnetPrefix: acaSubnetPrefix
+  }
+}
+
+// 5. Virtual Network and Subnets
 module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
   name: 'vnetModule'
   params: {
@@ -95,7 +155,7 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
         properties: {
           addressPrefix: apimSubnetPrefix
           networkSecurityGroup: {
-            id: nsg.id
+            id: useStrictNsg ? nsgApimStrictModule!.outputs.nsgId : nsgApimModule!.outputs.nsgId
           }
           delegations: [
             {
@@ -113,7 +173,9 @@ module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
         properties: {
           addressPrefix: acaSubnetPrefix
           networkSecurityGroup: {
-            id: nsg.id
+            id: useACA
+              ? (useStrictNsg ? nsgAcaStrictModule!.outputs.nsgId : nsgAcaModule!.outputs.nsgId)
+              : nsgDefault.id
           }
           delegations: [
             {
@@ -150,7 +212,39 @@ resource acaSubnetResource 'Microsoft.Network/virtualNetworks/subnets@2024-05-01
 var apimSubnetResourceId = apimSubnetResource.id
 var acaSubnetResourceId  = acaSubnetResource.id
 
-// 4. Azure Container App Environment (ACAE)
+// 6. Legacy NSG Flow Logs and Traffic Analytics
+
+// NSG flow logs are retired and blocked for new deployments. Keep disabled by default.
+module nsgFlowLogsApimModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.bicep' = if (useStrictNsg && enableLegacyNsgFlowLogs) {
+  name: 'nsgFlowLogsApimModule'
+  scope: resourceGroup(subscription().subscriptionId, 'NetworkWatcherRG')
+  params: {
+    location: location
+    flowLogName: 'fl-nsg-apim-strict-${resourceSuffix}'
+    nsgResourceId: nsgApimStrictModule!.outputs.nsgId
+    storageAccountResourceId: storageFlowLogsModule!.outputs.storageAccountId
+    logAnalyticsWorkspaceResourceId: lawId
+    retentionDays: 7
+    enableTrafficAnalytics: true
+  }
+}
+
+// NSG flow logs are retired and blocked for new deployments. Keep disabled by default.
+module nsgFlowLogsAcaModule '../../shared/bicep/modules/vnet/v1/nsg-flow-logs.bicep' = if (useACA && useStrictNsg && enableLegacyNsgFlowLogs) {
+  name: 'nsgFlowLogsAcaModule'
+  scope: resourceGroup(subscription().subscriptionId, 'NetworkWatcherRG')
+  params: {
+    location: location
+    flowLogName: 'fl-nsg-aca-strict-${resourceSuffix}'
+    nsgResourceId: nsgAcaStrictModule!.outputs.nsgId
+    storageAccountResourceId: storageFlowLogsModule!.outputs.storageAccountId
+    logAnalyticsWorkspaceResourceId: lawId
+    retentionDays: 7
+    enableTrafficAnalytics: true
+  }
+}
+
+// 7. Azure Container App Environment (ACAE)
 module acaEnvModule '../../shared/bicep/modules/aca/v1/environment.bicep' = if (useACA) {
   name: 'acaEnvModule'
   params: {
@@ -161,7 +255,7 @@ module acaEnvModule '../../shared/bicep/modules/aca/v1/environment.bicep' = if (
   }
 }
 
-// 5. Azure Container Apps (ACA) for Mock Web API
+// 8. Azure Container Apps (ACA) for Mock Web API
 module acaModule1 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (useACA) {
   name: 'acaModule-1'
   params: {
@@ -180,7 +274,7 @@ module acaModule2 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (u
   }
 }
 
-// 6. API Management
+// 9. API Management
 module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
   name: 'apimModule'
   params: {
@@ -193,7 +287,7 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
   }
 }
 
-// 7. APIM Policy Fragments
+// 10. APIM Policy Fragments
 module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.bicep' = [for pf in policyFragments: {
   name: 'pf-${pf.name}'
   params:{
@@ -207,7 +301,7 @@ module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.
   ]
 }]
 
-// 8. APIM Backends for ACA
+// 11. APIM Backends for ACA
 module backendModule1 '../../shared/bicep/modules/apim/v1/backend.bicep' = if (useACA) {
   name: 'aca-backend-1'
   params: {
@@ -256,7 +350,7 @@ module backendPoolModule '../../shared/bicep/modules/apim/v1/backend-pool.bicep'
   ]
 }
 
-// 9. APIM APIs
+// 12. APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(length(apis) > 0) {
   name: 'api-${api.name}'
   params: {
@@ -275,7 +369,7 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   ]
 }]
 
-// 10. APIM Private DNS Zone, VNet Link, and (optional) DNS Zone Group
+// 13. APIM Private DNS Zone, VNet Link, and (optional) DNS Zone Group
 module apimDnsPrivateLinkModule '../../shared/bicep/modules/dns/v1/dns-private-link.bicep' = {
   name: 'apimDnsPrivateLinkModule'
   params: {
@@ -288,7 +382,7 @@ module apimDnsPrivateLinkModule '../../shared/bicep/modules/dns/v1/dns-private-l
   }
 }
 
-// 11. ACA Private DNS Zone (regional, e.g., eastus2.azurecontainerapps.io), VNet Link, and wildcard A record via shared module
+// 14. ACA Private DNS Zone (regional, e.g., eastus2.azurecontainerapps.io), VNet Link, and wildcard A record via shared module
 module acaDnsPrivateZoneModule '../../shared/bicep/modules/dns/v1/aca-dns-private-zone.bicep' = if (useACA && !empty(acaSubnetResourceId)) {
   name: 'acaDnsPrivateZoneModule'
   params: {
@@ -298,7 +392,7 @@ module acaDnsPrivateZoneModule '../../shared/bicep/modules/dns/v1/aca-dns-privat
   }
 }
 
-// 12. Front Door
+// 15. Front Door
 module afdModule '../../shared/bicep/modules/afd/v1/afd.bicep' = {
   name: 'afdModule'
   params: {

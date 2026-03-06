@@ -19,9 +19,10 @@ This instructions file is designed to guide GitHub Copilot's behavior specifical
 
 ## Instruction Hierarchy
 
-- When the user asks about **Python** or a Python file is referenced in the chat context, prefer guidance and examples from [python instructions](./python.instructions.md).
-- When the user asks about **Bicep** or a Bicep file is referenced in the chat context, prefer guidance and examples from [bicep instructions](./bicep.instructions.md).
-- When the user asks about **JSON** or a JSON file is referenced in the chat context, prefer guidance and examples from [json instructions](./json.instructions.md).
+- When the user asks about **Python** or a Python file is referenced in the chat context, prefer guidance and examples from `./python.instructions.md`.
+- When the user asks about **Bicep** or a Bicep file is referenced in the chat context, prefer guidance and examples from `./bicep.instructions.md`.
+- When the user asks about **JSON** or a JSON file is referenced in the chat context, prefer guidance and examples from `./json.instructions.md`.
+- When the user asks about **GitHub Workflows** or workflow files (`.github/workflows/*.yml`) are referenced in the chat context, prefer guidance and examples from `./github-workflows.instructions.md`.
 - When other languages are used, look for a relevant instructions file to be included. The format is `./[language].instructions.md` where `[language]` acts as a placeholder. Also consider synonyms
   such as `JavaScript`, `JScript`, etc.
 
@@ -332,15 +333,15 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 
 - Use the `ApimRequests` and `ApimTesting` classes from `apimrequests.py` and `apimtesting.py` for all API testing and traffic generation in notebooks.
 - Do not use the `requests` library directly for calling APIM endpoints.
-- Use `utils.get_endpoint(deployment, rg_name, apim_gateway_url)` to determine the correct endpoint URL and headers based on the infrastructure type.
+- Use `utils.get_endpoint(deployment, rg_name, apim_gateway_url)` to determine the correct endpoint URL, headers, and TLS verification flag based on the infrastructure type. `allow_insecure_tls` is returned as `True` only for Application Gateway infrastructures because they use a self-signed certificate; it defaults to `False` everywhere else.
 - Example:
   ```python
   from apimrequests import ApimRequests
   from apimtesting import ApimTesting
 
   tests = ApimTesting("Sample Tests", sample_folder, nb_helper.deployment)
-  endpoint_url, request_headers = utils.get_endpoint(deployment, rg_name, apim_gateway_url)
-  reqs = ApimRequests(endpoint_url, subscription_key, request_headers)
+  endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(deployment, rg_name, apim_gateway_url)
+  reqs = ApimRequests(endpoint_url, subscription_key, request_headers, allowInsecureTls=allow_insecure_tls)
 
   output = reqs.singleGet('/api-path', msg='Calling API')
   tests.verify('Expected String' in output, True)
@@ -378,6 +379,15 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 ## Jupyter Notebook Instructions
 
 - Use these [configuration settings](https://github.com/microsoft/vscode-jupyter/blob/dd568fde/package.nls.json) as a reference for the VS Code Jupyter extension configuration.
+- When generating or editing notebook files as JSON, structure the document with a top-level `cells` array.
+- Each cell must be a valid JSON object with:
+  - `cell_type`
+  - `metadata.language`
+  - `source`
+- Existing cells must keep a unique `metadata.id` value.
+- New cells do not need a `metadata.id` value unless an editor or tool assigns one.
+- Keep notebook JSON logically structured and valid. Do not emit partial notebook fragments when a full notebook document is required.
+- When describing notebook changes to users, refer to cells by visible cell number (Cell 1, Cell 2, etc.), not by internal cell IDs.
 
 ### Presentation Instructions
 

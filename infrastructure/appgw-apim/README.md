@@ -30,6 +30,14 @@ Adjust the user-defined parameters in this lab's Jupyter Notebook's Initialize n
 Key parameters:
 - `apimSku`: Defaults to `Developer`
 - `useACA`: Enable to provision a private ACA environment and sample apps
+- `use_strict_nsg`: Optional system configuration flag, defaults to `False`
+
+We provide NSG deployment as an option for teams that want to experiment with subnet-level controls, but we intentionally keep it disabled by default. This repository aims to stay practical and focused on APIM learning scenarios rather than bundling in too much Azure Landing Zone-style network governance complexity.
+
+NSG behavior:
+- `nsg-default`: Generic fallback NSG for subnets that do not have a service-specific NSG. It stays intentionally generic.
+- `use_strict_nsg = False`: Service subnets get permissive service-aware NSGs: `nsg-appgw`, `nsg-apim`, and `nsg-aca`. These preserve Azure platform requirements and avoid unnecessary ingress restrictions.
+- `use_strict_nsg = True`: Service subnets get strict NSGs: `nsg-appgw-strict`, `nsg-apim-strict`, and `nsg-aca-strict`. These keep required platform rules but restrict ingress so traffic follows App Gateway -> APIM -> ACA.
 
 ## ▶️ Execution
 

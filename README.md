@@ -1,6 +1,7 @@
 # Azure API Management Samples
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/11057/badge)][openssf]
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Azure-Samples/Apim-Samples/badge)][openssf-scorecard]
 [![Python Tests][badge-python-tests]][workflow-python-tests]
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Azure-Samples/Apim-Samples?devcontainer_path=.devcontainer%2Fpython314%2Fdevcontainer.json)
@@ -332,8 +333,8 @@ The original author of this project is [Simon Kurtz][simon-kurtz].
 ## 🥇 Other resources
 
 - [AI Gateway][ai-gateway]
-- [Landing Zone Accelerator](https://learn.microsoft.com/en-us/azure/cloud-adoption-framework/scenarios/app-platform/api-management/landing-zone-accelerator#generative-ai-gateway-scenario)
-- [Learning Modules](https://learn.microsoft.com/en-us/training/browse/?products=azure-api-management)
+- [Landing Zone Accelerator](https://learn.microsoft.com/azure/cloud-adoption-framework/scenarios/app-platform/api-management/landing-zone-accelerator#generative-ai-gateway-scenario)
+- [Learning Modules](https://learn.microsoft.com/training/browse/?products=azure-api-management)
 - [News and announcements](https://techcommunity.microsoft.com/tag/API%20Management?nodeId=board%3AIntegrationsonAzureBlog)
 - [APIM Releases](https://github.com/Azure/API-Management/releases)
 - [APIM policy snippets repo][apim-snippets]
@@ -369,6 +370,7 @@ _For much more API Management content, please also check out [APIM Love](https:/
 [infra-appgw-apim-pe]: ./infrastructure/appgw-apim-pe/
 [infra-simple-apim]: ./infrastructure/simple-apim
 [openssf]: https://www.bestpractices.dev/projects/11057
+[openssf-scorecard]: https://scorecard.dev/viewer/?uri=github.com/Azure-Samples/Apim-Samples
 [pytest-docs]: https://docs.pytest.org/
 [pytest-docs-versioned]: https://docs.pytest.org/en/8.2.x/
 [ruff-docs]: https://docs.astral.sh/ruff/
