@@ -137,9 +137,9 @@ post_op = POST_APIOperation('Description', policyXml = '<policy-xml>')
 
 # Create API
 api = API(
-    '<api-path>',           # URL path segment
-    '<Display Name>',       # Human-readable name
-    '/<route>',             # Service URL suffix
+    '<name>',               # API name (resource identifier)
+    '<Display Name>',       # Human-readable display name
+    '<path>',               # URL path segment (often same value as name)
     '<Description>',        # API description
     operations = [get_op, post_op],
     tags = ['tag1', 'tag2']

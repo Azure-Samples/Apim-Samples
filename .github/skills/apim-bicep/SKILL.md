@@ -1,6 +1,6 @@
 ---
 name: apim-bicep
-description: Guide for building Bicep files for Azure API Management (APIM) and related Azure services. Use when users want to create, modify, or understand Bicep templates for APIM instances, APIs, backends, subscriptions, policies, products, loggers, diagnostics, and MCP servers. This skill provides Bicep syntax and patterns based on the shared modules in this repository.
+description: Guide for building Bicep files for Azure API Management (APIM) and related Azure services. Use when users want to create, modify, or understand Bicep templates for APIM instances, APIs, backends, subscriptions, policies, products, loggers, and diagnostics. This skill provides Bicep syntax and patterns based on the shared modules in this repository.
 ---
 
 # APIM Bicep
@@ -20,7 +20,7 @@ param publisherEmail string
 param publisherName string
 
 @description('The pricing tier of this API Management service')
-@allowed(['Consumption', 'Developer', 'Basic', 'Basicv2', 'Standard', 'Standardv2', 'Premium'])
+@allowed(['Consumption', 'Developer', 'Basic', 'Basicv2', 'Standard', 'Standardv2', 'Premium', 'Premiumv2'])
 param sku string = 'Basicv2'
 
 @description('Location for all resources')
@@ -154,109 +154,6 @@ resource subscription 'Microsoft.ApiManagement/service/subscriptions@2024-06-01-
 }]
 ```
 
-## MCP Server Patterns
-
-### Native MCP API (type: 'mcp')
-
-Create an MCP server API that wraps existing API operations:
-
-```bicep
-resource mcp 'Microsoft.ApiManagement/service/apis@2024-06-01-preview' = {
-  parent: apim
-  name: 'weather-mcp'
-  properties: {
-    type: 'mcp'
-    displayName: 'Weather MCP'
-    description: 'MCP for weather data'
-    subscriptionRequired: false
-    path: 'weather-mcp'
-    protocols: ['https']
-    mcpTools: [
-      {
-        name: operation.name
-        operationId: operation.id
-        description: operation.properties.description
-      }
-    ]
-  }
-}
-```
-
-### Streamable MCP with Backend
-
-Create an MCP server with a backend service:
-
-```bicep
-resource mcpBackend 'Microsoft.ApiManagement/service/backends@2024-06-01-preview' = {
-  parent: apim
-  name: 'weather-mcp-backend'
-  properties: {
-    protocol: 'http'
-    url: '${mcpServiceUrl}/mcp'
-    tls: {
-      validateCertificateChain: true
-      validateCertificateName: true
-    }
-    type: 'Single'
-  }
-}
-
-resource mcp 'Microsoft.ApiManagement/service/apis@2024-06-01-preview' = {
-  parent: apim
-  name: 'weather-mcp'
-  properties: {
-    type: 'mcp'
-    displayName: 'Weather MCP'
-    subscriptionRequired: false
-    backendId: mcpBackend.name
-    path: 'weather'
-    protocols: ['https']
-    mcpProperties: {
-      transportType: 'streamable'
-    }
-  }
-}
-```
-
-### MCP with Custom Operations
-
-```bicep
-resource mcpApi 'Microsoft.ApiManagement/service/apis@2024-06-01-preview' = {
-  parent: apimService
-  name: 'agent-mcp'
-  properties: {
-    displayName: 'Agent MCP Server'
-    description: 'Model Context Protocol API endpoints'
-    subscriptionRequired: false
-    path: 'agent'
-    protocols: ['https']
-    serviceUrl: containerAppUrl
-  }
-}
-
-resource mcpSseOp 'Microsoft.ApiManagement/service/apis/operations@2024-06-01-preview' = {
-  parent: mcpApi
-  name: 'mcp-sse'
-  properties: {
-    displayName: 'MCP SSE Endpoint'
-    method: 'GET'
-    urlTemplate: '/sse'
-    description: 'Server-Sent Events endpoint'
-  }
-}
-
-resource mcpMessageOp 'Microsoft.ApiManagement/service/apis/operations@2024-06-01-preview' = {
-  parent: mcpApi
-  name: 'mcp-message'
-  properties: {
-    displayName: 'MCP Message Endpoint'
-    method: 'POST'
-    urlTemplate: '/message'
-    description: 'Message endpoint for MCP Server'
-  }
-}
-```
-
 ## Diagnostics and Logging
 
 ### Azure Monitor Logger
@@ -334,7 +231,7 @@ resource apim 'Microsoft.ApiManagement/service@2024-06-01-preview' existing = {
 
 ```bicep
 @description('The pricing tier')
-@allowed(['Consumption', 'Developer', 'Basic', 'Basicv2', 'Standard', 'Standardv2', 'Premium'])
+@allowed(['Consumption', 'Developer', 'Basic', 'Basicv2', 'Standard', 'Standardv2', 'Premium', 'Premiumv2'])
 param sku string = 'Basicv2'
 
 @minLength(1)
@@ -364,8 +261,7 @@ output subscriptionKey string = subscription.listSecrets().primaryKey
 
 ## Reference Documentation
 
-- **[MCP Server Patterns](references/mcp-patterns.md)**: MCP-on-APIM Bicep configuration examples
-- **Shared modules in this repo**: `shared/bicep/modules/apim/v1/` (API, backend, product, subscription)
+- **Shared modules in this repo**: `shared/bicep/modules/apim/v1/` (api, apim, backend, backend-pool, diagnostics, named-value, policy-fragment, product)
 
 ## Official Documentation
 

@@ -130,8 +130,9 @@ nb_helper        = utils.NotebookHelper(sample_folder, rg_name, rg_location, dep
 # post_op = POST_APIOperation('Description of POST operation')
 
 # APIs
-# api1 = API('<api-path>', '<API Display Name>', '/<api-route>', '<API Description>', operations = [get_op], tags = tags)
-# api2 = API('<api-path>', '<API Display Name>', '/<api-route>', '<API Description>', '<policy_xml>', [get_op, post_op], tags)
+# api1_path = f'{api_prefix}<name>'
+# api1 = API(api1_path, '<API Display Name>', api1_path, '<API Description>', operations = [get_op], tags = tags)
+# api2 = API(api2_path, '<API Display Name>', api2_path, '<API Description>', '<policy_xml>', [get_op, post_op], tags)
 
 # APIs Array
 apis: List[API] = []  # Add your APIs here
@@ -221,7 +222,7 @@ param apimName string = 'apim-${resourceSuffix}'
 param appInsightsName string = 'appi-${resourceSuffix}'
 param apis array = []
 
-// <Add additional parameters here>
+// [ADD RELEVANT PARAMETERS HERE]
 
 // ------------------
 //    RESOURCES
@@ -240,7 +241,7 @@ resource apimService 'Microsoft.ApiManagement/service@2024-06-01-preview' existi
   name: apimName
 }
 
-// <Add additional resources here: backends, products, etc.>
+// [ADD RELEVANT BICEP MODULES HERE]
 
 // APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(!empty(apis)) {
@@ -253,7 +254,7 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   }
 }]
 
-// <Add additional modules here>
+// [ADD RELEVANT BICEP MODULES HERE]
 
 // ------------------
 //    MARK: OUTPUTS
@@ -275,7 +276,7 @@ output apiOutputs array = [for i in range(0, length(apis)): {
   subscriptionSecondaryKey: apisModule[i].?outputs.?subscriptionSecondaryKey ?? ''
 }]
 
-// <Add additional outputs here>
+// [ADD RELEVANT OUTPUTS HERE]
 ```
 
 ## Step 6: Create Policy XML Files (If Needed)
@@ -326,25 +327,28 @@ get_op = GET_APIOperation('Description', policyXml = '<policy-xml-string>')
 
 ### Creating APIs
 
+The `API` constructor signature is `API(name, displayName, path, description, policyXml=None, operations=None, tags=None, ...)`. The `_TEMPLATE` uses the same value for `name` and `path`.
+
 ```python
 # Basic API (no custom policy)
+api1_path = f'{api_prefix}example'
 api = API(
-    '<api-path>',           # URL path segment
-    '<Display Name>',       # Human-readable name
-    '/<route>',             # Service URL suffix
-    '<Description>',        # API description
+    api1_path,              # name (resource identifier)
+    '<Display Name>',       # displayName (human-readable)
+    api1_path,              # path (URL path segment)
+    '<Description>',        # description
     operations = [get_op],
     tags = tags
 )
 
-# API with policy
+# API with policy (positional policyXml, operations, tags)
 api = API(
-    '<api-path>',
+    api1_path,
     '<Display Name>',
-    '/<route>',
+    api1_path,
     '<Description>',
-    '<policy-xml>',         # Policy XML string
-    [get_op, post_op],      # Operations list
+    '<policy-xml>',         # policyXml string
+    [get_op, post_op],      # operations list
     tags
 )
 ```
