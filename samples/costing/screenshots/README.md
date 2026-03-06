@@ -34,6 +34,10 @@ This directory contains screenshots showing expected results after running the c
 
 ![Dashboard - Response Code Analysis](Dashboard-05.png)
 
+### Drill-Down Details
+
+![Dashboard - Drill-Down Details](Dashboard-06.png)
+
 ## Entra ID Application Costing Tab
 
 ### Usage by Caller ID
@@ -47,3 +51,21 @@ This directory contains screenshots showing expected results after running the c
 ### Request Trend
 
 ![Entra ID - Request Trend](EntraID-03.png)
+
+## AI Gateway Token/PTU Tab
+
+### Token Consumption by Client
+
+![AI Gateway - Token Consumption by Client](AIGateway-01.png)
+
+### Token Cost Allocation
+
+![AI Gateway - Token Cost Allocation](AIGateway-02.png)
+
+### Token Trends & PTU Utilization
+
+![AI Gateway - Token Trends & PTU Utilization](AIGateway-03.png)
+
+### Model & Caller Breakdown
+
+![AI Gateway - Model & Caller Breakdown](AIGateway-04.png)

@@ -115,7 +115,7 @@ This sample focuses on **producing cost data**, not implementing billing process
 ### Two Tracking Approaches
 
 | Aspect | Subscription-Based | Entra ID Application | AI Gateway Token/PTU |
-|---|---|---|
+|---|---|---|---|
 | **Caller identification** | APIM subscription key (`ApimSubscriptionId`) | JWT `appid`/`azp` claim | JWT `appid`/`azp` claim |
 | **Data source** | `ApiManagementGatewayLogs` in Log Analytics | `customMetrics` in Application Insights | `customMetrics` in Application Insights |
 | **Tracking mechanism** | Built-in APIM logging | `emit-metric` policy | `emit-metric` policy (outbound response parsing) |
@@ -196,6 +196,8 @@ The deployed workbook provides a comprehensive view of API cost allocation and u
 
 ![Dashboard - Response Code Analysis](screenshots/Dashboard-05.png)
 
+![Dashboard - Drill-Down Details](screenshots/Dashboard-06.png)
+
 ### Entra ID Application Costing Tab
 
 The Entra ID tab shows cost attribution by calling application, using the `emit-metric` policy's `caller-requests` custom metric.
@@ -215,6 +217,8 @@ The AI Gateway tab shows per-client token consumption and estimated costs when A
 ![AI Gateway - Token Cost Allocation](screenshots/AIGateway-02.png)
 
 ![AI Gateway - Token Trends & PTU Utilization](screenshots/AIGateway-03.png)
+
+![AI Gateway - Model & Caller Breakdown](screenshots/AIGateway-04.png)
 
 ## 🧹 Clean Up
 
