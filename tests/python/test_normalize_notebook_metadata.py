@@ -31,6 +31,43 @@ else:
 # ============================================================
 
 
+def _make_code_cell(
+    source: str = 'print("hello")\n',
+    outputs: list | None = None,
+    execution_count: int | None = 7,
+) -> dict:
+    """Return a code cell with outputs and an execution count.
+
+    By default the cell looks freshly executed (non-empty outputs, non-null
+    execution_count) so tests can assert the scrubber resets both.
+    """
+    if outputs is None:
+        outputs = [
+            {
+                'output_type': 'stream',
+                'name': 'stdout',
+                'text': ['hello\n'],
+            },
+        ]
+
+    return {
+        'cell_type': 'code',
+        'source': [source],
+        'metadata': {},
+        'outputs': outputs,
+        'execution_count': execution_count,
+    }
+
+
+def _make_markdown_cell(source: str = '# Heading\n') -> dict:
+    """Return a markdown cell (no outputs / execution_count keys)."""
+    return {
+        'cell_type': 'markdown',
+        'source': [source],
+        'metadata': {},
+    }
+
+
 def _make_notebook(display_name: str = '.venv (3.14.2)', version: str = '3.14.2') -> dict:
     """Return a minimal notebook dict with customizable volatile fields."""
     return {
@@ -117,6 +154,110 @@ def test_missing_language_info():
 
 
 # ============================================================
+# scrub_cell_outputs()
+# ============================================================
+
+
+def test_scrubs_code_cell_outputs():
+    """Code cell outputs must be cleared to an empty list."""
+    nb = _make_notebook()
+    nb['cells'] = [_make_code_cell()]
+
+    nnm.scrub_cell_outputs(nb)
+
+    assert nb['cells'][0]['outputs'] == []
+
+
+def test_scrubs_execution_count():
+    """Code cell execution_count must be reset to None."""
+    nb = _make_notebook()
+    nb['cells'] = [_make_code_cell(execution_count=42)]
+
+    nnm.scrub_cell_outputs(nb)
+
+    assert nb['cells'][0]['execution_count'] is None
+
+
+def test_scrub_preserves_cell_source():
+    """Scrubbing must not touch the cell source."""
+    nb = _make_notebook()
+    nb['cells'] = [_make_code_cell(source='x = 1\n')]
+
+    nnm.scrub_cell_outputs(nb)
+
+    assert nb['cells'][0]['source'] == ['x = 1\n']
+
+
+def test_scrub_leaves_markdown_cells_untouched():
+    """Markdown cells have no outputs/execution_count and must pass through unchanged."""
+    nb = _make_notebook()
+    md = _make_markdown_cell()
+    nb['cells'] = [md]
+
+    nnm.scrub_cell_outputs(nb)
+
+    assert nb['cells'][0] == md
+    assert 'outputs' not in nb['cells'][0]
+    assert 'execution_count' not in nb['cells'][0]
+
+
+def test_scrub_mixed_cells():
+    """Only code cells are scrubbed in a notebook that mixes cell types."""
+    nb = _make_notebook()
+    nb['cells'] = [_make_markdown_cell(), _make_code_cell(), _make_markdown_cell(), _make_code_cell()]
+
+    nnm.scrub_cell_outputs(nb)
+
+    assert 'outputs' not in nb['cells'][0]
+    assert nb['cells'][1]['outputs'] == []
+    assert 'outputs' not in nb['cells'][2]
+    assert nb['cells'][3]['outputs'] == []
+
+
+def test_scrub_code_cell_missing_output_keys():
+    """Absent outputs/execution_count keys should stay absent (no key insertion)."""
+    nb = _make_notebook()
+    nb['cells'] = [{'cell_type': 'code', 'source': ['pass\n'], 'metadata': {}}]
+
+    nnm.scrub_cell_outputs(nb)
+
+    assert 'outputs' not in nb['cells'][0]
+    assert 'execution_count' not in nb['cells'][0]
+
+
+def test_scrub_handles_missing_cells_key():
+    """Should not raise when the notebook has no cells key at all."""
+    nb = {'metadata': {}, 'nbformat': 4, 'nbformat_minor': 5}
+
+    nnm.scrub_cell_outputs(nb)
+
+    assert 'cells' not in nb
+
+
+def test_scrub_ignores_non_dict_cells():
+    """Malformed entries in the cells array should be skipped without error."""
+    nb = _make_notebook()
+    nb['cells'] = ['not a dict', _make_code_cell()]
+
+    nnm.scrub_cell_outputs(nb)
+
+    assert nb['cells'][0] == 'not a dict'
+    assert nb['cells'][1]['outputs'] == []
+
+
+def test_normalize_invokes_scrub():
+    """normalize_notebook_metadata() must also scrub outputs."""
+    nb = _make_notebook(display_name='custom', version='3.99.0')
+    nb['cells'] = [_make_code_cell()]
+
+    nnm.normalize_notebook_metadata(nb)
+
+    assert nb['metadata']['kernelspec']['display_name'] == nnm.CANONICAL_DISPLAY_NAME
+    assert nb['cells'][0]['outputs'] == []
+    assert nb['cells'][0]['execution_count'] is None
+
+
+# ============================================================
 # normalize_stream()
 # ============================================================
 
@@ -145,6 +286,20 @@ def test_normalize_stream_trailing_newline():
     raw = output_buf.getvalue()
     assert raw.endswith('\n')
     assert not raw.endswith('\n\n')
+
+
+def test_normalize_stream_scrubs_outputs():
+    """Stream mode (git clean filter) must scrub cell outputs."""
+    nb = _make_notebook()
+    nb['cells'] = [_make_code_cell()]
+    input_buf = io.StringIO(json.dumps(nb))
+    output_buf = io.StringIO()
+
+    nnm.normalize_stream(input_buf, output_buf)
+
+    result = json.loads(output_buf.getvalue())
+    assert result['cells'][0]['outputs'] == []
+    assert result['cells'][0]['execution_count'] is None
 
 
 # ============================================================
@@ -187,11 +342,9 @@ def test_normalize_file_invalid_json(tmp_path: Path):
 
 
 def test_normalize_file_preserves_cells(tmp_path: Path):
-    """Cell content must be preserved through normalization."""
+    """Cell source must be preserved and outputs scrubbed through in-place normalization."""
     nb = _make_notebook()
-    nb['cells'] = [
-        {'cell_type': 'code', 'source': ['print("hello")\n'], 'metadata': {}, 'outputs': [], 'execution_count': None},
-    ]
+    nb['cells'] = [_make_code_cell(source='print("hello")\n')]
     nb_path = tmp_path / 'cells.ipynb'
     nb_path.write_text(json.dumps(nb, indent=1), encoding='utf-8')
 
@@ -199,6 +352,8 @@ def test_normalize_file_preserves_cells(tmp_path: Path):
 
     result = json.loads(nb_path.read_text(encoding='utf-8'))
     assert result['cells'][0]['source'] == ['print("hello")\n']
+    assert result['cells'][0]['outputs'] == []
+    assert result['cells'][0]['execution_count'] is None
 
 
 # ============================================================

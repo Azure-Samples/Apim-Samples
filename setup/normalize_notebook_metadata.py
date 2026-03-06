@@ -1,15 +1,22 @@
 #!/usr/bin/env python3
 
 """
-Git clean filter that normalizes volatile Jupyter notebook metadata.
+Git clean filter that normalizes volatile Jupyter notebook metadata and
+scrubs all cell outputs.
 
 When configured as a git clean filter, this script reads notebook JSON from
-stdin and writes it to stdout with `kernelspec.display_name` and
-`language_info.version` set to fixed canonical values. This prevents
-environment-specific Python version strings from appearing as git changes.
+stdin and writes it to stdout with:
 
-The local file keeps its real values (so VS Code / Jupyter work normally),
-but git only ever sees the normalized output.
+- `kernelspec.display_name` and `language_info.version` set to fixed
+  canonical values (prevents environment-specific Python version strings
+  from appearing as git changes).
+- Every code cell's `outputs` cleared to `[]` and `execution_count` reset
+  to `null` (prevents run-time output, which can contain subscription IDs,
+  resource names, tokens, etc., from ever being committed).
+
+The local file keeps its real values and outputs (so VS Code / Jupyter work
+normally and you can still see what you just ran), but git only ever sees
+the normalized, scrubbed representation.
 
 Usage as a git clean filter (configured automatically by local_setup.py):
     git config filter.notebook-metadata.clean "python setup/normalize_notebook_metadata.py"
@@ -31,11 +38,38 @@ CANONICAL_DISPLAY_NAME = 'Python (.venv)'
 CANONICAL_VERSION = '3.12.0'
 
 
-def normalize_notebook_metadata(notebook: dict) -> dict:
-    """Normalize volatile metadata fields in a parsed notebook dict.
+def scrub_cell_outputs(notebook: dict) -> dict:
+    """Clear outputs and execution counts from every code cell.
 
-    Replaces kernelspec.display_name and language_info.version with
-    canonical values to avoid environment-specific git diffs.
+    Code cells have their ``outputs`` replaced with an empty list and their
+    ``execution_count`` reset to ``None``.  Non-code cells (markdown, raw)
+    are left untouched since they carry no execution state.  Keys that are
+    absent stay absent; we only overwrite what is already there.
+    """
+    cells = notebook.get('cells')
+    if not isinstance(cells, list):
+        return notebook
+
+    for cell in cells:
+        if not isinstance(cell, dict) or cell.get('cell_type') != 'code':
+            continue
+
+        if 'outputs' in cell:
+            cell['outputs'] = []
+
+        if 'execution_count' in cell:
+            cell['execution_count'] = None
+
+    return notebook
+
+
+def normalize_notebook_metadata(notebook: dict) -> dict:
+    """Normalize volatile metadata fields and scrub outputs in a notebook dict.
+
+    Replaces ``kernelspec.display_name`` and ``language_info.version`` with
+    canonical values to avoid environment-specific git diffs, then strips
+    all code-cell outputs and execution counts so run-time output never
+    lands in the index.
     """
     metadata = notebook.get('metadata', {})
 
@@ -46,6 +80,8 @@ def normalize_notebook_metadata(notebook: dict) -> dict:
     language_info = metadata.get('language_info')
     if isinstance(language_info, dict) and 'version' in language_info:
         language_info['version'] = CANONICAL_VERSION
+
+    scrub_cell_outputs(notebook)
 
     return notebook
 
