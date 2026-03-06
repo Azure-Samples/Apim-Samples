@@ -1,0 +1,29 @@
+# OpenSSF Scorecard maintainer annotations.
+#
+# These DO NOT change numeric check scores. Scorecard's Fuzzing check is
+# binary (0 or 10) and annotations are applied after scoring. What they do
+# is surface a maintainer-provided reason alongside the 0/10 so that anyone
+# reading the report (CLI --show-annotations, REST API, scorecard.dev viewer)
+# sees context instead of an unexplained failure.
+#
+# Schema and reason vocabulary:
+#   https://github.com/ossf/scorecard/blob/main/config/README.md
+#
+# Valid reasons: test-data, remediated, not-applicable, not-supported, not-detected
+
+annotations:
+  - checks:
+      - fuzzing
+    reasons:
+      # This repository is a learning playground: Bicep templates, Jupyter
+      # notebooks, APIM policy XML, and thin Python wrappers around the Azure
+      # CLI. The Python helpers do not parse untrusted attacker-controlled
+      # input — the only parsing surface (json_utils.py) delegates to the
+      # standard library's json and ast modules, which are already fuzzed
+      # upstream in CPython via OSS-Fuzz. All other inputs originate from the
+      # operator's own Azure tenant or their own policy files.
+      #
+      # Scorecard also has no Python-native fuzzer detection (Go / Haskell /
+      # JS / Erlang only), so even adding hypothesis or atheris tests would
+      # not move this score. See SECURITY.md for the full rationale.
+      - reason: not-applicable
