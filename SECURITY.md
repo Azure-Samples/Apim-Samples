@@ -37,3 +37,19 @@ We prefer all communications to be in English.
 Microsoft follows the principle of [Coordinated Vulnerability Disclosure](https://aka.ms/security.md/cvd).
 
 <!-- END MICROSOFT SECURITY.MD BLOCK -->
+
+## Security Scanning Scope
+
+This repository is scanned by [OpenSSF Scorecard](https://github.com/ossf/scorecard) via a scheduled GitHub Action. Some checks will report a low score by design; the rationale is recorded as maintainer annotations in [`.github/scorecard.yml`](.github/scorecard.yml) and summarised below.
+
+### Fuzzing
+
+This repository does not implement dedicated fuzz testing, and the Scorecard Fuzzing check is expected to report `0/10`. This is a deliberate scoping decision rather than an oversight.
+
+Fuzz testing is most valuable where code parses untrusted, attacker-controlled input — file formats, network protocols, deserialisers — particularly in memory-unsafe languages. This repository is a learning playground composed of Bicep templates, Jupyter notebooks, APIM policy XML, and thin Python wrappers around the Azure CLI. None of these components parse untrusted input locally:
+
+- Bicep, policy XML, and notebooks are declarative assets consumed by Azure-side tooling, not by code in this repository.
+- The Python helpers read output from the operator's own `az` CLI session and their own policy files.
+- The only parsing surface (`shared/python/json_utils.py`) delegates to the Python standard library `json` and `ast` modules, which are [already fuzzed upstream in CPython via OSS-Fuzz](https://github.com/google/oss-fuzz/tree/master/projects/cpython3).
+
+Scorecard additionally has no Python-native fuzzer detection — only OSS-Fuzz enrolment, ClusterFuzzLite, or language-native fuzzers for Go, Haskell, JavaScript/TypeScript, and Erlang are recognised. Adding `hypothesis` or `atheris` property-based tests would therefore not change the score, and would only exercise standard-library code paths already covered upstream.
