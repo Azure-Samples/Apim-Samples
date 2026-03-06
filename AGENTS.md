@@ -67,8 +67,6 @@ Use these skills for specialized tasks. Skills are located in `.github/skills/`.
 | **sample-creator** | Creating new samples under `samples/` following the `_TEMPLATE` structure |
 | **apim-bicep** | Writing Bicep templates for APIM resources (APIs, backends, policies, products) |
 | **apim-policies** | Creating or modifying APIM XML policies (inbound/outbound, authentication, rate limiting) |
-| **apim-terraform** | Creating Terraform configurations for APIM using azurerm provider |
-| **skill-creator** | Creating new skills for this repository |
 
 ### How to Use Skills
 
@@ -223,8 +221,6 @@ ruff check shared/python/
 | Create a new sample | sample-creator | `samples/_TEMPLATE/*` |
 | Write APIM policies | apim-policies | `shared/apim-policies/*.xml` |
 | Create Bicep templates | apim-bicep | `shared/bicep/modules/` |
-| Create Terraform configs | apim-terraform | N/A |
-| Create new skills | skill-creator | `.github/skills/` |
 
 ## Additional Resources
 

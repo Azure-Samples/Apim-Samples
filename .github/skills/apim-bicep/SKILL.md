@@ -1,6 +1,6 @@
 ---
 name: apim-bicep
-description: Guide for building Bicep files for Azure API Management (APIM) and related Azure services. Use when users want to create, modify, or understand Bicep templates for APIM instances, APIs, backends, subscriptions, policies, products, loggers, diagnostics, and MCP servers. This skill provides Bicep syntax, patterns from Azure Verified Modules, and examples from this repository.
+description: Guide for building Bicep files for Azure API Management (APIM) and related Azure services. Use when users want to create, modify, or understand Bicep templates for APIM instances, APIs, backends, subscriptions, policies, products, loggers, diagnostics, and MCP servers. This skill provides Bicep syntax and patterns based on the shared modules in this repository.
 ---
 
 # APIM Bicep
@@ -364,14 +364,10 @@ output subscriptionKey string = subscription.listSecrets().primaryKey
 
 ## Reference Documentation
 
-For detailed patterns and examples, see:
-
-- **[APIM Resource Reference](references/apim-resources.md)**: Complete resource definitions
-- **[MCP Server Patterns](references/mcp-patterns.md)**: MCP configuration examples
-- **[Azure Verified Modules](references/avm-patterns.md)**: Patterns from Azure Verified Modules
+- **[MCP Server Patterns](references/mcp-patterns.md)**: MCP-on-APIM Bicep configuration examples
+- **Shared modules in this repo**: `shared/bicep/modules/apim/v1/` (API, backend, product, subscription)
 
 ## Official Documentation
 
 - [APIM Bicep Quickstart](https://learn.microsoft.com/azure/api-management/quickstart-bicep)
 - [ARM Template Reference](https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service)
-- [Azure Verified Modules - APIM](https://github.com/Azure/bicep-registry-modules/tree/main/avm/res/api-management)

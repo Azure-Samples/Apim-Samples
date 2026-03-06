@@ -235,11 +235,8 @@ Policy expressions use C# syntax within `@()` for single statements or `@{}` for
 
 ## Reference Documentation
 
-For detailed information, see:
-
-- **[Policy Reference](references/policy-reference.md)**: Complete list of all APIM policies with syntax
-- **[Policy Expressions](references/policy-expressions.md)**: C# expressions, context variable, and allowed types
 - **[AI Gateway Examples](references/ai-gateway-examples.md)**: Real-world AI gateway policy patterns
+- **Shared policies in this repo**: `shared/apim-policies/` (reusable policy XML fragments)
 
 ## Official Documentation
 

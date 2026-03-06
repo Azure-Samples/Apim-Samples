@@ -317,17 +317,17 @@ Route requests to different backends based on model name in URL or body:
 <policies>
     <inbound>
         <base />
-        <!-- 1a – deployment-id from the route template -->
+        <!-- 1a - deployment-id from the route template -->
         <set-variable name="deployment" value="@(context.Request.MatchedParameters.ContainsKey("deployment-id") 
                            ? context.Request.MatchedParameters["deployment-id"] 
                            : string.Empty)" />
-        <!-- 1b – model from the request body (JSON) -->
+        <!-- 1b - model from the request body (JSON) -->
         <set-variable name="reqBody" value="@(context.Request.Body?.As<JObject>(preserveContent:true) 
                            ?? new JObject())" />
         <set-variable name="model" value="@( ((JObject)context.Variables["reqBody"])
                               .Property("model")?.Value?.ToString() 
                               ?? string.Empty)" />
-        <!-- 1c – first non-empty of deployment-id or model -->
+        <!-- 1c - first non-empty of deployment-id or model -->
         <set-variable name="requestedModel" value="@( !string.IsNullOrEmpty((string)context.Variables["deployment"]) 
                            ? (string)context.Variables["deployment"]
                            : (string)context.Variables["model"] )" />
