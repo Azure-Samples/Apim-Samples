@@ -16,7 +16,7 @@ jobs:
         uses: actions/checkout@8ade135a41d8b85ea433769d2a06a6bf422dcda2
 
       - name: Dependency Review
-        uses: actions/dependency-review-action@17f38f85b6f2b61bb8a05de5fa6e4a43b9b60bda
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48
         with:
           # ✅ Fail PRs that introduce disallowed licenses
           allow-licenses: |
