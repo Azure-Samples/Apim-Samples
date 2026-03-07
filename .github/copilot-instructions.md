@@ -82,6 +82,7 @@ Uniformity, clarity, and ease of use are paramount across all infrastructures an
 - `/`: Root directory containing the main files and folders. Bicep configuration is stored in `bicepconfig.json`.
 - The following folders are all at the root level:
     - `assets/`: Draw.io diagrams, SVG exports, and images. Static assets such as these should be placed here. Architecture diagrams should be placed in the /diagrams subfolder.
+    - `docs/`: Source for the public GitHub Pages landing page. See the *GitHub Pages Site* section below for upkeep rules.
     - `infrastructure/`: Contains Jupyter notebooks for setting up various API Management infrastructures. When modifying samples, these notebooks should not need to be modified.
     - `samples/`: Various policy and scenario samples that can be applied to the infrastructures.
     - `setup/`: General setup scripts and configurations for the repository and dev environment setup.
@@ -371,10 +372,27 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 - Document expected behavior for edge cases and error handling.
 - Write unit tests for functions and classes, following language-specific testing frameworks.
 
+## GitHub Pages Site
+
+The public landing page at <https://azure-samples.github.io/Apim-Samples/> is built from `docs/index.html` by `.github/workflows/github-pages.yml` on every push to `main`. The page intentionally mirrors a subset of the root `README.md` (infrastructure cards, sample cards, quick-start steps) so that visitors get a polished overview without cloning the repo.
+
+**Treat `docs/index.html` as a downstream consumer of the README.** When you change any of the following, update the landing page in the same PR:
+
+| Change | Update required in `docs/index.html` | Also update |
+|---|---|---|
+| Add / remove / rename an **infrastructure** | Add / remove / rename the matching `.infra-card` **and** the matching `ListItem` in the JSON-LD `ItemList` (in `<head>`). Update the infrastructure count in the first `.value-card` if it still says "Five". | Add / remove the SVG copy line in `.github/workflows/github-pages.yml`. |
+| Add / remove / rename a **sample** | Add / remove / rename the matching `.sample-card` **and** the matching `ListItem` in the JSON-LD `ItemList`. | — |
+| Change a sample's **supported infrastructures** | Update the `.infra-tag` text on that sample's card. | — |
+| Change the **quick-start flow** in the root README | Update the four `.step` items. | — |
+| Rename or replace an **architecture SVG** in `assets/diagrams/` | — | Update the matching `cp` line in `.github/workflows/github-pages.yml`. |
+
+Check `docs/README.md` for local preview instructions and styling notes. The page is deliberately plain static HTML + an external stylesheet (`docs/styles.css`), with no executable JavaScript and no build tooling, so that it cannot rot due to a transitive npm dependency. The only `<script>` tag is the JSON-LD structured-data block, which must stay inline because search-engine crawlers do not reliably follow external JSON-LD references. Keep it that way unless there is a compelling reason to add a build step.
+
 ## Required before each commit
 - Ensure all code is well-documented and follows the guidelines in this file.
 - Ensure that Jupyter notebooks do not contain any cell output.
 - Ensure that Jupyter notebooks have `index` assigned to `1` in the first cell.
+- If the change touches the infrastructure list, sample list, quick-start steps, or architecture SVGs, ensure `docs/index.html` (and the asset copy step in `.github/workflows/github-pages.yml` where relevant) has been updated to match.
 
 ## Jupyter Notebook Instructions
 

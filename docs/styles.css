@@ -1,0 +1,762 @@
+/* ==========================================================================
+   Azure API Management Samples - GitHub Pages landing page stylesheet
+
+   Source of truth for https://azure-samples.github.io/Apim-Samples/
+   Referenced by docs/index.html via <link rel="stylesheet">.
+   Staged alongside index.html by .github/workflows/github-pages.yml
+   and setup/serve_website.py.
+
+   WCAG 2.0 AA: body text >= 4.5:1, focus rings visible, reduced-motion
+   honoured at the bottom of this file.
+   ========================================================================== */
+
+/* =========================================================================
+   Design tokens
+   Values mirror assets/APIM-Samples-Slide-Deck.html so the repo speaks
+   with one visual voice. Change a brand colour here and it cascades.
+   ========================================================================= */
+:root {
+  --brand-blue:        #0078D4;   /* Azure primary */
+  --brand-blue-dark:   #005A9E;
+  --brand-blue-deep:   #003A6E;
+  --accent-cyan:       #50E6FF;
+
+  --text-body:         #24292f;
+  --text-muted:        #57606a;
+  --text-on-brand:     #ffffff;
+  --text-on-brand-dim: rgba(255, 255, 255, 0.88);
+
+  --surface-page:      #ffffff;
+  --surface-raised:    #ffffff;
+  --surface-subtle:    #f6f8fa;
+  --border-subtle:     #d0d7de;
+
+  --shadow-card:       0 1px 3px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 58, 110, 0.06);
+  --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.10), 0 16px 40px rgba(0, 58, 110, 0.16);
+
+  --radius-sm:  6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  --transition-card: 0.25s ease;
+
+  --max-width: 1200px;
+}
+
+/* =========================================================================
+   Base
+   ========================================================================= */
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-body);
+  background: var(--surface-page);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Visually hidden but available to screen readers */
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  top: -48px;
+  left: 8px;
+  background: var(--brand-blue-deep);
+  color: var(--text-on-brand);
+  padding: 12px 20px;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  z-index: 1000;
+  text-decoration: none;
+  font-weight: 600;
+  transition: top 0.2s ease;
+}
+.skip-link:focus { top: 0; }
+
+a { color: var(--brand-blue); }
+a:hover { color: var(--brand-blue-dark); }
+a:focus-visible {
+  outline: 3px solid var(--accent-cyan);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+img { max-width: 100%; height: auto; }
+
+.container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.section { padding: 80px 0; }
+.section-subtle { background: var(--surface-subtle); }
+
+.section-heading {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--brand-blue-deep);
+  margin: 0 0 12px 0;
+  letter-spacing: -0.5px;
+}
+
+.section-lede {
+  font-size: 18px;
+  color: var(--text-muted);
+  margin: 0 0 48px 0;
+  max-width: 720px;
+}
+
+.accent-bar {
+  height: 4px;
+  width: 64px;
+  background: linear-gradient(90deg, var(--brand-blue), var(--accent-cyan));
+  border-radius: 2px;
+  margin-bottom: 24px;
+}
+
+/* =========================================================================
+   Top nav
+   ========================================================================= */
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.topnav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+.topnav-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--text-body);
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.topnav-brand img {
+  height: 36px;
+  width: auto;
+  border-radius: var(--radius-sm);
+}
+
+.topnav-links { display: flex; gap: 8px; }
+
+.topnav-links a {
+  text-decoration: none;
+  color: var(--text-body);
+  font-weight: 500;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease;
+}
+
+.topnav-links a:hover { background: var(--surface-subtle); }
+
+.topnav-links a.github {
+  background: var(--brand-blue);
+  color: var(--text-on-brand);
+}
+.topnav-links a.github:hover { background: var(--brand-blue-dark); }
+
+/* GitHub stats badges (shields.io). Sits inside .topnav-links so every
+   declaration below deliberately overrides the generic .topnav-links a
+   rule: no padding, no hover background, just a 2px lift to match the
+   rest of the page. height: 20px pins shields.io's default badge size
+   so the two stay baseline-aligned. */
+.topnav-stats {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.topnav-stats a {
+  display: inline-flex;
+  padding: 0;
+  line-height: 0;
+  transition: transform 0.15s ease;
+}
+
+.topnav-stats a:hover,
+.topnav-stats a:focus-visible {
+  background: none;
+  transform: translateY(-2px);
+}
+
+.topnav-stats img {
+  height: 20px;
+  width: auto;
+}
+
+@media (max-width: 720px) {
+  .topnav-links a:not(.github) { display: none; }
+  .topnav-stats { display: none; }
+}
+
+/* =========================================================================
+   Hero
+   ========================================================================= */
+.hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--brand-blue) 0%, var(--brand-blue-dark) 40%, var(--brand-blue-deep) 100%);
+  color: var(--text-on-brand);
+  padding: 96px 0 112px;
+}
+
+.hero::before,
+.hero::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.hero::before {
+  width: 480px; height: 480px;
+  bottom: -200px; right: -160px;
+  background: rgba(80, 230, 255, 0.06);
+}
+.hero::after {
+  width: 260px; height: 260px;
+  top: -80px; right: 180px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.hero-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 64px;
+  align-items: center;
+}
+
+.hero-badge {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  border-radius: 999px;
+  padding: 6px 18px;
+  font-size: 13px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 24px;
+}
+
+.hero h1 {
+  font-size: 52px;
+  font-weight: 700;
+  line-height: 1.12;
+  letter-spacing: -1px;
+  margin: 0 0 20px 0;
+}
+
+.hero h1 .accent { color: var(--accent-cyan); }
+
+.hero .tagline {
+  font-size: 20px;
+  font-weight: 300;
+  line-height: 1.55;
+  max-width: 640px;
+  color: var(--text-on-brand-dim);
+  margin: 0 0 36px 0;
+}
+
+.hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 16px;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  border: 2px solid transparent;
+}
+
+.btn:hover { transform: translateY(-2px); }
+
+.btn-primary {
+  background: var(--text-on-brand);
+  color: var(--brand-blue-deep);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.20);
+}
+.btn-primary:hover {
+  color: var(--brand-blue-deep);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-on-brand);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+.btn-secondary:hover {
+  color: var(--text-on-brand);
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.70);
+}
+
+/* Pill button: used for browse-all CTAs below section content.
+   The shine sweep is a ::after gradient that slides left-to-right
+   on hover. It is suppressed under prefers-reduced-motion.
+   Pattern adapted from aka.ms/apimlove, recoloured to our palette. */
+.btn-pill {
+  position: relative;
+  overflow: hidden;
+  display: inline-block;
+  padding: 12px 28px;
+  border-radius: var(--radius-pill);
+  background: var(--brand-blue);
+  color: var(--text-on-brand);
+  border: 2px solid var(--brand-blue);
+  font-size: 14px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  text-decoration: none;
+  box-shadow: 0 2px 6px rgba(0, 120, 212, 0.25);
+  transition: background-color var(--transition-card),
+              color var(--transition-card),
+              box-shadow var(--transition-card),
+              transform var(--transition-card);
+}
+
+.btn-pill:hover,
+.btn-pill:focus-visible {
+  background: transparent;
+  color: var(--brand-blue);
+  box-shadow: 0 4px 12px rgba(0, 120, 212, 0.35);
+  transform: translateY(-2px);
+}
+
+.btn-pill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  transition: left 0.5s ease;
+}
+
+.btn-pill:hover::after { left: 100%; }
+
+.section-cta {
+  text-align: center;
+  margin-top: 40px;
+}
+
+.hero-logo {
+  width: 220px;
+  border: 3px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.30);
+}
+
+@media (max-width: 900px) {
+  .hero { padding: 64px 0 80px; }
+  .hero-grid { grid-template-columns: 1fr; gap: 40px; }
+  .hero h1 { font-size: 40px; }
+  .hero .tagline { font-size: 18px; }
+  .hero-logo { width: 160px; order: -1; }
+}
+
+/* =========================================================================
+   Value proposition triptych
+   ========================================================================= */
+.value-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.value-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 32px 28px;
+  box-shadow: var(--shadow-card);
+}
+
+/* Icon is a gradient circle echoing the .step::before counter badge
+   further down the page, so the two sections share visual DNA.
+   The SVG child uses currentColor for fill/stroke; setting color
+   here paints it white against the gradient in one declaration. */
+.value-card .icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-dark));
+  color: var(--text-on-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(0, 120, 212, 0.30);
+}
+
+.value-card .icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.value-card h3 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 10px 0;
+  color: var(--brand-blue-deep);
+}
+
+.value-card p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+/* =========================================================================
+   Slide-deck callout
+   A slim banner that advertises the presentation-ready HTML slide deck.
+   Sits between the value triptych and the infrastructures grid.
+   Button deliberately reuses .btn.btn-primary (white on dark) from the
+   hero rather than inventing a new variant.
+   ========================================================================= */
+.deck-callout {
+  background: linear-gradient(135deg, var(--brand-blue-dark), var(--brand-blue-deep));
+  color: var(--text-on-brand);
+  padding: 44px 0;
+}
+
+.deck-callout-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.deck-callout-text { flex: 1 1 420px; min-width: 0; }
+
+.deck-callout h2 {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.3px;
+}
+
+.deck-callout p {
+  margin: 0;
+  color: var(--text-on-brand-dim);
+  font-size: 15px;
+}
+
+@media (max-width: 720px) {
+  .deck-callout { padding: 36px 0; }
+  .deck-callout-inner { flex-direction: column; align-items: flex-start; }
+}
+
+/* =========================================================================
+   Infrastructure cards
+   ========================================================================= */
+.infra-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 28px;
+}
+
+.infra-card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-card), box-shadow var(--transition-card), border-color var(--transition-card);
+}
+
+.infra-card:hover,
+.infra-card:focus-visible {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--brand-blue);
+  color: inherit;
+}
+
+.infra-card .diagram {
+  background: var(--surface-subtle);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.infra-card .diagram img {
+  max-height: 180px;
+  width: auto;
+  transition: transform var(--transition-card);
+}
+
+.infra-card:hover .diagram img,
+.infra-card:focus-visible .diagram img {
+  transform: scale(1.03);
+}
+
+.infra-card .body {
+  padding: 24px;
+  flex: 1;
+}
+
+.infra-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 10px 0;
+  color: var(--brand-blue-deep);
+}
+
+.infra-card p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.infra-card .pill {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--brand-blue);
+  color: var(--text-on-brand);
+  padding: 3px 10px;
+  border-radius: 999px;
+  margin-bottom: 12px;
+}
+
+/* =========================================================================
+   Sample cards
+   ========================================================================= */
+.sample-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.sample-card {
+  position: relative;
+  display: block;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--brand-blue);
+  border-radius: var(--radius-sm);
+  padding: 22px 24px;
+  text-decoration: none;
+  color: inherit;
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-card), box-shadow var(--transition-card), border-left-color var(--transition-card);
+}
+
+.sample-card:hover,
+.sample-card:focus-visible {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-card-hover);
+  border-left-color: var(--accent-cyan);
+  color: inherit;
+}
+
+.sample-card h3 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  padding-bottom: 10px;
+  border-bottom: 2px solid rgba(0, 120, 212, 0.12);
+  color: var(--brand-blue-deep);
+}
+
+.sample-card p {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.sample-card .infra-tag {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* =========================================================================
+   Quick start steps
+   ========================================================================= */
+.steps {
+  /* Kill the native <ol> marker — the counter badge in .step::before is the
+     only visible step number. list-style + padding + margin all reset because
+     user-agent stylesheets supply all three for <ol>. */
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  counter-reset: step;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+}
+
+.step {
+  position: relative;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 28px 24px 24px 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.step::before {
+  counter-increment: step;
+  content: counter(step);
+  position: absolute;
+  top: -18px;
+  left: 24px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-dark));
+  color: var(--text-on-brand);
+  font-weight: 700;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 120, 212, 0.40);
+}
+
+.step h3 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 8px 0 8px 0;
+  color: var(--brand-blue-deep);
+}
+
+.step p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.step code {
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: 13px;
+  background: var(--surface-subtle);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* =========================================================================
+   Footer
+   ========================================================================= */
+.footer {
+  background: var(--brand-blue-deep);
+  color: var(--text-on-brand-dim);
+  padding: 48px 0 32px;
+  position: relative;
+}
+
+.footer::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--brand-blue), var(--accent-cyan));
+}
+
+.footer-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 48px;
+  margin-bottom: 32px;
+}
+
+.footer h4 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 0 0 16px 0;
+  color: var(--text-on-brand);
+}
+
+.footer p { margin: 0 0 8px 0; font-size: 14px; }
+
+.footer ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.footer li { margin-bottom: 10px; font-size: 14px; }
+
+.footer a {
+  color: var(--text-on-brand-dim);
+  text-decoration: none;
+}
+.footer a:hover {
+  color: var(--accent-cyan);
+  text-decoration: underline;
+}
+
+.footer-bottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding-top: 24px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+@media (max-width: 720px) {
+  .footer-grid { grid-template-columns: 1fr; gap: 32px; }
+  .section { padding: 56px 0; }
+  .section-heading { font-size: 30px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; scroll-behavior: auto !important; }
+  .btn-pill::after { display: none; }
+}

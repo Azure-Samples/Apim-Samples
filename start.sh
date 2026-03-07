@@ -106,6 +106,7 @@ while true; do
   echo "Presentation"
   echo "  p) Serve & view presentation (auto-opens browser)"
   echo "  e) Export presentation as self-contained HTML"
+  echo "  w) Serve & view GitHub Pages website (auto-opens browser)"
   echo ""
   echo "Misc"
   echo "  0) Exit"
@@ -164,6 +165,9 @@ while true; do
       ;;
     e)
       run_cmd pyrun "${REPO_ROOT}/setup/export_presentation.py"
+      ;;
+    w)
+      run_cmd pyrun "${REPO_ROOT}/setup/serve_website.py"
       ;;
     0)
       echo ""

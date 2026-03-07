@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sitemap for https://azure-samples.github.io/Apim-Samples/
+
+  The landing page is the only URL on this origin. Sample and infrastructure
+  deep-links live on github.com, which runs its own sitemap; listing them
+  here would be cross-origin and ignored.
+
+  <lastmod> is intentionally omitted. The page republishes on every push
+  to main, and a hand-edited date would drift within days. Search engines
+  fall back to the HTTP Last-Modified header, which GitHub Pages sets
+  correctly from the artifact timestamp.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://azure-samples.github.io/Apim-Samples/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

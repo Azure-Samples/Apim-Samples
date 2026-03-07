@@ -1,0 +1,10 @@
+# robots.txt for https://azure-samples.github.io/Apim-Samples/
+#
+# Everything on this site is public marketing content. No admin areas,
+# no search pages, no duplicate-content traps — nothing to disallow.
+# The sole purpose of this file is to hand crawlers the sitemap.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://azure-samples.github.io/Apim-Samples/sitemap.xml

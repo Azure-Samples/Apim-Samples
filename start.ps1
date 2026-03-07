@@ -142,6 +142,7 @@ while ($true) {
     Write-Host "Presentation" -ForegroundColor Yellow
     Write-Host "  p) Serve & view presentation (auto-opens browser)"
     Write-Host "  e) Export presentation as self-contained HTML"
+    Write-Host "  w) Serve & view GitHub Pages website (auto-opens browser)"
     Write-Host ""
     Write-Host "Misc" -ForegroundColor Yellow
     Write-Host "  0) Exit"
@@ -199,6 +200,9 @@ while ($true) {
         }
         'e' {
             $null = PyRun "$RepoRoot/setup/export_presentation.py"
+        }
+        'w' {
+            $null = PyRun "$RepoRoot/setup/serve_website.py"
         }
         '0' {
             Write-Host ""

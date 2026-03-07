@@ -1,0 +1,121 @@
+name: GitHub Pages
+
+# Publishes the static landing page at https://azure-samples.github.io/Apim-Samples/
+# The site source lives in /docs and pulls images from /assets at build time.
+# See docs/README.md for local preview instructions and the upkeep checklist.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      # Only rebuild when something that actually lands on the page changes.
+      - 'docs/**'
+      - 'assets/APIM-Samples.png'
+      - 'assets/APIM-Samples-Slide-Deck.html'
+      - 'assets/favicon-*.png'
+      - 'assets/apple-touch-icon.png'
+      - 'assets/android-chrome-*.png'
+      - 'assets/site.webmanifest'
+      - 'assets/diagrams/*.svg'
+      - 'setup/export_presentation.py'
+      - '.github/workflows/github-pages.yml'
+
+# Top-level default is read-only. The deploy job elevates only what GitHub
+# Pages needs (pages:write + id-token:write for the OIDC deploy token).
+permissions:
+  contents: read
+
+# Only one Pages deployment at a time. Newer pushes supersede in-flight ones,
+# but do not cancel a deploy that is already rolling out.
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Configure Pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
+
+      # Build the self-contained slide deck (all images inlined) so it can be
+      # served as a single file at /slide-deck.html. The export script is
+      # stdlib-only, so the runner's pre-installed Python is sufficient.
+      - name: Export self-contained slide deck
+        run: python3 setup/export_presentation.py
+
+      # The HTML references images at ./assets/... — stage them next to
+      # index.html so the uploaded artifact is entirely self-contained.
+      # Diagram SVGs are renamed to short, URL-safe slugs in the process.
+      - name: Stage site artifact
+        run: |
+          set -euo pipefail
+
+          mkdir -p _site/assets/diagrams
+
+          cp docs/index.html  _site/index.html
+          cp docs/styles.css  _site/styles.css
+          cp docs/robots.txt  _site/robots.txt
+          cp docs/sitemap.xml _site/sitemap.xml
+
+          # Self-contained slide deck (built by the previous step)
+          cp build/APIM-Samples-Slide-Deck.html _site/slide-deck.html
+
+          # Brand assets
+          cp assets/APIM-Samples.png _site/assets/apim-samples-logo.png
+
+          # Favicon set + web app manifest. All six land flat in _site/assets/
+          # because site.webmanifest resolves its icon src paths relative to
+          # the manifest URL, not the page -- the android-chrome PNGs must be
+          # siblings of the manifest file.
+          cp assets/apple-touch-icon.png       _site/assets/apple-touch-icon.png
+          cp assets/favicon-32x32.png          _site/assets/favicon-32x32.png
+          cp assets/favicon-16x16.png          _site/assets/favicon-16x16.png
+          cp assets/site.webmanifest           _site/assets/site.webmanifest
+          cp assets/android-chrome-192x192.png _site/assets/android-chrome-192x192.png
+          cp assets/android-chrome-512x512.png _site/assets/android-chrome-512x512.png
+
+          # Architecture diagrams (slugified -> matches <img src> in index.html)
+          cp "assets/diagrams/Simple API Management Architecture.svg" \
+             _site/assets/diagrams/simple-apim.svg
+          cp "assets/diagrams/API Management & Container Apps Architecture.svg" \
+             _site/assets/diagrams/apim-aca.svg
+          cp "assets/diagrams/Azure Front Door, API Management & Container Apps Architecture.svg" \
+             _site/assets/diagrams/afd-apim-pe.svg
+          cp "assets/diagrams/Azure Application Gateway, API Management & Container Apps Architecture.svg" \
+             _site/assets/diagrams/appgw-apim-pe.svg
+          cp "assets/diagrams/Azure Application Gateway, API Management & Container Apps Architecture VNet.svg" \
+             _site/assets/diagrams/appgw-apim.svg
+
+          # github.io does not need Jekyll processing for a plain HTML site.
+          touch _site/.nojekyll
+
+          echo "Staged artifact contents:"
+          find _site -type f -printf '  %p\n'
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4.0.0
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy site
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write      # to push to the Pages deployment
+      id-token: write   # to mint the OIDC token actions/deploy-pages needs
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5

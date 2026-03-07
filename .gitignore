@@ -21,6 +21,7 @@ labs-in-progress/
 
 # Build exports
 /build/
+/_site/
 
 # Misc
 *.log
