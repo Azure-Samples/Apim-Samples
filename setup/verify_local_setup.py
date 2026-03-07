@@ -17,12 +17,12 @@ emits a suggested fix for any failed check. Checks include:
 Run after setup (local or devcontainer) to ensure everything is working.
 """
 
-import sys
-import subprocess
-import os
 import io
 import json
+import os
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 # Configure UTF-8 encoding for console output
@@ -305,6 +305,47 @@ def check_azure_providers():
         return False, 'Log in then retry: az login --tenant <tenant> && az account set --subscription <subscription>'
 
 
+def check_git_notebook_filter():
+    """Check if the notebook-metadata git clean filter is configured.
+
+    Option 1 (Complete environment setup) configures ``filter.notebook-metadata.clean``
+    so that notebook kernel metadata is normalized on ``git add``. Without it, a
+    contributor's local kernel name and Python version will leak into committed
+    notebooks. ``.gitattributes`` references this filter for ``*.ipynb``.
+    """
+    git_path = shutil.which('git')
+    if not git_path:
+        return False, 'Install Git: https://git-scm.com/downloads'
+
+    expected_clean = 'python setup/normalize_notebook_metadata.py'
+    expected_smudge = 'cat'
+    fix = "Run 'Complete environment setup' in the Developer CLI (or: python setup/local_setup.py --complete-setup)"
+
+    try:
+        clean = subprocess.run(
+            [git_path, 'config', '--get', 'filter.notebook-metadata.clean'],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        smudge = subprocess.run(
+            [git_path, 'config', '--get', 'filter.notebook-metadata.smudge'],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except subprocess.CalledProcessError:
+        # git config --get exits non-zero when the key is unset.
+        return False, fix
+    except FileNotFoundError:
+        return False, 'Install Git: https://git-scm.com/downloads'
+
+    if clean != expected_clean or smudge != expected_smudge:
+        return False, f'{fix} (found clean="{clean}", smudge="{smudge}")'
+
+    return True, ''
+
+
 def main():
     """Run all verification checks."""
     print('🔍 APIM Samples Local Environment Verification')
@@ -322,6 +363,7 @@ def main():
         ('Azure Providers', check_azure_providers),
         ('Jupyter Kernel', check_jupyter_kernel),
         ('VS Code Settings', check_vscode_settings),
+        ('Git Notebook Filter', check_git_notebook_filter),
     ]
 
     results = []
