@@ -414,10 +414,26 @@ img { max-width: 100%; height: auto; }
   box-shadow: var(--shadow-card);
 }
 
+/* Icon is a gradient circle echoing the .step::before counter badge
+   further down the page, so the two sections share visual DNA.
+   The SVG child uses currentColor for fill/stroke; setting color
+   here paints it white against the gradient in one declaration. */
 .value-card .icon {
-  font-size: 32px;
-  line-height: 1;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-blue), var(--brand-blue-dark));
+  color: var(--text-on-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 16px;
+  box-shadow: 0 4px 12px rgba(0, 120, 212, 0.30);
+}
+
+.value-card .icon svg {
+  width: 24px;
+  height: 24px;
 }
 
 .value-card h3 {

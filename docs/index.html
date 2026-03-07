@@ -49,6 +49,13 @@
   <meta property="og:url" content="https://azure-samples.github.io/Apim-Samples/">
   <meta property="og:image" content="https://azure-samples.github.io/Apim-Samples/assets/apim-samples-logo.png">
   <meta property="og:image:alt" content="APIM Samples logo: the Azure API Management icon inside a laboratory flask">
+  <!-- Declaring the actual pixel dimensions lets the Facebook / LinkedIn
+       crawler lay out the unfurl card before it has fetched the image,
+       which avoids the grey placeholder flash on first share. Measured
+       from assets/APIM-Samples.png (staged as apim-samples-logo.png). -->
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="664">
+  <meta property="og:image:height" content="543">
   <meta property="og:locale" content="en_US">
 
   <!-- Twitter / X card -->
@@ -162,17 +169,25 @@
              no build step. Shields caches each badge CDN-side for ~5 min.
              color=0078D4 matches --brand-blue; hidden under 720px along
              with the in-page anchors so the sticky nav stays compact. -->
+        <!-- Every external link on this page uses target="_blank" rel="noopener".
+             rel is deliberately noopener ONLY:
+             - noreferrer would strip the Referer header, so GitHub
+               analytics would not see this landing page as a traffic source.
+             - nofollow would tell crawlers not to pass link equity to the
+               destination, which is the opposite of what we want for our
+               own repo links.
+             noopener by itself severs window.opener and costs nothing. -->
         <span class="topnav-stats">
-          <a href="https://github.com/Azure-Samples/Apim-Samples/stargazers" aria-label="GitHub stargazers">
+          <a href="https://github.com/Azure-Samples/Apim-Samples/stargazers" target="_blank" rel="noopener" aria-label="GitHub stargazers">
             <img src="https://img.shields.io/github/stars/Azure-Samples/Apim-Samples?style=flat-square&amp;logo=github&amp;logoColor=white&amp;label=Stars&amp;color=0078D4"
                  alt="GitHub star count">
           </a>
-          <a href="https://github.com/Azure-Samples/Apim-Samples/forks" aria-label="GitHub forks">
+          <a href="https://github.com/Azure-Samples/Apim-Samples/forks" target="_blank" rel="noopener" aria-label="GitHub forks">
             <img src="https://img.shields.io/github/forks/Azure-Samples/Apim-Samples?style=flat-square&amp;logo=github&amp;logoColor=white&amp;label=Forks&amp;color=0078D4"
                  alt="GitHub fork count">
           </a>
         </span>
-        <a class="github" href="https://github.com/Azure-Samples/Apim-Samples">View on GitHub</a>
+        <a class="github" href="https://github.com/Azure-Samples/Apim-Samples" target="_blank" rel="noopener">View on GitHub</a>
       </div>
     </div>
   </nav>
@@ -191,11 +206,13 @@
         </p>
         <div class="hero-cta">
           <a class="btn btn-primary"
-             href="https://codespaces.new/Azure-Samples/Apim-Samples?devcontainer_path=.devcontainer%2Fpython314%2Fdevcontainer.json">
+             href="https://codespaces.new/Azure-Samples/Apim-Samples?devcontainer_path=.devcontainer%2Fpython314%2Fdevcontainer.json"
+             target="_blank" rel="noopener">
             Open in GitHub Codespaces
           </a>
           <a class="btn btn-secondary"
-             href="https://github.com/Azure-Samples/Apim-Samples#-getting-started">
+             href="https://github.com/Azure-Samples/Apim-Samples#-getting-started"
+             target="_blank" rel="noopener">
             Getting Started Guide
           </a>
         </div>
@@ -215,15 +232,33 @@
         <h2 id="value-heading" class="visually-hidden">Why APIM Samples</h2>
         <div class="value-grid">
           <article class="value-card">
-            <div class="icon" aria-hidden="true">🏗</div>
+            <!-- Inline SVG, not emoji: the building-construction and
+                 fork-and-plate emoji default to monochrome text
+                 presentation on most platforms, and this repo forbids
+                 emoji variation selectors, so there is no portable
+                 path to colour. currentColor inherits from .icon. -->
+            <div class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <rect x="8" y="2" width="8" height="6" rx="1"/>
+                <rect x="2" y="16" width="8" height="6" rx="1"/>
+                <rect x="14" y="16" width="8" height="6" rx="1"/>
+                <path d="M11 8v3H6v5h2v-3h8v3h2v-5h-5V8z"/>
+              </svg>
+            </div>
             <h3>Infrastructures</h3>
             <p>
-              Five pre-built Azure architectures from a simple public APIM instance through to Front Door,
+              Five pre-built Azure architectures, from a simple public APIM instance through to Front Door,
               Application Gateway, Private Link, and VNet-injected designs.
             </p>
           </article>
           <article class="value-card">
-            <div class="icon" aria-hidden="true">🧪</div>
+            <div class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 3v6L4 20h16L14 9V3"/>
+                <path d="M8.5 3h7"/>
+                <path d="M7 14h10"/>
+              </svg>
+            </div>
             <h3>Samples</h3>
             <p>
               Real-world policy examples covering authentication, load balancing, cost allocation, OAuth
@@ -231,7 +266,20 @@
             </p>
           </article>
           <article class="value-card">
-            <div class="icon" aria-hidden="true">🍽</div>
+            <div class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 5l2 2 4-4"/>
+                  <path d="M3 12l2 2 4-4"/>
+                  <path d="M3 19l2 2 4-4"/>
+                </g>
+                <g fill="currentColor">
+                  <rect x="12" y="4" width="9" height="2" rx="1"/>
+                  <rect x="12" y="11" width="9" height="2" rx="1"/>
+                  <rect x="12" y="18" width="9" height="2" rx="1"/>
+                </g>
+              </svg>
+            </div>
             <h3>À la carte</h3>
             <p>
               Most samples run on any infrastructure. Pick the architecture you care about, then layer the
@@ -278,7 +326,7 @@
 
         <div class="infra-grid">
 
-          <a class="infra-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/simple-apim">
+          <a class="infra-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/simple-apim" target="_blank" rel="noopener">
             <div class="diagram">
               <img src="./assets/diagrams/simple-apim.svg"
                    alt="Architecture diagram: a single publicly accessible Azure API Management instance fronting backend APIs">
@@ -293,7 +341,7 @@
             </div>
           </a>
 
-          <a class="infra-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/apim-aca">
+          <a class="infra-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/apim-aca" target="_blank" rel="noopener">
             <div class="diagram">
               <img src="./assets/diagrams/apim-aca.svg"
                    alt="Architecture diagram: Azure API Management routing to APIs hosted in Azure Container Apps">
@@ -307,7 +355,7 @@
             </div>
           </a>
 
-          <a class="infra-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/afd-apim-pe">
+          <a class="infra-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/afd-apim-pe" target="_blank" rel="noopener">
             <div class="diagram">
               <img src="./assets/diagrams/afd-apim-pe.svg"
                    alt="Architecture diagram: Azure Front Door connecting to API Management through a Private Link connection, with VNet-integrated Container Apps backends">
@@ -322,7 +370,7 @@
             </div>
           </a>
 
-          <a class="infra-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/appgw-apim-pe">
+          <a class="infra-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/appgw-apim-pe" target="_blank" rel="noopener">
             <div class="diagram">
               <img src="./assets/diagrams/appgw-apim-pe.svg"
                    alt="Architecture diagram: Azure Application Gateway connecting to API Management through a private endpoint in a virtual network subnet">
@@ -337,7 +385,7 @@
             </div>
           </a>
 
-          <a class="infra-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/appgw-apim">
+          <a class="infra-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/appgw-apim" target="_blank" rel="noopener">
             <div class="diagram">
               <img src="./assets/diagrams/appgw-apim.svg"
                    alt="Architecture diagram: Azure Application Gateway with a fully VNet-injected API Management instance and Container Apps environment">
@@ -355,7 +403,7 @@
         </div>
 
         <div class="section-cta">
-          <a class="btn-pill" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure">
+          <a class="btn-pill" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure" target="_blank" rel="noopener">
             Browse all infrastructures on GitHub
           </a>
         </div>
@@ -371,55 +419,55 @@
         <h2 id="samples-heading" class="section-heading">Samples</h2>
         <p class="section-lede">
           Each sample is a focused, runnable lab. Open the notebook, press <em>Run All</em>, then poke at
-          the policies. If an infrastructure is not already deployed the notebook will guide you through
+          the policies. If an infrastructure is not already deployed, the notebook will guide you through
           creating one.
         </p>
 
         <div class="sample-grid">
 
-          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/general">
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/general" target="_blank" rel="noopener">
             <h3>General</h3>
             <p>Basic demonstration of sample setup and policy usage. The best first stop.</p>
             <span class="infra-tag">All infrastructures</span>
           </a>
 
-          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/authX">
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/authX" target="_blank" rel="noopener">
             <h3>AuthX</h3>
             <p>Authentication and role-based authorisation against a mock HR API using JWT validation.</p>
             <span class="infra-tag">All infrastructures</span>
           </a>
 
-          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/authX-pro">
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/authX-pro" target="_blank" rel="noopener">
             <h3>AuthX Pro</h3>
             <p>Advanced authentication across multiple APIs with reusable policy fragments and an APIM product.</p>
             <span class="infra-tag">All infrastructures</span>
           </a>
 
-          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/load-balancing">
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/load-balancing" target="_blank" rel="noopener">
             <h3>Load Balancing</h3>
             <p>Priority and weighted load balancing across backend pools for resilience and blue-green rollouts.</p>
             <span class="infra-tag">apim-aca · afd-apim-pe</span>
           </a>
 
-          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/costing">
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/costing" target="_blank" rel="noopener">
             <h3>Costing &amp; Showback</h3>
             <p>Track and allocate API costs per business unit using subscriptions, Log Analytics, and Cost Management.</p>
             <span class="infra-tag">All infrastructures</span>
           </a>
 
-          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/oauth-3rd-party">
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/oauth-3rd-party" target="_blank" rel="noopener">
             <h3>Credential Manager (Spotify)</h3>
             <p>APIM stores and manages third-party OAuth tokens on the caller's behalf using Credential Manager.</p>
             <span class="infra-tag">All infrastructures</span>
           </a>
 
-          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/secure-blob-access">
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/secure-blob-access" target="_blank" rel="noopener">
             <h3>Secure Blob Access</h3>
             <p>Valet key pattern: APIM mints short-lived SAS tokens so callers never see storage credentials.</p>
             <span class="infra-tag">All infrastructures</span>
           </a>
 
-          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/azure-maps">
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/azure-maps" target="_blank" rel="noopener">
             <h3>Azure Maps</h3>
             <p>Proxy and shape calls to Azure Maps through APIM to centralise keys, quotas, and telemetry.</p>
             <span class="infra-tag">All infrastructures</span>
@@ -428,7 +476,7 @@
         </div>
 
         <div class="section-cta">
-          <a class="btn-pill" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples">
+          <a class="btn-pill" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples" target="_blank" rel="noopener">
             Browse all samples on GitHub
           </a>
         </div>
@@ -499,19 +547,19 @@
         <div>
           <h4>Repository</h4>
           <ul>
-            <li><a href="https://github.com/Azure-Samples/Apim-Samples">Source on GitHub</a></li>
-            <li><a href="https://github.com/Azure-Samples/Apim-Samples/blob/main/CONTRIBUTING.md">Contributing</a></li>
-            <li><a href="https://github.com/Azure-Samples/Apim-Samples/blob/main/TROUBLESHOOTING.md">Troubleshooting</a></li>
-            <li><a href="https://github.com/Azure-Samples/Apim-Samples/blob/main/LICENSE">License</a></li>
+            <li><a href="https://github.com/Azure-Samples/Apim-Samples" target="_blank" rel="noopener">Source on GitHub</a></li>
+            <li><a href="https://github.com/Azure-Samples/Apim-Samples/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a></li>
+            <li><a href="https://github.com/Azure-Samples/Apim-Samples/blob/main/TROUBLESHOOTING.md" target="_blank" rel="noopener">Troubleshooting</a></li>
+            <li><a href="https://github.com/Azure-Samples/Apim-Samples/blob/main/LICENSE" target="_blank" rel="noopener">License</a></li>
           </ul>
         </div>
         <div>
           <h4>Learn More</h4>
           <ul>
-            <li><a href="https://learn.microsoft.com/azure/api-management/">API Management docs</a></li>
-            <li><a href="https://github.com/Azure-Samples/AI-Gateway">AI Gateway repository</a></li>
-            <li><a href="https://github.com/Azure/api-management-policy-snippets">Policy snippets</a></li>
-            <li><a href="https://aka.ms/apimlove">APIM Love</a></li>
+            <li><a href="https://learn.microsoft.com/azure/api-management/" target="_blank" rel="noopener">API Management docs</a></li>
+            <li><a href="https://github.com/Azure-Samples/AI-Gateway" target="_blank" rel="noopener">AI Gateway repository</a></li>
+            <li><a href="https://github.com/Azure/api-management-policy-snippets" target="_blank" rel="noopener">Policy snippets</a></li>
+            <li><a href="https://aka.ms/apimlove" target="_blank" rel="noopener">APIM Love</a></li>
           </ul>
         </div>
       </div>
