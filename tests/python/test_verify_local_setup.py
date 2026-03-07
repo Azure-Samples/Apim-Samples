@@ -9,7 +9,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
-from typing import Any, TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import Mock, patch
 
 import pytest
@@ -668,6 +668,86 @@ def test_check_azure_providers_json_error() -> None:
 
 
 # ============================================================
+# Tests for check_git_notebook_filter
+# ============================================================
+
+
+def _git_config_side_effect(clean: str | Exception, smudge: str | Exception):
+    """Build a subprocess.run side_effect that answers git config --get calls."""
+
+    def _run(cmd, **kwargs):
+        key = cmd[-1]
+        value = clean if key == 'filter.notebook-metadata.clean' else smudge
+        if isinstance(value, Exception):
+            raise value
+        return Mock(stdout=f'{value}\n', returncode=0)
+
+    return _run
+
+
+def test_check_git_notebook_filter_git_missing() -> None:
+    """Git notebook filter check should fail when git is not on PATH."""
+    with patch('shutil.which', return_value=None):
+        ok, fix = vls.check_git_notebook_filter()
+        assert ok is False
+        assert 'Install Git' in fix
+
+
+def test_check_git_notebook_filter_configured() -> None:
+    """Git notebook filter check should pass when clean and smudge match expected values."""
+    side_effect = _git_config_side_effect(
+        clean='python setup/normalize_notebook_metadata.py',
+        smudge='cat',
+    )
+    with patch('shutil.which', return_value='/usr/bin/git'):
+        with patch('subprocess.run', side_effect=side_effect):
+            ok, fix = vls.check_git_notebook_filter()
+            assert ok is True
+            assert not fix
+
+
+def test_check_git_notebook_filter_not_configured() -> None:
+    """Git notebook filter check should fail when git config key is unset (exit 1)."""
+    with patch('shutil.which', return_value='/usr/bin/git'):
+        with patch('subprocess.run', side_effect=subprocess.CalledProcessError(1, 'git')):
+            ok, fix = vls.check_git_notebook_filter()
+            assert ok is False
+            assert 'Complete environment setup' in fix
+
+
+def test_check_git_notebook_filter_wrong_clean_value() -> None:
+    """Git notebook filter check should fail when clean filter points to something unexpected."""
+    side_effect = _git_config_side_effect(clean='nbstripout', smudge='cat')
+    with patch('shutil.which', return_value='/usr/bin/git'):
+        with patch('subprocess.run', side_effect=side_effect):
+            ok, fix = vls.check_git_notebook_filter()
+            assert ok is False
+            assert 'nbstripout' in fix
+
+
+def test_check_git_notebook_filter_wrong_smudge_value() -> None:
+    """Git notebook filter check should fail when smudge filter is not 'cat'."""
+    side_effect = _git_config_side_effect(
+        clean='python setup/normalize_notebook_metadata.py',
+        smudge='python something_else.py',
+    )
+    with patch('shutil.which', return_value='/usr/bin/git'):
+        with patch('subprocess.run', side_effect=side_effect):
+            ok, fix = vls.check_git_notebook_filter()
+            assert ok is False
+            assert 'something_else' in fix
+
+
+def test_check_git_notebook_filter_git_exec_missing() -> None:
+    """Git notebook filter check should fail gracefully when git disappears between which() and run()."""
+    with patch('shutil.which', return_value='/usr/bin/git'):
+        with patch('subprocess.run', side_effect=FileNotFoundError()):
+            ok, fix = vls.check_git_notebook_filter()
+            assert ok is False
+            assert 'Install Git' in fix
+
+
+# ============================================================
 # Tests for main function
 # ============================================================
 
@@ -686,6 +766,7 @@ def _mock_all_checks(monkeypatch: pytest.MonkeyPatch, **overrides: tuple[bool, s
         'check_azure_providers': (True, ''),
         'check_jupyter_kernel': (True, ''),
         'check_vscode_settings': (True, ''),
+        'check_git_notebook_filter': (True, ''),
     }
     defaults.update(overrides)
     for check_name, result in defaults.items():
