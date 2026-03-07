@@ -36,14 +36,15 @@ exclude = ["*.ipynb"]
 
 [tool.ruff.lint]
 select = [
-  "E",    # pycodestyle errors
-  "W",    # pycodestyle warnings
-  "F",    # Pyflakes
-  "PLC",  # Pylint convention
-  "PLE",  # Pylint error
-  "PLR",  # Pylint refactoring
-  "PLW",  # Pylint warning
-  "Q",    # flake8-quotes
+  "E",        # pycodestyle errors
+  "W",        # pycodestyle warnings
+  "F",        # Pyflakes
+  "PLC",      # Pylint convention
+  "PLC0415",  # import-outside-toplevel (explicit; enforce imports at top of file/cell)
+  "PLE",      # Pylint error
+  "PLR",      # Pylint refactoring
+  "PLW",      # Pylint warning
+  "Q",        # flake8-quotes
 ]
 ignore = [
   "PLR0911",  # Too many return statements

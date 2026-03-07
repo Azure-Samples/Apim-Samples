@@ -20,6 +20,7 @@ This ensures all code changes comply with the project's linting standards from t
 - Use explicit imports (avoid `from module import *`), especially in notebooks, to prevent `F403/F405`.
 - Keep lines within the configured length limit (see `pyproject.toml`), and wrap long strings or calls.
 - Avoid f-strings without placeholders (e.g., `F541`).
+- **Ruff gap:** `PLC0415` (`import-outside-toplevel`) only flags imports inside functions and classes. It does **not** flag imports inside module-level `if` / `else` / `try` blocks. Ruff will not catch those, so the top-of-file import rule below must be enforced manually.
 
 ## Goals
 
@@ -35,7 +36,7 @@ This ensures all code changes comply with the project's linting standards from t
 ## Style and Conventions
 
 - Prefer Python 3.12+ features unless otherwise required.
-- Keep all imports at the top of the file.
+- Keep **all** imports at the top of the file. Do not place `import` statements inside `if` / `else` / `try` blocks or inside functions. Hoist them even when only one branch uses the module. Ruff `PLC0415` will catch function-scope imports but will **not** catch imports inside module-level conditional blocks, so apply this rule manually.
 - Use type hints and concise docstrings (PEP 257).
 - Use 4-space indentation and PEP 8 conventions.
 - Surround an equal sign by a space on each side.
