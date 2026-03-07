@@ -87,15 +87,19 @@ $TestExitCode = $LASTEXITCODE
 $TotalTests = 0
 $PassedTests = 0
 $FailedTests = 0
+$WarningCount = 0
 
 foreach ($Line in $TestOutput) {
     $LineStr = $Line.ToString()
-    # Look for pytest summary line like "908 passed, 9 failed in 26.76s"
+    # Look for pytest summary line like "908 passed, 9 failed, 4 warnings in 26.76s"
     if ($LineStr -match '(\d+)\s+passed') {
         $PassedTests = [int]::Parse($matches[1])
     }
     if ($LineStr -match '(\d+)\s+failed') {
         $FailedTests = [int]::Parse($matches[1])
+    }
+    if ($LineStr -match '(\d+)\s+warning') {
+        $WarningCount = [int]::Parse($matches[1])
     }
 }
 
@@ -243,13 +247,29 @@ if ($TotalTests -gt 0) {
     $PassedPercentStr = "{0,6:F2}" -f $PassedPercent
     $FailedPercentStr = "{0,6:F2}" -f $FailedPercent
 
-    Write-Host "            • Total  : $TotalPadded" -ForegroundColor Gray
-    Write-Host "            • Passed : $PassedPadded (" -ForegroundColor Gray -NoNewline
+    Write-Host "            • Total    : $TotalPadded" -ForegroundColor Gray
+    Write-Host "            • Passed   : $PassedPadded (" -ForegroundColor Gray -NoNewline
     Write-Host $PassedPercentStr -ForegroundColor Gray -NoNewline
     Write-Host "%)" -ForegroundColor Gray
-    Write-Host "            • Failed : $FailedPadded (" -ForegroundColor Gray -NoNewline
+    Write-Host "            • Failed   : $FailedPadded (" -ForegroundColor Gray -NoNewline
     Write-Host $FailedPercentStr -ForegroundColor Gray -NoNewline
     Write-Host "%)" -ForegroundColor Gray
+    if ($WarningCount -gt 0) {
+        $WarningPadded = "{0,5}" -f $WarningCount
+        $WarningPercent = ($WarningCount / $TotalTests * 100)
+        $WarningPercentStr = "{0,6:F2}" -f $WarningPercent
+        Write-Host "            • Warnings : $WarningPadded (" -ForegroundColor Yellow -NoNewline
+        Write-Host $WarningPercentStr -ForegroundColor Yellow -NoNewline
+        Write-Host "%)" -ForegroundColor Yellow
+    }
+}
+
+# Display code coverage
+if ($CoveragePercent -ne $null) {
+    Write-Host "Coverage : " -NoNewline
+    Write-Host "📊 " -NoNewline
+    Write-Host ("{0:F2}" -f $CoveragePercent) -ForegroundColor Cyan -NoNewline
+    Write-Host "%" -ForegroundColor Cyan
 }
 
 # Display Bicep status with file count
@@ -262,14 +282,6 @@ if ($BicepFileCount -ne $null) {
     Write-Host ")" -ForegroundColor Gray
 } else {
     Write-Host ""
-}
-
-# Display code coverage
-if ($CoveragePercent -ne $null) {
-    Write-Host "Coverage : " -NoNewline
-    Write-Host "📊 " -NoNewline
-    Write-Host ("{0:F2}" -f $CoveragePercent) -ForegroundColor Cyan -NoNewline
-    Write-Host "%" -ForegroundColor Cyan
 }
 
 # Display slow tests warning if detected

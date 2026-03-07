@@ -77,6 +77,7 @@ echo "$TEST_OUTPUT"
 # Parse test results from output
 PASSED_TESTS=$(echo "$TEST_OUTPUT" | grep -oE '[0-9]+ passed' | head -1 | grep -oE '[0-9]+' || echo "0")
 FAILED_TESTS=$(echo "$TEST_OUTPUT" | grep -oE '[0-9]+ failed' | head -1 | grep -oE '[0-9]+' || echo "0")
+WARNING_COUNT=$(echo "$TEST_OUTPUT" | grep -oE '[0-9]+ warning' | head -1 | grep -oE '[0-9]+' || echo "0")
 TOTAL_TESTS=$((PASSED_TESTS + FAILED_TESTS))
 
 # Parse coverage from pytest output (e.g., "TOTAL ... 95%")
@@ -174,9 +175,18 @@ if [ $TOTAL_TESTS -gt 0 ]; then
     FAILED_PERCENT=$(echo "$FAILED_TESTS $TOTAL_TESTS" | awk '{printf "%.2f", ($1 / $2 * 100)}')
 
     # Right-align numbers with padding
-    printf "            • Total  : %5d\n" "$TOTAL_TESTS"
-    printf "            • Passed : %5d (%6.2f%%)\n" "$PASSED_TESTS" "$PASSED_PERCENT"
-    printf "            • Failed : %5d (%6.2f%%)\n" "$FAILED_TESTS" "$FAILED_PERCENT"
+    printf "            • Total    : %5d\n" "$TOTAL_TESTS"
+    printf "            • Passed   : %5d (%6.2f%%)\n" "$PASSED_TESTS" "$PASSED_PERCENT"
+    printf "            • Failed   : %5d (%6.2f%%)\n" "$FAILED_TESTS" "$FAILED_PERCENT"
+    if [ "$WARNING_COUNT" -gt 0 ]; then
+        WARNING_PERCENT=$(echo "$WARNING_COUNT $TOTAL_TESTS" | awk '{printf "%.2f", ($1 / $2 * 100)}')
+        printf "            \e[33m• Warnings : %5d (%6.2f%%)\e[0m\n" "$WARNING_COUNT" "$WARNING_PERCENT"
+    fi
+fi
+
+# Display code coverage
+if [ -n "$COVERAGE_PERCENT" ]; then
+    echo "Coverage : 📊 ${COVERAGE_PERCENT}"
 fi
 
 # Display Bicep status with file count
@@ -187,11 +197,6 @@ else
 fi
 if [ -n "$BICEP_FILE_COUNT" ]; then
     echo "             ($BICEP_FILE_COUNT files)"
-fi
-
-# Display code coverage
-if [ -n "$COVERAGE_PERCENT" ]; then
-    echo "Coverage : 📊 ${COVERAGE_PERCENT}"
 fi
 
 # Display slow tests warning if detected
