@@ -71,14 +71,21 @@ resource apimService 'Microsoft.ApiManagement/service@2024-06-01-preview' existi
 }
 
 // APIM APIs
+// Use the costing sample's own App Insights logger so that emit-metric
+// custom metrics (caller-requests, caller-tokens) flow to the costing
+// App Insights resource instead of the infrastructure-level one.
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(!empty(apis)) {
   name: 'api-${api.name}'
   params: {
     apimName: apimName
+    apimLoggerName: 'applicationinsights-logger'
     appInsightsInstrumentationKey: appInsightsInstrKey
     appInsightsId: appInsightsResourceId
     api: api
   }
+  dependsOn: [
+    apimDiagnosticsModule
+  ]
 }]
 
 // Create subscriptions for different business units
@@ -179,6 +186,12 @@ module apimDiagnosticsModule '../../shared/bicep/modules/apim/v1/diagnostics.bic
 }
 
 
+// The workbook JSON contains '__APP_INSIGHTS_NAME__' tokens in cross-resource
+// KQL queries (Entra ID tab). Replace them with the actual App Insights name
+// so the app() function resolves correctly at runtime.
+var rawWorkbookJson = string(loadJsonContent('workbook.json'))
+var workbookJsonWithAppInsights = replace(rawWorkbookJson, '__APP_INSIGHTS_NAME__', applicationInsightsName)
+
 // https://learn.microsoft.com/azure/templates/microsoft.insights/workbooks
 resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = if (enableLogAnalytics) {
   name: guid(resourceGroup().id, 'apim-costing-workbook', string(index))
@@ -186,7 +199,7 @@ resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = if (enableLogAnaly
   kind: 'shared'
   properties: {
     displayName: workbookName
-    serializedData: string(loadJsonContent('workbook.json'))
+    serializedData: workbookJsonWithAppInsights
     version: '1.0'
     #disable-next-line BCP318
     sourceId: enableLogAnalytics ? logAnalyticsModule.outputs.id : ''
@@ -264,4 +277,10 @@ output costExportName string = costExportOutputName
 output subscriptionKeys array = [for (bu, i) in businessUnits: {
   name: bu.name
   primaryKey: listSecrets(subscriptions[i].id, '2024-06-01-preview').primaryKey
+}]
+
+@description('Per-API subscription keys (created by the shared api.bicep module)')
+output apiSubscriptionKeys array = [for (api, i) in apis: {
+  name: api.name
+  primaryKey: apisModule[i].outputs.subscriptionPrimaryKey
 }]

@@ -1,6 +1,6 @@
 # Samples: APIM Costing & Showback
 
-This sample demonstrates how to track and allocate API costs using Azure API Management with Azure Monitor, Application Insights, Log Analytics, and Cost Management. This setup enables organizations to determine the cost of API consumption per business unit, department, or application.
+This sample demonstrates how to track and allocate API costs using Azure API Management with Azure Monitor, Application Insights, Log Analytics, and Cost Management. It supports three complementary approaches: **subscription-based** tracking (using APIM subscription keys), **Entra ID application** tracking (using the `emit-metric` policy with JWT `appid` claims), and **AI Gateway token/PTU** tracking (using the `emit-metric` policy to capture per-client token consumption when APIM acts as an AI Gateway). All approaches share a single Azure Monitor Workbook with tabbed views.
 
 ⚙️ **Supported infrastructures**: All infrastructures (or bring your own existing APIM deployment)
 
@@ -9,10 +9,13 @@ This sample demonstrates how to track and allocate API costs using Azure API Man
 ## 🎯 Objectives
 
 1. **Track API usage by caller** - Use APIM subscription keys to identify business units, departments, or applications
-2. **Capture request metrics** - Log subscriptionId, apiName, operationName, and status codes
-3. **Aggregate cost data** - Combine API usage metrics with Azure Cost Management data
-4. **Visualize showback data** - Create Azure Monitor Workbooks to display cost allocation by caller
-5. **Enable cost governance** - Establish patterns for consistent tagging and naming conventions
+2. **Track API usage by Entra ID application** - Use the `emit-metric` policy to extract `appid`/`azp` JWT claims and emit per-caller custom metrics
+3. **Capture request metrics** - Log subscriptionId, apiName, operationName, and status codes
+4. **Aggregate cost data** - Combine API usage metrics with Azure Cost Management data
+5. **Visualize showback data** - Create Azure Monitor Workbooks with tabbed views for both approaches
+6. **Enable cost governance** - Establish patterns for consistent tagging and naming conventions
+7. **Enable budget alerts** - Create scheduled query alerts when callers exceed configurable thresholds
+8. **Track AI token consumption per client** - When APIM is used as an AI Gateway, capture prompt, completion, and total token usage per calling application, enabling per-client cost attribution for PTU or pay-as-you-go OpenAI deployments
 
 ## ✅ Prerequisites
 
@@ -109,6 +112,19 @@ Organizations often need to allocate the cost of shared API Management infrastru
 
 This sample focuses on **producing cost data**, not implementing billing processes. You determine costs; how you use that information (showback reports, chargeback, budgeting) is a separate business decision.
 
+### Two Tracking Approaches
+
+| Aspect | Subscription-Based | Entra ID Application | AI Gateway Token/PTU |
+|---|---|---|---|
+| **Caller identification** | APIM subscription key (`ApimSubscriptionId`) | JWT `appid`/`azp` claim | JWT `appid`/`azp` claim |
+| **Data source** | `ApiManagementGatewayLogs` in Log Analytics | `customMetrics` in Application Insights | `customMetrics` in Application Insights |
+| **Tracking mechanism** | Built-in APIM logging | `emit-metric` policy | `emit-metric` policy (outbound response parsing) |
+| **Metric name** | N/A (built-in logs) | `caller-requests` | `caller-tokens` |
+| **Cost Management export** | Yes (storage account) | No (metrics-based) | No (metrics-based) |
+| **Best for** | Dedicated subscriptions per BU | OAuth client-credentials flows, shared subscriptions | AI Gateway scenarios (Azure OpenAI, PTU capacity planning) |
+
+All three approaches are deployed together. Toggle `enable_entraid_tracking` and `enable_token_tracking` in the notebook to include or exclude each flow.
+
 ## 🛩️ Lab Components
 
 This lab deploys and configures:
@@ -118,14 +134,13 @@ This lab deploys and configures:
 - **Storage Account** - Receives Azure Cost Management exports
 - **Cost Management Export** - Automated export of cost data (configurable frequency)
 - **Diagnostic Settings** - Links APIM to Log Analytics with `logAnalyticsDestinationType: Dedicated` for resource-specific tables
-- **Sample API & Subscriptions** - 5 subscriptions representing different business units
-- **Azure Monitor Workbook** - Pre-built dashboard with:
-  - Cost allocation table (base + variable cost per BU)
-  - Base vs variable cost stacked bar chart
-  - Cost breakdown by API
-  - Request count and distribution charts
-  - Success/error rate analysis
-  - Response code distribution
+- **Sample API & Subscriptions** - 4 subscriptions representing different business units
+- **Entra ID Tracking API** (optional) - A second API with the `emit-metric` policy that extracts `appid` from JWT tokens and emits `caller-requests` custom metrics
+- **AI Gateway Token Tracking API** (optional) - A third API with the `emit-metric` policy that parses Azure OpenAI response bodies to extract `prompt_tokens`, `completion_tokens`, and `total_tokens`, emitting `caller-tokens` custom metrics with `CallerId`, `TokenType`, and `Model` dimensions
+- **Azure Monitor Workbook** - Pre-built tabbed dashboard with:
+  - **Subscription-Based Costing tab**: Cost allocation table (base + variable cost per BU), base vs variable cost stacked bar chart, cost breakdown by API, request count and distribution charts, success/error rate analysis, response code distribution, business unit drill-down
+  - **Entra ID Application Costing tab**: Usage by caller ID (bar chart + table), cost allocation by caller (table + pie chart), hourly request trend by caller
+  - **AI Gateway Token/PTU tab**: Token consumption by client (prompt vs completion bar chart), token cost allocation table with configurable per-1K-token rates, token/cost distribution pie charts, hourly token trend with PTU capacity threshold line, prompt vs completion area chart, model breakdown table
 - **Live Pricing Integration** - Auto-detects your APIM SKU and fetches current pricing from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices)
 - **Budget Alerts** (optional) - Per-BU scheduled query alerts when request thresholds are exceeded
 
@@ -153,10 +168,10 @@ This lab deploys and configures:
 
 After running the notebook, you will have:
 
-1. **Application Insights** showing real-time API requests
+1. **Application Insights** showing real-time API requests and `caller-requests` custom metrics (Entra ID)
 2. **Log Analytics** with queryable `ApiManagementGatewayLogs` (resource-specific table)
 3. **Storage Account** receiving cost export data
-4. **Azure Monitor Workbook** displaying cost allocation and usage analytics
+4. **Azure Monitor Workbook** with tabbed views for both subscription-based and Entra ID cost allocation
 5. **Portal links** printed in the notebook's final cell for quick access
 
 ### Cost Management Export
@@ -181,6 +196,30 @@ The deployed workbook provides a comprehensive view of API cost allocation and u
 
 ![Dashboard - Response Code Analysis](screenshots/Dashboard-05.png)
 
+![Dashboard - Drill-Down Details](screenshots/Dashboard-06.png)
+
+### Entra ID Application Costing Tab
+
+The Entra ID tab shows cost attribution by calling application, using the `emit-metric` policy's `caller-requests` custom metric.
+
+![Entra ID - Usage by Caller ID](screenshots/EntraID-01.png)
+
+![Entra ID - Cost Allocation](screenshots/EntraID-02.png)
+
+![Entra ID - Request Trend](screenshots/EntraID-03.png)
+
+### AI Gateway Token/PTU Tab
+
+The AI Gateway tab shows per-client token consumption and estimated costs when APIM is used as an AI Gateway in front of Azure OpenAI or other LLM backends. It uses the `emit-metric` policy's `caller-tokens` custom metric with `CallerId`, `TokenType` (prompt/completion/total), and `Model` dimensions.
+
+![AI Gateway - Token Consumption by Client](screenshots/AIGateway-01.png)
+
+![AI Gateway - Token Cost Allocation](screenshots/AIGateway-02.png)
+
+![AI Gateway - Token Trends & PTU Utilization](screenshots/AIGateway-03.png)
+
+![AI Gateway - Model & Caller Breakdown](screenshots/AIGateway-04.png)
+
 ## 🧹 Clean Up
 
 To remove all resources created by this sample, open and run `clean-up.ipynb`. This deletes:
@@ -199,6 +238,11 @@ To remove all resources created by this sample, open and run `clean-up.ipynb`. T
 - [Log Analytics Kusto Query Language](https://learn.microsoft.com/azure/data-explorer/kusto/query/)
 - [Azure Monitor Workbooks](https://learn.microsoft.com/azure/azure-monitor/visualize/workbooks-overview)
 - [APIM Diagnostic Settings](https://learn.microsoft.com/azure/api-management/api-management-howto-use-azure-monitor)
+- [APIM emit-metric policy](https://learn.microsoft.com/azure/api-management/emit-metric-policy)
+- [Application Insights custom metrics](https://learn.microsoft.com/azure/azure-monitor/essentials/metrics-custom-overview)
+- [Microsoft Entra ID application model](https://learn.microsoft.com/entra/identity-platform/application-model)
+- [Azure OpenAI usage and token metrics](https://learn.microsoft.com/azure/ai-services/openai/how-to/monitoring)
+- [PTU provisioned throughput concepts](https://learn.microsoft.com/azure/ai-services/openai/concepts/provisioned-throughput)
 
 [infrastructure-architectures]: ../../README.md#infrastructure-architectures
 [infrastructure-folder]: ../../infrastructure/
