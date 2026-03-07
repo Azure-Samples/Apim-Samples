@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<!--
+  Azure API Management Samples - GitHub Pages landing page
+
+  This file is the single source for the published site at
+  https://azure-samples.github.io/Apim-Samples/
+
+  It is assembled by .github/workflows/github-pages.yml which copies this
+  file together with the referenced images from /assets into the deployed
+  artifact. Paths below intentionally point at ./assets/... because the
+  workflow stages those files alongside index.html at build time.
+
+  Accessibility: Verified against WCAG 2.0 AA guidance. All interactive
+  elements are keyboard-reachable, colour contrast is >= 4.5:1 for body
+  text, and no information is conveyed by colour alone.
+
+  Keeping this page current:
+    See docs/README.md and the "GitHub Pages Site" section in
+    .github/copilot-instructions.md for the upkeep checklist.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Primary meta tags
+       SEO notes:
+       - Title front-loads "Azure API Management" (the money phrase) and stays
+         under ~60 chars so Google shows it in full.
+       - Description targets ~155 chars and packs the long-tail terms that real
+         people search for: "APIM policies", "reference architectures",
+         "Bicep", "Front Door", "Application Gateway", "Private Link".
+       - Canonical is absolute; GitHub Pages has no alternate path aliases but
+         stating it explicitly stops crawlers splitting rank across
+         /index.html and /.
+  -->
+  <title>Azure API Management Samples - APIM Policies &amp; Architectures</title>
+  <meta name="description" content="Deploy Azure API Management reference architectures and experiment with real-world APIM policies. Jupyter-driven labs covering Front Door, Application Gateway, Private Link, authentication, load balancing, and more.">
+  <meta name="author" content="Microsoft Azure-Samples">
+  <meta name="robots" content="index, follow, max-image-preview:large">
+  <meta name="theme-color" content="#0078D4">
+  <link rel="canonical" href="https://azure-samples.github.io/Apim-Samples/">
+
+  <!-- Open Graph (Facebook, LinkedIn, Teams, Slack unfurl) -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Azure-Samples">
+  <meta property="og:title" content="Azure API Management Samples - APIM Policies &amp; Architectures">
+  <meta property="og:description" content="Deploy Azure API Management reference architectures and experiment with real-world APIM policies. Jupyter-driven labs covering Front Door, Application Gateway, Private Link, and more.">
+  <meta property="og:url" content="https://azure-samples.github.io/Apim-Samples/">
+  <meta property="og:image" content="https://azure-samples.github.io/Apim-Samples/assets/apim-samples-logo.png">
+  <meta property="og:image:alt" content="APIM Samples logo: the Azure API Management icon inside a laboratory flask">
+  <meta property="og:locale" content="en_US">
+
+  <!-- Twitter / X card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Azure API Management Samples">
+  <meta name="twitter:description" content="Deploy APIM reference architectures and experiment with real-world policies. Not too much, not too little. Just right.">
+  <meta name="twitter:image" content="https://azure-samples.github.io/Apim-Samples/assets/apim-samples-logo.png">
+  <meta name="twitter:image:alt" content="APIM Samples logo: the Azure API Management icon inside a laboratory flask">
+
+  <!-- Favicon set. Paths are ./assets/... not /... because this is a GitHub
+       Pages project site: a root-relative / would resolve to the org root
+       (azure-samples.github.io/), not /Apim-Samples/. -->
+  <link rel="apple-touch-icon" sizes="180x180" href="./assets/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="./assets/favicon-16x16.png">
+  <link rel="manifest" href="./assets/site.webmanifest">
+  <link rel="sitemap" type="application/xml" href="./sitemap.xml">
+
+  <!-- Structured data
+       The @graph stitches three nodes together:
+       1. WebSite  -> gives Google/Bing a clean display name + canonical URL
+                      for the knowledge panel.
+       2. SoftwareSourceCode -> the most specific schema.org type for a code
+                      repository. Declares license, language stack, and the
+                      canonical GitHub URL so the code repo and this landing
+                      page are understood as the same entity.
+       3. ItemList -> every infrastructure and sample, named and linked.
+                      Search engines use this to populate sitelinks beneath
+                      the main result. Keep this list in sync with the cards
+                      on the page (same upkeep rule as docs/README.md).
+  -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": "https://azure-samples.github.io/Apim-Samples/#website",
+        "url": "https://azure-samples.github.io/Apim-Samples/",
+        "name": "Azure API Management Samples",
+        "description": "Deploy Azure API Management reference architectures and experiment with real-world APIM policies.",
+        "inLanguage": "en-US",
+        "publisher": {
+          "@type": "Organization",
+          "name": "Microsoft",
+          "url": "https://github.com/Azure-Samples"
+        }
+      },
+      {
+        "@type": "SoftwareSourceCode",
+        "@id": "https://github.com/Azure-Samples/Apim-Samples#repo",
+        "name": "Azure API Management Samples",
+        "description": "High-fidelity Azure API Management infrastructures and real-world policy samples. Jupyter-driven labs covering Front Door, Application Gateway, Private Link, authentication, load balancing, cost allocation, and OAuth credential management.",
+        "url": "https://azure-samples.github.io/Apim-Samples/",
+        "codeRepository": "https://github.com/Azure-Samples/Apim-Samples",
+        "programmingLanguage": ["Python", "Bicep", "XML"],
+        "runtimePlatform": "Azure",
+        "license": "https://github.com/Azure-Samples/Apim-Samples/blob/main/LICENSE",
+        "keywords": "Azure API Management, APIM, APIM policies, API gateway, Azure Front Door, Application Gateway, Private Link, VNet injection, Bicep, Jupyter, load balancing, JWT validation, OAuth, Credential Manager",
+        "author": {
+          "@type": "Organization",
+          "name": "Microsoft",
+          "url": "https://github.com/Azure-Samples"
+        },
+        "isPartOf": { "@id": "https://azure-samples.github.io/Apim-Samples/#website" }
+      },
+      {
+        "@type": "ItemList",
+        "@id": "https://azure-samples.github.io/Apim-Samples/#contents",
+        "name": "Infrastructures and Samples",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1,  "name": "Simple API Management",                         "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/simple-apim" },
+          { "@type": "ListItem", "position": 2,  "name": "API Management and Container Apps",             "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/apim-aca" },
+          { "@type": "ListItem", "position": 3,  "name": "Front Door and API Management (Private Link)",  "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/afd-apim-pe" },
+          { "@type": "ListItem", "position": 4,  "name": "Application Gateway and APIM (Private Link)",   "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/appgw-apim-pe" },
+          { "@type": "ListItem", "position": 5,  "name": "Application Gateway and APIM (VNet injection)", "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/appgw-apim" },
+          { "@type": "ListItem", "position": 6,  "name": "General sample",                                "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/general" },
+          { "@type": "ListItem", "position": 7,  "name": "AuthX sample",                                  "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/authX" },
+          { "@type": "ListItem", "position": 8,  "name": "AuthX Pro sample",                              "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/authX-pro" },
+          { "@type": "ListItem", "position": 9,  "name": "Load Balancing sample",                         "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/load-balancing" },
+          { "@type": "ListItem", "position": 10, "name": "Costing and Showback sample",                   "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/costing" },
+          { "@type": "ListItem", "position": 11, "name": "Credential Manager (Spotify) sample",           "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/oauth-3rd-party" },
+          { "@type": "ListItem", "position": 12, "name": "Secure Blob Access sample",                     "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/secure-blob-access" },
+          { "@type": "ListItem", "position": 13, "name": "Azure Maps sample",                             "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/azure-maps" }
+        ]
+      }
+    ]
+  }
+  </script>
+
+  <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <!-- ======================================================================
+       Top nav
+  ====================================================================== -->
+  <nav class="topnav" aria-label="Primary">
+    <div class="container topnav-inner">
+      <a class="topnav-brand" href="#top">
+        <img src="./assets/apim-samples-logo.png" alt="" aria-hidden="true">
+        <span>APIM Samples</span>
+      </a>
+      <div class="topnav-links">
+        <a href="#infrastructures">Infrastructures</a>
+        <a href="#samples">Samples</a>
+        <a href="#quickstart">Quick Start</a>
+        <!-- GitHub stats via shields.io. Plain <img> tags, no JavaScript,
+             no build step. Shields caches each badge CDN-side for ~5 min.
+             color=0078D4 matches --brand-blue; hidden under 720px along
+             with the in-page anchors so the sticky nav stays compact. -->
+        <span class="topnav-stats">
+          <a href="https://github.com/Azure-Samples/Apim-Samples/stargazers" aria-label="GitHub stargazers">
+            <img src="https://img.shields.io/github/stars/Azure-Samples/Apim-Samples?style=flat-square&amp;logo=github&amp;logoColor=white&amp;label=Stars&amp;color=0078D4"
+                 alt="GitHub star count">
+          </a>
+          <a href="https://github.com/Azure-Samples/Apim-Samples/forks" aria-label="GitHub forks">
+            <img src="https://img.shields.io/github/forks/Azure-Samples/Apim-Samples?style=flat-square&amp;logo=github&amp;logoColor=white&amp;label=Forks&amp;color=0078D4"
+                 alt="GitHub fork count">
+          </a>
+        </span>
+        <a class="github" href="https://github.com/Azure-Samples/Apim-Samples">View on GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ======================================================================
+       Hero
+  ====================================================================== -->
+  <header id="top" class="hero">
+    <div class="container hero-grid">
+      <div>
+        <span class="hero-badge">Azure-Samples / Apim-Samples</span>
+        <h1>Azure API Management <span class="accent">Samples</span></h1>
+        <p class="tagline">
+          Deploy high-fidelity Azure API Management infrastructures and experiment with real-world policies.
+          Not too much, not too little. <strong>Just right.</strong>
+        </p>
+        <div class="hero-cta">
+          <a class="btn btn-primary"
+             href="https://codespaces.new/Azure-Samples/Apim-Samples?devcontainer_path=.devcontainer%2Fpython314%2Fdevcontainer.json">
+            Open in GitHub Codespaces
+          </a>
+          <a class="btn btn-secondary"
+             href="https://github.com/Azure-Samples/Apim-Samples#-getting-started">
+            Getting Started Guide
+          </a>
+        </div>
+      </div>
+      <img class="hero-logo" src="./assets/apim-samples-logo.png"
+           alt="APIM Samples repository logo showing the Azure API Management icon in a laboratory flask">
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- ====================================================================
+         Value proposition
+    ==================================================================== -->
+    <section class="section" aria-labelledby="value-heading">
+      <div class="container">
+        <h2 id="value-heading" class="visually-hidden">Why APIM Samples</h2>
+        <div class="value-grid">
+          <article class="value-card">
+            <div class="icon" aria-hidden="true">🏗</div>
+            <h3>Infrastructures</h3>
+            <p>
+              Five pre-built Azure architectures from a simple public APIM instance through to Front Door,
+              Application Gateway, Private Link, and VNet-injected designs.
+            </p>
+          </article>
+          <article class="value-card">
+            <div class="icon" aria-hidden="true">🧪</div>
+            <h3>Samples</h3>
+            <p>
+              Real-world policy examples covering authentication, load balancing, cost allocation, OAuth
+              credential management, and more.
+            </p>
+          </article>
+          <article class="value-card">
+            <div class="icon" aria-hidden="true">🍽</div>
+            <h3>À la carte</h3>
+            <p>
+              Most samples run on any infrastructure. Pick the architecture you care about, then layer the
+              samples that matter to you.
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         Slide deck callout
+         The slide deck is exported as a self-contained HTML file (all images
+         inlined) by setup/export_presentation.py during the Pages build, so
+         visitors can save it and view it offline with no repo clone.
+    ==================================================================== -->
+    <section class="deck-callout" aria-labelledby="deck-heading">
+      <div class="container deck-callout-inner">
+        <div class="deck-callout-text">
+          <h2 id="deck-heading">Prefer slides?</h2>
+          <p>
+            A browser-based slide deck walks you through the architectures and samples.
+            Self-contained &mdash; save the page and present offline!
+          </p>
+        </div>
+        <a class="btn btn-primary" href="./slide-deck.html" target="_blank" rel="noopener">
+          Open the slide deck
+        </a>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         Infrastructures
+    ==================================================================== -->
+    <section id="infrastructures" class="section section-subtle" aria-labelledby="infra-heading">
+      <div class="container">
+        <div class="accent-bar" aria-hidden="true"></div>
+        <h2 id="infra-heading" class="section-heading">Infrastructures</h2>
+        <p class="section-lede">
+          Each architecture is deployed with a single Jupyter notebook and torn down just as easily.
+          These high-fidelity environments let you explore network patterns, private connectivity, and
+          ingress design without building a full landing zone.
+        </p>
+
+        <div class="infra-grid">
+
+          <a class="infra-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/simple-apim">
+            <div class="diagram">
+              <img src="./assets/diagrams/simple-apim.svg"
+                   alt="Architecture diagram: a single publicly accessible Azure API Management instance fronting backend APIs">
+            </div>
+            <div class="body">
+              <span class="pill">Fastest · Lowest Cost</span>
+              <h3>Simple API Management</h3>
+              <p>
+                Just the basics with a publicly accessible APIM instance. The innermost way to experience
+                and experiment with APIM policies. Deploys in about five minutes.
+              </p>
+            </div>
+          </a>
+
+          <a class="infra-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/apim-aca">
+            <div class="diagram">
+              <img src="./assets/diagrams/apim-aca.svg"
+                   alt="Architecture diagram: Azure API Management routing to APIs hosted in Azure Container Apps">
+            </div>
+            <div class="body">
+              <h3>API Management &amp; Container Apps</h3>
+              <p>
+                APIs implemented in containers running on Azure Container Apps. Contrast calls through APIM
+                against direct container endpoints to feel the difference the gateway makes.
+              </p>
+            </div>
+          </a>
+
+          <a class="infra-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/afd-apim-pe">
+            <div class="diagram">
+              <img src="./assets/diagrams/afd-apim-pe.svg"
+                   alt="Architecture diagram: Azure Front Door connecting to API Management through a Private Link connection, with VNet-integrated Container Apps backends">
+            </div>
+            <div class="body">
+              <span class="pill">Private Link</span>
+              <h3>Front Door &amp; API Management</h3>
+              <p>
+                A secure implementation with Azure Front Door connecting to APIM via Private Link. Traffic
+                rides entirely on Microsoft-owned networks once it passes Front Door.
+              </p>
+            </div>
+          </a>
+
+          <a class="infra-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/appgw-apim-pe">
+            <div class="diagram">
+              <img src="./assets/diagrams/appgw-apim-pe.svg"
+                   alt="Architecture diagram: Azure Application Gateway connecting to API Management through a private endpoint in a virtual network subnet">
+            </div>
+            <div class="body">
+              <span class="pill">Private Link</span>
+              <h3>Application Gateway (Private Link)</h3>
+              <p>
+                Application Gateway reaches APIM through a private endpoint in a VNet subnet. APIM Standard
+                V2 accepts the connection, with VNet-integrated Container Apps behind.
+              </p>
+            </div>
+          </a>
+
+          <a class="infra-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/appgw-apim">
+            <div class="diagram">
+              <img src="./assets/diagrams/appgw-apim.svg"
+                   alt="Architecture diagram: Azure Application Gateway with a fully VNet-injected API Management instance and Container Apps environment">
+            </div>
+            <div class="body">
+              <span class="pill">VNet Injection</span>
+              <h3>Application Gateway (VNet)</h3>
+              <p>
+                Full VNet injection of APIM and Container Apps. APIM is shielded from any traffic unless it
+                comes through Application Gateway. Maximum isolation.
+              </p>
+            </div>
+          </a>
+
+        </div>
+
+        <div class="section-cta">
+          <a class="btn-pill" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure">
+            Browse all infrastructures on GitHub
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         Samples
+    ==================================================================== -->
+    <section id="samples" class="section" aria-labelledby="samples-heading">
+      <div class="container">
+        <div class="accent-bar" aria-hidden="true"></div>
+        <h2 id="samples-heading" class="section-heading">Samples</h2>
+        <p class="section-lede">
+          Each sample is a focused, runnable lab. Open the notebook, press <em>Run All</em>, then poke at
+          the policies. If an infrastructure is not already deployed the notebook will guide you through
+          creating one.
+        </p>
+
+        <div class="sample-grid">
+
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/general">
+            <h3>General</h3>
+            <p>Basic demonstration of sample setup and policy usage. The best first stop.</p>
+            <span class="infra-tag">All infrastructures</span>
+          </a>
+
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/authX">
+            <h3>AuthX</h3>
+            <p>Authentication and role-based authorisation against a mock HR API using JWT validation.</p>
+            <span class="infra-tag">All infrastructures</span>
+          </a>
+
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/authX-pro">
+            <h3>AuthX Pro</h3>
+            <p>Advanced authentication across multiple APIs with reusable policy fragments and an APIM product.</p>
+            <span class="infra-tag">All infrastructures</span>
+          </a>
+
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/load-balancing">
+            <h3>Load Balancing</h3>
+            <p>Priority and weighted load balancing across backend pools for resilience and blue-green rollouts.</p>
+            <span class="infra-tag">apim-aca · afd-apim-pe</span>
+          </a>
+
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/costing">
+            <h3>Costing &amp; Showback</h3>
+            <p>Track and allocate API costs per business unit using subscriptions, Log Analytics, and Cost Management.</p>
+            <span class="infra-tag">All infrastructures</span>
+          </a>
+
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/oauth-3rd-party">
+            <h3>Credential Manager (Spotify)</h3>
+            <p>APIM stores and manages third-party OAuth tokens on the caller's behalf using Credential Manager.</p>
+            <span class="infra-tag">All infrastructures</span>
+          </a>
+
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/secure-blob-access">
+            <h3>Secure Blob Access</h3>
+            <p>Valet key pattern: APIM mints short-lived SAS tokens so callers never see storage credentials.</p>
+            <span class="infra-tag">All infrastructures</span>
+          </a>
+
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/azure-maps">
+            <h3>Azure Maps</h3>
+            <p>Proxy and shape calls to Azure Maps through APIM to centralise keys, quotas, and telemetry.</p>
+            <span class="infra-tag">All infrastructures</span>
+          </a>
+
+        </div>
+
+        <div class="section-cta">
+          <a class="btn-pill" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples">
+            Browse all samples on GitHub
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         Quick start
+    ==================================================================== -->
+    <section id="quickstart" class="section section-subtle" aria-labelledby="quickstart-heading">
+      <div class="container">
+        <div class="accent-bar" aria-hidden="true"></div>
+        <h2 id="quickstart-heading" class="section-heading">Quick Start</h2>
+        <p class="section-lede">
+          From clone to a running APIM lab in under ten minutes. Codespaces is the fastest route because
+          Python, Azure CLI, and Bicep are already installed.
+        </p>
+
+        <ol class="steps">
+          <li class="step">
+            <h3>Choose your setup</h3>
+            <p>
+              Click <em>Open in GitHub Codespaces</em> above, or follow the local setup guide in the
+              repository README.
+            </p>
+          </li>
+          <li class="step">
+            <h3>Deploy an infrastructure</h3>
+            <p>
+              Open <code>infrastructure/simple-apim/create.ipynb</code> and press <em>Run All</em>.
+              Deployment takes about five minutes.
+            </p>
+          </li>
+          <li class="step">
+            <h3>Run a sample</h3>
+            <p>
+              Open any <code>samples/*/create.ipynb</code> and press <em>Run All</em>. The notebook will
+              find your infrastructure and deploy onto it.
+            </p>
+          </li>
+          <li class="step">
+            <h3>Experiment</h3>
+            <p>
+              Modify the policy XML, re-run the deployment cell, fire requests at the gateway, and watch the
+              behaviour change.
+            </p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ======================================================================
+       Footer
+  ====================================================================== -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <h4>Azure API Management Samples</h4>
+          <p>
+            High-fidelity building blocks to educate on common APIM architectures and empower safe
+            experimentation with APIM policies.
+          </p>
+          <p>Provided for demonstration purposes only.</p>
+        </div>
+        <div>
+          <h4>Repository</h4>
+          <ul>
+            <li><a href="https://github.com/Azure-Samples/Apim-Samples">Source on GitHub</a></li>
+            <li><a href="https://github.com/Azure-Samples/Apim-Samples/blob/main/CONTRIBUTING.md">Contributing</a></li>
+            <li><a href="https://github.com/Azure-Samples/Apim-Samples/blob/main/TROUBLESHOOTING.md">Troubleshooting</a></li>
+            <li><a href="https://github.com/Azure-Samples/Apim-Samples/blob/main/LICENSE">License</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Learn More</h4>
+          <ul>
+            <li><a href="https://learn.microsoft.com/azure/api-management/">API Management docs</a></li>
+            <li><a href="https://github.com/Azure-Samples/AI-Gateway">AI Gateway repository</a></li>
+            <li><a href="https://github.com/Azure/api-management-policy-snippets">Policy snippets</a></li>
+            <li><a href="https://aka.ms/apimlove">APIM Love</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        &copy; Microsoft Corporation. Azure, Azure API Management, and the Azure logo are trademarks of the
+        Microsoft group of companies.
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
