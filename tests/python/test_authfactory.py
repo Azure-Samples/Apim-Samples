@@ -3,17 +3,20 @@ Unit tests for authfactory.py.
 """
 
 import time
+
 import pytest
 
 # APIM Samples imports
-from authfactory import JwtPayload, SymmetricJwtToken, AuthFactory
+from authfactory import AuthFactory, JwtPayload, SymmetricJwtToken
 from users import User
 
 # ------------------------------
 #    CONSTANTS
 # ------------------------------
 
-TEST_KEY = 'test-secret-key'
+# HS256 keys must be >= 32 bytes (RFC 7518 section 3.2) or PyJWT emits InsecureKeyLengthWarning.
+TEST_KEY = 'test-secret-key-32-bytes-minimum'
+TEST_KEY_ALT = 'alt-test-secret-key-32-bytes-min'
 TEST_USER = User(user_id='u1', name='Test User', roles=['role1', 'role2'])
 
 # ------------------------------
@@ -101,8 +104,8 @@ def test_symmetric_jwt_token_edge_cases():
     payload = JwtPayload('test', 'Test', roles=['role1'])
 
     # Test that different keys produce different tokens
-    token1 = SymmetricJwtToken('key1', payload)
-    token2 = SymmetricJwtToken('key2', payload)
+    token1 = SymmetricJwtToken(TEST_KEY, payload)
+    token2 = SymmetricJwtToken(TEST_KEY_ALT, payload)
 
     encoded1 = token1.encode()
     encoded2 = token2.encode()
@@ -112,7 +115,7 @@ def test_symmetric_jwt_token_edge_cases():
     assert isinstance(encoded2, str)
 
     # Test with same key should produce same token
-    token3 = SymmetricJwtToken('key1', payload)
+    token3 = SymmetricJwtToken(TEST_KEY, payload)
     encoded3 = token3.encode()
     assert encoded1 == encoded3
 
@@ -127,7 +130,7 @@ def test_auth_factory_edge_cases():
 
     # Test with None user
     with pytest.raises(ValueError):
-        AuthFactory.create_symmetric_jwt_token_for_user(None, 'test-key')
+        AuthFactory.create_symmetric_jwt_token_for_user(None, TEST_KEY)
 
 
 def test_create_jwt_payload_for_user():
@@ -147,7 +150,7 @@ def test_create_jwt_payload_for_user():
 def test_jwt_token_structure():
     """Test that generated JWT tokens have correct structure."""
     user = User('test', 'Test User', ['role1'])
-    token = AuthFactory.create_symmetric_jwt_token_for_user(user, 'test-secret-key')
+    token = AuthFactory.create_symmetric_jwt_token_for_user(user, TEST_KEY)
 
     # JWT should have 3 parts separated by dots
     parts = token.split('.')
