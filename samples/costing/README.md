@@ -112,7 +112,7 @@ Organizations often need to allocate the cost of shared API Management infrastru
 
 This sample focuses on **producing cost data**, not implementing billing processes. You determine costs; how you use that information (showback reports, chargeback, budgeting) is a separate business decision.
 
-### Two Tracking Approaches
+### Three Tracking Approaches
 
 | Aspect | Subscription-Based | Entra ID Application | AI Gateway Token/PTU |
 |---|---|---|---|

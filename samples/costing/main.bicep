@@ -279,8 +279,7 @@ output subscriptionKeys array = [for (bu, i) in businessUnits: {
   primaryKey: listSecrets(subscriptions[i].id, '2024-06-01-preview').primaryKey
 }]
 
-@description('Per-API subscription keys (created by the shared api.bicep module)')
+@description('Per-API subscription metadata (subscription keys are not exposed; retrieve keys via APIM RBAC-controlled mechanisms)')
 output apiSubscriptionKeys array = [for (api, i) in apis: {
   name: api.name
-  primaryKey: apisModule[i].outputs.subscriptionPrimaryKey
 }]
