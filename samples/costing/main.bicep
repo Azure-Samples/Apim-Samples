@@ -48,6 +48,9 @@ param apis array = []
 @description('Array of business units to create subscriptions for')
 param businessUnits array = []
 
+@description('Array of policy fragments to deploy')
+param policyFragments array = []
+
 
 // ------------------
 //    VARIABLES
@@ -70,6 +73,17 @@ resource apimService 'Microsoft.ApiManagement/service@2024-06-01-preview' existi
   name: apimName
 }
 
+// APIM Policy Fragments
+module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.bicep' = [for pf in policyFragments: {
+  name: 'pf-${pf.name}'
+  params: {
+    apimName: apimName
+    policyFragmentName: pf.name
+    policyFragmentDescription: pf.description
+    policyFragmentValue: pf.policyXml
+  }
+}]
+
 // APIM APIs
 // Use the costing sample's own App Insights logger so that emit-metric
 // custom metrics (caller-requests, caller-tokens) flow to the costing
@@ -85,6 +99,7 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   }
   dependsOn: [
     apimDiagnosticsModule
+    policyFragmentModule
   ]
 }]
 
@@ -187,10 +202,12 @@ module apimDiagnosticsModule '../../shared/bicep/modules/apim/v1/diagnostics.bic
 
 
 // The workbook JSON contains '__APP_INSIGHTS_NAME__' tokens in cross-resource
-// KQL queries (Entra ID tab). Replace them with the actual App Insights name
-// so the app() function resolves correctly at runtime.
+// KQL queries (Entra ID tab). Replace them with the Application Insights AppId
+// (GUID) so the app() function resolves correctly at runtime.
+#disable-next-line BCP318
+var appInsightsAppId = enableApplicationInsights ? applicationInsightsModule.outputs.appId : ''
 var rawWorkbookJson = string(loadJsonContent('workbook.json'))
-var workbookJsonWithAppInsights = replace(rawWorkbookJson, '__APP_INSIGHTS_NAME__', applicationInsightsName)
+var workbookJsonWithAppInsights = replace(rawWorkbookJson, '__APP_INSIGHTS_NAME__', appInsightsAppId)
 
 // https://learn.microsoft.com/azure/templates/microsoft.insights/workbooks
 resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = if (enableLogAnalytics) {

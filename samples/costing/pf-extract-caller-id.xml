@@ -1,0 +1,40 @@
+<!--
+    Policy fragment: Extract Caller Identity
+
+    Extracts the calling application's identity from the JWT Authorization
+    header (appid / azp claim) and stores it in the 'callerId' context
+    variable.
+
+    If no JWT is present or the claim cannot be read, the callerId falls
+    back to the APIM subscription ID, or 'unknown' when neither is
+    available.
+
+    Usage:
+        <include-fragment fragment-id="Extract-CallerId" />
+        After inclusion, use @((string)context.Variables["callerId"])
+        in subsequent policy expressions.
+-->
+<fragment>
+    <set-variable name="callerId" value="@{
+        var jwt = context.Request.Headers.GetValueOrDefault("Authorization", "");
+        if (!string.IsNullOrEmpty(jwt) && jwt.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var token = jwt.Substring(7);
+                var parts = token.Split('.');
+                if (parts.Length >= 2)
+                {
+                    var base64 = parts[1].Replace('-', '+').Replace('_', '/');
+                    var padded = base64.PadRight(base64.Length + (4 - base64.Length % 4) % 4, '=');
+                    var payload = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(padded));
+                    var json = Newtonsoft.Json.Linq.JObject.Parse(payload);
+                    var appId = json["appid"]?.ToString() ?? json["azp"]?.ToString();
+                    if (!string.IsNullOrEmpty(appId)) { return appId; }
+                }
+            }
+            catch { }
+        }
+        return context.Subscription?.Id ?? "unknown";
+    }" />
+</fragment>

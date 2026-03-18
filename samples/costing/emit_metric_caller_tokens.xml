@@ -15,7 +15,8 @@
         TokenType: 'prompt', 'completion', or 'total'
 
     Caller identification:
-      - Extracts appid / azp from the JWT Authorization header
+      - Uses the 'Extract-CallerId' policy fragment to read appid / azp
+        from the JWT Authorization header
       - Falls back to the APIM subscription ID if no JWT is present
 
     Response parsing:
@@ -28,11 +29,10 @@
         },
         "model": "gpt-4o"
       }
-      If no 'usage' object is found (e.g. non-AI backend or demo mode),
-      token counts are simulated with deterministic random values so
-      the metric pipeline can be exercised without a real LLM backend.
+      If the response does not contain a 'usage' object (e.g. non-AI
+      backend), token metrics are simply not emitted for that request.
 
-    PRODUCTION USAGE:
+    USAGE:
       Point the API's serviceUrl to your Azure OpenAI deployment
       (e.g. https://YOUR-AOAI.openai.azure.com) and the policy will
       extract real token counts from every response automatically.
@@ -40,28 +40,8 @@
 <policies>
     <inbound>
         <base />
-        <!-- Extract caller identity from JWT appid/azp claim -->
-        <set-variable name="callerId" value="@{
-            var jwt = context.Request.Headers.GetValueOrDefault("Authorization", "");
-            if (!string.IsNullOrEmpty(jwt) && jwt.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    var token = jwt.Substring(7);
-                    var parts = token.Split('.');
-                    if (parts.Length >= 2)
-                    {
-                        var payload = System.Text.Encoding.UTF8.GetString(
-                            Convert.FromBase64String(parts[1].PadRight(parts[1].Length + (4 - parts[1].Length % 4) % 4, '=')));
-                        var json = Newtonsoft.Json.Linq.JObject.Parse(payload);
-                        var appId = json["appid"]?.ToString() ?? json["azp"]?.ToString();
-                        if (!string.IsNullOrEmpty(appId)) { return appId; }
-                    }
-                }
-                catch { }
-            }
-            return context.Subscription?.Id ?? "unknown";
-        }" />
+        <!-- Extract caller identity (appid/azp from JWT, or APIM subscription ID) -->
+        <include-fragment fragment-id="Extract-CallerId" />
         <!-- Count each request per caller (same as emit_metric_caller_id.xml) -->
         <emit-metric name="caller-requests" value="1" namespace="apim-costing">
             <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
@@ -87,55 +67,53 @@
                 return new Newtonsoft.Json.Linq.JObject();
             }
         }" />
+        <!-- Check whether the response contains an Azure OpenAI usage object -->
+        <set-variable name="hasUsage" value="@{
+            var body = (Newtonsoft.Json.Linq.JObject)context.Variables["parsedResponse"];
+            var usage = body["usage"];
+            return usage != null && usage["prompt_tokens"] != null;
+        }" />
         <!--
-            Extract token counts from the response.
-            If the response contains a 'usage' object (real Azure OpenAI),
-            use the actual values. Otherwise, simulate deterministic values
-            for demo purposes (seeded by RequestId for reproducibility).
+            Extract token counts and emit metrics only when the response
+            contains real token statistics. Requests without a 'usage'
+            object are silently skipped.
         -->
-        <set-variable name="promptTokens" value="@{
-            var body = (Newtonsoft.Json.Linq.JObject)context.Variables["parsedResponse"];
-            var usage = body["usage"];
-            if (usage != null && usage["prompt_tokens"] != null)
-            {
-                return usage["prompt_tokens"].Value<int>();
-            }
-            var rnd = new Random(context.RequestId.GetHashCode());
-            return rnd.Next(10, 200);
-        }" />
-        <set-variable name="completionTokens" value="@{
-            var body = (Newtonsoft.Json.Linq.JObject)context.Variables["parsedResponse"];
-            var usage = body["usage"];
-            if (usage != null && usage["completion_tokens"] != null)
-            {
-                return usage["completion_tokens"].Value<int>();
-            }
-            var rnd = new Random(context.RequestId.GetHashCode() ^ 0x5A5A);
-            return rnd.Next(50, 500);
-        }" />
-        <set-variable name="totalTokens" value="@{
-            return (int)context.Variables["promptTokens"] + (int)context.Variables["completionTokens"];
-        }" />
-        <set-variable name="modelName" value="@{
-            var body = (Newtonsoft.Json.Linq.JObject)context.Variables["parsedResponse"];
-            return body["model"]?.ToString() ?? "demo-model";
-        }" />
-        <!-- Emit per-caller token metrics with type and model dimensions -->
-        <emit-metric name="caller-tokens" value="@((double)(int)context.Variables["promptTokens"])" namespace="apim-costing">
-            <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
-            <dimension name="TokenType" value="prompt" />
-            <dimension name="Model" value="@((string)context.Variables["modelName"])" />
-        </emit-metric>
-        <emit-metric name="caller-tokens" value="@((double)(int)context.Variables["completionTokens"])" namespace="apim-costing">
-            <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
-            <dimension name="TokenType" value="completion" />
-            <dimension name="Model" value="@((string)context.Variables["modelName"])" />
-        </emit-metric>
-        <emit-metric name="caller-tokens" value="@((double)(int)context.Variables["totalTokens"])" namespace="apim-costing">
-            <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
-            <dimension name="TokenType" value="total" />
-            <dimension name="Model" value="@((string)context.Variables["modelName"])" />
-        </emit-metric>
+        <choose>
+            <when condition="@((bool)context.Variables["hasUsage"])">
+                <set-variable name="promptTokens" value="@{
+                    var body = (Newtonsoft.Json.Linq.JObject)context.Variables["parsedResponse"];
+                    return body["usage"]["prompt_tokens"].Value<int>();
+                }" />
+                <set-variable name="completionTokens" value="@{
+                    var body = (Newtonsoft.Json.Linq.JObject)context.Variables["parsedResponse"];
+                    var usage = body["usage"];
+                    return usage["completion_tokens"] != null ? usage["completion_tokens"].Value<int>() : 0;
+                }" />
+                <set-variable name="totalTokens" value="@{
+                    return (int)context.Variables["promptTokens"] + (int)context.Variables["completionTokens"];
+                }" />
+                <set-variable name="modelName" value="@{
+                    var body = (Newtonsoft.Json.Linq.JObject)context.Variables["parsedResponse"];
+                    return body["model"]?.ToString() ?? "unknown";
+                }" />
+                <!-- Emit per-caller token metrics with type and model dimensions -->
+                <emit-metric name="caller-tokens" value="@((double)(int)context.Variables["promptTokens"])" namespace="apim-costing">
+                    <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
+                    <dimension name="TokenType" value="prompt" />
+                    <dimension name="Model" value="@((string)context.Variables["modelName"])" />
+                </emit-metric>
+                <emit-metric name="caller-tokens" value="@((double)(int)context.Variables["completionTokens"])" namespace="apim-costing">
+                    <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
+                    <dimension name="TokenType" value="completion" />
+                    <dimension name="Model" value="@((string)context.Variables["modelName"])" />
+                </emit-metric>
+                <emit-metric name="caller-tokens" value="@((double)(int)context.Variables["totalTokens"])" namespace="apim-costing">
+                    <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
+                    <dimension name="TokenType" value="total" />
+                    <dimension name="Model" value="@((string)context.Variables["modelName"])" />
+                </emit-metric>
+            </when>
+        </choose>
     </outbound>
     <on-error>
         <base />

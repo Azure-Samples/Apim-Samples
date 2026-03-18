@@ -5,33 +5,15 @@
     The metric 'caller-requests' carries a CallerId dimension so that
     workbook queries can group and allocate costs per calling application.
 
-    If no JWT is present or the claim is missing, the CallerId falls back
-    to the APIM subscription ID.
+    Uses the 'Extract-CallerId' policy fragment to read the caller identity
+    from the JWT Authorization header. If no JWT is present or the claim
+    is missing, the CallerId falls back to the APIM subscription ID.
 -->
 <policies>
     <inbound>
         <base />
-        <set-variable name="callerId" value="@{
-            var jwt = context.Request.Headers.GetValueOrDefault("Authorization", "");
-            if (!string.IsNullOrEmpty(jwt) && jwt.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            {
-                try
-                {
-                    var token = jwt.Substring(7);
-                    var parts = token.Split('.');
-                    if (parts.Length >= 2)
-                    {
-                        var payload = System.Text.Encoding.UTF8.GetString(
-                            Convert.FromBase64String(parts[1].PadRight(parts[1].Length + (4 - parts[1].Length % 4) % 4, '=')));
-                        var json = Newtonsoft.Json.Linq.JObject.Parse(payload);
-                        var appId = json["appid"]?.ToString() ?? json["azp"]?.ToString();
-                        if (!string.IsNullOrEmpty(appId)) { return appId; }
-                    }
-                }
-                catch { }
-            }
-            return context.Subscription?.Id ?? "unknown";
-        }" />
+        <!-- Extract caller identity (appid/azp from JWT, or APIM subscription ID) -->
+        <include-fragment fragment-id="Extract-CallerId" />
         <emit-metric name="caller-requests" value="1" namespace="apim-costing">
             <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
             <dimension name="API" value="@(context.Api.Name)" />
