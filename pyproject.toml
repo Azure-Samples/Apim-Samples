@@ -13,7 +13,7 @@ dependencies = [
   "ipykernel",
   "matplotlib",
   "pandas",
-  "pyjwt",
+  "pyjwt>=2.12.0",
   "python-dotenv",
   "requests",
   "tornado>=6.5.5",
