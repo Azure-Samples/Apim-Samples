@@ -22,6 +22,7 @@ dependencies = [
     { name = "pyjwt" },
     { name = "python-dotenv" },
     { name = "requests" },
+    { name = "tornado" },
 ]
 
 [package.dev-dependencies]
@@ -41,6 +42,7 @@ requires-dist = [
     { name = "pyjwt" },
     { name = "python-dotenv" },
     { name = "requests" },
+    { name = "tornado", specifier = ">=6.5.5" },
 ]
 
 [package.metadata.requires-dev]
