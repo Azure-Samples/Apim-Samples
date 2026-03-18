@@ -2,12 +2,14 @@
 // custom metrics into Application Insights for AI Gateway token tracking.
 //
 // Parameters (prepend as KQL 'let' bindings before running):
-//   let tokenType = '*';       // Options: 'prompt', 'completion', 'total', '*' (all)
+//   let tokenType  = '*';      // Options: 'prompt', 'completion', 'total', '*' (all)
+//   let timeWindow = 30m;      // How far back to look (e.g. 30m, 1h, 24h)
 //
 // Used to verify that the token tracking policy is applied and
 // per-caller token consumption metrics are flowing.
 customMetrics
 | where name == 'caller-tokens'
+| where timestamp > ago(timeWindow)
 | where isnotempty(customDimensions.CallerId)
 | where tokenType == '*' or tostring(customDimensions.TokenType) == tokenType
 | summarize

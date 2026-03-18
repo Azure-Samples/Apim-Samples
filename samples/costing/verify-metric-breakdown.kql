@@ -1,0 +1,9 @@
+// Per-caller breakdown of caller-requests custom metrics from
+// the emit-metric policy (Entra ID application tracking).
+//
+// Returns one row per calling application with the total request count.
+customMetrics
+| where name == 'caller-requests'
+| where isnotempty(customDimensions.CallerId)
+| summarize Requests = sum(value) by CallerId = tostring(customDimensions.CallerId)
+| order by Requests desc
