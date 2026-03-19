@@ -197,14 +197,14 @@ def serve_website(port: int = 7800) -> None:
 
         url = f'http://localhost:{port}'
         print('\n✨ APIM Samples Website Preview')
-        print(f'   Serving from: {SITE_DIR}')
-        print(f'   Landing page: {url}/')
-        print(f'   Slide deck:   {url}/{SLIDE_DECK_STAGED}')
+        print(f'   Serving from : {SITE_DIR}')
+        print(f'   Landing page : {url}/')
+        print(f'   Slide deck   : {url}/{SLIDE_DECK_STAGED}')
         print()
         print('   🌐 Browser opening in 1 second...')
         print()
         print('   To stop the server: Press Ctrl+C')
-        print()
+        print(flush=True)
 
         def open_browser() -> None:
             sleep(1)

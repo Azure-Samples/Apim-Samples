@@ -114,6 +114,31 @@ img { max-width: 100%; height: auto; }
   letter-spacing: -0.5px;
 }
 
+.heading-anchor {
+  color: var(--brand-blue);
+  text-decoration: none;
+  margin-left: 8px;
+  font-weight: 400;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.heading-anchor:hover,
+.heading-anchor:focus {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.section-heading:hover .heading-anchor,
+.deck-callout h2:hover .heading-anchor {
+  opacity: 0.6;
+}
+
+.section-heading:hover .heading-anchor:hover,
+.deck-callout h2:hover .heading-anchor:hover {
+  opacity: 1;
+}
+
 .section-lede {
   font-size: 18px;
   color: var(--text-muted);
@@ -570,7 +595,7 @@ img { max-width: 100%; height: auto; }
   color: var(--text-on-brand);
   padding: 3px 10px;
   border-radius: 999px;
-  margin-bottom: 12px;
+  margin-top: 12px;
 }
 
 /* =========================================================================
