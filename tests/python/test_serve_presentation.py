@@ -215,6 +215,21 @@ def test_presentation_handler_does_not_log_update_for_missing_file() -> None:
     mock_print.assert_not_called()
 
 
+def test_presentation_handler_does_not_log_update_for_directory(tmp_path: Path) -> None:
+    """HEAD polling should not log anything when the translated path is a directory."""
+    watched_dir = tmp_path / 'assets'
+    watched_dir.mkdir()
+
+    handler = _make_handler('/assets')
+    serve_pres.PresentationHandler._last_polled_mtimes = {}
+
+    with patch.object(handler, 'translate_path', return_value=str(watched_dir)):
+        with patch('builtins.print') as mock_print:
+            handler._log_polled_update()
+
+    mock_print.assert_not_called()
+
+
 def test_serve_presentation_keyboard_interrupt(mock_repo_root: Path) -> None:
     """serve_presentation should gracefully handle KeyboardInterrupt."""
     presentation_dir = mock_repo_root / 'assets'
@@ -541,6 +556,73 @@ def test_main_generic_oserror(capsys: pytest.CaptureFixture[str]) -> None:
     captured = capsys.readouterr()
     assert exc_info.value.code == 1
     assert 'Some other error' in captured.err
+
+
+def test_serve_presentation_survives_shutdown_failure(mock_repo_root: Path) -> None:
+    """serve_presentation should still close the server when shutdown raises."""
+    presentation_dir = mock_repo_root / 'assets'
+
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = True
+
+    with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
+        with patch('serve_presentation.TCPServer') as mock_server:
+            mock_server_instance = MagicMock()
+            mock_server.return_value = mock_server_instance
+            mock_server_instance.shutdown.side_effect = OSError('boom')
+
+            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
+                with patch('serve_presentation.sleep', side_effect=KeyboardInterrupt):
+                    with patch('builtins.print'):
+                        with patch('os.chdir'):
+                            serve_pres.serve_presentation(8000)
+
+    mock_server_instance.shutdown.assert_called_once()
+    mock_server_instance.server_close.assert_called_once()
+
+
+def test_serve_presentation_survives_close_failure(mock_repo_root: Path) -> None:
+    """serve_presentation should suppress server_close errors during cleanup."""
+    presentation_dir = mock_repo_root / 'assets'
+
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = True
+
+    with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
+        with patch('serve_presentation.TCPServer') as mock_server:
+            mock_server_instance = MagicMock()
+            mock_server.return_value = mock_server_instance
+            mock_server_instance.server_close.side_effect = OSError('boom')
+
+            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
+                with patch('serve_presentation.sleep', side_effect=KeyboardInterrupt):
+                    with patch('builtins.print'):
+                        with patch('os.chdir'):
+                            serve_pres.serve_presentation(8000)
+
+    mock_server_instance.shutdown.assert_called_once()
+    mock_server_instance.server_close.assert_called_once()
+
+
+def test_serve_presentation_keyboard_interrupt_before_server_creation(mock_repo_root: Path) -> None:
+    """serve_presentation should handle interrupts before TCPServer is created."""
+    presentation_dir = mock_repo_root / 'assets'
+
+    with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
+        with patch('serve_presentation.TCPServer', side_effect=KeyboardInterrupt):
+            with patch('builtins.print') as mock_print:
+                with patch('os.chdir'):
+                    serve_pres.serve_presentation(8000)
+
+    printed_messages = [' '.join(str(arg) for arg in call.args) for call in mock_print.call_args_list]
+    assert any('Server stopped' in str(message) for message in printed_messages)
+
+
+def test_main_invalid_port_value_raises_value_error() -> None:
+    """Main entry should propagate ValueError for a non-numeric port argument."""
+    with patch.object(sys, 'argv', ['serve_presentation.py', 'not-a-port']):
+        with pytest.raises(ValueError, match='invalid literal for int'):
+            runpy.run_path(str(SCRIPT_PATH), run_name='__main__')
 
 
 def test_open_browser_thread_is_daemon(mock_repo_root: Path) -> None:

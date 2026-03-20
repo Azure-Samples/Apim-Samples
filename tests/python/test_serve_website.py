@@ -199,6 +199,17 @@ def test_cleanup_site_absent_is_noop(mock_repo: Path) -> None:
     serve_web.cleanup_site()  # must not raise
 
 
+def test_cleanup_site_swallows_rmtree_oserror(mock_repo: Path) -> None:
+    """cleanup_site should suppress removal errors as a best-effort cleanup."""
+    site = mock_repo / '_site'
+    site.mkdir()
+
+    with patch('serve_website.shutil.rmtree', side_effect=OSError('locked')):
+        serve_web.cleanup_site()
+
+    assert site.exists()
+
+
 # ------------------------------
 #    HANDLER LOG SUPPRESSION
 # ------------------------------
@@ -289,6 +300,28 @@ def test_serve_website_survives_close_failure(mock_repo: Path) -> None:
                         with patch('os.chdir'):
                             serve_web.serve_website(9999)
 
+    assert not (mock_repo / '_site').exists()
+
+
+def test_serve_website_survives_shutdown_failure(mock_repo: Path) -> None:
+    """serve_website should still close the server and clean up when shutdown raises."""
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = True
+
+    with patch('serve_website.TCPServer') as mock_server:
+        mock_instance = MagicMock()
+        mock_server.return_value = mock_instance
+        mock_instance.shutdown.side_effect = OSError('boom')
+
+        with patch('serve_website.Thread', return_value=mock_thread_instance):
+            with patch('serve_website.webbrowser'):
+                with patch('serve_website.sleep', side_effect=KeyboardInterrupt):
+                    with patch('builtins.print'):
+                        with patch('os.chdir'):
+                            serve_web.serve_website(9999)
+
+    mock_instance.shutdown.assert_called_once()
+    mock_instance.server_close.assert_called_once()
     assert not (mock_repo / '_site').exists()
 
 
