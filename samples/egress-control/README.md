@@ -57,7 +57,7 @@ The sample deploys the following resources into the infrastructure resource grou
     1. If the infrastructure _does_ exist, adjust the `user-defined parameters` in the _Initialize notebook variables_ cell below.
 1. Adjust `apim_nsg_name` if your infrastructure was deployed with strict NSGs (`nsg-apim-strict`).
 
-> **Supported VNet SKUs only**: APIM must be deployed with a VNet-capable SKU. For `appgw-apim-pe` (VNet integration, default), use `STANDARDV2` or `PREMIUMV2`. For `appgw-apim` (VNet injection), use `DEVELOPER` or `PREMIUM`. Basic, Standard, and BasicV2 are not supported.
+> **Supported VNet SKUs only**: APIM must be deployed with a VNet-capable SKU. For `appgw-apim-pe` (Private Link, default), use `STANDARDV2` or `PREMIUMV2`. For `appgw-apim`, use `DEVELOPER` or `PREMIUM` (VNet injection) or `STANDARDV2` or `PREMIUMV2` (VNet integration). Basic, Standard, and BasicV2 are not supported.
 
 ## 🧹 Clean Up
 

@@ -76,284 +76,44 @@ resource apimService 'Microsoft.ApiManagement/service@2024-06-01-preview' existi
   name: apimName
 }
 
-// https://learn.microsoft.com/azure/templates/microsoft.network/virtualnetworks
-resource spokeVnet 'Microsoft.Network/virtualNetworks@2024-05-01' existing = {
-  name: spokeVnetName
-}
-
-// https://learn.microsoft.com/azure/templates/microsoft.network/networksecuritygroups
-resource apimNsg 'Microsoft.Network/networkSecurityGroups@2025-01-01' existing = {
-  name: apimNsgName
-}
-
-// 1. Azure Firewall Public IP
-
-// https://learn.microsoft.com/azure/templates/microsoft.network/publicipaddresses
-resource firewallPip 'Microsoft.Network/publicIPAddresses@2024-05-01' = {
-  name: 'pip-${firewallName}'
-  location: location
-  sku: {
-    name: 'Standard'
-    tier: 'Regional'
-  }
-  properties: {
-    publicIPAllocationMethod: 'Static'
-    publicIPAddressVersion: 'IPv4'
-  }
-}
-
-// 2. Azure Firewall Policy
-
-// https://learn.microsoft.com/azure/templates/microsoft.network/firewallpolicies
-resource firewallPolicy 'Microsoft.Network/firewallPolicies@2024-05-01' = {
-  name: firewallPolicyName
-  location: location
-  properties: {
-    sku: {
-      tier: 'Standard'
-    }
-    threatIntelMode: 'Deny'
-  }
-}
-
-// 3. Azure Firewall Policy Rule Collection Group
-
-// https://learn.microsoft.com/azure/templates/microsoft.network/firewallpolicies/rulecollectiongroups
-resource firewallRuleGroup 'Microsoft.Network/firewallPolicies/ruleCollectionGroups@2024-05-01' = {
-  name: 'DefaultRuleCollectionGroup'
-  parent: firewallPolicy
-  properties: {
-    priority: 300
-    ruleCollections: [
-      // Network rules: allow APIM management-plane outbound traffic to Azure services
-      {
-        ruleCollectionType: 'FirewallPolicyFilterRuleCollection'
-        name: 'AllowApimManagementTraffic'
-        priority: 100
-        action: {
-          type: 'Allow'
-        }
-        rules: [
-          {
-            ruleType: 'NetworkRule'
-            name: 'AllowApimToAzureMonitor'
-            description: 'APIM requires outbound access to Azure Monitor for diagnostics logs and metrics'
-            ipProtocols: ['TCP']
-            sourceAddresses: ['*']
-            destinationAddresses: ['AzureMonitor']
-            destinationPorts: ['443', '1886']
-          }
-          {
-            ruleType: 'NetworkRule'
-            name: 'AllowApimToStorage'
-            description: 'APIM requires outbound access to Azure Storage for internal operations'
-            ipProtocols: ['TCP']
-            sourceAddresses: ['*']
-            destinationAddresses: ['Storage']
-            destinationPorts: ['443', '445']
-          }
-          {
-            ruleType: 'NetworkRule'
-            name: 'AllowApimToSql'
-            description: 'APIM requires outbound access to Azure SQL for analytics'
-            ipProtocols: ['TCP']
-            sourceAddresses: ['*']
-            destinationAddresses: ['Sql']
-            destinationPorts: ['1433']
-          }
-          {
-            ruleType: 'NetworkRule'
-            name: 'AllowApimToKeyVault'
-            description: 'APIM requires outbound access to Azure Key Vault for named value secrets'
-            ipProtocols: ['TCP']
-            sourceAddresses: ['*']
-            destinationAddresses: ['AzureKeyVault']
-            destinationPorts: ['443']
-          }
-          {
-            ruleType: 'NetworkRule'
-            name: 'AllowApimToEntraId'
-            description: 'APIM requires outbound access to Microsoft Entra ID for authentication'
-            ipProtocols: ['TCP']
-            sourceAddresses: ['*']
-            destinationAddresses: ['AzureActiveDirectory']
-            destinationPorts: ['443']
-          }
-        ]
-      }
-      // Application rules: allow HTTPS to specific internet FQDNs
-      {
-        ruleCollectionType: 'FirewallPolicyFilterRuleCollection'
-        name: 'AllowedInternetApis'
-        priority: 200
-        action: {
-          type: 'Allow'
-        }
-        rules: [
-          {
-            ruleType: 'ApplicationRule'
-            name: 'AllowWeatherGovHttps'
-            description: 'Allow HTTPS access to api.weather.gov for weather forecast data'
-            sourceAddresses: ['*']
-            protocols: [
-              {
-                protocolType: 'Https'
-                port: 443
-              }
-            ]
-            targetFqdns: ['api.weather.gov']
-          }
-        ]
-      }
-    ]
-  }
-}
-
-// 4. Hub VNet with AzureFirewallSubnet
-
-// https://learn.microsoft.com/azure/templates/microsoft.network/virtualnetworks
-resource hubVnet 'Microsoft.Network/virtualNetworks@2024-05-01' = {
-  name: hubVnetName
-  location: location
-  properties: {
-    addressSpace: {
-      addressPrefixes: [hubVnetAddressPrefix]
-    }
-    subnets: [
-      {
-        name: 'AzureFirewallSubnet'
-        properties: {
-          addressPrefix: firewallSubnetPrefix
-        }
-      }
-    ]
-  }
-}
-
-// 5. Azure Firewall
+// 1. Azure Firewall (hub VNet, peerings, route table, APIM subnet update)
 
 // https://learn.microsoft.com/azure/templates/microsoft.network/azurefirewalls
-resource azureFirewall 'Microsoft.Network/azureFirewalls@2024-05-01' = {
-  name: firewallName
-  location: location
-  properties: {
-    sku: {
-      name: 'AZFW_VNet'
-      tier: 'Standard'
-    }
-    ipConfigurations: [
+module firewallModule '../../shared/bicep/modules/network/v1/firewall.bicep' = {
+  name: 'firewallModule'
+  params: {
+    location: location
+    resourceSuffix: resourceSuffix
+    firewallName: firewallName
+    firewallPolicyName: firewallPolicyName
+    hubVnetName: hubVnetName
+    hubVnetAddressPrefix: hubVnetAddressPrefix
+    firewallSubnetPrefix: firewallSubnetPrefix
+    spokeVnetName: spokeVnetName
+    spokeVnetAddressPrefix: spokeVnetAddressPrefix
+    apimSubnetName: apimSubnetName
+    apimSubnetPrefix: apimSubnetPrefix
+    apimNsgName: apimNsgName
+    apimVnetIntegration: apimVnetIntegration
+    applicationRules: [
       {
-        name: 'ipconfig1'
-        properties: {
-          subnet: {
-            id: '${hubVnet.id}/subnets/AzureFirewallSubnet'
+        ruleType: 'ApplicationRule'
+        name: 'AllowWeatherGovHttps'
+        description: 'Allow HTTPS access to api.weather.gov for weather forecast data'
+        sourceAddresses: ['*']
+        protocols: [
+          {
+            protocolType: 'Https'
+            port: 443
           }
-          publicIPAddress: {
-            id: firewallPip.id
-          }
-        }
-      }
-    ]
-    firewallPolicy: {
-      id: firewallPolicy.id
-    }
-  }
-  dependsOn: [firewallRuleGroup]
-}
-
-var firewallPrivateIp = azureFirewall.properties.ipConfigurations[0].properties.privateIPAddress
-
-// 6. VNet Peering: Spoke → Hub
-
-// https://learn.microsoft.com/azure/templates/microsoft.network/virtualnetworks/virtualnetworkpeerings
-resource spokeToHubPeering 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2024-05-01' = {
-  name: 'peer-spoke-to-hub'
-  parent: spokeVnet
-  properties: {
-    remoteVirtualNetwork: {
-      id: hubVnet.id
-    }
-    allowVirtualNetworkAccess: true
-    allowForwardedTraffic: true
-    allowGatewayTransit: false
-    useRemoteGateways: false
-  }
-  dependsOn: [azureFirewall]
-}
-
-// 7. VNet Peering: Hub → Spoke
-
-// https://learn.microsoft.com/azure/templates/microsoft.network/virtualnetworks/virtualnetworkpeerings
-resource hubToSpokePeering 'Microsoft.Network/virtualNetworks/virtualNetworkPeerings@2024-05-01' = {
-  name: 'peer-hub-to-spoke'
-  parent: hubVnet
-  properties: {
-    remoteVirtualNetwork: {
-      id: spokeVnet.id
-    }
-    allowVirtualNetworkAccess: true
-    allowForwardedTraffic: true
-    allowGatewayTransit: false
-    useRemoteGateways: false
-  }
-  dependsOn: [azureFirewall]
-}
-
-// 8. Route Table — forces internet traffic through Azure Firewall and keeps VNet traffic local
-
-// https://learn.microsoft.com/azure/templates/microsoft.network/routetables
-resource routeTable 'Microsoft.Network/routeTables@2024-05-01' = {
-  name: 'rt-apim-nva-${resourceSuffix}'
-  location: location
-  properties: {
-    disableBgpRoutePropagation: false
-    routes: [
-      {
-        name: 'route-internet-via-nva'
-        properties: {
-          addressPrefix: '0.0.0.0/0'
-          nextHopType: 'VirtualAppliance'
-          nextHopIpAddress: firewallPrivateIp
-        }
-      }
-      {
-        name: 'route-spoke-vnet-local'
-        properties: {
-          addressPrefix: spokeVnetAddressPrefix
-          nextHopType: 'VirtualNetwork'
-        }
+        ]
+        targetFqdns: ['api.weather.gov']
       }
     ]
   }
-  dependsOn: [spokeToHubPeering, hubToSpokePeering]
 }
 
-// 9. Update APIM subnet — associate route table while preserving the existing NSG and delegations
-
-// https://learn.microsoft.com/azure/templates/microsoft.network/virtualnetworks/subnets
-resource apimSubnet 'Microsoft.Network/virtualNetworks/subnets@2024-05-01' = {
-  name: apimSubnetName
-  parent: spokeVnet
-  properties: {
-    addressPrefix: apimSubnetPrefix
-    networkSecurityGroup: {
-      id: apimNsg.id
-    }
-    delegations: apimVnetIntegration ? [
-      {
-        name: 'delegation-apim'
-        properties: {
-          serviceName: 'Microsoft.Web/serverFarms'
-        }
-      }
-    ] : []
-    routeTable: {
-      id: routeTable.id
-    }
-  }
-}
-
-// 10. APIM APIs
+// 2. APIM APIs
 
 // https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/apis
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if (!empty(apis)) {
@@ -364,7 +124,7 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
     appInsightsId: appInsightsId
     api: api
   }
-  dependsOn: [apimSubnet]
+  dependsOn: [firewallModule]
 }]
 
 
@@ -375,8 +135,8 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
 output apimServiceId string = apimService.id
 output apimServiceName string = apimService.name
 output apimResourceGatewayURL string = apimService.properties.gatewayUrl
-output firewallPrivateIpAddress string = firewallPrivateIp
-output firewallPublicIpAddress string = firewallPip.properties.ipAddress
+output firewallPrivateIpAddress string = firewallModule.outputs.firewallPrivateIpAddress
+output firewallPublicIpAddress string = firewallModule.outputs.firewallPublicIpAddress
 
 // API outputs
 output apiOutputs array = [for i in range(0, length(apis)): {
