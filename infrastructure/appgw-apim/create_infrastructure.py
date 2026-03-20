@@ -96,7 +96,9 @@ def main():
     parser = argparse.ArgumentParser(description='Create APPGW-APIM infrastructure (VNet Internal)')
     parser.add_argument('--location', default=Region.EAST_US_2, help=f'Azure region (default: {Region.EAST_US_2})')
     parser.add_argument('--index', type=int, help='Infrastructure index')
-    parser.add_argument('--sku', choices=['Developer', 'Premium', 'Standardv2', 'Premiumv2'], default='Developer', help='APIM SKU (default: Developer)')
+    parser.add_argument(
+        '--sku', choices=['Developer', 'Premium', 'Standardv2', 'Premiumv2'], default='Developer', help='APIM SKU (default: Developer)'
+    )
     parser.add_argument('--no-aca', action='store_true', help='Disable Azure Container Apps')
     parser.add_argument('--use-strict-nsg', action='store_true', help='Deploy strict NSGs for supported subnets')
     parser.add_argument('--rg-exists', action=argparse.BooleanOptionalAction, default=None, help='Pre-checked resource group existence state')
