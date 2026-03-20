@@ -47,9 +47,20 @@ class PresentationHandler(http.server.SimpleHTTPRequestHandler):
     _ignored_log_path_prefixes = ('/.well-known/appspecific/',)
 
     def _rewrite_path(self):
-        """Rewrite root path to presentation file."""
+        """Rewrite root path to presentation file.
+
+        Also strips the leading /assets/ prefix from paths such as
+        /assets/site.webmanifest and /assets/favicon-*.png.  The HTML file
+        uses ./assets/... references that resolve correctly on the exported
+        GitHub-Pages site (where the deck sits next to an assets/ folder),
+        but when served locally from the assets/ directory itself those
+        references would point one level too deep.  Stripping the prefix
+        makes them resolve to the correct files without modifying the HTML.
+        """
         if self.path in {'/', ''}:
             self.path = PRESENTATION_ENTRY_PATH
+        elif self.path.startswith('/assets/'):
+            self.path = self.path[len('/assets') :]
 
     def do_GET(self):
         """Handle GET requests."""
@@ -152,14 +163,14 @@ def serve_presentation(port: int = 7777):
 
         # Print server info
         print('\n✨ APIM Samples Presentation Server')
-        print(f'   Serving from: {pres_dir}')
-        print(f'   URL: {url}')
-        print(f'   Presentation URL: {presentation_url}')
+        print(f'   Serving from     : {pres_dir}')
+        print(f'   URL              : {url}')
+        print(f'   Presentation URL : {presentation_url}')
         print()
         print('   🌐 Browser opening in 1 second...')
         print()
         print('   To stop the server: Press Ctrl+C')
-        print()
+        print(flush=True)
 
         # Open browser in a background thread
         def open_browser():
