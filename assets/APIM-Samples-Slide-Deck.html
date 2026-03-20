@@ -850,10 +850,10 @@
 
   <!-- Navigation help (visible in presentation mode) -->
   <div class="nav-help">
-    F / F5 toggle mode &middot; Click / &#8592; &#8594; navigate
+    F toggle mode &middot; Esc exit &middot; Click / &#8592; &#8594; navigate
   </div>
   <div class="overview-help">
-    Press <strong>F</strong> or <strong>F5</strong> to toggle presentation mode &middot; Double-click any slide to start there
+    Press <strong>F</strong> to toggle presentation mode &middot; Double-click any slide to start there
   </div>
   <div class="slide-counter">
     <span id="currentSlide">1</span> / <span id="totalSlides"></span>
@@ -1170,7 +1170,8 @@
 
     <div class="matrix-container">
       <img src="diagrams/Infrastructure-SKU-Compatibility.svg"
-           alt="Infrastructure and SKU Compatibility Matrix" />
+           alt="Infrastructure and SKU Compatibility Matrix"
+           style="max-height: 500px;" />
     </div>
 
     <div class="footer"></div>
@@ -1522,7 +1523,7 @@
       window.addEventListener('resize', scaleSlides);
 
       document.addEventListener('keydown', function (e) {
-        if (e.key === 'F5' || e.key === 'f' || e.key === 'F') {
+        if (e.key === 'f' || e.key === 'F') {
           e.preventDefault();
 
           if (document.body.classList.contains('presentation-mode')) {
@@ -1539,6 +1540,9 @@
         }
 
         switch (e.key) {
+          case 'Escape':
+            exitPresentation();
+            break;
           case 'ArrowRight':
           case 'ArrowDown':
           case ' ':
