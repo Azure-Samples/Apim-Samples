@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 500" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 520" font-family="Segoe UI, Helvetica, Arial, sans-serif">
   <defs>
     <linearGradient id="skuHeaderGrad" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" stop-color="#0078D4" />
@@ -14,8 +14,8 @@
   </defs>
 
   <!-- Background -->
-  <rect width="940" height="500" rx="12" fill="#FAFAFA" />
-  <rect x="4" y="4" width="932" height="492" rx="10" fill="none" stroke="#E0E0E0" stroke-width="1" />
+  <rect width="940" height="520" rx="12" fill="#FAFAFA" />
+  <rect x="4" y="4" width="932" height="512" rx="10" fill="none" stroke="#E0E0E0" stroke-width="1" />
 
   <g transform="translate(0,20)">
   <!-- Title -->
@@ -128,16 +128,20 @@
   <circle cx="460" cy="305" r="10" fill="#EF5350" opacity="0.9" /><text x="460" y="309" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
   <circle cx="560" cy="305" r="10" fill="#EF5350" opacity="0.9" /><text x="560" y="309" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
   <circle cx="660" cy="305" r="10" fill="#EF5350" opacity="0.9" /><text x="660" y="309" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <text x="673" y="299" font-size="9" font-weight="600" fill="#1A1A1A">2</text>
   <circle cx="760" cy="305" r="10" fill="#4CAF50" opacity="0.9" /><text x="760" y="309" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="860" cy="305" r="10" fill="#4CAF50" opacity="0.9" /><text x="860" y="309" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
 
-  <!-- Row 4: appgw-apim - VNet injection supports Developer, Premium, or PremiumV2 -->
+  <!-- Row 4: appgw-apim - VNet injection (Developer, Premium) and VNet integration (StandardV2, PremiumV2) -->
   <circle cx="260" cy="347" r="10" fill="#4CAF50" opacity="0.9" /><text x="260" y="351" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="360" cy="347" r="10" fill="#EF5350" opacity="0.9" /><text x="360" y="351" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <text x="373" y="341" font-size="9" font-weight="600" fill="#1A1A1A">1</text>
   <circle cx="460" cy="347" r="10" fill="#EF5350" opacity="0.9" /><text x="460" y="351" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <text x="473" y="341" font-size="9" font-weight="600" fill="#1A1A1A">1</text>
   <circle cx="560" cy="347" r="10" fill="#4CAF50" opacity="0.9" /><text x="560" y="351" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="660" cy="347" r="10" fill="#EF5350" opacity="0.9" /><text x="660" y="351" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
-  <circle cx="760" cy="347" r="10" fill="#EF5350" opacity="0.9" /><text x="760" y="351" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <text x="673" y="341" font-size="9" font-weight="600" fill="#1A1A1A">2</text>
+  <circle cx="760" cy="347" r="10" fill="#4CAF50" opacity="0.9" /><text x="760" y="351" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="860" cy="347" r="10" fill="#4CAF50" opacity="0.9" /><text x="860" y="351" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
 
   <!-- Row 5: appgw-apim-pe - Private Link requires StandardV2 or PremiumV2 only -->
@@ -146,6 +150,7 @@
   <circle cx="460" cy="389" r="10" fill="#EF5350" opacity="0.9" /><text x="460" y="393" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
   <circle cx="560" cy="389" r="10" fill="#EF5350" opacity="0.9" /><text x="560" y="393" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
   <circle cx="660" cy="389" r="10" fill="#EF5350" opacity="0.9" /><text x="660" y="393" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <text x="673" y="383" font-size="9" font-weight="600" fill="#1A1A1A">2</text>
   <circle cx="760" cy="389" r="10" fill="#4CAF50" opacity="0.9" /><text x="760" y="393" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="860" cy="389" r="10" fill="#4CAF50" opacity="0.9" /><text x="860" y="393" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
 
@@ -160,7 +165,8 @@
   <text x="436" y="444" font-size="12" fill="#555555">Not compatible</text>
 
   <!-- Footnote -->
-  <text x="40" y="470" font-size="10" fill="#888888">PL = Private Link. Private Link infrastructures require StandardV2 or PremiumV2. VNet injection (appgw-apim internal mode) supports Developer, Premium, or PremiumV2.</text>
+  <text x="40" y="470" font-size="10" fill="#888888">PL = Private Link.  <tspan font-size="8" baseline-shift="super">1</tspan> Basic and Standard lack VNet support.  <tspan font-size="8" baseline-shift="super">2</tspan> BasicV2 does not support VNet integration.</text>
+  <text x="40" y="485" font-size="10" fill="#888888">Private Link (afd-apim-pe, appgw-apim-pe) and VNet integration require StandardV2 or PremiumV2. appgw-apim also supports VNet injection (Developer, Premium).</text>
   </g>
 
 </svg>
