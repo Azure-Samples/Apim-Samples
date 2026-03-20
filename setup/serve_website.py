@@ -197,13 +197,13 @@ def serve_website(port: int = 7800) -> None:
 
         url = f'http://localhost:{port}'
         print('\n✨ APIM Samples Website Preview')
-        print(f'   Serving from : {SITE_DIR}')
-        print(f'   Landing page : {url}/')
-        print(f'   Slide deck   : {url}/{SLIDE_DECK_STAGED}')
+        print(f'   Serving from       : {SITE_DIR}')
+        print(f'   Landing page       : {url}/')
+        print(f'   Slide deck         : {url}/{SLIDE_DECK_STAGED}')
         print()
         print('   🌐 Browser opening in 1 second...')
         print()
-        print('   To stop the server: Press Ctrl+C')
+        print('   To stop the server : Press Ctrl+C')
         print(flush=True)
 
         def open_browser() -> None:
@@ -213,7 +213,15 @@ def serve_website(port: int = 7800) -> None:
 
         Thread(target=open_browser, daemon=True).start()
 
-        httpd.serve_forever()
+        # Run the server in a daemon thread so the main thread remains free.
+        # On Windows, serve_forever() blocks inside select() which cannot be
+        # interrupted by Ctrl+C.  Keeping the main thread in a sleep() loop
+        # lets Python's signal machinery raise KeyboardInterrupt reliably.
+        server_thread = Thread(target=httpd.serve_forever, daemon=True)
+        server_thread.start()
+
+        while server_thread.is_alive():
+            sleep(1)
 
     except KeyboardInterrupt:
         print_shutdown_once()
@@ -224,6 +232,10 @@ def serve_website(port: int = 7800) -> None:
         os.chdir(original_dir)
 
         if httpd is not None:
+            try:
+                httpd.shutdown()
+            except Exception:  # noqa: BLE001
+                pass
             try:
                 httpd.server_close()
             except Exception:  # noqa: BLE001
