@@ -312,7 +312,7 @@ resource routeTable 'Microsoft.Network/routeTables@2024-05-01' = {
         name: 'route-spoke-vnet-local'
         properties: {
           addressPrefix: spokeVnetAddressPrefix
-          nextHopType: 'VirtualNetwork'
+          nextHopType: 'VnetLocal'
         }
       }
     ]
