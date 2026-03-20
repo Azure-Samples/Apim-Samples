@@ -54,7 +54,6 @@
       --text-subtle: #666;
       --text-footer-light: rgba(255, 255, 255, 0.88);
       --text-footer-dark: #5c5c5c;
-      --text-footer-note: #5f5f5f;
       --surface-white: #fff;
       --surface-light: #f7f9fb;
       --border-light: #e0e0e0;
@@ -456,13 +455,6 @@
       filter: drop-shadow(0 4px 12px rgba(0,0,0,0.1));
     }
 
-    .footer-note {
-      text-align: center;
-      font-size: 13px;
-      color: var(--text-footer-note);
-      margin-top: 8px;
-    }
-
     /* ── Agenda list ── */
     .agenda-list {
       list-style: none;
@@ -858,10 +850,10 @@
 
   <!-- Navigation help (visible in presentation mode) -->
   <div class="nav-help">
-    F / F5 toggle mode &middot; Click / &#8592; &#8594; navigate
+    F toggle mode &middot; Esc exit &middot; Click / &#8592; &#8594; navigate
   </div>
   <div class="overview-help">
-    Press <strong>F</strong> or <strong>F5</strong> to toggle presentation mode &middot; Double-click any slide to start there
+    Press <strong>F</strong> to toggle presentation mode &middot; Double-click any slide to start there
   </div>
   <div class="slide-counter">
     <span id="currentSlide">1</span> / <span id="totalSlides"></span>
@@ -909,10 +901,7 @@
       </div>
     </div>
 
-    <div class="footer">
-      <div class="slide-number">1/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-    </div>
+    <div class="footer" data-no-bottom-bar></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -929,11 +918,7 @@
       <li><span class="num">5</span> Customer scenarios & how you can help</li>
       <li><span class="num">6</span> Summary & Q&A</li>
     </ul>
-    <div class="footer">
-      <div class="slide-number">2/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-      <div class="bottom-bar"></div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -943,11 +928,7 @@
     <div class="section-number">01</div>
     <h2>The <span>Motivation</span></h2>
     <p>Why does APIM Samples exist, and what problem does it solve?</p>
-    <div class="footer">
-      <div class="slide-number">3/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-      <div class="bottom-bar"></div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -993,11 +974,7 @@
         </p>
       </div>
     </div>
-    <div class="footer">
-      <div class="slide-number">4/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-      <div class="bottom-bar"></div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1059,11 +1036,7 @@
         <p style="font-size: 14px; color: #555; margin-top: 20px;">A flexible combination where <em>1 + 1 feels like 3</em>.</p>
       </div>
     </div>
-    <div class="footer">
-      <div class="slide-number">5/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-      <div class="bottom-bar"></div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1073,11 +1046,7 @@
     <div class="section-number">02</div>
     <h2>What's <span>Inside</span></h2>
     <p>Infrastructures, samples, and key features at a glance</p>
-    <div class="footer">
-      <div class="slide-number">6/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-      <div class="bottom-bar"></div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1117,11 +1086,7 @@
         <span class="tag">Max Isolation</span>
       </div>
     </div>
-    <div class="footer">
-      <div class="slide-number">7/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-      <div class="bottom-bar"></div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1168,11 +1133,7 @@
         <p>Valet key pattern for secure Azure Blob Storage access.</p>
       </div>
     </div>
-    <div class="footer">
-      <div class="slide-number">8/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-      <div class="bottom-bar"></div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1192,10 +1153,7 @@
            alt="Infrastructure and Sample Compatibility Matrix" />
     </div>
 
-    <div class="footer">
-      <p class="footer-note">https://aka.ms/apim/samples</p>
-      <div class="slide-number">9/20</div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1212,13 +1170,11 @@
 
     <div class="matrix-container">
       <img src="diagrams/Infrastructure-SKU-Compatibility.svg"
-           alt="Infrastructure and SKU Compatibility Matrix" />
+           alt="Infrastructure and SKU Compatibility Matrix"
+           style="max-height: 500px;" />
     </div>
 
-    <div class="footer">
-      <p class="footer-note">https://aka.ms/apim/samples</p>
-      <div class="slide-number">10/20</div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1228,11 +1184,7 @@
     <div class="section-number">03</div>
     <h2>Why <span>This Approach</span></h2>
     <p>Key differentiators that set APIM Samples apart</p>
-    <div class="footer">
-      <div class="slide-number">11/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-      <div class="bottom-bar"></div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1276,11 +1228,7 @@
         <p>OpenSSF Best Practices certified. CI/CD pipeline. Cross-platform (Windows, Linux, macOS).</p>
       </div>
     </div>
-    <div class="footer">
-      <div class="slide-number">12/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-      <div class="bottom-bar"></div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1290,11 +1238,7 @@
     <div class="section-number">04</div>
     <h2>Live <span>Demo</span></h2>
     <p>Deploying an infrastructure, running a sample, and exploring in Azure Portal</p>
-    <div class="footer">
-      <div class="slide-number">13/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-      <div class="bottom-bar"></div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1336,11 +1280,7 @@
     <div style="margin-top: 32px; text-align: center; font-size: 15px; color: #555;">
       <strong>Let's see it in action!</strong> &mdash; We'll deploy an infrastructure and run a sample live.
     </div>
-    <div class="footer">
-      <div class="slide-number">14/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-      <div class="bottom-bar"></div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1376,11 +1316,7 @@
         </ul>
       </div>
     </div>
-    <div class="footer">
-      <div class="slide-number">15/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-      <div class="bottom-bar"></div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1390,11 +1326,7 @@
     <div class="section-number">05</div>
     <h2>Empowering <span>Customers</span></h2>
     <p>Unlock your API management potential</p>
-    <div class="footer">
-      <div class="slide-number">16/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-      <div class="bottom-bar"></div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1428,11 +1360,7 @@
         <p>Fork the repo and build your own solutions. Guided notebooks and clear documentation make self-service success straightforward.</p>
       </div>
     </div>
-    <div class="footer">
-      <div class="slide-number">17/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-      <div class="bottom-bar"></div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1464,11 +1392,7 @@
         <p>Leverage it with customers and share what you learn back.</p>
       </div>
     </div>
-    <div class="footer">
-      <div class="slide-number">18/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-      <div class="bottom-bar"></div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1502,10 +1426,7 @@
     <div style="text-align: center; margin-top: 28px; font-size: 20px; font-weight: 300; opacity: 0.9; color: #fff;">
       <em>"Neither too much nor too little. Just right."</em>
     </div>
-    <div class="footer">
-      <div class="slide-number">19/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-    </div>
+    <div class="footer" data-no-bottom-bar></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
@@ -1531,17 +1452,34 @@
         </div>
       </div>
     </div>
-    <div class="footer">
-      <div class="slide-number">20/20</div>
-      <span class="footer-url">https://aka.ms/apim/samples</span>
-      <div class="bottom-bar"></div>
-    </div>
+    <div class="footer"></div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════════ -->
-  <!-- Presentation Engine (keyboard navigation)                   -->
+  <!-- Footer auto-generation & Presentation Engine                -->
   <!-- ════════════════════════════════════════════════════════════ -->
   <script>
+    // ── Auto-generate slide footers ──
+    // Each .footer div is populated automatically so that slide numbers
+    // stay in sync and the markup is not duplicated across every slide.
+    (function () {
+      var slides = document.querySelectorAll('.slide');
+      var total = slides.length;
+      var url = 'https://aka.ms/apim/samples';
+
+      slides.forEach(function (slide, i) {
+        var footer = slide.querySelector('.footer');
+        if (!footer) return;
+
+        var noBar = footer.hasAttribute('data-no-bottom-bar');
+        footer.innerHTML =
+          '<div class="slide-number">' + (i + 1) + '/' + total + '</div>' +
+          '<span class="footer-url">' + url + '</span>' +
+          (noBar ? '' : '<div class="bottom-bar"></div>');
+      });
+    })();
+
+    // ── Presentation engine (keyboard navigation) ──
     (function () {
       var slides = document.querySelectorAll('.slide');
       var totalEl = document.getElementById('totalSlides');
@@ -1585,7 +1523,7 @@
       window.addEventListener('resize', scaleSlides);
 
       document.addEventListener('keydown', function (e) {
-        if (e.key === 'F5' || e.key === 'f' || e.key === 'F') {
+        if (e.key === 'f' || e.key === 'F') {
           e.preventDefault();
 
           if (document.body.classList.contains('presentation-mode')) {
@@ -1602,6 +1540,9 @@
         }
 
         switch (e.key) {
+          case 'Escape':
+            exitPresentation();
+            break;
           case 'ArrowRight':
           case 'ArrowDown':
           case ' ':
@@ -1652,29 +1593,9 @@
       // enterPresentation();
     })();
 
-    // ── Live reload (polls server for changes) ──
-    (function () {
-      let lastModified = new Date().getTime();
-      const checkInterval = 2000; // Check every 2 seconds
-
-      setInterval(function () {
-        fetch(window.location.href, {
-          method: 'HEAD',
-          cache: 'no-store',
-        })
-          .then(function (response) {
-            const modified = new Date(response.headers.get('last-modified')).getTime();
-            if (modified > lastModified && lastModified !== 0) {
-              console.log('File updated, reloading...');
-              window.location.reload();
-            }
-            lastModified = modified;
-          })
-          .catch(function (error) {
-            console.log('Live reload check failed:', error);
-          });
-      }, checkInterval);
-    })();
   </script>
+
+  <!-- Development-only: live reload when served via serve_presentation.py -->
+  <script src="live-reload.js"></script>
 </body>
 </html>
