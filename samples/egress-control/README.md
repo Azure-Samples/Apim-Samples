@@ -1,6 +1,6 @@
-# Samples: NVA Routing
+# Samples: Egress Control
 
-Route APIM outbound internet traffic through a Network Virtual Appliance (NVA) using Azure Firewall in a hub/spoke network topology.
+Control APIM outbound internet traffic by routing it through a Network Virtual Appliance (NVA) — Azure Firewall — in a hub/spoke network topology.
 
 ⚙️ **Supported infrastructures**: appgw-apim, appgw-apim-pe
 
@@ -32,9 +32,9 @@ Three APIM APIs demonstrate the routing behaviour:
 
 | API | Backend | Expected result |
 |-----|---------|-----------------|
-| `nva-weather` | `https://api.weather.gov` (HTTPS) | ✅ 200 — allowed by firewall |
-| `nva-blocked-http` | `http://api.weather.gov` (HTTP/port 80) | ❌ 5xx — HTTP blocked by firewall |
-| `nva-blocked-host` | `https://api.accuweather.com` (HTTPS) | ❌ 5xx — host not in allow list |
+| `egress-weather` | `https://api.weather.gov` (HTTPS) | ✅ 200 — allowed by firewall |
+| `egress-blocked-http` | `http://api.weather.gov` (HTTP/port 80) | ❌ 5xx — HTTP blocked by firewall |
+| `egress-blocked-host` | `https://api.accuweather.com` (HTTPS) | ❌ 5xx — host not in allow list |
 
 ## 🛩️ Lab Components
 
@@ -57,7 +57,7 @@ The sample deploys the following resources into the infrastructure resource grou
     1. If the infrastructure _does_ exist, adjust the `user-defined parameters` in the _Initialize notebook variables_ cell below.
 1. Adjust `apim_nsg_name` if your infrastructure was deployed with strict NSGs (`nsg-apim-strict`).
 
-> **Supported VNet SKUs only**: APIM must be deployed with a VNet-capable SKU. Basic and Standard are not supported. Supported options: `DEVELOPER`, `PREMIUM`, `BASICV2`, `STANDARDV2`, `PREMIUMV2`.
+> **Supported VNet SKUs only**: APIM must be deployed with a VNet-capable SKU. For `appgw-apim` (VNet injection), use `DEVELOPER`, `PREMIUM`, or `PREMIUMV2`. For `appgw-apim-pe` (Private Link), use `STANDARDV2` or `PREMIUMV2`. Basic, Standard, and BasicV2 are not supported.
 
 ## 🧹 Clean Up
 

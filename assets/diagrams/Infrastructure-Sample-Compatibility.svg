@@ -97,10 +97,10 @@
   <rect x="35" y="524" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
   <text x="120" y="548" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Secure Blob Access</text>
 
-  <!-- Row 9: NVA Routing -->
+  <!-- Row 9: Egress Control -->
   <rect x="30" y="568" width="825" height="42" rx="4" fill="#FFFFFF" />
   <rect x="35" y="570" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
-  <text x="120" y="594" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">NVA Routing</text>
+  <text x="120" y="590" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Egress Control</text>
 
   <!-- Vertical grid lines -->
   <line x1="210" y1="92" x2="210" y2="612" stroke="#E0E0E0" stroke-width="0.5" />
@@ -205,7 +205,7 @@
   <circle cx="790" cy="543" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="790" y="547" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
 
-  <!-- Row 9: NVA Routing - only appgw-apim and appgw-apim-pe compatible -->
+  <!-- Row 9: Egress Control - only appgw-apim and appgw-apim-pe compatible -->
   <circle cx="270" cy="589" r="10" fill="#EF5350" opacity="0.9" />
   <text x="270" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
   <text x="283" y="583" font-size="9" font-weight="600" fill="#1A1A1A">2</text>
