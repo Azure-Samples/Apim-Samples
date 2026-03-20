@@ -83,14 +83,25 @@ def inline_images(html_content: str, base_dir: Path) -> str:
 
 
 def strip_live_reload(html_content: str) -> str:
-    """Remove the authoring-only live reload block from exported HTML."""
-    pattern = re.compile(
+    """Remove authoring-only live reload from exported HTML."""
+    # Current source format (external dev script):
+    #   <!-- Development-only: live reload ... -->
+    #   <script src="live-reload.js"></script>
+    external_script_pattern = re.compile(
+        r'\n\s*(?:<!--\s*Development-only:.*?-->)?\s*\n?'
+        r'\s*<script\s+src="live-reload\.js"></script>\s*\n?',
+        flags=re.IGNORECASE,
+    )
+
+    # Backward compatibility with the previous inline live-reload IIFE.
+    legacy_inline_pattern = re.compile(
         r'\n\s*// ── Live reload \(polls server for changes\) ──\n'
         r'\s*\(function \(\) \{.*?\}\)\(\);\n',
         flags=re.DOTALL,
     )
 
-    return pattern.sub('\n', html_content, count=1)
+    html_content = external_script_pattern.sub('\n', html_content)
+    return legacy_inline_pattern.sub('\n', html_content, count=1)
 
 
 def export_presentation():
