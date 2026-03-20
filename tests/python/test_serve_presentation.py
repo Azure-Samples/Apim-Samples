@@ -5,6 +5,7 @@ import re
 import runpy
 import signal
 import sys
+import threading
 from pathlib import Path
 from types import ModuleType
 from typing import Any, cast
@@ -199,7 +200,7 @@ def test_presentation_handler_logs_update_on_head_poll(tmp_path: Path) -> None:
             with patch('builtins.print') as mock_print:
                 handler._log_polled_update()
 
-    mock_print.assert_called_once_with('  [02/26/2026 15:45:12.123] File update detected: deck.html')
+    mock_print.assert_called_once_with('  [02/26/2026 15:45:12.123] File update detected: deck.html', flush=True)
 
 
 def test_presentation_handler_does_not_log_update_for_missing_file() -> None:
@@ -218,16 +219,19 @@ def test_serve_presentation_keyboard_interrupt(mock_repo_root: Path) -> None:
     """serve_presentation should gracefully handle KeyboardInterrupt."""
     presentation_dir = mock_repo_root / 'assets'
 
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = True
+
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
         with patch('serve_presentation.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
-            mock_server_instance.serve_forever.side_effect = KeyboardInterrupt()
 
-            with patch('serve_presentation.Thread'):
-                with patch('builtins.print') as mock_print:
-                    with patch('os.chdir'):
-                        serve_pres.serve_presentation(8000)
+            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
+                with patch('serve_presentation.sleep', side_effect=KeyboardInterrupt):
+                    with patch('builtins.print') as mock_print:
+                        with patch('os.chdir'):
+                            serve_pres.serve_presentation(8000)
 
     mock_server_instance.server_close.assert_called_once()
     printed_messages = [' '.join(str(arg) for arg in call.args) for call in mock_print.call_args_list]
@@ -240,13 +244,15 @@ def test_serve_presentation_registers_signal_handlers(mock_repo_root: Path) -> N
     previous_sigint_handler = signal.default_int_handler
     previous_sigterm_handler = signal.SIG_DFL if hasattr(signal, 'SIGTERM') else None
 
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = False
+
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
         with patch('serve_presentation.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
-            mock_server_instance.serve_forever.side_effect = KeyboardInterrupt()
 
-            with patch('serve_presentation.Thread'):
+            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
                 with patch('builtins.print'):
                     with patch('os.chdir'):
                         with patch('serve_presentation.signal.getsignal') as mock_getsignal:
@@ -268,19 +274,21 @@ def test_serve_presentation_opens_browser(mock_repo_root: Path) -> None:
     """serve_presentation should spawn a thread to open the browser."""
     presentation_dir = mock_repo_root / 'assets'
 
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = False
+
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
         with patch('serve_presentation.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
-            mock_server_instance.serve_forever.side_effect = KeyboardInterrupt()
 
-            with patch('serve_presentation.Thread') as mock_thread:
+            with patch('serve_presentation.Thread', return_value=mock_thread_instance) as mock_thread:
                 with patch('builtins.print'):
                     with patch('os.chdir'):
                         serve_pres.serve_presentation(8000)
 
-    mock_thread.assert_called_once()
-    assert mock_thread.call_args.kwargs['daemon'] is True
+    assert mock_thread.call_count == 2
+    assert mock_thread.call_args_list[0].kwargs['daemon'] is True
 
 
 def test_serve_presentation_browser_thread_target_opens_url(mock_repo_root: Path) -> None:
@@ -295,6 +303,9 @@ def test_serve_presentation_browser_thread_target_opens_url(mock_repo_root: Path
         def start(self) -> None:
             if self._target is not None:
                 self._target()
+
+        def is_alive(self) -> bool:
+            return False
 
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
         with patch('serve_presentation.current_thread', return_value=object()):
@@ -320,13 +331,15 @@ def test_serve_presentation_restores_cwd(mock_repo_root: Path) -> None:
     presentation_dir = mock_repo_root / 'assets'
     original_cwd = '/original/cwd'
 
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = False
+
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
         with patch('serve_presentation.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
-            mock_server_instance.serve_forever.side_effect = KeyboardInterrupt()
 
-            with patch('serve_presentation.Thread'):
+            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
                 with patch('builtins.print'):
                     with patch('os.getcwd', return_value=original_cwd):
                         with patch('os.chdir') as mock_chdir:
@@ -344,28 +357,34 @@ def test_serve_presentation_signal_handler_prints_shutdown_once(mock_repo_root: 
     def capture_signal(sig: int, handler: Any) -> None:
         registered_handlers[sig] = handler
 
+    # Simulate the signal handler being called twice during the serve loop, then exit.
+    call_count = {'n': 0}
+
+    def sleep_side_effect(_t: float) -> None:
+        call_count['n'] += 1
+        if call_count['n'] == 1:
+            for _ in range(2):
+                try:
+                    registered_handlers[signal.SIGINT](signal.SIGINT, None)
+                except KeyboardInterrupt:
+                    continue
+        raise KeyboardInterrupt
+
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = True
+
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
         with patch('serve_presentation.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
 
-            def raise_via_registered_handler() -> None:
-                for _ in range(2):
-                    try:
-                        registered_handlers[signal.SIGINT](signal.SIGINT, None)
-                    except KeyboardInterrupt:
-                        continue
-
-                raise KeyboardInterrupt
-
-            mock_server_instance.serve_forever.side_effect = raise_via_registered_handler
-
-            with patch('serve_presentation.Thread'):
+            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
                 with patch('builtins.print') as mock_print:
                     with patch('os.chdir'):
                         with patch('serve_presentation.signal.getsignal', return_value=signal.default_int_handler):
                             with patch('serve_presentation.signal.signal', side_effect=capture_signal):
-                                serve_pres.serve_presentation(8000)
+                                with patch('serve_presentation.sleep', side_effect=sleep_side_effect):
+                                    serve_pres.serve_presentation(8000)
 
     shutdown_messages = [call for call in mock_print.call_args_list if 'Server stopped' in ' '.join(str(arg) for arg in call.args)]
     assert len(shutdown_messages) == 1
@@ -377,13 +396,15 @@ def test_serve_presentation_prints_server_info(mock_repo_root: Path) -> None:
     expected_url = 'http://localhost:7777'
     expected_presentation_url = f'{expected_url}{serve_pres.PRESENTATION_ENTRY_PATH}'
 
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = False
+
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
         with patch('serve_presentation.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
-            mock_server_instance.serve_forever.side_effect = KeyboardInterrupt()
 
-            with patch('serve_presentation.Thread'):
+            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
                 with patch('builtins.print') as mock_print:
                     with patch('os.chdir'):
                         serve_pres.serve_presentation(7777)
@@ -399,13 +420,15 @@ def test_serve_presentation_custom_port(mock_repo_root: Path) -> None:
     """serve_presentation should use custom port when specified."""
     presentation_dir = mock_repo_root / 'assets'
 
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = False
+
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
         with patch('serve_presentation.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
-            mock_server_instance.serve_forever.side_effect = KeyboardInterrupt()
 
-            with patch('serve_presentation.Thread'):
+            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
                 with patch('builtins.print'):
                     with patch('os.chdir'):
                         serve_pres.serve_presentation(9000)
@@ -417,13 +440,15 @@ def test_serve_presentation_handler_is_set(mock_repo_root: Path) -> None:
     """serve_presentation should use PresentationHandler for the server."""
     presentation_dir = mock_repo_root / 'assets'
 
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = False
+
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
         with patch('serve_presentation.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
-            mock_server_instance.serve_forever.side_effect = KeyboardInterrupt()
 
-            with patch('serve_presentation.Thread'):
+            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
                 with patch('builtins.print'):
                     with patch('os.chdir'):
                         serve_pres.serve_presentation(7777)
@@ -433,12 +458,14 @@ def test_serve_presentation_handler_is_set(mock_repo_root: Path) -> None:
 
 def test_main_default_port() -> None:
     """Main entry with no arguments should use default port 7777."""
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = False
+
     with patch('socketserver.TCPServer') as mock_server:
         mock_server_instance = MagicMock()
         mock_server.return_value = mock_server_instance
-        mock_server_instance.serve_forever.side_effect = KeyboardInterrupt()
 
-        with patch('threading.Thread'):
+        with patch.object(threading, 'Thread', return_value=mock_thread_instance):
             with patch('builtins.print'):
                 with patch('os.chdir'):
                     with patch('os.getcwd', return_value=str(PROJECT_ROOT)):
@@ -452,12 +479,14 @@ def test_main_default_port() -> None:
 
 def test_main_custom_port() -> None:
     """Main entry with argument should use specified port."""
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = False
+
     with patch('socketserver.TCPServer') as mock_server:
         mock_server_instance = MagicMock()
         mock_server.return_value = mock_server_instance
-        mock_server_instance.serve_forever.side_effect = KeyboardInterrupt()
 
-        with patch('threading.Thread'):
+        with patch.object(threading, 'Thread', return_value=mock_thread_instance):
             with patch('builtins.print'):
                 with patch('os.chdir'):
                     with patch('os.getcwd', return_value=str(PROJECT_ROOT)):
@@ -518,36 +547,40 @@ def test_open_browser_thread_is_daemon(mock_repo_root: Path) -> None:
     """The browser opening thread should be a daemon thread."""
     presentation_dir = mock_repo_root / 'assets'
 
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = False
+
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
         with patch('serve_presentation.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
-            mock_server_instance.serve_forever.side_effect = KeyboardInterrupt()
 
-            with patch('serve_presentation.Thread') as mock_thread:
+            with patch('serve_presentation.Thread', return_value=mock_thread_instance) as mock_thread:
                 with patch('builtins.print'):
                     with patch('os.chdir'):
                         serve_pres.serve_presentation(7777)
 
-    assert mock_thread.call_args.kwargs['daemon'] is True
+    assert mock_thread.call_args_list[0].kwargs['daemon'] is True
 
 
 def test_open_browser_has_sleep_delay(mock_repo_root: Path) -> None:
     """serve_presentation should create a browser-opening thread when starting."""
     presentation_dir = mock_repo_root / 'assets'
 
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = False
+
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
         with patch('serve_presentation.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
-            mock_server_instance.serve_forever.side_effect = KeyboardInterrupt()
 
-            with patch('serve_presentation.Thread') as mock_thread:
+            with patch('serve_presentation.Thread', return_value=mock_thread_instance) as mock_thread:
                 with patch('builtins.print'):
                     with patch('os.chdir'):
                         serve_pres.serve_presentation(7777)
 
-    assert callable(mock_thread.call_args.kwargs['target'])
+    assert callable(mock_thread.call_args_list[0].kwargs['target'])
 
 
 def test_presentation_handler_integration() -> None:
@@ -564,4 +597,4 @@ def test_presentation_handler_integration() -> None:
 
         handler.path = '/assets/image.png'
         handler.do_GET()
-        assert handler.path == '/assets/image.png'
+        assert handler.path == '/image.png'

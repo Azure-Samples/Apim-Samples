@@ -251,16 +251,19 @@ def test_serve_website_keyboard_interrupt_cleans_up(mock_repo: Path) -> None:
     """serve_website should shut down gracefully and remove _site/ on Ctrl+C."""
     site = mock_repo / '_site'
 
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = True
+
     with patch('serve_website.TCPServer') as mock_server:
         mock_instance = MagicMock()
         mock_server.return_value = mock_instance
-        mock_instance.serve_forever.side_effect = KeyboardInterrupt()
 
-        with patch('serve_website.Thread'):
+        with patch('serve_website.Thread', return_value=mock_thread_instance):
             with patch('serve_website.webbrowser'):
-                with patch('builtins.print') as mock_print:
-                    with patch('os.chdir'):
-                        serve_web.serve_website(9999)
+                with patch('serve_website.sleep', side_effect=KeyboardInterrupt):
+                    with patch('builtins.print') as mock_print:
+                        with patch('os.chdir'):
+                            serve_web.serve_website(9999)
 
     mock_instance.server_close.assert_called_once()
     assert not site.exists()
@@ -271,16 +274,104 @@ def test_serve_website_keyboard_interrupt_cleans_up(mock_repo: Path) -> None:
 
 def test_serve_website_survives_close_failure(mock_repo: Path) -> None:
     """serve_website should still clean up _site/ if server_close raises."""
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = True
+
     with patch('serve_website.TCPServer') as mock_server:
         mock_instance = MagicMock()
         mock_server.return_value = mock_instance
-        mock_instance.serve_forever.side_effect = KeyboardInterrupt()
         mock_instance.server_close.side_effect = OSError('boom')
 
-        with patch('serve_website.Thread'):
+        with patch('serve_website.Thread', return_value=mock_thread_instance):
             with patch('serve_website.webbrowser'):
-                with patch('builtins.print'):
-                    with patch('os.chdir'):
-                        serve_web.serve_website(9999)
+                with patch('serve_website.sleep', side_effect=KeyboardInterrupt):
+                    with patch('builtins.print'):
+                        with patch('os.chdir'):
+                            serve_web.serve_website(9999)
 
     assert not (mock_repo / '_site').exists()
+
+
+def test_serve_website_signal_handler_stops_once_and_cleans_up(mock_repo: Path) -> None:
+    """Signal-triggered shutdown should only print once and still clean up when server creation aborts."""
+    site = mock_repo / '_site'
+    registered_handlers: dict[int, object] = {}
+
+    def signal_side_effect(sig: int, handler: object) -> object:
+        registered_handlers[sig] = handler
+        return MagicMock(name=f'prev-{sig}')
+
+    def tcp_server_side_effect(*args: Any, **kwargs: Any) -> None:
+        del args, kwargs
+        handler = registered_handlers[serve_web.signal.SIGINT]
+        handler(serve_web.signal.SIGINT, None)
+
+    with patch('serve_website.signal.getsignal', return_value=MagicMock(name='previous-handler')):
+        with patch('serve_website.signal.signal', side_effect=signal_side_effect):
+            with patch('serve_website.TCPServer', side_effect=tcp_server_side_effect):
+                with patch('serve_website.Thread'):
+                    with patch('serve_website.webbrowser'):
+                        with patch('builtins.print') as mock_print:
+                            with patch('os.chdir'):
+                                serve_web.serve_website(9999)
+
+    assert not site.exists()
+    printed = [' '.join(str(a) for a in c.args) for c in mock_print.call_args_list]
+    assert sum('Server stopped' in message for message in printed) == 1
+
+
+def test_serve_website_non_main_thread_skips_signal_registration(mock_repo: Path) -> None:
+    """serve_website should not register signal handlers when called off the main thread."""
+    worker_thread = object()
+    main_thread = object()
+    mock_thread_instance = MagicMock()
+    mock_thread_instance.is_alive.return_value = True
+
+    with patch('serve_website.current_thread', return_value=worker_thread):
+        with patch('serve_website.main_thread', return_value=main_thread):
+            with patch('serve_website.signal.signal') as mock_signal:
+                with patch('serve_website.TCPServer') as mock_server:
+                    mock_instance = MagicMock()
+                    mock_server.return_value = mock_instance
+
+                    with patch('serve_website.Thread', return_value=mock_thread_instance):
+                        with patch('serve_website.webbrowser'):
+                            with patch('serve_website.sleep', side_effect=KeyboardInterrupt):
+                                with patch('builtins.print'):
+                                    with patch('os.chdir'):
+                                        serve_web.serve_website(9999)
+
+    mock_signal.assert_not_called()
+    assert not (mock_repo / '_site').exists()
+
+
+def test_serve_website_open_browser_callback_runs(mock_repo: Path) -> None:
+    """serve_website should execute the browser-opening callback body when the thread runs."""
+    thread_targets: list[Any] = []
+
+    class ImmediateThread:
+        def __init__(self, *, target: Any, daemon: bool) -> None:
+            assert daemon is True
+            thread_targets.append(target)
+
+        def start(self) -> None:
+            thread_targets[-1]()
+
+        def is_alive(self) -> bool:
+            return False
+
+    with patch('serve_website.TCPServer') as mock_server:
+        mock_instance = MagicMock()
+        mock_server.return_value = mock_instance
+
+        with patch('serve_website.Thread', ImmediateThread):
+            with patch('serve_website.sleep') as mock_sleep:
+                with patch('serve_website.webbrowser.open') as mock_open:
+                    with patch('builtins.print') as mock_print:
+                        with patch('os.chdir'):
+                            serve_web.serve_website(9999)
+
+    mock_sleep.assert_called_once_with(1)
+    mock_open.assert_called_once_with('http://localhost:9999/')
+    printed = [' '.join(str(a) for a in c.args) for c in mock_print.call_args_list]
+    assert any('Opening browser to http://localhost:9999/' in message for message in printed)
