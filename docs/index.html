@@ -132,15 +132,15 @@
           { "@type": "ListItem", "position": 3,  "name": "Front Door and API Management (Private Link)",  "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/afd-apim-pe" },
           { "@type": "ListItem", "position": 4,  "name": "Application Gateway and APIM (Private Link)",   "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/appgw-apim-pe" },
           { "@type": "ListItem", "position": 5,  "name": "Application Gateway and APIM (VNet injection)", "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/appgw-apim" },
-          { "@type": "ListItem", "position": 6,  "name": "General sample",                                "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/general" },
-          { "@type": "ListItem", "position": 7,  "name": "AuthX sample",                                  "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/authX" },
-          { "@type": "ListItem", "position": 8,  "name": "AuthX Pro sample",                              "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/authX-pro" },
-          { "@type": "ListItem", "position": 9,  "name": "Load Balancing sample",                         "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/load-balancing" },
-          { "@type": "ListItem", "position": 10, "name": "Costing and Showback sample",                   "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/costing" },
-          { "@type": "ListItem", "position": 11, "name": "Credential Manager (Spotify) sample",           "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/oauth-3rd-party" },
-          { "@type": "ListItem", "position": 12, "name": "Secure Blob Access sample",                     "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/secure-blob-access" },
-          { "@type": "ListItem", "position": 13, "name": "Azure Maps sample",                             "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/azure-maps" },
-          { "@type": "ListItem", "position": 14, "name": "Egress Control sample",                           "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/egress-control" }
+          { "@type": "ListItem", "position": 6,  "name": "AuthX sample",                                  "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/authX" },
+          { "@type": "ListItem", "position": 7,  "name": "AuthX Pro sample",                              "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/authX-pro" },
+          { "@type": "ListItem", "position": 8,  "name": "Azure Maps sample",                             "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/azure-maps" },
+          { "@type": "ListItem", "position": 9,  "name": "Costing sample",                                "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/costing" },
+          { "@type": "ListItem", "position": 10, "name": "Egress Control sample",                         "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/egress-control" },
+          { "@type": "ListItem", "position": 11, "name": "General sample",                                "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/general" },
+          { "@type": "ListItem", "position": 12, "name": "Load Balancing sample",                         "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/load-balancing" },
+          { "@type": "ListItem", "position": 13, "name": "OAuth 3rd-Party sample",                        "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/oauth-3rd-party" },
+          { "@type": "ListItem", "position": 14, "name": "Secure Blob Access sample",                     "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/secure-blob-access" }
         ]
       }
     ]
@@ -426,12 +426,6 @@
 
         <div class="sample-grid">
 
-          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/general" target="_blank" rel="noopener">
-            <h3>General</h3>
-            <p>Basic demonstration of sample setup and policy usage. The best first stop.</p>
-            <span class="infra-tag">All infrastructures</span>
-          </a>
-
           <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/authX" target="_blank" rel="noopener">
             <h3>AuthX</h3>
             <p>Authentication and role-based authorisation against a mock HR API using JWT validation.</p>
@@ -444,20 +438,38 @@
             <span class="infra-tag">All infrastructures</span>
           </a>
 
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/azure-maps" target="_blank" rel="noopener">
+            <h3>Azure Maps</h3>
+            <p>Proxy and shape calls to Azure Maps through APIM to centralise keys, quotas, and telemetry.</p>
+            <span class="infra-tag">All infrastructures</span>
+          </a>
+
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/costing" target="_blank" rel="noopener">
+            <h3>Costing</h3>
+            <p>Track and allocate API costs per business unit using subscriptions, Log Analytics, and Cost Management.</p>
+            <span class="infra-tag">All infrastructures</span>
+          </a>
+
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/egress-control" target="_blank" rel="noopener">
+            <h3>Egress Control</h3>
+            <p>Control APIM outbound internet traffic by routing it through an Azure Firewall NVA in a hub/spoke topology with user-defined routes.</p>
+            <span class="infra-tag">appgw-apim · appgw-apim-pe</span>
+          </a>
+
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/general" target="_blank" rel="noopener">
+            <h3>General</h3>
+            <p>Basic demonstration of sample setup and policy usage. The best first stop.</p>
+            <span class="infra-tag">All infrastructures</span>
+          </a>
+
           <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/load-balancing" target="_blank" rel="noopener">
             <h3>Load Balancing</h3>
             <p>Priority and weighted load balancing across backend pools for resilience and blue-green rollouts.</p>
             <span class="infra-tag">apim-aca · afd-apim-pe</span>
           </a>
 
-          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/costing" target="_blank" rel="noopener">
-            <h3>Costing &amp; Showback</h3>
-            <p>Track and allocate API costs per business unit using subscriptions, Log Analytics, and Cost Management.</p>
-            <span class="infra-tag">All infrastructures</span>
-          </a>
-
           <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/oauth-3rd-party" target="_blank" rel="noopener">
-            <h3>Credential Manager (Spotify)</h3>
+            <h3>OAuth 3rd-Party</h3>
             <p>APIM stores and manages third-party OAuth tokens on the caller's behalf using Credential Manager.</p>
             <span class="infra-tag">All infrastructures</span>
           </a>
@@ -466,18 +478,6 @@
             <h3>Secure Blob Access</h3>
             <p>Valet key pattern: APIM mints short-lived SAS tokens so callers never see storage credentials.</p>
             <span class="infra-tag">All infrastructures</span>
-          </a>
-
-          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/azure-maps" target="_blank" rel="noopener">
-            <h3>Azure Maps</h3>
-            <p>Proxy and shape calls to Azure Maps through APIM to centralise keys, quotas, and telemetry.</p>
-            <span class="infra-tag">All infrastructures</span>
-          </a>
-
-          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/egress-control" target="_blank" rel="noopener">
-            <h3>Egress Control</h3>
-            <p>Control APIM outbound internet traffic by routing it through an Azure Firewall NVA in a hub/spoke topology with user-defined routes.</p>
-            <span class="infra-tag">appgw-apim · appgw-apim-pe</span>
           </a>
 
         </div>
