@@ -1098,8 +1098,7 @@ class AppGwApimPeInfrastructure(AppGatewayInfrastructure):
 
 class AppGwApimInfrastructure(AppGatewayInfrastructure):
     """
-    Represents an Application Gateway with API Management using VNet Internal mode.
-    Supports VNet injection (Developer, Premium) and VNet integration (StandardV2, PremiumV2).
+    Represents an Application Gateway with API Management (Developer SKU) using VNet Internal mode.
     No Private Endpoints are used; App Gateway routes directly to APIM's private IP.
     """
 

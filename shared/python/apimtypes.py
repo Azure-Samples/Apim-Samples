@@ -228,7 +228,7 @@ class INFRASTRUCTURE(StrEnum):
     APIM_ACA = 'apim-aca'  # Azure API Management connected to Azure Container Apps
     AFD_APIM_PE = 'afd-apim-pe'  # Azure Front Door Premium connected to Azure API Management (Standard V2) via Private Link
     APPGW_APIM_PE = 'appgw-apim-pe'  # Application Gateway connected to Azure API Management (Standard V2) via Private Link
-    APPGW_APIM = 'appgw-apim'  # Application Gateway connected to Azure API Management via VNet (injection for V1 SKUs; integration for V2 SKUs)
+    APPGW_APIM = 'appgw-apim'  # Application Gateway connected to Azure API Management (Developer SKU) via VNet (Internal)
 
 
 class Region(StrEnum):
