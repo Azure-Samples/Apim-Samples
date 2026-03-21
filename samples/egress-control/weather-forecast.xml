@@ -1,7 +1,9 @@
 <policies>
     <inbound>
         <base />
-        <rewrite-uri template="/gridpoints/SEW/131,68/forecast" />
+        <!-- A simple, static rewrite is enough to show permitted egress functionality.
+        The policy and APIM are less important than the route table, routes, and Azure Firewall NVA. -->
+        <rewrite-uri template="/stations/SEAW1" />
     </inbound>
     <backend>
         <base />
