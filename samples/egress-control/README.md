@@ -2,6 +2,8 @@
 
 Control APIM outbound internet traffic by routing it through a Network Virtual Appliance (NVA) — Azure Firewall — in a hub/spoke network topology.
 
+<img src="../../assets/diagrams/Azure Application Gateway, API Management & Container Apps Architecture VNet Egress Control.svg" alt="Diagram showing a hub/spoke topology where APIM outbound internet traffic routes through Azure Firewall in the hub VNet. The spoke VNet hosts Application Gateway and APIM, with a route table directing internet-bound traffic to the firewall." title="Application Gateway, API Management & Azure Firewall Egress Control" width="1000" />
+
 ⚙️ **Supported infrastructures**: appgw-apim, appgw-apim-pe
 
 👟 **Expected *Run All* runtime (excl. infrastructure prerequisite): ~15 minutes**
