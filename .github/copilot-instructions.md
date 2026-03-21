@@ -172,7 +172,7 @@ Structure:
    - Standard library imports (time, json, tempfile, requests, pathlib, datetime)
    - `utils`, `apimtypes`, `console`, `azure_resources` (including `az`, `get_infra_rg_name`, `get_account_info`)
 2. USER CONFIGURATION section:
-   - `rg_location`: Azure region (default: 'eastus2')
+   - `rg_location`: Azure region (default: `Region.EAST_US_2`)
    - `index`: Deployment index for resource naming (default: 1)
    - `deployment`: Selected infrastructure type (reference INFRASTRUCTURE enum options)
    - `api_prefix`: Prefix for APIs to avoid naming collisions
@@ -407,6 +407,7 @@ Check `docs/README.md` for local preview instructions and styling notes. The pag
 - Existing cells must keep a unique `metadata.id` value.
 - New cells do not need a `metadata.id` value unless an editor or tool assigns one.
 - Keep notebook JSON logically structured and valid. Do not emit partial notebook fragments when a full notebook document is required.
+- Place **all** `import` statements at the top of every code cell, before any other code. Never nest imports inside `if` / `else` / `try` blocks within a cell. Ruff's `PLC0415` does not flag imports inside module-level conditionals, so this must be enforced manually.
 - When describing notebook changes to users, refer to cells by visible cell number (Cell 1, Cell 2, etc.), not by internal cell IDs.
 
 ### Presentation Instructions

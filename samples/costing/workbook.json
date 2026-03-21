@@ -30,48 +30,12 @@
             "version": "KqlParameterItem/1.0"
           },
           {
-            "id": "c1a2b3d4-e5f6-7890-abcd-ef1234567890",
-            "isRequired": true,
-            "label": "Base Monthly APIM Cost ($)",
-            "name": "BaseMonthlyCost",
-            "type": 1,
-            "typeSettings": {
-              "paramValidationRules": [
-                {
-                  "match": true,
-                  "message": "Enter a valid dollar amount (e.g. 150.00)",
-                  "regExp": "^\\d+(\\.\\d{1,2})?$"
-                }
-              ]
-            },
-            "value": "150.00",
-            "version": "KqlParameterItem/1.0"
-          },
-          {
-            "id": "d2b3c4e5-f6a7-8901-bcde-f12345678901",
-            "isRequired": true,
-            "label": "Variable Cost per 1000 Requests ($)",
-            "name": "PerRequestRate",
-            "type": 1,
-            "typeSettings": {
-              "paramValidationRules": [
-                {
-                  "match": true,
-                  "message": "Enter a valid rate (e.g. 0.003)",
-                  "regExp": "^\\d+(\\.\\d{1,6})?$"
-                }
-              ]
-            },
-            "value": "0.003",
-            "version": "KqlParameterItem/1.0"
-          },
-          {
-            "id": "e3c4d5f6-a7b8-9012-cdef-234567890abc",
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000001",
             "isHiddenWhenLocked": true,
-            "label": "Selected Business Unit",
-            "name": "SelectedBusinessUnit",
+            "label": "Selected Tab",
+            "name": "selectedTab",
             "type": 1,
-            "value": "*",
+            "value": "subscription",
             "version": "KqlParameterItem/1.0"
           }
         ],
@@ -80,368 +44,1114 @@
         "style": "pills",
         "version": "KqlParameterItem/1.0"
       },
-      "name": "parameters - 0",
+      "name": "parameters - shared",
       "type": 9
     },
     {
       "content": {
-        "json": "## APIM Cost Allocation & Showback Dashboard\n\nThis workbook splits the **base APIM infrastructure cost** across business units proportionally by usage, then adds **variable per-API costs** based on request volume.\n\n| Parameter | Description |\n|---|---|\n| **Base Monthly APIM Cost** | Fixed platform cost (SKU, networking, etc.) split proportionally by request share |\n| **Variable Cost per 1K Requests** | Usage-based rate applied on top of the base allocation |\n\n> Adjust parameters above to model different pricing scenarios."
-      },
-      "name": "text - header",
-      "type": 1
-    },
-    {
-      "content": {
-        "expandable": true,
-        "expanded": true,
-        "groupType": "editable",
-        "items": [
+        "links": [
           {
-            "content": {
-              "json": "| Component | Formula |\n|---|---|\n| **Base Cost** | Monthly platform cost for the APIM SKU (see parameter above): **${BaseMonthlyCost}** |\n| **Base Cost Share** | `Base Monthly Cost x (BU Requests / Total Requests)` |\n| **Variable Cost** | `BU Requests x (Rate per 1K / 1000)` |\n| **Total Allocated** | `Base Cost Share + Variable Cost` |\n\n> The base monthly cost and variable rate parameters are editable above. Use the notebook's pricing lookup cell to auto-detect values from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) and keep them in sync with your APIM SKU."
-            },
-            "name": "text - cost-model-detail",
-            "type": 1
-          }
-        ],
-        "loadType": "always",
-        "title": "Cost Allocation Model",
-        "version": "NotebookGroup/1.0"
-      },
-      "name": "group - cost-model",
-      "type": 12
-    },
-    {
-      "content": {
-        "expandable": true,
-        "expanded": true,
-        "groupType": "editable",
-        "items": [
-          {
-            "content": {
-              "exportDefaultValue": "*",
-              "exportFieldName": "Business Unit",
-              "exportParameterName": "SelectedBusinessUnit",
-              "gridSettings": {
-                "formatters": [
-                  {
-                    "columnMatch": "Usage Share (%)",
-                    "formatOptions": {
-                      "max": 100,
-                      "min": 0,
-                      "palette": "blue"
-                    },
-                    "formatter": 8
-                  },
-                  {
-                    "columnMatch": "Base Cost Share ($)",
-                    "formatOptions": {
-                      "min": 0,
-                      "palette": "blue"
-                    },
-                    "formatter": 8
-                  },
-                  {
-                    "columnMatch": "Total Allocated ($)",
-                    "formatOptions": {
-                      "min": 0,
-                      "palette": "turquoise"
-                    },
-                    "formatter": 8
-                  }
-                ]
-              },
-              "query": "let baseCost = todouble('{BaseMonthlyCost}');\r\nlet perKRate = todouble('{PerRequestRate}');\r\nlet logs = ApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != '';\r\nlet totalRequests = toscalar(logs | summarize count());\r\nlogs\r\n| summarize RequestCount = count() by ApimSubscriptionId\r\n| extend UsageShare = round(RequestCount * 100.0 / totalRequests, 2)\r\n| extend BaseCostShare = round(baseCost * RequestCount / totalRequests, 2)\r\n| extend VariableCost = round(RequestCount * perKRate / 1000.0, 2)\r\n| extend TotalAllocatedCost = round(BaseCostShare + VariableCost, 2)\r\n| order by TotalAllocatedCost desc\r\n| project\r\n    ['Business Unit'] = ApimSubscriptionId,\r\n    ['Requests'] = RequestCount,\r\n    ['Usage Share (%)'] = UsageShare,\r\n    ['Base Cost ($)'] = baseCost,\r\n    ['Base Cost Share ($)'] = BaseCostShare,\r\n    ['Variable Cost ($)'] = VariableCost,\r\n    ['Total Allocated ($)'] = TotalAllocatedCost",
-              "queryType": 0,
-              "resourceType": "microsoft.operationalinsights/workspaces",
-              "size": 0,
-              "timeContext": {
-                "durationMs": 2592000000
-              },
-              "title": "Cost Allocation by Business Unit (click a row to filter charts below)",
-              "version": "KqlItem/1.0",
-              "visualization": "table"
-            },
-            "name": "query - cost-allocation-table",
-            "type": 3
+            "cellValue": "selectedTab",
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000010",
+            "linkTarget": "parameter",
+            "linkLabel": "Subscription-Based Costing",
+            "preText": "",
+            "style": "link",
+            "subTarget": "subscription"
           },
           {
+            "cellValue": "selectedTab",
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000011",
+            "linkTarget": "parameter",
+            "linkLabel": "Entra ID Application Costing",
+            "preText": "",
+            "style": "link",
+            "subTarget": "entraid"
+          },
+          {
+            "cellValue": "selectedTab",
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000012",
+            "linkTarget": "parameter",
+            "linkLabel": "AI Gateway Token/PTU",
+            "preText": "",
+            "style": "link",
+            "subTarget": "aigateway"
+          }
+        ],
+        "style": "tabs",
+        "version": "LinkItem/1.0"
+      },
+      "name": "links - tabs",
+      "type": 11
+    },
+    {
+      "conditionalVisibility": {
+        "comparison": "isEqualTo",
+        "parameterName": "selectedTab",
+        "value": "subscription"
+      },
+      "content": {
+        "groupType": "editable",
+        "items": [
+          {
             "content": {
-              "chartSettings": {
-                "customThresholdLine": "{BaseMonthlyCost}",
-                "customThresholdLineStyle": 1,
-                "seriesLabelSettings": [
-                  { "color": "blue", "label": "Base Cost ($)", "seriesName": "BaseCostShare" },
-                  { "color": "orange", "label": "Variable Cost ($)", "seriesName": "VariableCost" }
-                ],
-                "xAxis": "ApimSubscriptionId",
-                "ySettings": {
-                  "min": 0
+              "parameters": [
+                {
+                  "id": "c1a2b3d4-e5f6-7890-abcd-ef1234567890",
+                  "isRequired": true,
+                  "label": "Base Monthly APIM Cost ($)",
+                  "name": "BaseMonthlyCost",
+                  "type": 1,
+                  "typeSettings": {
+                    "paramValidationRules": [
+                      {
+                        "match": true,
+                        "message": "Enter a valid dollar amount (e.g. 150.00)",
+                        "regExp": "^\\d+(\\.\\d{1,2})?$"
+                      }
+                    ]
+                  },
+                  "value": "150.00",
+                  "version": "KqlParameterItem/1.0"
+                },
+                {
+                  "id": "d2b3c4e5-f6a7-8901-bcde-f12345678901",
+                  "isRequired": true,
+                  "label": "Variable Cost per 1000 Requests ($)",
+                  "name": "PerRequestRate",
+                  "type": 1,
+                  "typeSettings": {
+                    "paramValidationRules": [
+                      {
+                        "match": true,
+                        "message": "Enter a valid rate (e.g. 0.003)",
+                        "regExp": "^\\d+(\\.\\d{1,6})?$"
+                      }
+                    ]
+                  },
+                  "value": "0.003",
+                  "version": "KqlParameterItem/1.0"
+                },
+                {
+                  "id": "e3c4d5f6-a7b8-9012-cdef-234567890abc",
+                  "isHiddenWhenLocked": true,
+                  "label": "Selected Business Unit",
+                  "name": "SelectedBusinessUnit",
+                  "type": 1,
+                  "value": "*",
+                  "version": "KqlParameterItem/1.0"
                 }
-              },
-              "query": "let baseCost = todouble('{BaseMonthlyCost}');\r\nlet perKRate = todouble('{PerRequestRate}');\r\nlet logs = ApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != '';\r\nlet totalRequests = toscalar(logs | summarize count());\r\nlogs\r\n| summarize RequestCount = count() by ApimSubscriptionId\r\n| extend BaseCostShare = round(baseCost * RequestCount / totalRequests, 2)\r\n| extend VariableCost = round(RequestCount * perKRate / 1000.0, 2)\r\n| project ApimSubscriptionId, BaseCostShare, VariableCost",
+              ],
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
-              "size": 0,
-              "timeContext": {
-                "durationMs": 2592000000
-              },
-              "title": "Base vs Variable Cost Split by Business Unit",
-              "version": "KqlItem/1.0",
-              "visualization": "barchart"
+              "style": "pills",
+              "version": "KqlParameterItem/1.0"
             },
-            "name": "query - cost-allocation-chart",
-            "type": 3
+            "name": "parameters - subscription",
+            "type": 9
           },
           {
             "content": {
-              "gridSettings": {
-                "formatters": [
-                  {
-                    "columnMatch": "Total ($)",
-                    "formatOptions": {
-                      "min": 0,
-                      "palette": "turquoise"
-                    },
-                    "formatter": 8
-                  }
-                ]
-              },
-              "query": "let baseCost = todouble('{BaseMonthlyCost}');\r\nlet perKRate = todouble('{PerRequestRate}');\r\nlet selectedBU = '{SelectedBusinessUnit}';\r\nlet logs = ApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != '';\r\nlet filteredLogs = logs\r\n| where selectedBU == '*' or ApimSubscriptionId == selectedBU;\r\nlet totalRequests = toscalar(logs | summarize count());\r\nfilteredLogs\r\n| summarize RequestCount = count() by ApimSubscriptionId, ApiId\r\n| extend BaseCostShare = round(baseCost * RequestCount / totalRequests, 2)\r\n| extend VariableCost = round(RequestCount * perKRate / 1000.0, 2)\r\n| extend TotalCost = round(BaseCostShare + VariableCost, 2)\r\n| order by TotalCost desc\r\n| project\r\n    ['Business Unit'] = ApimSubscriptionId,\r\n    ['API'] = ApiId,\r\n    ['Requests'] = RequestCount,\r\n    ['Base Share ($)'] = BaseCostShare,\r\n    ['Variable ($)'] = VariableCost,\r\n    ['Total ($)'] = TotalCost\r\n| take 25",
-              "queryType": 0,
-              "resourceType": "microsoft.operationalinsights/workspaces",
-              "size": 0,
-              "timeContext": {
-                "durationMs": 2592000000
-              },
-              "title": "Cost Breakdown by Business Unit & API (Top 25)",
-              "version": "KqlItem/1.0",
-              "visualization": "table"
+              "json": "## APIM Cost Allocation & Showback Dashboard\n\nThis tab splits the **base APIM infrastructure cost** across business units proportionally by usage, then adds **variable per-API costs** based on request volume. Data comes from `ApiManagementGatewayLogs` in Log Analytics, keyed by APIM subscription ID.\n\n| Parameter | Description |\n|---|---|\n| **Base Monthly APIM Cost** | Fixed platform cost (SKU, networking, etc.) split proportionally by request share |\n| **Variable Cost per 1K Requests** | Usage-based rate applied on top of the base allocation |\n\n> Adjust parameters above to model different pricing scenarios."
             },
-            "name": "query - cost-per-api",
-            "type": 3
-          }
-        ],
-        "loadType": "always",
-        "title": "Cost Allocation Summary",
-        "version": "NotebookGroup/1.0"
-      },
-      "name": "group - cost-allocation",
-      "type": 12
-    },
-    {
-      "content": {
-        "expandable": true,
-        "expanded": true,
-        "groupType": "editable",
-        "items": [
-          {
-            "content": {
-              "chartSettings": {
-                "ySettings": {
-                  "min": 0
-                }
-              },
-              "query": "ApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\r\n| summarize RequestCount = count() by ApimSubscriptionId\r\n| order by RequestCount desc\r\n| project BusinessUnit = ApimSubscriptionId, RequestCount",
-              "queryType": 0,
-              "resourceType": "microsoft.operationalinsights/workspaces",
-              "size": 0,
-              "timeContext": {
-                "durationMs": 2592000000
-              },
-              "title": "Request Count by Business Unit",
-              "version": "KqlItem/1.0",
-              "visualization": "barchart"
-            },
-            "name": "query - request-count",
-            "type": 3
-          },
-          {
-            "content": {
-              "chartSettings": {
-                "seriesLabelSettings": [
-                  { "color": "blue", "seriesName": "RequestCount" }
-                ]
-              },
-              "query": "let apimLogs = ApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != '';\r\nlet totalCount = toscalar(apimLogs | count);\r\napimLogs\r\n| summarize RequestCount = count() by ApimSubscriptionId\r\n| extend Percentage = round(RequestCount * 100.0 / totalCount, 2)\r\n| order by RequestCount desc\r\n| project BusinessUnit = ApimSubscriptionId, RequestCount, ['Percentage (%)'] = Percentage",
-              "queryType": 0,
-              "resourceType": "microsoft.operationalinsights/workspaces",
-              "size": 0,
-              "timeContext": {
-                "durationMs": 2592000000
-              },
-              "title": "Request Distribution Across Business Units",
-              "version": "KqlItem/1.0",
-              "visualization": "piechart"
-            },
-            "name": "query - distribution",
-            "type": 3
-          },
-          {
-            "content": {
-              "query": "let selectedBU = '{SelectedBusinessUnit}';\r\nApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\r\n| where selectedBU == '*' or ApimSubscriptionId == selectedBU\r\n| summarize RequestCount = count() by bin(TimeGenerated, 1h), ApimSubscriptionId\r\n| project TimeGenerated, BusinessUnit = ApimSubscriptionId, RequestCount",
-              "queryType": 0,
-              "resourceType": "microsoft.operationalinsights/workspaces",
-              "size": 0,
-              "timeContext": {
-                "durationMs": 2592000000
-              },
-              "title": "Request Trends Over Time by Business Unit",
-              "version": "KqlItem/1.0",
-              "visualization": "timechart"
-            },
-            "name": "query - trends",
-            "type": 3
-          }
-        ],
-        "loadType": "always",
-        "title": "Usage Analytics",
-        "version": "NotebookGroup/1.0"
-      },
-      "name": "group - usage-analytics",
-      "type": 12
-    },
-    {
-      "content": {
-        "expandable": true,
-        "expanded": true,
-        "groupType": "editable",
-        "items": [
-          {
-            "content": {
-              "gridSettings": {
-                "formatters": [
-                  {
-                    "columnMatch": "Success Rate (%)",
-                    "formatOptions": {
-                      "max": 100,
-                      "min": 0,
-                      "palette": "redGreen"
-                    },
-                    "formatter": 8
-                  },
-                  {
-                    "columnMatch": "Error Rate (%)",
-                    "formatOptions": {
-                      "max": 100,
-                      "min": 0,
-                      "palette": "greenRed"
-                    },
-                    "formatter": 8
-                  }
-                ]
-              },
-              "query": "let selectedBU = '{SelectedBusinessUnit}';\r\nApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\r\n| where selectedBU == '*' or ApimSubscriptionId == selectedBU\r\n| summarize \r\n    TotalRequests = count(),\r\n    SuccessRequests = countif(ResponseCode < 400),\r\n    ClientErrors = countif(ResponseCode >= 400 and ResponseCode < 500),\r\n    ServerErrors = countif(ResponseCode >= 500)\r\n    by ApimSubscriptionId\r\n| extend SuccessRate = round(SuccessRequests * 100.0 / TotalRequests, 2)\r\n| extend ErrorRate = round((ClientErrors + ServerErrors) * 100.0 / TotalRequests, 2)\r\n| project \r\n    BusinessUnit = ApimSubscriptionId, \r\n    TotalRequests, \r\n    SuccessRequests, \r\n    ClientErrors, \r\n    ServerErrors, \r\n    ['Success Rate (%)'] = SuccessRate,\r\n    ['Error Rate (%)'] = ErrorRate\r\n| order by TotalRequests desc",
-              "queryType": 0,
-              "resourceType": "microsoft.operationalinsights/workspaces",
-              "size": 0,
-              "timeContext": {
-                "durationMs": 2592000000
-              },
-              "title": "Success & Error Metrics by Business Unit",
-              "version": "KqlItem/1.0",
-              "visualization": "table"
-            },
-            "name": "query - success-errors",
-            "type": 3
-          },
-          {
-            "content": {
-              "chartSettings": {
-                "seriesLabelSettings": [
-                  { "color": "blue", "label": "2xx Success", "seriesName": "2xx" },
-                  { "color": "turquoise", "label": "3xx Redirect", "seriesName": "3xx" },
-                  { "color": "orange", "label": "4xx Client Error", "seriesName": "4xx" },
-                  { "color": "redBright", "label": "5xx Server Error", "seriesName": "5xx" }
-                ]
-              },
-              "query": "let selectedBU = '{SelectedBusinessUnit}';\r\nApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\r\n| where selectedBU == '*' or ApimSubscriptionId == selectedBU\r\n| extend ResponseClass = case(\r\n    ResponseCode >= 200 and ResponseCode < 300, '2xx',\r\n    ResponseCode >= 300 and ResponseCode < 400, '3xx',\r\n    ResponseCode >= 400 and ResponseCode < 500, '4xx',\r\n    ResponseCode >= 500, '5xx',\r\n    'Other')\r\n| summarize RequestCount = count() by ApimSubscriptionId, ResponseClass\r\n| order by ApimSubscriptionId, ResponseClass\r\n| project BusinessUnit = ApimSubscriptionId, ResponseClass, RequestCount",
-              "queryType": 0,
-              "resourceType": "microsoft.operationalinsights/workspaces",
-              "size": 0,
-              "timeContext": {
-                "durationMs": 2592000000
-              },
-              "title": "Response Code Distribution by Business Unit",
-              "version": "KqlItem/1.0",
-              "visualization": "categoricalbar"
-            },
-            "name": "query - response-codes",
-            "type": 3
-          }
-        ],
-        "loadType": "always",
-        "title": "Health & Reliability",
-        "version": "NotebookGroup/1.0"
-      },
-      "name": "group - health",
-      "type": 12
-    },
-    {
-      "content": {
-        "expandable": true,
-        "expanded": false,
-        "groupType": "editable",
-        "items": [
-          {
-            "content": {
-              "json": "Select a **Business Unit** row in the Cost Allocation table above to see that unit's cost trend over time.\n\nThe chart shows daily base cost share and variable cost for the selected business unit. The horizontal line represents the total base monthly cost (${BaseMonthlyCost}) for reference."
-            },
-            "name": "text - drilldown-help",
+            "name": "text - header-subscription",
             "type": 1
           },
           {
             "content": {
-              "chartSettings": {
-                "customThresholdLine": "{BaseMonthlyCost}",
-                "customThresholdLineStyle": 1,
-                "seriesLabelSettings": [
-                  { "color": "blue", "label": "Base Cost Share ($)", "seriesName": "BaseCostShare" },
-                  { "color": "orange", "label": "Variable Cost ($)", "seriesName": "VariableCost" },
-                  { "color": "purple", "label": "Total Allocated ($)", "seriesName": "TotalAllocatedCost" }
-                ],
-                "ySettings": {
-                  "min": 0
+              "expandable": true,
+              "expanded": true,
+              "groupType": "editable",
+              "items": [
+                {
+                  "content": {
+                    "json": "| Component | Formula |\n|---|---|\n| **Base Cost** | Monthly platform cost for the APIM SKU (see parameter above): **${BaseMonthlyCost}** |\n| **Base Cost Share** | `Base Monthly Cost x (BU Requests / Total Requests)` |\n| **Variable Cost** | `BU Requests x (Rate per 1K / 1000)` |\n| **Total Allocated** | `Base Cost Share + Variable Cost` |\n\n> The base monthly cost and variable rate parameters are editable above. Use the notebook's pricing lookup cell to auto-detect values from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) and keep them in sync with your APIM SKU."
+                  },
+                  "name": "text - cost-model-detail",
+                  "type": 1
                 }
-              },
-              "query": "let baseCost = todouble('{BaseMonthlyCost}');\r\nlet perKRate = todouble('{PerRequestRate}');\r\nlet selectedBU = '{SelectedBusinessUnit}';\r\nlet allLogs = ApiManagementGatewayLogs\r\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != '';\r\nlet dailyTotal = allLogs\r\n| summarize DayTotal = count() by bin(TimeGenerated, 1d);\r\nallLogs\r\n| where selectedBU != '*' and ApimSubscriptionId == selectedBU\r\n| summarize RequestCount = count() by bin(TimeGenerated, 1d)\r\n| join kind=inner dailyTotal on TimeGenerated\r\n| extend BaseCostShare = round(baseCost * RequestCount / DayTotal, 2)\r\n| extend VariableCost = round(RequestCount * perKRate / 1000.0, 4)\r\n| extend TotalAllocatedCost = round(BaseCostShare + VariableCost, 2)\r\n| project TimeGenerated, BaseCostShare, VariableCost, TotalAllocatedCost",
-              "queryType": 0,
-              "resourceType": "microsoft.operationalinsights/workspaces",
-              "size": 0,
-              "timeContext": {
-                "durationMs": 2592000000
-              },
-              "title": "Cost Trend for: {SelectedBusinessUnit}",
-              "version": "KqlItem/1.0",
-              "visualization": "linechart"
+              ],
+              "loadType": "always",
+              "title": "Cost Allocation Model",
+              "version": "NotebookGroup/1.0"
             },
-            "conditionalVisibility": {
-              "comparison": "isNotEqualTo",
-              "parameterName": "SelectedBusinessUnit",
-              "value": "*"
-            },
-            "name": "query - drilldown-cost-trend",
-            "type": 3
+            "name": "group - cost-model",
+            "type": 12
           },
           {
             "content": {
-              "json": "> Select a business unit row in the Cost Allocation table to view its cost trend.",
-              "style": "info"
+              "expandable": true,
+              "expanded": true,
+              "groupType": "editable",
+              "items": [
+                {
+                  "content": {
+                    "exportDefaultValue": "*",
+                    "exportFieldName": "Business Unit",
+                    "exportParameterName": "SelectedBusinessUnit",
+                    "gridSettings": {
+                      "formatters": [
+                        {
+                          "columnMatch": "Usage Share (%)",
+                          "formatOptions": {
+                            "max": 100,
+                            "min": 0,
+                            "palette": "blue"
+                          },
+                          "formatter": 8
+                        },
+                        {
+                          "columnMatch": "Base Cost Share ($)",
+                          "formatOptions": {
+                            "min": 0,
+                            "palette": "blue"
+                          },
+                          "formatter": 8
+                        },
+                        {
+                          "columnMatch": "Total Allocated ($)",
+                          "formatOptions": {
+                            "min": 0,
+                            "palette": "turquoise"
+                          },
+                          "formatter": 8
+                        }
+                      ]
+                    },
+                    "query": "let baseCost = todouble('{BaseMonthlyCost}');\nlet perKRate = todouble('{PerRequestRate}');\nlet logs = ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != '';\nlet totalRequests = toscalar(logs | summarize count());\nlogs\n| summarize RequestCount = count() by ApimSubscriptionId\n| extend UsageShare = round(RequestCount * 100.0 / totalRequests, 2)\n| extend BaseCostShare = round(baseCost * RequestCount / totalRequests, 2)\n| extend VariableCost = round(RequestCount * perKRate / 1000.0, 2)\n| extend TotalAllocatedCost = round(BaseCostShare + VariableCost, 2)\n| order by TotalAllocatedCost desc\n| project\n    ['Business Unit'] = ApimSubscriptionId,\n    ['Requests'] = RequestCount,\n    ['Usage Share (%)'] = UsageShare,\n    ['Base Cost ($)'] = baseCost,\n    ['Base Cost Share ($)'] = BaseCostShare,\n    ['Variable Cost ($)'] = VariableCost,\n    ['Total Allocated ($)'] = TotalAllocatedCost",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 0,
+                    "timeContext": {
+                      "durationMs": 2592000000
+                    },
+                    "title": "Cost Allocation by Business Unit (click a row to filter charts below)",
+                    "version": "KqlItem/1.0",
+                    "visualization": "table"
+                  },
+                  "name": "query - cost-allocation-table",
+                  "type": 3
+                },
+                {
+                  "content": {
+                    "chartSettings": {
+                      "customThresholdLine": "{BaseMonthlyCost}",
+                      "customThresholdLineStyle": 1,
+                      "seriesLabelSettings": [
+                        { "color": "blue", "label": "Base Cost ($)", "seriesName": "BaseCostShare" },
+                        { "color": "orange", "label": "Variable Cost ($)", "seriesName": "VariableCost" }
+                      ],
+                      "xAxis": "ApimSubscriptionId",
+                      "ySettings": {
+                        "min": 0
+                      }
+                    },
+                    "query": "let baseCost = todouble('{BaseMonthlyCost}');\nlet perKRate = todouble('{PerRequestRate}');\nlet logs = ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != '';\nlet totalRequests = toscalar(logs | summarize count());\nlogs\n| summarize RequestCount = count() by ApimSubscriptionId\n| extend BaseCostShare = round(baseCost * RequestCount / totalRequests, 2)\n| extend VariableCost = round(RequestCount * perKRate / 1000.0, 2)\n| project ApimSubscriptionId, BaseCostShare, VariableCost",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 0,
+                    "timeContext": {
+                      "durationMs": 2592000000
+                    },
+                    "title": "Base vs Variable Cost Split by Business Unit",
+                    "version": "KqlItem/1.0",
+                    "visualization": "barchart"
+                  },
+                  "name": "query - cost-allocation-chart",
+                  "type": 3
+                },
+                {
+                  "content": {
+                    "gridSettings": {
+                      "formatters": [
+                        {
+                          "columnMatch": "Total ($)",
+                          "formatOptions": {
+                            "min": 0,
+                            "palette": "turquoise"
+                          },
+                          "formatter": 8
+                        }
+                      ]
+                    },
+                    "query": "let baseCost = todouble('{BaseMonthlyCost}');\nlet perKRate = todouble('{PerRequestRate}');\nlet selectedBU = '{SelectedBusinessUnit}';\nlet logs = ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != '';\nlet filteredLogs = logs\n| where selectedBU == '*' or ApimSubscriptionId == selectedBU;\nlet totalRequests = toscalar(logs | summarize count());\nfilteredLogs\n| summarize RequestCount = count() by ApimSubscriptionId, ApiId\n| extend BaseCostShare = round(baseCost * RequestCount / totalRequests, 2)\n| extend VariableCost = round(RequestCount * perKRate / 1000.0, 2)\n| extend TotalCost = round(BaseCostShare + VariableCost, 2)\n| order by TotalCost desc\n| project\n    ['Business Unit'] = ApimSubscriptionId,\n    ['API'] = ApiId,\n    ['Requests'] = RequestCount,\n    ['Base Share ($)'] = BaseCostShare,\n    ['Variable ($)'] = VariableCost,\n    ['Total ($)'] = TotalCost\n| take 25",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 0,
+                    "timeContext": {
+                      "durationMs": 2592000000
+                    },
+                    "title": "Cost Breakdown by Business Unit & API (Top 25)",
+                    "version": "KqlItem/1.0",
+                    "visualization": "table"
+                  },
+                  "name": "query - cost-per-api",
+                  "type": 3
+                }
+              ],
+              "loadType": "always",
+              "title": "Cost Allocation Summary",
+              "version": "NotebookGroup/1.0"
             },
-            "conditionalVisibility": {
-              "comparison": "isEqualTo",
-              "parameterName": "SelectedBusinessUnit",
-              "value": "*"
+            "name": "group - cost-allocation",
+            "type": 12
+          },
+          {
+            "content": {
+              "expandable": true,
+              "expanded": true,
+              "groupType": "editable",
+              "items": [
+                {
+                  "content": {
+                    "chartSettings": {
+                      "ySettings": {
+                        "min": 0
+                      }
+                    },
+                    "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\n| summarize RequestCount = count() by ApimSubscriptionId\n| order by RequestCount desc\n| project BusinessUnit = ApimSubscriptionId, RequestCount",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 0,
+                    "timeContext": {
+                      "durationMs": 2592000000
+                    },
+                    "title": "Request Count by Business Unit",
+                    "version": "KqlItem/1.0",
+                    "visualization": "barchart"
+                  },
+                  "name": "query - request-count",
+                  "type": 3
+                },
+                {
+                  "content": {
+                    "chartSettings": {
+                      "seriesLabelSettings": [
+                        { "color": "blue", "seriesName": "RequestCount" }
+                      ]
+                    },
+                    "query": "let apimLogs = ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != '';\nlet totalCount = toscalar(apimLogs | count);\napimLogs\n| summarize RequestCount = count() by ApimSubscriptionId\n| extend Percentage = round(RequestCount * 100.0 / totalCount, 2)\n| order by RequestCount desc\n| project BusinessUnit = ApimSubscriptionId, RequestCount, ['Percentage (%)'] = Percentage",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 0,
+                    "timeContext": {
+                      "durationMs": 2592000000
+                    },
+                    "title": "Request Distribution Across Business Units",
+                    "version": "KqlItem/1.0",
+                    "visualization": "piechart"
+                  },
+                  "name": "query - distribution",
+                  "type": 3
+                },
+                {
+                  "content": {
+                    "query": "let selectedBU = '{SelectedBusinessUnit}';\nApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\n| where selectedBU == '*' or ApimSubscriptionId == selectedBU\n| summarize RequestCount = count() by bin(TimeGenerated, 1h), ApimSubscriptionId\n| project TimeGenerated, BusinessUnit = ApimSubscriptionId, RequestCount",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 0,
+                    "timeContext": {
+                      "durationMs": 2592000000
+                    },
+                    "title": "Request Trends Over Time by Business Unit",
+                    "version": "KqlItem/1.0",
+                    "visualization": "timechart"
+                  },
+                  "name": "query - trends",
+                  "type": 3
+                }
+              ],
+              "loadType": "always",
+              "title": "Usage Analytics",
+              "version": "NotebookGroup/1.0"
             },
-            "name": "text - drilldown-placeholder",
-            "type": 1
+            "name": "group - usage-analytics",
+            "type": 12
+          },
+          {
+            "content": {
+              "expandable": true,
+              "expanded": true,
+              "groupType": "editable",
+              "items": [
+                {
+                  "content": {
+                    "gridSettings": {
+                      "formatters": [
+                        {
+                          "columnMatch": "Success Rate (%)",
+                          "formatOptions": {
+                            "max": 100,
+                            "min": 0,
+                            "palette": "redGreen"
+                          },
+                          "formatter": 8
+                        },
+                        {
+                          "columnMatch": "Error Rate (%)",
+                          "formatOptions": {
+                            "max": 100,
+                            "min": 0,
+                            "palette": "greenRed"
+                          },
+                          "formatter": 8
+                        }
+                      ]
+                    },
+                    "query": "let selectedBU = '{SelectedBusinessUnit}';\nApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\n| where selectedBU == '*' or ApimSubscriptionId == selectedBU\n| summarize \n    TotalRequests = count(),\n    SuccessRequests = countif(ResponseCode < 400),\n    ClientErrors = countif(ResponseCode >= 400 and ResponseCode < 500),\n    ServerErrors = countif(ResponseCode >= 500)\n    by ApimSubscriptionId\n| extend SuccessRate = round(SuccessRequests * 100.0 / TotalRequests, 2)\n| extend ErrorRate = round((ClientErrors + ServerErrors) * 100.0 / TotalRequests, 2)\n| project \n    BusinessUnit = ApimSubscriptionId, \n    TotalRequests, \n    SuccessRequests, \n    ClientErrors, \n    ServerErrors, \n    ['Success Rate (%)'] = SuccessRate,\n    ['Error Rate (%)'] = ErrorRate\n| order by TotalRequests desc",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 0,
+                    "timeContext": {
+                      "durationMs": 2592000000
+                    },
+                    "title": "Success & Error Metrics by Business Unit",
+                    "version": "KqlItem/1.0",
+                    "visualization": "table"
+                  },
+                  "name": "query - success-errors",
+                  "type": 3
+                },
+                {
+                  "content": {
+                    "chartSettings": {
+                      "seriesLabelSettings": [
+                        { "color": "blue", "label": "2xx Success", "seriesName": "2xx" },
+                        { "color": "turquoise", "label": "3xx Redirect", "seriesName": "3xx" },
+                        { "color": "orange", "label": "4xx Client Error", "seriesName": "4xx" },
+                        { "color": "redBright", "label": "5xx Server Error", "seriesName": "5xx" }
+                      ]
+                    },
+                    "query": "let selectedBU = '{SelectedBusinessUnit}';\nApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\n| where selectedBU == '*' or ApimSubscriptionId == selectedBU\n| extend ResponseClass = case(\n    ResponseCode >= 200 and ResponseCode < 300, '2xx',\n    ResponseCode >= 300 and ResponseCode < 400, '3xx',\n    ResponseCode >= 400 and ResponseCode < 500, '4xx',\n    ResponseCode >= 500, '5xx',\n    'Other')\n| summarize RequestCount = count() by ApimSubscriptionId, ResponseClass\n| order by ApimSubscriptionId, ResponseClass\n| project BusinessUnit = ApimSubscriptionId, ResponseClass, RequestCount",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 0,
+                    "timeContext": {
+                      "durationMs": 2592000000
+                    },
+                    "title": "Response Code Distribution by Business Unit",
+                    "version": "KqlItem/1.0",
+                    "visualization": "categoricalbar"
+                  },
+                  "name": "query - response-codes",
+                  "type": 3
+                }
+              ],
+              "loadType": "always",
+              "title": "Health & Reliability",
+              "version": "NotebookGroup/1.0"
+            },
+            "name": "group - health",
+            "type": 12
+          },
+          {
+            "content": {
+              "expandable": true,
+              "expanded": false,
+              "groupType": "editable",
+              "items": [
+                {
+                  "content": {
+                    "json": "Select a **Business Unit** row in the Cost Allocation table above to see that unit's cost trend over time.\n\nThe chart shows daily base cost share and variable cost for the selected business unit. The horizontal line represents the total base monthly cost (${BaseMonthlyCost}) for reference."
+                  },
+                  "name": "text - drilldown-help",
+                  "type": 1
+                },
+                {
+                  "content": {
+                    "chartSettings": {
+                      "customThresholdLine": "{BaseMonthlyCost}",
+                      "customThresholdLineStyle": 1,
+                      "seriesLabelSettings": [
+                        { "color": "blue", "label": "Base Cost Share ($)", "seriesName": "BaseCostShare" },
+                        { "color": "orange", "label": "Variable Cost ($)", "seriesName": "VariableCost" },
+                        { "color": "purple", "label": "Total Allocated ($)", "seriesName": "TotalAllocatedCost" }
+                      ],
+                      "ySettings": {
+                        "min": 0
+                      }
+                    },
+                    "query": "let baseCost = todouble('{BaseMonthlyCost}');\nlet perKRate = todouble('{PerRequestRate}');\nlet selectedBU = '{SelectedBusinessUnit}';\nlet allLogs = ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId != '';\nlet dailyTotal = allLogs\n| summarize DayTotal = count() by bin(TimeGenerated, 1d);\nallLogs\n| where selectedBU != '*' and ApimSubscriptionId == selectedBU\n| summarize RequestCount = count() by bin(TimeGenerated, 1d)\n| join kind=inner dailyTotal on TimeGenerated\n| extend BaseCostShare = round(baseCost * RequestCount / DayTotal, 2)\n| extend VariableCost = round(RequestCount * perKRate / 1000.0, 4)\n| extend TotalAllocatedCost = round(BaseCostShare + VariableCost, 2)\n| project TimeGenerated, BaseCostShare, VariableCost, TotalAllocatedCost",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 0,
+                    "timeContext": {
+                      "durationMs": 2592000000
+                    },
+                    "title": "Cost Trend for: {SelectedBusinessUnit}",
+                    "version": "KqlItem/1.0",
+                    "visualization": "linechart"
+                  },
+                  "conditionalVisibility": {
+                    "comparison": "isNotEqualTo",
+                    "parameterName": "SelectedBusinessUnit",
+                    "value": "*"
+                  },
+                  "name": "query - drilldown-cost-trend",
+                  "type": 3
+                },
+                {
+                  "content": {
+                    "json": "> Select a business unit row in the Cost Allocation table to view its cost trend.",
+                    "style": "info"
+                  },
+                  "conditionalVisibility": {
+                    "comparison": "isEqualTo",
+                    "parameterName": "SelectedBusinessUnit",
+                    "value": "*"
+                  },
+                  "name": "text - drilldown-placeholder",
+                  "type": 1
+                }
+              ],
+              "loadType": "always",
+              "title": "Business Unit Drill-Down (over time)",
+              "version": "NotebookGroup/1.0"
+            },
+            "name": "group - drilldown",
+            "type": 12
           }
         ],
         "loadType": "always",
-        "title": "Business Unit Drill-Down (over time)",
         "version": "NotebookGroup/1.0"
       },
-      "name": "group - drilldown",
+      "name": "group - tab-subscription",
+      "type": 12
+    },
+    {
+      "conditionalVisibility": {
+        "comparison": "isEqualTo",
+        "parameterName": "selectedTab",
+        "value": "entraid"
+      },
+      "content": {
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "parameters": [
+                {
+                  "id": "a1b2c3d4-e5f6-7890-abcd-100000000002",
+                  "isRequired": true,
+                  "label": "Monthly Base Cost (USD)",
+                  "name": "BaseCost",
+                  "type": 1,
+                  "typeSettings": {
+                    "paramValidationRules": [
+                      {
+                        "match": true,
+                        "message": "Enter a valid dollar amount (e.g. 150.00)",
+                        "regExp": "^\\d+(\\.\\d{1,2})?$"
+                      }
+                    ]
+                  },
+                  "value": "150.00",
+                  "version": "KqlParameterItem/1.0"
+                },
+                {
+                  "id": "a1b2c3d4-e5f6-7890-abcd-100000000003",
+                  "isHiddenWhenLocked": true,
+                  "label": "App ID Names (JSON)",
+                  "name": "AppIdNames",
+                  "type": 1,
+                  "description": "Optional JSON mapping of App IDs to friendly names. Example: {\"a5846c0e-...\":\"HR Service\",\"9e6bfb3f-...\":\"Mobile Gateway\"}",
+                  "value": "{}",
+                  "version": "KqlParameterItem/1.0"
+                }
+              ],
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "style": "pills",
+              "version": "KqlParameterItem/1.0"
+            },
+            "name": "parameters - entraid",
+            "type": 9
+          },
+          {
+            "content": {
+              "json": "## APIM Cost Attribution by Caller ID\n\nThis tab shows API usage and cost allocation by **Entra ID application** (`appid` claim). Data comes from the `emit-metric` policy's `caller-requests` custom metric in Application Insights.\n\n| Parameter | Description |\n|---|---|\n| **Monthly Base Cost** | Fixed platform cost split proportionally by request share |\n| **App ID Names** | Optional JSON mapping of App IDs to friendly names |\n\n> **Note:** Data typically takes 5-10 minutes to appear after API calls."
+            },
+            "name": "text - header-entraid",
+            "type": 1
+          },
+          {
+            "content": {
+              "expandable": true,
+              "expanded": true,
+              "groupType": "editable",
+              "items": [
+                {
+                  "content": {
+                    "chartSettings": {
+                      "ySettings": {
+                        "min": 0
+                      }
+                    },
+                    "query": "let appNames = parse_json('{AppIdNames}');\napp(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-requests'\n| extend CallerId = tostring(customDimensions.CallerId)\n| where isnotempty(CallerId)\n| summarize RequestCount = sum(value) by CallerId\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| project Caller, RequestCount\n| order by RequestCount desc",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 1,
+                    "timeContext": {
+                      "durationMs": 0
+                    },
+                    "timeContextFromParameter": "TimeRange",
+                    "title": "Total Requests by Caller ID",
+                    "noDataMessage": "No caller-requests metrics found in the selected time range.",
+                    "version": "KqlItem/1.0",
+                    "visualization": "barchart"
+                  },
+                  "customWidth": "60",
+                  "name": "query - entraid-usage-chart",
+                  "styleSettings": {
+                    "maxWidth": "60%",
+                    "showBorder": true
+                  },
+                  "type": 3
+                },
+                {
+                  "content": {
+                    "query": "let appNames = parse_json('{AppIdNames}');\napp(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-requests'\n| extend CallerId = tostring(customDimensions.CallerId)\n| where isnotempty(CallerId)\n| summarize RequestCount = sum(value) by CallerId\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| project Caller, RequestCount\n| order by RequestCount desc",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 0,
+                    "timeContext": {
+                      "durationMs": 0
+                    },
+                    "timeContextFromParameter": "TimeRange",
+                    "title": "Usage Summary",
+                    "noDataMessage": "No caller-requests metrics found in the selected time range.",
+                    "version": "KqlItem/1.0",
+                    "visualization": "table",
+                    "gridSettings": {
+                      "formatters": [
+                        {
+                          "columnMatch": "RequestCount",
+                          "formatter": 1,
+                          "numberFormat": {
+                            "unit": 17,
+                            "options": {
+                              "style": "decimal",
+                              "useGrouping": true
+                            }
+                          }
+                        }
+                      ],
+                      "labelSettings": [
+                        { "columnId": "Caller", "label": "Caller" },
+                        { "columnId": "RequestCount", "label": "Requests" }
+                      ]
+                    }
+                  },
+                  "customWidth": "40",
+                  "name": "query - entraid-usage-table",
+                  "styleSettings": {
+                    "maxWidth": "40%",
+                    "showBorder": true
+                  },
+                  "type": 3
+                }
+              ],
+              "loadType": "always",
+              "title": "Usage by Caller ID",
+              "version": "NotebookGroup/1.0"
+            },
+            "name": "group - entraid-usage",
+            "type": 12
+          },
+          {
+            "content": {
+              "expandable": true,
+              "expanded": true,
+              "groupType": "editable",
+              "items": [
+                {
+                  "content": {
+                    "json": "Proportional cost breakdown based on the **Monthly Base Cost** parameter above. Each caller's share is calculated as their percentage of total requests applied to the base cost."
+                  },
+                  "name": "text - entraid-cost-description",
+                  "type": 1
+                },
+                {
+                  "content": {
+                    "query": "let appNames = parse_json('{AppIdNames}');\nlet baseCost = {BaseCost};\nlet metrics = app(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-requests'\n| extend CallerId = tostring(customDimensions.CallerId)\n| where isnotempty(CallerId);\nlet totalRequests = toscalar(metrics | summarize sum(value));\nmetrics\n| summarize RequestCount = sum(value) by CallerId\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| extend UsagePercent = round(RequestCount * 100.0 / totalRequests, 2)\n| extend AllocatedCost = round(baseCost * RequestCount / totalRequests, 2)\n| order by AllocatedCost desc\n| project Caller, RequestCount, ['Usage %'] = UsagePercent, ['Allocated Cost ($)'] = AllocatedCost",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 0,
+                    "timeContext": {
+                      "durationMs": 0
+                    },
+                    "timeContextFromParameter": "TimeRange",
+                    "title": "Cost Allocation by Caller ID",
+                    "noDataMessage": "No caller-requests metrics found in the selected time range.",
+                    "version": "KqlItem/1.0",
+                    "visualization": "table",
+                    "gridSettings": {
+                      "formatters": [
+                        {
+                          "columnMatch": "Usage %",
+                          "formatOptions": {
+                            "min": 0,
+                            "max": 100,
+                            "palette": "blue"
+                          },
+                          "formatter": 4
+                        },
+                        {
+                          "columnMatch": "Allocated Cost ($)",
+                          "formatOptions": {
+                            "min": 0,
+                            "palette": "turquoise"
+                          },
+                          "formatter": 8
+                        }
+                      ]
+                    }
+                  },
+                  "customWidth": "60",
+                  "name": "query - entraid-cost-table",
+                  "styleSettings": {
+                    "maxWidth": "60%",
+                    "showBorder": true
+                  },
+                  "type": 3
+                },
+                {
+                  "content": {
+                    "query": "let appNames = parse_json('{AppIdNames}');\nlet baseCost = {BaseCost};\nlet metrics = app(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-requests'\n| extend CallerId = tostring(customDimensions.CallerId)\n| where isnotempty(CallerId);\nlet totalRequests = toscalar(metrics | summarize sum(value));\nmetrics\n| summarize RequestCount = sum(value) by CallerId\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| extend AllocatedCost = round(baseCost * RequestCount / totalRequests, 2)\n| project Caller, AllocatedCost\n| order by AllocatedCost desc",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 1,
+                    "timeContext": {
+                      "durationMs": 0
+                    },
+                    "timeContextFromParameter": "TimeRange",
+                    "title": "Cost Distribution",
+                    "noDataMessage": "No caller-requests metrics found in the selected time range.",
+                    "version": "KqlItem/1.0",
+                    "visualization": "piechart"
+                  },
+                  "customWidth": "40",
+                  "name": "query - entraid-cost-pie",
+                  "styleSettings": {
+                    "maxWidth": "40%",
+                    "showBorder": true
+                  },
+                  "type": 3
+                }
+              ],
+              "loadType": "always",
+              "title": "Cost Allocation",
+              "version": "NotebookGroup/1.0"
+            },
+            "name": "group - entraid-cost-allocation",
+            "type": 12
+          },
+          {
+            "content": {
+              "expandable": true,
+              "expanded": true,
+              "groupType": "editable",
+              "items": [
+                {
+                  "content": {
+                    "json": "Hourly request volume by caller over time. Use this to spot traffic spikes, identify peak usage periods, and detect anomalies by caller."
+                  },
+                  "name": "text - entraid-trend-description",
+                  "type": 1
+                },
+                {
+                  "content": {
+                    "query": "let appNames = parse_json('{AppIdNames}');\napp(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-requests'\n| extend CallerId = tostring(customDimensions.CallerId)\n| where isnotempty(CallerId)\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| summarize Requests = sum(value) by Caller, bin(timestamp, 1h)\n| order by timestamp asc",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 0,
+                    "timeContext": {
+                      "durationMs": 0
+                    },
+                    "timeContextFromParameter": "TimeRange",
+                    "title": "Hourly Request Trend by Caller ID",
+                    "noDataMessage": "No caller-requests metrics found in the selected time range.",
+                    "version": "KqlItem/1.0",
+                    "visualization": "timechart"
+                  },
+                  "name": "query - entraid-trend-chart",
+                  "type": 3
+                }
+              ],
+              "loadType": "always",
+              "title": "Request Trend",
+              "version": "NotebookGroup/1.0"
+            },
+            "name": "group - entraid-trend",
+            "type": 12
+          }
+        ],
+        "loadType": "always",
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - tab-entraid",
+      "type": 12
+    },
+    {
+      "conditionalVisibility": {
+        "comparison": "isEqualTo",
+        "parameterName": "selectedTab",
+        "value": "aigateway"
+      },
+      "content": {
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "parameters": [
+                {
+                  "id": "a1b2c3d4-e5f6-7890-abcd-200000000001",
+                  "isRequired": true,
+                  "label": "Cost per 1K Prompt Tokens ($)",
+                  "name": "PromptTokenRate",
+                  "type": 1,
+                  "typeSettings": {
+                    "paramValidationRules": [
+                      {
+                        "match": true,
+                        "message": "Enter a valid rate (e.g. 0.03)",
+                        "regExp": "^\\d+(\\.\\d{1,6})?$"
+                      }
+                    ]
+                  },
+                  "value": "0.03",
+                  "version": "KqlParameterItem/1.0"
+                },
+                {
+                  "id": "a1b2c3d4-e5f6-7890-abcd-200000000002",
+                  "isRequired": true,
+                  "label": "Cost per 1K Completion Tokens ($)",
+                  "name": "CompletionTokenRate",
+                  "type": 1,
+                  "typeSettings": {
+                    "paramValidationRules": [
+                      {
+                        "match": true,
+                        "message": "Enter a valid rate (e.g. 0.06)",
+                        "regExp": "^\\d+(\\.\\d{1,6})?$"
+                      }
+                    ]
+                  },
+                  "value": "0.06",
+                  "version": "KqlParameterItem/1.0"
+                },
+                {
+                  "id": "a1b2c3d4-e5f6-7890-abcd-200000000003",
+                  "isRequired": false,
+                  "label": "PTU Capacity (tokens/min)",
+                  "name": "PtuCapacity",
+                  "type": 1,
+                  "typeSettings": {
+                    "paramValidationRules": [
+                      {
+                        "match": true,
+                        "message": "Enter a valid number (e.g. 60000)",
+                        "regExp": "^\\d+$"
+                      }
+                    ]
+                  },
+                  "value": "60000",
+                  "version": "KqlParameterItem/1.0"
+                },
+                {
+                  "id": "a1b2c3d4-e5f6-7890-abcd-200000000004",
+                  "isHiddenWhenLocked": true,
+                  "label": "App ID Names (JSON)",
+                  "name": "AppIdNamesToken",
+                  "type": 1,
+                  "description": "Optional JSON mapping of App IDs to friendly names.",
+                  "value": "{}",
+                  "version": "KqlParameterItem/1.0"
+                }
+              ],
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "style": "pills",
+              "version": "KqlParameterItem/1.0"
+            },
+            "name": "parameters - aigateway",
+            "type": 9
+          },
+          {
+            "content": {
+              "json": "## AI Gateway: Token & PTU Consumption per Client\n\nWhen APIM is used as an **AI Gateway**, built-in model-level metrics (PTU utilization, token counts) do not break down by client. This tab fills that gap using `caller-tokens` custom metrics emitted by the `emit-metric` policy.\n\n| Parameter | Description |\n|---|---|\n| **Cost per 1K Prompt Tokens** | Rate for input/prompt tokens (from your Azure OpenAI pricing) |\n| **Cost per 1K Completion Tokens** | Rate for output/completion tokens |\n| **PTU Capacity** | Your provisioned throughput unit capacity in tokens/minute (for utilization %) |\n\n> Rates default to approximate GPT-4o pricing. Adjust to match your model and region."
+            },
+            "name": "text - header-aigateway",
+            "type": 1
+          },
+          {
+            "content": {
+              "expandable": true,
+              "expanded": true,
+              "groupType": "editable",
+              "items": [
+                {
+                  "content": {
+                    "chartSettings": {
+                      "seriesLabelSettings": [
+                        { "color": "blue", "label": "Prompt Tokens", "seriesName": "PromptTokens" },
+                        { "color": "orange", "label": "Completion Tokens", "seriesName": "CompletionTokens" }
+                      ],
+                      "ySettings": {
+                        "min": 0
+                      }
+                    },
+                    "query": "let appNames = parse_json('{AppIdNamesToken}');\napp(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-tokens'\n| extend CallerId = tostring(customDimensions.CallerId)\n| extend TokenType = tostring(customDimensions.TokenType)\n| where isnotempty(CallerId) and TokenType != 'total'\n| summarize Tokens = sum(value) by CallerId, TokenType\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| project Caller, TokenType, Tokens\n| evaluate pivot(TokenType, sum(Tokens))\n| project Caller, PromptTokens = column_ifexists('prompt', 0.0), CompletionTokens = column_ifexists('completion', 0.0)\n| order by PromptTokens + CompletionTokens desc",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 1,
+                    "timeContext": {
+                      "durationMs": 0
+                    },
+                    "timeContextFromParameter": "TimeRange",
+                    "title": "Token Consumption by Client (Prompt vs Completion)",
+                    "noDataMessage": "No caller-tokens metrics found. Ensure the token tracking policy is deployed.",
+                    "version": "KqlItem/1.0",
+                    "visualization": "barchart"
+                  },
+                  "name": "query - token-usage-chart",
+                  "type": 3
+                },
+                {
+                  "content": {
+                    "query": "let appNames = parse_json('{AppIdNamesToken}');\nlet promptRate = todouble('{PromptTokenRate}');\nlet completionRate = todouble('{CompletionTokenRate}');\napp(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-tokens'\n| extend CallerId = tostring(customDimensions.CallerId)\n| extend TokenType = tostring(customDimensions.TokenType)\n| extend Model = tostring(customDimensions.Model)\n| where isnotempty(CallerId)\n| summarize Tokens = sum(value), Requests = count() by CallerId, TokenType, Model\n| evaluate pivot(TokenType, sum(Tokens))\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| extend PromptTokens = column_ifexists('prompt', 0.0)\n| extend CompletionTokens = column_ifexists('completion', 0.0)\n| extend TotalTokens = column_ifexists('total', 0.0)\n| extend PromptCost = round(PromptTokens * promptRate / 1000.0, 4)\n| extend CompletionCost = round(CompletionTokens * completionRate / 1000.0, 4)\n| extend TotalCost = round(PromptCost + CompletionCost, 4)\n| order by TotalCost desc\n| project Caller, Model, PromptTokens, CompletionTokens, TotalTokens, ['Prompt Cost ($)'] = PromptCost, ['Completion Cost ($)'] = CompletionCost, ['Total Cost ($)'] = TotalCost",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 0,
+                    "timeContext": {
+                      "durationMs": 0
+                    },
+                    "timeContextFromParameter": "TimeRange",
+                    "title": "Token Cost Allocation by Client & Model",
+                    "noDataMessage": "No caller-tokens metrics found.",
+                    "version": "KqlItem/1.0",
+                    "visualization": "table",
+                    "gridSettings": {
+                      "formatters": [
+                        {
+                          "columnMatch": "TotalTokens",
+                          "formatOptions": {
+                            "min": 0,
+                            "palette": "blue"
+                          },
+                          "formatter": 8
+                        },
+                        {
+                          "columnMatch": "Total Cost",
+                          "formatOptions": {
+                            "min": 0,
+                            "palette": "turquoise"
+                          },
+                          "formatter": 8
+                        }
+                      ]
+                    }
+                  },
+                  "name": "query - token-cost-table",
+                  "type": 3
+                }
+              ],
+              "loadType": "always",
+              "title": "Token Usage & Cost Allocation",
+              "version": "NotebookGroup/1.0"
+            },
+            "name": "group - token-usage",
+            "type": 12
+          },
+          {
+            "content": {
+              "expandable": true,
+              "expanded": true,
+              "groupType": "editable",
+              "items": [
+                {
+                  "content": {
+                    "query": "let appNames = parse_json('{AppIdNamesToken}');\napp(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-tokens'\n| extend CallerId = tostring(customDimensions.CallerId)\n| extend TokenType = tostring(customDimensions.TokenType)\n| where isnotempty(CallerId) and TokenType == 'total'\n| summarize TotalTokens = sum(value) by CallerId\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| project Caller, TotalTokens\n| order by TotalTokens desc",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 1,
+                    "timeContext": {
+                      "durationMs": 0
+                    },
+                    "timeContextFromParameter": "TimeRange",
+                    "title": "Total Token Share by Client",
+                    "noDataMessage": "No caller-tokens metrics found.",
+                    "version": "KqlItem/1.0",
+                    "visualization": "piechart"
+                  },
+                  "customWidth": "50",
+                  "name": "query - token-share-pie",
+                  "styleSettings": {
+                    "maxWidth": "50%",
+                    "showBorder": true
+                  },
+                  "type": 3
+                },
+                {
+                  "content": {
+                    "query": "let appNames = parse_json('{AppIdNamesToken}');\nlet promptRate = todouble('{PromptTokenRate}');\nlet completionRate = todouble('{CompletionTokenRate}');\napp(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-tokens'\n| extend CallerId = tostring(customDimensions.CallerId)\n| extend TokenType = tostring(customDimensions.TokenType)\n| where isnotempty(CallerId)\n| summarize Tokens = sum(value) by CallerId, TokenType\n| evaluate pivot(TokenType, sum(Tokens))\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| extend PromptCost = round(column_ifexists('prompt', 0.0) * promptRate / 1000.0, 4)\n| extend CompletionCost = round(column_ifexists('completion', 0.0) * completionRate / 1000.0, 4)\n| extend TotalCost = round(PromptCost + CompletionCost, 4)\n| order by TotalCost desc\n| project Caller, TotalCost",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 1,
+                    "timeContext": {
+                      "durationMs": 0
+                    },
+                    "timeContextFromParameter": "TimeRange",
+                    "title": "Estimated Cost Share by Client",
+                    "noDataMessage": "No caller-tokens metrics found.",
+                    "version": "KqlItem/1.0",
+                    "visualization": "piechart"
+                  },
+                  "customWidth": "50",
+                  "name": "query - token-cost-pie",
+                  "styleSettings": {
+                    "maxWidth": "50%",
+                    "showBorder": true
+                  },
+                  "type": 3
+                }
+              ],
+              "loadType": "always",
+              "title": "Token & Cost Distribution",
+              "version": "NotebookGroup/1.0"
+            },
+            "name": "group - token-distribution",
+            "type": 12
+          },
+          {
+            "content": {
+              "expandable": true,
+              "expanded": true,
+              "groupType": "editable",
+              "items": [
+                {
+                  "content": {
+                    "json": "Token consumption trend over time. Each data point shows the total tokens consumed per client in 1-hour bins. The dashed line represents the configurable PTU capacity threshold.\n\n> **PTU utilization**: If a client's hourly token rate approaches the PTU capacity, consider provisioning more throughput or applying rate limiting."
+                  },
+                  "name": "text - token-trend-description",
+                  "type": 1
+                },
+                {
+                  "content": {
+                    "chartSettings": {
+                      "customThresholdLine": "{PtuCapacity}",
+                      "customThresholdLineStyle": 1,
+                      "ySettings": {
+                        "min": 0
+                      }
+                    },
+                    "query": "let appNames = parse_json('{AppIdNamesToken}');\napp(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-tokens'\n| extend CallerId = tostring(customDimensions.CallerId)\n| extend TokenType = tostring(customDimensions.TokenType)\n| where isnotempty(CallerId) and TokenType == 'total'\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| summarize TotalTokens = sum(value) by Caller, bin(timestamp, 1h)\n| order by timestamp asc",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 0,
+                    "timeContext": {
+                      "durationMs": 0
+                    },
+                    "timeContextFromParameter": "TimeRange",
+                    "title": "Hourly Token Consumption by Client (vs PTU Capacity)",
+                    "noDataMessage": "No caller-tokens metrics found.",
+                    "version": "KqlItem/1.0",
+                    "visualization": "timechart"
+                  },
+                  "name": "query - token-trend-chart",
+                  "type": 3
+                },
+                {
+                  "content": {
+                    "chartSettings": {
+                      "seriesLabelSettings": [
+                        { "color": "blue", "label": "Prompt Tokens", "seriesName": "PromptTokens" },
+                        { "color": "orange", "label": "Completion Tokens", "seriesName": "CompletionTokens" }
+                      ],
+                      "ySettings": {
+                        "min": 0
+                      }
+                    },
+                    "query": "app(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-tokens'\n| extend TokenType = tostring(customDimensions.TokenType)\n| where TokenType != 'total'\n| summarize Tokens = sum(value) by TokenType, bin(timestamp, 1h)\n| evaluate pivot(TokenType, sum(Tokens))\n| project timestamp, PromptTokens = column_ifexists('prompt', 0.0), CompletionTokens = column_ifexists('completion', 0.0)\n| order by timestamp asc",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 0,
+                    "timeContext": {
+                      "durationMs": 0
+                    },
+                    "timeContextFromParameter": "TimeRange",
+                    "title": "Prompt vs Completion Tokens Over Time (All Clients)",
+                    "noDataMessage": "No caller-tokens metrics found.",
+                    "version": "KqlItem/1.0",
+                    "visualization": "areachart"
+                  },
+                  "name": "query - token-type-trend",
+                  "type": 3
+                }
+              ],
+              "loadType": "always",
+              "title": "Token Consumption Trends & PTU Utilization",
+              "version": "NotebookGroup/1.0"
+            },
+            "name": "group - token-trends",
+            "type": 12
+          },
+          {
+            "content": {
+              "expandable": true,
+              "expanded": true,
+              "groupType": "editable",
+              "items": [
+                {
+                  "content": {
+                    "json": "Per-model breakdown showing which AI models each client is consuming. Useful when multiple models (GPT-4o, GPT-4o-mini, etc.) are served through the same APIM gateway."
+                  },
+                  "name": "text - model-breakdown-description",
+                  "type": 1
+                },
+                {
+                  "content": {
+                    "query": "let appNames = parse_json('{AppIdNamesToken}');\napp(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-tokens'\n| extend CallerId = tostring(customDimensions.CallerId)\n| extend TokenType = tostring(customDimensions.TokenType)\n| extend Model = tostring(customDimensions.Model)\n| where isnotempty(CallerId) and TokenType == 'total'\n| summarize TotalTokens = sum(value), Requests = dcount(timestamp) by CallerId, Model\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| project Caller, Model, TotalTokens, Requests\n| order by TotalTokens desc",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 0,
+                    "timeContext": {
+                      "durationMs": 0
+                    },
+                    "timeContextFromParameter": "TimeRange",
+                    "title": "Token Usage by Client & Model",
+                    "noDataMessage": "No caller-tokens metrics found.",
+                    "version": "KqlItem/1.0",
+                    "visualization": "table",
+                    "gridSettings": {
+                      "formatters": [
+                        {
+                          "columnMatch": "TotalTokens",
+                          "formatOptions": {
+                            "min": 0,
+                            "palette": "blue"
+                          },
+                          "formatter": 8
+                        }
+                      ]
+                    }
+                  },
+                  "name": "query - model-breakdown-table",
+                  "type": 3
+                }
+              ],
+              "loadType": "always",
+              "title": "Model Breakdown",
+              "version": "NotebookGroup/1.0"
+            },
+            "name": "group - model-breakdown",
+            "type": 12
+          }
+        ],
+        "loadType": "always",
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - tab-aigateway",
       "type": 12
     }
   ],

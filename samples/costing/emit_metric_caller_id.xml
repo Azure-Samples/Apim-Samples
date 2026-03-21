@@ -1,0 +1,32 @@
+<!--
+    Emits a custom Application Insights metric that identifies the caller
+    by their Entra ID application (appid / azp JWT claim).
+
+    The metric 'caller-requests' carries a CallerId dimension so that
+    workbook queries can group and allocate costs per calling application.
+
+    Uses the 'Extract-CallerId' policy fragment to read the caller identity
+    from the JWT Authorization header. If no JWT is present or the claim
+    is missing, the CallerId falls back to the APIM subscription ID.
+-->
+<policies>
+    <inbound>
+        <base />
+        <!-- Extract caller identity (appid/azp from JWT, or APIM subscription ID) -->
+        <include-fragment fragment-id="Extract-CallerId" />
+        <emit-metric name="caller-requests" value="1" namespace="apim-costing">
+            <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
+            <dimension name="API" value="@(context.Api.Name)" />
+            <dimension name="Operation" value="@(context.Operation.Name)" />
+        </emit-metric>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

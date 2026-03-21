@@ -1,0 +1,7 @@
+// Checks whether the emit-metric policy is emitting caller-requests
+// custom metrics into Application Insights.
+// Used to verify that the policy is applied and metrics are flowing.
+customMetrics
+| where name == 'caller-requests'
+| where isnotempty(customDimensions.CallerId)
+| summarize Count = sum(value)
