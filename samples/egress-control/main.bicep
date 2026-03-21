@@ -116,6 +116,7 @@ module firewallModule '../../shared/bicep/modules/network/v1/firewall.bicep' = {
 // 2. APIM APIs
 
 // https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/apis
+@batchSize(4)
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if (!empty(apis)) {
   name: '${api.name}-${resourceSuffix}'
   params: {
