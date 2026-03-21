@@ -54,6 +54,8 @@ Uniformity, clarity, and ease of use are paramount across all infrastructures an
 - **Keep README structure uniform.** Infrastructure READMEs and sample READMEs each follow their own standard layout (see the guidelines below). Readers should be able to predict where to find objectives, configuration steps, and execution instructions.
 - **Reuse shared utilities.** Use `NotebookHelper`, `InfrastructureNotebookHelper`, `ApimRequests`, `ApimTesting`, and shared Bicep modules rather than inventing ad-hoc alternatives. Shared code is the single best tool for enforcing uniformity.
 - **Mirror tone and depth.** Similar sections across artefacts should use similar levels of detail. If one sample's README explains configuration in three sentences, another sample of comparable complexity should do the same.
+- **Sort samples alphabetically.** Wherever samples are listed (README tables, landing page cards, JSON-LD structured data, diagrams, AGENTS.md), they must appear in alphabetical order by their display name. Infrastructures keep their current deliberate ordering.
+- **Use consistent sample display names.** The display name used for a sample in README tables, landing page cards, JSON-LD, and compatibility diagrams must be identical. The canonical name is the one shown in the compatibility-matrix SVG diagram (e.g. "Costing", not "Costing & Showback"; "OAuth 3rd-Party", not "Credential Manager (with Spotify)"). Longer descriptions belong in the Description column or card body text, not in the name.
 - **Validate against peers.** Before finalising a new infrastructure or sample, compare it side-by-side with at least one existing peer to identify structural or stylistic drift.
 
 ## General Coding Guidelines
@@ -424,6 +426,8 @@ Check `docs/README.md` for local preview instructions and styling notes. The pag
 - The Draw.io diagrams were created with the [Azure Draw.io MCP Server](https://github.com/simonkurtz-MSFT/drawio-mcp-server).
 - Keep diagrams simple. For Azure, include major components, not individual aspects of components. For example, there is no need for individual policies in WAFs or APIs in API Management, Smart Detector Alert Rules, etc.
 - Less is more. Don't be too verbose in the diagrams.
+- Sample names in compatibility-matrix diagrams are the canonical display names. README tables, landing page cards, and JSON-LD entries must use the same names. When adding or renaming a sample, update the diagram and all listings together.
+- Samples in compatibility-matrix diagrams must be listed in alphabetical order by display name.
 - Never include subscription IDs, resource group names, or any other sensitive information in the diagrams. That data is not relevant.
 
 ### KQL (Kusto Query Language) Instructions
