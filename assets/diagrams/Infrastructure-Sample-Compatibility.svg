@@ -77,30 +77,30 @@
   <rect x="30" y="338" width="825" height="42" rx="4" fill="#F5F5F5" />
   <rect x="35" y="340" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
   <text x="120" y="364" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Costing</text>
-  <!-- Row 5: General -->
+  <!-- Row 5: Egress Control -->
   <rect x="30" y="384" width="825" height="42" rx="4" fill="#FFFFFF" />
   <rect x="35" y="386" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
-  <text x="120" y="410" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">General</text>
+  <text x="120" y="410" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Egress Control</text>
 
-  <!-- Row 6: Load Balancing -->
+  <!-- Row 6: General -->
   <rect x="30" y="430" width="825" height="42" rx="4" fill="#F5F5F5" />
   <rect x="35" y="432" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
-  <text x="120" y="456" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Load Balancing</text>
+  <text x="120" y="456" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">General</text>
 
-  <!-- Row 7: OAuth 3rd-Party -->
+  <!-- Row 7: Load Balancing -->
   <rect x="30" y="476" width="825" height="42" rx="4" fill="#FFFFFF" />
   <rect x="35" y="478" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
-  <text x="120" y="502" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">OAuth 3rd-Party</text>
+  <text x="120" y="502" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Load Balancing</text>
 
-  <!-- Row 8: Secure Blob Access -->
+  <!-- Row 8: OAuth 3rd-Party -->
   <rect x="30" y="522" width="825" height="42" rx="4" fill="#F5F5F5" />
   <rect x="35" y="524" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
-  <text x="120" y="548" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Secure Blob Access</text>
+  <text x="120" y="548" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">OAuth 3rd-Party</text>
 
-  <!-- Row 9: Egress Control -->
+  <!-- Row 9: Secure Blob Access -->
   <rect x="30" y="568" width="825" height="42" rx="4" fill="#FFFFFF" />
   <rect x="35" y="570" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
-  <text x="120" y="590" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Egress Control</text>
+  <text x="120" y="594" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Secure Blob Access</text>
 
   <!-- Vertical grid lines -->
   <line x1="210" y1="92" x2="210" y2="612" stroke="#E0E0E0" stroke-width="0.5" />
@@ -156,22 +156,24 @@
   <text x="660" y="363" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="790" cy="359" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="790" y="363" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
-  <!-- Row 5: General - all compatible -->
-  <circle cx="270" cy="405" r="10" fill="#4CAF50" opacity="0.9" />
-  <text x="270" y="409" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
-  <circle cx="400" cy="405" r="10" fill="#4CAF50" opacity="0.9" />
-  <text x="400" y="409" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
-  <circle cx="530" cy="405" r="10" fill="#4CAF50" opacity="0.9" />
-  <text x="530" y="409" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <!-- Row 5: Egress Control - only appgw-apim and appgw-apim-pe compatible -->
+  <circle cx="270" cy="405" r="10" fill="#EF5350" opacity="0.9" />
+  <text x="270" y="409" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <text x="283" y="399" font-size="9" font-weight="600" fill="#1A1A1A">2</text>
+  <circle cx="400" cy="405" r="10" fill="#EF5350" opacity="0.9" />
+  <text x="400" y="409" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <text x="413" y="399" font-size="9" font-weight="600" fill="#1A1A1A">2</text>
+  <circle cx="530" cy="405" r="10" fill="#EF5350" opacity="0.9" />
+  <text x="530" y="409" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <text x="543" y="399" font-size="9" font-weight="600" fill="#1A1A1A">2</text>
   <circle cx="660" cy="405" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="660" y="409" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="790" cy="405" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="790" y="409" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
 
-  <!-- Row 6: Load Balancing - NOT compatible with Simple APIM -->
-  <circle cx="270" cy="451" r="10" fill="#EF5350" opacity="0.9" />
-  <text x="270" y="455" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
-  <text x="283" y="445" font-size="9" font-weight="600" fill="#1A1A1A">1</text>
+  <!-- Row 6: General - all compatible -->
+  <circle cx="270" cy="451" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="270" y="455" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="400" cy="451" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="400" y="455" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="530" cy="451" r="10" fill="#4CAF50" opacity="0.9" />
@@ -181,9 +183,10 @@
   <circle cx="790" cy="451" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="790" y="455" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
 
-  <!-- Row 7: OAuth 3rd-Party - all compatible -->
-  <circle cx="270" cy="497" r="10" fill="#4CAF50" opacity="0.9" />
-  <text x="270" y="501" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <!-- Row 7: Load Balancing - NOT compatible with Simple APIM -->
+  <circle cx="270" cy="497" r="10" fill="#EF5350" opacity="0.9" />
+  <text x="270" y="501" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <text x="283" y="491" font-size="9" font-weight="600" fill="#1A1A1A">1</text>
   <circle cx="400" cy="497" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="400" y="501" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="530" cy="497" r="10" fill="#4CAF50" opacity="0.9" />
@@ -193,7 +196,7 @@
   <circle cx="790" cy="497" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="790" y="501" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
 
-  <!-- Row 8: Secure Blob Access - all compatible -->
+  <!-- Row 8: OAuth 3rd-Party - all compatible -->
   <circle cx="270" cy="543" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="270" y="547" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="400" cy="543" r="10" fill="#4CAF50" opacity="0.9" />
@@ -205,16 +208,13 @@
   <circle cx="790" cy="543" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="790" y="547" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
 
-  <!-- Row 9: Egress Control - only appgw-apim and appgw-apim-pe compatible -->
-  <circle cx="270" cy="589" r="10" fill="#EF5350" opacity="0.9" />
-  <text x="270" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
-  <text x="283" y="583" font-size="9" font-weight="600" fill="#1A1A1A">2</text>
-  <circle cx="400" cy="589" r="10" fill="#EF5350" opacity="0.9" />
-  <text x="400" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
-  <text x="413" y="583" font-size="9" font-weight="600" fill="#1A1A1A">2</text>
-  <circle cx="530" cy="589" r="10" fill="#EF5350" opacity="0.9" />
-  <text x="530" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
-  <text x="543" y="583" font-size="9" font-weight="600" fill="#1A1A1A">2</text>
+  <!-- Row 9: Secure Blob Access - all compatible -->
+  <circle cx="270" cy="589" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="270" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="400" cy="589" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="400" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="530" cy="589" r="10" fill="#4CAF50" opacity="0.9" />
+  <text x="530" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="660" cy="589" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="660" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="790" cy="589" r="10" fill="#4CAF50" opacity="0.9" />
