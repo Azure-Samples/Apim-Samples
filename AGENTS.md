@@ -27,9 +27,10 @@ This repository provides resources to deploy Azure API Management infrastructure
 │   ├── authX-pro/           # Advanced auth with policy fragments
 │   ├── azure-maps/          # Azure Maps integration
 │   ├── costing/             # APIM costing and showback
+│   ├── egress-control/      # Egress control via NVA routing
 │   ├── general/             # Basic policy demonstrations
 │   ├── load-balancing/      # Backend pool load balancing
-│   ├── oauth-3rd-party/     # Credential Manager (Spotify example)
+│   ├── oauth-3rd-party/     # OAuth 3rd-party (Spotify example)
 │   └── secure-blob-access/  # Valet key pattern for blob storage
 │
 ├── shared/                  # Reusable components

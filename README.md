@@ -67,10 +67,11 @@ It's quick and easy to get started!
 | [AuthX][sample-authx]                                       | Authentication and role-based authorization in a mock HR API.                                                       | All infrastructures           |
 | [AuthX Pro][sample-authx-pro]                               | Authentication and role-based authorization in a mock product with multiple APIs and policy fragments.              | All infrastructures           |
 | [Azure Maps][sample-azure-maps]                             | Proxying calls to Azure Maps with APIM policies.                                                                    | All infrastructures           |
-| [Costing & Showback][sample-costing]                        | Track and allocate API costs per business unit using APIM subscriptions, Log Analytics, and Cost Management.         | All infrastructures           |
-| [Credential Manager (with Spotify)][sample-oauth-3rd-party] | Authenticate with APIM which then uses its Credential Manager with Spotify's REST API.                              | All infrastructures           |
+| [Costing][sample-costing]                                   | Track and allocate API costs per business unit using APIM subscriptions, Log Analytics, and Cost Management.         | All infrastructures           |
+| [Egress Control][sample-egress-control]                     | Control APIM outbound internet traffic by routing it through a Network Virtual Appliance (NVA) in a hub/spoke topology. | appgw-apim, appgw-apim-pe     |
 | [General][sample-general]                                   | Basic demo of APIM sample setup and policy usage.                                                                   | All infrastructures           |
 | [Load Balancing][sample-load-balancing]                     | Priority and weighted load balancing across backends.                                                               | apim-aca, afd-apim-pe         |
+| [OAuth 3rd-Party][sample-oauth-3rd-party]                   | Authenticate with APIM which then uses its Credential Manager with Spotify's REST API.                              | All infrastructures           |
 | [Secure Blob Access][sample-secure-blob-access]             | Secure blob access via the [valet key pattern][valet-key-pattern].                                                  | All infrastructures           |
 </details>
 
@@ -381,6 +382,7 @@ _For much more API Management content, please also check out [APIM Love](https:/
 [sample-costing]: ./samples/costing/README.md
 [sample-general]: ./samples/general/README.md
 [sample-load-balancing]: ./samples/load-balancing/README.md
+[sample-egress-control]: ./samples/egress-control/README.md
 [sample-oauth-3rd-party]: ./samples/oauth-3rd-party/README.md
 [sample-secure-blob-access]: ./samples/secure-blob-access/README.md
 [simon-kurtz]: https://github.com/simonkurtz-msft
