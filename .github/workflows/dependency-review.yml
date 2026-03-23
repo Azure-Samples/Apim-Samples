@@ -19,4 +19,18 @@ jobs:
         uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
         with:
           # ✅ Fail PRs that introduce disallowed licenses
-          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, LGPL-2.0-or-later, LGPL-2.1-only, MPL-1.1, OFL-1.1
+          # LGPL-2.0-or-later, LGPL-2.1-only, MPL-1.1: charset-normalizer (embedded Unicode/Mozilla test data)
+          # OFL-1.1: fonttools (bundled font test files)
+          # MPL-2.0: certifi
+          # PSF-2.0: matplotlib
+          # ISC: pexpect, ptyprocess
+          # LGPL-3.0-or-later: pyzmq (libzmq shared library)
+          # HPND: pillow
+          allow-licenses: >-
+            MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause,
+            LGPL-2.0-or-later, LGPL-2.1-only, LGPL-3.0-or-later,
+            MPL-1.1, MPL-2.0,
+            OFL-1.1,
+            PSF-2.0,
+            ISC,
+            HPND
