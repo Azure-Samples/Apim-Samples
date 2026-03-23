@@ -119,3 +119,38 @@ source .venv/bin/activate  # Linux/macOS
 # or
 .venv\Scripts\activate     # Windows
 ```
+
+## Cleaning Up Local Artifacts
+
+To remove cached, temporary, and build artifacts from your local environment, use the cleanup scripts or the Developer CLI.
+
+**Via the Developer CLI (recommended):**
+
+```shell
+# PowerShell (Windows)
+./start.ps1    # then choose  c) Clean local artifacts
+
+# Bash (Linux/macOS)
+./start.sh     # then choose  c) Clean local artifacts
+```
+
+**Directly:**
+
+```shell
+# PowerShell (Windows)
+pwsh setup/clean-local-artifacts.ps1
+
+# Bash (Linux/macOS)
+bash setup/clean-local-artifacts.sh
+```
+
+The following are removed:
+
+| Type | Items |
+|---|---|
+| Cache directories | `.pytest_cache`, `.ruff_cache`, `__pycache__` |
+| Test/coverage artifacts | `htmlcov`, `.coverage`, `.coverage.*` |
+| Build/package artifacts | `build`, `dist`, `.eggs`, `*.egg-info` |
+| Temporary files | `*.pyc`, `*.pyo`, `*.tmp`, `*.temp` |
+
+> **Note:** `.env` is intentionally left in place.

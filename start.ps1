@@ -144,6 +144,9 @@ while ($true) {
     Write-Host "  e) Export presentation as self-contained HTML"
     Write-Host "  w) Serve & view GitHub Pages website (auto-opens browser)"
     Write-Host ""
+    Write-Host "Cleanup" -ForegroundColor Yellow
+    Write-Host "  c) Clean local artifacts (preserves .env)"
+    Write-Host ""
     Write-Host "Misc" -ForegroundColor Yellow
     Write-Host "  0) Exit"
     Write-Host ""
@@ -203,6 +206,9 @@ while ($true) {
         }
         'w' {
             $null = PyRun "$RepoRoot/setup/serve_website.py"
+        }
+        'c' {
+            $null = Invoke-Cmd "$RepoRoot/setup/clean-local-artifacts.ps1"
         }
         '0' {
             Write-Host ""

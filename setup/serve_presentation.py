@@ -47,9 +47,20 @@ class PresentationHandler(http.server.SimpleHTTPRequestHandler):
     _ignored_log_path_prefixes = ('/.well-known/appspecific/',)
 
     def _rewrite_path(self):
-        """Rewrite root path to presentation file."""
+        """Rewrite root path to presentation file.
+
+        Also strips the leading /assets/ prefix from paths such as
+        /assets/site.webmanifest and /assets/favicon-*.png.  The HTML file
+        uses ./assets/... references that resolve correctly on the exported
+        GitHub-Pages site (where the deck sits next to an assets/ folder),
+        but when served locally from the assets/ directory itself those
+        references would point one level too deep.  Stripping the prefix
+        makes them resolve to the correct files without modifying the HTML.
+        """
         if self.path in {'/', ''}:
             self.path = PRESENTATION_ENTRY_PATH
+        elif self.path.startswith('/assets/'):
+            self.path = self.path[len('/assets') :]
 
     def do_GET(self):
         """Handle GET requests."""
@@ -77,7 +88,7 @@ class PresentationHandler(http.server.SimpleHTTPRequestHandler):
 
         if previous_mtime is not None and current_mtime > previous_mtime:
             rel_path = self.path.lstrip('/') or file_path.name
-            print(f'  [{get_local_timestamp()}] File update detected: {rel_path}')
+            print(f'  [{get_local_timestamp()}] File update detected: {rel_path}', flush=True)
 
         self._last_polled_mtimes[file_key] = current_mtime
 
@@ -103,7 +114,7 @@ class PresentationHandler(http.server.SimpleHTTPRequestHandler):
         if status_code.isdigit() and int(status_code) < 400:
             return
 
-        if 'HTTP' in request_line or status_code:
+        if 'HTTP' in request_line:
             print(f'  {format % args}', file=sys.stderr)
 
 
@@ -152,25 +163,32 @@ def serve_presentation(port: int = 7777):
 
         # Print server info
         print('\n✨ APIM Samples Presentation Server')
-        print(f'   Serving from: {pres_dir}')
-        print(f'   URL: {url}')
-        print(f'   Presentation URL: {presentation_url}')
+        print(f'   Serving from       : {pres_dir}')
+        print(f'   URL                : {url}')
+        print(f'   Presentation URL   : {presentation_url}')
         print()
         print('   🌐 Browser opening in 1 second...')
         print()
-        print('   To stop the server: Press Ctrl+C')
-        print()
+        print('   To stop the server : Press Ctrl+C')
+        print(flush=True)
 
         # Open browser in a background thread
         def open_browser():
             sleep(1)  # Give server time to start
-            print(f'   ✓ Opening browser to {presentation_url}')
+            print(f'   ✓ Opening browser to {presentation_url}', flush=True)
             webbrowser.open(presentation_url)
 
         Thread(target=open_browser, daemon=True).start()
 
-        # Start server
-        httpd.serve_forever()
+        # Run the server in a daemon thread so the main thread remains free.
+        # On Windows, serve_forever() blocks inside select() which cannot be
+        # interrupted by Ctrl+C.  Keeping the main thread in a sleep() loop
+        # lets Python's signal machinery raise KeyboardInterrupt reliably.
+        server_thread = Thread(target=httpd.serve_forever, daemon=True)
+        server_thread.start()
+
+        while server_thread.is_alive():
+            sleep(1)
 
     except KeyboardInterrupt:
         print_shutdown_once()
@@ -179,10 +197,15 @@ def serve_presentation(port: int = 7777):
             signal.signal(handled_signal, previous_handler)
 
         os.chdir(original_dir)
-        try:
-            httpd.server_close()
-        except Exception:  # noqa: BLE001
-            pass
+        if httpd is not None:
+            try:
+                httpd.shutdown()
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                httpd.server_close()
+            except Exception:  # noqa: BLE001
+                pass
 
 
 if __name__ == '__main__':
