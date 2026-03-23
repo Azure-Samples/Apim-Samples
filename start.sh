@@ -108,6 +108,9 @@ while true; do
   echo "  e) Export presentation as self-contained HTML"
   echo "  w) Serve & view GitHub Pages website (auto-opens browser)"
   echo ""
+  echo "Cleanup"
+  echo "  c) Clean local artifacts (preserves .env)"
+  echo ""
   echo "Misc"
   echo "  0) Exit"
   echo ""
@@ -168,6 +171,9 @@ while true; do
       ;;
     w)
       run_cmd pyrun "${REPO_ROOT}/setup/serve_website.py"
+      ;;
+    c)
+      run_cmd bash "${REPO_ROOT}/setup/clean-local-artifacts.sh"
       ;;
     0)
       echo ""
