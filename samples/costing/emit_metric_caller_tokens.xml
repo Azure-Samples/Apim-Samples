@@ -1,0 +1,121 @@
+<!--
+    AI Gateway Token Tracking Policy
+
+    Emits per-caller token consumption metrics when APIM is used as an
+    AI Gateway in front of Azure OpenAI or compatible LLM backends.
+
+    The built-in Azure OpenAI metrics (PTU utilization, token counts) are
+    reported at the model/deployment level and do NOT break down by client.
+    This policy fills that gap by extracting token usage from the response
+    body and emitting 'caller-tokens' custom metrics tagged with the
+    calling application's identity.
+
+    Metrics emitted:
+      - 'caller-tokens' with dimensions CallerId, TokenType, Model
+        TokenType: 'prompt', 'completion', or 'total'
+
+    Caller identification:
+      - Uses the 'Extract-CallerId' policy fragment to read appid / azp
+        from the JWT Authorization header
+      - Falls back to the APIM subscription ID if no JWT is present
+
+    Response parsing:
+      Azure OpenAI responses include a 'usage' object:
+      {
+        "usage": {
+          "prompt_tokens": 42,
+          "completion_tokens": 128,
+          "total_tokens": 170
+        },
+        "model": "gpt-4o"
+      }
+      If the response does not contain a 'usage' object (e.g. non-AI
+      backend), token metrics are simply not emitted for that request.
+
+    USAGE:
+      Point the API's serviceUrl to your Azure OpenAI deployment
+      (e.g. https://YOUR-AOAI.openai.azure.com) and the policy will
+      extract real token counts from every response automatically.
+-->
+<policies>
+    <inbound>
+        <base />
+        <!-- Extract caller identity (appid/azp from JWT, or APIM subscription ID) -->
+        <include-fragment fragment-id="Extract-CallerId" />
+        <!-- Count each request per caller (same as emit_metric_caller_id.xml) -->
+        <emit-metric name="caller-requests" value="1" namespace="apim-costing">
+            <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
+            <dimension name="API" value="@(context.Api.Name)" />
+            <dimension name="Operation" value="@(context.Operation.Name)" />
+        </emit-metric>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <!--
+            Parse the response body once to extract token usage.
+            Uses preserveContent: true so the original body is still
+            returned to the client unmodified.
+        -->
+        <set-variable name="parsedResponse" value="@{
+            try {
+                return Newtonsoft.Json.Linq.JObject.Parse(
+                    context.Response.Body.As<string>(preserveContent: true));
+            } catch {
+                return new Newtonsoft.Json.Linq.JObject();
+            }
+        }" />
+        <!-- Check whether the response contains an Azure OpenAI usage object -->
+        <set-variable name="hasUsage" value="@{
+            var body = (Newtonsoft.Json.Linq.JObject)context.Variables["parsedResponse"];
+            var usage = body["usage"];
+            return usage != null && usage["prompt_tokens"] != null;
+        }" />
+        <!--
+            Extract token counts and emit metrics only when the response
+            contains real token statistics. Requests without a 'usage'
+            object are silently skipped.
+        -->
+        <choose>
+            <when condition="@((bool)context.Variables["hasUsage"])">
+                <set-variable name="promptTokens" value="@{
+                    var body = (Newtonsoft.Json.Linq.JObject)context.Variables["parsedResponse"];
+                    return body["usage"]["prompt_tokens"].Value<int>();
+                }" />
+                <set-variable name="completionTokens" value="@{
+                    var body = (Newtonsoft.Json.Linq.JObject)context.Variables["parsedResponse"];
+                    var usage = body["usage"];
+                    return usage["completion_tokens"] != null ? usage["completion_tokens"].Value<int>() : 0;
+                }" />
+                <set-variable name="totalTokens" value="@{
+                    return (int)context.Variables["promptTokens"] + (int)context.Variables["completionTokens"];
+                }" />
+                <set-variable name="modelName" value="@{
+                    var body = (Newtonsoft.Json.Linq.JObject)context.Variables["parsedResponse"];
+                    return body["model"]?.ToString() ?? "unknown";
+                }" />
+                <!-- Emit per-caller token metrics with type and model dimensions -->
+                <emit-metric name="caller-tokens" value="@((double)(int)context.Variables["promptTokens"])" namespace="apim-costing">
+                    <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
+                    <dimension name="TokenType" value="prompt" />
+                    <dimension name="Model" value="@((string)context.Variables["modelName"])" />
+                </emit-metric>
+                <emit-metric name="caller-tokens" value="@((double)(int)context.Variables["completionTokens"])" namespace="apim-costing">
+                    <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
+                    <dimension name="TokenType" value="completion" />
+                    <dimension name="Model" value="@((string)context.Variables["modelName"])" />
+                </emit-metric>
+                <emit-metric name="caller-tokens" value="@((double)(int)context.Variables["totalTokens"])" namespace="apim-costing">
+                    <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
+                    <dimension name="TokenType" value="total" />
+                    <dimension name="Model" value="@((string)context.Variables["modelName"])" />
+                </emit-metric>
+            </when>
+        </choose>
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

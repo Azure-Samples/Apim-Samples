@@ -1,0 +1,56 @@
+<!--
+    Mock Azure OpenAI Response (Operation-Level Policy)
+
+    Replaces the httpbin.org backend response with a realistic Azure OpenAI
+    chat completion response including a 'usage' object. This enables the
+    API-level emit_metric_caller_tokens.xml policy to extract and emit
+    per-caller token consumption metrics without requiring a real AI backend.
+
+    Token counts are randomised per request so the workbook dashboards
+    display realistic, varied data.
+
+    In production, remove this operation policy and point the API's serviceUrl
+    to your Azure OpenAI deployment. The API-level policy will then parse
+    real token counts from the backend response automatically.
+-->
+<policies>
+    <inbound>
+        <base />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <!-- Replace the httpbin response with a mock Azure OpenAI response -->
+        <set-body>@{
+            var random = new Random(context.RequestId.GetHashCode());
+            var promptTokens = random.Next(10, 200);
+            var completionTokens = random.Next(50, 500);
+            var totalTokens = promptTokens + completionTokens;
+            return new Newtonsoft.Json.Linq.JObject(
+                new Newtonsoft.Json.Linq.JProperty("id", "chatcmpl-" + context.RequestId.ToString("N").Substring(0, 12)),
+                new Newtonsoft.Json.Linq.JProperty("object", "chat.completion"),
+                new Newtonsoft.Json.Linq.JProperty("model", "gpt-4o"),
+                new Newtonsoft.Json.Linq.JProperty("usage", new Newtonsoft.Json.Linq.JObject(
+                    new Newtonsoft.Json.Linq.JProperty("prompt_tokens", promptTokens),
+                    new Newtonsoft.Json.Linq.JProperty("completion_tokens", completionTokens),
+                    new Newtonsoft.Json.Linq.JProperty("total_tokens", totalTokens)
+                )),
+                new Newtonsoft.Json.Linq.JProperty("choices", new Newtonsoft.Json.Linq.JArray(
+                    new Newtonsoft.Json.Linq.JObject(
+                        new Newtonsoft.Json.Linq.JProperty("message", new Newtonsoft.Json.Linq.JObject(
+                            new Newtonsoft.Json.Linq.JProperty("role", "assistant"),
+                            new Newtonsoft.Json.Linq.JProperty("content", "Mock response for cost tracking demonstration.")
+                        )),
+                        new Newtonsoft.Json.Linq.JProperty("finish_reason", "stop"),
+                        new Newtonsoft.Json.Linq.JProperty("index", 0)
+                    )
+                ))
+            ).ToString();
+        }</set-body>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

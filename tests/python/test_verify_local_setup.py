@@ -614,7 +614,8 @@ def test_check_azure_providers_all_registered() -> None:
     providers_json = (
         '["Microsoft.ApiManagement", "Microsoft.App",'
         ' "Microsoft.Authorization", "Microsoft.CognitiveServices",'
-        ' "Microsoft.ContainerRegistry", "Microsoft.KeyVault",'
+        ' "Microsoft.ContainerRegistry", "Microsoft.CostManagementExports",'
+        ' "Microsoft.KeyVault",'
         ' "Microsoft.Maps", "Microsoft.ManagedIdentity",'
         ' "Microsoft.Network", "Microsoft.OperationalInsights",'
         ' "Microsoft.Resources", "Microsoft.Storage"]'

@@ -276,6 +276,7 @@ def check_azure_providers():
         'Microsoft.Authorization',
         'Microsoft.CognitiveServices',
         'Microsoft.ContainerRegistry',
+        'Microsoft.CostManagementExports',
         'Microsoft.KeyVault',
         'Microsoft.Maps',
         'Microsoft.ManagedIdentity',
