@@ -53,37 +53,24 @@ Users who only need to **view** the deployed Azure Monitor Workbook (not deploy 
 
 ## ⚙️ Configuration
 
-### Important: Sample Index
+### Deployment Index
 
-The `create.ipynb` notebook passes a **`sampleIndex` parameter** to the Bicep template. This parameter ensures unique resource naming when deploying multiple instances of this sample. The notebook automatically provides this value; you only need to verify it matches your deployment scenario:
+The `create.ipynb` notebook passes an **`index` parameter** to the Bicep template. This parameter ensures unique resource naming when deploying multiple instances of this sample. The notebook automatically provides this value; you only need to verify it matches your deployment scenario:
 
 ```python
-sample_index = 2  # Increment this for multiple sample deployments
+index = 1  # Match your infrastructure deployment index
 ```
 
-This index is used in resource names (e.g., `appi-cost-2-xxxx`, `log-cost-2-xxxx`) to avoid naming conflicts when running multiple instances of the sample.
+This index is used in resource names (e.g., `appi-cost-1-xxxx`, `log-cost-1-xxxx`) to avoid naming conflicts.
 
-### Option A: Use a repository infrastructure (recommended)
+### Running the Sample
 
 1. Navigate to the desired [infrastructure](../../infrastructure/) folder (e.g., [simple-apim](../../infrastructure/simple-apim/)) and follow its README.md to deploy.
 2. Open `create.ipynb` and set:
    ```python
-   infrastructure = INFRASTRUCTURE.SIMPLE_APIM  # Match your deployed infra
-   index = 1                                     # Match your infra index
-   sample_index = 1                              # Increment for multiple sample deployments
+   deployment = INFRASTRUCTURE.SIMPLE_APIM  # Match your deployed infra
+   index = 1                                # Match your infra index
    ```
-3. Run All Cells.
-
-### Option B: Bring your own existing APIM
-
-You can use any existing Azure API Management instance. The sample only adds diagnostic settings and sample resources to your APIM - it does **not** modify your existing APIs or policies.
-
-1. Open `create.ipynb` and **uncomment** the two lines in the User Configuration section:
-   ```python
-   existing_rg_name = 'your-resource-group-name'
-   existing_apim_name = 'your-apim-service-name'
-   ```
-2. Set the correct Azure subscription: `az account set -s <subscription-id>`
 3. Run All Cells.
 
 **What the sample deploys into your resource group:**
@@ -92,7 +79,9 @@ You can use any existing Azure API Management instance. The sample only adds dia
 - Storage Account (for cost exports)
 - Diagnostic Settings on your APIM (routes gateway logs to Log Analytics)
 - Azure Monitor Workbook
-- A sample API (`cost-tracking-api`) with 5 business unit subscriptions
+- Sample APIs with 4 business unit subscriptions
+- Entra ID tracking API with `emit-metric` policy (optional)
+- AI Gateway token tracking API with `emit-metric` policy (optional)
 
 **What it does NOT touch:**
 - Your existing APIs, policies, or subscriptions
@@ -141,7 +130,7 @@ This lab deploys and configures:
   - **Subscription-Based Costing tab**: Cost allocation table (base + variable cost per BU), base vs variable cost stacked bar chart, cost breakdown by API, request count and distribution charts, success/error rate analysis, response code distribution, business unit drill-down
   - **Entra ID Application Costing tab**: Usage by caller ID (bar chart + table), cost allocation by caller (table + pie chart), hourly request trend by caller
   - **AI Gateway Token/PTU tab**: Token consumption by client (prompt vs completion bar chart), token cost allocation table with configurable per-1K-token rates, token/cost distribution pie charts, hourly token trend with PTU capacity threshold line, prompt vs completion area chart, model breakdown table
-- **Live Pricing Integration** - Auto-detects your APIM SKU and fetches current pricing from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices)
+- **SKU-Based Pricing** - Automatically derives base monthly cost, overage rate, and included request allowance from the deployed APIM SKU using built-in pricing data (sourced from the [Azure API Management pricing page](https://azure.microsoft.com/pricing/details/api-management/), March 2026)
 - **Budget Alerts** (optional) - Per-BU scheduled query alerts when request thresholds are exceeded
 
 ### Cost Allocation Model

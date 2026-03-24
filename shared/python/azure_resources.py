@@ -416,6 +416,8 @@ def run(
     error_message: str | None = None,
     *,
     log_command: bool | None = None,
+    timeout: int = 240,
+    retries: int = 1,
 ) -> Output:
     """Execute a shell command and return an `Output`.
 
@@ -425,6 +427,10 @@ def run(
     - Failures are logged at ERROR only when `error_message` is provided; otherwise at DEBUG.
 
     When DEBUG logging is enabled, `az ...` commands will automatically include `--debug`.
+
+    Args:
+        timeout: Maximum seconds to wait for the command to complete (default 240).
+        retries: Number of retry attempts after the initial execution (default 1).
     """
 
     command_to_run = _maybe_add_az_debug_flag(command)
@@ -437,23 +443,17 @@ def run(
     if log_command or is_debug_enabled():
         print_command(command_to_run)
 
+    max_attempts = 1 + max(0, retries)
     start_time = time.time()
+    stdout_text = ''
+    stderr_text = ''
+    success = False
 
-    try:
-        lock = _AZ_CLI_LOCK if _is_az_command(command_to_run) else None
+    for attempt in range(1, max_attempts + 1):  # pragma: no branch  (max_attempts >= 1)
+        try:
+            lock = _AZ_CLI_LOCK if _is_az_command(command_to_run) else None
 
-        if lock is None:
-            completed = subprocess.run(
-                command_to_run,
-                shell=True,
-                check=False,
-                capture_output=True,
-                text=True,
-                encoding='utf-8',
-                errors='replace',
-            )
-        else:
-            with lock:
+            if lock is None:
                 completed = subprocess.run(
                     command_to_run,
                     shell=True,
@@ -462,14 +462,36 @@ def run(
                     text=True,
                     encoding='utf-8',
                     errors='replace',
+                    timeout=timeout,
                 )
-        stdout_text = completed.stdout or ''
-        stderr_text = completed.stderr or ''
-        success = not completed.returncode
-    except Exception as e:
-        stdout_text = ''
-        stderr_text = str(e)
-        success = False
+            else:
+                with lock:
+                    completed = subprocess.run(
+                        command_to_run,
+                        shell=True,
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                        encoding='utf-8',
+                        errors='replace',
+                        timeout=timeout,
+                    )
+            stdout_text = completed.stdout or ''
+            stderr_text = completed.stderr or ''
+            success = not completed.returncode
+        except subprocess.TimeoutExpired:
+            stdout_text = ''
+            stderr_text = f'Command timed out after {timeout} seconds'
+            success = False
+        except Exception as e:
+            stdout_text = ''
+            stderr_text = str(e)
+            success = False
+
+        if success or attempt == max_attempts:
+            break
+
+        print_warning(f'Command failed (attempt {attempt}/{max_attempts}), retrying...')
 
     # Preserve programmatic output as stdout only when successful, so JSON parsing isn't
     # contaminated by Azure CLI debug noise (which commonly writes to stderr).

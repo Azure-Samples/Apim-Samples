@@ -7,6 +7,7 @@ handling, and Azure CLI locking) without requiring live Azure.
 from __future__ import annotations
 
 import logging
+import subprocess
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -648,3 +649,183 @@ def test_run_uses_az_cli_lock_only_for_az_commands(_quiet_console: None, monkeyp
 
     assert not fake_lock.entered
     assert not fake_lock.exited
+
+
+# ------------------------------
+#    TIMEOUT TESTS
+# ------------------------------
+
+
+def test_run_passes_default_timeout_to_subprocess(_quiet_console: None) -> None:
+    """Default timeout of 240 seconds is forwarded to subprocess.run."""
+    completed = SimpleNamespace(stdout='ok', stderr='', returncode=0)
+
+    with patch.object(az, 'is_debug_enabled', return_value=False), patch.object(az.subprocess, 'run', return_value=completed) as sp_run:
+        az.run('echo hello')
+
+    assert sp_run.call_args.kwargs['timeout'] == 240
+
+
+def test_run_passes_custom_timeout_to_subprocess(_quiet_console: None) -> None:
+    """A caller-provided timeout overrides the default."""
+    completed = SimpleNamespace(stdout='ok', stderr='', returncode=0)
+
+    with patch.object(az, 'is_debug_enabled', return_value=False), patch.object(az.subprocess, 'run', return_value=completed) as sp_run:
+        az.run('echo hello', timeout=60)
+
+    assert sp_run.call_args.kwargs['timeout'] == 60
+
+
+def test_run_timeout_expired_returns_failure(_quiet_console: None) -> None:
+    """When the command times out, run() returns a failed Output."""
+    with (
+        patch.object(az, 'is_debug_enabled', return_value=False),
+        patch.object(az.subprocess, 'run', side_effect=subprocess.TimeoutExpired('cmd', 10)),
+    ):
+        output = az.run('az group list', timeout=10, retries=0)
+
+    assert output.success is False
+    assert 'timed out' in output.text
+
+
+def test_run_timeout_expired_with_az_lock(_quiet_console: None, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Timeout while holding the az CLI lock still marks the result as failed."""
+    fake_lock = _FakeLock()
+    monkeypatch.setattr(az, '_AZ_CLI_LOCK', fake_lock)
+
+    with (
+        patch.object(az, 'is_debug_enabled', return_value=False),
+        patch.object(az.subprocess, 'run', side_effect=subprocess.TimeoutExpired('cmd', 10)),
+    ):
+        output = az.run('az group list', timeout=10, retries=0)
+
+    assert output.success is False
+    assert 'timed out' in output.text
+    assert fake_lock.entered == 1
+    assert fake_lock.exited == 1
+
+
+# ------------------------------
+#    RETRY TESTS
+# ------------------------------
+
+
+def test_run_default_retries_retries_once_on_failure(_quiet_console: None) -> None:
+    """With default retries=1, subprocess.run is called twice on failure."""
+    failed = SimpleNamespace(stdout='', stderr='error', returncode=1)
+
+    with (
+        patch.object(az, 'is_debug_enabled', return_value=False),
+        patch.object(az.subprocess, 'run', return_value=failed) as sp_run,
+        patch.object(az, 'print_warning'),
+    ):
+        output = az.run('echo fail')
+
+    assert output.success is False
+    assert sp_run.call_count == 2
+
+
+def test_run_retries_zero_no_retry_on_failure(_quiet_console: None) -> None:
+    """With retries=0, subprocess.run is called only once."""
+    failed = SimpleNamespace(stdout='', stderr='error', returncode=1)
+
+    with (
+        patch.object(az, 'is_debug_enabled', return_value=False),
+        patch.object(az.subprocess, 'run', return_value=failed) as sp_run,
+    ):
+        output = az.run('echo fail', retries=0)
+
+    assert output.success is False
+    assert sp_run.call_count == 1
+
+
+def test_run_retries_custom_value(_quiet_console: None) -> None:
+    """With retries=3, subprocess.run is called four times on persistent failure."""
+    failed = SimpleNamespace(stdout='', stderr='error', returncode=1)
+
+    with (
+        patch.object(az, 'is_debug_enabled', return_value=False),
+        patch.object(az.subprocess, 'run', return_value=failed) as sp_run,
+        patch.object(az, 'print_warning'),
+    ):
+        output = az.run('echo fail', retries=3)
+
+    assert output.success is False
+    assert sp_run.call_count == 4
+
+
+def test_run_retry_succeeds_on_second_attempt(_quiet_console: None) -> None:
+    """When the first attempt fails and the retry succeeds, run() returns success."""
+    failed = SimpleNamespace(stdout='', stderr='error', returncode=1)
+    succeeded = SimpleNamespace(stdout='ok', stderr='', returncode=0)
+
+    with (
+        patch.object(az, 'is_debug_enabled', return_value=False),
+        patch.object(az.subprocess, 'run', side_effect=[failed, succeeded]) as sp_run,
+        patch.object(az, 'print_warning'),
+    ):
+        output = az.run('echo hello')
+
+    assert output.success is True
+    assert output.text == 'ok'
+    assert sp_run.call_count == 2
+
+
+def test_run_no_retry_on_success(_quiet_console: None) -> None:
+    """When the first attempt succeeds, no retry is attempted."""
+    completed = SimpleNamespace(stdout='ok', stderr='', returncode=0)
+
+    with (
+        patch.object(az, 'is_debug_enabled', return_value=False),
+        patch.object(az.subprocess, 'run', return_value=completed) as sp_run,
+    ):
+        output = az.run('echo hello', retries=3)
+
+    assert output.success is True
+    assert sp_run.call_count == 1
+
+
+def test_run_retry_after_timeout_succeeds(_quiet_console: None) -> None:
+    """A timeout on the first attempt followed by success on retry."""
+    succeeded = SimpleNamespace(stdout='ok', stderr='', returncode=0)
+
+    with (
+        patch.object(az, 'is_debug_enabled', return_value=False),
+        patch.object(az.subprocess, 'run', side_effect=[subprocess.TimeoutExpired('cmd', 10), succeeded]) as sp_run,
+        patch.object(az, 'print_warning'),
+    ):
+        output = az.run('echo hello', timeout=10)
+
+    assert output.success is True
+    assert output.text == 'ok'
+    assert sp_run.call_count == 2
+
+
+def test_run_retry_prints_warning_on_failure(_quiet_console: None) -> None:
+    """A warning is printed between retry attempts."""
+    failed = SimpleNamespace(stdout='', stderr='error', returncode=1)
+
+    with (
+        patch.object(az, 'is_debug_enabled', return_value=False),
+        patch.object(az.subprocess, 'run', return_value=failed),
+        patch.object(az, 'print_warning') as mock_warn,
+    ):
+        az.run('echo fail', retries=2)
+
+    assert mock_warn.call_count == 2
+    assert 'attempt 1/3' in mock_warn.call_args_list[0].args[0]
+    assert 'attempt 2/3' in mock_warn.call_args_list[1].args[0]
+
+
+def test_run_negative_retries_treated_as_zero(_quiet_console: None) -> None:
+    """Negative retries value is clamped to zero (single attempt)."""
+    failed = SimpleNamespace(stdout='', stderr='error', returncode=1)
+
+    with (
+        patch.object(az, 'is_debug_enabled', return_value=False),
+        patch.object(az.subprocess, 'run', return_value=failed) as sp_run,
+    ):
+        output = az.run('echo fail', retries=-5)
+
+    assert output.success is False
+    assert sp_run.call_count == 1

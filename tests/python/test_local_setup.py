@@ -6,8 +6,8 @@ import importlib
 import json
 import os
 import shutil
-import sys
 import subprocess
+import sys
 from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING, cast
@@ -311,7 +311,8 @@ def test_check_azure_providers_registered_success():
                 stdout=(
                     '["Microsoft.ApiManagement", "Microsoft.Storage", "Microsoft.App",'
                     ' "Microsoft.Authorization", "Microsoft.CognitiveServices",'
-                    ' "Microsoft.ContainerRegistry", "Microsoft.KeyVault", "Microsoft.Maps",'
+                    ' "Microsoft.ContainerRegistry", "Microsoft.CostManagementExports",'
+                    ' "Microsoft.KeyVault", "Microsoft.Maps",'
                     ' "Microsoft.ManagedIdentity", "Microsoft.Network",'
                     ' "Microsoft.OperationalInsights", "Microsoft.Resources"]'
                 ),
@@ -1769,6 +1770,7 @@ def test_check_azure_providers_all_providers_in_list():
                 'Microsoft.Authorization',
                 'Microsoft.CognitiveServices',
                 'Microsoft.ContainerRegistry',
+                'Microsoft.CostManagementExports',
                 'Microsoft.KeyVault',
                 'Microsoft.Maps',
                 'Microsoft.ManagedIdentity',
@@ -2213,6 +2215,7 @@ def test_check_azure_providers_subprocess_stdout_parsing(monkeypatch: pytest.Mon
                 'Microsoft.Authorization',
                 'Microsoft.CognitiveServices',
                 'Microsoft.ContainerRegistry',
+                'Microsoft.CostManagementExports',
                 'Microsoft.KeyVault',
                 'Microsoft.Maps',
                 'Microsoft.ManagedIdentity',
@@ -2442,6 +2445,7 @@ def test_check_azure_providers_no_missing_vs_missing():
                 'Microsoft.Authorization',
                 'Microsoft.CognitiveServices',
                 'Microsoft.ContainerRegistry',
+                'Microsoft.CostManagementExports',
                 'Microsoft.KeyVault',
                 'Microsoft.Maps',
                 'Microsoft.ManagedIdentity',
@@ -2758,6 +2762,7 @@ def test_check_azure_providers_no_missing():
                 'Microsoft.Authorization',
                 'Microsoft.CognitiveServices',
                 'Microsoft.ContainerRegistry',
+                'Microsoft.CostManagementExports',
                 'Microsoft.KeyVault',
                 'Microsoft.Maps',
                 'Microsoft.ManagedIdentity',

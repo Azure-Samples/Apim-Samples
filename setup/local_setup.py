@@ -24,7 +24,6 @@ import subprocess
 import sys
 from pathlib import Path  # Cross-platform path handling (Windows: \, Unix: /)
 
-
 DEFAULT_PYTHON_ANALYSIS_EXCLUDE = [
     '**/node_modules',
     '**/__pycache__',
@@ -139,6 +138,7 @@ def check_azure_providers_registered():
         'Microsoft.Authorization',
         'Microsoft.CognitiveServices',
         'Microsoft.ContainerRegistry',
+        'Microsoft.CostManagementExports',
         'Microsoft.KeyVault',
         'Microsoft.Maps',
         'Microsoft.ManagedIdentity',

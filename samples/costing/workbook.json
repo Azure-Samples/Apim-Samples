@@ -97,6 +97,16 @@
             "content": {
               "parameters": [
                 {
+                  "id": "a0b1c2d3-e4f5-6789-abcd-ef0000000sku",
+                  "isRequired": false,
+                  "label": "APIM SKU",
+                  "name": "ApimSku",
+                  "type": 1,
+                  "isReadOnly": true,
+                  "value": "__APIM_SKU__",
+                  "version": "KqlParameterItem/1.0"
+                },
+                {
                   "id": "c1a2b3d4-e5f6-7890-abcd-ef1234567890",
                   "isRequired": true,
                   "label": "Base Monthly APIM Cost ($)",
@@ -111,7 +121,7 @@
                       }
                     ]
                   },
-                  "value": "150.00",
+                  "value": "__BASE_MONTHLY_COST__",
                   "version": "KqlParameterItem/1.0"
                 },
                 {
@@ -129,7 +139,7 @@
                       }
                     ]
                   },
-                  "value": "0.003",
+                  "value": "__PER_K_RATE__",
                   "version": "KqlParameterItem/1.0"
                 },
                 {
@@ -152,7 +162,7 @@
           },
           {
             "content": {
-              "json": "## APIM Cost Allocation & Showback Dashboard\n\nThis tab splits the **base APIM infrastructure cost** across business units proportionally by usage, then adds **variable per-API costs** based on request volume. Data comes from `ApiManagementGatewayLogs` in Log Analytics, keyed by APIM subscription ID.\n\n| Parameter | Description |\n|---|---|\n| **Base Monthly APIM Cost** | Fixed platform cost (SKU, networking, etc.) split proportionally by request share |\n| **Variable Cost per 1K Requests** | Usage-based rate applied on top of the base allocation |\n\n> Adjust parameters above to model different pricing scenarios."
+              "json": "## APIM Cost Allocation & Showback Dashboard\n\nThis tab splits the **base APIM infrastructure cost** across business units proportionally by usage, then adds **variable per-API costs** based on request volume. Data comes from `ApiManagementGatewayLogs` in Log Analytics, keyed by APIM subscription ID.\n\n| Parameter | Description |\n|---|---|\n| **APIM SKU** | Deployed SKU (read-only, set at deployment time) |\n| **Base Monthly APIM Cost** | Fixed platform cost (SKU, networking, etc.) split proportionally by request share |\n| **Variable Cost per 1K Requests** | Usage-based rate applied on top of the base allocation |\n\n> Adjust cost parameters above to model different pricing scenarios. Defaults are set from the deployed SKU via the notebook."
             },
             "name": "text - header-subscription",
             "type": 1
@@ -165,7 +175,7 @@
               "items": [
                 {
                   "content": {
-                    "json": "| Component | Formula |\n|---|---|\n| **Base Cost** | Monthly platform cost for the APIM SKU (see parameter above): **${BaseMonthlyCost}** |\n| **Base Cost Share** | `Base Monthly Cost x (BU Requests / Total Requests)` |\n| **Variable Cost** | `BU Requests x (Rate per 1K / 1000)` |\n| **Total Allocated** | `Base Cost Share + Variable Cost` |\n\n> The base monthly cost and variable rate parameters are editable above. Use the notebook's pricing lookup cell to auto-detect values from the [Azure Retail Prices API](https://learn.microsoft.com/rest/api/cost-management/retail-prices/azure-retail-prices) and keep them in sync with your APIM SKU."
+                    "json": "| Component | Formula |\n|---|---|\n| **Base Cost** | Monthly platform cost for the **{ApimSku}** SKU (see parameter above): **${BaseMonthlyCost}** |\n| **Base Cost Share** | `Base Monthly Cost x (BU Requests / Total Requests)` |\n| **Variable Cost** | `BU Requests x (Rate per 1K / 1000)` |\n| **Total Allocated** | `Base Cost Share + Variable Cost` |\n\n> The cost parameters default to the deployed SKU's retail pricing (set at deployment time via `azure_cost.get_apim_sku_pricing()`). You can override them above to model different scenarios. See the [Azure APIM pricing page](https://azure.microsoft.com/pricing/details/api-management/) for current rates."
                   },
                   "name": "text - cost-model-detail",
                   "type": 1

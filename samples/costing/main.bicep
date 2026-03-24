@@ -51,6 +51,15 @@ param businessUnits array = []
 @description('Array of policy fragments to deploy')
 param policyFragments array = []
 
+@description('Display name of the APIM SKU (e.g. Basicv2). Injected into the workbook as a label.')
+param apimSkuDisplayName string = 'Basicv2'
+
+@description('Base monthly cost for the APIM SKU in USD. Injected into the workbook default.')
+param baseMonthlyCost string = '150.01'
+
+@description('Variable cost per 1K API requests in USD. Injected into the workbook default.')
+param perKRate string = '0.003'
+
 
 // ------------------
 //    VARIABLES
@@ -207,7 +216,10 @@ module apimDiagnosticsModule '../../shared/bicep/modules/apim/v1/diagnostics.bic
 #disable-next-line BCP318
 var appInsightsAppId = enableApplicationInsights ? applicationInsightsModule.outputs.appId : ''
 var rawWorkbookJson = string(loadJsonContent('workbook.json'))
-var workbookJsonWithAppInsights = replace(rawWorkbookJson, '__APP_INSIGHTS_NAME__', appInsightsAppId)
+var wbStep1 = replace(rawWorkbookJson, '__APP_INSIGHTS_NAME__', appInsightsAppId)
+var wbStep2 = replace(wbStep1, '__APIM_SKU__', apimSkuDisplayName)
+var wbStep3 = replace(wbStep2, '__BASE_MONTHLY_COST__', baseMonthlyCost)
+var workbookJsonWithTokens = replace(wbStep3, '__PER_K_RATE__', perKRate)
 
 // https://learn.microsoft.com/azure/templates/microsoft.insights/workbooks
 resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = if (enableLogAnalytics) {
@@ -216,7 +228,7 @@ resource workbook 'Microsoft.Insights/workbooks@2023-06-01' = if (enableLogAnaly
   kind: 'shared'
   properties: {
     displayName: workbookName
-    serializedData: workbookJsonWithAppInsights
+    serializedData: workbookJsonWithTokens
     version: '1.0'
     #disable-next-line BCP318
     sourceId: enableLogAnalytics ? logAnalyticsModule.outputs.id : ''
