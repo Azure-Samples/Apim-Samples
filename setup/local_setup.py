@@ -66,7 +66,7 @@ _ensure_utf8_streams()
 def _venv_python_path() -> str:
     """Return the workspace-local virtualenv interpreter path (platform aware)."""
 
-    return './.venv/Scripts/python.exe' if os.name == 'nt' else './.venv/bin/python'
+    return '${workspaceFolder}/.venv/Scripts/python.exe' if os.name == 'nt' else '${workspaceFolder}/.venv/bin/python'
 
 
 def check_azure_cli_installed():

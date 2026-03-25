@@ -16,7 +16,7 @@
   "files.trimFinalNewlines": true,
   "files.trimTrailingWhitespace": true,
   "jupyter.kernels.trusted": [
-    "./.venv/Scripts/python.exe"
+    "${workspaceFolder}/.venv/Scripts/python.exe"
   ],
   "pylint.enabled": false,
   "python.analysis.exclude": [
@@ -34,7 +34,7 @@
     "shared/python",
     "tests/python"
   ],
-  "python.defaultInterpreterPath": "./.venv/Scripts/python.exe",
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
   "python.envFile": "${workspaceFolder}/.env",
   "python.terminal.activateEnvInCurrentTerminal": true,
   "python.terminal.activateEnvironment": true,
