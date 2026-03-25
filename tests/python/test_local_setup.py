@@ -73,14 +73,14 @@ def test_venv_python_path_windows():
     """Test venv Python path for Windows."""
     with patch.object(os, 'name', 'nt'):
         result = sps._venv_python_path()
-        assert result == './.venv/Scripts/python.exe'
+        assert result == '${workspaceFolder}/.venv/Scripts/python.exe'
 
 
 def test_venv_python_path_unix():
     """Test venv Python path for Unix-like systems."""
     with patch.object(os, 'name', 'posix'):
         result = sps._venv_python_path()
-        assert result == './.venv/bin/python'
+        assert result == '${workspaceFolder}/.venv/bin/python'
 
 
 def test_normalize_string_list_none():
@@ -1396,7 +1396,7 @@ def test_venv_python_path_consistency():
     result = sps._venv_python_path()
 
     # Result should be either Windows or Unix style
-    assert result in ['./.venv/Scripts/python.exe', './.venv/bin/python']
+    assert result in ['${workspaceFolder}/.venv/Scripts/python.exe', '${workspaceFolder}/.venv/bin/python']
 
 
 def test_create_vscode_settings_all_required_settings_present(temp_project_root: Path):

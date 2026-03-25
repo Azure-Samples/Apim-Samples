@@ -370,7 +370,7 @@ def test_check_vscode_settings_all_configured(temp_cwd: Path) -> None:
     vscode_settings.parent.mkdir(parents=True)
 
     settings = {
-        'python.defaultInterpreterPath': '.venv/Scripts/python.exe',
+        'python.defaultInterpreterPath': '${workspaceFolder}/.venv/Scripts/python.exe',
         'python.envFile': '${workspaceFolder}/.env',
         'python.terminal.activateEnvironment': True,
         'python.testing.pytestEnabled': True,
@@ -408,7 +408,7 @@ def test_check_vscode_settings_missing_env_file(temp_cwd: Path) -> None:
     vscode_settings = temp_cwd / '.vscode' / 'settings.json'
     vscode_settings.parent.mkdir(parents=True)
 
-    settings = {'python.defaultInterpreterPath': '.venv/Scripts/python.exe'}
+    settings = {'python.defaultInterpreterPath': '${workspaceFolder}/.venv/Scripts/python.exe'}
     vscode_settings.write_text(json.dumps(settings), encoding='utf-8')
 
     ok, fix = vls.check_vscode_settings()
