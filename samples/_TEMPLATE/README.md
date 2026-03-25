@@ -12,6 +12,10 @@
 1. [LEARNING / EXPERIMENTATION OBJECTIVE 2]
 1. ...
 
+<!-- ## ✅ Prerequisites -->
+
+<!-- ONLY ADD THIS SECTION IF THE SAMPLE HAS REQUIREMENTS BEYOND THE ROOT README'S GENERAL PREREQUISITES (Azure subscription, CLI, Python, APIM instance). Examples: additional RBAC roles, external service accounts, special tooling. Open with a one-line reference to the root README, then list only sample-specific requirements. DELETE THIS COMMENT BLOCK IF NOT NEEDED. -->
+
 ## 📝 Scenario
 
 [IF THE SAMPLE IS DEMONSTRATED THROUGH A USE CASE OR SCENARIO, PLEASE DETAIL IT HERE. OTHERWISE, DELETE THIS SECTION]

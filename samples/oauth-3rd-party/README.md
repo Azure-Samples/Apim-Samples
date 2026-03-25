@@ -17,25 +17,9 @@ Sets up a 3rd party integration via [Azure API Management Credential Manager][ap
 1. Use external secrets in policies.
 1. Experience how API Management policy fragments simplify shared logic.
 
-## 📝 Scenario
+## ✅ Prerequisites
 
-We chose Spotify as it provides an extensive [REST API][spotify-rest-api] and has relatively generous limits on free API access. This makes for a relatively straight-forward experience for this sample. 
-Specifically, this sample uses Spotify's REST API to obtain information about its deep music and artist catalog. API Management is registered as an application in Spotify's applications with its own client ID and client secret for a given scope. This application is then set up as a generic OAuth 2.0 integration in Credential Manager.  
-Furthermore, we build on the knowledge gained from the _AuthX_ and _AuthX-Pro_ samples to authentication callers and authorize their use of the Spotify integration. 
-
-We use only one persona in this sample:
-
-- `Marketing Member` - holds read rights.
-
-The API hierarchy is as follows:
-
-1. All APIs / global
-    This is a great place to do authentication, but we refrain from doing it in the sample as to not affect other samples. 
-1. Marketing Member
-
-## Prerequisites
-
-This sample requires a little bit of manual pre-work in order to create a high-fidelity setup:
+Beyond the [general prerequisites](../../README.md#-getting-started) (Azure subscription, CLI, Python environment), this sample requires a little bit of manual pre-work in order to create a high-fidelity setup:
 
 1. A Spotify Account
 1. A Spotify Application
@@ -61,6 +45,22 @@ In order for API Management to gain access to Spotify's API, we need to create a
 1. Once the app has been created, copy the _Client ID_ and _Client secret_ into the root `.env` file. We will need them for the Credential Manager setup.
 1. Leave the Dashboard page open in your browser, as we will need to replace the Redirect URI shortly.
 1. Proceed to the [create](./create.ipynb) Jupyter notebook and follow directions there.
+
+## 📝 Scenario
+
+We chose Spotify as it provides an extensive [REST API][spotify-rest-api] and has relatively generous limits on free API access. This makes for a relatively straight-forward experience for this sample. 
+Specifically, this sample uses Spotify's REST API to obtain information about its deep music and artist catalog. API Management is registered as an application in Spotify's applications with its own client ID and client secret for a given scope. This application is then set up as a generic OAuth 2.0 integration in Credential Manager.  
+Furthermore, we build on the knowledge gained from the _AuthX_ and _AuthX-Pro_ samples to authentication callers and authorize their use of the Spotify integration. 
+
+We use only one persona in this sample:
+
+- `Marketing Member` - holds read rights.
+
+The API hierarchy is as follows:
+
+1. All APIs / global
+    This is a great place to do authentication, but we refrain from doing it in the sample as to not affect other samples. 
+1. Marketing Member
 
 ## Acknowledgement
 

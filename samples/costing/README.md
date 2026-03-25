@@ -19,16 +19,7 @@ This sample demonstrates how to track and allocate API costs using Azure API Man
 
 ## ✅ Prerequisites
 
-Before running this sample, ensure you have the following:
-
-### Required
-
-| Prerequisite | Description |
-|---|---|
-| **Azure subscription** | An active Azure subscription with Owner or Contributor access |
-| **Azure CLI** | Logged in (`az login`) with the correct subscription selected (`az account set -s <id>`) |
-| **APIM instance** | Either deploy one via this repo's infrastructure, or bring your own (see below) |
-| **Python environment** | Python 3.12+ with dependencies installed (`uv sync` or `pip install -r requirements.txt`) |
+Beyond the [general prerequisites](../../README.md#-getting-started) (Azure subscription, CLI, Python environment), this sample requires additional Azure RBAC role assignments.
 
 ### Azure RBAC Permissions
 
@@ -50,43 +41,6 @@ Users who only need to **view** the deployed Azure Monitor Workbook (not deploy 
 | **Log Analytics Reader** | Log Analytics Workspace | Execute the Kusto queries that power the workbook |
 
 > 💡 If a user can open the workbook but sees empty visualizations, they are likely missing **Log Analytics Reader** on the workspace.
-
-## ⚙️ Configuration
-
-### Deployment Index
-
-The `create.ipynb` notebook passes an **`index` parameter** to the Bicep template. This parameter ensures unique resource naming when deploying multiple instances of this sample. The notebook automatically provides this value; you only need to verify it matches your deployment scenario:
-
-```python
-index = 1  # Match your infrastructure deployment index
-```
-
-This index is used in resource names (e.g., `appi-cost-1-xxxx`, `log-cost-1-xxxx`) to avoid naming conflicts.
-
-### Running the Sample
-
-1. Navigate to the desired [infrastructure](../../infrastructure/) folder (e.g., [simple-apim](../../infrastructure/simple-apim/)) and follow its README.md to deploy.
-2. Open `create.ipynb` and set:
-   ```python
-   deployment = INFRASTRUCTURE.SIMPLE_APIM  # Match your deployed infra
-   index = 1                                # Match your infra index
-   ```
-3. Run All Cells.
-
-**What the sample deploys into your resource group:**
-- Application Insights instance
-- Log Analytics Workspace
-- Storage Account (for cost exports)
-- Diagnostic Settings on your APIM (routes gateway logs to Log Analytics)
-- Azure Monitor Workbook
-- Sample APIs with 4 business unit subscriptions
-- Entra ID tracking API with `emit-metric` policy (optional)
-- AI Gateway token tracking API with `emit-metric` policy (optional)
-
-**What it does NOT touch:**
-- Your existing APIs, policies, or subscriptions
-- Your APIM SKU or networking configuration
-- Any resources outside the specified resource group (except the subscription-scoped Cost Management export)
 
 ## 📝 Scenario
 
@@ -152,6 +106,13 @@ This lab deploys and configures:
 | Request count | Number of requests (primary cost metric) |
 
 > **Important**: The API must have `subscriptionRequired: true` for `ApimSubscriptionId` to be populated in logs. This sample configures it automatically.
+
+## ⚙️ Configuration
+
+1. Decide which of the [Infrastructure Architectures][infrastructure-architectures] you wish to use.
+    1. If the infrastructure _does not_ yet exist, navigate to the desired [infrastructure][infrastructure-folder] folder and follow its README.md.
+    1. If the infrastructure _does_ exist, adjust the `user-defined parameters` in the _Initialize notebook variables_ below. Please ensure that all parameters match your infrastructure.
+2. Run All Cells.
 
 ## 🖼️ Expected Results
 

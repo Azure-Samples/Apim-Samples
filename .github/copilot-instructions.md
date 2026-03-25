@@ -324,13 +324,30 @@ Every sample README must follow this standard layout to maintain uniformity acro
 - **Supported infrastructures badge** - `⚙️ **Supported infrastructures**: ...`
 - **Expected runtime badge** - `👟 **Expected *Run All* runtime (excl. infrastructure prerequisite): ~N minutes**`
 - **🎯 Objectives** - Numbered list of learning or experimentation goals
+- **✅ Prerequisites** (if applicable) - Sample-specific prerequisites only; see rules below
 - **📝 Scenario** (if applicable) - Use case or scenario context; omit if not relevant
 - **🛩️ Lab Components** - What the lab deploys and how it benefits the user
 - **⚙️ Configuration** - How to choose an infrastructure and run the notebook
+- **🖼️ Expected Results** (if applicable) - Screenshots and descriptions of what the user should see after running the sample
 - **🧹 Clean Up** (if applicable) - Reference to a clean-up notebook or manual steps
 - **🔗 Additional Resources** (if applicable) - Links to relevant documentation
 
 Match the heading emojis, heading levels, and section ordering exactly. If a section is not applicable, omit it entirely rather than leaving it empty.
+
+#### Prerequisites rules
+
+- **Do NOT repeat general prerequisites** (Azure subscription, Azure CLI, Python environment, APIM instance). These are documented once in the root README's [Getting Started](../../README.md#-getting-started) section and apply to all samples. The APIM Samples Developer CLI (`start.ps1` / `start.sh`) handles environment setup.
+- **Only add `## ✅ Prerequisites`** when a sample has genuinely unique requirements that go beyond the root README, such as:
+  - Additional Azure RBAC role assignments beyond Contributor
+  - External service accounts (e.g., a Spotify developer account)
+  - Special tooling or configuration not covered by the Developer CLI
+- When a Prerequisites section is needed, **open with a one-line reference** to the root README for general prerequisites, then list only the sample-specific requirements. Example:
+  ```markdown
+  ## ✅ Prerequisites
+
+  Beyond the [general prerequisites](../../README.md#-getting-started) (Azure subscription, CLI, Python environment), this sample requires ...
+  ```
+- The `oauth-3rd-party` sample is the canonical example of sample-specific prerequisites (external service accounts). The `costing` sample is the canonical example of additional RBAC requirements.
 
 ### Testing and Traffic Generation
 

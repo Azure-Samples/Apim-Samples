@@ -63,6 +63,10 @@ Use this template:
 1. <Learning objective 2>
 1. <Learning objective 3>
 
+<!-- ## ✅ Prerequisites -->
+
+<!-- ONLY ADD THIS SECTION IF THE SAMPLE HAS REQUIREMENTS BEYOND THE ROOT README'S GENERAL PREREQUISITES (Azure subscription, CLI, Python, APIM instance). Examples: additional RBAC roles, external service accounts, special tooling. Open with a one-line reference to the root README, then list only sample-specific requirements. DELETE THIS COMMENT BLOCK IF NOT NEEDED. -->
+
 ## 📝 Scenario
 
 <Optional: Describe the use case or scenario if applicable. Delete section if not needed.>
