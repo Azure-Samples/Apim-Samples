@@ -1,0 +1,67 @@
+<!--
+    Policy fragment: Dynamic CORS (Named Values)
+
+    Evaluates the Origin header against a JSON mapping stored in an APIM Named Value.
+    The Named Value must contain a JSON object mapping API IDs to arrays of allowed origins.
+
+    Named Value character limit: 4,096 characters. Plan your mappings accordingly.
+    To update origins without redeploying the fragment, edit the Named Value in the Azure portal or via CLI.
+
+    Expected Named Value format (compact JSON):
+    {"api-id-1":["https://origin-a.com"],"api-id-2":["https://origin-b.com","https://origin-c.com"],"api-id-3":["*"]}
+
+    Context variables set:
+        corsMappingJson - The raw JSON mapping string from the Named Value.
+        corsOrigin      - The validated origin if allowed, or empty string if not.
+-->
+<fragment>
+    <set-variable name="corsMappingJson" value="{cors_origin_mapping}" />
+    <set-variable name="corsOrigin" value="@{
+        var origin = context.Request.Headers.GetValueOrDefault("Origin", "");
+        if (string.IsNullOrEmpty(origin)) { return ""; }
+
+        var corsMappingJson = context.Variables.GetValueOrDefault<string>("corsMappingJson", "{}");
+        var corsMapping = JObject.Parse(corsMappingJson);
+
+        var apiId = context.Api.Id;
+        var allowedOrigins = corsMapping[apiId] as JArray;
+
+        if (allowedOrigins == null) { return ""; }
+        if (allowedOrigins.Any(o => o.ToString() == "*")) { return origin; }
+        if (allowedOrigins.Any(o => o.ToString() == origin)) { return origin; }
+
+        return "";
+    }" />
+    <choose>
+        <when condition="@(context.Request.Method == "OPTIONS")">
+            <choose>
+                <when condition="@(!string.IsNullOrEmpty(context.Variables.GetValueOrDefault<string>("corsOrigin", "")))">
+                    <return-response>
+                        <set-status code="200" reason="OK" />
+                        <set-header name="Access-Control-Allow-Origin" exists-action="override">
+                            <value>@((string)context.Variables["corsOrigin"])</value>
+                        </set-header>
+                        <set-header name="Access-Control-Allow-Methods" exists-action="override">
+                            <value>GET, POST, OPTIONS</value>
+                        </set-header>
+                        <set-header name="Access-Control-Allow-Headers" exists-action="override">
+                            <value>Content-Type, Authorization, X-Requested-With</value>
+                        </set-header>
+                        <set-header name="Access-Control-Max-Age" exists-action="override">
+                            <value>86400</value>
+                        </set-header>
+                    </return-response>
+                </when>
+                <otherwise>
+                    <return-response>
+                        <set-status code="403" reason="CORS Origin Not Allowed" />
+                        <set-header name="Content-Type" exists-action="override">
+                            <value>application/json</value>
+                        </set-header>
+                        <set-body>{"error": "CORS origin not allowed for this API"}</set-body>
+                    </return-response>
+                </otherwise>
+            </choose>
+        </when>
+    </choose>
+</fragment>

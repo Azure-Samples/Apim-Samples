@@ -1,0 +1,68 @@
+<!--
+    Policy fragment: Dynamic CORS (Hard-coded mapping)
+
+    Evaluates the Origin header against a hard-coded switch/case mapping of API ID to allowed origins.
+    For OPTIONS preflight requests, returns an immediate CORS preflight response.
+    For all other methods, sets the 'corsOrigin' context variable for downstream use.
+
+    Context variables set:
+        corsOrigin - The validated origin if allowed, or empty string if not.
+
+    To add or remove allowed origins, update the switch/case block below and redeploy the fragment.
+-->
+<fragment>
+    <set-variable name="corsOrigin" value="@{
+        var origin = context.Request.Headers.GetValueOrDefault("Origin", "");
+        if (string.IsNullOrEmpty(origin)) { return ""; }
+
+        var apiId = context.Api.Id;
+        string[] allowedOrigins;
+
+        switch (apiId)
+        {
+            case "{products_api_id}":
+                allowedOrigins = new[] { "https://shop.contoso.com", "https://admin.contoso.com" };
+                break;
+            case "{analytics_api_id}":
+                allowedOrigins = new[] { "https://dashboard.contoso.com" };
+                break;
+            default:
+                return "";
+        }
+        if (allowedOrigins.Contains(origin)) { return origin; }
+
+        return "";
+    }" />
+    <choose>
+        <when condition="@(context.Request.Method == "OPTIONS")">
+            <choose>
+                <when condition="@(!string.IsNullOrEmpty(context.Variables.GetValueOrDefault<string>("corsOrigin", "")))">
+                    <return-response>
+                        <set-status code="200" reason="OK" />
+                        <set-header name="Access-Control-Allow-Origin" exists-action="override">
+                            <value>@((string)context.Variables["corsOrigin"])</value>
+                        </set-header>
+                        <set-header name="Access-Control-Allow-Methods" exists-action="override">
+                            <value>GET, POST, OPTIONS</value>
+                        </set-header>
+                        <set-header name="Access-Control-Allow-Headers" exists-action="override">
+                            <value>Content-Type, Authorization, X-Requested-With</value>
+                        </set-header>
+                        <set-header name="Access-Control-Max-Age" exists-action="override">
+                            <value>86400</value>
+                        </set-header>
+                    </return-response>
+                </when>
+                <otherwise>
+                    <return-response>
+                        <set-status code="403" reason="CORS Origin Not Allowed" />
+                        <set-header name="Content-Type" exists-action="override">
+                            <value>application/json</value>
+                        </set-header>
+                        <set-body>{"error": "CORS origin not allowed for this API"}</set-body>
+                    </return-response>
+                </otherwise>
+            </choose>
+        </when>
+    </choose>
+</fragment>

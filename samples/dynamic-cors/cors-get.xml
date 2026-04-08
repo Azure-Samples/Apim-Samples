@@ -1,0 +1,41 @@
+<!--
+    GET operation policy for Dynamic CORS demo APIs.
+
+    Returns a mock JSON response showing the API ID and CORS evaluation result.
+    Since return-response bypasses outbound processing, the Access-Control-Allow-Origin
+    header is included directly here. With a real backend, you would place the CORS
+    header logic in the API-level outbound section instead.
+-->
+<policies>
+    <inbound>
+        <base />
+        <return-response>
+            <set-status code="200" reason="OK" />
+            <set-header name="Content-Type" exists-action="override">
+                <value>application/json</value>
+            </set-header>
+            <set-header name="Access-Control-Allow-Origin" exists-action="override">
+                <value>@(context.Variables.GetValueOrDefault<string>("corsOrigin", ""))</value>
+            </set-header>
+            <set-body>@{
+                var corsOrigin = context.Variables.GetValueOrDefault<string>("corsOrigin", "");
+                var apiId = context.Api.Id;
+                return new JObject(
+                    new JProperty("api", apiId),
+                    new JProperty("message", "Hello from " + apiId),
+                    new JProperty("corsAllowed", !string.IsNullOrEmpty(corsOrigin)),
+                    new JProperty("allowedOrigin", corsOrigin)
+                ).ToString();
+            }</set-body>
+        </return-response>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

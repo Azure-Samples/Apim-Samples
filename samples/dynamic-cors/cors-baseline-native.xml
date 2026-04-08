@@ -1,0 +1,39 @@
+<!--
+    Baseline API-level policy using APIM's built-in <cors> policy.
+
+    Demonstrates the native approach: a static list of allowed origins applied uniformly
+    to ALL APIs that use this policy. This works for Products (shop + admin origins) but
+    fails for Analytics (dashboard origin is missing) and Public Data (no wildcard support
+    without adding '*' which would open all APIs).
+
+    This is the "before" state that motivates the dynamic CORS approach in Phases 1 and 2.
+-->
+<policies>
+    <inbound>
+        <base />
+        <cors allow-credentials="false">
+            <allowed-origins>
+                <origin>https://shop.contoso.com</origin>
+                <origin>https://admin.contoso.com</origin>
+            </allowed-origins>
+            <allowed-methods>
+                <method>GET</method>
+                <method>OPTIONS</method>
+            </allowed-methods>
+            <allowed-headers>
+                <header>Content-Type</header>
+                <header>Authorization</header>
+                <header>X-Requested-With</header>
+            </allowed-headers>
+        </cors>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

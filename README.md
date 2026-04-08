@@ -68,6 +68,7 @@ It's quick and easy to get started!
 | [AuthX Pro][sample-authx-pro]                               | Authentication and role-based authorization in a mock product with multiple APIs and policy fragments.              | All infrastructures           |
 | [Azure Maps][sample-azure-maps]                             | Proxying calls to Azure Maps with APIM policies.                                                                    | All infrastructures           |
 | [Costing][sample-costing]                                   | Track and allocate API costs per business unit using APIM subscriptions, Entra ID application tracking, and AI Gateway token/PTU tracking via Log Analytics and Cost Management. | All infrastructures           |
+| [Dynamic CORS][sample-dynamic-cors]                         | Dynamic per-API CORS origin validation using custom policy fragments and a maintainable origin mapping. | All infrastructures           |
 | [Egress Control][sample-egress-control]                     | Control APIM outbound internet traffic by routing it through a Network Virtual Appliance (NVA) in a hub/spoke topology. | appgw-apim, appgw-apim-pe     |
 | [General][sample-general]                                   | Basic demo of APIM sample setup and policy usage.                                                                   | All infrastructures           |
 | [Load Balancing][sample-load-balancing]                     | Priority and weighted load balancing across backends.                                                               | apim-aca, afd-apim-pe         |
@@ -380,6 +381,7 @@ _For much more API Management content, please also check out [APIM Love](https:/
 [sample-authx-pro]: ./samples/authX-pro/README.md
 [sample-azure-maps]: ./samples/azure-maps/README.md
 [sample-costing]: ./samples/costing/README.md
+[sample-dynamic-cors]: ./samples/dynamic-cors/README.md
 [sample-general]: ./samples/general/README.md
 [sample-load-balancing]: ./samples/load-balancing/README.md
 [sample-egress-control]: ./samples/egress-control/README.md
