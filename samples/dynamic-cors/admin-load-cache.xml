@@ -38,6 +38,12 @@
         <set-variable name="cacheValue" value="@(context.Request.Body.As<string>(preserveContent: true))" />
         <choose>
             <when condition="@(string.IsNullOrWhiteSpace(context.Variables.GetValueOrDefault<string>("cacheValue", "")))">
+                <trace source="AdminLoadCache" severity="error">
+                    <message>Load-cache called with empty request body.</message>
+                    <metadata name="apiId" value="@(context.Api.Id)" />
+                    <metadata name="operationId" value="@(context.Operation.Id)" />
+                    <metadata name="cacheKey" value="@(context.Request.MatchedParameters["cacheKey"])" />
+                </trace>
                 <return-response>
                     <set-status code="400" reason="Bad Request" />
                     <set-header name="Content-Type" exists-action="override">
