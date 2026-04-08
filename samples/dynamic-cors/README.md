@@ -11,7 +11,7 @@ Implement dynamic, per-API CORS origin validation in Azure API Management using 
 1. Understand why the built-in APIM `<cors>` policy cannot support fully dynamic origin validation and how to replace it with custom policy fragments.
 1. Build a reusable policy fragment that evaluates the `Origin` header against a per-API allowed-origins mapping, handling both OPTIONS preflight and actual request CORS headers.
 1. Compare three mapping strategies side-by-side: **hard-coded** (Phase 1), **Named Values** (Phase 2), and **cache-backed** (Phase 3), understanding the trade-offs of each.
-1. Use an admin API (`/admin/load-cors-cache`) to populate the APIM internal cache at runtime, demonstrating the `/admin/` convention for operational endpoints.
+1. Use an admin API (`/admin/load-cache`) to populate the APIM internal cache at runtime, demonstrating the `/admin/` convention for operational endpoints.
 1. Verify CORS behaviour with automated tests covering allowed origins, disallowed origins, missing `Origin` headers, and fail-closed cache behaviour.
 
 ## 📝 Scenario
@@ -54,6 +54,27 @@ This lab deploys all phases **side-by-side** so you can inspect and compare them
 | **Phase 1** | `DynamicCorsHardcoded` fragment | Inline `switch/case` in C# | Per-API control; requires redeploying the fragment to change origins |
 | **Phase 2** | `DynamicCorsNamedValues` fragment | JSON string in a Named Value | Updateable in the portal; **4,096-char limit** per Named Value |
 | **Phase 3** | `DynamicCorsCached` fragment + admin API | APIM internal cache | No size limit; updated via admin API; fail-closed when cache is empty; can swap to external Redis |
+
+### Comparison Matrix
+
+| Criterion                                    | Baseline | Phase 1 | Phase 2 | Phase 3 |
+| -------------------------------------------- | :------: | :-----: | :-----: | :-----: |
+| Per-API origin control                       |    -     |    +    |    +    |    +    |
+| No fragment redeployment to change origins   |    +     |    -    |    +    |    +    |
+| No size limit on origin mapping              |    +     |    +    |    -    |    +    |
+| Zero additional infrastructure               |    +     |    +    |    +    |    -    |
+| Update origins without Azure portal access   |   n/a    |    -    |    -    |    +    |
+| Fail-closed when mapping is absent           |   n/a    |   n/a   |   n/a   |    +    |
+| Observability (trace logging)                |    -     |    +    |    +    |    +    |
+| Swap to external Redis without code changes  |   n/a    |   n/a   |   n/a   |    +    |
+| Complexity                                   |   Low    |   Low   |   Low   |  Medium |
+
+**Legend:** `+` = advantage, `-` = limitation, `n/a` = not applicable to this approach.
+
+- **Baseline** is the simplest starting point but cannot differentiate origins per API.
+- **Phase 1** adds per-API control with zero infrastructure overhead, ideal for a small, stable set of origins.
+- **Phase 2** removes the need to redeploy fragments when origins change, but is constrained by the 4,096-character Named Value limit.
+- **Phase 3** lifts all size limits, enables runtime updates via an admin API, and adopts a fail-closed posture. The trade-off is the additional admin API surface and the requirement to initialise the cache after an APIM restart or scale-out.
 
 ## ⚙️ Configuration
 

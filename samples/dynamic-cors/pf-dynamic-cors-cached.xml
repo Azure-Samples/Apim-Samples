@@ -2,7 +2,7 @@
     Policy fragment: Dynamic CORS (Cache-backed)
 
     Evaluates the Origin header against a JSON mapping stored in the APIM internal cache.
-    The cache entry must be populated first by calling POST /admin/load-cors-cache.
+    The cache entry must be populated first by calling POST /admin/load-cache.
 
     If the cache entry does not exist, the fragment immediately returns a 503 error. This is
     a deliberate fail-closed design: requests are never silently allowed when the mapping is absent.
