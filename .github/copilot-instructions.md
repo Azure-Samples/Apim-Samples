@@ -366,6 +366,7 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 
 - Use the `ApimRequests` and `ApimTesting` classes from `apimrequests.py` and `apimtesting.py` for all API testing and traffic generation in notebooks.
 - Do not use the `requests` library directly for calling APIM endpoints.
+- **Favour HTTP connection reuse.** When a notebook makes multiple HTTP calls to the same APIM gateway (e.g. a test matrix), create a single `requests.Session()` early and route all calls through it. This avoids repeated TCP+TLS handshakes, which can add 200-500 ms per request. Configure `session.verify` and `session.headers` once from `utils.get_endpoint()` and pass the session (or use it in helper functions) for OPTIONS, GET, and POST calls alike.
 - Use `utils.get_endpoint(deployment, rg_name, apim_gateway_url)` to determine the correct endpoint URL, headers, and TLS verification flag based on the infrastructure type. `allow_insecure_tls` is returned as `True` only for Application Gateway infrastructures because they use a self-signed certificate; it defaults to `False` everywhere else.
 - Example:
   ```python
