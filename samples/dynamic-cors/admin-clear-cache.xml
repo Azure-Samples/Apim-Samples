@@ -1,0 +1,46 @@
+<!--
+    POST operation policy: Clear Cache
+
+    Removes the cache entry identified by the {cacheKey} URL path parameter from
+    the APIM internal cache. Safe to call even if the key does not exist.
+
+    NOTE: The APIM internal cache is instance-wide and shared across all APIs.
+    For isolated, high-scale, or multi-region scenarios, consider using an external
+    Azure Cache for Redis instead ('caching-type="external"' on cache policies).
+
+    SECURITY: This sample uses subscription keys as the sole access gate for simplicity.
+    In production, add identity-based authentication (see admin-load-cache.xml header).
+
+    URL template: /clear-cache/{cacheKey}
+-->
+<policies>
+    <inbound>
+        <base />
+        <!-- Extract the cache key from the URL path parameter -->
+        <set-variable name="cacheKey" value="@(context.Request.MatchedParameters["cacheKey"])" />
+        <!-- Remove the entry from the APIM internal cache (no-op if absent) -->
+        <cache-remove-value key="@((string)context.Variables["cacheKey"])" />
+        <return-response>
+            <set-status code="200" reason="OK" />
+            <set-header name="Content-Type" exists-action="override">
+                <value>application/json</value>
+            </set-header>
+            <set-body>@{
+                var cacheKey = (string)context.Variables["cacheKey"];
+                return new JObject(
+                    new JProperty("status", "Cache entry removed"),
+                    new JProperty("cacheKey", cacheKey)
+                ).ToString();
+            }</set-body>
+        </return-response>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

@@ -491,7 +491,8 @@ Samples that require administrative or operational endpoints (cache loading, con
 
 - **API path**: `{api_prefix}admin` (e.g. `cors-admin`, `lb-admin`). The sample's `api_prefix` keeps admin APIs namespaced per sample.
 - **Subscription required**: Always `True`. Admin APIs must never be publicly accessible without a subscription key.
-- **Naming**: Use kebab-case operation paths that describe the action (e.g. `/load-cors-cache`, `/refresh-config`).
+- **Production security**: Subscription keys are a baseline gate but are shared secrets, not identity-based auth. Production deployments should layer JWT validation (`validate-azure-ad-token` or `validate-jwt`) on top of subscription keys. See the `authX` and `authX-pro` samples for implementation patterns.
+- **Naming**: Use kebab-case operation paths that describe the action (e.g. `/load-cache`, `/clear-cache`, `/refresh-config`).
 - **Tags**: Include the sample's tags so the admin API is grouped with its sibling APIs in the APIM portal.
 - **Documentation**: The admin API's display name should start with the phase or sample context (e.g. `Phase 3 Admin`) so its purpose is clear in the APIM portal.
 

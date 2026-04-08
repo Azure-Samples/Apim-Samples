@@ -34,7 +34,11 @@ This lab deploys all phases **side-by-side** so you can inspect and compare them
   - **Phase 1** (`cors-ph1-products`, `cors-ph1-analytics`) - `DynamicCorsHardcoded` policy fragment.
   - **Phase 2** (`cors-ph2-products`, `cors-ph2-analytics`) - `DynamicCorsNamedValues` policy fragment.
   - **Phase 3** (`cors-ph3-products`, `cors-ph3-analytics`) - `DynamicCorsCached` policy fragment.
-  - **Admin** (`cors-admin`) - POST `/load-cors-cache` loads the origin mapping into the APIM internal cache (subscription required).
+  - **Admin** (`cors-admin`) - `POST /load-cache/{cacheKey}` stores a value in the APIM internal cache and `POST /clear-cache/{cacheKey}` removes it (subscription required).
+
+> [!IMPORTANT]
+> **Production security:** The admin API in this sample is protected by a subscription key only. Subscription keys are shared secrets and are not a substitute for identity-based authentication. In production, you should add `validate-azure-ad-token` or `validate-jwt` to the admin API's inbound policy. See the [authX](../authX/) and [authX-pro](../authX-pro/) samples for implementation patterns. The policy XML includes a commented example of where to place the validation.
+
 - **Three APIM policy fragments** demonstrating different origin-mapping strategies:
   - `DynamicCorsHardcoded` - origins embedded in a C# `switch` expression.
   - `DynamicCorsNamedValues` - origins read from an APIM Named Value as JSON.

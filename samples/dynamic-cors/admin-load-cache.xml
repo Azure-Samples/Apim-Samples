@@ -1,0 +1,79 @@
+<!--
+    POST operation policy: Load Cache
+
+    Accepts a request body and stores it in the APIM internal cache under the key
+    specified in the {cacheKey} URL path parameter, with an effectively infinite TTL.
+
+    Writing the same key replaces any previous entry, so this call also invalidates stale data.
+
+    NOTE: The APIM internal cache is instance-wide and shared across all APIs.
+    For isolated, high-scale, or multi-region scenarios, consider using an external
+    Azure Cache for Redis instead ('caching-type="external"' on cache policies).
+
+    SECURITY: This sample uses subscription keys as the sole access gate for simplicity.
+    In production, add identity-based authentication before <base />. For example:
+
+        <validate-azure-ad-token tenant-id="{{TenantId}}">
+            <client-application-ids>
+                <application-id>{{AdminClientAppId}}</application-id>
+            </client-application-ids>
+            <required-claims>
+                <claim name="roles" match="any">
+                    <value>Admin.Write</value>
+                </claim>
+            </required-claims>
+        </validate-azure-ad-token>
+
+    See the authX and authX-pro samples for full JWT validation patterns.
+
+    URL template: /load-cache/{cacheKey}
+    Expected request body: any string value to cache (e.g. compact JSON)
+-->
+<policies>
+    <inbound>
+        <base />
+        <!-- Extract the cache key from the URL path parameter -->
+        <set-variable name="cacheKey" value="@(context.Request.MatchedParameters["cacheKey"])" />
+        <!-- Read and validate the request body -->
+        <set-variable name="cacheValue" value="@(context.Request.Body.As<string>(preserveContent: true))" />
+        <choose>
+            <when condition="@(string.IsNullOrWhiteSpace(context.Variables.GetValueOrDefault<string>("cacheValue", "")))">
+                <return-response>
+                    <set-status code="400" reason="Bad Request" />
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"error": "Request body is empty"}</set-body>
+                </return-response>
+            </when>
+        </choose>
+        <!-- Store in APIM internal cache with effectively infinite TTL (2^31 - 1 seconds ~ 68 years).
+             Writing the same key replaces any previous entry, so this call also invalidates stale data. -->
+        <cache-store-value key="@((string)context.Variables["cacheKey"])" value="@((string)context.Variables["cacheValue"])" duration="2147483647" />
+        <return-response>
+            <set-status code="200" reason="OK" />
+            <set-header name="Content-Type" exists-action="override">
+                <value>application/json</value>
+            </set-header>
+            <set-body>@{
+                var cacheKey = (string)context.Variables["cacheKey"];
+                var cacheValue = (string)context.Variables["cacheValue"];
+                return new JObject(
+                    new JProperty("status", "Cache entry stored successfully"),
+                    new JProperty("cacheKey", cacheKey),
+                    new JProperty("valueLengthBytes", cacheValue.Length),
+                    new JProperty("ttl", "infinite (2147483647s)")
+                ).ToString();
+            }</set-body>
+        </return-response>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

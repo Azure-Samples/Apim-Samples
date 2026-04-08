@@ -53,6 +53,12 @@
                     </return-response>
                 </when>
                 <otherwise>
+                    <trace source="DynamicCorsNamedValues" severity="information">
+                        <message>CORS origin rejected by Named Values mapping.</message>
+                        <metadata name="apiId" value="@(context.Api.Id)" />
+                        <metadata name="operationId" value="@(context.Operation.Id)" />
+                        <metadata name="origin" value="@(context.Request.Headers.GetValueOrDefault("Origin", ""))" />
+                    </trace>
                     <return-response>
                         <set-status code="403" reason="CORS Origin Not Allowed" />
                         <set-header name="Content-Type" exists-action="override">
