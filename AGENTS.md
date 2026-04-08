@@ -12,7 +12,7 @@ This repository provides resources to deploy Azure API Management infrastructure
 
 ## Repository Structure
 
-```
+```text
 /
 ├── infrastructure/          # Azure infrastructure deployments
 │   ├── afd-apim-pe/         # Azure Front Door + APIM with Private Endpoint
@@ -52,31 +52,31 @@ This repository provides resources to deploy Azure API Management infrastructure
 
 ## Key Files in Each Sample/Infrastructure
 
-| File | Purpose |
-|------|---------|
-| `README.md` | Documentation, objectives, and configuration instructions |
-| `create.ipynb` | Jupyter notebook for deploying the sample |
-| `main.bicep` | Bicep template defining Azure resources |
-| `clean-up.ipynb` | (Infrastructure only) Teardown notebook |
-| `*.xml` | APIM policy files |
+| File              | Purpose                                                        |
+| ----------------- | -------------------------------------------------------------- |
+| `README.md`       | Documentation, objectives, and configuration instructions      |
+| `create.ipynb`    | Jupyter notebook for deploying the sample                      |
+| `main.bicep`      | Bicep template defining Azure resources                        |
+| `clean-up.ipynb`  | (Infrastructure only) Teardown notebook                        |
+| `*.xml`           | APIM policy files                                              |
 
 ## Available Skills
 
 Use these skills for specialized tasks. Skills are located in `.github/skills/`.
 
-| Skill | When to Use |
-|-------|-------------|
-| **sample-creator** | Creating new samples under `samples/` following the `_TEMPLATE` structure |
-| **apim-bicep** | Writing Bicep templates for APIM resources (APIs, backends, policies, products) |
-| **apim-policies** | Creating or modifying APIM XML policies (inbound/outbound, authentication, rate limiting) |
+| Skill               | When to Use                                                                                      |
+| ------------------- | ------------------------------------------------------------------------------------------------ |
+| **sample-creator**  | Creating new samples under `samples/` following the `_TEMPLATE` structure                        |
+| **apim-bicep**      | Writing Bicep templates for APIM resources (APIs, backends, policies, products)                  |
+| **apim-policies**   | Creating or modifying APIM XML policies (inbound/outbound, authentication, rate limiting)        |
 
 ## Available Agents
 
 Use these custom agents for focused repository workflows. Agents are located in `.github/agents/`.
 
-| Agent                   | When to Use                                                                                                                       |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| **APIM Sample Creator** | Adding a new sample, gathering missing sample metadata, scaffolding from `_TEMPLATE`, and updating README, website, slide deck, and compatibility artifacts     |
+| Agent                   | When to Use                                                                                                                                                 |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **APIM Sample Creator** | Adding a new sample, gathering missing sample metadata, scaffolding from `_TEMPLATE`, and updating README, website, slide deck, and compatibility artifacts |
 
 ### How to Use Skills
 
@@ -126,13 +126,13 @@ Skills provide templates, patterns, and step-by-step workflows.
 
 Available in Python via `from apimtypes import INFRASTRUCTURE`:
 
-| Constant | Description |
-|----------|-------------|
-| `INFRASTRUCTURE.AFD_APIM_PE` | Azure Front Door + APIM with Private Endpoint |
-| `INFRASTRUCTURE.APIM_ACA` | APIM with Azure Container Apps |
-| `INFRASTRUCTURE.APPGW_APIM` | Application Gateway + APIM (VNet injection) |
-| `INFRASTRUCTURE.APPGW_APIM_PE` | Application Gateway + APIM with Private Endpoint |
-| `INFRASTRUCTURE.SIMPLE_APIM` | Basic APIM setup |
+| Constant                            | Description                                           |
+| ----------------------------------- | ----------------------------------------------------- |
+| `INFRASTRUCTURE.AFD_APIM_PE`        | Azure Front Door + APIM with Private Endpoint         |
+| `INFRASTRUCTURE.APIM_ACA`           | APIM with Azure Container Apps                        |
+| `INFRASTRUCTURE.APPGW_APIM`         | Application Gateway + APIM (VNet injection)           |
+| `INFRASTRUCTURE.APPGW_APIM_PE`      | Application Gateway + APIM with Private Endpoint      |
+| `INFRASTRUCTURE.SIMPLE_APIM`        | Basic APIM setup                                      |
 
 ## Working with Existing Samples
 
@@ -178,14 +178,14 @@ apis = [api]
 
 Key modules in `shared/python/`:
 
-| Module | Purpose |
-|--------|---------|
-| `utils.py` | NotebookHelper, policy loading, endpoint helpers |
-| `apimtypes.py` | Type definitions (API, INFRASTRUCTURE, APIM_SKU) |
-| `azure_resources.py` | Azure CLI wrappers for resource management |
-| `console.py` | Formatted console output (print_ok, print_error) |
-| `apimrequests.py` | HTTP request helpers for testing APIs |
-| `apimtesting.py` | Test framework for sample verification |
+| Module               | Purpose                                                     |
+| -------------------- | ----------------------------------------------------------- |
+| `utils.py`           | NotebookHelper, policy loading, endpoint helpers            |
+| `apimtypes.py`       | Type definitions (API, INFRASTRUCTURE, APIM_SKU)            |
+| `azure_resources.py` | Azure CLI wrappers for resource management                  |
+| `console.py`         | Formatted console output (print_ok, print_error)            |
+| `apimrequests.py`    | HTTP request helpers for testing APIs                       |
+| `apimtesting.py`     | Test framework for sample verification                      |
 
 ## Bicep Modules
 
@@ -241,11 +241,11 @@ ruff check shared/python/
 
 ## Common Tasks Reference
 
-| Task | Skill to Use | Key Files |
-|------|--------------|-----------|
-| Create a new sample | sample-creator | `samples/_TEMPLATE/*` |
-| Write APIM policies | apim-policies | `shared/apim-policies/*.xml` |
-| Create Bicep templates | apim-bicep | `shared/bicep/modules/` |
+| Task                   | Skill to Use   | Key Files                    |
+| ---------------------- | -------------- | ---------------------------- |
+| Create a new sample    | sample-creator | `samples/_TEMPLATE/*`        |
+| Write APIM policies    | apim-policies  | `shared/apim-policies/*.xml` |
+| Create Bicep templates | apim-bicep     | `shared/bicep/modules/`      |
 
 ## Additional Resources
 
