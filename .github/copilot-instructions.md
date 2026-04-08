@@ -396,6 +396,7 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 - Only use apostrophe (U+0027) and quotes (U+0022), not left or right single or double quotation marks.
 - Do not localize URLs (e.g. no "en-us" in links).
 - Never use emoji variation selectors in Markdown. They are sneaky little things that can cause rendering and Markdown anchor link issues.
+- **Markdown tables must be column-aligned.** Pad cell values with spaces so that every `|` delimiter in a column lines up vertically. Use the separator row (`---`, `:---:`, etc.) to establish column widths and align all subsequent rows to match. This applies to every Markdown file in the repository (READMEs, skills, instructions, etc.).
 
 ## Testing and Edge Cases
 
