@@ -1,0 +1,81 @@
+<!--
+    POST operation policy: Load CORS Origin Cache
+
+    Accepts a JSON body mapping API IDs to arrays of allowed origins and stores it
+    in the APIM internal cache with an effectively infinite TTL.
+
+    The cache key 'corsOriginMapping' is shared across the entire APIM instance.
+    Calling this operation again replaces (invalidates) the previous cache entry.
+
+    NOTE: The APIM internal cache is instance-wide and shared across all APIs.
+    For isolated, high-scale, or multi-region scenarios, consider using an external
+    Azure Cache for Redis instead ('caching-type="external"' on cache policies).
+
+    Expected request body (compact JSON):
+    {"api-id-1":["https://origin-a.com"],"api-id-2":["https://origin-b.com","https://origin-c.com"]}
+-->
+<policies>
+    <inbound>
+        <base />
+        <!-- Read and validate the JSON body -->
+        <set-variable name="corsMapping" value="@(context.Request.Body.As<string>(preserveContent: true))" />
+        <set-variable name="validationResult" value="@{
+            var raw = context.Variables.GetValueOrDefault<string>("corsMapping", "");
+            if (string.IsNullOrWhiteSpace(raw)) { return "Request body is empty"; }
+            try
+            {
+                var obj = JObject.Parse(raw);
+                if (obj.Count == 0) { return "JSON object has no API mappings"; }
+                foreach (var prop in obj.Properties())
+                {
+                    if (!(prop.Value is JArray)) { return "Value for key '" + prop.Name + "' must be an array of origin strings"; }
+                }
+                return "";
+            }
+            catch (Exception ex) { return "Invalid JSON: " + ex.Message; }
+        }" />
+        <choose>
+            <when condition="@(!string.IsNullOrEmpty(context.Variables.GetValueOrDefault<string>("validationResult", "")))">
+                <return-response>
+                    <set-status code="400" reason="Bad Request" />
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>@{
+                        return new JObject(
+                            new JProperty("error", (string)context.Variables["validationResult"])
+                        ).ToString();
+                    }</set-body>
+                </return-response>
+            </when>
+        </choose>
+        <!-- Store in APIM internal cache with effectively infinite TTL (2^31 - 1 seconds ~ 68 years).
+             Writing the same key replaces any previous entry, so this call also invalidates stale data. -->
+        <cache-store-value key="corsOriginMapping" value="@((string)context.Variables["corsMapping"])" duration="2147483647" />
+        <return-response>
+            <set-status code="200" reason="OK" />
+            <set-header name="Content-Type" exists-action="override">
+                <value>application/json</value>
+            </set-header>
+            <set-body>@{
+                var mapping = (string)context.Variables["corsMapping"];
+                var obj = JObject.Parse(mapping);
+                return new JObject(
+                    new JProperty("status", "CORS origin cache loaded successfully"),
+                    new JProperty("apiCount", obj.Count),
+                    new JProperty("cacheKey", "corsOriginMapping"),
+                    new JProperty("ttl", "infinite (2147483647s)")
+                ).ToString();
+            }</set-body>
+        </return-response>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

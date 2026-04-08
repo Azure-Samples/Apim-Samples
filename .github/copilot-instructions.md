@@ -485,6 +485,16 @@ Check `docs/README.md` for local preview instructions and styling notes. The pag
   ```
 - When executing KQL via `az rest` or `az monitor log-analytics query`, write the query body to a temporary JSON file and pass it with `--body @tempfile.json` to avoid shell pipe-character interpretation issues on Windows.
 
+### Admin APIs (`/admin/`) Convention
+
+Samples that require administrative or operational endpoints (cache loading, configuration reloads, health checks, etc.) must place them under an **`/admin/`** API path. This establishes a consistent, recognisable pattern across all APIM Samples.
+
+- **API path**: `{api_prefix}admin` (e.g. `cors-admin`, `lb-admin`). The sample's `api_prefix` keeps admin APIs namespaced per sample.
+- **Subscription required**: Always `True`. Admin APIs must never be publicly accessible without a subscription key.
+- **Naming**: Use kebab-case operation paths that describe the action (e.g. `/load-cors-cache`, `/refresh-config`).
+- **Tags**: Include the sample's tags so the admin API is grouped with its sibling APIs in the APIM portal.
+- **Documentation**: The admin API's display name should start with the phase or sample context (e.g. `Phase 3 Admin`) so its purpose is clear in the APIM portal.
+
 ### API Management Policy XML Instructions
 
 - Policies should use camelCase for all variable names.

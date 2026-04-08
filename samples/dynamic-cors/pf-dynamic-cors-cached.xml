@@ -1,0 +1,86 @@
+<!--
+    Policy fragment: Dynamic CORS (Cache-backed)
+
+    Evaluates the Origin header against a JSON mapping stored in the APIM internal cache.
+    The cache entry must be populated first by calling POST /admin/load-cors-cache.
+
+    If the cache entry does not exist, the fragment immediately returns a 503 error
+    directing the caller to initialise the cache via the admin API. This is a deliberate
+    fail-closed design: requests are never silently allowed when the mapping is absent.
+
+    Cache notes:
+        - The APIM internal cache is shared across the entire APIM instance.
+        - For isolated, high-scale, or multi-region scenarios, an external Azure Cache
+          for Redis can be used by adding 'caching-type="external"' to the cache policies.
+        - The admin API stores the mapping with an effectively infinite TTL (2^31 - 1 seconds).
+          Re-calling the admin API replaces (invalidates) the previous entry.
+
+    Context variables set:
+        corsMappingJson - The raw JSON mapping string from the cache (if present).
+        corsOrigin      - The validated origin if allowed, or empty string if not.
+-->
+<fragment>
+    <!-- Look up the CORS origin mapping from APIM internal cache -->
+    <cache-lookup-value key="corsOriginMapping" variable-name="corsMappingJson" />
+    <!-- Fail-closed: if cache entry is missing, reject with 503 -->
+    <choose>
+        <when condition="@(!context.Variables.ContainsKey("corsMappingJson"))">
+            <return-response>
+                <set-status code="503" reason="Service Unavailable" />
+                <set-header name="Content-Type" exists-action="override">
+                    <value>application/json</value>
+                </set-header>
+                <set-body>{"error": "CORS cache not initialized. Call POST /admin/load-cors-cache to populate the origin mapping."}</set-body>
+            </return-response>
+        </when>
+    </choose>
+    <!-- Evaluate the Origin header against the cached mapping -->
+    <set-variable name="corsOrigin" value="@{
+        var origin = context.Request.Headers.GetValueOrDefault("Origin", "");
+        if (string.IsNullOrEmpty(origin)) { return ""; }
+
+        var corsMappingJson = context.Variables.GetValueOrDefault<string>("corsMappingJson", "{}");
+        var corsMapping = JObject.Parse(corsMappingJson);
+
+        var apiId = context.Api.Id;
+        var allowedOrigins = corsMapping[apiId] as JArray;
+
+        if (allowedOrigins == null) { return ""; }
+        if (allowedOrigins.Any(o => o.ToString() == "*")) { return origin; }
+        if (allowedOrigins.Any(o => o.ToString() == origin)) { return origin; }
+
+        return "";
+    }" />
+    <choose>
+        <when condition="@(context.Request.Method == "OPTIONS")">
+            <choose>
+                <when condition="@(!string.IsNullOrEmpty(context.Variables.GetValueOrDefault<string>("corsOrigin", "")))">
+                    <return-response>
+                        <set-status code="200" reason="OK" />
+                        <set-header name="Access-Control-Allow-Origin" exists-action="override">
+                            <value>@((string)context.Variables["corsOrigin"])</value>
+                        </set-header>
+                        <set-header name="Access-Control-Allow-Methods" exists-action="override">
+                            <value>GET, POST, OPTIONS</value>
+                        </set-header>
+                        <set-header name="Access-Control-Allow-Headers" exists-action="override">
+                            <value>Content-Type, Authorization, X-Requested-With</value>
+                        </set-header>
+                        <set-header name="Access-Control-Max-Age" exists-action="override">
+                            <value>86400</value>
+                        </set-header>
+                    </return-response>
+                </when>
+                <otherwise>
+                    <return-response>
+                        <set-status code="403" reason="CORS Origin Not Allowed" />
+                        <set-header name="Content-Type" exists-action="override">
+                            <value>application/json</value>
+                        </set-header>
+                        <set-body>{"error": "CORS origin not allowed for this API"}</set-body>
+                    </return-response>
+                </otherwise>
+            </choose>
+        </when>
+    </choose>
+</fragment>

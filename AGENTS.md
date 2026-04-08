@@ -120,6 +120,7 @@ Skills provide templates, patterns, and step-by-step workflows.
 - **Folder**: kebab-case (e.g., `oauth-validation`, `rate-limiting`)
 - **API prefix**: Short, unique, with trailing hyphen (e.g., `oauth-`, `rl-`)
 - **Policy files**: Descriptive, kebab-case (e.g., `token-validation.xml`)
+- **Admin APIs**: Samples needing admin/operational endpoints use path `{api_prefix}admin` with `subscriptionRequired=True` and kebab-case operation paths (e.g., `/load-cors-cache`)
 
 ### Infrastructure Constants
 

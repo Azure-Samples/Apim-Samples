@@ -10,8 +10,9 @@ Implement dynamic, per-API CORS origin validation in Azure API Management using 
 
 1. Understand why the built-in APIM `<cors>` policy cannot support fully dynamic origin validation and how to replace it with custom policy fragments.
 1. Build a reusable policy fragment that evaluates the `Origin` header against a per-API allowed-origins mapping, handling both OPTIONS preflight and actual request CORS headers.
-1. Compare two mapping strategies side-by-side: **hard-coded** (Phase 1) and **Named Values** (Phase 2), understanding the trade-offs of each.
-1. Verify CORS behaviour with automated tests covering allowed origins, disallowed origins, and missing `Origin` headers.
+1. Compare three mapping strategies side-by-side: **hard-coded** (Phase 1), **Named Values** (Phase 2), and **cache-backed** (Phase 3), understanding the trade-offs of each.
+1. Use an admin API (`/admin/load-cors-cache`) to populate the APIM internal cache at runtime, demonstrating the `/admin/` convention for operational endpoints.
+1. Verify CORS behaviour with automated tests covering allowed origins, disallowed origins, missing `Origin` headers, and fail-closed cache behaviour.
 
 ## 📝 Scenario
 
@@ -28,13 +29,16 @@ You need a single, reusable CORS mechanism that can be applied to any API while 
 
 This lab deploys all phases **side-by-side** so you can inspect and compare them without redeployment:
 
-- **Six mock APIs** (two per phase) with no backends. Each API includes a GET operation returning a JSON response indicating whether CORS was allowed and an OPTIONS operation for preflight handling.
+- **Nine APIs** (two per phase plus an admin API) with no backends. Each CORS demo API includes a GET operation returning a JSON response indicating whether CORS was allowed and an OPTIONS operation for preflight handling.
   - **Baseline** (`cors-bl-products`, `cors-bl-analytics`) - native APIM `<cors>` policy with static origins.
   - **Phase 1** (`cors-ph1-products`, `cors-ph1-analytics`) - `DynamicCorsHardcoded` policy fragment.
   - **Phase 2** (`cors-ph2-products`, `cors-ph2-analytics`) - `DynamicCorsNamedValues` policy fragment.
-- **Two APIM policy fragments** demonstrating different origin-mapping strategies:
+  - **Phase 3** (`cors-ph3-products`, `cors-ph3-analytics`) - `DynamicCorsCached` policy fragment.
+  - **Admin** (`cors-admin`) - POST `/load-cors-cache` loads the origin mapping into the APIM internal cache (subscription required).
+- **Three APIM policy fragments** demonstrating different origin-mapping strategies:
   - `DynamicCorsHardcoded` - origins embedded in a C# `switch` expression.
   - `DynamicCorsNamedValues` - origins read from an APIM Named Value as JSON.
+  - `DynamicCorsCached` - origins read from the APIM internal cache. Returns `503` if the cache is not initialized (fail-closed).
 - **One Named Value** (`CorsOriginMapping`) holding the JSON origin mapping for Phase 2.
 - An **API-level policy** (`cors-api-policy.xml`) that includes the active CORS fragment in `<inbound>` and documents the outbound pattern for APIs with real backends.
 
@@ -45,8 +49,7 @@ This lab deploys all phases **side-by-side** so you can inspect and compare them
 | **Baseline** | Native `<cors>` | Static XML attribute list | Same origins for all APIs; cannot vary per API |
 | **Phase 1** | `DynamicCorsHardcoded` fragment | Inline `switch/case` in C# | Per-API control; requires redeploying the fragment to change origins |
 | **Phase 2** | `DynamicCorsNamedValues` fragment | JSON string in a Named Value | Updateable in the portal; **4,096-char limit** per Named Value |
-
-> **Phase 3 (future):** A cache-backed approach using APIM's internal cache or Azure Cache for Redis could support arbitrarily large origin registries. The fragment architecture is designed to accommodate this extension.
+| **Phase 3** | `DynamicCorsCached` fragment + admin API | APIM internal cache | No size limit; updated via admin API; fail-closed when cache is empty; can swap to external Redis |
 
 ## ⚙️ Configuration
 
@@ -60,4 +63,7 @@ This lab deploys all phases **side-by-side** so you can inspect and compare them
 - [APIM policy fragments](https://learn.microsoft.com/azure/api-management/policy-fragments)
 - [APIM Named Values](https://learn.microsoft.com/azure/api-management/api-management-howto-properties)
 - [APIM policy expressions](https://learn.microsoft.com/azure/api-management/api-management-policy-expressions)
+- [APIM internal cache](https://learn.microsoft.com/azure/api-management/api-management-howto-cache)
+- [APIM cache-store-value / cache-lookup-value policies](https://learn.microsoft.com/azure/api-management/cache-store-value-policy)
+- [Azure Cache for Redis with APIM](https://learn.microsoft.com/azure/api-management/api-management-howto-cache-external)
 - [MDN CORS documentation](https://developer.mozilla.org/docs/Web/HTTP/CORS)
