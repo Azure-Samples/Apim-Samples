@@ -496,7 +496,7 @@ Samples that require administrative or operational endpoints (cache loading, con
 - **Production security**: Subscription keys are a baseline gate but are shared secrets, not identity-based auth. Production deployments should layer JWT validation (`validate-azure-ad-token` or `validate-jwt`) on top of subscription keys. See the `authX` and `authX-pro` samples for implementation patterns.
 - **Naming**: Use kebab-case operation paths that describe the action (e.g. `/load-cache`, `/clear-cache`, `/refresh-config`).
 - **Tags**: Include the sample's tags so the admin API is grouped with its sibling APIs in the APIM portal.
-- **Documentation**: The admin API's display name should start with the phase or sample context (e.g. `Phase 3 Admin`) so its purpose is clear in the APIM portal.
+- **Documentation**: The admin API's display name should start with the option or sample context (e.g. `Option 3 Admin`) so its purpose is clear in the APIM portal.
 
 ### API Management Policy XML Instructions
 

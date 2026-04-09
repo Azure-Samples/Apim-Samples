@@ -6,7 +6,7 @@
     fails for Analytics (dashboard origin is missing) and Public Data (no wildcard support
     without adding '*' which would open all APIs).
 
-    This is the "before" state that motivates the dynamic CORS approach in Phases 1 and 2.
+    This is the "before" state that motivates the dynamic CORS approach in Options 1 and 2.
 -->
 <policies>
     <inbound>

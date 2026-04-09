@@ -1,0 +1,96 @@
+<!--
+    Policy fragment: Dynamic CORS (Cache-backed, per-API entry)
+
+    Evaluates the Origin header against a JSON array stored in the APIM internal cache.
+    The cache entry must be populated first by calling POST /admin/load-cache.
+
+    Cache key format:
+        corsOriginMapping-{apiId}
+
+    Expected cache value format:
+        ["https://origin-a.com","https://origin-b.com"]
+
+    If the current API's cache entry does not exist, the fragment immediately returns a 503 error.
+    This is a deliberate fail-closed design: requests are never silently allowed when the mapping is absent.
+
+    Context variables set:
+        corsOriginCacheKey - The per-API cache key derived from context.Api.Id.
+        allowedOriginsJson - The raw JSON origin array string from the cache (if present).
+        corsOrigin         - The validated origin if allowed, or empty string if not.
+-->
+<fragment>
+    <!-- Look up only the current API's CORS origin array from APIM internal cache -->
+    <set-variable name="corsOriginCacheKey" value="@("corsOriginMapping-" + context.Api.Id)" />
+    <cache-lookup-value key="@((string)context.Variables["corsOriginCacheKey"])" variable-name="allowedOriginsJson" />
+    <!-- Fail-closed: if this API's cache entry is missing, log and reject with 503 -->
+    <choose>
+        <when condition="@(!context.Variables.ContainsKey("allowedOriginsJson"))">
+            <trace source="DynamicCorsCachedPerApi" severity="error">
+                <message>CORS origin cache not initialized for current API.</message>
+                <metadata name="apiId" value="@(context.Api.Id)" />
+                <metadata name="operationId" value="@(context.Operation.Id)" />
+                <metadata name="cacheKey" value="@((string)context.Variables["corsOriginCacheKey"])" />
+                <metadata name="origin" value="@(context.Request.Headers.GetValueOrDefault("Origin", ""))" />
+            </trace>
+            <return-response>
+                <set-status code="503" reason="Service Unavailable" />
+                <set-header name="Content-Type" exists-action="override">
+                    <value>application/json</value>
+                </set-header>
+                <set-body>{"error": "Service temporarily unavailable"}</set-body>
+            </return-response>
+        </when>
+    </choose>
+    <!-- Evaluate the Origin header against the current API's cached origin array -->
+    <set-variable name="corsOrigin" value="@{
+        var origin = context.Request.Headers.GetValueOrDefault("Origin", "");
+        if (string.IsNullOrEmpty(origin)) { return ""; }
+
+        var allowedOriginsJson = context.Variables.GetValueOrDefault<string>("allowedOriginsJson", "[]");
+        var allowedOrigins = JArray.Parse(allowedOriginsJson);
+
+        if (allowedOrigins.Any(o => o.ToString() == "*")) { return origin; }
+        if (allowedOrigins.Any(o => o.ToString() == origin)) { return origin; }
+
+        return "";
+    }" />
+    <choose>
+        <when condition="@(context.Request.Method == "OPTIONS")">
+            <choose>
+                <when condition="@(!string.IsNullOrEmpty(context.Variables.GetValueOrDefault<string>("corsOrigin", "")))">
+                    <return-response>
+                        <set-status code="200" reason="OK" />
+                        <set-header name="Access-Control-Allow-Origin" exists-action="override">
+                            <value>@((string)context.Variables["corsOrigin"])</value>
+                        </set-header>
+                        <set-header name="Access-Control-Allow-Methods" exists-action="override">
+                            <value>GET, POST, OPTIONS</value>
+                        </set-header>
+                        <set-header name="Access-Control-Allow-Headers" exists-action="override">
+                            <value>Content-Type, Authorization, X-Requested-With</value>
+                        </set-header>
+                        <set-header name="Access-Control-Max-Age" exists-action="override">
+                            <value>86400</value>
+                        </set-header>
+                    </return-response>
+                </when>
+                <otherwise>
+                    <trace source="DynamicCorsCachedPerApi" severity="information">
+                        <message>CORS origin rejected by per-API cache-backed mapping.</message>
+                        <metadata name="apiId" value="@(context.Api.Id)" />
+                        <metadata name="operationId" value="@(context.Operation.Id)" />
+                        <metadata name="cacheKey" value="@((string)context.Variables["corsOriginCacheKey"])" />
+                        <metadata name="origin" value="@(context.Request.Headers.GetValueOrDefault("Origin", ""))" />
+                    </trace>
+                    <return-response>
+                        <set-status code="403" reason="CORS Origin Not Allowed" />
+                        <set-header name="Content-Type" exists-action="override">
+                            <value>application/json</value>
+                        </set-header>
+                        <set-body>{"error": "CORS origin not allowed for this API"}</set-body>
+                    </return-response>
+                </otherwise>
+            </choose>
+        </when>
+    </choose>
+</fragment>

@@ -1,0 +1,77 @@
+<!--
+    Policy fragment: Dynamic CORS (Named Value, per-API)
+
+    Evaluates the Origin header against a JSON array passed in via a context variable.
+    The calling API policy must set 'allowedOriginsJson' before including this fragment,
+    typically by referencing a per-API Named Value:
+
+        <set-variable name="allowedOriginsJson" value="{{CorsOrigins-my-api-id}}" />
+        <include-fragment fragment-id="DynamicCorsNvPerApi" />
+
+    Expected context variable format:
+        allowedOriginsJson = '["https://origin-a.com","https://origin-b.com"]'
+
+    This pattern makes the fragment completely environment-agnostic. The same fragment
+    works across all environments; only the Named Value content differs per deployment.
+    Each API controls its own origins independently, with no character-limit concerns
+    from a shared mapping object.
+
+    Context variables expected:
+        allowedOriginsJson - JSON array of allowed origins (set by the calling API policy).
+
+    Context variables set:
+        corsOrigin - The validated origin if allowed, or empty string if not.
+-->
+<fragment>
+    <!-- Evaluate the Origin header against the per-API origin array from the Named Value -->
+    <set-variable name="corsOrigin" value="@{
+        var origin = context.Request.Headers.GetValueOrDefault("Origin", "");
+        if (string.IsNullOrEmpty(origin)) { return ""; }
+
+        var allowedOriginsJson = context.Variables.GetValueOrDefault<string>("allowedOriginsJson", "[]");
+        var allowedOrigins = JArray.Parse(allowedOriginsJson);
+
+        if (allowedOrigins.Any(o => o.ToString() == "*")) { return origin; }
+        if (allowedOrigins.Any(o => o.ToString() == origin)) { return origin; }
+
+        return "";
+    }" />
+    <choose>
+        <when condition="@(context.Request.Method == "OPTIONS")">
+            <choose>
+                <when condition="@(!string.IsNullOrEmpty(context.Variables.GetValueOrDefault<string>("corsOrigin", "")))">
+                    <return-response>
+                        <set-status code="200" reason="OK" />
+                        <set-header name="Access-Control-Allow-Origin" exists-action="override">
+                            <value>@((string)context.Variables["corsOrigin"])</value>
+                        </set-header>
+                        <set-header name="Access-Control-Allow-Methods" exists-action="override">
+                            <value>GET, POST, OPTIONS</value>
+                        </set-header>
+                        <set-header name="Access-Control-Allow-Headers" exists-action="override">
+                            <value>Content-Type, Authorization, X-Requested-With</value>
+                        </set-header>
+                        <set-header name="Access-Control-Max-Age" exists-action="override">
+                            <value>86400</value>
+                        </set-header>
+                    </return-response>
+                </when>
+                <otherwise>
+                    <trace source="DynamicCorsNvPerApi" severity="information">
+                        <message>CORS origin rejected by per-API Named Value mapping.</message>
+                        <metadata name="apiId" value="@(context.Api.Id)" />
+                        <metadata name="operationId" value="@(context.Operation.Id)" />
+                        <metadata name="origin" value="@(context.Request.Headers.GetValueOrDefault("Origin", ""))" />
+                    </trace>
+                    <return-response>
+                        <set-status code="403" reason="CORS Origin Not Allowed" />
+                        <set-header name="Content-Type" exists-action="override">
+                            <value>application/json</value>
+                        </set-header>
+                        <set-body>{"error": "CORS origin not allowed for this API"}</set-body>
+                    </return-response>
+                </otherwise>
+            </choose>
+        </when>
+    </choose>
+</fragment>
