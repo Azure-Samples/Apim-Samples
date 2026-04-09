@@ -1,6 +1,6 @@
 <!-- BEGIN MICROSOFT SECURITY.MD V0.0.9 BLOCK -->
 
-## Security
+# Security
 
 Microsoft takes the security of our software products and services seriously, which includes all source code repositories managed through our GitHub organizations.
 
@@ -16,13 +16,13 @@ You should receive a response within 24 hours. If for some reason you do not, pl
 
 Please include the requested information listed below (as much as you can provide) to help us better understand the nature and scope of the possible issue:
 
-  * Type of issue (e.g. buffer overflow, SQL injection, cross-site scripting, etc.)
-  * Full paths of source file(s) related to the manifestation of the issue
-  * The location of the affected source code (tag/branch/commit or direct URL)
-  * Any special configuration required to reproduce the issue
-  * Step-by-step instructions to reproduce the issue
-  * Proof-of-concept or exploit code (if possible)
-  * Impact of the issue, including how an attacker might exploit the issue
+* Type of issue (e.g. buffer overflow, SQL injection, cross-site scripting, etc.)
+* Full paths of source file(s) related to the manifestation of the issue
+* The location of the affected source code (tag/branch/commit or direct URL)
+* Any special configuration required to reproduce the issue
+* Step-by-step instructions to reproduce the issue
+* Proof-of-concept or exploit code (if possible)
+* Impact of the issue, including how an attacker might exploit the issue
 
 This information will help us triage your report more quickly.
 
@@ -48,8 +48,8 @@ This repository does not implement dedicated fuzz testing, and the Scorecard Fuz
 
 Fuzz testing is most valuable where code parses untrusted, attacker-controlled input — file formats, network protocols, deserialisers — particularly in memory-unsafe languages. This repository is a learning playground composed of Bicep templates, Jupyter notebooks, APIM policy XML, and thin Python wrappers around the Azure CLI. None of these components parse untrusted input locally:
 
-- Bicep, policy XML, and notebooks are declarative assets consumed by Azure-side tooling, not by code in this repository.
-- The Python helpers read output from the operator's own `az` CLI session and their own policy files.
-- The only parsing surface (`shared/python/json_utils.py`) delegates to the Python standard library `json` and `ast` modules, which are [already fuzzed upstream in CPython via OSS-Fuzz](https://github.com/google/oss-fuzz/tree/master/projects/cpython3).
+* Bicep, policy XML, and notebooks are declarative assets consumed by Azure-side tooling, not by code in this repository.
+* The Python helpers read output from the operator's own `az` CLI session and their own policy files.
+* The only parsing surface (`shared/python/json_utils.py`) delegates to the Python standard library `json` and `ast` modules, which are [already fuzzed upstream in CPython via OSS-Fuzz](https://github.com/google/oss-fuzz/tree/master/projects/cpython3).
 
 Scorecard additionally has no Python-native fuzzer detection — only OSS-Fuzz enrolment, ClusterFuzzLite, or language-native fuzzers for Go, Haskell, JavaScript/TypeScript, and Erlang are recognised. Adding `hypothesis` or `atheris` property-based tests would therefore not change the score, and would only exercise standard-library code paths already covered upstream.
