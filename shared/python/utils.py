@@ -20,7 +20,7 @@ from typing import Any, Tuple
 import azure_resources as az
 import logging_config
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, get_project_root
-from console import print_error, print_info, print_message, print_ok, print_plain, print_val, print_warning
+from console import print_error, print_info, print_message, print_ok, print_plain, print_secret, print_val, print_warning
 
 # Configure warning filter to suppress IPython exit warnings
 warnings.filterwarnings(
@@ -311,8 +311,8 @@ class NotebookHelper:
         # Set up the signing key for the JWT policy
         self.jwt_key_name = f'JwtSigningKey-{self.sample_folder}-{int(time.time())}'
         self.jwt_key_value, self.jwt_key_value_bytes_b64 = generate_signing_key()
-        print_val('JWT key value', self.jwt_key_value)  # used to create the signed JWT token
-        print_val('JWT key value (base64)', self.jwt_key_value_bytes_b64)  # used in the validate-jwt policy
+        print_secret('JWT key value', self.jwt_key_value)  # used to create the signed JWT token
+        print_secret('JWT key value (base64)', self.jwt_key_value_bytes_b64)  # used in the validate-jwt policy
 
     def _get_current_index(self) -> int | None:
         """

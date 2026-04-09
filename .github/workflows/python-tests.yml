@@ -64,6 +64,12 @@ jobs:
         run: |
           uv run python -m compileall infrastructure samples setup shared
 
+      # Supply-chain vulnerability audit (non-blocking)
+      - name: Run pip-audit
+        continue-on-error: true
+        run: |
+          uv run pip-audit
+
       # Run tests and generate coverage reports
       - name: Run pytest with coverage and generate JUnit XML
         id: pytest

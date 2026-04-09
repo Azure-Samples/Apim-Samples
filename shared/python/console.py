@@ -207,6 +207,12 @@ def print_val(name: str, value: str, val_below: bool = False) -> None:
     _print_log(f'{name:<25}:{"\n" if val_below else " "}{value}', '👉 ', BOLD_B, wrap_lines=True, level=logging.INFO)
 
 
+def print_secret(name: str, value: str) -> None:
+    """Print a key-value pair with the value masked, showing only its length."""
+    masked = f'***REDACTED*** ({len(value)} chars)' if value else '(empty)'
+    _print_log(f'{name:<25}: {masked}', '🔒 ', BOLD_B, wrap_lines=True, level=logging.INFO)
+
+
 def print_plain(msg: str = '', *, level: int | None = None, wrap_lines: bool = True, blank_above: bool = False, blank_below: bool = False) -> None:
     """Log a message without any icon/prefix.
 

@@ -448,7 +448,7 @@ def test_serve_presentation_custom_port(mock_repo_root: Path) -> None:
                     with patch('os.chdir'):
                         serve_pres.serve_presentation(9000)
 
-    assert mock_server.call_args.args[0] == ('', 9000)
+    assert mock_server.call_args.args[0] == ('127.0.0.1', 9000)
 
 
 def test_serve_presentation_handler_is_set(mock_repo_root: Path) -> None:
@@ -489,7 +489,7 @@ def test_main_default_port() -> None:
                                 with patch.object(sys, 'argv', ['serve_presentation.py']):
                                     runpy.run_path(str(SCRIPT_PATH), run_name='__main__')
 
-    assert mock_server.call_args.args[0] == ('', 7777)
+    assert mock_server.call_args.args[0] == ('127.0.0.1', 7777)
 
 
 def test_main_custom_port() -> None:
@@ -510,7 +510,7 @@ def test_main_custom_port() -> None:
                                 with patch.object(sys, 'argv', ['serve_presentation.py', '8881']):
                                     runpy.run_path(str(SCRIPT_PATH), run_name='__main__')
 
-    assert mock_server.call_args.args[0] == ('', 8881)
+    assert mock_server.call_args.args[0] == ('127.0.0.1', 8881)
 
 
 def test_main_file_not_found(capsys: pytest.CaptureFixture[str]) -> None:

@@ -14,6 +14,20 @@ import urllib3
 from apimtypes import HTTP_VERB, SLEEP_TIME_BETWEEN_REQUESTS_MS, SUBSCRIPTION_KEY_PARAMETER_NAME, HttpStatusCode
 from console import BOLD_G, BOLD_R, RESET, print_error, print_info, print_message, print_ok, print_val
 
+_SENSITIVE_HEADER_NAMES = frozenset(k.lower() for k in (
+    'api-key', 'Ocp-Apim-Subscription-Key', 'Authorization', 'x-api-key',
+))
+
+
+def _redact_headers(headers: dict | None) -> dict | None:
+    """Return a shallow copy of *headers* with sensitive values masked."""
+    if not headers:
+        return headers
+    return {
+        k: ('***REDACTED***' if k.lower() in _SENSITIVE_HEADER_NAMES else v)
+        for k, v in headers.items()
+    }
+
 
 # ------------------------------
 #    CLASSES
@@ -196,7 +210,7 @@ class ApimRequests:
             if headers:
                 merged_headers.update(headers)
 
-            print_info(merged_headers)
+            print_info(_redact_headers(merged_headers))
 
             response = self._execute_request(requests.request, method.value, url, headers=merged_headers, json=data, timeout=30)
 
@@ -357,7 +371,7 @@ class ApimRequests:
         while time.time() - start_time < timeout:
             try:
                 print_info(f'GET {location_url}', True)
-                print_info(headers)
+                print_info(_redact_headers(headers))
                 response = self._execute_request(requests.get, location_url, headers=headers or {}, timeout=30)
 
                 print_info(f'Polling operation - Status: {response.status_code}')
@@ -501,7 +515,7 @@ class ApimRequests:
             if headers:
                 merged_headers.update(headers)
 
-            print_info(merged_headers)
+            print_info(_redact_headers(merged_headers))
 
             # Make the initial async request
             response = self._execute_request(

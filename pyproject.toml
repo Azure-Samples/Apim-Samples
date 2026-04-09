@@ -27,6 +27,7 @@ dev = [
   "pytest>=9.0.0",
   "pytest-cov>=7.0.0",
   "coverage>=7.6.4",
+  "pip-audit>=2.7.0",
 ]
 
 [tool.ruff]

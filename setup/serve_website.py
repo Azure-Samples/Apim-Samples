@@ -193,7 +193,7 @@ def serve_website(port: int = 7800) -> None:
                 previous_handlers[sig] = signal.getsignal(sig)
                 signal.signal(sig, handle_shutdown_signal)
 
-        httpd = TCPServer(('', port), WebsiteHandler)
+        httpd = TCPServer(('127.0.0.1', port), WebsiteHandler)
 
         url = f'http://localhost:{port}'
         print('\n✨ APIM Samples Website Preview')

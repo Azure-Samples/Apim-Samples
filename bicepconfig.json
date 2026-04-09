@@ -10,7 +10,7 @@
             "level": "off"
           },
           "outputs-should-not-contain-secrets": {
-            "level": "off"
+            "level": "warning"
           }
         }
       }

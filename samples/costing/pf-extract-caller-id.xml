@@ -9,6 +9,12 @@
     back to the APIM subscription ID, or 'unknown' when neither is
     available.
 
+    IMPORTANT: This fragment reads the JWT payload WITHOUT verifying the
+    signature. It assumes a parent policy (e.g. validate-jwt or
+    validate-azure-ad-token) has already validated the token before this
+    fragment executes. Do not use this fragment without upstream JWT
+    validation.
+
     Usage:
         <include-fragment fragment-id="Extract-CallerId" />
         After inclusion, use @((string)context.Variables["callerId"])

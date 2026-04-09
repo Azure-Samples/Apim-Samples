@@ -222,7 +222,9 @@ output subscriptionResourceId string = apiSubscriptionRequired ? apiSubscription
 output subscriptionName string = apiSubscriptionRequired ? apiSubscription.name : ''
 
 @description('The primary key of the product subscription, if created.')
+#disable-next-line outputs-should-not-contain-secrets // Intentional: samples need subscription keys for testing
 output subscriptionPrimaryKey string = apiSubscriptionRequired ? listSecrets('${apimService.id}/subscriptions/api-${toLower(api.name)}', '2024-05-01').primaryKey : ''
 
 @description('The secondary key of the product subscription, if created.')
+#disable-next-line outputs-should-not-contain-secrets // Intentional: samples need subscription keys for testing
 output subscriptionSecondaryKey string = apiSubscriptionRequired ? listSecrets('${apimService.id}/subscriptions/api-${toLower(api.name)}', '2024-05-01').secondaryKey : ''

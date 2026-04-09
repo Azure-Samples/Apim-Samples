@@ -34,6 +34,30 @@
         <base />
         <!-- Extract the cache key from the URL path parameter -->
         <set-variable name="cacheKey" value="@(context.Request.MatchedParameters["cacheKey"])" />
+        <!-- Validate cache key format: alphanumeric, hyphens, underscores, max 64 characters -->
+        <choose>
+            <when condition="@(!System.Text.RegularExpressions.Regex.IsMatch((string)context.Variables["cacheKey"], @"^[A-Za-z0-9_\-]{1,64}$"))">
+                <return-response>
+                    <set-status code="400" reason="Bad Request" />
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"error": "Invalid cache key. Use 1-64 alphanumeric characters, hyphens, or underscores."}</set-body>
+                </return-response>
+            </when>
+        </choose>
+        <!-- Reject oversized request bodies (max 64 KB) -->
+        <choose>
+            <when condition="@(int.Parse(context.Request.Headers.GetValueOrDefault("Content-Length", "0")) > 65536)">
+                <return-response>
+                    <set-status code="413" reason="Payload Too Large" />
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"error": "Request body exceeds the 64 KB size limit."}</set-body>
+                </return-response>
+            </when>
+        </choose>
         <!-- Read and validate the request body -->
         <set-variable name="cacheValue" value="@(context.Request.Body.As<string>(preserveContent: true))" />
         <choose>

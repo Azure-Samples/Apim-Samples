@@ -154,7 +154,7 @@ def serve_presentation(port: int = 7777):
                 previous_signal_handlers[handled_signal] = signal.getsignal(handled_signal)
                 signal.signal(handled_signal, handle_shutdown_signal)
 
-        server_address = ('', port)
+        server_address = ('127.0.0.1', port)
         httpd = TCPServer(server_address, PresentationHandler)
 
         # URL to open

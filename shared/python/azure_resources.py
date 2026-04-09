@@ -25,8 +25,19 @@ _SECRET_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r'("accessToken"\s*:\s*")([^"\\]+)(")', re.IGNORECASE), r'\1***REDACTED***\3'),
     (re.compile(r'("refreshToken"\s*:\s*")([^"\\]+)(")', re.IGNORECASE), r'\1***REDACTED***\3'),
     (re.compile(r'("client_secret"\s*:\s*")([^"\\]+)(")', re.IGNORECASE), r'\1***REDACTED***\3'),
+    # APIM subscription keys and shared keys
+    (re.compile(r'("primaryKey"\s*:\s*")([^"\\]+)(")', re.IGNORECASE), r'\1***REDACTED***\3'),
+    (re.compile(r'("secondaryKey"\s*:\s*")([^"\\]+)(")', re.IGNORECASE), r'\1***REDACTED***\3'),
+    (re.compile(r'("primarySharedKey"\s*:\s*")([^"\\]+)(")', re.IGNORECASE), r'\1***REDACTED***\3'),
+    (re.compile(r'("secondarySharedKey"\s*:\s*")([^"\\]+)(")', re.IGNORECASE), r'\1***REDACTED***\3'),
+    # Connection strings and account keys
+    (re.compile(r'("connectionString"\s*:\s*")([^"\\]+)(")', re.IGNORECASE), r'\1***REDACTED***\3'),
+    (re.compile(r'(AccountKey=)([^;"]+)', re.IGNORECASE), r'\1***REDACTED***'),
+    (re.compile(r'(SharedAccessSignature=)([^;"]+)', re.IGNORECASE), r'\1***REDACTED***'),
     # Header-style bearer tokens
     (re.compile(r'(Authorization\s*:\s*Bearer\s+)(\S+)', re.IGNORECASE), r'\1***REDACTED***'),
+    # api-key header
+    (re.compile(r'(api-key\s*:\s*)(\S+)', re.IGNORECASE), r'\1***REDACTED***'),
 )
 
 
