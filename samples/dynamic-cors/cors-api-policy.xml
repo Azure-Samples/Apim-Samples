@@ -6,10 +6,10 @@
     - For OPTIONS preflight requests, returns an immediate CORS response.
     - For all other methods, sets the 'corsOrigin' context variable.
 
-    The outbound section demonstrates how to add the Access-Control-Allow-Origin header
-    for APIs with real backends. In this sample, the mock APIs use return-response in the
-    operation policy (which bypasses outbound), so the CORS header is included directly
-    in the operation's return-response instead.
+    The outbound section includes the DynamicCorsOutbound fragment to add the
+    Access-Control-Allow-Origin header to actual (non-preflight) responses. For mock
+    APIs that use return-response in the operation policy, outbound is bypassed, so
+    the fragment has no effect.
 -->
 <policies>
     <inbound>
@@ -21,19 +21,7 @@
     </backend>
     <outbound>
         <base />
-        <!--
-            For APIs with real backends, uncomment the block below to add CORS headers to actual responses.
-            The 'corsOrigin' context variable is set by the included policy fragment.
-        -->
-        <!--
-        <choose>
-            <when condition="@(!string.IsNullOrEmpty(context.Variables.GetValueOrDefault<string>("corsOrigin", "")))">
-                <set-header name="Access-Control-Allow-Origin" exists-action="override">
-                    <value>@((string)context.Variables["corsOrigin"])</value>
-                </set-header>
-            </when>
-        </choose>
-        -->
+        <include-fragment fragment-id="DynamicCorsOutbound" />
     </outbound>
     <on-error>
         <base />

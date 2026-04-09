@@ -1,0 +1,30 @@
+<!--
+    API-level policy for Dynamic CORS with per-API Named Value.
+
+    Sets the 'allowedOriginsJson' context variable from a per-API Named Value,
+    then includes the specified CORS policy fragment. The outbound section includes
+    the DynamicCorsOutbound fragment to add the Access-Control-Allow-Origin header
+    to actual (non-preflight) responses. This pattern allows the same fragments to
+    serve every API and environment - only the Named Value content differs per
+    deployment.
+
+    Placeholders (replaced at deployment time):
+        {allowed_origins_nv} - The Named Value reference (e.g. {{CorsOrigins-my-api-id}})
+-->
+<policies>
+    <inbound>
+        <base />
+        <set-variable name="allowedOriginsJson" value="{allowed_origins_nv}" />
+        <include-fragment fragment-id="DynamicCorsNvPerApi" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <include-fragment fragment-id="DynamicCorsOutbound" />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

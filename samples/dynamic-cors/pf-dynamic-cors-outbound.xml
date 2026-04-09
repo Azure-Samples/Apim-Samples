@@ -1,0 +1,22 @@
+<!--
+    Policy fragment: Dynamic CORS Outbound
+
+    Adds the Access-Control-Allow-Origin header to actual (non-preflight) responses
+    when 'corsOrigin' has been set by one of the inbound CORS fragments.
+
+    This fragment is intended for APIs with real backends. Mock APIs that use
+    return-response in the operation policy bypass the outbound section entirely,
+    so including this fragment is harmless but has no effect for mock responses.
+
+    Context variables expected:
+        corsOrigin - The validated origin (set by the inbound CORS fragment).
+-->
+<fragment>
+    <choose>
+        <when condition="@(!string.IsNullOrEmpty(context.Variables.GetValueOrDefault<string>("corsOrigin", "")))">
+            <set-header name="Access-Control-Allow-Origin" exists-action="override">
+                <value>@((string)context.Variables["corsOrigin"])</value>
+            </set-header>
+        </when>
+    </choose>
+</fragment>
