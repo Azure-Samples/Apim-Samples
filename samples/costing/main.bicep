@@ -303,9 +303,9 @@ output workbookId string = workbookIdOutput
 output costExportName string = costExportOutputName
 
 @description('Subscription keys for the business units')
-#disable-next-line outputs-should-not-contain-secrets // Intentional: notebook needs keys for traffic generation
 output subscriptionKeys array = [for (bu, i) in businessUnits: {
   name: bu.name
+  #disable-next-line outputs-should-not-contain-secrets // Intentional: notebook needs keys for traffic generation
   primaryKey: listSecrets(subscriptions[i].id, '2024-06-01-preview').primaryKey
 }]
 
