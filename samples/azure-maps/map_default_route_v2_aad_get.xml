@@ -43,19 +43,16 @@
                         <cache-store-value key="azure-maps-sas-token" value="@((string)context.Variables["sas-token"])" duration="3600" />
                     </when>
                     <otherwise>
-                        <!-- Log error and return error response -->
-                        <set-variable name="error-message" value="@("Failed to retrieve SAS token. Status: " + ((IResponse)context.Variables["sas-response"]).StatusCode.ToString() + ", Body: " + ((IResponse)context.Variables["sas-response"]).Body.As<string>())" />
+                        <!-- Log detailed error to App Insights; return only a generic message to the caller -->
+                        <trace source="AzureMapsPolicy" severity="error">
+                            @("SAS token request failed. Status: " + ((IResponse)context.Variables["sas-response"]).StatusCode.ToString() + ", Body: " + ((IResponse)context.Variables["sas-response"]).Body.As<string>())
+                        </trace>
                         <return-response>
                             <set-status code="500" reason="Internal Server Error" />
                             <set-header name="Content-Type" exists-action="override">
                                 <value>application/json</value>
                             </set-header>
-                            <set-body>@{
-                                return new JObject(
-                                    new JProperty("error", "SAS token generation failed"),
-                                    new JProperty("details", (string)context.Variables["error-message"])
-                                ).ToString();
-                            }</set-body>
+                            <set-body>{"error": "SAS token generation failed"}</set-body>
                         </return-response>
                     </otherwise>
                 </choose>
