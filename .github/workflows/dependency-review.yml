@@ -26,6 +26,7 @@ jobs:
           # ISC: pexpect, ptyprocess
           # LGPL-3.0-or-later: pyzmq (libzmq shared library)
           # HPND: pillow
+          # Python-2.0, GPL-1.0-or-later, 0BSD: typing-extensions (CPython compound license)
           allow-licenses: >-
             MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause,
             LGPL-2.0-or-later, LGPL-2.1-only, LGPL-3.0-or-later,
@@ -33,4 +34,11 @@ jobs:
             OFL-1.1,
             PSF-2.0,
             ISC,
-            HPND
+            HPND,
+            Python-2.0,
+            GPL-1.0-or-later,
+            0BSD
+
+          # ✅ Packages whose license cannot be auto-detected
+          # cyclonedx-python-lib is Apache-2.0 (https://github.com/CycloneDX/cyclonedx-python-lib)
+          allow-dependencies-licenses: "pkg:pypi/cyclonedx-python-lib"
