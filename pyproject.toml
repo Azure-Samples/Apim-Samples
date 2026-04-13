@@ -9,12 +9,12 @@ license = { file = "LICENSE" }
 
 # Core runtime dependencies
 dependencies = [
-  "pillow>=12.1.1",   # Resolves CVE 2021-25289: https://pillow.readthedocs.io/en/stable/releasenotes/12.1.1.html#security
+  "pillow>=12.2.0",   # Resolves CVE 2021-25289: https://pillow.readthedocs.io/en/stable/releasenotes/12.1.1.html#security
   "ipykernel",
   "jinja2",
   "matplotlib",
   "pandas",
-  "pyjwt>=2.12.0",
+  "pyjwt>=2.12.1",
   "python-dotenv",
   "requests",
   "tornado>=6.5.5",
@@ -23,11 +23,11 @@ dependencies = [
 [dependency-groups]
 # Developer tooling (installed automatically by default with `uv sync`)
 dev = [
-  "ruff>=0.9.0",
-  "pytest>=9.0.0",
-  "pytest-cov>=7.0.0",
-  "coverage>=7.6.4",
-  "pip-audit>=2.7.0",
+  "ruff>=0.15.10",
+  "pytest>=9.0.3",
+  "pytest-cov>=7.1.0",
+  "coverage>=7.13.5",
+  "pip-audit>=2.10.0",
 ]
 
 [tool.ruff]
