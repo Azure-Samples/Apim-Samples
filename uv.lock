@@ -41,8 +41,8 @@ requires-dist = [
     { name = "jinja2" },
     { name = "matplotlib" },
     { name = "pandas" },
-    { name = "pillow", specifier = ">=12.1.1" },
-    { name = "pyjwt", specifier = ">=2.12.0" },
+    { name = "pillow", specifier = ">=12.2.0" },
+    { name = "pyjwt", specifier = ">=2.12.1" },
     { name = "python-dotenv" },
     { name = "requests" },
     { name = "tornado", specifier = ">=6.5.5" },
@@ -50,11 +50,11 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "coverage", specifier = ">=7.6.4" },
-    { name = "pip-audit", specifier = ">=2.7.0" },
-    { name = "pytest", specifier = ">=9.0.0" },
-    { name = "pytest-cov", specifier = ">=7.0.0" },
-    { name = "ruff", specifier = ">=0.9.0" },
+    { name = "coverage", specifier = ">=7.13.5" },
+    { name = "pip-audit", specifier = ">=2.10.0" },
+    { name = "pytest", specifier = ">=9.0.3" },
+    { name = "pytest-cov", specifier = ">=7.1.0" },
+    { name = "ruff", specifier = ">=0.15.10" },
 ]
 
 [[package]]

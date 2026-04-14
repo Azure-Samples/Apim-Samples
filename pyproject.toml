@@ -9,7 +9,7 @@ license = { file = "LICENSE" }
 
 # Core runtime dependencies
 dependencies = [
-  "pillow>=12.2.0",   # Resolves CVE 2021-25289: https://pillow.readthedocs.io/en/stable/releasenotes/12.1.1.html#security
+  "pillow>=12.2.0",   # Resolves GHSA-whj4-6x5x-4v2j (CVE-2026-40192): https://pillow.readthedocs.io/en/stable/releasenotes/12.2.0.html#prevent-fits-decompression-bomb
   "ipykernel",
   "jinja2",
   "matplotlib",
