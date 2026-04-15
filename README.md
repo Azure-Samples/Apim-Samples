@@ -100,7 +100,7 @@ Use the interactive APIM Samples Developer CLI to verify setup, run tests, and m
 ```
 
 This menu-driven interface provides quick access to:
-- **Setup**: Complete environment setup and verify local setup
+- **Setup**: Complete environment setup, Azure CLI login, and update & sync `uv` dependencies (refresh `uv.lock`)
 - **Verify**: Show Azure account info, list soft-deleted resources, and list deployed infrastructures
 - **Tests**: Run ruff, pytest, and full Python checks
 - **Presentation**: Serve the slide deck in a browser or export a self-contained HTML copy

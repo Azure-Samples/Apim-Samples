@@ -126,6 +126,7 @@ while ($true) {
     Write-Host "Setup" -ForegroundColor Yellow
     Write-Host "  1) Complete environment setup"
     Write-Host "  2) Azure CLI login"
+    Write-Host "  u) Update & sync uv dependencies (refresh uv.lock)"
     Write-Host ""
     Write-Host "Verify" -ForegroundColor Yellow
     Write-Host "  3) Verify local setup"
@@ -209,6 +210,18 @@ while ($true) {
         }
         'c' {
             $null = Invoke-Cmd "$RepoRoot/setup/clean-local-artifacts.ps1"
+        }
+        'u' {
+            if (Test-Uv) {
+                $lockOk = Invoke-Cmd "uv" @("lock", "--upgrade")
+                if ($lockOk) {
+                    $null = Invoke-Cmd "uv" @("sync")
+                }
+            } else {
+                Write-Host ""
+                Write-Host "uv is not installed or not on PATH. Install uv first (see setup/README.md)." -ForegroundColor Red
+                Write-Host ""
+            }
         }
         '0' {
             Write-Host ""
