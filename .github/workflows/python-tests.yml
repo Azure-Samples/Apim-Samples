@@ -54,7 +54,7 @@ jobs:
           uv run ruff check --output-format json infrastructure samples setup shared > tests/python/ruff/reports/latest.json 2>/dev/null || true
 
       - name: Upload ruff reports
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ruff-reports-${{ matrix.python-version }}
           path: tests/python/ruff/reports/
@@ -77,13 +77,13 @@ jobs:
           COVERAGE_FILE=tests/python/.coverage-${{ matrix.python-version }} uv run pytest --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov-${{ matrix.python-version }} --cov-report=term-missing --junitxml=tests/python/junit-${{ matrix.python-version }}.xml tests/python/
 
       - name: Upload coverage HTML report
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: coverage-html-${{ matrix.python-version }}
           path: tests/python/htmlcov-${{ matrix.python-version }}/
 
       - name: Upload JUnit test results
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: junit-results-${{ matrix.python-version }}
           path: tests/python/junit-${{ matrix.python-version }}.xml
@@ -112,7 +112,7 @@ jobs:
       # Publish general statistics for linting, test success, and code coverage as well as detailed tests results
       - name: Publish Consolidated Results to PR
         if: github.event_name == 'pull_request'
-        uses: marocchino/sticky-pull-request-comment@d4d6b0936434b21bc8345ad45a440c5f7d2c40ff # v3.0.3
+        uses: marocchino/sticky-pull-request-comment@0ea0beb66eb9baf113663a64ec522f60e49231c0 # v3.0.4
         with:
           header: python-results-${{ matrix.python-version }}
           message: |

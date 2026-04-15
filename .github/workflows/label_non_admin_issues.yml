@@ -15,7 +15,7 @@ jobs:
       # Step 1: Check if the issue creator has admin access to the repository
       - name: Check if issue creator has admin access to the repo
         id: check_permission
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const username = context.payload.issue.user.login;
@@ -31,7 +31,7 @@ jobs:
       # Step 2: Add 'triage' label if the issue creator is not an admin
       - name: Add triage label if not admin
         if: steps.check_permission.outputs.is_admin != 'true'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             await github.rest.issues.addLabels({
