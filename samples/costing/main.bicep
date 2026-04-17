@@ -60,6 +60,21 @@ param baseMonthlyCost string = '150.01'
 @description('Variable cost per 1K API requests in USD. Injected into the workbook default.')
 param perKRate string = '0.003'
 
+@description('Deploy Microsoft Foundry (Hub + Project) and Azure AI Services with a model deployment for real AOAI interactions. When false (default), the mock response policy is used instead.')
+param enableFoundry bool = false
+
+@description('AI model to deploy when enableFoundry is true')
+param aiModelName string = 'gpt-5-mini'
+
+@description('AI model version when enableFoundry is true')
+param aiModelVersion string = '2025-08-07'
+
+@description('Model deployment SKU name when enableFoundry is true')
+param aiModelSkuName string = 'GlobalStandard'
+
+@description('Model deployment capacity in thousands of tokens per minute when enableFoundry is true')
+param aiModelCapacity int = 10
+
 
 // ------------------
 //    VARIABLES
@@ -71,6 +86,13 @@ var storageAccountName = 'stcost${take(string(index), 1)}${take(replace(resource
 var workbookName = 'APIM Cost Tracking ${index}'
 var costExportName = 'apim-cost-export'
 var diagnosticSettingsNameSuffix = 'costing-diagnostics-${index}'
+
+// Foundry resource names (only used when enableFoundry is true)
+var aiServicesName = 'ais-cost-${index}-${take(resourceSuffix, 4)}'
+var foundryKeyVaultName = 'kvai-cost-${index}-${take(resourceSuffix, 4)}'
+var foundryStorageName = 'stfndry${take(string(index), 1)}${take(replace(resourceSuffix, '-', ''), 8)}'
+var foundryHubName = 'hub-cost-${index}-${take(resourceSuffix, 4)}'
+var foundryProjectName = 'proj-cost-${index}-${take(resourceSuffix, 4)}'
 
 
 // ------------------
@@ -255,6 +277,164 @@ module costExportModule './cost-export.bicep' = if (enableCostExport) {
 #disable-next-line BCP318
 var costExportOutputName = enableCostExport ? costExportModule.outputs.costExportName : costExportName
 
+
+// ------------------
+//    FOUNDRY RESOURCES (gated by enableFoundry)
+// ------------------
+
+// Key Vault for Foundry Hub (required dependency)
+// https://learn.microsoft.com/azure/templates/microsoft.keyvault/vaults
+resource foundryKeyVault 'Microsoft.KeyVault/vaults@2023-07-01' = if (enableFoundry) {
+  name: foundryKeyVaultName
+  location: location
+  properties: {
+    sku: {
+      family: 'A'
+      name: 'standard'
+    }
+    tenantId: subscription().tenantId
+    enableRbacAuthorization: true
+    enableSoftDelete: true
+    softDeleteRetentionInDays: 7
+  }
+}
+
+// Storage Account for Foundry Hub (separate from cost export storage because Foundry may require shared key access)
+// https://learn.microsoft.com/azure/templates/microsoft.storage/storageaccounts
+resource foundryStorage 'Microsoft.Storage/storageAccounts@2023-05-01' = if (enableFoundry) {
+  name: foundryStorageName
+  location: location
+  sku: {
+    name: 'Standard_LRS'
+  }
+  kind: 'StorageV2'
+  properties: {
+    accessTier: 'Hot'
+    minimumTlsVersion: 'TLS1_2'
+    supportsHttpsTrafficOnly: true
+    allowBlobPublicAccess: false
+    allowSharedKeyAccess: true
+  }
+}
+
+// Azure AI Services (includes Azure OpenAI capabilities)
+// https://learn.microsoft.com/azure/templates/microsoft.cognitiveservices/accounts
+resource aiServices 'Microsoft.CognitiveServices/accounts@2024-10-01' = if (enableFoundry) {
+  name: aiServicesName
+  location: location
+  kind: 'AIServices'
+  sku: {
+    name: 'S0'
+  }
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    publicNetworkAccess: 'Enabled'
+    customSubDomainName: aiServicesName
+  }
+}
+
+// Model deployment (e.g. gpt-5-mini) on the AI Services account
+// https://learn.microsoft.com/azure/templates/microsoft.cognitiveservices/accounts/deployments
+resource modelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (enableFoundry) {
+  name: aiModelName
+  parent: aiServices
+  sku: {
+    name: aiModelSkuName
+    capacity: aiModelCapacity
+  }
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: aiModelName
+      version: aiModelVersion
+    }
+  }
+}
+
+// Foundry Hub workspace
+// https://learn.microsoft.com/azure/templates/microsoft.machinelearningservices/workspaces
+resource foundryHub 'Microsoft.MachineLearningServices/workspaces@2024-10-01' = if (enableFoundry) {
+  name: foundryHubName
+  location: location
+  kind: 'Hub'
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    friendlyName: 'APIM Costing Foundry Hub'
+    description: 'Foundry Hub for the APIM costing sample'
+    keyVault: foundryKeyVault.id
+    storageAccount: foundryStorage.id
+    applicationInsights: appInsightsResourceId
+  }
+}
+
+// Azure OpenAI connection in the Foundry Hub
+// https://learn.microsoft.com/azure/templates/microsoft.machinelearningservices/workspaces/connections
+resource aoaiConnection 'Microsoft.MachineLearningServices/workspaces/connections@2024-10-01' = if (enableFoundry) {
+  name: 'aoai-connection'
+  parent: foundryHub
+  properties: {
+    authType: 'AAD'
+    category: 'AzureOpenAI'
+    target: aiServices!.properties.endpoint
+    metadata: {
+      ApiType: 'Azure'
+      ResourceId: aiServices.id
+    }
+  }
+}
+
+// Foundry Project workspace
+// https://learn.microsoft.com/azure/templates/microsoft.machinelearningservices/workspaces
+resource foundryProject 'Microsoft.MachineLearningServices/workspaces@2024-10-01' = if (enableFoundry) {
+  name: foundryProjectName
+  location: location
+  kind: 'Project'
+  identity: {
+    type: 'SystemAssigned'
+  }
+  properties: {
+    friendlyName: 'APIM Costing Project'
+    description: 'Foundry Project for the APIM costing sample'
+    hubResourceId: foundryHub.id
+  }
+}
+
+// Role: APIM system-assigned identity -> Cognitive Services OpenAI User on AI Services
+// This allows APIM to call Azure OpenAI endpoints using managed identity authentication.
+// https://learn.microsoft.com/azure/templates/microsoft.authorization/roleassignments
+resource apimAoaiRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableFoundry) {
+  name: guid(aiServices.id, apimService.id, '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
+  scope: aiServices
+  properties: {
+    roleDefinitionId: subscriptionResourceId(
+      'Microsoft.Authorization/roleDefinitions',
+      '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd' // Cognitive Services OpenAI User
+    )
+    principalId: apimService.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// APIM Backend for Azure OpenAI with managed identity credentials
+// https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/backends
+resource aoaiBackend 'Microsoft.ApiManagement/service/backends@2024-06-01-preview' = if (enableFoundry) {
+  name: 'aoai-backend'
+  parent: apimService
+  properties: {
+    description: 'Azure OpenAI backend via Foundry AI Services'
+    url: '${aiServices!.properties.endpoint}openai'
+    protocol: 'http'
+  }
+  dependsOn: [
+    apimAoaiRoleAssignment
+  ]
+}
+
+
 // Variables for output values
 var workbookDisplayName = workbookName
 var workbookIdOutput = enableLogAnalytics ? workbook.id : ''
@@ -313,3 +493,19 @@ output subscriptionKeys array = [for (bu, i) in businessUnits: {
 output apiSubscriptionKeys array = [for (api, i) in apis: {
   name: api.name
 }]
+
+@description('Azure OpenAI endpoint URL (empty when enableFoundry is false)')
+#disable-next-line BCP318
+output aoaiEndpoint string = enableFoundry ? aiServices.properties.endpoint : ''
+
+@description('Azure AI Services resource name (empty when enableFoundry is false)')
+output aoaiName string = enableFoundry ? aiServicesName : ''
+
+@description('Deployed model name (empty when enableFoundry is false)')
+output modelDeploymentName string = enableFoundry ? aiModelName : ''
+
+@description('Foundry Hub name (empty when enableFoundry is false)')
+output foundryHubName string = enableFoundry ? foundryHubName : ''
+
+@description('Foundry Project name (empty when enableFoundry is false)')
+output foundryProjectName string = enableFoundry ? foundryProjectName : ''

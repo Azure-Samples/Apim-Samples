@@ -16,6 +16,7 @@ This sample demonstrates how to track and allocate API costs using Azure API Man
 6. **Enable cost governance** - Establish patterns for consistent tagging and naming conventions
 7. **Enable budget alerts** - Create scheduled query alerts when callers exceed configurable thresholds
 8. **Track AI token consumption per client** - When APIM is used as an AI Gateway, capture prompt, completion, and total token usage per calling application, enabling per-client cost attribution for PTU or pay-as-you-go OpenAI deployments
+9. **Real AOAI interactions via Foundry** (optional) - Deploy a full Microsoft Foundry environment (Hub + Project + Azure AI Services) and route real Azure OpenAI chat completions through APIM, demonstrating accurate token tracking for both non-streaming and streaming (SSE) responses
 
 ## ✅ Prerequisites
 
@@ -30,6 +31,7 @@ The signed-in user needs the following role assignments:
 | **Contributor**                   | Resource Group  | Deploy Bicep resources (App Insights, Log Analytics, Storage, Workbook, Diagnostic Settings) |
 | **Cost Management Contributor**   | Subscription    | Create Cost Management export                                                                |
 | **Storage Blob Data Contributor** | Storage Account | Write cost export data (auto-assigned by the notebook)                                       |
+| **Cognitive Services Contributor** | Resource Group  | Deploy Azure AI Services when `enable_foundry = True` (not needed for mock path)            |
 
 ### For Workbook Consumers
 
@@ -66,7 +68,27 @@ This sample focuses on **producing cost data**, not implementing billing process
 | **Cost Management export** | Yes (storage account)                        | No (metrics-based)                                   | No (metrics-based)                                         |
 | **Best for**               | Dedicated subscriptions per BU               | OAuth client-credentials flows, shared subscriptions | AI Gateway scenarios (Azure OpenAI, PTU capacity planning) |
 
-All three approaches are deployed together. Toggle `enable_entraid_tracking` and `enable_token_tracking` in the notebook to include or exclude each flow.
+All three approaches are deployed together. Toggle `enable_entraid_tracking` and `enable_token_tracking` in the notebook to include or exclude each flow. Setting `enable_foundry = True` adds a real Azure OpenAI backend so token tracking uses actual model responses instead of mock data.
+
+### Streaming Support
+
+When `enable_foundry = True`, the notebook demonstrates both non-streaming and streaming (SSE) chat completions. The `emit_metric_caller_tokens.xml` policy includes streaming-aware token extraction:
+
+- **Non-streaming**: Parses the standard JSON `usage` object from the response body
+- **Streaming (SSE)**: Reverse-scans SSE `data:` lines for the final chunk containing the `usage` object (requires `stream_options.include_usage = true` in the request)
+
+> **Buffering trade-off**: The outbound policy buffers the full streaming response to extract tokens. This adds latency proportional to response size. In production, consider the built-in [`azure-openai-emit-token-metric`](https://learn.microsoft.com/azure/api-management/azure-openai-emit-token-metric-policy) policy, which extracts tokens without buffering.
+
+> **Double-counting warning**: Do NOT enable both the custom `emit-metric` token tracking in this sample AND the built-in `azure-openai-emit-token-metric` policy on the same API. Each emits its own metric entries; combining them produces duplicate counts in your dashboards.
+
+### Context Propagation
+
+The token tracking policy forwards two headers to the backend:
+
+| Header                     | Value                                 | Purpose                                                |
+| -------------------------- | ------------------------------------- | ------------------------------------------------------ |
+| `x-business-unit`          | Extracted `callerId` from JWT `appid` | Correlate backend logs with APIM caller metrics        |
+| `x-ms-client-request-id`   | `context.RequestId`                   | End-to-end correlation ID across APIM and backend logs |
 
 ## 🛩️ Lab Components
 
@@ -80,6 +102,8 @@ This lab deploys and configures:
 - **Sample API & Subscriptions** - 4 subscriptions representing different business units
 - **Entra ID Tracking API** (optional) - A second API with the `emit-metric` policy that extracts `appid` from JWT tokens and emits `caller-requests` custom metrics
 - **AI Gateway Token Tracking API** (optional) - A third API with the `emit-metric` policy that parses Azure OpenAI response bodies to extract `prompt_tokens`, `completion_tokens`, and `total_tokens`, emitting `caller-tokens` custom metrics with `CallerId`, `TokenType`, and `Model` dimensions
+- **AOAI Gateway API** (optional, requires `enable_foundry`) - A fourth API that routes real Azure OpenAI chat completions through APIM using a managed-identity-authenticated backend, enabling accurate token tracking against a live model deployment
+- **Microsoft Foundry** (optional) - When `enable_foundry = True`, deploys an Azure AI Foundry Hub, Project, Azure AI Services account with a `gpt-5-mini` model deployment, and an APIM backend with managed identity authentication (`Cognitive Services OpenAI User` role)
 - **Azure Monitor Workbook** - Pre-built tabbed dashboard with:
   - **Subscription-Based Costing tab**: Cost allocation table (base + variable cost per BU), base vs variable cost stacked bar chart, cost breakdown by API, request count and distribution charts, success/error rate analysis, response code distribution, business unit drill-down
   - **Entra ID Application Costing tab**: Usage by caller ID (bar chart + table), cost allocation by caller (table + pie chart), hourly request trend by caller
@@ -178,6 +202,7 @@ To remove all resources created by this sample, open and run `clean-up.ipynb`. T
 - Application Insights, Log Analytics, Storage Account
 - Azure Monitor Workbook
 - Cost Management export
+- Microsoft Foundry Hub, Project, Azure AI Services (when `enable_foundry = True`)
 
 > The clean-up notebook does **not** delete your APIM instance or resource group.
 
@@ -194,6 +219,10 @@ To remove all resources created by this sample, open and run `clean-up.ipynb`. T
 - [Microsoft Entra ID application model](https://learn.microsoft.com/entra/identity-platform/application-model)
 - [Azure OpenAI usage and token metrics](https://learn.microsoft.com/azure/ai-services/openai/how-to/monitoring)
 - [PTU provisioned throughput concepts](https://learn.microsoft.com/azure/ai-services/openai/concepts/provisioned-throughput)
+- [Azure OpenAI streaming with usage](https://learn.microsoft.com/azure/ai-services/openai/how-to/streaming)
+- [APIM azure-openai-emit-token-metric policy](https://learn.microsoft.com/azure/api-management/azure-openai-emit-token-metric-policy)
+- [Azure AI Foundry documentation](https://learn.microsoft.com/azure/ai-studio/)
+- [Tracking every token (Tech Community blog)](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/tracking-every-token-granular-cost-and-usage-metrics-for-microsoft-foundry-agent/4503143)
 
 [infrastructure-architectures]: ../../README.md#infrastructure-architectures
 [infrastructure-folder]: ../../infrastructure/

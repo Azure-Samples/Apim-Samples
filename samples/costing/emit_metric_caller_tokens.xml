@@ -13,11 +13,29 @@
     Metrics emitted:
       - 'caller-tokens' with dimensions CallerId, TokenType, Model
         TokenType: 'prompt', 'completion', or 'total'
+      - 'token-usage-errors' (value 1) when response parsing fails
+      - 'token-usage-missing' (value 1) when no usage object is found
 
     Caller identification:
       - Uses the 'Extract-CallerId' policy fragment to read appid / azp
         from the JWT Authorization header
       - Falls back to the APIM subscription ID if no JWT is present
+
+    Context propagation:
+      - Injects x-business-unit header (= callerId) so downstream
+        services (Foundry, AOAI) can correlate with APIM without client help.
+      - Injects x-ms-client-request-id header (= APIM request ID) for
+        end-to-end correlation in Application Insights.
+
+    Streaming support:
+      For non-streaming responses (application/json), the policy parses the
+      standard JSON body. For streaming responses (text/event-stream / SSE),
+      it finds the final data chunk that contains the 'usage' object. This
+      requires stream_options.include_usage = true on the AOAI request.
+
+      NOTE: The outbound policy buffers streaming responses to extract token
+      counts. In production, consider using the built-in
+      azure-openai-emit-token-metric policy for zero-impact streaming.
 
     Response parsing:
       Azure OpenAI responses include a 'usage' object:
@@ -48,6 +66,14 @@
             <dimension name="API" value="@(context.Api.Name)" />
             <dimension name="Operation" value="@(context.Operation.Name)" />
         </emit-metric>
+        <!-- Propagate caller identity to downstream services (Foundry / AOAI) -->
+        <set-header name="x-business-unit" exists-action="override">
+            <value>@((string)context.Variables["callerId"])</value>
+        </set-header>
+        <!-- Propagate APIM request ID for end-to-end correlation in App Insights -->
+        <set-header name="x-ms-client-request-id" exists-action="skip">
+            <value>@(context.RequestId.ToString())</value>
+        </set-header>
     </inbound>
     <backend>
         <base />
@@ -55,14 +81,36 @@
     <outbound>
         <base />
         <!--
-            Parse the response body once to extract token usage.
+            Parse the response body to extract token usage.
+            Handles both standard JSON and streaming (SSE) responses.
             Uses preserveContent: true so the original body is still
             returned to the client unmodified.
         -->
         <set-variable name="parsedResponse" value="@{
             try {
-                return Newtonsoft.Json.Linq.JObject.Parse(
-                    context.Response.Body.As<string>(preserveContent: true));
+                var rawBody = context.Response.Body.As<string>(preserveContent: true);
+                var contentType = context.Response.Headers.GetValueOrDefault("Content-Type", "");
+
+                if (contentType.Contains("event-stream")) {
+                    // SSE streaming response: find the last data chunk containing a usage object.
+                    // Azure OpenAI includes usage in the final chunk when stream_options.include_usage = true.
+                    var lines = rawBody.Split('\n');
+                    for (int i = lines.Length - 1; i >= 0; i--) {
+                        var line = lines[i].Trim();
+                        if (line.StartsWith("data: {")) {
+                            try {
+                                var candidate = Newtonsoft.Json.Linq.JObject.Parse(line.Substring(6));
+                                if (candidate["usage"] != null) {
+                                    return candidate;
+                                }
+                            } catch { }
+                        }
+                    }
+                    return new Newtonsoft.Json.Linq.JObject();
+                } else {
+                    // Standard JSON response
+                    return Newtonsoft.Json.Linq.JObject.Parse(rawBody);
+                }
             } catch {
                 return new Newtonsoft.Json.Linq.JObject();
             }
@@ -76,7 +124,7 @@
         <!--
             Extract token counts and emit metrics only when the response
             contains real token statistics. Requests without a 'usage'
-            object are silently skipped.
+            object emit a 'token-usage-missing' counter for observability.
         -->
         <choose>
             <when condition="@((bool)context.Variables["hasUsage"])">
@@ -113,9 +161,22 @@
                     <dimension name="Model" value="@((string)context.Variables["modelName"])" />
                 </emit-metric>
             </when>
+            <otherwise>
+                <!-- No usage object found: emit observability counter -->
+                <emit-metric name="token-usage-missing" value="1" namespace="apim-costing">
+                    <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
+                    <dimension name="API" value="@(context.Api.Name)" />
+                </emit-metric>
+            </otherwise>
         </choose>
     </outbound>
     <on-error>
         <base />
+        <!-- Emit error counter when outbound processing fails -->
+        <emit-metric name="token-usage-errors" value="1" namespace="apim-costing">
+            <dimension name="CallerId" value="@(context.Variables.ContainsKey("callerId") ? (string)context.Variables["callerId"] : "unknown")" />
+            <dimension name="API" value="@(context.Api.Name)" />
+            <dimension name="StatusCode" value="@(context.Response.StatusCode.ToString())" />
+        </emit-metric>
     </on-error>
 </policies>
