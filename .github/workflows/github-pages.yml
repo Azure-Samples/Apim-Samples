@@ -26,6 +26,9 @@ on:
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 # Only one Pages deployment at a time. Newer pushes supersede in-flight ones,
 # but do not cancel a deploy that is already rolling out.
 concurrency:

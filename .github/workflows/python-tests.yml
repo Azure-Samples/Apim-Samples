@@ -20,6 +20,7 @@ jobs:
       checks: write          # EnricoMi/publish-unit-test-result-action
       pull-requests: write   # marocchino/sticky-pull-request-comment
     env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
       PYTHONPATH: ${{ github.workspace }}/shared/python:${{ github.workspace }}
     strategy:
       matrix:

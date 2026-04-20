@@ -29,6 +29,8 @@ jobs:
       security-events: write
       # Needed to publish results to api.scorecard.dev (powers the badge).
       id-token: write
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
     steps:
       - name: Checkout code
