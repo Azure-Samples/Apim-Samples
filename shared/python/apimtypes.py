@@ -508,6 +508,7 @@ class API:
     productNames: Optional[List[str]] = None
     subscriptionRequired: bool = True
     serviceUrl: Optional[str] = None
+    enableLlmLogging: bool = False
 
     # ------------------------------
     #    CONSTRUCTOR
@@ -525,6 +526,7 @@ class API:
         productNames: Optional[List[str]] = None,
         subscriptionRequired: bool = True,
         serviceUrl: Optional[str] = None,
+        enableLlmLogging: bool = False,
     ):
         self.name = name
         self.displayName = displayName
@@ -536,6 +538,7 @@ class API:
         self.productNames = productNames if productNames is not None else []
         self.serviceUrl = serviceUrl
         self.subscriptionRequired = subscriptionRequired
+        self.enableLlmLogging = enableLlmLogging
 
     # ------------------------------
     #    PUBLIC METHODS
@@ -554,6 +557,7 @@ class API:
             'policyXml': self.policyXml,
             'tags': self.tags,
             'productNames': self.productNames,
+            'enableLlmLogging': self.enableLlmLogging,
         }
 
 

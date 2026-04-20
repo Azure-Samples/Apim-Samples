@@ -1,12 +1,18 @@
 """Unit tests for the console module."""
 
 import logging
+import re
 import threading
 
 import console
 
 # APIM Samples imports
 from test_helpers import capture_console_output as capture_output
+
+
+def _strip_ansi(text: str) -> str:
+    """Remove ANSI escape sequences from text."""
+    return re.sub(r'\x1b\[[0-9;]*m', '', text)
 
 
 # ------------------------------
@@ -653,3 +659,196 @@ def test_get_console_width_too_small(monkeypatch):
     monkeypatch.setenv('APIM_SAMPLES_CONSOLE_WIDTH', '10')
     width = console._get_console_width()
     assert width == console._DEFAULT_CONSOLE_WIDTH
+
+
+# ------------------------------
+#    TableLogger TESTS
+# ------------------------------
+
+
+def test_table_logger_basic():
+    """Test TableLogger with fixed-width columns and data rows."""
+    table = console.TableLogger()
+    table.header(console.Column('Name', width=10), console.Column('Count', width=8, align='>'))
+    table.populate([['Alice', 42], ['Bob', 7]])
+    table.total('TOTAL', 49)
+
+    output = capture_output(table.print)
+    assert 'Name' in output
+    assert 'Count' in output
+    assert 'Alice' in output
+    assert 'Bob' in output
+    assert 'TOTAL' in output
+    assert '49' in output
+    # Verify dash separators are present
+    assert '----------' in output
+
+
+def test_table_logger_auto_width():
+    """Test TableLogger auto-calculates column widths from data."""
+    table = console.TableLogger()
+    table.header(console.Column('Short'), console.Column('LongerColumn'))
+    table.populate([['a', 'b'], ['longer-value', 'x']])
+
+    output = capture_output(table.print)
+    clean = _strip_ansi(output)
+    lines = [line for line in clean.splitlines() if line.strip()]
+    # Header line should pad 'Short' to at least len('longer-value') = 12
+    header_line = lines[0]
+    assert 'Short' in header_line
+    assert 'LongerColumn' in header_line
+
+
+def test_table_logger_auto_width_from_total():
+    """Test that auto-width accounts for total row values."""
+    table = console.TableLogger()
+    table.header(console.Column('X'))
+    table.populate([['ab']])
+    table.total('GRAND TOTAL')
+
+    output = capture_output(table.print)
+    clean = _strip_ansi(output)
+    lines = [line for line in clean.splitlines() if line.strip()]
+    # Separator lines contain only dashes and spaces
+    separator_lines = [line for line in lines if set(line.strip()) <= {'-', ' '} and '-' in line]
+    assert len(separator_lines) >= 1
+    # Total separator dashes should span at least len('GRAND TOTAL') + buffer = 13
+    dash_count = separator_lines[0].count('-')
+    assert dash_count >= 13
+
+
+def test_table_logger_right_alignment():
+    """Test right-aligned columns format values correctly."""
+    table = console.TableLogger()
+    table.header(console.Column('Name'), console.Column('Value', align='>'))
+    table.populate([['Alice', 42]])
+
+    output = capture_output(table.print)
+    # '42' should be right-aligned, so there should be spaces before it
+    for line in output.splitlines():
+        if '42' in line:
+            idx = line.index('42')
+            assert idx > 0
+            break
+
+
+def test_table_logger_fixed_width_right_align():
+    """Test fixed-width right-aligned column."""
+    table = console.TableLogger()
+    table.header(console.Column('Count', width=10, align='>'))
+    table.populate([[5]])
+
+    output = capture_output(table.print)
+    clean = _strip_ansi(output)
+    lines = [line for line in clean.splitlines() if line.strip()]
+    # Separator should contain exactly 10 dashes (single column, no spaces)
+    separator_lines = [line for line in lines if set(line.strip()) <= {'-', ' '} and '-' in line]
+    assert separator_lines[0].strip() == '-' * 10
+
+
+def test_table_logger_no_total():
+    """Test TableLogger without a total row."""
+    table = console.TableLogger()
+    table.header(console.Column('A'), console.Column('B'))
+    table.populate([['x', 'y']])
+
+    output = capture_output(table.print)
+    clean = _strip_ansi(output)
+    lines = [line for line in clean.splitlines() if line.strip()]
+    separator_count = sum(1 for line in lines if set(line.strip()) <= {'-', ' '} and '-' in line)
+    # Only one separator (below header), no total separator
+    assert separator_count == 1
+
+
+def test_table_logger_with_total():
+    """Test TableLogger with a total row adds a second separator."""
+    table = console.TableLogger()
+    table.header(console.Column('A'), console.Column('B'))
+    table.populate([['x', 'y']])
+    table.total('TOTAL', 'z')
+
+    output = capture_output(table.print)
+    clean = _strip_ansi(output)
+    lines = [line for line in clean.splitlines() if line.strip()]
+    separator_count = sum(1 for line in lines if set(line.strip()) <= {'-', ' '} and '-' in line)
+    # Two separators: below header and above total
+    assert separator_count == 2
+
+
+def test_table_logger_indent():
+    """Test that all rows are indented with 2 spaces."""
+    table = console.TableLogger()
+    table.header(console.Column('Col'))
+    table.populate([['val']])
+
+    output = capture_output(table.print)
+    clean = _strip_ansi(output)
+    for line in clean.splitlines():
+        if line.strip():
+            assert line.startswith('  '), f'Line not indented: {line!r}'
+
+
+def test_table_logger_empty_columns():
+    """Test that print() does nothing when no columns are defined."""
+    table = console.TableLogger()
+    output = capture_output(table.print)
+    assert output.strip() == ''
+
+
+def test_table_logger_empty_populate():
+    """Test TableLogger with header but no data rows."""
+    table = console.TableLogger()
+    table.header(console.Column('A'), console.Column('B'))
+    table.populate([])
+
+    output = capture_output(table.print)
+    clean = _strip_ansi(output)
+    lines = [line for line in clean.splitlines() if line.strip()]
+    # Header + separator only
+    assert len(lines) == 2
+
+
+def test_table_logger_mixed_column_specs():
+    """Test TableLogger with various column specification formats."""
+    table = console.TableLogger()
+    table.header(
+        console.Column('Auto'),  # auto-width, left
+        console.Column('Right', align='>'),  # auto-width, right
+        console.Column('Fixed', width=15),  # fixed-width, left
+        console.Column('FixRight', width=12, align='>'),  # fixed-width, right
+    )
+    table.populate([['a', 'b', 'c', 'd']])
+
+    output = capture_output(table.print)
+    assert 'Auto' in output
+    assert 'Right' in output
+    assert 'Fixed' in output
+    assert 'FixRight' in output
+
+
+def test_table_logger_fewer_values_than_columns():
+    """Test that rows with fewer values than columns fill with empty strings."""
+    table = console.TableLogger()
+    table.header(console.Column('A'), console.Column('B'), console.Column('C'))
+    table.populate([['only-one']])
+
+    output = capture_output(table.print)
+    assert 'only-one' in output
+
+
+def test_table_logger_preformatted_floats():
+    """Test that pre-formatted float strings are handled correctly."""
+    table = console.TableLogger()
+    table.header(console.Column('Name'), console.Column('Weight', align='>'), console.Column('Count', align='>'))
+    table.populate(
+        [
+            ['Alice', '3.5', 10],
+            ['Bob', '1.2', 20],
+        ]
+    )
+    table.total('TOTAL', '', 30)
+
+    output = capture_output(table.print)
+    assert '3.5' in output
+    assert '1.2' in output
+    assert '30' in output

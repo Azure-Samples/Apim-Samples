@@ -134,13 +134,14 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
   ]
 }]
 
-// Create subscriptions for different business units
+// Create subscriptions for different business units (service-level scope so each
+// BU subscription works across all APIs, including the AOAI gateway)
 resource subscriptions 'Microsoft.ApiManagement/service/subscriptions@2024-06-01-preview' = [for bu in businessUnits: {
   name: bu.name
   parent: apimService
   properties: {
     displayName: bu.displayName
-    scope: '/apis/${apis[0].name}'
+    scope: '/apis'
     state: 'active'
   }
   dependsOn: [

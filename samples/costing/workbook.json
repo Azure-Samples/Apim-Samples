@@ -860,12 +860,12 @@
                     "paramValidationRules": [
                       {
                         "match": true,
-                        "message": "Enter a valid number (e.g. 60000)",
+                        "message": "Enter a valid number (e.g. 10000)",
                         "regExp": "^\\d+$"
                       }
                     ]
                   },
-                  "value": "60000",
+                  "value": "10000",
                   "version": "KqlParameterItem/1.0"
                 }
               ],
@@ -998,7 +998,7 @@
                     "timeContext": {
                       "durationMs": 2592000000
                     },
-                    "title": "Estimated Cost Share by Business Unit",
+                    "title": "Estimated Cost Share by Business Unit (USD)",
                     "noDataMessage": "No LLM diagnostic data found.",
                     "version": "KqlItem/1.0",
                     "visualization": "piechart"
@@ -1098,7 +1098,7 @@
               "items": [
                 {
                   "content": {
-                    "json": "Per-model breakdown showing which AI models each business uniess unit is consuming. Useful when multiple models (GPT-4o, GPT-4o-mini, etc.) are served through the same APIM gateway."
+                    "json": "Per-model breakdown showing which AI models each business unit is consuming. Useful when multiple models (GPT-4o, GPT-4o-mini, etc.) are served through the same APIM gateway."
                   },
                   "name": "text - model-breakdown-description",
                   "type": 1
@@ -1114,6 +1114,7 @@
                     },
                     "title": "Token Usage by Business Unit & Model",
                     "noDataMessage": "No LLM diagnostic data found.",
+                    "version": "KqlItem/1.0",
                     "visualization": "table",
                     "gridSettings": {
                       "formatters": [
