@@ -1,0 +1,39 @@
+// Aggregates per-business-unit token consumption by joining the
+// ApiManagementGatewayLlmLog (token counts) with
+// ApiManagementGatewayLogs (APIM subscription ID = BU key)
+// via CorrelationId.
+//
+// Requires the 'Logs related to generative AI gateway' diagnostic
+// setting to be enabled on the APIM instance.
+//
+// Parameters (prepend as KQL 'let' bindings before running):
+//   let timeWindow = 24h;     // How far back to look (e.g. 1h, 24h, 7d)
+//
+ApiManagementGatewayLlmLog
+| where TimeGenerated > ago(timeWindow)
+| where TotalTokens > 0
+| project
+    CorrelationId,
+    TimeGenerated,
+    PromptTokens,
+    CompletionTokens,
+    TotalTokens,
+    ModelName,
+    IsStreamCompletion
+| join kind=inner (
+    ApiManagementGatewayLogs
+    | where TimeGenerated > ago(timeWindow)
+    | project
+        CorrelationId,
+        BusinessUnit = ApimSubscriptionId,
+        ApiId,
+        OperationId
+) on CorrelationId
+| summarize
+    TotalPromptTokens     = sum(PromptTokens),
+    TotalCompletionTokens = sum(CompletionTokens),
+    TotalTokens           = sum(TotalTokens),
+    Requests              = count(),
+    StreamingRequests     = countif(IsStreamCompletion == true)
+    by BusinessUnit, ModelName
+| order by TotalTokens desc

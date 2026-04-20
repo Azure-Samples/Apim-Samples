@@ -1,6 +1,6 @@
 # Samples: APIM Costing & Showback
 
-This sample demonstrates how to track and allocate API costs using Azure API Management with Azure Monitor, Application Insights, Log Analytics, and Cost Management. It supports three complementary approaches: **subscription-based** tracking (using APIM subscription keys), **Entra ID application** tracking (using the `emit-metric` policy with JWT `appid` claims), and **AI Gateway token/PTU** tracking (using the `emit-metric` policy to capture per-client token consumption when APIM acts as an AI Gateway). All approaches share a single Azure Monitor Workbook with tabbed views.
+This sample demonstrates how to track and allocate API costs using Azure API Management with Azure Monitor, Application Insights, Log Analytics, and Cost Management. It supports three complementary approaches: **subscription-based** tracking (using APIM subscription keys), **Entra ID application** tracking (using the `emit-metric` policy with JWT `appid` claims), and **AI Gateway token/PTU** tracking (using the `ApiManagementGatewayLlmLog` diagnostic to capture per-request token consumption when APIM acts as an AI Gateway, joined with `ApiManagementGatewayLogs` on `CorrelationId` for business unit attribution). All approaches share a single Azure Monitor Workbook with tabbed views.
 
 ⚙️ **Supported infrastructures**: All infrastructures (or bring your own existing APIM deployment)
 
@@ -26,12 +26,12 @@ Beyond the [general prerequisites](../../README.md#-getting-started) (Azure subs
 
 The signed-in user needs the following role assignments:
 
-| Role                              | Scope           | Purpose                                                                                      |
-| --------------------------------- | --------------- | -------------------------------------------------------------------------------------------- |
-| **Contributor**                   | Resource Group  | Deploy Bicep resources (App Insights, Log Analytics, Storage, Workbook, Diagnostic Settings) |
-| **Cost Management Contributor**   | Subscription    | Create Cost Management export                                                                |
-| **Storage Blob Data Contributor** | Storage Account | Write cost export data (auto-assigned by the notebook)                                       |
-| **Cognitive Services Contributor** | Resource Group  | Deploy Azure AI Services when `enable_foundry = True` (not needed for mock path)            |
+| Role                               | Scope           | Purpose                                                                                      |
+| ---------------------------------- | --------------- | -------------------------------------------------------------------------------------------- |
+| **Contributor**                    | Resource Group  | Deploy Bicep resources (App Insights, Log Analytics, Storage, Workbook, Diagnostic Settings) |
+| **Cost Management Contributor**    | Subscription    | Create Cost Management export                                                                |
+| **Storage Blob Data Contributor**  | Storage Account | Write cost export data (auto-assigned by the notebook)                                       |
+| **Cognitive Services Contributor** | Resource Group  | Deploy Azure AI Services when `enable_foundry = True` (not needed for mock path)             |
 
 ### For Workbook Consumers
 
@@ -62,9 +62,9 @@ This sample focuses on **producing cost data**, not implementing billing process
 | Aspect                     | Subscription-Based                           | Entra ID Application                                 | AI Gateway Token/PTU                                       |
 | -------------------------- | -------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------- |
 | **Caller identification**  | APIM subscription key (`ApimSubscriptionId`) | JWT `appid`/`azp` claim                              | JWT `appid`/`azp` claim                                    |
-| **Data source**            | `ApiManagementGatewayLogs` in Log Analytics  | `customMetrics` in Application Insights              | `customMetrics` in Application Insights                    |
-| **Tracking mechanism**     | Built-in APIM logging                        | `emit-metric` policy                                 | `emit-metric` policy (outbound response parsing)           |
-| **Metric name**            | N/A (built-in logs)                          | `caller-requests`                                    | `caller-tokens`                                            |
+| **Data source**            | `ApiManagementGatewayLogs` in Log Analytics  | `customMetrics` in Application Insights              | `ApiManagementGatewayLlmLog` in Log Analytics              |
+| **Tracking mechanism**     | Built-in APIM logging                        | `emit-metric` policy                                 | APIM diagnostic setting (zero-buffering)                   |
+| **Metric name**            | N/A (built-in logs)                          | `caller-requests`                                    | N/A (per-request diagnostic log)                           |
 | **Cost Management export** | Yes (storage account)                        | No (metrics-based)                                   | No (metrics-based)                                         |
 | **Best for**               | Dedicated subscriptions per BU               | OAuth client-credentials flows, shared subscriptions | AI Gateway scenarios (Azure OpenAI, PTU capacity planning) |
 
@@ -72,14 +72,12 @@ All three approaches are deployed together. Toggle `enable_entraid_tracking` and
 
 ### Streaming Support
 
-When `enable_foundry = True`, the notebook demonstrates both non-streaming and streaming (SSE) chat completions. The `emit_metric_caller_tokens.xml` policy includes streaming-aware token extraction:
+When `enable_foundry = True`, the notebook demonstrates both non-streaming and streaming (SSE) chat completions. The `emit_metric_caller_tokens.xml` policy ensures accurate token tracking for streaming by injecting `stream_options.include_usage = true` into the request (when `force_stream_include_usage` is enabled). Token counts are captured by the APIM `ApiManagementGatewayLlmLog` diagnostic setting with zero response buffering.
 
-- **Non-streaming**: Parses the standard JSON `usage` object from the response body
-- **Streaming (SSE)**: Reverse-scans SSE `data:` lines for the final chunk containing the `usage` object (requires `stream_options.include_usage = true` in the request)
+- **Non-streaming**: The gateway logs exact token counts from the JSON response
+- **Streaming (SSE)**: The gateway reads token counts from the final SSE chunk (requires `stream_options.include_usage = true`)
 
-> **Buffering trade-off**: The outbound policy buffers the full streaming response to extract tokens. This adds latency proportional to response size. In production, consider the built-in [`azure-openai-emit-token-metric`](https://learn.microsoft.com/azure/api-management/azure-openai-emit-token-metric-policy) policy, which extracts tokens without buffering.
-
-> **Double-counting warning**: Do NOT enable both the custom `emit-metric` token tracking in this sample AND the built-in `azure-openai-emit-token-metric` policy on the same API. Each emits its own metric entries; combining them produces duplicate counts in your dashboards.
+> **Business unit attribution**: Join `ApiManagementGatewayLlmLog` with `ApiManagementGatewayLogs` on `CorrelationId` to map token counts to `ApimSubscriptionId` (business unit). See `bu-token-usage.kql` for a ready-to-use query.
 
 ### Context Propagation
 
@@ -101,7 +99,7 @@ This lab deploys and configures:
 - **Diagnostic Settings** - Links APIM to Log Analytics with `logAnalyticsDestinationType: Dedicated` for resource-specific tables
 - **Sample API & Subscriptions** - 4 subscriptions representing different business units
 - **Entra ID Tracking API** (optional) - A second API with the `emit-metric` policy that extracts `appid` from JWT tokens and emits `caller-requests` custom metrics
-- **AI Gateway Token Tracking API** (optional) - A third API with the `emit-metric` policy that parses Azure OpenAI response bodies to extract `prompt_tokens`, `completion_tokens`, and `total_tokens`, emitting `caller-tokens` custom metrics with `CallerId`, `TokenType`, and `Model` dimensions
+- **AI Gateway Token Tracking API** (optional) - A third API with inbound caller identity propagation and `stream_options.include_usage` enforcement; token counts are captured by the `ApiManagementGatewayLlmLog` diagnostic setting and correlated to business units via `CorrelationId` join with `ApiManagementGatewayLogs`
 - **AOAI Gateway API** (optional, requires `enable_foundry`) - A fourth API that routes real Azure OpenAI chat completions through APIM using a managed-identity-authenticated backend, enabling accurate token tracking against a live model deployment
 - **Microsoft Foundry** (optional) - When `enable_foundry = True`, deploys an Azure AI Foundry Hub, Project, Azure AI Services account with a `gpt-5-mini` model deployment, and an APIM backend with managed identity authentication (`Cognitive Services OpenAI User` role)
 - **Azure Monitor Workbook** - Pre-built tabbed dashboard with:
@@ -184,7 +182,7 @@ The Entra ID tab shows cost attribution by calling application, using the `emit-
 
 ### AI Gateway Token/PTU Tab
 
-The AI Gateway tab shows per-client token consumption and estimated costs when APIM is used as an AI Gateway in front of Azure OpenAI or other LLM backends. It uses the `emit-metric` policy's `caller-tokens` custom metric with `CallerId`, `TokenType` (prompt/completion/total), and `Model` dimensions.
+The AI Gateway tab shows per-client token consumption and estimated costs when APIM is used as an AI Gateway in front of Azure OpenAI or other LLM backends. It uses the `ApiManagementGatewayLlmLog` diagnostic data (PromptTokens, CompletionTokens, TotalTokens, ModelName) joined with `ApiManagementGatewayLogs` via `CorrelationId` for `ApimSubscriptionId`-based business unit attribution.
 
 ![AI Gateway - Token Consumption by Client](screenshots/AIGateway-01.png)
 

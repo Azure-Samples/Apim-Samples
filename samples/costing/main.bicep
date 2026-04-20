@@ -117,7 +117,7 @@ module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.
 
 // APIM APIs
 // Use the costing sample's own App Insights logger so that emit-metric
-// custom metrics (caller-requests, caller-tokens) flow to the costing
+// custom metrics (caller-requests) flow to the costing
 // App Insights resource instead of the infrastructure-level one.
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(!empty(apis)) {
   name: 'api-${api.name}'
@@ -228,6 +228,7 @@ module apimDiagnosticsModule '../../shared/bicep/modules/apim/v1/diagnostics.bic
     appInsightsInstrumentationKey: appInsightsInstrKey
     appInsightsResourceId: appInsightsResourceId
     diagnosticSettingsNameSuffix: diagnosticSettingsNameSuffix
+    enableLlmLogs: enableFoundry
   }
 }
 

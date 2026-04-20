@@ -189,6 +189,8 @@ Assert that the deployment was successful by making calls to the deployed APIs.
 
 ### Cell 6: Python - Verification
 
+Use `ApimRequests` and `ApimTesting` for structured test verification with verbose logging. If the sample also needs **traffic generation loops** (multi-caller simulation, load generation, etc.), add separate cells that use `requests.Session()` instead — see the "Testing and Traffic Generation" section in `copilot-instructions.md` for the session pattern.
+
 ```python
 from apimrequests import ApimRequests
 from apimtesting import ApimTesting

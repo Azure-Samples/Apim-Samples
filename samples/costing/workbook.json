@@ -867,16 +867,6 @@
                   },
                   "value": "60000",
                   "version": "KqlParameterItem/1.0"
-                },
-                {
-                  "id": "a1b2c3d4-e5f6-7890-abcd-200000000004",
-                  "isHiddenWhenLocked": true,
-                  "label": "App ID Names (JSON)",
-                  "name": "AppIdNamesToken",
-                  "type": 1,
-                  "description": "Optional JSON mapping of App IDs to friendly names.",
-                  "value": "{}",
-                  "version": "KqlParameterItem/1.0"
                 }
               ],
               "queryType": 0,
@@ -889,7 +879,7 @@
           },
           {
             "content": {
-              "json": "## AI Gateway: Token & PTU Consumption per Client\n\nWhen APIM is used as an **AI Gateway**, built-in model-level metrics (PTU utilization, token counts) do not break down by client. This tab fills that gap using `caller-tokens` custom metrics emitted by the `emit-metric` policy.\n\n| Parameter | Description |\n|---|---|\n| **Cost per 1K Prompt Tokens** | Rate for input/prompt tokens (from your Azure OpenAI pricing) |\n| **Cost per 1K Completion Tokens** | Rate for output/completion tokens |\n| **PTU Capacity** | Your provisioned throughput unit capacity in tokens/minute (for utilization %) |\n\n> Rates default to approximate GPT-4o pricing. Adjust to match your model and region."
+              "json": "## AI Gateway: Token & PTU Consumption per Business Unit\n\nWhen APIM is used as an **AI Gateway**, built-in model-level metrics (PTU utilization, token counts) do not break down by caller. This tab fills that gap using `ApiManagementGatewayLlmLog` diagnostic data, joined with `ApiManagementGatewayLogs` to attribute token consumption to APIM subscriptions (business units).\n\n| Parameter | Description |\n|---|---|\n| **Cost per 1K Prompt Tokens** | Rate for input/prompt tokens (from your Azure OpenAI pricing) |\n| **Cost per 1K Completion Tokens** | Rate for output/completion tokens |\n| **PTU Capacity** | Your provisioned throughput unit capacity in tokens/minute (for utilization %) |\n\n> Rates default to approximate GPT-4o pricing. Adjust to match your model and region. Requires the `GatewayLlmLogs` diagnostic category to be enabled."
             },
             "name": "text - header-aigateway",
             "type": 1
@@ -911,16 +901,15 @@
                         "min": 0
                       }
                     },
-                    "query": "let appNames = parse_json('{AppIdNamesToken}');\napp(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-tokens'\n| extend CallerId = tostring(customDimensions.CallerId)\n| extend TokenType = tostring(customDimensions.TokenType)\n| where isnotempty(CallerId) and TokenType != 'total'\n| summarize Tokens = sum(value) by CallerId, TokenType\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| project Caller, TokenType, Tokens\n| evaluate pivot(TokenType, sum(Tokens))\n| project Caller, PromptTokens = column_ifexists('prompt', 0.0), CompletionTokens = column_ifexists('completion', 0.0)\n| order by PromptTokens + CompletionTokens desc",
+                    "query": "ApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0\n| join kind=inner (\n    ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\n    | project CorrelationId, BusinessUnit = ApimSubscriptionId\n) on CorrelationId\n| summarize PromptTokens = sum(PromptTokens), CompletionTokens = sum(CompletionTokens) by BusinessUnit\n| order by PromptTokens + CompletionTokens desc",
                     "queryType": 0,
                     "resourceType": "microsoft.operationalinsights/workspaces",
                     "size": 1,
                     "timeContext": {
-                      "durationMs": 0
+                      "durationMs": 2592000000
                     },
-                    "timeContextFromParameter": "TimeRange",
-                    "title": "Token Consumption by Client (Prompt vs Completion)",
-                    "noDataMessage": "No caller-tokens metrics found. Ensure the token tracking policy is deployed.",
+                    "title": "Token Consumption by Business Unit (Prompt vs Completion)",
+                    "noDataMessage": "No LLM diagnostic data found. Ensure the GatewayLlmLogs diagnostic category is enabled.",
                     "version": "KqlItem/1.0",
                     "visualization": "barchart"
                   },
@@ -929,16 +918,15 @@
                 },
                 {
                   "content": {
-                    "query": "let appNames = parse_json('{AppIdNamesToken}');\nlet promptRate = todouble('{PromptTokenRate}');\nlet completionRate = todouble('{CompletionTokenRate}');\napp(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-tokens'\n| extend CallerId = tostring(customDimensions.CallerId)\n| extend TokenType = tostring(customDimensions.TokenType)\n| extend Model = tostring(customDimensions.Model)\n| where isnotempty(CallerId)\n| summarize Tokens = sum(value), Requests = count() by CallerId, TokenType, Model\n| evaluate pivot(TokenType, sum(Tokens))\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| extend PromptTokens = column_ifexists('prompt', 0.0)\n| extend CompletionTokens = column_ifexists('completion', 0.0)\n| extend TotalTokens = column_ifexists('total', 0.0)\n| extend PromptCost = round(PromptTokens * promptRate / 1000.0, 4)\n| extend CompletionCost = round(CompletionTokens * completionRate / 1000.0, 4)\n| extend TotalCost = round(PromptCost + CompletionCost, 4)\n| order by TotalCost desc\n| project Caller, Model, PromptTokens, CompletionTokens, TotalTokens, ['Prompt Cost ($)'] = PromptCost, ['Completion Cost ($)'] = CompletionCost, ['Total Cost ($)'] = TotalCost",
+                    "query": "let promptRate = todouble('{PromptTokenRate}');\nlet completionRate = todouble('{CompletionTokenRate}');\nApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0\n| join kind=inner (\n    ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\n    | project CorrelationId, BusinessUnit = ApimSubscriptionId\n) on CorrelationId\n| summarize\n    PromptTokens = sum(PromptTokens),\n    CompletionTokens = sum(CompletionTokens),\n    TotalTokens = sum(TotalTokens),\n    Requests = count()\n    by BusinessUnit, ModelName\n| extend PromptCost = round(PromptTokens * promptRate / 1000.0, 4)\n| extend CompletionCost = round(CompletionTokens * completionRate / 1000.0, 4)\n| extend TotalCost = round(PromptCost + CompletionCost, 4)\n| order by TotalCost desc\n| project\n    ['Business Unit'] = BusinessUnit,\n    Model = ModelName,\n    PromptTokens,\n    CompletionTokens,\n    TotalTokens,\n    Requests,\n    ['Prompt Cost ($)'] = PromptCost,\n    ['Completion Cost ($)'] = CompletionCost,\n    ['Total Cost ($)'] = TotalCost",
                     "queryType": 0,
                     "resourceType": "microsoft.operationalinsights/workspaces",
                     "size": 0,
                     "timeContext": {
-                      "durationMs": 0
+                      "durationMs": 2592000000
                     },
-                    "timeContextFromParameter": "TimeRange",
-                    "title": "Token Cost Allocation by Client & Model",
-                    "noDataMessage": "No caller-tokens metrics found.",
+                    "title": "Token Cost Allocation by Business Unit & Model",
+                    "noDataMessage": "No LLM diagnostic data found.",
                     "version": "KqlItem/1.0",
                     "visualization": "table",
                     "gridSettings": {
@@ -981,16 +969,15 @@
               "items": [
                 {
                   "content": {
-                    "query": "let appNames = parse_json('{AppIdNamesToken}');\napp(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-tokens'\n| extend CallerId = tostring(customDimensions.CallerId)\n| extend TokenType = tostring(customDimensions.TokenType)\n| where isnotempty(CallerId) and TokenType == 'total'\n| summarize TotalTokens = sum(value) by CallerId\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| project Caller, TotalTokens\n| order by TotalTokens desc",
+                    "query": "ApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0\n| join kind=inner (\n    ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\n    | project CorrelationId, BusinessUnit = ApimSubscriptionId\n) on CorrelationId\n| summarize TotalTokens = sum(TotalTokens) by BusinessUnit\n| order by TotalTokens desc",
                     "queryType": 0,
                     "resourceType": "microsoft.operationalinsights/workspaces",
                     "size": 1,
                     "timeContext": {
-                      "durationMs": 0
+                      "durationMs": 2592000000
                     },
-                    "timeContextFromParameter": "TimeRange",
-                    "title": "Total Token Share by Client",
-                    "noDataMessage": "No caller-tokens metrics found.",
+                    "title": "Total Token Share by Business Unit",
+                    "noDataMessage": "No LLM diagnostic data found.",
                     "version": "KqlItem/1.0",
                     "visualization": "piechart"
                   },
@@ -1004,16 +991,15 @@
                 },
                 {
                   "content": {
-                    "query": "let appNames = parse_json('{AppIdNamesToken}');\nlet promptRate = todouble('{PromptTokenRate}');\nlet completionRate = todouble('{CompletionTokenRate}');\napp(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-tokens'\n| extend CallerId = tostring(customDimensions.CallerId)\n| extend TokenType = tostring(customDimensions.TokenType)\n| where isnotempty(CallerId)\n| summarize Tokens = sum(value) by CallerId, TokenType\n| evaluate pivot(TokenType, sum(Tokens))\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| extend PromptCost = round(column_ifexists('prompt', 0.0) * promptRate / 1000.0, 4)\n| extend CompletionCost = round(column_ifexists('completion', 0.0) * completionRate / 1000.0, 4)\n| extend TotalCost = round(PromptCost + CompletionCost, 4)\n| order by TotalCost desc\n| project Caller, TotalCost",
+                    "query": "let promptRate = todouble('{PromptTokenRate}');\nlet completionRate = todouble('{CompletionTokenRate}');\nApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0\n| join kind=inner (\n    ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\n    | project CorrelationId, BusinessUnit = ApimSubscriptionId\n) on CorrelationId\n| summarize PromptTokens = sum(PromptTokens), CompletionTokens = sum(CompletionTokens) by BusinessUnit\n| extend PromptCost = round(PromptTokens * promptRate / 1000.0, 4)\n| extend CompletionCost = round(CompletionTokens * completionRate / 1000.0, 4)\n| extend TotalCost = round(PromptCost + CompletionCost, 4)\n| order by TotalCost desc\n| project BusinessUnit, TotalCost",
                     "queryType": 0,
                     "resourceType": "microsoft.operationalinsights/workspaces",
                     "size": 1,
                     "timeContext": {
-                      "durationMs": 0
+                      "durationMs": 2592000000
                     },
-                    "timeContextFromParameter": "TimeRange",
-                    "title": "Estimated Cost Share by Client",
-                    "noDataMessage": "No caller-tokens metrics found.",
+                    "title": "Estimated Cost Share by Business Unit",
+                    "noDataMessage": "No LLM diagnostic data found.",
                     "version": "KqlItem/1.0",
                     "visualization": "piechart"
                   },
@@ -1041,7 +1027,7 @@
               "items": [
                 {
                   "content": {
-                    "json": "Token consumption trend over time. Each data point shows the total tokens consumed per client in 1-hour bins. The dashed line represents the configurable PTU capacity threshold.\n\n> **PTU utilization**: If a client's hourly token rate approaches the PTU capacity, consider provisioning more throughput or applying rate limiting."
+                    "json": "Token consumption trend over time. Each data point shows the total tokens consumed per business unit in 1-hour bins. The dashed line represents the configurable PTU capacity threshold.\n\n> **PTU utilization**: If a business unit's hourly token rate approaches the PTU capacity, consider provisioning more throughput or applying rate limiting."
                   },
                   "name": "text - token-trend-description",
                   "type": 1
@@ -1055,16 +1041,15 @@
                         "min": 0
                       }
                     },
-                    "query": "let appNames = parse_json('{AppIdNamesToken}');\napp(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-tokens'\n| extend CallerId = tostring(customDimensions.CallerId)\n| extend TokenType = tostring(customDimensions.TokenType)\n| where isnotempty(CallerId) and TokenType == 'total'\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| summarize TotalTokens = sum(value) by Caller, bin(timestamp, 1h)\n| order by timestamp asc",
+                    "query": "ApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0\n| join kind=inner (\n    ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\n    | project CorrelationId, BusinessUnit = ApimSubscriptionId\n) on CorrelationId\n| summarize TotalTokens = sum(TotalTokens) by BusinessUnit, bin(TimeGenerated, 1h)\n| order by TimeGenerated asc",
                     "queryType": 0,
                     "resourceType": "microsoft.operationalinsights/workspaces",
                     "size": 0,
                     "timeContext": {
-                      "durationMs": 0
+                      "durationMs": 2592000000
                     },
-                    "timeContextFromParameter": "TimeRange",
-                    "title": "Hourly Token Consumption by Client (vs PTU Capacity)",
-                    "noDataMessage": "No caller-tokens metrics found.",
+                    "title": "Hourly Token Consumption by Business Unit (vs PTU Capacity)",
+                    "noDataMessage": "No LLM diagnostic data found.",
                     "version": "KqlItem/1.0",
                     "visualization": "timechart"
                   },
@@ -1082,16 +1067,15 @@
                         "min": 0
                       }
                     },
-                    "query": "app(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-tokens'\n| extend TokenType = tostring(customDimensions.TokenType)\n| where TokenType != 'total'\n| summarize Tokens = sum(value) by TokenType, bin(timestamp, 1h)\n| evaluate pivot(TokenType, sum(Tokens))\n| project timestamp, PromptTokens = column_ifexists('prompt', 0.0), CompletionTokens = column_ifexists('completion', 0.0)\n| order by timestamp asc",
+                    "query": "ApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0\n| summarize PromptTokens = sum(PromptTokens), CompletionTokens = sum(CompletionTokens) by bin(TimeGenerated, 1h)\n| order by TimeGenerated asc",
                     "queryType": 0,
                     "resourceType": "microsoft.operationalinsights/workspaces",
                     "size": 0,
                     "timeContext": {
-                      "durationMs": 0
+                      "durationMs": 2592000000
                     },
-                    "timeContextFromParameter": "TimeRange",
-                    "title": "Prompt vs Completion Tokens Over Time (All Clients)",
-                    "noDataMessage": "No caller-tokens metrics found.",
+                    "title": "Prompt vs Completion Tokens Over Time",
+                    "noDataMessage": "No LLM diagnostic data found.",
                     "version": "KqlItem/1.0",
                     "visualization": "areachart"
                   },
@@ -1114,24 +1098,22 @@
               "items": [
                 {
                   "content": {
-                    "json": "Per-model breakdown showing which AI models each client is consuming. Useful when multiple models (GPT-4o, GPT-4o-mini, etc.) are served through the same APIM gateway."
+                    "json": "Per-model breakdown showing which AI models each business uniess unit is consuming. Useful when multiple models (GPT-4o, GPT-4o-mini, etc.) are served through the same APIM gateway."
                   },
                   "name": "text - model-breakdown-description",
                   "type": 1
                 },
                 {
                   "content": {
-                    "query": "let appNames = parse_json('{AppIdNamesToken}');\napp(\"__APP_INSIGHTS_NAME__\").customMetrics\n| where name == 'caller-tokens'\n| extend CallerId = tostring(customDimensions.CallerId)\n| extend TokenType = tostring(customDimensions.TokenType)\n| extend Model = tostring(customDimensions.Model)\n| where isnotempty(CallerId) and TokenType == 'total'\n| summarize TotalTokens = sum(value), Requests = dcount(timestamp) by CallerId, Model\n| extend Caller = iif(isnotempty(tostring(appNames[CallerId])), strcat(tostring(appNames[CallerId]), ' (', CallerId, ')'), CallerId)\n| project Caller, Model, TotalTokens, Requests\n| order by TotalTokens desc",
+                    "query": "ApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0\n| join kind=inner (\n    ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId != ''\n    | project CorrelationId, BusinessUnit = ApimSubscriptionId\n) on CorrelationId\n| summarize TotalTokens = sum(TotalTokens), Requests = count() by BusinessUnit, ModelName\n| project ['Business Unit'] = BusinessUnit, Model = ModelName, TotalTokens, Requests\n| order by TotalTokens desc",
                     "queryType": 0,
                     "resourceType": "microsoft.operationalinsights/workspaces",
                     "size": 0,
                     "timeContext": {
-                      "durationMs": 0
+                      "durationMs": 2592000000
                     },
-                    "timeContextFromParameter": "TimeRange",
-                    "title": "Token Usage by Client & Model",
-                    "noDataMessage": "No caller-tokens metrics found.",
-                    "version": "KqlItem/1.0",
+                    "title": "Token Usage by Business Unit & Model",
+                    "noDataMessage": "No LLM diagnostic data found.",
                     "visualization": "table",
                     "gridSettings": {
                       "formatters": [

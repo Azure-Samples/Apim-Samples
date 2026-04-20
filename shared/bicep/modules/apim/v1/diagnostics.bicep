@@ -42,6 +42,9 @@ param apimLoggerName string = 'applicationinsights-logger'
 @description('Description of the APIM logger')
 param apimLoggerDescription string = 'Application Insights logger for APIM diagnostics'
 
+@description('Enable LLM diagnostic logs (GatewayLlmLogs) for AI Gateway token tracking')
+param enableLlmLogs bool = false
+
 
 // ------------------
 //    VARIABLES
@@ -80,6 +83,14 @@ resource apimDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-0
       {
         category: 'WebSocketConnectionLogs'
         enabled: true
+        retentionPolicy: {
+          enabled: false
+          days: 0
+        }
+      }
+      {
+        category: 'GatewayLlmLogs'
+        enabled: enableLlmLogs
         retentionPolicy: {
           enabled: false
           days: 0

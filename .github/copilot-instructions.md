@@ -364,11 +364,32 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 
 ### Testing and Traffic Generation
 
-- Use the `ApimRequests` and `ApimTesting` classes from `apimrequests.py` and `apimtesting.py` for all API testing and traffic generation in notebooks.
-- Do not use the `requests` library directly for calling APIM endpoints.
-- **Favour HTTP connection reuse.** When a notebook makes multiple HTTP calls to the same APIM gateway (e.g. a test matrix), create a single `requests.Session()` early and route all calls through it. This avoids repeated TCP+TLS handshakes, which can add 200-500 ms per request. Configure `session.verify` and `session.headers` once from `utils.get_endpoint()` and pass the session (or use it in helper functions) for OPTIONS, GET, and POST calls alike.
+- Use the `ApimRequests` and `ApimTesting` classes from `apimrequests.py` and `apimtesting.py` for structured API testing with verbose logging and response formatting.
+- **Favour `requests.Session()` for loops, multi-caller traffic, and any code that sends more than one HTTP request.** Creating a new `ApimRequests` instance (or a bare `requests.get/post`) inside a loop opens a fresh TCP+TLS connection on every iteration, adding 200-500 ms per request. Instead, create a single `requests.Session()` at the top of the section, configure `session.verify` and `session.headers` once from `utils.get_endpoint()`, and route all calls through it. Close the session in a `finally` block. Import as `import requests as http_requests` for clarity when the `requests` name would shadow other uses.
+- `ApimRequests` already uses a session internally for its `multiGet`/`multiPost` methods, so a single `ApimRequests` instance per loop iteration is acceptable when you need its verbose logging. However, if you only need to send requests without per-request logging, prefer a raw `requests.Session()` loop — it is simpler and avoids creating throw-away objects.
+- **One session per cell is fine.** Each notebook cell should be independently runnable, so create and close a session within the same cell rather than sharing one across cells.
 - Use `utils.get_endpoint(deployment, rg_name, apim_gateway_url)` to determine the correct endpoint URL, headers, and TLS verification flag based on the infrastructure type. `allow_insecure_tls` is returned as `True` only for Application Gateway infrastructures because they use a self-signed certificate; it defaults to `False` everywhere else.
-- Example:
+- Session pattern example (preferred for loops):
+  ```python
+  import requests as http_requests
+
+  endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(deployment, rg_name, apim_gateway_url)
+
+  session = http_requests.Session()
+  session.verify = not allow_insecure_tls
+  if request_headers:
+      session.headers.update(request_headers)
+  session.headers['Ocp-Apim-Subscription-Key'] = subscription_key
+
+  url = f'{endpoint_url}/api-path'
+
+  try:
+      for item in items:
+          session.get(url, headers={'Authorization': f'Bearer {item["token"]}'}, timeout=30)
+  finally:
+      session.close()
+  ```
+- ApimRequests example (for structured test verification with logging):
   ```python
   from apimrequests import ApimRequests
   from apimtesting import ApimTesting
