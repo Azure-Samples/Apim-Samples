@@ -26,8 +26,9 @@ labs-in-progress/
 # Misc
 *.log
 
-# Exclude sensitive or generated files
+# Exclude sensitive or generated files (except for the benign example)
 .env*
+!.env-example
 
 # Coverage data and reports
 .coverage

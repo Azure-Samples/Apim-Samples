@@ -3170,3 +3170,226 @@ def test_query_and_select_infrastructure_else_branch_with_unexpected_type(monkey
 
     assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
     assert selected_index == 2
+
+
+@pytest.mark.unit
+def test_query_and_select_infrastructure_create_new_always_behavior(monkeypatch, suppress_utils_console):
+    """Test APIM_SAMPLES_INFRA_CREATION_BEHAVIOR=create-new-always automatically creates new infrastructure."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim-1',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    monkeypatch.setenv('APIM_SAMPLES_INFRA_CREATION_BEHAVIOR', 'create-new-always')
+
+    monkeypatch.setattr(
+        az,
+        'find_infrastructure_instances',
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 5)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+    )
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+
+    created_helpers = []
+
+    class DummyInfraHelper:
+        def __init__(self, rg_location, deployment, index, apim_sku):
+            self.rg_location = rg_location
+            self.deployment = deployment
+            self.index = index
+            self.apim_sku = apim_sku
+            self.calls = []
+            created_helpers.append(self)
+
+        def create_infrastructure(self, bypass):
+            self.calls.append(bypass)
+            return True
+
+    monkeypatch.setattr(utils, 'InfrastructureNotebookHelper', DummyInfraHelper)
+
+    # User input should NOT be requested
+    input_called = []
+
+    def mock_input(prompt):
+        input_called.append(prompt)
+        raise AssertionError('input() should not be called when create-new-always is set')
+
+    monkeypatch.setattr('builtins.input', mock_input)
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
+    assert selected_index == 1
+    assert created_helpers
+    assert created_helpers[0].calls == [True]
+    assert len(input_called) == 0  # input() should not have been called
+
+
+@pytest.mark.unit
+def test_query_and_select_infrastructure_ask_always_behavior_default(monkeypatch, suppress_utils_console):
+    """Test APIM_SAMPLES_INFRA_CREATION_BEHAVIOR=ask-always (default) prompts user."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim-1',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    # Default behavior (or explicitly set to ask-always)
+    monkeypatch.setenv('APIM_SAMPLES_INFRA_CREATION_BEHAVIOR', 'ask-always')
+
+    monkeypatch.setattr(
+        az,
+        'find_infrastructure_instances',
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 5)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+    )
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+
+    # User selects existing infrastructure (option 2)
+    monkeypatch.setattr('builtins.input', lambda prompt: '2')
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
+    assert selected_index == 5
+
+
+@pytest.mark.unit
+def test_query_and_select_infrastructure_invalid_behavior_defaults_to_ask(monkeypatch, suppress_utils_console):
+    """Test invalid APIM_SAMPLES_INFRA_CREATION_BEHAVIOR value defaults to ask-always."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim-1',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    # Set to invalid value
+    monkeypatch.setenv('APIM_SAMPLES_INFRA_CREATION_BEHAVIOR', 'invalid-value')
+
+    monkeypatch.setattr(
+        az,
+        'find_infrastructure_instances',
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 5)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+    )
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+
+    # User selects existing infrastructure (option 2) - should be prompted
+    monkeypatch.setattr('builtins.input', lambda prompt: '2')
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    # Should prompt user (not auto-create) because invalid value defaults to ask-always
+    assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
+    assert selected_index == 5
+
+
+@pytest.mark.unit
+def test_query_and_select_infrastructure_create_new_always_no_existing_options(monkeypatch, suppress_utils_console):
+    """Test create-new-always when no existing infrastructures found (auto-create path)."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    monkeypatch.setenv('APIM_SAMPLES_INFRA_CREATION_BEHAVIOR', 'create-new-always')
+
+    monkeypatch.setattr(az, 'find_infrastructure_instances', lambda infra: [])
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+
+    created_helpers = []
+
+    class DummyInfraHelper:
+        def __init__(self, rg_location, deployment, index, apim_sku):
+            self.rg_location = rg_location
+            self.deployment = deployment
+            self.index = index
+            self.apim_sku = apim_sku
+            self.calls = []
+            created_helpers.append(self)
+
+        def create_infrastructure(self, bypass):
+            self.calls.append(bypass)
+            return True
+
+    monkeypatch.setattr(utils, 'InfrastructureNotebookHelper', DummyInfraHelper)
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    # Should create infrastructure automatically
+    assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
+    assert selected_index is None
+    assert created_helpers
+    assert created_helpers[0].calls == [True]
+
+
+@pytest.mark.unit
+def test_query_and_select_infrastructure_create_new_always_failure(monkeypatch, suppress_utils_console):
+    """Test create-new-always when infrastructure creation fails."""
+    nb_helper = utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim-1',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+    monkeypatch.setenv('APIM_SAMPLES_INFRA_CREATION_BEHAVIOR', 'create-new-always')
+
+    monkeypatch.setattr(
+        az,
+        'find_infrastructure_instances',
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 5)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+    )
+    monkeypatch.setattr(
+        az,
+        'get_infra_rg_name',
+        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
+    )
+
+    created_helpers = []
+
+    class DummyInfraHelper:
+        def __init__(self, rg_location, deployment, index, apim_sku):
+            self.rg_location = rg_location
+            self.deployment = deployment
+            self.index = index
+            self.apim_sku = apim_sku
+            self.calls = []
+            created_helpers.append(self)
+
+        def create_infrastructure(self, bypass):
+            self.calls.append(bypass)
+            return False  # Simulate failure
+
+    monkeypatch.setattr(utils, 'InfrastructureNotebookHelper', DummyInfraHelper)
+
+    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
+
+    assert selected_infra is None
+    assert selected_index is None
+    assert created_helpers
+    assert created_helpers[0].calls == [True]

@@ -448,6 +448,28 @@ class NotebookHelper:
 
         print_plain('')
 
+        # Check the infrastructure creation behavior setting
+        infra_creation_behavior = os.getenv('APIM_SAMPLES_INFRA_CREATION_BEHAVIOR', 'ask-always').lower()
+
+        # If behavior is set to always create new and there are existing options, automatically select create_new (option 1)
+        if infra_creation_behavior == 'create-new-always' and available_options:
+            # Option 1 is always the "create_new" option
+            option_type, selected_infra, selected_index = display_options[0]
+            index_suffix = f' (index: {selected_index})' if selected_index is not None else ''
+            print_info(f'APIM_SAMPLES_INFRA_CREATION_BEHAVIOR=create-new-always: Creating new infrastructure: {selected_infra.value}{index_suffix}')
+
+            # Execute the infrastructure creation
+            inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, self.apim_sku)
+            success = inb_helper.create_infrastructure(True)  # Bypass infrastructure check to force creation
+
+            if success:
+                index_suffix = f' (index: {selected_index})' if selected_index is not None else ''
+                print_ok(f'Successfully created infrastructure: {selected_infra.value}{index_suffix}')
+                return selected_infra, selected_index
+
+            print_error('Failed to create infrastructure.')
+            return None, None
+
         # Get user selection
         while True:
             try:

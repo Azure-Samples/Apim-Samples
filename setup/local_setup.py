@@ -293,6 +293,7 @@ def generate_env_file() -> None:
     managed_keys = {
         'APIM_SAMPLES_CONSOLE_WIDTH': existing_vars.get('APIM_SAMPLES_CONSOLE_WIDTH', '180'),
         'APIM_SAMPLES_LOG_LEVEL': existing_vars.get('APIM_SAMPLES_LOG_LEVEL', 'INFO'),
+        'APIM_SAMPLES_INFRA_CREATION_BEHAVIOR': existing_vars.get('APIM_SAMPLES_INFRA_CREATION_BEHAVIOR', 'ask-always'),
         'PROJECT_ROOT': str(project_root),
         'PYTHONPATH': str(shared_python_path),
         'SPOTIFY_CLIENT_ID': existing_vars.get('SPOTIFY_CLIENT_ID', ''),
@@ -310,6 +311,7 @@ def generate_env_file() -> None:
         '',
         f'APIM_SAMPLES_CONSOLE_WIDTH={managed_keys["APIM_SAMPLES_CONSOLE_WIDTH"]}',
         f'APIM_SAMPLES_LOG_LEVEL={managed_keys["APIM_SAMPLES_LOG_LEVEL"]}',
+        f'APIM_SAMPLES_INFRA_CREATION_BEHAVIOR={managed_keys["APIM_SAMPLES_INFRA_CREATION_BEHAVIOR"]}',
         f'PROJECT_ROOT={managed_keys["PROJECT_ROOT"]}',
         f'PYTHONPATH={managed_keys["PYTHONPATH"]}',
         f'SPOTIFY_CLIENT_ID={managed_keys["SPOTIFY_CLIENT_ID"]}',
