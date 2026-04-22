@@ -275,7 +275,7 @@ class TableLogger:
     """
 
     _INDENT = '  '
-    _AUTO_WIDTH_BUFFER = 2
+    _AUTO_WIDTH_BUFFER = 0
 
     def __init__(self) -> None:
         self._columns: list[Column] = []
