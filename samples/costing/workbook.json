@@ -1,5 +1,5 @@
 {
-  "$schema": "https://github.com/Microsoft/Application-Insights-Workbooks/blob/master/schema/workbook.json",
+  "$schema": "https://raw.githubusercontent.com/Microsoft/Application-Insights-Workbooks/refs/heads/master/schema/workbook.json",
   "fallbackResourceIds": [],
   "fromTemplateId": "sentinel-UserWorkbook",
   "items": [
