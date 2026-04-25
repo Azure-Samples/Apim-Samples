@@ -30,6 +30,14 @@ dev = [
   "pip-audit>=2.10.0",
 ]
 
+[tool.uv]
+# Exclude pip 26.0.1 which has a moderate vulnerability (GHSA-58qw-9mgm-455v / CVE-2026-3219):
+# pip mishandles concatenated tar+ZIP files as ZIP files, causing incorrect package installation.
+# Downgrade to 26.0 (not affected) until a patched release is available.
+override-dependencies = [
+  "pip!=26.0.1",
+]
+
 [tool.ruff]
 line-length = 150
 
