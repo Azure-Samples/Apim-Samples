@@ -715,6 +715,17 @@ def test_get_frontdoor_url_wrong_infrastructure():
         mock_run.assert_not_called()
 
 
+def test_get_frontdoor_url_no_warning_for_non_afd(monkeypatch):
+    """Test that no 'No Front Door endpoint URL found.' warning is emitted for non-AFD infrastructures."""
+    warnings = []
+    monkeypatch.setattr('azure_resources.print_warning', lambda msg, **kw: warnings.append(msg))
+
+    for infra in [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APPGW_APIM, INFRASTRUCTURE.APPGW_APIM_PE, INFRASTRUCTURE.APIM_ACA]:
+        warnings.clear()
+        az.get_frontdoor_url(infra, 'test-rg')
+        assert not any('No Front Door' in w for w in warnings), f'Unexpected warning for {infra}: {warnings}'
+
+
 def test_get_frontdoor_url_no_profile():
     """Test Front Door URL when no profile found."""
 

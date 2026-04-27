@@ -434,22 +434,6 @@ def test_print_functions_comprehensive():
     assert 'Test value' in output
 
 
-def test_test_url_preflight_check_with_frontdoor(monkeypatch, suppress_console):
-    """Test URL preflight check when Front Door is available."""
-    monkeypatch.setattr(az, 'get_frontdoor_url', lambda x, y: 'https://test.azurefd.net')
-
-    result = utils.test_url_preflight_check(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim.com')
-    assert result == 'https://test.azurefd.net'
-
-
-def test_test_url_preflight_check_no_frontdoor(monkeypatch, suppress_console):
-    """Test URL preflight check when Front Door is not available."""
-    monkeypatch.setattr(az, 'get_frontdoor_url', lambda x, y: None)
-
-    result = utils.test_url_preflight_check(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg', 'https://apim.com')
-    assert result == 'https://apim.com'
-
-
 def test_determine_policy_path_filename_mode(monkeypatch):
     """Test determine_policy_path with filename mode."""
 
@@ -1838,38 +1822,9 @@ def test_notebookhelper_clean_up_jwt_failure(monkeypatch, caplog):
 
 
 # ------------------------------
-#    get_endpoints TESTS
 # ------------------------------
-
-
-def test_get_endpoints_comprehensive(monkeypatch, suppress_console):
-    """Test get_endpoints function."""
-    monkeypatch.setattr(az, 'get_frontdoor_url', lambda x, y: 'https://test-afd.azurefd.net')
-    monkeypatch.setattr(az, 'get_apim_url', lambda x: 'https://test-apim.azure-api.net')
-    monkeypatch.setattr(az, 'get_appgw_endpoint', lambda x: ('appgw.contoso.com', '1.2.3.4'))
-
-    endpoints = utils.get_endpoints(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg')
-
-    assert endpoints.afd_endpoint_url == 'https://test-afd.azurefd.net'
-    assert endpoints.apim_endpoint_url == 'https://test-apim.azure-api.net'
-    assert endpoints.appgw_hostname == 'appgw.contoso.com'
-    assert endpoints.appgw_public_ip == '1.2.3.4'
-
-
-def test_get_endpoints_no_frontdoor(monkeypatch, suppress_console):
-    """Test get_endpoints when Front Door is not available."""
-    monkeypatch.setattr(az, 'get_frontdoor_url', lambda x, y: None)
-    monkeypatch.setattr(az, 'get_apim_url', lambda x: 'https://test-apim.azure-api.net')
-    monkeypatch.setattr(az, 'get_appgw_endpoint', lambda x: (None, None))
-
-    endpoints = utils.get_endpoints(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg')
-
-    assert endpoints.afd_endpoint_url is None
-    assert endpoints.apim_endpoint_url == 'https://test-apim.azure-api.net'
-
-
+#    get_endpoint
 # ------------------------------
-#    get_json TESTS
 # ------------------------------
 
 
@@ -2053,20 +2008,6 @@ def test_does_infrastructure_exist_with_prompt_multiple_retries(monkeypatch, sup
     assert result is True  # Block deployment
 
 
-def test_get_endpoints_with_none_values(monkeypatch, suppress_console):
-    """Test get_endpoints when some endpoints are None."""
-    monkeypatch.setattr(az, 'get_frontdoor_url', lambda x, y: None)
-    monkeypatch.setattr(az, 'get_apim_url', lambda x: 'https://test-apim.azure-api.net')
-    monkeypatch.setattr(az, 'get_appgw_endpoint', lambda x: (None, None))
-
-    endpoints = utils.get_endpoints(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg')
-
-    assert endpoints.afd_endpoint_url is None
-    assert endpoints.apim_endpoint_url == 'https://test-apim.azure-api.net'
-    assert endpoints.appgw_hostname is None
-    assert endpoints.appgw_public_ip is None
-
-
 # ------------------------------
 #    get_endpoint
 # ------------------------------
@@ -2080,7 +2021,7 @@ def test_get_endpoint_with_appgw_both_values(monkeypatch, suppress_console):
     mock_endpoints.appgw_hostname = 'api.contoso.com'
     mock_endpoints.appgw_public_ip = '1.2.3.4'
 
-    monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
+    monkeypatch.setattr(az, 'get_endpoints', lambda d, r: mock_endpoints)
 
     endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
 
@@ -2098,8 +2039,7 @@ def test_get_endpoint_with_appgw_hostname_only(monkeypatch, suppress_console):
     mock_endpoints.appgw_hostname = 'api.contoso.com'
     mock_endpoints.appgw_public_ip = None
 
-    monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
-    monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://afd.azurefd.net')
+    monkeypatch.setattr(az, 'get_endpoints', lambda d, r: mock_endpoints)
 
     endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
 
@@ -2116,8 +2056,7 @@ def test_get_endpoint_with_appgw_ip_only(monkeypatch, suppress_console):
     mock_endpoints.appgw_hostname = None
     mock_endpoints.appgw_public_ip = '1.2.3.4'
 
-    monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
-    monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://afd.azurefd.net')
+    monkeypatch.setattr(az, 'get_endpoints', lambda d, r: mock_endpoints)
 
     endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
 
@@ -2126,16 +2065,15 @@ def test_get_endpoint_with_appgw_ip_only(monkeypatch, suppress_console):
     assert allow_insecure_tls is False
 
 
-def test_get_endpoint_with_no_appgw_uses_preflight(monkeypatch, suppress_console):
-    """Test get_endpoint when no appgw values present, uses preflight check."""
+def test_get_endpoint_with_no_appgw_falls_back_to_apim(monkeypatch, suppress_console):
+    """Test get_endpoint when no appgw values and no AFD, falls back to APIM gateway URL."""
     mock_endpoints = Endpoints(INFRASTRUCTURE.SIMPLE_APIM)
     mock_endpoints.afd_endpoint_url = None
     mock_endpoints.apim_endpoint_url = 'https://apim.azure-api.net'
     mock_endpoints.appgw_hostname = None
     mock_endpoints.appgw_public_ip = None
 
-    monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
-    monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://apim.azure-api.net')
+    monkeypatch.setattr(az, 'get_endpoints', lambda d, r: mock_endpoints)
 
     endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg', 'https://apim.azure-api.net')
 
@@ -2144,16 +2082,15 @@ def test_get_endpoint_with_no_appgw_uses_preflight(monkeypatch, suppress_console
     assert allow_insecure_tls is False
 
 
-def test_get_endpoint_with_afd_via_preflight(monkeypatch, suppress_console):
-    """Test get_endpoint returns AFD URL via preflight check."""
+def test_get_endpoint_with_afd_url(monkeypatch, suppress_console):
+    """Test get_endpoint returns AFD URL when afd_endpoint_url is set."""
     mock_endpoints = Endpoints(INFRASTRUCTURE.AFD_APIM_PE)
     mock_endpoints.afd_endpoint_url = 'https://myapp.azurefd.net'
     mock_endpoints.apim_endpoint_url = None
     mock_endpoints.appgw_hostname = None
     mock_endpoints.appgw_public_ip = None
 
-    monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
-    monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://myapp.azurefd.net')
+    monkeypatch.setattr(az, 'get_endpoints', lambda d, r: mock_endpoints)
 
     endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(
         INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim-internal.azure-api.net'
@@ -2172,8 +2109,7 @@ def test_get_endpoint_appgw_with_empty_strings(monkeypatch, suppress_console):
     mock_endpoints.appgw_hostname = ''
     mock_endpoints.appgw_public_ip = ''
 
-    monkeypatch.setattr(utils, 'get_endpoints', lambda d, r: mock_endpoints)
-    monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://apim.azure-api.net')
+    monkeypatch.setattr(az, 'get_endpoints', lambda d, r: mock_endpoints)
 
     endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(INFRASTRUCTURE.APPGW_APIM, 'test-rg', 'https://apim.azure-api.net')
 
@@ -2198,8 +2134,7 @@ def test_get_endpoint_various_infrastructures(monkeypatch, suppress_console):
         mock_endpoints.appgw_hostname = None
         mock_endpoints.appgw_public_ip = None
 
-        monkeypatch.setattr(utils, 'get_endpoints', lambda d, r, m=mock_endpoints: m)
-        monkeypatch.setattr(utils, 'test_url_preflight_check', lambda d, r, a: 'https://apim.azure-api.net')
+        monkeypatch.setattr(az, 'get_endpoints', lambda d, r, m=mock_endpoints: m)
 
         endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(infra, 'test-rg', 'https://apim.azure-api.net')
 
@@ -2500,24 +2435,6 @@ def test_wait_for_apim_blob_permissions_with_custom_timeout(monkeypatch, suppres
     assert result is True
     # Verify custom timeout was passed
     mock_check.assert_called_once_with('test-apim', 'test-storage', 'test-rg', 5)
-
-
-def test_test_url_preflight_check_with_afd_endpoint(monkeypatch, suppress_console):
-    """Test test_url_preflight_check selects AFD when available."""
-    monkeypatch.setattr(az, 'get_frontdoor_url', lambda x, y: 'https://afd-endpoint.azurefd.net')
-
-    result = utils.test_url_preflight_check(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim.azure-api.net')
-
-    assert result == 'https://afd-endpoint.azurefd.net'
-
-
-def test_test_url_preflight_check_without_afd(monkeypatch, suppress_console):
-    """Test test_url_preflight_check uses APIM when no AFD."""
-    monkeypatch.setattr(az, 'get_frontdoor_url', lambda x, y: None)
-
-    result = utils.test_url_preflight_check(INFRASTRUCTURE.SIMPLE_APIM, 'test-rg', 'https://apim.azure-api.net')
-
-    assert result == 'https://apim.azure-api.net'
 
 
 def test_get_json_with_nested_structure():

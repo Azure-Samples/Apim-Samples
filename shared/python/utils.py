@@ -19,7 +19,7 @@ from typing import Any, Tuple
 # APIM Samples imports
 import azure_resources as az
 import logging_config
-from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, get_project_root
+from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, get_project_root  # noqa: F401 (Endpoints re-exported for callers)
 from console import print_error, print_info, print_message, print_ok, print_plain, print_secret, print_val, print_warning
 
 # Configure warning filter to suppress IPython exit warnings
@@ -1191,37 +1191,6 @@ def wait_for_apim_blob_permissions(apim_name: str, storage_account_name: str, re
     return success
 
 
-def test_url_preflight_check(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str) -> str:
-    """Check if the deployment uses Azure Front Door and return the appropriate endpoint URL."""
-    # Preflight: Check if the infrastructure architecture deployment uses Azure Front Door.
-    # If so, assume that APIM is not directly accessible and use the Front Door URL instead.
-
-    print_message('Checking if the infrastructure architecture deployment uses Azure Front Door.', blank_above=True)
-
-    afd_endpoint_url = az.get_frontdoor_url(deployment, rg_name)
-
-    if afd_endpoint_url:
-        endpoint_url = afd_endpoint_url
-        print_message(f'Using Azure Front Door URL: {afd_endpoint_url}', blank_above=True)
-    else:
-        endpoint_url = apim_gateway_url
-        print_message(f'Using APIM Gateway URL: {apim_gateway_url}', blank_above=True)
-
-    return endpoint_url
-
-
-def get_endpoints(deployment: INFRASTRUCTURE, rg_name: str) -> Endpoints:
-    """Identify and return all possible endpoints for the given infrastructure deployment."""
-    print_message(f'Identifying possible endpoints for infrastructure {deployment}...')
-
-    endpoints = Endpoints(deployment)
-
-    endpoints.afd_endpoint_url = az.get_frontdoor_url(deployment, rg_name)
-    endpoints.apim_endpoint_url = az.get_apim_url(rg_name)
-    endpoints.appgw_hostname, endpoints.appgw_public_ip = az.get_appgw_endpoint(rg_name)
-
-    return endpoints
-
 
 def get_endpoint(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str) -> Tuple[str, dict[str, str] | None, bool]:
     """Determine the endpoint URL, optional request headers, and TLS verification flag for test execution.
@@ -1232,7 +1201,7 @@ def get_endpoint(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str
             self-signed certificate that we create in the infrastructure deployment.
     """
     # Determine endpoints, URLs, etc. prior to test execution
-    endpoints = get_endpoints(deployment, rg_name)
+    endpoints = az.get_endpoints(deployment, rg_name)
     endpoint_url = None
     request_headers = None
     allow_insecure_tls = False
@@ -1244,9 +1213,8 @@ def get_endpoint(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str
         # during deployment, so TLS verification must be disabled for requests to succeed.
         allow_insecure_tls = True
     else:
-        # Preflight: Check if the deployment uses Azure Front Door.
-        # If so, assume APIM is not directly accessible and use the Front Door URL instead.
-        endpoint_url = test_url_preflight_check(deployment, rg_name, apim_gateway_url)
+        # Reuse the already-fetched Front Door URL, falling back to the APIM gateway URL.
+        endpoint_url = endpoints.afd_endpoint_url or apim_gateway_url
 
     return endpoint_url, request_headers, allow_insecure_tls
 
