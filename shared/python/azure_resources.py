@@ -991,7 +991,7 @@ def get_frontdoor_url(deployment_name: INFRASTRUCTURE, rg_name: str) -> str | No
 
     if afd_endpoint_url:
         print_ok(f'Front Door Endpoint URL: {afd_endpoint_url}', blank_above=False)
-    else:
+    elif deployment_name == INFRASTRUCTURE.AFD_APIM_PE:
         print_warning('No Front Door endpoint URL found.')
 
     return afd_endpoint_url
