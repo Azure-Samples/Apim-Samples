@@ -19,7 +19,7 @@ from typing import Any, Tuple
 # APIM Samples imports
 import azure_resources as az
 import logging_config
-from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, get_project_root
+from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, get_project_root  # noqa: F401 (Endpoints re-exported for callers)
 from console import print_error, print_info, print_message, print_ok, print_plain, print_secret, print_val, print_warning
 
 # Configure warning filter to suppress IPython exit warnings
