@@ -30,6 +30,10 @@ labs-in-progress/
 .env*
 !.env-example
 
+# Local-only ground-truth / sample-run artefacts (gitignored). Used by samples to
+# persist run data such as request counts so users can cross-check workbook output.
+*.local.json
+
 # Coverage data and reports
 .coverage
 .coverage.*
