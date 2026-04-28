@@ -10,6 +10,14 @@ This repository provides resources to deploy Azure API Management infrastructure
 - **Samples**: Real-world policy examples that can be deployed to any supported infrastructure
 - **Shared Resources**: Reusable Bicep modules, Python helpers, and policy templates
 
+## Accessibility Baseline
+
+All repository contributions should treat accessibility as a first-class quality requirement.
+
+- Use WCAG 2.0 AA as the default baseline for user-facing outputs, including documentation, web content, workbook/dashboard visuals, and presentation materials.
+- Do not rely on color alone to convey meaning; pair color cues with labels, text, icons, or structure.
+- Preserve or improve contrast and readability when editing existing assets.
+
 ## Repository Structure
 
 ```text
@@ -120,6 +128,7 @@ Skills provide templates, patterns, and step-by-step workflows.
 - **Folder**: kebab-case (e.g., `oauth-validation`, `rate-limiting`)
 - **API prefix**: Short, unique, with trailing hyphen (e.g., `oauth-`, `rl-`)
 - **Policy files**: Descriptive, kebab-case (e.g., `token-validation.xml`)
+- **Workbook files**: Azure Monitor Workbook JSON files use the `<name>.workbook.json` suffix (e.g., `costing.workbook.json`). One workbook per file, stored in the sample folder, loaded into Bicep via `loadJsonContent('<name>.workbook.json')`, and pushed back to Azure via a sample-local `update-workbook.ps1`. See the *Azure Monitor Workbook File Convention* section in `.github/copilot-instructions.md`.
 - **Admin APIs**: Samples needing admin/operational endpoints use path `{api_prefix}admin` with `subscriptionRequired=True` and kebab-case operation paths (e.g., `/load-cache`)
 
 ### Infrastructure Constants

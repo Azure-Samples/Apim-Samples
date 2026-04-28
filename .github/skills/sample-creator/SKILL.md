@@ -215,6 +215,8 @@ print_ok('All done!')
 
 ## Step 5: Create main.bicep
 
+> **Always reuse infrastructure-provided resources.** The infrastructure deployment already creates an APIM service, a Log Analytics workspace, and an Application Insights component (the latter wired to APIM as the `apim-logger`). Sample `main.bicep` files must consume these via `existing` resource references — **do not** redeploy them. Only deploy a sample-local copy of one of these resources when the sample has a documented reason that satisfies one of the exceptions in `.github/copilot-instructions.md` ("Always reuse infrastructure-provided resources"). When wiring API-level diagnostics, omit the `apimLoggerName` parameter so APIs inherit the infrastructure logger automatically.
+
 Use this template:
 
 ```bicep
