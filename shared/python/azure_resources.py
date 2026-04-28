@@ -502,7 +502,12 @@ def run(
         if success or attempt == max_attempts:
             break
 
-        print_warning(f'Command failed (attempt {attempt}/{max_attempts}), retrying...')
+        # Short back-off before retry. Helps when the failure was a transient DNS/network
+        # blip: Windows caches negative DNS answers briefly, so an immediate retry from a
+        # fresh subprocess often hits the cached failure and fails again instantly.
+        backoff_seconds = 5
+        print_warning(f'Command failed (attempt {attempt}/{max_attempts}), retrying in {backoff_seconds}s...')
+        time.sleep(backoff_seconds)
 
     # Preserve programmatic output as stdout only when successful, so JSON parsing isn't
     # contaminated by Azure CLI debug noise (which commonly writes to stderr).

@@ -4,7 +4,16 @@ import pytest
 
 # APIM Samples imports
 from apimtypes import APIM_SKU
-from azure_cost import PRICING_AS_OF, PRICING_URL, ApimSkuPricing, get_apim_sku_pricing
+from azure_cost import (
+    AOAI_PRICING_AS_OF,
+    AOAI_PRICING_URL,
+    APIM_PRICING_AS_OF,
+    APIM_PRICING_URL,
+    ApimSkuPricing,
+    ModelPricing,
+    get_apim_sku_pricing,
+    get_model_pricing,
+)
 
 # ------------------------------
 #    CONSTANTS
@@ -40,15 +49,25 @@ class TestApimSkuPricingDataclass:
 class TestModuleConstants:
     """Tests for module-level constants."""
 
-    def test_pricing_url(self):
-        """PRICING_URL points to the official Azure APIM pricing page."""
-        assert 'azure.microsoft.com' in PRICING_URL
-        assert 'api-management' in PRICING_URL
+    def test_apim_pricing_url(self):
+        """APIM_PRICING_URL points to the official Azure APIM pricing page."""
+        assert 'azure.microsoft.com' in APIM_PRICING_URL
+        assert 'api-management' in APIM_PRICING_URL
 
-    def test_pricing_as_of(self):
-        """PRICING_AS_OF is a non-empty date string."""
-        assert PRICING_AS_OF
-        assert isinstance(PRICING_AS_OF, str)
+    def test_apim_pricing_as_of(self):
+        """APIM_PRICING_AS_OF is a non-empty date string."""
+        assert APIM_PRICING_AS_OF
+        assert isinstance(APIM_PRICING_AS_OF, str)
+
+    def test_aoai_pricing_url(self):
+        """AOAI_PRICING_URL points to the official Azure OpenAI pricing page."""
+        assert 'azure.microsoft.com' in AOAI_PRICING_URL
+        assert 'openai-service' in AOAI_PRICING_URL
+
+    def test_aoai_pricing_as_of(self):
+        """AOAI_PRICING_AS_OF is a non-empty date string."""
+        assert AOAI_PRICING_AS_OF
+        assert isinstance(AOAI_PRICING_AS_OF, str)
 
 
 # ------------------------------
@@ -138,3 +157,71 @@ class TestGetApimSkuPricing:
         """Return value is an ApimSkuPricing instance."""
         p = get_apim_sku_pricing(APIM_SKU.BASICV2)
         assert isinstance(p, ApimSkuPricing)
+
+
+# ------------------------------
+#    ModelPricing dataclass
+# ------------------------------
+
+
+class TestModelPricingDataclass:
+    """Tests for the ModelPricing frozen dataclass."""
+
+    def test_frozen_dataclass(self):
+        """Verify ModelPricing instances are immutable."""
+        pricing = ModelPricing(model='gpt-5-mini', sku='GlobalStandard', prompt_rate_per_k=0.00025, completion_rate_per_k=0.002)
+        with pytest.raises(AttributeError):
+            pricing.prompt_rate_per_k = 999.0
+
+    def test_equality(self):
+        """Two ModelPricing instances with the same values are equal."""
+        a = ModelPricing(model='gpt-5-mini', sku='GlobalStandard', prompt_rate_per_k=0.00025, completion_rate_per_k=0.002)
+        b = ModelPricing(model='gpt-5-mini', sku='GlobalStandard', prompt_rate_per_k=0.00025, completion_rate_per_k=0.002)
+        assert a == b
+
+
+# ------------------------------
+#    get_model_pricing
+# ------------------------------
+
+
+class TestGetModelPricing:
+    """Tests for the get_model_pricing function."""
+
+    def test_gpt5_mini_global_standard(self):
+        """gpt-5-mini GlobalStandard returns expected token rates."""
+        p = get_model_pricing('gpt-5-mini')
+        assert p.model == 'gpt-5-mini'
+        assert p.sku == 'GlobalStandard'
+        assert p.prompt_rate_per_k == pytest.approx(0.00025)
+        assert p.completion_rate_per_k == pytest.approx(0.002)
+
+    def test_case_insensitive_model(self):
+        """Model name lookup is case-insensitive."""
+        p = get_model_pricing('GPT-5-Mini')
+        assert p.model == 'gpt-5-mini'
+
+    def test_case_insensitive_sku(self):
+        """SKU name lookup is case-insensitive."""
+        p = get_model_pricing('gpt-5-mini', 'globalstandard')
+        assert p.sku == 'GlobalStandard'
+
+    def test_default_sku_is_global_standard(self):
+        """Default SKU parameter is GlobalStandard."""
+        p = get_model_pricing('gpt-5-mini')
+        assert p.sku == 'GlobalStandard'
+
+    def test_invalid_model_raises_value_error(self):
+        """An unrecognised model raises ValueError."""
+        with pytest.raises(ValueError, match='No pricing data'):
+            get_model_pricing('nonexistent-model')
+
+    def test_invalid_sku_raises_value_error(self):
+        """An unrecognised SKU for a valid model raises ValueError."""
+        with pytest.raises(ValueError, match='No pricing data'):
+            get_model_pricing('gpt-5-mini', 'NonExistentSku')
+
+    def test_returns_model_pricing(self):
+        """Return value is a ModelPricing instance."""
+        p = get_model_pricing('gpt-5-mini')
+        assert isinstance(p, ModelPricing)

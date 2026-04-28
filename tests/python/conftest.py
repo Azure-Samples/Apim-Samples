@@ -16,14 +16,45 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 # APIM Samples imports (must come after the sys path inserts)
 from test_helpers import (
+    MockApimRequestsPatches,
+    MockInfrastructuresPatches,
     create_mock_http_response,
     create_mock_output,
     create_sample_apis,
     create_sample_policy_fragments,
     get_sample_infrastructure_params,
-    MockApimRequestsPatches,
-    MockInfrastructuresPatches,
 )
+
+# ------------------------------
+#    TEST ISOLATION
+# ------------------------------
+
+
+# Neutralize developer-shell environment variables that change interactive
+# infrastructure-selection behavior. Without this, a developer who has set
+# APIM_SAMPLES_INFRA_CREATION_BEHAVIOR=create-new-always (or
+# APIM_TEST_QUERY_RG_LOCATION=True) will see tests in test_utils.py hang
+# inside the real Azure CLI because the alternate code paths are not
+# mocked by every test. Tests that need a specific value should set it
+# themselves via monkeypatch.setenv.
+#
+# Note: a module-level pop is not sufficient because test_logging_config
+# tests call ``logging_config.configure_logging`` which in turn invokes
+# ``load_dotenv`` and reintroduces values from the developer's local .env
+# file. The autouse fixture below ensures every test starts with these
+# variables removed regardless of any earlier dotenv loads.
+_LEAKED_ENV_VARS = ('APIM_SAMPLES_INFRA_CREATION_BEHAVIOR', 'APIM_TEST_QUERY_RG_LOCATION')
+
+for _leaked_env_var in _LEAKED_ENV_VARS:
+    os.environ.pop(_leaked_env_var, None)
+
+
+@pytest.fixture(autouse=True)
+def _neutralize_leaked_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Strip developer env vars (possibly re-injected via .env) before each test."""
+
+    for _var in _LEAKED_ENV_VARS:
+        monkeypatch.delenv(_var, raising=False)
 
 
 # ------------------------------

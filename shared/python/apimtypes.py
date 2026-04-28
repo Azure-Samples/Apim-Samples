@@ -338,6 +338,43 @@ class Output:
     """
 
     _SECURE_MASK_MIN_LENGTH = 4
+    _SECURE_KEY_HINTS = ('key', 'secret', 'token', 'password', 'connectionstring')
+
+    @classmethod
+    def _is_secret_key_name(cls, key: Any) -> bool:
+        """Return True when a dict key name suggests its value is a secret."""
+
+        if not isinstance(key, str):
+            return False
+        lowered = key.lower()
+        return any(hint in lowered for hint in cls._SECURE_KEY_HINTS)
+
+    @classmethod
+    def _mask_secure_value(cls, value: Any, *, mask_strings: bool = True) -> Any:
+        """
+        Return a copy of value with sensitive string leaves masked for safe logging.
+
+        When walking dicts, only string values whose key name suggests a secret
+        (e.g. contains 'key', 'secret', 'token', 'password', 'connectionstring')
+        are masked; other string values - such as 'name' fields inside arrays of
+        objects - are preserved so the structure remains readable.
+
+        Strings selected for masking are replaced with '****<last4>' when at
+        least _SECURE_MASK_MIN_LENGTH characters long, otherwise '****'.
+        Non-string scalars (bool, int, None) are returned unchanged.
+        """
+
+        if isinstance(value, dict):
+            return {key: cls._mask_secure_value(item, mask_strings=cls._is_secret_key_name(key)) for key, item in value.items()}
+        if isinstance(value, list):
+            return [cls._mask_secure_value(item, mask_strings=mask_strings) for item in value]
+        if isinstance(value, str):
+            if not mask_strings:
+                return value
+            if len(value) >= cls._SECURE_MASK_MIN_LENGTH:
+                return f'****{value[-4:]}'
+            return '****'
+        return value
 
     # ------------------------------
     #    CONSTRUCTOR
@@ -460,8 +497,8 @@ class Output:
                 raise KeyError(f"Output key '{key}' not found in deployment outputs")  # pragma: no cover
 
             if not suppress_logging and label:
-                if secure and isinstance(deployment_output, str) and len(deployment_output) >= self._SECURE_MASK_MIN_LENGTH:
-                    print_val(label, f'****{deployment_output[-4:]}')
+                if secure:
+                    print_val(label, self._mask_secure_value(deployment_output))
                 else:
                     print_val(label, deployment_output)
 

@@ -6,36 +6,36 @@ import importlib
 import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-import pytest
+
 import apimtypes
+import pytest
 
 # APIM Samples imports
 from apimtypes import (
     API,
-    APIMNetworkMode,
     APIM_SKU,
-    APIOperation,
     BACKEND_XML_POLICY_PATH,
     DEFAULT_XML_POLICY_PATH,
-    GET_APIOperation,
-    GET_APIOperation2,
-    get_project_root,
     HELLO_WORLD_XML_POLICY_PATH,
     HTTP_VERB,
     INFRASTRUCTURE,
+    REQUEST_HEADERS_XML_POLICY_PATH,
+    SLEEP_TIME_BETWEEN_REQUESTS_MS,
+    SUBSCRIPTION_KEY_PARAMETER_NAME,
+    APIMNetworkMode,
+    APIOperation,
+    GET_APIOperation,
+    GET_APIOperation2,
     NamedValue,
     Output,
     PolicyFragment,
     POST_APIOperation,
     Product,
     Region,
-    REQUEST_HEADERS_XML_POLICY_PATH,
     Role,
-    SUBSCRIPTION_KEY_PARAMETER_NAME,
-    SLEEP_TIME_BETWEEN_REQUESTS_MS,
+    get_project_root,
 )
 from test_helpers import assert_policy_fragment_structure
-
 
 # ------------------------------
 #    BASE TEST CLASS FOR API
@@ -101,16 +101,18 @@ class TestAPICreation:
         with pytest.raises(TypeError):
             API(**params)
 
-    def test_default_policy_loaded_when_missing(self, base_api_params, monkeypatch):
+    def test_default_policy_loaded_when_missing(self, base_api_params, infrastructures_patches):
         """Test API loads default policy when policyXml parameter is omitted."""
-
+        # Configure the existing autouse mock instead of using monkeypatch.setattr,
+        # which would interleave teardown ordering with the autouse `patch()` and
+        # leak a stale Mock as `temp_original` for subsequent tests.
         captured = {}
 
         def fake_read_policy(path):
             captured['path'] = path
             return '<default-policy />'
 
-        monkeypatch.setattr(apimtypes, '_read_policy_xml', fake_read_policy)
+        infrastructures_patches.apimtypes_read_policy.side_effect = fake_read_policy
 
         params = base_api_params.copy()
         params.pop('policyXml')
@@ -492,13 +494,16 @@ class TestProductCreation:
         product = Product(**base_product_params)
         assert product.approvalRequired is False
 
-    def test_product_fallback_policy_when_file_not_found(self, monkeypatch, base_product_params):
+    def test_product_fallback_policy_when_file_not_found(self, infrastructures_patches, base_product_params):
         """Test Product uses fallback policy when default policy file is not found."""
 
+        # Configure the existing autouse mock rather than using monkeypatch.setattr
+        # to avoid leaking a stale Mock into the module attribute due to
+        # teardown-order interaction with the autouse `patch()` fixture.
         def mock_read_policy_xml_raise(path):
             raise FileNotFoundError(f'Policy file not found: {path}')
 
-        monkeypatch.setattr(apimtypes, '_read_policy_xml', mock_read_policy_xml_raise)
+        infrastructures_patches.apimtypes_read_policy.side_effect = mock_read_policy_xml_raise
 
         product = Product(**base_product_params)
         assert product.policyXml is not None
@@ -1382,3 +1387,42 @@ class TestOutputGetEdgeCases:
         # Should handle gracefully and return None
         result = output.getJson('key')
         assert result is None
+
+
+# ------------------------------
+#    OUTPUT MASK SECURE VALUE TESTS
+# ------------------------------
+
+
+class TestOutputMaskSecureValue:
+    """Test suite for Output._mask_secure_value() recursive masking helper."""
+
+    def test_mask_long_string_keeps_last_four(self):
+        """Strings >= min length are masked but expose only the last 4 chars."""
+        assert apimtypes.Output._mask_secure_value('supersecretvalue') == '****alue'
+
+    def test_mask_short_string_fully_masked(self):
+        """Strings shorter than the min length are fully masked."""
+        assert apimtypes.Output._mask_secure_value('abc') == '****'
+
+    def test_mask_list_recurses_into_items(self):
+        """Lists are walked recursively, masking each string element."""
+        result = apimtypes.Output._mask_secure_value(['supersecret', 'ab', 42])
+        assert result == ['****cret', '****', 42]
+
+    def test_mask_dict_recurses_into_values(self):
+        """Dicts mask only values whose key name suggests a secret."""
+        result = apimtypes.Output._mask_secure_value({'token': 'supersecret', 'name': 'HR Service', 'count': 5})
+        assert result == {'token': '****cret', 'name': 'HR Service', 'count': 5}
+
+    def test_mask_nested_structures(self):
+        """Nested dict/list combinations preserve non-secret fields like 'name'."""
+        payload = {'subscriptionKeys': [{'name': 'bu-hr', 'primaryKey': 'supersecret'}, {'name': 'bu-finance', 'primaryKey': 'anothersecret'}]}
+        result = apimtypes.Output._mask_secure_value(payload)
+        assert result == {'subscriptionKeys': [{'name': 'bu-hr', 'primaryKey': '****cret'}, {'name': 'bu-finance', 'primaryKey': '****cret'}]}
+
+    def test_mask_non_string_scalar_returned_unchanged(self):
+        """Non-string scalars (bool, int, None) pass through unchanged."""
+        assert apimtypes.Output._mask_secure_value(True) is True
+        assert apimtypes.Output._mask_secure_value(123) == 123
+        assert apimtypes.Output._mask_secure_value(None) is None
