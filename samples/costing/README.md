@@ -18,6 +18,8 @@ This sample demonstrates how to track and allocate API costs using Azure API Man
 8. **Track AI token consumption per client** - When APIM is used as an AI Gateway, capture prompt, completion, and total token usage per calling application, enabling per-client cost attribution for PTU or pay-as-you-go OpenAI deployments
 9. **Real AOAI interactions via Foundry** (optional) - Deploy a full Microsoft Foundry environment (Hub + Project + Azure AI Services) and route real Azure OpenAI chat completions through APIM, demonstrating accurate token tracking for both non-streaming and streaming (SSE) responses
 
+> **Note on non-OpenAI models**: This sample deploys an Azure OpenAI model only (default: `gpt-5-mini`). Other model families on Azure AI Services - such as Anthropic Claude via the Azure Marketplace - are gated by separate quota that is granted through a manual approval process, which puts them beyond the scope of a self-service sample. If you have approved quota for another provider, you can extend the sample by adding a second deployment in `main.bicep`; the token-tracking policy and workbook queries are model-agnostic.
+
 ## ✅ Prerequisites
 
 Beyond the [general prerequisites](../../README.md#-getting-started) (Azure subscription, CLI, Python environment), this sample requires additional Azure RBAC role assignments.
@@ -109,6 +111,17 @@ This lab deploys and configures:
 - **SKU-Based Pricing** - Automatically derives base monthly cost, overage rate, and included request allowance from the deployed APIM SKU using built-in pricing data (sourced from the [Azure API Management pricing page](https://azure.microsoft.com/pricing/details/api-management/), March 2026)
 - **Budget Alerts** (optional) - Per-BU scheduled query alerts when request thresholds are exceeded
 
+### Workbook Query Optimization
+
+Azure Monitor Workbook query items execute independently — there is no native mechanism to share a materialized table across query items. The workbook applies two patterns to minimise data scanned:
+
+| Pattern | Where applied | Effect |
+| ------- | ------------- | ------ |
+| **`materialize()` for multi-reference `let` bindings** | Subscription-Based and Entra ID tabs (any query that derives both a `toscalar(count)` total and a per-BU `summarize` from the same base set) | Log Analytics computes the base set once per query execution instead of scanning the underlying table twice |
+| **Column-project before joins** | AI Gateway tab (all `ApiManagementGatewayLlmLog ⟕ ApiManagementGatewayLogs` joins) | Each query projects only the columns it needs from both sides of the join, reducing the join's memory and network footprint |
+
+> **Why not a single base query for the AI Gateway tab?** Workbooks cannot share a materialized table across query items. Merge items can combine two already-computed result sets but cannot perform arbitrary re-aggregation. Each AI Gateway visual therefore runs its own join, but column-projecting both sides keeps each join as lean as possible.
+
 ### Cost Allocation Model
 
 | Component           | Formula                                              |
@@ -191,6 +204,15 @@ The AI Gateway tab shows per-client token consumption and estimated costs when A
 ![AI Gateway - Token Trends & PTU Utilization](screenshots/AIGateway-03.png)
 
 ![AI Gateway - Model & Caller Breakdown](screenshots/AIGateway-04.png)
+
+### Streaming vs Non-Streaming Verification
+
+When `enable_foundry = True`, the multi-caller traffic phase alternates between non-streaming and streaming chat completions for every business unit. The **AI Gateway** tab includes a *Streaming vs Non-Streaming Breakdown* group with:
+
+- A **pie chart** showing overall request distribution across delivery modes
+- A **color-coded table** showing per-BU request counts and prompt, completion, and total token counts split by delivery mode
+
+This makes it easy to confirm that token tracking works identically for both modes. Streaming responses only emit token usage when `stream_options.include_usage = true` is sent; the `emit_metric_caller_tokens.xml` policy injects this automatically when `force_stream_include_usage` is enabled, so callers do not need to set it themselves.
 
 ## 🧹 Clean Up
 
