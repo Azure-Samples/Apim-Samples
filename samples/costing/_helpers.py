@@ -204,7 +204,10 @@ def send_requests(
             session.request(method, url, headers=headers, timeout=timeout)
             delivered += 1
         except http_requests.RequestException:
-            pass
+            # Intentionally ignore transport-level failures so one failed call
+            # does not abort the batch; only requests that received an HTTP
+            # response are counted as delivered.
+            continue
     return delivered
 
 
