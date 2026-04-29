@@ -74,7 +74,7 @@ All three approaches are deployed together. Toggle `enable_entraid_tracking` and
 
 ### Streaming Support
 
-When `enable_foundry = True`, the notebook demonstrates both non-streaming and streaming (SSE) chat completions. The `emit_metric_caller_tokens.xml` policy ensures accurate token tracking for streaming by injecting `stream_options.include_usage = true` into the request (when `force_stream_include_usage` is enabled). Token counts are captured by the APIM `ApiManagementGatewayLlmLog` diagnostic setting with zero response buffering.
+When `enable_foundry = True`, the notebook demonstrates both non-streaming and streaming (SSE) chat completions. The `emit_metric_caller_tokens.xml` policy ensures accurate token tracking for streaming by injecting `stream_options.include_usage = true` into the request (when `force_stream_include_usage` is enabled). Token counts are captured by the APIM `ApiManagementGatewayLlmLog` diagnostic setting with **zero response buffering**.
 
 - **Non-streaming**: The gateway logs exact token counts from the JSON response
 - **Streaming (SSE)**: The gateway reads token counts from the final SSE chunk (requires `stream_options.include_usage = true`)
