@@ -483,11 +483,11 @@ def build_costing_apis(
     if enable_token_tracking:
         token_metric_policy_xml = Path(utils.determine_policy_path('emit_metric_caller_tokens.xml', sample_folder)).read_text(encoding='utf-8')
         if not force_stream_include_usage:
+            # Remove the streaming-usage enforcement fragment when not forcing stream_options.include_usage
             token_metric_policy_xml = re.sub(
-                r'\s*<!-- \[STREAM-USAGE-ENFORCEMENT-BEGIN\] -->.*?<!-- \[STREAM-USAGE-ENFORCEMENT-END\] -->',
+                r'\s*<!-- Ensure streaming AI requests include stream_options\.include_usage = true \(reusable fragment\) -->\s*<include-fragment fragment-id="pf-ensure-stream-include-usage" />\s*',
                 '',
                 token_metric_policy_xml,
-                flags=re.DOTALL,
             )
 
         mock_ai_policy_xml = Path(utils.determine_policy_path('mock-ai-response.xml', sample_folder)).read_text(encoding='utf-8')

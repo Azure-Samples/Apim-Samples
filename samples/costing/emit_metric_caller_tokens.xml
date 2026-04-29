@@ -57,38 +57,8 @@
 <policies>
     <inbound>
         <base />
-        <!-- [STREAM-USAGE-ENFORCEMENT-BEGIN] -->
-        <!--
-            Ensure streaming AI requests include stream_options.include_usage = true.
-            Without this, SSE responses omit the usage object and the gateway
-            infrastructure cannot extract exact token counts for the
-            ApiManagementGatewayLlmLog diagnostic. Controlled by
-            force_stream_include_usage in the notebook; when False, this block
-            is stripped before deployment.
-        -->
-        <choose>
-            <when condition="@(context.Request.Body != null && context.Request.Headers.GetValueOrDefault("Content-Type", "").Contains("json"))">
-                <set-body>@{
-                    try {
-                        var body = context.Request.Body.As<Newtonsoft.Json.Linq.JObject>(preserveContent: true);
-                        if (body["stream"]?.Value<bool>() == true) {
-                            var streamOptions = body["stream_options"] as Newtonsoft.Json.Linq.JObject;
-                            if (streamOptions == null) {
-                                body["stream_options"] = new Newtonsoft.Json.Linq.JObject(
-                                    new Newtonsoft.Json.Linq.JProperty("include_usage", true)
-                                );
-                            } else if (streamOptions["include_usage"]?.Value<bool>() != true) {
-                                streamOptions["include_usage"] = true;
-                            }
-                        }
-                        return body.ToString();
-                    } catch {
-                        return context.Request.Body.As<string>(preserveContent: true);
-                    }
-                }</set-body>
-            </when>
-        </choose>
-        <!-- [STREAM-USAGE-ENFORCEMENT-END] -->
+        <!-- Ensure streaming AI requests include stream_options.include_usage = true (reusable fragment) -->
+        <include-fragment fragment-id="pf-ensure-stream-include-usage" />
         <!-- Extract caller identity (appid/azp from JWT, or APIM subscription ID) -->
         <include-fragment fragment-id="Extract-CallerId" />
         <!-- Count each request per caller (same as emit_metric_caller_id.xml) -->

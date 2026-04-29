@@ -1,0 +1,50 @@
+<!--
+    Ensure-Stream-Include-Usage Fragment
+
+    For AI Gateway scenarios where APIM proxies streaming LLM requests.
+    Injects stream_options.include_usage = true into chat completions
+    that request streaming but lack the usage object configuration.
+
+    WHY THIS IS NEEDED:
+    - Azure OpenAI (and compatible APIs) omit token usage from streaming (SSE) responses by default
+    - Without stream_options.include_usage = true, token counts are lost
+    - APIM's ApiManagementGatewayLlmLog diagnostic cannot extract token metrics without the usage object
+    - This enforces uniform behavior: all streaming requests include usage, enabling accurate cost attribution
+
+    USAGE:
+    Add this fragment to the inbound section of APIs that proxy to LLM backends.
+    The fragment idempotently sets include_usage = true; repeated calls are safe.
+
+    Condition: Applies only to JSON POST bodies with stream = true
+
+    PERFORMANCE NOTES:
+    - The condition check (Content-Type && Body != null) short-circuits before JSON parsing
+    - The try-catch gracefully handles malformed JSON or non-JSON bodies
+    - Body is read with preserveContent=true to avoid buffering side effects
+-->
+<fragment>
+    <choose>
+        <when condition="@(context.Request.Body != null && context.Request.Headers.GetValueOrDefault("Content-Type", "").Contains("json"))">
+            <set-body>@{
+                try {
+                    var body = context.Request.Body.As<Newtonsoft.Json.Linq.JObject>(preserveContent: true);
+                    if (body["stream"]?.Value<bool>() == true) {
+                        // Ensure stream_options object exists
+                        if (body["stream_options"] == null) {
+                            body["stream_options"] = new Newtonsoft.Json.Linq.JObject();
+                        }
+                        // Ensure include_usage is set to true
+                        var streamOptions = (Newtonsoft.Json.Linq.JObject)body["stream_options"];
+                        if (streamOptions["include_usage"]?.Value<bool>() != true) {
+                            streamOptions["include_usage"] = true;
+                        }
+                    }
+                    return body.ToString();
+                } catch {
+                    // If JSON parsing fails, return original body unchanged
+                    return context.Request.Body.As<string>(preserveContent: true);
+                }
+            }</set-body>
+        </when>
+    </choose>
+</fragment>
