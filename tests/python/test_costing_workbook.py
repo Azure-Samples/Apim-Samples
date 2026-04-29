@@ -7,13 +7,14 @@ WORKBOOK_PATH = Path(__file__).resolve().parents[2] / 'samples' / 'costing' / 'c
 
 EXPECTED_TABS = ['instructions', 'subscription', 'entraid', 'aigateway', 'byrequest']
 
-EXPECTED_INSTRUCTIONS_TEXT_ITEMS = [
-    'text - instructions-overview',
-    'text - instructions-subscription',
-    'text - instructions-entraid',
-    'text - instructions-aigateway',
-    'text - instructions-aigateway-pricing',
-    'text - instructions-byrequest',
+EXPECTED_INSTRUCTIONS_ITEMS = [
+    ('text - instructions-overview', 1),
+    ('group - instructions-howtouse', 12),
+    ('group - instructions-subscription', 12),
+    ('group - instructions-entraid', 12),
+    ('group - instructions-aigateway', 12),
+    ('group - instructions-aigateway-pricing', 12),
+    ('group - instructions-byrequest', 12),
 ]
 
 
@@ -30,17 +31,29 @@ def test_costing_workbook_instructions_page_contains_expected_text_items():
     assert instructions_group['conditionalVisibility']['value'] == 'instructions'
 
     instructions_items = instructions_group['content']['items']
-    item_names = [item.get('name') for item in instructions_items]
+    item_names_and_types = [(item.get('name'), item.get('type')) for item in instructions_items]
 
-    assert item_names == EXPECTED_INSTRUCTIONS_TEXT_ITEMS
+    assert item_names_and_types == EXPECTED_INSTRUCTIONS_ITEMS
 
-    # All instructions items are markdown text cells (workbook type 1)
-    for item in instructions_items:
-        assert item['type'] == 1
-        assert 'json' in item['content']
-
+    # First item is the markdown overview text
     overview_item = instructions_items[0]
+    assert overview_item['type'] == 1
+    assert 'json' in overview_item['content']
     assert 'Instructions' in overview_item['content']['json']
+
+    # All collapsible groups are collapsed by default with editable groupType
+    for item in instructions_items[1:]:
+        assert item['type'] == 12
+        content = item['content']
+        assert content['version'] == 'NotebookGroup/1.0'
+        assert content['groupType'] == 'editable'
+        assert content['expandable'] is True
+        assert content['expanded'] is False
+        assert content['title']
+        # Each collapsible group wraps a single markdown text item
+        assert len(content['items']) == 1
+        assert content['items'][0]['type'] == 1
+        assert 'json' in content['items'][0]['content']
 
 
 def test_costing_workbook_tabs_include_instructions_first():
