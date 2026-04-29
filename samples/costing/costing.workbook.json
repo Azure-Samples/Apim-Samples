@@ -1084,6 +1084,7 @@
                     "value": "true"
                   },
                   "type": 3,
+                  "customWidth": "20",
                   "styleSettings": {
                     "maxWidth": "320px",
                     "showBorder": false
@@ -1130,6 +1131,7 @@
                   },
                   "name": "query - ai-apim-requests-tile",
                   "type": 3,
+                  "customWidth": "20",
                   "styleSettings": {
                     "maxWidth": "320px",
                     "showBorder": false
@@ -1176,6 +1178,7 @@
                   },
                   "name": "query - inbound-requests-tile",
                   "type": 3,
+                  "customWidth": "20",
                   "styleSettings": {
                     "maxWidth": "320px",
                     "showBorder": false
@@ -1230,6 +1233,7 @@
                   },
                   "name": "query - ai-backend-requests-tile",
                   "type": 3,
+                  "customWidth": "20",
                   "styleSettings": {
                     "maxWidth": "320px",
                     "showBorder": false
@@ -1276,6 +1280,7 @@
                   },
                   "name": "query - request-count-tile",
                   "type": 3,
+                  "customWidth": "20",
                   "styleSettings": {
                     "maxWidth": "320px",
                     "showBorder": false
@@ -1322,6 +1327,7 @@
                   },
                   "name": "query - ai-throttled-tile",
                   "type": 3,
+                  "customWidth": "20",
                   "styleSettings": {
                     "maxWidth": "320px",
                     "showBorder": false
@@ -1368,6 +1374,7 @@
                   },
                   "name": "query - ai-failed-tile",
                   "type": 3,
+                  "customWidth": "20",
                   "styleSettings": {
                     "maxWidth": "320px",
                     "showBorder": false
@@ -1414,6 +1421,7 @@
                   },
                   "name": "query - ai-client-errors-tile",
                   "type": 3,
+                  "customWidth": "20",
                   "styleSettings": {
                     "maxWidth": "320px",
                     "showBorder": false
@@ -1468,6 +1476,7 @@
                   },
                   "name": "query - total-tokens-tile",
                   "type": 3,
+                  "customWidth": "20",
                   "styleSettings": {
                     "maxWidth": "320px",
                     "showBorder": false
