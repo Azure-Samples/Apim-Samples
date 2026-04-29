@@ -6,6 +6,7 @@ import os
 import sys
 from typing import Any
 
+import azure_resources as az
 import pytest
 
 # Add the shared/python directory to the Python path for all tests
@@ -66,8 +67,6 @@ def _skip_az_run_retry_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
     that wall-clock delay, so patching it suite-wide keeps the test run fast even when
     many tests exercise the failure path (which retries by default).
     """
-
-    import azure_resources as az  # local import: conftest path setup must run first
 
     monkeypatch.setattr(az.time, 'sleep', lambda _seconds: None)
 
