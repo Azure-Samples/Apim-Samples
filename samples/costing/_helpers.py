@@ -265,10 +265,10 @@ def acquire_entraid_token(
     response = http_requests.post(
         token_url,
         data={
-            'grant_type'   : 'client_credentials',
-            'client_id'    : client_id,
+            'grant_type': 'client_credentials',
+            'client_id': client_id,
             'client_secret': client_secret,
-            'scope'        : f'api://{client_id}/.default',
+            'scope': f'api://{client_id}/.default',
         },
         timeout=30,
     )
@@ -327,7 +327,7 @@ def send_aoai_traffic(
         if bailed:
             break
 
-        use_streaming = (j % 2 == 1)
+        use_streaming = j % 2 == 1
         if use_streaming:
             planned_streaming += 1
         else:
@@ -373,6 +373,9 @@ def print_portal_links(items: list[tuple[str, str | None]]) -> None:
     Args:
         items: Ordered list of `(label, url_or_none)` tuples.
     """
+
+    print('')
+
     n = 0
     for label, url in items:
         n += 1
@@ -934,7 +937,9 @@ def print_workbook_cross_reference(local_data_path: Path) -> None:
 
     tile_table = TableLogger()
     tile_table.header(
-        Column('Tile (workbook equivalent)'), Column('Planned', align='>'), Column('Delivered', align='>'),
+        Column('Tile (workbook equivalent)'),
+        Column('Planned', align='>'),
+        Column('Delivered', align='>'),
     )
     tile_table.populate(
         [
@@ -950,8 +955,12 @@ def print_workbook_cross_reference(local_data_path: Path) -> None:
     print_info('Traffic sources')
     src_table = TableLogger()
     src_table.header(
-        Column('Source'), Column('API path'), Column('AI'), Column('Attribution'),
-        Column('Planned', align='>'), Column('Delivered', align='>'),
+        Column('Source'),
+        Column('API path'),
+        Column('AI'),
+        Column('Attribution'),
+        Column('Planned', align='>'),
+        Column('Delivered', align='>'),
     )
     src_rows = []
     for s in sources:
@@ -999,9 +1008,12 @@ def print_workbook_cross_reference(local_data_path: Path) -> None:
         print_info('Requests by business unit (sums across all BU-attributed sources)')
         bu_table = TableLogger()
         bu_table.header(
-            Column('Business Unit'), Column('Display Name'),
-            Column('Planned', align='>'), Column('Delivered', align='>'),
-            Column('AI Planned', align='>'), Column('AI Delivered', align='>'),
+            Column('Business Unit'),
+            Column('Display Name'),
+            Column('Planned', align='>'),
+            Column('Delivered', align='>'),
+            Column('AI Planned', align='>'),
+            Column('AI Delivered', align='>'),
         )
         gp = gd = gap = gad = 0
         bu_rows = []
@@ -1022,7 +1034,10 @@ def print_workbook_cross_reference(local_data_path: Path) -> None:
         print_info(f'Caller breakdown - {s.get("name", "")} (api: {s.get("apiName", "")})')
         ct = TableLogger()
         ct.header(
-            Column('App ID'), Column('Caller Name'), Column('Planned', align='>'), Column('Delivered', align='>'),
+            Column('App ID'),
+            Column('Caller Name'),
+            Column('Planned', align='>'),
+            Column('Delivered', align='>'),
         )
         cp = cd = 0
         cr = []
