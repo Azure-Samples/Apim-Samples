@@ -107,7 +107,7 @@ This lab deploys and configures:
 - **Azure Monitor Workbook** - Pre-built tabbed dashboard with:
   - **Subscription-Based Costing tab**: Cost allocation table (base + variable cost per BU), base vs variable cost stacked bar chart, cost breakdown by API, request count and distribution charts, success/error rate analysis, response code distribution, business unit drill-down
   - **Entra ID Application Costing tab**: Usage by caller ID (bar chart + table), cost allocation by caller (table + pie chart), hourly request trend by caller
-  - **AI Gateway Token/PTU tab**: Token consumption by client (prompt vs completion bar chart), token cost allocation table with configurable per-1K-token rates, token/cost distribution pie charts, hourly token trend with PTU capacity threshold line, prompt vs completion area chart, model breakdown table
+  - **AI Gateway Token/PTU tab**: Three rows of summary tiles grouped under **APIM Inbound** (total APIM requests, AI APIM requests, inbound), **AI Backend** (backend requests, successful, throttled, failed), and **Tokens** (total tokens), followed by a request-funnel table, scope-reconciliation explainer + table, token cost allocation table with configurable per-1K-token rates, model and streaming pie charts, streaming vs non-streaming breakdown table, token-share pie, and hourly token-type trend chart
 - **SKU-Based Pricing** - Automatically derives base monthly cost, overage rate, and included request allowance from the deployed APIM SKU using built-in pricing data (sourced from the [Azure API Management pricing page](https://azure.microsoft.com/pricing/details/api-management/), March 2026)
 - **Budget Alerts** (optional) - Per-BU scheduled query alerts when request thresholds are exceeded
 

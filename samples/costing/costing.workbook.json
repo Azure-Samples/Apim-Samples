@@ -136,42 +136,42 @@
         "items": [
           {
             "content": {
-              "json": "# APIM Costing & Showback Workbook\n\nThis workbook turns raw API Management telemetry into **per-business-unit cost and usage views** so platform teams can chargeback, forecast, and right-size APIM and Azure OpenAI consumption. Use this **Overview** tab as your reading guide \u2014 it explains what each tab is for, what data it relies on, and the nuances to be aware of when interpreting the numbers.\n\n## At a glance\n\n| # | Tab | What it answers | Primary data source |\n|---|---|---|---|\n| 1 | **Overview** | What is this workbook and how do I read it? | (this page) |\n| 2 | **Subscription-Based Costing** | How do I split APIM platform + per-request cost across business units (BUs)? | `ApiManagementGatewayLogs` |\n| 3 | **Entra ID Application Costing** | How do I split cost across Entra ID applications calling APIM? | App Insights `customMetrics` (`caller-requests`) |\n| 4 | **AI Gateway Token/PTU** | How many tokens did each BU consume through the AI Gateway, and what does that cost? | `ApiManagementGatewayLlmLog` joined with `ApiManagementGatewayLogs` |\n| 5 | **Per-Request Detail** | Show me every single AI Gateway request with tokens, model, latency, cost. | `ApiManagementGatewayLlmLog` + `ApiManagementGatewayLogs` |\n\n## How to use this workbook\n\n1. **Pick a Time Range** at the top \u2014 it applies to every tab.\n2. **Open the tab that matches your question** (see table above).\n3. **Tune the cost parameters** on that tab (base monthly cost, per-1K rates, PTU capacity) to model your real pricing. Defaults come from the deployed APIM SKU and gpt-5-mini Global Standard rates.\n4. **Drill down** by selecting a row in any cost-allocation table to see that BU's daily trend.\n\n## Shared assumptions and conventions\n\n- **Business units** are identified by APIM **subscription IDs that start with `bu-`** (e.g. `bu-hr`, `bu-finance`). The `bu-` prefix is stripped for display.\n- **Time Range** at the top of the workbook applies to every tab. Each tab also keeps its own `timeContext` so server-side filtering still works.\n- **All costs are estimates.** They are computed from request and token counts and the per-unit rates you configure. They do **not** include caching discounts, Batch API discounts, PTU reservations, regional pricing variations, taxes, or EA pricing. Always validate against your official [Azure Cost Management](https://portal.azure.com/#view/Microsoft_Azure_CostManagement/Menu/~/overview) invoice.\n- **Numbers across tabs are intentionally different.** They measure different scopes:\n  - *Subscription-Based* counts every `bu-*` request at the gateway (AI + non-AI, success + failure).\n  - *AI Gateway* counts only successful AI calls that produced token usage.\n  - *Per-Request Detail* lists every individual gateway record. The **Reconciliation table** on the AI Gateway tab shows exactly how the totals line up.\n\n## Data freshness and gotchas\n\n- **Log Analytics ingestion**: typically 1\u20133 minutes for gateway logs, 5\u201310 minutes for App Insights custom metrics. If a tab looks empty right after generating traffic, give it a few minutes and refresh.\n- **AI Gateway streaming**: Server-Sent Events (SSE) responses normally omit the final `usage` object. The `emit_metric_caller_tokens.xml` policy injects `stream_options.include_usage = true` so the last chunk carries token totals. If streaming rows show zero tokens, confirm `force_stream_include_usage = True` in the notebook.\n- **Multiple LLM log rows per request**: `ApiManagementGatewayLlmLog` emits multiple events per call (one summary + per-backend events), and only one carries `ModelName` and tokens. Queries pre-summarize on `CorrelationId` to avoid double-counting; if you copy a query out of the workbook, keep that step.\n- **Throttled (429) and failed AI calls** never show up in the AI Gateway tile counts \u2014 they have no token usage. They *do* show up in the Per-Request and Subscription-Based views.\n- **Tenant mismatch**: the Entra ID tab requires the workbook viewer to be signed in to the same tenant that owns the subscription. Otherwise tiles will be empty with an `access token issuer` warning.\n\n## Sections below\n\nKeep scrolling for tab-by-tab notes covering parameters, formulas, and pitfalls specific to each view."
+              "json": "# APIM Costing & Showback Workbook\n\nThis workbook turns raw API Management telemetry into **per-business-unit cost and usage views** so platform teams can chargeback, forecast, and right-size APIM and Azure OpenAI consumption. Use these **Instructions / Overview** as your reading guide — it explains what each tab is for, what data it relies on, and the nuances to be aware of when interpreting the numbers.\n\n## At a glance\n\n| # | Tab | What it answers | Primary data source |\n|---|---|---|---|\n| 1 | **Overview** | What is this workbook and how do I read it? | (this page) |\n| 2 | **Subscription-Based Costing** | How do I split APIM platform + per-request cost across business units (BUs)? | `ApiManagementGatewayLogs` |\n| 3 | **Entra ID Application Costing** | How do I split cost across Entra ID applications calling APIM? | App Insights `customMetrics` (`caller-requests`) |\n| 4 | **AI Gateway Token/PTU** | How many tokens did each BU consume through the AI Gateway, and what does that cost? | `ApiManagementGatewayLlmLog` joined with `ApiManagementGatewayLogs` |\n| 5 | **Per-Request Detail** | Show me every single AI Gateway request with tokens, model, latency, cost. | `ApiManagementGatewayLlmLog` + `ApiManagementGatewayLogs` |\n\n## How to use this workbook\n\n1. **Pick a Time Range** at the top — it applies to every tab.\n2. **Open the tab that matches your question** (see table above).\n3. **Tune the cost parameters** on that tab (base monthly cost, per-1K rates, PTU capacity) to model your real pricing. Defaults come from the deployed APIM SKU and gpt-5-mini Global Standard rates.\n4. **Drill down** by selecting a row in any cost-allocation table to see that BU's daily trend.\n\n## Shared assumptions and conventions\n\n- **Business units** are identified by APIM **subscription IDs that start with `bu-`** (e.g. `bu-hr`, `bu-finance`). The `bu-` prefix is stripped for display.\n- **Time Range** at the top of the workbook applies to every tab. Each tab also keeps its own `timeContext` so server-side filtering still works.\n- **All costs are estimates.** They are computed from request and token counts and the per-unit rates you configure. They do **not** include caching discounts, Batch API discounts, PTU reservations, regional pricing variations, taxes, or EA pricing. Always validate against your official [Azure Cost Management](https://portal.azure.com/#view/Microsoft_Azure_CostManagement/Menu/~/overview) invoice.\n- **Numbers across tabs are intentionally different.** They measure different scopes:\n  - *Subscription-Based* counts every `bu-*` request at the gateway (AI + non-AI, success + failure).\n  - *AI Gateway* counts only successful AI calls that produced token usage.\n  - *Per-Request Detail* lists every individual gateway record. The **Reconciliation table** on the AI Gateway tab shows exactly how the totals line up.\n\n## Data freshness and gotchas\n\n- **Log Analytics ingestion**: typically 1–3 minutes for gateway logs, 5–10 minutes for App Insights custom metrics. If a tab looks empty right after generating traffic, give it a few minutes and refresh.\n- **AI Gateway streaming**: Server-Sent Events (SSE) responses normally omit the final `usage` object. The `emit_metric_caller_tokens.xml` policy injects `stream_options.include_usage = true` so the last chunk carries token totals. If streaming rows show zero tokens, confirm `force_stream_include_usage = True` in the notebook.\n- **Multiple LLM log rows per request**: `ApiManagementGatewayLlmLog` emits multiple events per call (one summary + per-backend events), and only one carries `ModelName` and tokens. Queries pre-summarize on `CorrelationId` to avoid double-counting; if you copy a query out of the workbook, keep that step.\n- **Throttled (429) and failed AI calls** never show up in the AI Gateway tile counts — they have no token usage. They *do* show up in the Per-Request and Subscription-Based views.\n- **Tenant mismatch**: the Entra ID tab requires the workbook viewer to be signed in to the same tenant that owns the subscription. Otherwise tiles will be empty with an `access token issuer` warning.\n\n## Sections below\n\nKeep scrolling for tab-by-tab notes covering parameters, formulas, and pitfalls specific to each view."
             },
             "name": "text - instructions-overview",
             "type": 1
           },
           {
             "content": {
-              "json": "### Subscription-Based Costing\n\nSplits the **base APIM infrastructure cost** across business units proportionally by usage, then adds **variable per-API costs** based on request volume. Data comes from `ApiManagementGatewayLogs` in Log Analytics, keyed by APIM subscription ID.\n\n| Parameter | Description |\n|---|---|\n| **APIM SKU** | Deployed SKU (read-only, set at deployment time) |\n| **Base Monthly APIM Cost** | Fixed platform cost (SKU, networking, etc.) split proportionally by request share |\n| **Variable Cost per 1K Requests** | Usage-based rate applied on top of the base allocation |\n\n**Cost Allocation Model**\n\n| Component | Formula |\n|---|---|\n| **Base Cost** | Monthly platform cost for the deployed SKU |\n| **Base Cost Share** | `Base Monthly Cost x (BU Requests / Total Requests)` |\n| **Variable Cost** | `BU Requests x (Rate per 1K / 1000)` |\n| **Total Allocated** | `Base Cost Share + Variable Cost` |\n\nThe cost parameters default to the deployed SKU's retail pricing (set at deployment time via `azure_cost.get_apim_sku_pricing()`). Override them on the tab to model different scenarios. See the [Azure APIM pricing page](https://azure.microsoft.com/pricing/details/api-management/) for current rates.\n\n**Business Unit Drill-Down** \u2014 select a Business Unit row in the Cost Allocation table on the tab to see that unit's daily cost trend."
+              "json": "### Subscription-Based Costing\n\nSplits the **base APIM infrastructure cost** across business units proportionally by usage, then adds **variable per-API costs** based on request volume. Data comes from `ApiManagementGatewayLogs` in Log Analytics, keyed by APIM subscription ID.\n\n| Parameter | Description |\n|---|---|\n| **APIM SKU** | Deployed SKU (read-only, set at deployment time) |\n| **Base Monthly APIM Cost** | Fixed platform cost (SKU, networking, etc.) split proportionally by request share |\n| **Variable Cost per 1K Requests** | Usage-based rate applied on top of the base allocation |\n\n**Cost Allocation Model**\n\n| Component | Formula |\n|---|---|\n| **Base Cost** | Monthly platform cost for the deployed SKU |\n| **Base Cost Share** | `Base Monthly Cost x (BU Requests / Total Requests)` |\n| **Variable Cost** | `BU Requests x (Rate per 1K / 1000)` |\n| **Total Allocated** | `Base Cost Share + Variable Cost` |\n\nThe cost parameters default to the deployed SKU's retail pricing (set at deployment time via `azure_cost.get_apim_sku_pricing()`). Override them on the tab to model different scenarios. See the [Azure APIM pricing page](https://azure.microsoft.com/pricing/details/api-management/) for current rates.\n\n**Business Unit Drill-Down** — select a Business Unit row in the Cost Allocation table on the tab to see that unit's daily cost trend."
             },
             "name": "text - instructions-subscription",
             "type": 1
           },
           {
             "content": {
-              "json": "### Entra ID Application Costing\n\nShows API usage and cost allocation by **Entra ID application** (`appid` claim). Data comes from the `emit-metric` policy's `caller-requests` custom metric in Application Insights.\n\n| Parameter | Description |\n|---|---|\n| **Monthly Base Cost** | Fixed platform cost split proportionally by request share |\n| **App ID Names** | Optional JSON mapping of App IDs to friendly names |\n\n> **Note:** Data typically takes 5-10 minutes to appear after API calls.\n\n**Cost Allocation** \u2014 proportional cost breakdown based on the **Monthly Base Cost** parameter. Each caller's share is calculated as their percentage of total requests applied to the base cost.\n\n**Request Trend** \u2014 hourly request volume by caller over time. Use this to spot traffic spikes, identify peak usage periods, and detect anomalies by caller."
+              "json": "### Entra ID Application Costing\n\nShows API usage and cost allocation by **Entra ID application** (`appid` claim). Data comes from the `emit-metric` policy's `caller-requests` custom metric in Application Insights.\n\n| Parameter | Description |\n|---|---|\n| **Monthly Base Cost** | Fixed platform cost split proportionally by request share |\n| **App ID Names** | Optional JSON mapping of App IDs to friendly names |\n\n> **Note:** Data typically takes 5-10 minutes to appear after API calls.\n\n**Cost Allocation** — proportional cost breakdown based on the **Monthly Base Cost** parameter. Each caller's share is calculated as their percentage of total requests applied to the base cost.\n\n**Request Trend** — hourly request volume by caller over time. Use this to spot traffic spikes, identify peak usage periods, and detect anomalies by caller."
             },
             "name": "text - instructions-entraid",
             "type": 1
           },
           {
             "content": {
-              "json": "### AI Gateway Token/PTU\n\nWhen APIM is used as an **AI Gateway**, the built-in model-level metrics (PTU utilization, token counts) do not break down by caller. The **AI Gateway Token/PTU** tab fills that gap using `ApiManagementGatewayLlmLog` diagnostic data, joined with `ApiManagementGatewayLogs` to **attribute token consumption to APIM subscriptions (business units)**.\n\n> Requires the `GatewayLlmLogs` diagnostic category to be enabled. For parameter descriptions, per-model pricing, and what these cost estimates do **not** include (PTU, Batch, cached-input, taxes, EA pricing), see the **AI Gateway \u2014 Parameters & Pricing** section below.\n\n**Streaming vs Non-Streaming Breakdown** \u2014 confirms that APIM captures token counts for **both** delivery modes. Streaming (SSE) responses normally omit the final `usage` object \u2014 the `emit_metric_caller_tokens.xml` policy injects `stream_options.include_usage = true` so the last chunk carries token totals. If the streaming row shows zero tokens, check that `force_stream_include_usage = True` in the notebook.\n\n**Model Breakdown** \u2014 per-model breakdown showing which AI models each business unit is consuming. Useful when multiple models (GPT-4o, GPT-4o-mini, etc.) are served through the same APIM gateway.\n\n**Token Consumption Trends & PTU Utilization** \u2014 token consumption trend over time. Each data point shows the total tokens consumed per business unit in 1-hour bins. The dashed line represents the configurable PTU capacity threshold.\n\n> **PTU utilization**: if a business unit's hourly token rate approaches the PTU capacity, consider provisioning more throughput or applying rate limiting."
+              "json": "### AI Gateway Token/PTU\n\nWhen APIM is used as an **AI Gateway**, the built-in model-level metrics (PTU utilization, token counts) do not break down by caller. The **AI Gateway Token/PTU** tab fills that gap using `ApiManagementGatewayLlmLog` diagnostic data, joined with `ApiManagementGatewayLogs` to **attribute token consumption to APIM subscriptions (business units)**.\n\n> Requires the `GatewayLlmLogs` diagnostic category to be enabled. For per-model pricing and what these cost estimates do **not** include (PTU, Batch, cached-input, taxes, EA pricing), see the **AI Gateway — Parameters & Pricing** section below.\n\n#### How an AI request flows through APIM\n\n1. **Inbound** — APIM accepts the HTTPS request and matches it to an API + operation. The `Ocp-Apim-Subscription-Key` header maps the call to a `bu-*` product subscription, which is the dimension every query in this workbook attributes cost to.\n2. **Inbound policy chain** — Sample policies enforce per-subscription rate limits and emit telemetry. Requests that exceed the configured limit are rejected with **HTTP 429** at this stage; they never reach the AI backend, so no `ApiManagementGatewayLlmLog` row is written and no tokens are consumed.\n3. **Backend dispatch** — APIM forwards the surviving request to the configured AI backend (Azure OpenAI / AI Foundry). For load-balanced backends, APIM picks a pool member and can fail over on transient errors.\n4. **LLM diagnostic capture** — On a successful (`2xx`) response, APIM writes one row to `ApiManagementGatewayLlmLog` with `PromptTokens`, `CompletionTokens`, `TotalTokens`, `ModelName`, and `IsStreamCompletion`. **Streaming responses only carry token counts when the client sets `stream_options.include_usage = true`.** Backend `5xx` responses produce no LLM-log row.\n5. **Outbound** — APIM returns the response to the client and writes one row to `ApiManagementGatewayLogs` regardless of outcome. That gateway-log row is what the **AI Requests Received (bu-*)** tile counts.\n\n#### Reading the AI Gateway tiles\n\nThe blue tiles form a **monotonically non-increasing funnel**: every stage is a strict subset of the previous one.\n\n```\nTotal APIM Requests ≥ AI APIM Requests (all subs) ≥ AI Requests Received (bu-*)\n  ≥ AI Reached Backend (not 429) ≥ AI Successful (2xx + token log)\n```\n\n**Why two tiles can be equal:** `AI APIM Requests (all subs)` and `AI Requests Received (bu-*)` differ only on the subscription filter. They are equal whenever every AI call was made with a `bu-*` subscription key, which is the default for this sample. They diverge in production environments that mix BU subscriptions with starter/unlimited products or master-key calls.\n\nThe red tiles — **AI Throttled (429)** and **AI Failed (5xx)** — sit *outside* the funnel and surface the gaps:\n\n- **AI Throttled (429)** = `AI Requests Received (bu-*)` − `AI Reached Backend (not 429)`\n- **AI Failed (5xx)** = `AI Reached Backend (not 429)` − (`AI Successful (2xx + token log)` plus any non-token 2xx)\n\n**AI Successful (2xx + token log)** and **Total Tokens Used** are the `2xx` subset — `429` throttles and `5xx` failures contribute zero tokens.\n\n#### Why AI APIs are listed manually\n\nAPIM diagnostic logs only carry identifiers like `ApiId`, `OperationId`, and `BackendId` — they do **not** include APIM tags. Azure Resource Graph also does not index APIM API tag associations, so the workbook cannot auto-discover AI APIs from inside Log Analytics. The **AI API names** parameter on the AI Gateway tab is therefore a plain comma-separated list. See the parameter description for an `az rest` snippet that lists APIs by tag.\n\n#### Streaming, model breakdown, PTU\n\n- **Streaming vs Non-Streaming** — confirms APIM captures token counts for **both** delivery modes. Streaming (SSE) responses normally omit the final `usage` object — the `emit_metric_caller_tokens.xml` policy injects `stream_options.include_usage = true` so the last chunk carries token totals. If a streaming row shows zero tokens, check that `force_stream_include_usage = True` in the notebook.\n- **Model breakdown** — useful when multiple models (gpt-5-mini, gpt-4o-mini, etc.) are served through the same APIM gateway.\n- **PTU utilization** — the dashed line on the trend chart represents the configurable PTU capacity threshold. If a business unit's hourly token rate approaches the PTU capacity, consider provisioning more throughput or applying rate limiting."
             },
             "name": "text - instructions-aigateway",
             "type": 1
           },
           {
             "content": {
-              "json": "### AI Gateway \u2014 Parameters & Pricing\n\nThe **AI Gateway** tab exposes three parameters that control its cost and utilization calculations:\n\n| Parameter                        | Description                                                                                                                                      |\n|----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|\n| **Cost per 1K Prompt Tokens**    | Rate for input/prompt tokens (from your Azure OpenAI pricing). Default `$0.00025` = **$0.25 / 1M input tokens** (gpt-5-mini Global Standard).    |\n| **Cost per 1K Completion Tokens**| Rate for output/completion tokens. Default `$0.002` = **$2.00 / 1M output tokens** (gpt-5-mini Global Standard).                                 |\n| **PTU Capacity**                 | Your provisioned throughput unit capacity in tokens/minute (for utilization %).                                                                  |\n\n#### Model Pricing Reference\n\nPer-1M and per-1K token rates for the models deployed by this sample. **Snapshot taken April 23, 2026** from the [Azure OpenAI pricing page](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/) (Global Standard, pay-as-you-go). Prices change frequently \u2014 **always confirm current rates before relying on these numbers for chargeback or budgeting**.\n\n| Model                                                | Deployment      | Input / 1M | Output / 1M | Input / 1K | Output / 1K | Source                                                                                          |\n|------------------------------------------------------|-----------------|-----------:|------------:|-----------:|------------:|-------------------------------------------------------------------------------------------------|\n| **gpt-5-mini** *(primary, drives workbook defaults)* | Global Standard | $0.25      | $2.00       | $0.00025   | $0.00200    | [Pricing](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/) |\n| **gpt-4o-mini**                                      | Global Standard | $0.15      | $0.60       | $0.00015   | $0.00060    | [Pricing](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/) |\n\n**Defaults** on the AI Gateway tab match **gpt-5-mini (Global Standard)** pay-as-you-go pricing \u2014 `$0.25 / 1M` input and `$2.00 / 1M` output tokens. If you deploy additional models (e.g. `gpt-4o-mini`), adjust the **Cost per 1K Prompt / Completion Tokens** parameters accordingly.\n\n> See also: [Azure pricing calculator](https://azure.microsoft.com/en-us/pricing/calculator/?service=openai-service) \u00b7 [Provisioned throughput (PTU) docs](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/provisioned-throughput) \u00b7 [Batch API discount](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/batch)\n\n> \u2139\ufe0f These are **standard (on-demand)** rates. Provisioned (PTU), Batch API (50% off Global Standard), and cached-input tokens are billed differently and are **not** reflected in this workbook's cost estimates.\n\n> \u26a0\ufe0f The **Prompt / Completion Token Rate** parameters on the AI Gateway tab are single values applied to **all** token consumption regardless of model. When multiple models are in use, the per-BU / per-model tables still break down tokens correctly, but the cost columns reflect the single rate pair you configure. For a precise multi-model chargeback, pick the rate of the dominant model or extend the workbook with per-model rate parameters.\n\n> \u26a0\ufe0f **All costs shown are estimates.** They are computed from token counts emitted by the model and the per-1K rates configured on the AI Gateway tab. They do **not** reflect caching discounts, batch-API discounts, provisioned-throughput reservations, regional price variations, taxes, or Microsoft Enterprise Agreement pricing. Always verify against your official [Azure Cost Management](https://portal.azure.com/#view/Microsoft_Azure_CostManagement/Menu/~/overview) invoice."
+              "json": "### AI Gateway — Parameters & Pricing\n\nThe **AI Gateway** tab exposes three parameters that control its cost and utilization calculations:\n\n| Parameter                        | Description                                                                                                                                      |\n|----------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------|\n| **Cost per 1K Prompt Tokens**    | Rate for input/prompt tokens (from your Azure OpenAI pricing). Default `$0.00025` = **$0.25 / 1M input tokens** (gpt-5-mini Global Standard).    |\n| **Cost per 1K Completion Tokens**| Rate for output/completion tokens. Default `$0.002` = **$2.00 / 1M output tokens** (gpt-5-mini Global Standard).                                 |\n| **PTU Capacity**                 | Your provisioned throughput unit capacity in tokens/minute (for utilization %).                                                                  |\n\n#### Model Pricing Reference\n\nPer-1M and per-1K token rates for the models deployed by this sample. **Snapshot taken April 23, 2026** from the [Azure OpenAI pricing page](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/) (Global Standard, pay-as-you-go). Prices change frequently — **always confirm current rates before relying on these numbers for chargeback or budgeting**.\n\n| Model                                                | Deployment      | Input / 1M | Output / 1M | Input / 1K | Output / 1K | Source                                                                                          |\n|------------------------------------------------------|-----------------|-----------:|------------:|-----------:|------------:|-------------------------------------------------------------------------------------------------|\n| **gpt-5-mini** *(primary, drives workbook defaults)* | Global Standard | $0.25      | $2.00       | $0.00025   | $0.00200    | [Pricing](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/) |\n| **gpt-4o-mini**                                      | Global Standard | $0.15      | $0.60       | $0.00015   | $0.00060    | [Pricing](https://azure.microsoft.com/en-us/pricing/details/cognitive-services/openai-service/) |\n\n**Defaults** on the AI Gateway tab match **gpt-5-mini (Global Standard)** pay-as-you-go pricing — `$0.25 / 1M` input and `$2.00 / 1M` output tokens. If you deploy additional models (e.g. `gpt-4o-mini`), adjust the **Cost per 1K Prompt / Completion Tokens** parameters accordingly.\n\n> See also: [Azure pricing calculator](https://azure.microsoft.com/en-us/pricing/calculator/?service=openai-service) · [Provisioned throughput (PTU) docs](https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/provisioned-throughput) · [Batch API discount](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/batch)\n\n> ℹ️ These are **standard (on-demand)** rates. Provisioned (PTU), Batch API (50% off Global Standard), and cached-input tokens are billed differently and are **not** reflected in this workbook's cost estimates.\n\n> ⚠️ The **Prompt / Completion Token Rate** parameters on the AI Gateway tab are single values applied to **all** token consumption regardless of model. When multiple models are in use, the per-BU / per-model tables still break down tokens correctly, but the cost columns reflect the single rate pair you configure. For a precise multi-model chargeback, pick the rate of the dominant model or extend the workbook with per-model rate parameters.\n\n> ⚠️ **All costs shown are estimates.** They are computed from token counts emitted by the model and the per-1K rates configured on the AI Gateway tab. They do **not** reflect caching discounts, batch-API discounts, provisioned-throughput reservations, regional price variations, taxes, or Microsoft Enterprise Agreement pricing. Always verify against your official [Azure Cost Management](https://portal.azure.com/#view/Microsoft_Azure_CostManagement/Menu/~/overview) invoice."
             },
             "name": "text - instructions-aigateway-pricing",
             "type": 1
           },
           {
             "content": {
-              "json": "### Per-Request Detail\n\nPer-request breakdown of AI Gateway traffic, joining `ApiManagementGatewayLlmLog` (token counts, model, streaming flag) with `ApiManagementGatewayLogs` (business unit, API, operation, latency, response code). Each row is a single LLM request.\n\nCost columns reuse the **Prompt Token Rate** and **Completion Token Rate** parameters from the AI Gateway tab (defaults: `$0.00025` / 1K prompt, `$0.002` / 1K completion). Override them on the AI Gateway tab before switching here if you need different rates.\n\n> \u26a1 **Heads up:** Per-request queries over long time ranges can return large result sets \u2014 start with a tight time range and the default 1,000-row cap."
+              "json": "### Per-Request Detail\n\nPer-request breakdown of AI Gateway traffic, joining `ApiManagementGatewayLlmLog` (token counts, model, streaming flag) with `ApiManagementGatewayLogs` (business unit, API, operation, latency, response code). Each row is a single LLM request.\n\nCost columns reuse the **Prompt Token Rate** and **Completion Token Rate** parameters from the AI Gateway tab (defaults: `$0.00025` / 1K prompt, `$0.002` / 1K completion). Override them on the AI Gateway tab before switching here if you need different rates.\n\n> ⚡ **Heads up:** Per-request queries over long time ranges can return large result sets — start with a tight time range and the default 1,000-row cap."
             },
             "name": "text - instructions-byrequest",
             "type": 1
@@ -399,31 +399,6 @@
                 },
                 {
                   "content": {
-                    "query": "let rankedBusinessUnits = materialize(ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n| summarize RankMetric = count() by ApimSubscriptionId\n| order by RankMetric desc, ApimSubscriptionId asc\n| serialize\n| extend BucketRank = row_number()\n| extend BusinessUnitBucket = substring(ApimSubscriptionId, 3));\nlet businessUnitBuckets = materialize(rankedBusinessUnits\n| summarize BucketRank = min(BucketRank) by BusinessUnitBucket);\nlet bucketedLogs = materialize(ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n| lookup kind=leftouter rankedBusinessUnits on ApimSubscriptionId\n);\nlet totalCount = toscalar(bucketedLogs | summarize count());\nlet actual = bucketedLogs\n| summarize RequestCount = count() by BusinessUnitBucket, BucketRank\n| extend Percentage = round(RequestCount * 100.0 / totalCount, 2);\nbusinessUnitBuckets\n| join kind=leftouter actual on BusinessUnitBucket, BucketRank\n| extend RequestCount = coalesce(RequestCount, 0), Percentage = coalesce(Percentage, 0.0)\n| order by BusinessUnitBucket asc\n| project BusinessUnit = BusinessUnitBucket, RequestCount, ['Percentage (%)'] = Percentage",
-                    "queryType": 0,
-                    "resourceType": "microsoft.operationalinsights/workspaces",
-                    "size": 0,
-                    "timeContext": {
-                      "durationMs": 2592000000
-                    },
-                    "title": "Request Distribution Across Business Units",
-                    "version": "KqlItem/1.0",
-                    "visualization": "piechart",
-                    "chartSettings": {
-                      "group": "BusinessUnit",
-                      "sort": "BusinessUnit",
-                      "sortDirection": true,
-                      "showLegend": false
-                    }
-                  },
-                  "name": "query - distribution",
-                  "type": 3,
-                  "styleSettings": {
-                    "showBorder": true
-                  }
-                },
-                {
-                  "content": {
                     "query": "let selectedBU = '{SelectedBusinessUnit}';\nlet rankedBusinessUnits = materialize(ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n| summarize RankMetric = count() by ApimSubscriptionId\n| order by RankMetric desc, ApimSubscriptionId asc\n| serialize\n| extend BucketRank = row_number()\n| extend BusinessUnitBucket = substring(ApimSubscriptionId, 3));\nlet businessUnitBuckets = materialize(rankedBusinessUnits\n| summarize BucketRank = min(BucketRank) by BusinessUnitBucket);\nlet bucketedLogs = materialize(ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n| lookup kind=leftouter rankedBusinessUnits on ApimSubscriptionId\n| where selectedBU == '*' or BusinessUnitBucket == selectedBU);\nlet timeBins = materialize(bucketedLogs\n| summarize by TimeGenerated = bin(TimeGenerated, 1h));\nlet actual = bucketedLogs\n| summarize RequestCount = count() by TimeGenerated = bin(TimeGenerated, 1h), BusinessUnitBucket, BucketRank;\ntimeBins\n| extend JoinKey = 1\n| join kind=inner (businessUnitBuckets | extend JoinKey = 1) on JoinKey\n| project TimeGenerated, BusinessUnitBucket, BucketRank\n| join kind=leftouter actual on TimeGenerated, BusinessUnitBucket, BucketRank\n| extend RequestCount = coalesce(RequestCount, 0)\n| order by TimeGenerated asc, BucketRank asc\n| project TimeGenerated, BusinessUnit = BusinessUnitBucket, RequestCount",
                     "queryType": 0,
                     "resourceType": "microsoft.operationalinsights/workspaces",
@@ -444,7 +419,7 @@
                 }
               ],
               "loadType": "always",
-              "title": "Usage Analytics",
+              "title": "Request Volume & Trends",
               "version": "NotebookGroup/1.0"
             },
             "name": "group - usage-analytics",
@@ -456,34 +431,6 @@
               "expanded": true,
               "groupType": "editable",
               "items": [
-                {
-                  "content": {
-                    "gridSettings": {
-                      "sortBy": [
-                        {
-                          "itemKey": "BusinessUnit",
-                          "sortOrder": 1
-                        }
-                      ],
-                      "filter": true
-                    },
-                    "query": "let selectedBU = '{SelectedBusinessUnit}';\nlet rankedBusinessUnits = materialize(ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n| summarize RankMetric = count() by ApimSubscriptionId\n| order by RankMetric desc, ApimSubscriptionId asc\n| serialize\n| extend BucketRank = row_number()\n| extend BusinessUnitBucket = substring(ApimSubscriptionId, 3));\nlet bucketedLogs = materialize(ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n| lookup kind=leftouter rankedBusinessUnits on ApimSubscriptionId\n| where selectedBU == '*' or BusinessUnitBucket == selectedBU);\nbucketedLogs\n| summarize \n    TotalRequests = count(),\n    SuccessRequests = countif(ResponseCode < 400),\n    ClientErrors = countif(ResponseCode >= 400 and ResponseCode < 500),\n    ServerErrors = countif(ResponseCode >= 500),\n    BucketRank = min(BucketRank)\n    by BusinessUnitBucket\n| extend SuccessRate = round(SuccessRequests * 100.0 / TotalRequests, 2)\n| extend ErrorRate = round((ClientErrors + ServerErrors) * 100.0 / TotalRequests, 2)\n| order by BusinessUnitBucket asc\n| project \n    BusinessUnit = BusinessUnitBucket, \n    TotalRequests, \n    SuccessRequests, \n    ClientErrors, \n    ServerErrors, \n    ['Success Rate (%)'] = SuccessRate,\n    ['Error Rate (%)'] = ErrorRate",
-                    "queryType": 0,
-                    "resourceType": "microsoft.operationalinsights/workspaces",
-                    "size": 0,
-                    "timeContext": {
-                      "durationMs": 2592000000
-                    },
-                    "title": "Success & Error Metrics by Business Unit",
-                    "version": "KqlItem/1.0",
-                    "visualization": "table"
-                  },
-                  "name": "query - success-errors",
-                  "type": 3,
-                  "styleSettings": {
-                    "showBorder": true
-                  }
-                },
                 {
                   "content": {
                     "chartSettings": {
@@ -529,7 +476,7 @@
                 }
               ],
               "loadType": "always",
-              "title": "Health & Reliability",
+              "title": "Response Codes by Business Unit",
               "version": "NotebookGroup/1.0"
             },
             "name": "group - health",
@@ -675,7 +622,7 @@
           },
           {
             "content": {
-              "json": "Attributes requests and cost to Entra ID callers from Application Insights metrics. See the **Overview** tab for parameter descriptions and notes.\n\n> \u2139\ufe0f **Tiles below are empty?** See the troubleshooting list under each visualization.\n>\n> Common causes: (1) `emit-metric` policy with `caller-requests` not yet attached or not yet invoked; (2) calls made outside the selected **Time Range**; (3) 5\u201310 minute Application Insights ingestion delay; (4) workbook viewer not signed in to the **same tenant** that owns this subscription \u2014 the portal will show an `access token issuer` error in that case; (5) the cross-resource `app(...)` reference cannot reach Application Insights (missing **Reader** role on the App Insights resource)."
+              "json": "Attributes requests and cost to Entra ID callers from Application Insights metrics. See the **Overview** tab for parameter descriptions and notes.\n\n> ℹ️ **Tiles below are empty?** See the troubleshooting list under each visualization.\n>\n> Common causes: (1) `emit-metric` policy with `caller-requests` not yet attached or not yet invoked; (2) calls made outside the selected **Time Range**; (3) 5–10 minute Application Insights ingestion delay; (4) workbook viewer not signed in to the **same tenant** that owns this subscription — the portal will show an `access token issuer` error in that case; (5) the cross-resource `app(...)` reference cannot reach Application Insights (missing **Reader** role on the App Insights resource)."
             },
             "name": "text - header-entraid",
             "type": 1
@@ -993,6 +940,14 @@
               "groupType": "editable",
               "items": [
                 {
+                  "type": 1,
+                  "content": {
+                    "json": "### APIM Inbound"
+                  },
+                  "name": "text - row-header-apim-inbound",
+                  "customWidth": "100"
+                },
+                {
                   "content": {
                     "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| summarize Requests = count()\n| extend Label = 'Total APIM Requests', Status = ''\n| project Label, Requests, Status",
                     "queryType": 0,
@@ -1131,6 +1086,14 @@
                   }
                 },
                 {
+                  "type": 1,
+                  "content": {
+                    "json": "### AI Backend"
+                  },
+                  "name": "text - row-header-ai-backend",
+                  "customWidth": "100"
+                },
+                {
                   "content": {
                     "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n| where ApiId in~ (split('{AiApiIds}', ','))\n| where ResponseCode != 429\n| summarize Requests = count()\n| extend Label = 'AI Reached Backend (not 429)', Status = ''\n| project Label, Requests, Status",
                     "queryType": 0,
@@ -1216,52 +1179,6 @@
                     }
                   },
                   "name": "query - request-count-tile",
-                  "type": 3,
-                  "styleSettings": {
-                    "maxWidth": "220px",
-                    "showBorder": false
-                  }
-                },
-                {
-                  "content": {
-                    "query": "ApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0 and CompletionTokens > 0 and isnotempty(ModelName)\n| project CorrelationId, TotalTokens\n| join kind=inner (\n    ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n    | project CorrelationId\n) on CorrelationId\n| summarize TotalTokensUsed = sum(TotalTokens)\n| extend Label = 'Total Tokens Used', Status = ''\n| project Label, TotalTokensUsed, Status",
-                    "queryType": 0,
-                    "resourceType": "microsoft.operationalinsights/workspaces",
-                    "size": 4,
-                    "timeContext": {
-                      "durationMs": 2592000000
-                    },
-                    "noDataMessage": "No LLM diagnostic data found.",
-                    "version": "KqlItem/1.0",
-                    "visualization": "tiles",
-                    "tileSettings": {
-                      "titleContent": {
-                        "columnMatch": "Label",
-                        "formatter": 1
-                      },
-                      "leftContent": {
-                        "columnMatch": "TotalTokensUsed",
-                        "formatter": 12,
-                        "formatOptions": {
-                          "min": 0,
-                          "palette": "blue"
-                        },
-                        "numberFormat": {
-                          "unit": 17,
-                          "options": {
-                            "style": "decimal",
-                            "useGrouping": true
-                          }
-                        }
-                      },
-                      "subtitleContent": {
-                        "columnMatch": "Status",
-                        "formatter": 1
-                      },
-                      "showBorder": true
-                    }
-                  },
-                  "name": "query - total-tokens-tile",
                   "type": 3,
                   "styleSettings": {
                     "maxWidth": "220px",
@@ -1361,6 +1278,60 @@
                   }
                 },
                 {
+                  "type": 1,
+                  "content": {
+                    "json": "### Tokens"
+                  },
+                  "name": "text - row-header-tokens",
+                  "customWidth": "100"
+                },
+                {
+                  "content": {
+                    "query": "ApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0 and CompletionTokens > 0 and isnotempty(ModelName)\n| project CorrelationId, TotalTokens\n| join kind=inner (\n    ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n    | project CorrelationId\n) on CorrelationId\n| summarize TotalTokensUsed = sum(TotalTokens)\n| extend Label = 'Total Tokens Used', Status = ''\n| project Label, TotalTokensUsed, Status",
+                    "queryType": 0,
+                    "resourceType": "microsoft.operationalinsights/workspaces",
+                    "size": 4,
+                    "timeContext": {
+                      "durationMs": 2592000000
+                    },
+                    "noDataMessage": "No LLM diagnostic data found.",
+                    "version": "KqlItem/1.0",
+                    "visualization": "tiles",
+                    "tileSettings": {
+                      "titleContent": {
+                        "columnMatch": "Label",
+                        "formatter": 1
+                      },
+                      "leftContent": {
+                        "columnMatch": "TotalTokensUsed",
+                        "formatter": 12,
+                        "formatOptions": {
+                          "min": 0,
+                          "palette": "blue"
+                        },
+                        "numberFormat": {
+                          "unit": 17,
+                          "options": {
+                            "style": "decimal",
+                            "useGrouping": true
+                          }
+                        }
+                      },
+                      "subtitleContent": {
+                        "columnMatch": "Status",
+                        "formatter": 1
+                      },
+                      "showBorder": true
+                    }
+                  },
+                  "name": "query - total-tokens-tile",
+                  "type": 3,
+                  "styleSettings": {
+                    "maxWidth": "220px",
+                    "showBorder": false
+                  }
+                },
+                {
                   "content": {
                     "query": "let logs = ApiManagementGatewayLogs | where TimeGenerated {TimeRange};\nlet aiLogs = logs | where ApiId in~ (split('{AiApiIds}', ','));\nlet buAi = aiLogs | where ApimSubscriptionId startswith 'bu-';\nlet llmOk = ApiManagementGatewayLlmLog\n    | where TimeGenerated {TimeRange}\n    | where TotalTokens > 0 and CompletionTokens > 0 and isnotempty(ModelName)\n    | project CorrelationId;\nunion\n    (logs | summarize Records = count() | extend Stage = '1. Total APIM Requests', SortKey = 1),\n    (aiLogs | summarize Records = count() | extend Stage = '2. AI APIM Requests (all subs)', SortKey = 2),\n    (buAi | summarize Records = count() | extend Stage = '3. AI Requests Received (bu-*)', SortKey = 3),\n    (buAi | where ResponseCode != 429 | summarize Records = count() | extend Stage = '4. AI Reached Backend (bu-*, not 429)', SortKey = 4),\n    (buAi | where ResponseCode between (200 .. 299) | summarize Records = count() | extend Stage = '5. AI Successful (bu-*, 2xx)', SortKey = 5),\n    (buAi | join kind=inner llmOk on CorrelationId | summarize Records = dcount(CorrelationId) | extend Stage = '6. AI Successful with Token Log (bu-*)', SortKey = 6)\n| order by SortKey asc\n| project Stage, Records",
                     "queryType": 0,
@@ -1398,14 +1369,14 @@
                 },
                 {
                   "content": {
-                    "json": "#### What this tab shows\n\nEvery tile and table on this tab counts requests **received by APIM** from a `bu-*` subscription whose target API is an **AI gateway API**. AI APIs are identified by the **AI API names** parameter above \u2014 a comma-separated list of APIM API resource names.\n\n#### Why APIs are listed manually\n\nAPIM diagnostic logs (`ApiManagementGatewayLogs`, `ApiManagementGatewayLlmLog`) only carry identifiers like `ApiId`, `OperationId`, and `BackendId` \u2014 they do **not** include APIM tags. Azure Resource Graph also only indexes the top-level `Microsoft.ApiManagement/service` resource and does **not** index APIM API tag associations, so the workbook cannot auto-discover AI APIs from inside Log Analytics.\n\nThe **AI API names** parameter is therefore a plain comma-separated list. To regenerate it for your environment using APIM tags, run the `az rest` snippet documented under that parameter \u2014 it queries the APIM management plane's `apisByTags` endpoint and returns every API carrying a given tag (for example `ai-gateway`).\n\nEvery query on this tab then injects the parameter as `where ApiId in~ (split('{AiApiIds}', ','))`.\n\n#### What happens once a request hits APIM\n\n1. **Inbound** \u2014 APIM accepts the HTTPS request on its gateway endpoint and matches it to an API + operation. The `Ocp-Apim-Subscription-Key` header maps the call to a `bu-*` product subscription, which is the dimension every query in this workbook attributes cost to.\n2. **Inbound policy chain** \u2014 Sample policies enforce per-subscription rate limits and emit telemetry. Requests that exceed the configured limit are rejected with **HTTP 429** at this stage; they never reach the AI backend, so no `ApiManagementGatewayLlmLog` row is written and no tokens are consumed.\n3. **Backend dispatch** \u2014 APIM forwards the surviving request to the configured AI backend (Azure OpenAI / AI Foundry). For load-balanced backends, APIM picks a pool member and can fail over to the next backend on transient errors.\n4. **LLM diagnostic capture** \u2014 On a successful (`2xx`) response, APIM writes one row to `ApiManagementGatewayLlmLog` with `PromptTokens`, `CompletionTokens`, `TotalTokens`, `ModelName`, and `IsStreamCompletion`. **Streaming responses only carry token counts when the client sets `stream_options.include_usage = true`.** Backend `5xx` responses produce no LLM-log row.\n5. **Outbound** \u2014 APIM returns the response to the client and writes one row to `ApiManagementGatewayLogs` regardless of outcome. That gateway-log row is what the **AI Requests Received (bu-*)** tile counts.\n\n#### Reading the tiles\n\nThe blue tiles form a **monotonically non-increasing funnel**: every stage is a strict subset of the previous one.\n\n```\nTotal APIM Requests \u2265 AI APIM Requests (all subs) \u2265 AI Requests Received (bu-*)\n  \u2265 AI Reached Backend (not 429) \u2265 AI Successful (2xx + token log)\n```\n\n**Why two tiles can be equal:** `AI APIM Requests (all subs)` and `AI Requests Received (bu-*)` differ only on the subscription filter. They are equal whenever every AI call was made with a `bu-*` subscription key, which is the default for this sample. They diverge in production environments that mix BU subscriptions with starter/unlimited products or master-key calls.\n\nThe red tiles \u2014 **AI Throttled (429)** and **AI Failed (5xx)** \u2014 sit *outside* the funnel and surface the gaps:\n\n- **AI Throttled (429)** = `AI Requests Received (bu-*)` \u2212 `AI Reached Backend (not 429)`\n- **AI Failed (5xx)** = `AI Reached Backend (not 429)` \u2212 (`AI Successful (2xx + token log)` plus any non-token 2xx)\n\n**AI Successful (2xx + token log)** and **Total Tokens Used** are the `2xx` subset \u2014 `429` throttles and `5xx` failures contribute zero tokens."
+                    "json": "#### What this tab shows\n\nEvery tile and table on this tab counts requests **received by APIM** from a `bu-*` subscription whose target API is an **AI gateway API**. AI APIs are identified by the **AI API names** parameter above — a comma-separated list of APIM API resource names.\n\n#### Why APIs are listed manually\n\nAPIM diagnostic logs (`ApiManagementGatewayLogs`, `ApiManagementGatewayLlmLog`) only carry identifiers like `ApiId`, `OperationId`, and `BackendId` — they do **not** include APIM tags. Azure Resource Graph also only indexes the top-level `Microsoft.ApiManagement/service` resource and does **not** index APIM API tag associations, so the workbook cannot auto-discover AI APIs from inside Log Analytics.\n\nThe **AI API names** parameter is therefore a plain comma-separated list. To regenerate it for your environment using APIM tags, run the `az rest` snippet documented under that parameter — it queries the APIM management plane's `apisByTags` endpoint and returns every API carrying a given tag (for example `ai-gateway`).\n\nEvery query on this tab then injects the parameter as `where ApiId in~ (split('{AiApiIds}', ','))`.\n\n#### What happens once a request hits APIM\n\n1. **Inbound** — APIM accepts the HTTPS request on its gateway endpoint and matches it to an API + operation. The `Ocp-Apim-Subscription-Key` header maps the call to a `bu-*` product subscription, which is the dimension every query in this workbook attributes cost to.\n2. **Inbound policy chain** — Sample policies enforce per-subscription rate limits and emit telemetry. Requests that exceed the configured limit are rejected with **HTTP 429** at this stage; they never reach the AI backend, so no `ApiManagementGatewayLlmLog` row is written and no tokens are consumed.\n3. **Backend dispatch** — APIM forwards the surviving request to the configured AI backend (Azure OpenAI / AI Foundry). For load-balanced backends, APIM picks a pool member and can fail over to the next backend on transient errors.\n4. **LLM diagnostic capture** — On a successful (`2xx`) response, APIM writes one row to `ApiManagementGatewayLlmLog` with `PromptTokens`, `CompletionTokens`, `TotalTokens`, `ModelName`, and `IsStreamCompletion`. **Streaming responses only carry token counts when the client sets `stream_options.include_usage = true`.** Backend `5xx` responses produce no LLM-log row.\n5. **Outbound** — APIM returns the response to the client and writes one row to `ApiManagementGatewayLogs` regardless of outcome. That gateway-log row is what the **AI Requests Received (bu-*)** tile counts.\n\n#### Reading the tiles\n\nThe blue tiles form a **monotonically non-increasing funnel**: every stage is a strict subset of the previous one.\n\n```\nTotal APIM Requests ≥ AI APIM Requests (all subs) ≥ AI Requests Received (bu-*)\n  ≥ AI Reached Backend (not 429) ≥ AI Successful (2xx + token log)\n```\n\n**Why two tiles can be equal:** `AI APIM Requests (all subs)` and `AI Requests Received (bu-*)` differ only on the subscription filter. They are equal whenever every AI call was made with a `bu-*` subscription key, which is the default for this sample. They diverge in production environments that mix BU subscriptions with starter/unlimited products or master-key calls.\n\nThe red tiles — **AI Throttled (429)** and **AI Failed (5xx)** — sit *outside* the funnel and surface the gaps:\n\n- **AI Throttled (429)** = `AI Requests Received (bu-*)` − `AI Reached Backend (not 429)`\n- **AI Failed (5xx)** = `AI Reached Backend (not 429)` − (`AI Successful (2xx + token log)` plus any non-token 2xx)\n\n**AI Successful (2xx + token log)** and **Total Tokens Used** are the `2xx` subset — `429` throttles and `5xx` failures contribute zero tokens."
                   },
                   "name": "text - reconciliation-header",
                   "type": 1
                 },
                 {
                   "content": {
-                    "query": "let aiRequests = ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n    | where ApiId in~ (split('{AiApiIds}', ','));\nlet detail = aiRequests\n    | extend StatusKind = case(\n        ResponseCode between (200 .. 299), 'Successful',\n        ResponseCode == 429, 'Throttled',\n        'Failure')\n    | summarize Records = count(), DistinctRequests = dcount(CorrelationId) by StatusKind, ApiId, ResponseCode\n    | extend Category = strcat('AI - ', StatusKind)\n    | extend SortKey = case(\n        Category == 'AI - Successful', 2,\n        Category == 'AI - Throttled', 3,\n        Category == 'AI - Failure', 4,\n        5)\n    | extend CountedIn = case(\n        Category == 'AI - Successful', 'AI Requests (Successful) tile + Total Tokens Used tile',\n        Category == 'AI - Throttled', '(none \u2014 rejected by inbound rate-limit policy, no tokens)',\n        Category == 'AI - Failure', '(none \u2014 backend error, no LLM log written)',\n        '(other)');\nlet total = aiRequests\n    | summarize Records = count(), DistinctRequests = dcount(CorrelationId)\n    | extend Category = 'AI Requests Received (bu-*)', ApiId = '(all AI APIs)', ResponseCode = int(null), SortKey = 1, CountedIn = 'AI Requests Received tile';\nunion total, detail\n| order by SortKey asc\n| project Category, API = ApiId, ['HTTP Status'] = ResponseCode, Records, ['Distinct Requests'] = DistinctRequests, ['Counted In'] = CountedIn",
+                    "query": "let aiRequests = ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n    | where ApiId in~ (split('{AiApiIds}', ','));\nlet detail = aiRequests\n    | extend StatusKind = case(\n        ResponseCode between (200 .. 299), 'Successful',\n        ResponseCode == 429, 'Throttled',\n        'Failure')\n    | summarize Records = count(), DistinctRequests = dcount(CorrelationId) by StatusKind, ApiId, ResponseCode\n    | extend Category = strcat('AI - ', StatusKind)\n    | extend SortKey = case(\n        Category == 'AI - Successful', 2,\n        Category == 'AI - Throttled', 3,\n        Category == 'AI - Failure', 4,\n        5)\n    | extend CountedIn = case(\n        Category == 'AI - Successful', 'AI Requests (Successful) tile + Total Tokens Used tile',\n        Category == 'AI - Throttled', '(none — rejected by inbound rate-limit policy, no tokens)',\n        Category == 'AI - Failure', '(none — backend error, no LLM log written)',\n        '(other)');\nlet total = aiRequests\n    | summarize Records = count(), DistinctRequests = dcount(CorrelationId)\n    | extend Category = 'AI Requests Received (bu-*)', ApiId = '(all AI APIs)', ResponseCode = int(null), SortKey = 1, CountedIn = 'AI Requests Received tile';\nunion total, detail\n| order by SortKey asc\n| project Category, API = ApiId, ['HTTP Status'] = ResponseCode, Records, ['Distinct Requests'] = DistinctRequests, ['Counted In'] = CountedIn",
                     "queryType": 0,
                     "resourceType": "microsoft.operationalinsights/workspaces",
                     "size": 0,
@@ -1440,43 +1411,6 @@
                     "sortBy": []
                   },
                   "name": "query - reconciliation-table",
-                  "type": 3,
-                  "styleSettings": {
-                    "showBorder": true
-                  }
-                },
-                {
-                  "content": {
-                    "query": "let rankedBusinessUnits = materialize(ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n| summarize RankMetric = count() by ApimSubscriptionId\n| order by RankMetric desc, ApimSubscriptionId asc\n| serialize\n| extend BucketRank = row_number()\n| extend BusinessUnitBucket = substring(ApimSubscriptionId, 3));\nlet businessUnitBuckets = materialize(rankedBusinessUnits\n| summarize BucketRank = min(BucketRank) by BusinessUnitBucket);\nlet bucketedLlmLogs = materialize(ApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0 and CompletionTokens > 0 and isnotempty(ModelName)\n| project CorrelationId, TotalTokens\n| join kind=inner (\n    ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n    | project CorrelationId, ApimSubscriptionId\n) on CorrelationId\n| lookup kind=leftouter rankedBusinessUnits on ApimSubscriptionId\n);\nlet grandTotalTokens = toscalar(bucketedLlmLogs | summarize sum(TotalTokens));\nlet actual = bucketedLlmLogs\n| summarize TotalTokens = todouble(sum(TotalTokens)) by BusinessUnitBucket, BucketRank;\nbusinessUnitBuckets\n| join kind=leftouter actual on BusinessUnitBucket, BucketRank\n| extend TotalTokens = coalesce(TotalTokens, 0.0)\n| extend TotalTokensPct = iif(grandTotalTokens > 0, round(TotalTokens * 100.0 / todouble(grandTotalTokens), 2), 0.0)\n| order by BucketRank asc\n| project\n    ['Business Unit'] = BusinessUnitBucket,\n    ['Total Tokens'] = TotalTokens,\n    ['% of Total'] = TotalTokensPct",
-                    "queryType": 0,
-                    "resourceType": "microsoft.operationalinsights/workspaces",
-                    "size": 0,
-                    "timeContext": {
-                      "durationMs": 2592000000
-                    },
-                    "title": "Token Consumption by Business Unit (Table)",
-                    "noDataMessage": "No LLM diagnostic data found.",
-                    "version": "KqlItem/1.0",
-                    "visualization": "table",
-                    "gridSettings": {
-                      "formatters": [
-                        {
-                          "columnMatch": "% of Total",
-                          "formatter": 0,
-                          "numberFormat": {
-                            "unit": 0,
-                            "options": {
-                              "style": "decimal",
-                              "minimumFractionDigits": 2,
-                              "maximumFractionDigits": 2
-                            }
-                          }
-                        }
-                      ],
-                      "filter": true
-                    }
-                  },
-                  "name": "query - token-usage-table",
                   "type": 3,
                   "styleSettings": {
                     "showBorder": true
@@ -1557,76 +1491,10 @@
                 }
               ],
               "loadType": "always",
-              "version": "NotebookGroup/1.0"
+              "version": "NotebookGroup/1.0",
+              "title": "Token Cost by Business Unit & Model"
             },
             "name": "group - token-usage",
-            "type": 12
-          },
-          {
-            "content": {
-              "expandable": false,
-              "expanded": true,
-              "groupType": "editable",
-              "items": [
-                {
-                  "content": {
-                    "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n| summarize Requests = count() by ResponseCode = tostring(ResponseCode)\n| order by Requests desc",
-                    "queryType": 0,
-                    "resourceType": "microsoft.operationalinsights/workspaces",
-                    "size": 1,
-                    "title": "HTTP Response Code Distribution",
-                    "noDataMessage": "No gateway requests found for the selected time range.",
-                    "version": "KqlItem/1.0",
-                    "visualization": "piechart",
-                    "chartSettings": {
-                      "group": "ResponseCode",
-                      "createOtherGroup": 0,
-                      "showMetrics": true,
-                      "showLegend": false
-                    }
-                  },
-                  "name": "query - response-code-pie",
-                  "type": 3,
-                  "styleSettings": {
-                    "maxWidth": "30%",
-                    "showBorder": true
-                  }
-                },
-                {
-                  "content": {
-                    "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n| summarize Requests = count() by ResponseCode = toint(ResponseCode)\n| extend Description = case(\n    ResponseCode == 200, 'OK',\n    ResponseCode == 201, 'Created',\n    ResponseCode == 202, 'Accepted',\n    ResponseCode == 204, 'No Content',\n    ResponseCode == 301, 'Moved Permanently',\n    ResponseCode == 302, 'Found',\n    ResponseCode == 304, 'Not Modified',\n    ResponseCode == 307, 'Temporary Redirect',\n    ResponseCode == 308, 'Permanent Redirect',\n    ResponseCode == 400, 'Bad Request',\n    ResponseCode == 401, 'Unauthorized',\n    ResponseCode == 403, 'Forbidden',\n    ResponseCode == 404, 'Not Found',\n    ResponseCode == 405, 'Method Not Allowed',\n    ResponseCode == 408, 'Request Timeout',\n    ResponseCode == 409, 'Conflict',\n    ResponseCode == 410, 'Gone',\n    ResponseCode == 413, 'Payload Too Large',\n    ResponseCode == 415, 'Unsupported Media Type',\n    ResponseCode == 422, 'Unprocessable Entity',\n    ResponseCode == 429, 'Too Many Requests',\n    ResponseCode == 500, 'Internal Server Error',\n    ResponseCode == 501, 'Not Implemented',\n    ResponseCode == 502, 'Bad Gateway',\n    ResponseCode == 503, 'Service Unavailable',\n    ResponseCode == 504, 'Gateway Timeout',\n    ResponseCode == 505, 'HTTP Version Not Supported',\n    strcat('Status ', tostring(ResponseCode)))\n| order by Requests desc\n| project Requests, ['Response Code'] = ResponseCode, Description",
-                    "queryType": 0,
-                    "resourceType": "microsoft.operationalinsights/workspaces",
-                    "size": 1,
-                    "title": "Response Codes",
-                    "noDataMessage": "No gateway requests found for the selected time range.",
-                    "version": "KqlItem/1.0",
-                    "visualization": "table",
-                    "gridSettings": {
-                      "formatters": [
-                        {
-                          "columnMatch": "Requests",
-                          "formatter": 8,
-                          "formatOptions": {
-                            "min": 0,
-                            "palette": "blue"
-                          }
-                        }
-                      ]
-                    }
-                  },
-                  "name": "query - response-code-table",
-                  "type": 3,
-                  "styleSettings": {
-                    "maxWidth": "70%",
-                    "showBorder": true
-                  }
-                }
-              ],
-              "loadType": "always",
-              "version": "NotebookGroup/1.0"
-            },
-            "name": "group - response-codes",
             "type": 12
           },
           {
@@ -1712,7 +1580,8 @@
                 }
               ],
               "loadType": "always",
-              "version": "NotebookGroup/1.0"
+              "version": "NotebookGroup/1.0",
+              "title": "Model & Delivery Breakdown"
             },
             "name": "group - model-breakdown",
             "type": 12
@@ -1748,7 +1617,8 @@
                 }
               ],
               "loadType": "always",
-              "version": "NotebookGroup/1.0"
+              "version": "NotebookGroup/1.0",
+              "title": "Streaming Detail by Business Unit & Model"
             },
             "name": "group - streaming-breakdown",
             "type": 12
@@ -1781,41 +1651,15 @@
                   },
                   "name": "query - token-share-pie",
                   "styleSettings": {
-                    "maxWidth": "50%",
-                    "showBorder": true
-                  },
-                  "type": 3
-                },
-                {
-                  "content": {
-                    "query": "let promptRate = coalesce(todouble('{PromptTokenRate}'), 0.00025);\nlet completionRate = coalesce(todouble('{CompletionTokenRate}'), 0.002);\nlet rankedBusinessUnits = materialize(ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n| summarize RankMetric = count() by ApimSubscriptionId\n| order by RankMetric desc, ApimSubscriptionId asc\n| serialize\n| extend BucketRank = row_number()\n| extend BusinessUnitBucket = substring(ApimSubscriptionId, 3));\nlet businessUnitBuckets = materialize(rankedBusinessUnits\n| summarize BucketRank = min(BucketRank) by BusinessUnitBucket);\nlet bucketedLlmLogs = materialize(ApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0 and CompletionTokens > 0 and isnotempty(ModelName)\n| project CorrelationId, PromptTokens, CompletionTokens\n| join kind=inner (\n    ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n    | project CorrelationId, ApimSubscriptionId\n) on CorrelationId\n| lookup kind=leftouter rankedBusinessUnits on ApimSubscriptionId\n);\nlet actual = bucketedLlmLogs\n| summarize PromptTokens = sum(PromptTokens), CompletionTokens = sum(CompletionTokens) by BusinessUnitBucket, BucketRank\n| extend PromptCost = round(PromptTokens * promptRate / 1000.0, 4)\n| extend CompletionCost = round(CompletionTokens * completionRate / 1000.0, 4)\n| extend TotalCost = round(PromptCost + CompletionCost, 4);\nbusinessUnitBuckets\n| join kind=leftouter actual on BusinessUnitBucket, BucketRank\n| extend TotalCost = coalesce(TotalCost, 0.0)\n| order by BucketRank asc\n| project BusinessUnit = BusinessUnitBucket, TotalCost",
-                    "queryType": 0,
-                    "resourceType": "microsoft.operationalinsights/workspaces",
-                    "size": 1,
-                    "timeContext": {
-                      "durationMs": 2592000000
-                    },
-                    "title": "Estimated Cost Share by Business Unit (USD)",
-                    "noDataMessage": "No LLM diagnostic data found.",
-                    "version": "KqlItem/1.0",
-                    "visualization": "piechart",
-                    "chartSettings": {
-                      "group": "BusinessUnit",
-                      "sort": "BusinessUnit",
-                      "sortDirection": true,
-                      "showLegend": false
-                    }
-                  },
-                  "name": "query - token-cost-pie",
-                  "styleSettings": {
-                    "maxWidth": "50%",
+                    "maxWidth": "100%",
                     "showBorder": true
                   },
                   "type": 3
                 }
               ],
               "loadType": "always",
-              "version": "NotebookGroup/1.0"
+              "version": "NotebookGroup/1.0",
+              "title": "Token Share by Business Unit"
             },
             "name": "group - token-distribution",
             "type": 12
@@ -1963,7 +1807,7 @@
           },
           {
             "content": {
-              "json": "> \u26a1 **Heads up:** Per-request queries can return large result sets. Use a tight time range and adjust **Max rows** if needed. See the **Overview** tab for full details on this view."
+              "json": "> ⚡ **Heads up:** Per-request queries can return large result sets. Use a tight time range and adjust **Max rows** if needed. See the **Overview** tab for full details on this view."
             },
             "name": "text - header-byrequest",
             "type": 1
