@@ -31,7 +31,7 @@ class _FakeLock:
 
 @pytest.fixture
 def _quiet_console(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Silence console facade functions so tests don't emit output."""
+    """Silence console facade functions used by az.run."""
 
     mock_module_functions(monkeypatch, az, ['print_command', 'print_plain', 'print_ok', 'print_error'])
 

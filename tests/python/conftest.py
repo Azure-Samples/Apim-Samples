@@ -57,6 +57,21 @@ def _neutralize_leaked_env_vars(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(_var, raising=False)
 
 
+@pytest.fixture(autouse=True)
+def _skip_az_run_retry_sleep(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Skip the multi-second back-off between ``azure_resources.run`` retries.
+
+    ``azure_resources.run`` sleeps several seconds between retry attempts to absorb
+    transient DNS/network failures during real Azure calls. Unit tests never rely on
+    that wall-clock delay, so patching it suite-wide keeps the test run fast even when
+    many tests exercise the failure path (which retries by default).
+    """
+
+    import azure_resources as az  # local import: conftest path setup must run first
+
+    monkeypatch.setattr(az.time, 'sleep', lambda _seconds: None)
+
+
 # ------------------------------
 #    SHARED FIXTURES
 # ------------------------------

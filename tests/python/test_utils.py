@@ -3400,6 +3400,31 @@ def test_wait_for_kql_not_found_within_schedule(monkeypatch, suppress_utils_cons
     assert result is not None and result.success is True
 
 
+def test_wait_for_kql_empty_schedule_returns_immediately(monkeypatch, suppress_utils_console):
+    """An empty schedule exits the polling loop without ever invoking az.run."""
+    nb_helper = _make_nb_helper()
+
+    call_count = {'n': 0}
+
+    def fake_run(cmd, **_kw):
+        call_count['n'] += 1
+        return MagicMock(success=True, json_data=_kql_response([['hit']]), text='')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    found, result, rows = nb_helper.wait_for_kql(
+        '/subscriptions/s/resourceGroups/rg/providers/microsoft.insights/components/c',
+        'Foo',
+        schedule=[],
+        sleep=lambda s: None,
+    )
+
+    assert found is False
+    assert rows == []
+    assert result is None
+    assert call_count['n'] == 0
+
+
 def test_wait_for_kql_query_failure_breaks(monkeypatch, suppress_utils_console):
     nb_helper = _make_nb_helper()
 
@@ -3606,3 +3631,24 @@ def test_extract_kql_rows_handles_missing_data():
     assert utils._extract_kql_rows({'tables': [{}]}) == []
     assert utils._extract_kql_rows({'tables': [{'rows': [['a']]}]}) == [['a']]
     assert utils._extract_kql_rows({'Tables': [{'Rows': [['b']]}]}) == [['b']]
+
+
+def test_singularize_handles_common_plural_forms():
+    """_singularize covers empty input, the -ies/-ses/-xes/-s rules, and multi-word labels."""
+    # Empty / falsy input is returned as-is.
+    assert utils._singularize('') == ''
+    # -ies -> -y (e.g. 'entries' -> 'entry').
+    assert utils._singularize('entries') == 'entry'
+    # -ses -> drop 'es' (e.g. 'classes' -> 'class').
+    assert utils._singularize('classes') == 'class'
+    # -xes -> drop 'es' (e.g. 'boxes' -> 'box').
+    assert utils._singularize('boxes') == 'box'
+    # Plain trailing -s.
+    assert utils._singularize('rows') == 'row'
+    # Trailing -ss is preserved (e.g. 'class' should stay 'class').
+    assert utils._singularize('class') == 'class'
+    # Multi-word labels singularize only the last token.
+    assert utils._singularize('log entries') == 'log entry'
+    assert utils._singularize('breakdown rows') == 'breakdown row'
+    # Words with no rule fall through unchanged.
+    assert utils._singularize('data') == 'data'

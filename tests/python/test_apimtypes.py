@@ -1426,3 +1426,9 @@ class TestOutputMaskSecureValue:
         assert apimtypes.Output._mask_secure_value(True) is True
         assert apimtypes.Output._mask_secure_value(123) == 123
         assert apimtypes.Output._mask_secure_value(None) is None
+
+    def test_is_secret_key_name_non_string_returns_false(self):
+        """Non-string dict keys (e.g. int, tuple, None) cannot be secret hints."""
+        assert apimtypes.Output._is_secret_key_name(42) is False
+        assert apimtypes.Output._is_secret_key_name(None) is False
+        assert apimtypes.Output._is_secret_key_name(('token',)) is False
