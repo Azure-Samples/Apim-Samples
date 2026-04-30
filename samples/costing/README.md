@@ -144,10 +144,36 @@ Azure Monitor Workbook query items execute independently — there is no native 
 
 ## ⚙️ Configuration
 
-1. Decide which of the [Infrastructure Architectures][infrastructure-architectures] you wish to use.
-    1. If the infrastructure *does not* yet exist, navigate to the desired [infrastructure][infrastructure-folder] folder and follow its README.md.
-    1. If the infrastructure *does* exist, adjust the `user-defined parameters` in the *Initialize notebook variables* below. Please ensure that all parameters match your infrastructure.
-2. Run All Cells.
+### Quick Setup Checklist
+
+Follow these steps to prepare and run the costing sample:
+
+1. **Choose an infrastructure**
+   - Select one from the [Infrastructure Architectures][infrastructure-architectures] (or use an existing APIM deployment)
+   - If your chosen infrastructure does not yet exist, navigate to its folder under [infrastructure][infrastructure-folder] and follow its README to deploy it first
+
+2. **Configure user parameters** (in the notebook's first code cell, under `USER CONFIGURATION`)
+   - **Deployment**: Match `deployment`, `rg_location`, and `index` to your chosen infrastructure
+   - **Features to deploy**: Toggle `enable_entraid_tracking`, `enable_token_tracking`, and `enable_foundry` to control which cost-tracking approaches are set up
+   - **Traffic to run**: Use `run_regular_requests` and `run_ai_requests` to skip phases if iterating on workbook logic
+   - **Optional**: For real Entra ID token testing, set `use_real_jwt = True` and populate JWT credentials (see [Prerequisites](#prerequisites))
+   - **Alerts**: Customize `alert_threshold`, `alert_email`, and `cost_export_frequency` if desired
+
+3. **Run all cells** (`Run All` in Jupyter)
+   - Deployment takes ~3–5 minutes (longer if `enable_foundry = True`)
+   - Traffic generation takes ~2–3 minutes
+   - At the end, the notebook prints Azure portal links — click the workbook link to view your cost dashboard
+
+### What Each Configuration Toggle Does
+
+| Toggle | Purpose | Impact if disabled |
+|--------|---------|-------------------|
+| `enable_entraid_tracking` | Deploy Entra ID JWT tracking API | No `caller-requests` metrics in Entra ID workbook tab |
+| `enable_token_tracking` | Deploy AI Gateway token tracking API | No per-caller token/PTU data in AI Gateway workbook tab |
+| `enable_foundry` | Deploy real Azure OpenAI via Foundry | D1 skipped; D2 uses mock instead (adds ~5 min if enabled) |
+| `run_regular_requests` | Generate BU + Entra ID traffic | Workbook Subscription and Entra ID tabs show no data |
+| `run_ai_requests` | Generate AI traffic (real or mock) | Workbook AI Gateway tab shows no data |
+| `create_budget_alerts` | Deploy per-BU request thresholds | No budget alerts (Cell B4 creates zero alerts) |
 
 ## 🖼️ Expected Results
 
