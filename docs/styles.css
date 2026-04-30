@@ -439,6 +439,25 @@ img { max-width: 100%; height: auto; }
   box-shadow: var(--shadow-card);
 }
 
+/* Anchor variant: the Infrastructures and Samples value cards link to their
+   respective in-page sections. Strip default link styling and mirror the
+   subtle lift used by .infra-card / .sample-card so the affordance is
+   consistent across the page. */
+a.value-card-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition: transform var(--transition-card), box-shadow var(--transition-card), border-color var(--transition-card);
+}
+
+a.value-card-link:hover,
+a.value-card-link:focus-visible {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-card-hover);
+  border-color: var(--brand-blue);
+  color: inherit;
+}
+
 /* Icon is a gradient circle echoing the .step::before counter badge
    further down the page, so the two sections share visual DNA.
    The SVG child uses currentColor for fill/stroke; setting color
