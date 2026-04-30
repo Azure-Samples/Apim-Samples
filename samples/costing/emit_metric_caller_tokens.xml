@@ -33,7 +33,10 @@
       inbound section automatically injects stream_options.include_usage
       into streaming requests that lack it. This ensures the backend
       includes token counts in the final SSE chunk, which the APIM
-      gateway infrastructure reads on the fly without buffering.
+      gateway infrastructure reads on the fly without buffering. When
+      the fragment had to inject the flag, it also writes a trace entry
+      to ApiManagementGatewayLogs.TraceRecords so the workbook can prove
+      the request was altered by APIM.
 
     Token tracking via diagnostic logs:
       This policy does NOT parse the response body or emit token metrics

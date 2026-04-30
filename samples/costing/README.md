@@ -74,10 +74,17 @@ All three approaches are deployed together. Toggle `enable_entraid_tracking` and
 
 ### Streaming Support
 
-When `enable_foundry = True`, the notebook demonstrates both non-streaming and streaming (SSE) chat completions. The `emit_metric_caller_tokens.xml` policy ensures accurate token tracking for streaming by injecting `stream_options.include_usage = true` into the request (when `force_stream_include_usage` is enabled). Token counts are captured by the APIM `ApiManagementGatewayLlmLog` diagnostic setting with **zero response buffering**.
+When `enable_foundry = True`, the notebook demonstrates both non-streaming and streaming (SSE) chat completions. For streaming, half the requests explicitly send `stream_options.include_usage = true` and half intentionally omit it so the `pf-ensure-stream-include-usage.xml` policy fragment can prove when APIM had to inject the flag (when `force_stream_include_usage` is enabled). Token counts are captured by the APIM `ApiManagementGatewayLlmLog` diagnostic setting with **zero response buffering**, and proof of the policy mutation is recorded in `ApiManagementGatewayLogs.TraceRecords`.
 
 - **Non-streaming**: The gateway logs exact token counts from the JSON response
-- **Streaming (SSE)**: The gateway reads token counts from the final SSE chunk (requires `stream_options.include_usage = true`)
+- **Streaming (SSE)**: The gateway reads token counts from the final SSE chunk (requires `stream_options.include_usage = true`; the sample proves when APIM had to add it)
+
+The workbook surfaces **both** streaming variants side-by-side so you can see exactly how each request acquired the usage object:
+
+- **Streaming (client-supplied usage)** — the client already set `stream_options.include_usage = true`; APIM forwards the request unchanged.
+- **Streaming (policy-injected usage)** — the client omitted the flag; the APIM policy fragment injected it and emitted a trace into `ApiManagementGatewayLogs.TraceRecords` (look for `IncludeUsageInjected`).
+
+The **AI Gateway** tab's *Streaming vs Non-Streaming Breakdown* and the **Per-Request Detail** tab's `AI Delivery Mode` + `Usage Provenance` columns both render this distinction, so you can confirm token capture works regardless of whether the client or APIM supplied the usage option.
 
 > **Business unit attribution**: Join `ApiManagementGatewayLlmLog` with `ApiManagementGatewayLogs` on `CorrelationId` to map token counts to `ApimSubscriptionId` (business unit). See `bu-token-usage.kql` for a ready-to-use query.
 
@@ -156,7 +163,7 @@ Follow these steps to prepare and run the costing sample:
    - **Deployment**: Match `deployment`, `rg_location`, and `index` to your chosen infrastructure
    - **Features to deploy**: Toggle `enable_entraid_tracking`, `enable_token_tracking`, and `enable_foundry` to control which cost-tracking approaches are set up
    - **Traffic to run**: Use `run_regular_requests` and `run_ai_requests` to skip phases if iterating on workbook logic
-   - **Optional**: For real Entra ID token testing, set `use_real_jwt = True` and populate JWT credentials (see [Prerequisites](#prerequisites))
+   - **Optional**: For real Entra ID token testing, set `use_real_jwt = True` and populate JWT credentials (see [Getting Started](../../README.md#-getting-started))
    - **Alerts**: Customize `alert_threshold`, `alert_email`, and `cost_export_frequency` if desired
 
 3. **Run all cells** (`Run All` in Jupyter)
@@ -166,14 +173,14 @@ Follow these steps to prepare and run the costing sample:
 
 ### What Each Configuration Toggle Does
 
-| Toggle | Purpose | Impact if disabled |
-|--------|---------|-------------------|
-| `enable_entraid_tracking` | Deploy Entra ID JWT tracking API | No `caller-requests` metrics in Entra ID workbook tab |
-| `enable_token_tracking` | Deploy AI Gateway token tracking API | No per-caller token/PTU data in AI Gateway workbook tab |
-| `enable_foundry` | Deploy real Azure OpenAI via Foundry | D1 skipped; D2 uses mock instead (adds ~5 min if enabled) |
-| `run_regular_requests` | Generate BU + Entra ID traffic | Workbook Subscription and Entra ID tabs show no data |
-| `run_ai_requests` | Generate AI traffic (real or mock) | Workbook AI Gateway tab shows no data |
-| `create_budget_alerts` | Deploy per-BU request thresholds | No budget alerts (Cell B4 creates zero alerts) |
+| Toggle                    | Purpose                                        | Impact if disabled                                               |
+| ------------------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
+| `enable_entraid_tracking` | Deploy Entra ID JWT tracking API               | No `caller-requests` metrics in Entra ID workbook tab            |
+| `enable_token_tracking`   | Deploy AI Gateway token tracking API           | No per-caller token/PTU data in AI Gateway workbook tab          |
+| `enable_foundry`          | Deploy real Azure OpenAI via Foundry           | D1 skipped; D2 uses mock instead (adds ~5 min if enabled)        |
+| `run_regular_requests`    | Generate BU + Entra ID traffic                 | Workbook Subscription and Entra ID tabs show no data             |
+| `run_ai_requests`         | Generate AI traffic (real or mock)             | Workbook AI Gateway tab shows no data                            |
+| `create_budget_alerts`    | Deploy per-BU request thresholds               | No budget alerts (Cell B4 creates zero alerts)                   |
 
 ## 🖼️ Expected Results
 
@@ -238,7 +245,7 @@ When `enable_foundry = True`, the multi-caller traffic phase alternates between 
 - A **pie chart** showing overall request distribution across delivery modes
 - A **color-coded table** showing per-BU request counts and prompt, completion, and total token counts split by delivery mode
 
-This makes it easy to confirm that token tracking works identically for both modes. Streaming responses only emit token usage when `stream_options.include_usage = true` is sent; the `emit_metric_caller_tokens.xml` policy injects this automatically when `force_stream_include_usage` is enabled, so callers do not need to set it themselves.
+This makes it easy to confirm that token tracking works identically for both modes. The streaming visuals also distinguish between **client-supplied usage** (the caller already set `stream_options.include_usage = true`) and **APIM-injected usage** (the policy fragment added the flag and logged proof into `TraceRecords`), so you can verify policy behavior end to end. The same split is available per-request on the **Per-Request Detail** tab via the `AI Delivery Mode` and `Usage Provenance` columns.
 
 ## 🧹 Clean Up
 

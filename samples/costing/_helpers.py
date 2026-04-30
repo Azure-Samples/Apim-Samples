@@ -296,14 +296,17 @@ def send_aoai_traffic(
     *,
     chat_body: dict,
     stream_body: dict,
+    stream_body_without_usage: dict | None = None,
 ) -> tuple[int, int, int, int, bool]:
     """Send `count` AOAI requests alternating non-streaming / streaming.
 
     Encapsulates the inner request loop used by cell D1's per-(BU, model) loop:
     even iterations send non-streaming chat completions, odd iterations send
-    streaming requests with `stream_options.include_usage = true` so APIM
-    captures token counts in `ApiManagementGatewayLlmLog`. On the first timeout
-    the function bails out for the rest of `count` to avoid stacking
+    streaming chat completions. When `stream_body_without_usage` is supplied,
+    streaming iterations alternate between a client body that already sets
+    `stream_options.include_usage = true` and one that omits it entirely so
+    the APIM policy fragment can prove when it injected the flag. On the first
+    timeout the function bails out for the rest of `count` to avoid stacking
     cold-start delays into multi-minute hangs.
 
     Args:
@@ -312,8 +315,11 @@ def send_aoai_traffic(
         caller_headers: Per-call headers (api-key for the BU + Authorization JWT).
         count: Total number of requests to send for this (BU, model) cell.
         chat_body: JSON body for non-streaming requests.
-        stream_body: JSON body for streaming requests (must include `stream: True`
-            and `stream_options.include_usage: True`).
+        stream_body: JSON body for streaming requests where the client already
+            sets `stream_options.include_usage: True`.
+        stream_body_without_usage: Optional JSON body for streaming requests
+            that intentionally omits `stream_options.include_usage` so APIM can
+            inject it and emit a trace record proving the mutation.
 
     Returns:
         `(non_streaming_delivered, streaming_delivered, planned_ns, planned_s, bailed)`.
@@ -336,7 +342,11 @@ def send_aoai_traffic(
         else:
             planned_non_streaming += 1
 
-        body = stream_body if use_streaming else chat_body
+        if use_streaming:
+            streaming_iteration = planned_streaming - 1
+            body = stream_body_without_usage if stream_body_without_usage is not None and streaming_iteration % 2 == 0 else stream_body
+        else:
+            body = chat_body
 
         try:
             r = session.post(
@@ -381,37 +391,30 @@ def print_portal_links(items: list[tuple[str, str | None]]) -> None:
     """
 
     print('')
-    print('================================================================================')
-    print_info('NEXT STEP: OPEN THE AZURE MONITOR WORKBOOK')
-    print('================================================================================')
-    print_info('1) Copy the URL below')
-    print_info('2) Paste it into your browser address bar')
-    print_info('3) Press Enter')
-    print('')
-
-    # Extract and highlight workbook URL from the first item
-    if items:
-        workbook_label, workbook_url = items[0]
-        if workbook_url:
-            print_val('WORKBOOK URL', workbook_url)
-        else:
-            print_warning(f'{workbook_label} is not available')
-    else:
-        print_warning('No portal links provided')
-
-    print('')
     print_info('Additional portal links for reference:')
     print('')
+
+    workbook_url: str | None = None
 
     n = 0
     for label, url in items:
         n += 1
+        if n == 1:
+            workbook_url = url
         print_info(f'{n}. {label}')
         if url:
             print_plain(f'       {url}')
         else:
             print_plain('   (not deployed)')
         print_plain()
+
+    print('')
+    print('================================================================================')
+    print_info('NEXT STEP: LAUNCH AZURE MONITOR WORKBOOK')
+    print('================================================================================')
+    print('')
+    print_val('WORKBOOK URL', workbook_url)
+    print('')
 
 
 # ---------------------------------------------------------------------------

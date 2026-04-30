@@ -4,6 +4,8 @@
     For AI Gateway scenarios where APIM proxies streaming LLM requests.
     Injects stream_options.include_usage = true into chat completions
     that request streaming but lack the usage object configuration.
+    When the fragment had to inject the flag, it emits a trace so the
+    mutation is visible in ApiManagementGatewayLogs.TraceRecords.
 
     WHY THIS IS NEEDED:
     - Azure OpenAI (and compatible APIs) omit token usage from streaming (SSE) responses by default
@@ -14,6 +16,7 @@
     USAGE:
     Add this fragment to the inbound section of APIs that proxy to LLM backends.
     The fragment idempotently sets include_usage = true; repeated calls are safe.
+    Only requests that required a mutation emit a trace.
 
     Condition: Applies only to JSON POST bodies with stream = true
 
@@ -23,6 +26,49 @@
     - Body is read with preserveContent=true to avoid buffering side effects
 -->
 <fragment>
+    <set-variable name="streamIncludeUsageAction" value='@{
+        try {
+            if (context.Request.Body == null) {
+                return "not-applicable";
+            }
+
+            var contentType = context.Request.Headers.GetValueOrDefault("Content-Type", "");
+            if (!contentType.Contains("json")) {
+                return "not-applicable";
+            }
+
+            var body = context.Request.Body.As&lt;Newtonsoft.Json.Linq.JObject&gt;(preserveContent: true);
+            if (body["stream"]?.Value&lt;bool&gt;() != true) {
+                return "not-applicable";
+            }
+
+            if (body["stream_options"] == null) {
+                return "include-usage-injected";
+            }
+
+            var streamOptions = body["stream_options"] as Newtonsoft.Json.Linq.JObject;
+            if (streamOptions == null) {
+                return "include-usage-injected";
+            }
+
+            return streamOptions["include_usage"]?.Value&lt;bool&gt;() == true
+                ? "client-supplied"
+                : "include-usage-injected";
+        } catch {
+            return "parse-failed";
+        }
+    }' />
+
+    <choose>
+        <when condition='@(((string)context.Variables.GetValueOrDefault&lt;string&gt;("streamIncludeUsageAction", string.Empty)) == "include-usage-injected")'>
+            <trace source="Ensure-Stream-Include-Usage" severity="information">
+                <message>APIM injected stream_options.include_usage = true for a streaming request.</message>
+                <metadata name="IncludeUsageAction" value="IncludeUsageInjected" />
+                <metadata name="StreamIncludeUsageAction" value='@((string)context.Variables["streamIncludeUsageAction"])' />
+            </trace>
+        </when>
+    </choose>
+
     <choose>
         <when condition="@(context.Request.Body != null)">
             <set-body><![CDATA[@{
