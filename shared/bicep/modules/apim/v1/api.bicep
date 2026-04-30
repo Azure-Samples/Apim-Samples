@@ -40,6 +40,7 @@ var logSettings = {
 }
 
 var apiSubscriptionRequired = api.?subscriptionRequired ?? true
+var apiEnableLlmLogging = api.?enableLlmLogging ?? false
 
 
 // ------------------------------
@@ -171,6 +172,37 @@ resource apiDiagnostics 'Microsoft.ApiManagement/service/apis/diagnostics@2024-0
     }  }
 }
 
+// Enable Azure Monitor API-level diagnostic with LLM logging for AI Gateway APIs.
+// Requires the service-level 'azuremonitor' diagnostic and GatewayLlmLogs category
+// to be enabled via the diagnostics module.
+// https://learn.microsoft.com/azure/api-management/api-management-howto-llm-logs
+// https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/apis/diagnostics
+resource apiAzureMonitorDiagnostics 'Microsoft.ApiManagement/service/apis/diagnostics@2024-06-01-preview' = if (apiEnableLlmLogging) {
+  name: 'azuremonitor'
+  parent: apimApi
+  properties: {
+    alwaysLog: 'allErrors'
+    verbosity: 'verbose'
+    logClientIp: true
+    loggerId: resourceId(resourceGroup().name, 'Microsoft.ApiManagement/service/loggers', apimName, 'azuremonitor')
+    sampling: {
+      samplingType: 'fixed'
+      percentage: 100
+    }
+    largeLanguageModel: {
+      logs: 'enabled'
+      requests: {
+        messages: 'all'
+        maxSizeInBytes: 262144
+      }
+      responses: {
+        messages: 'all'
+        maxSizeInBytes: 262144
+      }
+    }
+  }
+}
+
 // Product associations are handled directly in this module with proper dependency management // to prevent race conditions while keeping the architecture simple
 // Reference existing products for association (with explicit dependency timing)
 resource apimProducts 'Microsoft.ApiManagement/service/products@2024-06-01-preview' existing = [for productName in productNames: {
@@ -189,6 +221,7 @@ resource apiProductAssociation 'Microsoft.ApiManagement/service/products/apis@20
     apiOperation               // Ensure all operations are created
     apiOperationPolicy         // Ensure all operation policies are applied
     apiDiagnostics             // Ensure diagnostics are configured if present
+    apiAzureMonitorDiagnostics // Ensure Azure Monitor LLM diagnostics are configured if present
   ]
 }]
 

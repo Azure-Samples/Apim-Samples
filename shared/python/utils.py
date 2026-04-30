@@ -11,6 +11,7 @@ import secrets
 import string
 import subprocess
 import sys
+import tempfile
 import time
 import warnings
 from pathlib import Path
@@ -587,10 +588,178 @@ class NotebookHelper:
 
         return output
 
+    def wait_for_kql(
+        self,
+        resource_id: str,
+        kql_query: str,
+        *,
+        api_path: str = '/api/query',
+        api_version: str = '2020-08-01',
+        schedule: list[int] | None = None,
+        progress_label: str = 'rows',
+        sleep: Any = None,
+    ) -> tuple[bool, Any | None, list[list[Any]]]:
+        """
+        Poll a Log Analytics workspace or Application Insights component with a
+        KQL query until at least one result row is returned, or the schedule expires.
+
+        The method writes the query body to a temporary JSON file and invokes
+        ``az rest --method POST --body @<file>`` so that pipe-character KQL
+        operators are not mangled by the shell on Windows.
+
+        Args:
+            resource_id (str): The ARM resource ID of the workspace or component
+                (no leading scheme; e.g. ``/subscriptions/<sub>/resourceGroups/...``).
+            kql_query (str): The KQL query body to send.
+            api_path (str): Sub-path appended to the resource ID for the query
+                endpoint. Defaults to ``/api/query`` (Log Analytics). Use
+                ``/query`` for Application Insights.
+            api_version (str): Query API version. Defaults to ``2020-08-01``
+                (Log Analytics). Use ``2018-04-20`` for Application Insights.
+            schedule (list[int] | None): Sleep-before-attempt seconds for each
+                poll. The first element is typically ``0`` for an immediate
+                first attempt. Defaults to ``[0] + [30] * 8`` (~4 min cap).
+            progress_label (str): Noun used in progress messages
+                (e.g. ``'log entries'``, ``'metric entries'``).
+            sleep (Callable[[float], None] | None): Injection point for the
+                sleep function. Defaults to ``time.sleep``. Tests pass a stub
+                to avoid real waits.
+
+        Returns:
+            tuple[bool, Output | None, list[list[Any]]]: A tuple of
+                ``(found, last_result, rows)``. ``found`` is ``True`` when at
+                least one row was returned by the query. ``last_result`` is the
+                final ``Output`` returned by ``azure_resources.run`` (``None``
+                if the schedule was empty). ``rows`` is the row list from the
+                first table of the final response (empty list when not found).
+        """
+
+        if schedule is None:
+            schedule = [0] + [30] * 8  # ~4 min cap, post-warm pipeline
+
+        sleep_fn = sleep if sleep is not None else time.sleep
+
+        body = json.dumps({'query': kql_query})
+
+        # Write the query body to a temp file so that '|' characters in KQL
+        # are not interpreted by the shell.
+        tmp = Path(_write_temp_json(body))
+
+        url = f'https://management.azure.com{resource_id}{api_path}?api-version={api_version}'
+        cmd = f'az rest --method POST --url "{url}" --body @{tmp} -o json'
+
+        found = False
+        result = None
+        rows: list[list[Any]] = []
+        elapsed_s = 0
+        total_s = sum(schedule)
+
+        try:
+            for sleep_s in schedule:
+                if sleep_s:
+                    sleep_fn(sleep_s)
+                    elapsed_s += sleep_s
+
+                # Disable az.run's inner retry: this method is itself a polling
+                # loop, and during the warm-up window the workspace returns
+                # WorkspaceNotFoundError / 429 / 503 — those are *expected*
+                # transient states, not command failures. Letting az.run also
+                # retry would add a 5s backoff and a misleading
+                # "Command failed (attempt 1/2)" warning on every poll tick.
+                result = az.run(cmd, retries=0)
+
+                if not result.success:
+                    # Treat early-lifecycle / transient errors as "keep polling".
+                    # Newly created Log Analytics workspaces and Application Insights
+                    # components routinely return WorkspaceNotFoundError or 429/503
+                    # for several minutes after deployment even though the ARM
+                    # resource is already visible. Breaking on the first failure
+                    # would surface a misleading hard error in that window.
+                    transient_markers = (
+                        'WorkspaceNotFoundError',
+                        'WorkspaceNotAccessible',
+                        'PathApiNotFound',
+                        '"code":"429"',
+                        '"code":"503"',
+                    )
+                    if any(marker in (result.text or '') for marker in transient_markers):
+                        remaining = max(0, total_s - elapsed_s)
+                        if remaining <= 0:
+                            print_error(f'Query failed: {result.text[:300]}')
+                            break
+                        print_info(f'  Workspace not yet queryable at ~{elapsed_s}s ({remaining}s remaining)')
+                        continue
+                    print_error(f'Query failed: {result.text[:300]}')
+                    break
+
+                rows = _extract_kql_rows(result.json_data)
+                if rows:
+                    label = _singularize(progress_label) if len(rows) == 1 else progress_label
+                    print_ok(f'Found {len(rows)} {label} (after ~{elapsed_s}s)')
+                    found = True
+                    break
+
+                remaining = max(0, total_s - elapsed_s)
+                if remaining <= 0:
+                    break
+                print_info(f'  No {progress_label} yet at ~{elapsed_s}s ({remaining}s remaining)')
+        finally:
+            tmp.unlink(missing_ok=True)
+
+        return found, result, rows
+
 
 # ------------------------------
 #    PRIVATE METHODS
 # ------------------------------
+
+
+def _write_temp_json(body: str) -> str:
+    """Write a JSON body to a NamedTemporaryFile and return its path."""
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as f:
+        f.write(body)
+        return f.name
+
+
+def _singularize(word: str) -> str:
+    """
+    Return the singular form of a simple English plural noun used as a
+    progress label (e.g. ``'entries' -> 'entry'``, ``'rows' -> 'row'``).
+    Falls back to the input when no rule applies.
+    """
+
+    if not word:
+        return word
+    # Handle multi-word labels by singularizing only the last token
+    # (e.g. 'log entries' -> 'log entry', 'breakdown rows' -> 'breakdown row').
+    head, _, tail = word.rpartition(' ')
+    last = tail or word
+    if last.endswith('ies') and len(last) > 3:
+        last = last[:-3] + 'y'
+    elif last.endswith('ses') or last.endswith('xes'):
+        last = last[:-2]
+    elif last.endswith('s') and not last.endswith('ss'):
+        last = last[:-1]
+    return f'{head} {last}' if head else last
+
+
+def _extract_kql_rows(json_data: Any) -> list[list[Any]]:
+    """
+    Extract the row list from a Log Analytics or Application Insights query
+    response. Both APIs return a ``tables`` (Application Insights) or
+    ``Tables`` (Log Analytics) array; the first table's ``rows``/``Rows``
+    contains the result set. Returns an empty list when the response is
+    missing or empty.
+    """
+
+    if not isinstance(json_data, dict):
+        return []
+    tables = json_data.get('tables') or json_data.get('Tables') or []
+    if not tables:
+        return []
+    first = tables[0] or {}
+    return first.get('rows') or first.get('Rows') or []
 
 
 def _determine_bicep_directory(infrastructure_dir: str) -> str:
@@ -723,7 +892,10 @@ def create_bicep_deployment_group(
         cmd += ' --debug'
 
     print_plain('\nDeploying bicep...\n')
-    return az.run(cmd, f"Deployment '{deployment_name}' succeeded", get_deployment_failure_message(deployment_name))
+    # Bicep deployments routinely run longer than the default 240s subprocess timeout
+    # (APIM provisioning alone can take 30+ minutes). Use a 30-minute cap so a long-running
+    # but successful deployment is not reported as a transient "Command failed" / retry.
+    return az.run(cmd, f"Deployment '{deployment_name}' succeeded", get_deployment_failure_message(deployment_name), timeout=1800)
 
 
 def find_project_root() -> str:
@@ -1189,7 +1361,6 @@ def wait_for_apim_blob_permissions(apim_name: str, storage_account_name: str, re
     print_plain('')
 
     return success
-
 
 
 def get_endpoint(deployment: INFRASTRUCTURE, rg_name: str, apim_gateway_url: str) -> Tuple[str, dict[str, str] | None, bool]:

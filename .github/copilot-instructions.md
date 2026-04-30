@@ -44,6 +44,8 @@ In case of any conflicting instructions, the following hierarchy shall apply. If
 
 - Write concise, efficient, and well-documented code for a global audience.
 - Consider non-native English speakers in code comments and documentation, using clear and simple language.
+- Treat accessibility as a default quality requirement across the entire repository, not only for presentations.
+- New or updated user-facing experiences (docs, webpages, notebooks, dashboards/workbooks, and slide content) must target WCAG 2.0 AA contrast and non-color-only communication as the baseline.
 
 ## Consistency & Uniformity
 
@@ -328,6 +330,28 @@ storage_account_id = f'/subscriptions/{subscription_id}/...'
 - Use `shared/bicep/` modules where available for reusable components
 - Return outputs for all created resources (names, IDs, connection strings, etc.)
 
+#### Always reuse infrastructure-provided resources
+
+Samples must default to **reusing the resources already created by the infrastructure deployment**. Do not redeploy resources the infrastructure already provides — this creates duplicate Azure resources, costs extra money, can misconfigure APIM logger wiring, and confuses users about which resource is "the real one".
+
+The simple-apim infrastructure (and equivalents) already provides:
+
+- An **APIM service** (with `apim-logger` already attached)
+- A **Log Analytics workspace** (already wired to APIM diagnostics)
+- An **Application Insights** component (already wired as the APIM logger)
+
+Sample `main.bicep` files must consume these via `existing` resource references rather than `module ... = { ... }` deployments. The sample's `create.ipynb` should read the infrastructure's resource names from `nb_helper.deployment_outputs` (populated by `deploy_sample()`) — these include `applicationInsightsName`, `logAnalyticsWorkspaceName`, `apimServiceName`, etc.
+
+A sample may deploy **its own** Application Insights, Log Analytics, or other shared monitoring infrastructure **only** when one of these conditions holds:
+
+1. The sample needs **isolation** from other samples (e.g. a dedicated workspace for cost data that must not mix with other samples' telemetry).
+2. The sample's resource has **sample-specific configuration** that cannot be applied to the shared infrastructure resource without affecting other samples (e.g. a custom retention policy, a different region for compliance).
+3. The sample exercises a **scenario** where having a separate resource is the point of the sample (e.g. a sample demonstrating multi-workspace federation).
+
+When a sample does deploy its own version of an infrastructure-provided resource, the sample README must include a short section explaining **why** the duplicate is necessary and how it differs from the infrastructure-provided one.
+
+When wiring APIM API-level diagnostics (`apimLoggerName` parameter on `shared/bicep/modules/apim/v1/api.bicep`), **omit the parameter** so the API inherits the infrastructure's `apim-logger`. Only set `apimLoggerName` when the sample has a justified reason (per the rules above) to point a specific API at a different logger.
+
 ### Sample README.md
 
 Every sample README must follow this standard layout to maintain uniformity across the repository. Users should be able to predict where to find each piece of information:
@@ -364,11 +388,32 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 
 ### Testing and Traffic Generation
 
-- Use the `ApimRequests` and `ApimTesting` classes from `apimrequests.py` and `apimtesting.py` for all API testing and traffic generation in notebooks.
-- Do not use the `requests` library directly for calling APIM endpoints.
-- **Favour HTTP connection reuse.** When a notebook makes multiple HTTP calls to the same APIM gateway (e.g. a test matrix), create a single `requests.Session()` early and route all calls through it. This avoids repeated TCP+TLS handshakes, which can add 200-500 ms per request. Configure `session.verify` and `session.headers` once from `utils.get_endpoint()` and pass the session (or use it in helper functions) for OPTIONS, GET, and POST calls alike.
+- Use the `ApimRequests` and `ApimTesting` classes from `apimrequests.py` and `apimtesting.py` for structured API testing with verbose logging and response formatting.
+- **Favour `requests.Session()` for loops, multi-caller traffic, and any code that sends more than one HTTP request.** Creating a new `ApimRequests` instance (or a bare `requests.get/post`) inside a loop opens a fresh TCP+TLS connection on every iteration, adding 200-500 ms per request. Instead, create a single `requests.Session()` at the top of the section, configure `session.verify` and `session.headers` once from `utils.get_endpoint()`, and route all calls through it. Close the session in a `finally` block. Import as `import requests as http_requests` for clarity when the `requests` name would shadow other uses.
+- `ApimRequests` already uses a session internally for its `multiGet`/`multiPost` methods, so a single `ApimRequests` instance per loop iteration is acceptable when you need its verbose logging. However, if you only need to send requests without per-request logging, prefer a raw `requests.Session()` loop — it is simpler and avoids creating throw-away objects.
+- **One session per cell is fine.** Each notebook cell should be independently runnable, so create and close a session within the same cell rather than sharing one across cells.
 - Use `utils.get_endpoint(deployment, rg_name, apim_gateway_url)` to determine the correct endpoint URL, headers, and TLS verification flag based on the infrastructure type. `allow_insecure_tls` is returned as `True` only for Application Gateway infrastructures because they use a self-signed certificate; it defaults to `False` everywhere else.
-- Example:
+- Session pattern example (preferred for loops):
+  ```python
+  import requests as http_requests
+
+  endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(deployment, rg_name, apim_gateway_url)
+
+  session = http_requests.Session()
+  session.verify = not allow_insecure_tls
+  if request_headers:
+      session.headers.update(request_headers)
+  session.headers['Ocp-Apim-Subscription-Key'] = subscription_key
+
+  url = f'{endpoint_url}/api-path'
+
+  try:
+      for item in items:
+          session.get(url, headers={'Authorization': f'Bearer {item["token"]}'}, timeout=30)
+  finally:
+      session.close()
+  ```
+- ApimRequests example (for structured test verification with logging):
   ```python
   from apimrequests import ApimRequests
   from apimtesting import ApimTesting
@@ -381,7 +426,20 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
   tests.verify('Expected String' in output, True)
   ```
 
-  ## Language-specific Instructions
+### Notebook Cell Ordering: Batch Traffic, Then Verify
+
+Telemetry pipelines (Log Analytics ingestion, Application Insights custom metrics, `ApiManagementGatewayLlmLog`, Cost Management exports) all have ingestion latency measured in **minutes, not seconds**. A naive notebook structure that alternates *generate traffic → wait/verify → generate more traffic → wait/verify* pays this latency tax repeatedly and stretches a sample's *Run All* time well beyond what it needs to be.
+
+When designing or restructuring a sample notebook:
+
+- **Batch all traffic generation first, then verify once at the end.** Group every traffic-generating cell into a contiguous block, followed by a contiguous block of verification cells. By the time the verification cells run, ingestion pipelines have already had several minutes of warm-up across the preceding traffic cells, so polling typically returns on the first attempt instead of on a cold-start retry schedule.
+- **Avoid inline verification inside traffic cells.** A cell that sends traffic *and* polls for that traffic's metrics in the same cell forces every subsequent step to wait for that poll. If verification is genuinely useful, factor it out into a dedicated verification cell at the end of the notebook.
+- **Group related cells with a shared prefix in the markdown heading.** When the notebook has multiple traffic cells and multiple verification cells, prefix each heading with a short tag so users immediately see which cells belong together. The `costing` sample uses `[Traffic]` and `[Verify]` prefixes (e.g. `### 7/14: [Traffic] Generate Sample API Traffic`, `### 12/14: [Verify] Verify Log Ingestion`). Keep prefixes short, bracketed, and consistent within a notebook.
+- **Place setup-time work (alerts, exports, dashboards) before traffic cells**, so the demo traffic exercises them end-to-end. For example, budget alerts should be created *before* traffic is generated, not after.
+- **Place context cells (pricing tables, cost models, reference data) before action cells.** A pricing-and-cost-analysis cell that does no Azure calls should run early so users see the cost framing before they generate billable traffic, not as a postscript.
+- **Reuse polling output across verifications when possible.** If two verification cells query the same workspace or component, consolidate them into a single cell or schedule their polls so the second one benefits from the warm pipeline established by the first.
+
+## Language-specific Instructions
 
   - Python: see `.github/python.instructions.md`
   - Bicep: see `.github/bicep.instructions.md`
@@ -395,6 +453,7 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 - Organize code into logical sections (constants, variables, private/public methods, etc.).
 - Prefer single over double quotes, avoiding typographic quotes.
 - Only use apostrophe (U+0027) and quotes (U+0022), not left or right single or double quotation marks.
+- Use only ASCII punctuation in text content. Replace em-dashes (U+2014) and en-dashes (U+2013) with a plain hyphen-minus (`-`), the minus sign (U+2212) with `-`, the horizontal ellipsis (U+2026) with `...`, and math comparison glyphs (U+2264, U+2265, U+2260) with `<=`, `>=`, `!=`. These typographic characters do not always render correctly in downstream surfaces such as Azure Monitor Workbook markdown tiles, slide-deck HTML, and some terminal fonts. This rule applies to every text-bearing file in the repository, including Markdown, Python docstrings/comments, Bicep `@description` strings, XML policy comments, and **JSON string values that contain user-facing text (notably Azure Monitor Workbook `*.workbook.json` files where markdown is embedded in `content.json` strings).**
 - Do not localize URLs (e.g. no "en-us" in links).
 - Never use emoji variation selectors in Markdown. They are sneaky little things that can cause rendering and Markdown anchor link issues.
 - **Markdown tables must be column-aligned.** Pad cell values with spaces so that every `|` delimiter in a column lines up vertically. Use the separator row (`---`, `:---:`, etc.) to establish column widths and align all subsequent rows to match. This applies to every Markdown file in the repository (READMEs, skills, instructions, etc.).
@@ -486,6 +545,46 @@ Check `docs/README.md` for local preview instructions and styling notes. The pag
   | where RequestCount > threshold
   ```
 - When executing KQL via `az rest` or `az monitor log-analytics query`, write the query body to a temporary JSON file and pass it with `--body @tempfile.json` to avoid shell pipe-character interpretation issues on Windows.
+
+### Azure Monitor Workbook File Convention
+
+Azure Monitor Workbook definitions stored in this repository must follow the **`<name>.workbook.json`** suffix convention. The double extension makes the file's purpose obvious at a glance, prevents collisions with other JSON artefacts in the same folder (Bicep parameter files, schemas, configuration), and groups all workbook source files under a single, greppable pattern.
+
+- **Naming**: Use kebab-case for `<name>` and match the sample folder where reasonable (e.g. `costing.workbook.json` in `samples/costing/`, `latency.workbook.json` if a future sample adds one). One file per workbook.
+- **Location**: Place the file in the sample folder that owns the workbook (e.g. `samples/<sample-name>/<sample-name>.workbook.json`). Workbooks shared across samples belong under `shared/` with a descriptive `<name>` prefix.
+- **Schema**: The first property must be `"$schema": "https://raw.githubusercontent.com/Microsoft/Application-Insights-Workbooks/refs/heads/master/schema/workbook.json"`. Follow `.github/json.instructions.md` for `$schema` URL formatting.
+- **Bicep loading**: When embedding the workbook in a Bicep template, load it via `loadJsonContent('<name>.workbook.json')` and serialise it to a string for `properties.serializedData`. Match the filename exactly — do not rename to `workbook.json` inside Bicep.
+- **Push script**: A sample that ships a workbook should provide an `update-workbook.ps1` (or equivalent) helper that reads `<name>.workbook.json` and updates the deployed workbook resource via `az rest`. The script should accept a mandatory `-rg` parameter and preserve any user-edited workbook parameter values (e.g. cost rates) from the live resource so that re-pushing source-controlled changes does not clobber portal edits.
+- **Tests**: Workbook JSON files should be parsed and structurally validated by a unit test (see `tests/python/test_costing_workbook.py` for the canonical pattern: schema check, parameter presence, KQL query well-formedness).
+
+### Azure Monitor Workbook Query Optimization
+
+Azure Monitor Workbook query items execute independently — there is no native mechanism to share a materialized table across query items. Apply the following patterns to minimise data scanned and improve workbook responsiveness:
+
+- **`materialize()` for multi-reference `let` bindings.** When a `let` binding is referenced more than once in the same query (e.g. once for a `toscalar(count)` and once for the main `summarize`), wrap it in `materialize()` so Log Analytics computes the base set once per query execution rather than scanning the underlying table twice.
+  ```kql
+  let logs = materialize(ApiManagementGatewayLogs
+  | where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-');
+  let totalRequests = toscalar(logs | summarize count());
+  logs
+  | summarize RequestCount = count() by ApimSubscriptionId
+  | extend UsageShare = round(RequestCount * 100.0 / totalRequests, 2)
+  ```
+- **Column-project before joins.** When joining two tables, add an explicit `| project` on both sides to carry only the columns that the downstream `summarize`/`extend`/`project` actually needs. Wide diagnostic tables like `ApiManagementGatewayLlmLog` contain many columns; projecting only the needed ones before the join reduces memory and network cost.
+  ```kql
+  ApiManagementGatewayLlmLog
+  | where TimeGenerated {TimeRange} and TotalTokens > 0
+  | project CorrelationId, TotalTokens             // only what this query needs
+  | join kind=inner (
+      ApiManagementGatewayLogs
+      | where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'
+      | project CorrelationId, BusinessUnit = ApimSubscriptionId
+  ) on CorrelationId
+  | summarize TotalTokens = sum(TotalTokens) by BusinessUnit
+  ```
+- **Avoid duplicate queries across items.** If two workbook visualisations require identical data, consider whether they can share a single query item with different chart/table renderings, or whether the layout can be restructured to avoid scanning the same data twice. Workbook Merge items can combine two previously-computed result sets but cannot perform arbitrary re-aggregation.
+- **Keep the Workbook `timeContext` on each query item** rather than relying solely on the global parameter. This ensures Log Analytics can push down the time filter to the storage layer even when the parameter is complex.
+- **Prefer `summarize` close to the source.** Push `summarize` as early as possible in the pipeline to reduce the volume of rows flowing through subsequent operators.
 
 ### Admin APIs (`/admin/`) Convention
 

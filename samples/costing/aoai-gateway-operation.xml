@@ -1,0 +1,29 @@
+<!--
+    AOAI Gateway Operation Policy
+
+    Routes requests to the Azure OpenAI backend with managed identity
+    authentication. Applied at the operation level to AOAI-gateway APIs
+    when Foundry is enabled.
+
+    The API-level policy (emit_metric_caller_tokens.xml) handles caller
+    identification, context-propagation headers, and token metric emission.
+-->
+<policies>
+    <inbound>
+        <base />
+        <set-backend-service backend-id="aoai-backend" />
+        <authentication-managed-identity resource="https://cognitiveservices.azure.com" />
+        <set-query-parameter name="api-version" exists-action="skip">
+            <value>2024-10-21</value>
+        </set-query-parameter>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

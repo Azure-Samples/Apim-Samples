@@ -228,3 +228,134 @@ def print_debug(msg: str = '', *, wrap_lines: bool = True, blank_above: bool = F
     """Log a debug message."""
 
     _print_log(msg, prefix='🐞 ', color='', blank_above=blank_above, blank_below=blank_below, wrap_lines=wrap_lines, level=logging.DEBUG)
+
+
+# ------------------------------
+#    TABLE LOGGER
+# ------------------------------
+
+
+class Column:
+    """Column definition for :class:`TableLogger`.
+
+    Args:
+        name: Header label displayed in the table.
+        width: Fixed column width. When omitted, the width is auto-calculated
+            from the header, data rows, and total row with a small buffer.
+        align: Format-spec alignment character (``'<'`` for left, ``'>'`` for
+            right). Defaults to left-aligned.
+    """
+
+    def __init__(self, name: str, *, width: int | None = None, align: str = '<') -> None:
+        self.name = name
+        self.width = width
+        self.align = align
+
+
+class TableLogger:
+    """Formatted console table with optional auto-calculated column widths.
+
+    Collects header definitions, data rows, and an optional total row, then
+    prints the complete table on an explicit ``print()`` call.
+
+    Example::
+
+        table = TableLogger()
+        table.header(
+            Column('Name'),
+            Column('Count', align='>'),
+            Column('Rate', width=8, align='>'),
+        )
+        table.populate([
+            ['Alice', 42, '3.1'],
+            ['Bob', 17, '1.8'],
+        ])
+        table.total('TOTAL', 59, '')
+        table.print()
+    """
+
+    _INDENT = '  '
+    _AUTO_WIDTH_BUFFER = 0
+
+    def __init__(self) -> None:
+        self._columns: list[Column] = []
+        self._rows: list[list] = []
+        self._total: list | None = None
+
+    def header(self, *columns: Column) -> None:
+        """Define column headers.
+
+        Args:
+            columns: One or more :class:`Column` instances describing each
+                column's name, optional fixed width, and alignment.
+        """
+
+        self._columns = list(columns)
+
+    def populate(self, rows: list[list | tuple]) -> None:
+        """Set the data rows. Each row is a sequence of values."""
+
+        self._rows = [list(row) for row in rows]
+
+    def total(self, *values: str | int | float) -> None:
+        """Set a total/footer row."""
+
+        self._total = list(values)
+
+    def print(self) -> None:
+        """Calculate column widths and print the complete table."""
+
+        if not self._columns:
+            return
+
+        widths = self._resolve_widths()
+
+        print_plain()
+
+        self._emit_row(widths, [c.name for c in self._columns])
+        self._emit_separator(widths)
+
+        for row in self._rows:
+            self._emit_row(widths, row)
+
+        if self._total is not None:
+            self._emit_separator(widths)
+            self._emit_row(widths, self._total)
+
+        print_plain()
+
+    # ------------------------------------------------------------------
+    #    Private helpers
+    # ------------------------------------------------------------------
+
+    def _resolve_widths(self) -> list[int]:
+        """Return effective widths, auto-calculating where not fixed."""
+
+        widths: list[int] = []
+        for i, col in enumerate(self._columns):
+            if col.width is not None:
+                widths.append(col.width)
+            else:
+                max_w = len(str(col.name))
+                for row in self._rows:
+                    if i < len(row):
+                        max_w = max(max_w, len(str(row[i])))
+                if self._total and i < len(self._total):
+                    max_w = max(max_w, len(str(self._total[i])))
+                widths.append(max_w + self._AUTO_WIDTH_BUFFER)
+        return widths
+
+    def _emit_row(self, widths: list[int], values: list) -> None:
+        """Format and print a single row."""
+
+        parts: list[str] = []
+        for i, col in enumerate(self._columns):
+            val = values[i] if i < len(values) else ''
+            parts.append(f'{val:{col.align}{widths[i]}}')
+        print_plain(f'{self._INDENT}{" ".join(parts)}', wrap_lines=False)
+
+    def _emit_separator(self, widths: list[int]) -> None:
+        """Print a dash-separator row."""
+
+        parts = ['-' * w for w in widths]
+        print_plain(f'{self._INDENT}{" ".join(parts)}', wrap_lines=False)

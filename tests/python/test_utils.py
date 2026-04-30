@@ -3310,3 +3310,345 @@ def test_query_and_select_infrastructure_create_new_always_failure(monkeypatch, 
     assert selected_index is None
     assert created_helpers
     assert created_helpers[0].calls == [True]
+
+
+# ------------------------------
+#    wait_for_kql TESTS
+# ------------------------------
+
+
+def _make_nb_helper() -> utils.NotebookHelper:
+    return utils.NotebookHelper(
+        'test-sample',
+        'apim-infra-simple-apim-1',
+        'eastus',
+        INFRASTRUCTURE.SIMPLE_APIM,
+        [INFRASTRUCTURE.SIMPLE_APIM],
+    )
+
+
+def _kql_response(rows, casing: str = 'lower'):
+    if casing == 'lower':
+        return {'tables': [{'rows': rows}]}
+    return {'Tables': [{'Rows': rows}]}
+
+
+def test_wait_for_kql_found_first_attempt(monkeypatch, suppress_utils_console):
+    nb_helper = _make_nb_helper()
+
+    sleep_calls: list[float] = []
+    az_calls: list[str] = []
+
+    def fake_run(cmd, **_kw):
+        az_calls.append(cmd)
+        return MagicMock(success=True, json_data=_kql_response([['x', 5]]), text='')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    found, result, rows = nb_helper.wait_for_kql(
+        '/subscriptions/s/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/w',
+        'Foo | take 1',
+        sleep=sleep_calls.append,
+    )
+
+    assert found is True
+    assert rows == [['x', 5]]
+    assert sleep_calls == []  # first attempt is immediate (sleep 0 skipped)
+    assert len(az_calls) == 1
+    assert result is not None and result.success is True
+
+
+def test_wait_for_kql_found_after_retries(monkeypatch, suppress_utils_console):
+    nb_helper = _make_nb_helper()
+
+    sleep_calls: list[float] = []
+    responses = [
+        MagicMock(success=True, json_data=_kql_response([]), text=''),
+        MagicMock(success=True, json_data=_kql_response([]), text=''),
+        MagicMock(success=True, json_data=_kql_response([['hit']]), text=''),
+    ]
+    iterator = iter(responses)
+    monkeypatch.setattr(az, 'run', lambda cmd, **_kw: next(iterator))
+
+    found, result, rows = nb_helper.wait_for_kql(
+        '/subscriptions/s/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/w',
+        'Foo',
+        schedule=[0, 5, 7, 9],
+        sleep=sleep_calls.append,
+    )
+
+    assert found is True
+    assert rows == [['hit']]
+    assert sleep_calls == [5, 7]  # slept before attempts 2 and 3; not before 4 (already found)
+    assert result is not None
+
+
+def test_wait_for_kql_not_found_within_schedule(monkeypatch, suppress_utils_console):
+    nb_helper = _make_nb_helper()
+
+    monkeypatch.setattr(az, 'run', lambda cmd, **_kw: MagicMock(success=True, json_data=_kql_response([]), text=''))
+
+    found, result, rows = nb_helper.wait_for_kql(
+        '/subscriptions/s/resourceGroups/rg/providers/microsoft.insights/components/c',
+        'Foo',
+        schedule=[0, 1, 1],
+        sleep=lambda s: None,
+    )
+
+    assert found is False
+    assert rows == []
+    assert result is not None and result.success is True
+
+
+def test_wait_for_kql_empty_schedule_returns_immediately(monkeypatch, suppress_utils_console):
+    """An empty schedule exits the polling loop without ever invoking az.run."""
+    nb_helper = _make_nb_helper()
+
+    call_count = {'n': 0}
+
+    def fake_run(cmd, **_kw):
+        call_count['n'] += 1
+        return MagicMock(success=True, json_data=_kql_response([['hit']]), text='')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    found, result, rows = nb_helper.wait_for_kql(
+        '/subscriptions/s/resourceGroups/rg/providers/microsoft.insights/components/c',
+        'Foo',
+        schedule=[],
+        sleep=lambda s: None,
+    )
+
+    assert found is False
+    assert rows == []
+    assert result is None
+    assert call_count['n'] == 0
+
+
+def test_wait_for_kql_query_failure_breaks(monkeypatch, suppress_utils_console):
+    nb_helper = _make_nb_helper()
+
+    call_count = {'n': 0}
+
+    def fake_run(cmd, **_kw):
+        call_count['n'] += 1
+        return MagicMock(success=False, json_data=None, text='boom')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    found, result, rows = nb_helper.wait_for_kql(
+        '/subscriptions/s/resourceGroups/rg/providers/microsoft.insights/components/c',
+        'Foo',
+        schedule=[0, 1, 1, 1],
+        sleep=lambda s: None,
+    )
+
+    assert found is False
+    assert rows == []
+    assert call_count['n'] == 1  # broke immediately on failure
+    assert result is not None and result.success is False
+
+
+@pytest.mark.parametrize(
+    'transient_text',
+    [
+        '{"error":{"code":"WorkspaceNotFoundError","message":"The workspace could not be found"}}',
+        '{"error":{"code":"WorkspaceNotAccessible"}}',
+        'PathApiNotFound: workspace path not yet provisioned',
+        '{"error":{"code":"429","message":"Too many requests"}}',
+        '{"error":{"code":"503","message":"Service unavailable"}}',
+    ],
+)
+def test_wait_for_kql_keeps_polling_on_transient_error(monkeypatch, suppress_utils_console, transient_text):
+    """Newly created workspaces commonly return WorkspaceNotFoundError or 429/503
+    for several minutes after deployment. wait_for_kql must keep polling instead
+    of breaking on the first failure so the verify cell does not surface a
+    misleading hard error during the warm-up window."""
+
+    nb_helper = _make_nb_helper()
+
+    sleep_calls: list[float] = []
+    responses = [
+        MagicMock(success=False, json_data=None, text=transient_text),
+        MagicMock(success=False, json_data=None, text=transient_text),
+        MagicMock(success=True, json_data=_kql_response([['ok']]), text=''),
+    ]
+    iterator = iter(responses)
+    monkeypatch.setattr(az, 'run', lambda cmd, **_kw: next(iterator))
+
+    found, result, rows = nb_helper.wait_for_kql(
+        '/subscriptions/s/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/w',
+        'Foo',
+        schedule=[0, 5, 7],
+        sleep=sleep_calls.append,
+    )
+
+    assert found is True
+    assert rows == [['ok']]
+    assert sleep_calls == [5, 7]
+    assert result is not None and result.success is True
+
+
+def test_wait_for_kql_transient_error_exhausts_schedule(monkeypatch, suppress_utils_console):
+    """When every poll returns a transient error and the schedule is exhausted,
+    wait_for_kql should surface the failure (print the error and return
+    found=False) rather than looping forever."""
+
+    nb_helper = _make_nb_helper()
+
+    sleep_calls: list[float] = []
+    transient = '{"error":{"code":"WorkspaceNotFoundError"}}'
+    monkeypatch.setattr(
+        az,
+        'run',
+        lambda cmd, **_kw: MagicMock(success=False, json_data=None, text=transient),
+    )
+
+    found, result, rows = nb_helper.wait_for_kql(
+        '/subscriptions/s/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/w',
+        'Foo',
+        schedule=[0, 1, 1],
+        sleep=sleep_calls.append,
+    )
+
+    assert found is False
+    assert rows == []
+    assert sleep_calls == [1, 1]  # slept before attempts 2 and 3, then exhausted
+    assert result is not None and result.success is False
+
+
+def test_wait_for_kql_handles_law_casing(monkeypatch, suppress_utils_console):
+    nb_helper = _make_nb_helper()
+
+    monkeypatch.setattr(
+        az,
+        'run',
+        lambda cmd, **_kw: MagicMock(success=True, json_data=_kql_response([['a', 1]], casing='upper'), text=''),
+    )
+
+    found, _result, rows = nb_helper.wait_for_kql(
+        '/subscriptions/s/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/w',
+        'Foo',
+        sleep=lambda s: None,
+    )
+
+    assert found is True
+    assert rows == [['a', 1]]
+
+
+def test_wait_for_kql_handles_appinsights_casing(monkeypatch, suppress_utils_console):
+    nb_helper = _make_nb_helper()
+
+    monkeypatch.setattr(
+        az,
+        'run',
+        lambda cmd, **_kw: MagicMock(success=True, json_data=_kql_response([['b', 2]], casing='lower'), text=''),
+    )
+
+    found, _result, rows = nb_helper.wait_for_kql(
+        '/subscriptions/s/resourceGroups/rg/providers/microsoft.insights/components/c',
+        'Foo',
+        api_path='/query',
+        api_version='2018-04-20',
+        sleep=lambda s: None,
+    )
+
+    assert found is True
+    assert rows == [['b', 2]]
+
+
+def test_wait_for_kql_default_schedule(monkeypatch, suppress_utils_console):
+    nb_helper = _make_nb_helper()
+
+    sleep_calls: list[float] = []
+    monkeypatch.setattr(az, 'run', lambda cmd, **_kw: MagicMock(success=True, json_data=_kql_response([]), text=''))
+
+    nb_helper.wait_for_kql(
+        '/subscriptions/s/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/w',
+        'Foo',
+        sleep=sleep_calls.append,
+    )
+
+    # Default schedule is [0] + [30] * 8 -> 8 sleeps of 30s each (first attempt has sleep 0 which is skipped)
+    assert sleep_calls == [30] * 8
+
+
+def test_wait_for_kql_temp_file_cleanup(monkeypatch, suppress_utils_console):
+    nb_helper = _make_nb_helper()
+
+    captured: dict[str, str] = {}
+    real_writer = utils._write_temp_json
+
+    def spy_writer(body: str) -> str:
+        path = real_writer(body)
+        captured['path'] = path
+        return path
+
+    monkeypatch.setattr(utils, '_write_temp_json', spy_writer)
+    monkeypatch.setattr(az, 'run', lambda cmd, **_kw: MagicMock(success=True, json_data=_kql_response([['ok']]), text=''))
+
+    nb_helper.wait_for_kql(
+        '/subscriptions/s/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/w',
+        'Foo',
+        sleep=lambda s: None,
+    )
+
+    assert 'path' in captured
+    assert not Path(captured['path']).exists()
+
+
+def test_wait_for_kql_custom_endpoint_in_url(monkeypatch, suppress_utils_console):
+    nb_helper = _make_nb_helper()
+
+    captured_cmds: list[str] = []
+
+    def fake_run(cmd, **_kw):
+        captured_cmds.append(cmd)
+        return MagicMock(success=True, json_data=_kql_response([['x']]), text='')
+
+    monkeypatch.setattr(az, 'run', fake_run)
+
+    resource_id = '/subscriptions/s/resourceGroups/rg/providers/microsoft.insights/components/c'
+    nb_helper.wait_for_kql(
+        resource_id,
+        'Foo',
+        api_path='/query',
+        api_version='2018-04-20',
+        sleep=lambda s: None,
+    )
+
+    assert captured_cmds, 'expected az.run to be called'
+    cmd = captured_cmds[0]
+    assert f'https://management.azure.com{resource_id}/query?api-version=2018-04-20' in cmd
+    assert '--method POST' in cmd
+    assert '--body @' in cmd
+
+
+def test_extract_kql_rows_handles_missing_data():
+    assert utils._extract_kql_rows(None) == []
+    assert utils._extract_kql_rows({}) == []
+    assert utils._extract_kql_rows({'tables': []}) == []
+    assert utils._extract_kql_rows({'tables': [{}]}) == []
+    assert utils._extract_kql_rows({'tables': [{'rows': [['a']]}]}) == [['a']]
+    assert utils._extract_kql_rows({'Tables': [{'Rows': [['b']]}]}) == [['b']]
+
+
+def test_singularize_handles_common_plural_forms():
+    """_singularize covers empty input, the -ies/-ses/-xes/-s rules, and multi-word labels."""
+    # Empty / falsy input is returned as-is.
+    assert utils._singularize('') == ''
+    # -ies -> -y (e.g. 'entries' -> 'entry').
+    assert utils._singularize('entries') == 'entry'
+    # -ses -> drop 'es' (e.g. 'classes' -> 'class').
+    assert utils._singularize('classes') == 'class'
+    # -xes -> drop 'es' (e.g. 'boxes' -> 'box').
+    assert utils._singularize('boxes') == 'box'
+    # Plain trailing -s.
+    assert utils._singularize('rows') == 'row'
+    # Trailing -ss is preserved (e.g. 'class' should stay 'class').
+    assert utils._singularize('class') == 'class'
+    # Multi-word labels singularize only the last token.
+    assert utils._singularize('log entries') == 'log entry'
+    assert utils._singularize('breakdown rows') == 'breakdown row'
+    # Words with no rule fall through unchanged.
+    assert utils._singularize('data') == 'data'

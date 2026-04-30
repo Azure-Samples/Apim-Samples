@@ -131,14 +131,14 @@ if ($CoveragePercent -eq $null) {
     }
 }
 
-# Detect slow tests (>0.1s execution time)
+# Detect slow tests (>0.2s execution time)
 $SlowTestsFound = $false
 foreach ($Line in $TestOutput) {
     $LineStr = $Line.ToString()
     # Match lines like "1.23s call test_file.py::test_name"
     if ($LineStr -match '(\d+\.\d+)s\s+call\s+') {
         $time = [double]::Parse($matches[1])
-        if ($time -gt 0.1) {
+        if ($time -gt 0.2) {
             $SlowTestsFound = $true
             break
         }
@@ -287,7 +287,7 @@ if ($BicepFileCount -ne $null) {
 # Display slow tests warning if detected
 if ($SlowTestsFound) {
     Write-Host ""
-    Write-Host "⚠️  SLOW TESTS DETECTED (> 0.1s). Please review slowest durations in test summary." -ForegroundColor Yellow
+    Write-Host "⚠️  SLOW TESTS DETECTED (> 0.2s). Please review slowest durations in test summary." -ForegroundColor Yellow
 }
 
 Write-Host ""

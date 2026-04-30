@@ -1,45 +1,67 @@
 <!--
     AI Gateway Token Tracking Policy
 
-    Emits per-caller token consumption metrics when APIM is used as an
-    AI Gateway in front of Azure OpenAI or compatible LLM backends.
+    Handles inbound caller identification and context propagation when
+    APIM is used as an AI Gateway in front of Azure OpenAI or compatible
+    LLM backends. Token consumption is tracked via the APIM diagnostic
+    setting ('Logs related to generative AI gateway') which writes
+    per-request data to ApiManagementGatewayLlmLog; no response
+    buffering required at the policy level.
 
     The built-in Azure OpenAI metrics (PTU utilization, token counts) are
     reported at the model/deployment level and do NOT break down by client.
-    This policy fills that gap by extracting token usage from the response
-    body and emitting 'caller-tokens' custom metrics tagged with the
-    calling application's identity.
+    This policy fills that gap by propagating caller identity headers and
+    enabling accurate streaming token counts, while the diagnostic log
+    provides per-request token breakdowns.
 
     Metrics emitted:
-      - 'caller-tokens' with dimensions CallerId, TokenType, Model
-        TokenType: 'prompt', 'completion', or 'total'
+      - 'caller-requests' with dimensions CallerId, API, Operation
 
     Caller identification:
       - Uses the 'Extract-CallerId' policy fragment to read appid / azp
         from the JWT Authorization header
       - Falls back to the APIM subscription ID if no JWT is present
 
-    Response parsing:
-      Azure OpenAI responses include a 'usage' object:
-      {
-        "usage": {
-          "prompt_tokens": 42,
-          "completion_tokens": 128,
-          "total_tokens": 170
-        },
-        "model": "gpt-4o"
-      }
-      If the response does not contain a 'usage' object (e.g. non-AI
-      backend), token metrics are simply not emitted for that request.
+    Context propagation:
+      - Injects x-business-unit header (= callerId) so downstream
+        services (Foundry, AOAI) can correlate with APIM without client help.
+      - Injects x-ms-client-request-id header (= APIM request ID) for
+        end-to-end correlation in Application Insights.
+
+    Streaming support:
+      When force_stream_include_usage is enabled in the notebook, the
+      inbound section automatically injects stream_options.include_usage
+      into streaming requests that lack it. This ensures the backend
+      includes token counts in the final SSE chunk, which the APIM
+      gateway infrastructure reads on the fly without buffering. When
+      the fragment had to inject the flag, it also writes a trace entry
+      to ApiManagementGatewayLogs.TraceRecords so the workbook can prove
+      the request was altered by APIM.
+
+    Token tracking via diagnostic logs:
+      This policy does NOT parse the response body or emit token metrics
+      at the policy level. Instead, token counts are captured by the APIM
+      diagnostic setting 'Logs related to generative AI gateway', which
+      writes per-request data to the ApiManagementGatewayLlmLog table in
+      Log Analytics. This avoids any response buffering overhead.
+
+      To correlate token counts with business units, join
+      ApiManagementGatewayLlmLog with ApiManagementGatewayLogs on
+      CorrelationId and use the ApimSubscriptionId field as the BU key.
+      See bu-token-usage.kql for a ready-to-use query.
 
     USAGE:
       Point the API's serviceUrl to your Azure OpenAI deployment
-      (e.g. https://YOUR-AOAI.openai.azure.com) and the policy will
-      extract real token counts from every response automatically.
+      (e.g. https://YOUR-AOAI.openai.azure.com) and enable the
+      'Logs related to generative AI gateway' diagnostic setting.
+      Token counts are written to ApiManagementGatewayLlmLog
+      automatically for every request.
 -->
 <policies>
     <inbound>
         <base />
+        <!-- Ensure streaming AI requests include stream_options.include_usage = true (reusable fragment) -->
+        <include-fragment fragment-id="Ensure-Stream-Include-Usage" />
         <!-- Extract caller identity (appid/azp from JWT, or APIM subscription ID) -->
         <include-fragment fragment-id="Extract-CallerId" />
         <!-- Count each request per caller (same as emit_metric_caller_id.xml) -->
@@ -48,72 +70,20 @@
             <dimension name="API" value="@(context.Api.Name)" />
             <dimension name="Operation" value="@(context.Operation.Name)" />
         </emit-metric>
+        <!-- Propagate caller identity to downstream services (Foundry / AOAI) -->
+        <set-header name="x-business-unit" exists-action="override">
+            <value>@((string)context.Variables["callerId"])</value>
+        </set-header>
+        <!-- Propagate APIM request ID for end-to-end correlation in App Insights -->
+        <set-header name="x-ms-client-request-id" exists-action="skip">
+            <value>@(context.RequestId.ToString())</value>
+        </set-header>
     </inbound>
     <backend>
         <base />
     </backend>
     <outbound>
         <base />
-        <!--
-            Parse the response body once to extract token usage.
-            Uses preserveContent: true so the original body is still
-            returned to the client unmodified.
-        -->
-        <set-variable name="parsedResponse" value="@{
-            try {
-                return Newtonsoft.Json.Linq.JObject.Parse(
-                    context.Response.Body.As<string>(preserveContent: true));
-            } catch {
-                return new Newtonsoft.Json.Linq.JObject();
-            }
-        }" />
-        <!-- Check whether the response contains an Azure OpenAI usage object -->
-        <set-variable name="hasUsage" value="@{
-            var body = (Newtonsoft.Json.Linq.JObject)context.Variables["parsedResponse"];
-            var usage = body["usage"];
-            return usage != null && usage["prompt_tokens"] != null;
-        }" />
-        <!--
-            Extract token counts and emit metrics only when the response
-            contains real token statistics. Requests without a 'usage'
-            object are silently skipped.
-        -->
-        <choose>
-            <when condition="@((bool)context.Variables["hasUsage"])">
-                <set-variable name="promptTokens" value="@{
-                    var body = (Newtonsoft.Json.Linq.JObject)context.Variables["parsedResponse"];
-                    return body["usage"]["prompt_tokens"].Value<int>();
-                }" />
-                <set-variable name="completionTokens" value="@{
-                    var body = (Newtonsoft.Json.Linq.JObject)context.Variables["parsedResponse"];
-                    var usage = body["usage"];
-                    return usage["completion_tokens"] != null ? usage["completion_tokens"].Value<int>() : 0;
-                }" />
-                <set-variable name="totalTokens" value="@{
-                    return (int)context.Variables["promptTokens"] + (int)context.Variables["completionTokens"];
-                }" />
-                <set-variable name="modelName" value="@{
-                    var body = (Newtonsoft.Json.Linq.JObject)context.Variables["parsedResponse"];
-                    return body["model"]?.ToString() ?? "unknown";
-                }" />
-                <!-- Emit per-caller token metrics with type and model dimensions -->
-                <emit-metric name="caller-tokens" value="@((double)(int)context.Variables["promptTokens"])" namespace="apim-costing">
-                    <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
-                    <dimension name="TokenType" value="prompt" />
-                    <dimension name="Model" value="@((string)context.Variables["modelName"])" />
-                </emit-metric>
-                <emit-metric name="caller-tokens" value="@((double)(int)context.Variables["completionTokens"])" namespace="apim-costing">
-                    <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
-                    <dimension name="TokenType" value="completion" />
-                    <dimension name="Model" value="@((string)context.Variables["modelName"])" />
-                </emit-metric>
-                <emit-metric name="caller-tokens" value="@((double)(int)context.Variables["totalTokens"])" namespace="apim-costing">
-                    <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
-                    <dimension name="TokenType" value="total" />
-                    <dimension name="Model" value="@((string)context.Variables["modelName"])" />
-                </emit-metric>
-            </when>
-        </choose>
     </outbound>
     <on-error>
         <base />

@@ -2640,8 +2640,9 @@ def test_setup_complete_environment_all_pass(monkeypatch: pytest.MonkeyPatch):
                     with patch.object(sps, 'install_jupyter_kernel', return_value=True):
                         with patch.object(sps, 'create_vscode_settings', return_value=True):
                             with patch.object(sps, 'force_kernel_consistency', return_value=True):
-                                # Should complete without error
-                                sps.setup_complete_environment()
+                                with patch.object(sps, 'setup_notebook_git_filter', return_value=True):
+                                    # Should complete without error
+                                    sps.setup_complete_environment()
 
 
 def test_setup_complete_environment_azure_cli_fails(monkeypatch: pytest.MonkeyPatch):
@@ -2653,8 +2654,9 @@ def test_setup_complete_environment_azure_cli_fails(monkeypatch: pytest.MonkeyPa
                     with patch.object(sps, 'install_jupyter_kernel', return_value=True):
                         with patch.object(sps, 'create_vscode_settings', return_value=True):
                             with patch.object(sps, 'force_kernel_consistency', return_value=True):
-                                # Should return early, not continue to next steps
-                                sps.setup_complete_environment()
+                                with patch.object(sps, 'setup_notebook_git_filter', return_value=True):
+                                    # Should return early, not continue to next steps
+                                    sps.setup_complete_environment()
 
 
 def test_setup_complete_environment_kernel_fails(monkeypatch: pytest.MonkeyPatch):
@@ -2667,8 +2669,9 @@ def test_setup_complete_environment_kernel_fails(monkeypatch: pytest.MonkeyPatch
                     with patch.object(sps, 'install_jupyter_kernel', return_value=False):
                         with patch.object(sps, 'create_vscode_settings', return_value=True):
                             with patch.object(sps, 'force_kernel_consistency', return_value=True):
-                                # Should complete but show failure for kernel
-                                sps.setup_complete_environment()
+                                with patch.object(sps, 'setup_notebook_git_filter', return_value=True):
+                                    # Should complete but show failure for kernel
+                                    sps.setup_complete_environment()
 
 
 def test_normalize_string_list_various_inputs():

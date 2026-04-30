@@ -1,6 +1,6 @@
 # Samples: APIM Costing & Showback
 
-This sample demonstrates how to track and allocate API costs using Azure API Management with Azure Monitor, Application Insights, Log Analytics, and Cost Management. It supports three complementary approaches: **subscription-based** tracking (using APIM subscription keys), **Entra ID application** tracking (using the `emit-metric` policy with JWT `appid` claims), and **AI Gateway token/PTU** tracking (using the `emit-metric` policy to capture per-client token consumption when APIM acts as an AI Gateway). All approaches share a single Azure Monitor Workbook with tabbed views.
+This sample demonstrates how to track and allocate API costs using Azure API Management with Azure Monitor, Application Insights, Log Analytics, and Cost Management. It supports three complementary approaches: **subscription-based** tracking (using APIM subscription keys), **Entra ID application** tracking (using the `emit-metric` policy with JWT `appid` claims), and **AI Gateway token/PTU** tracking (using the `ApiManagementGatewayLlmLog` diagnostic to capture per-request token consumption when APIM acts as an AI Gateway, joined with `ApiManagementGatewayLogs` on `CorrelationId` for business unit attribution). All approaches share a single Azure Monitor Workbook with tabbed views.
 
 ⚙️ **Supported infrastructures**: All infrastructures (or bring your own existing APIM deployment)
 
@@ -16,6 +16,9 @@ This sample demonstrates how to track and allocate API costs using Azure API Man
 6. **Enable cost governance** - Establish patterns for consistent tagging and naming conventions
 7. **Enable budget alerts** - Create scheduled query alerts when callers exceed configurable thresholds
 8. **Track AI token consumption per client** - When APIM is used as an AI Gateway, capture prompt, completion, and total token usage per calling application, enabling per-client cost attribution for PTU or pay-as-you-go OpenAI deployments
+9. **Real AOAI interactions via Foundry** (optional) - Deploy a full Microsoft Foundry environment (Hub + Project + Azure AI Services) and route real Azure OpenAI chat completions through APIM, demonstrating accurate token tracking for both non-streaming and streaming (SSE) responses
+
+> **Note on non-OpenAI models**: This sample deploys an Azure OpenAI model only (default: `gpt-5-mini`). Other model families on Azure AI Services - such as Anthropic Claude via the Azure Marketplace - are gated by separate quota that is granted through a manual approval process, which puts them beyond the scope of a self-service sample. If you have approved quota for another provider, you can extend the sample by adding a second deployment in `main.bicep`; the token-tracking policy and workbook queries are model-agnostic.
 
 ## ✅ Prerequisites
 
@@ -25,11 +28,12 @@ Beyond the [general prerequisites](../../README.md#-getting-started) (Azure subs
 
 The signed-in user needs the following role assignments:
 
-| Role                              | Scope           | Purpose                                                                                      |
-| --------------------------------- | --------------- | -------------------------------------------------------------------------------------------- |
-| **Contributor**                   | Resource Group  | Deploy Bicep resources (App Insights, Log Analytics, Storage, Workbook, Diagnostic Settings) |
-| **Cost Management Contributor**   | Subscription    | Create Cost Management export                                                                |
-| **Storage Blob Data Contributor** | Storage Account | Write cost export data (auto-assigned by the notebook)                                       |
+| Role                               | Scope           | Purpose                                                                                      |
+| ---------------------------------- | --------------- | -------------------------------------------------------------------------------------------- |
+| **Contributor**                    | Resource Group  | Deploy Bicep resources (App Insights, Log Analytics, Storage, Workbook, Diagnostic Settings) |
+| **Cost Management Contributor**    | Subscription    | Create Cost Management export                                                                |
+| **Storage Blob Data Contributor**  | Storage Account | Write cost export data (auto-assigned by the notebook)                                       |
+| **Cognitive Services Contributor** | Resource Group  | Deploy Azure AI Services when `enable_foundry = True` (not needed for mock path)             |
 
 ### For Workbook Consumers
 
@@ -60,13 +64,38 @@ This sample focuses on **producing cost data**, not implementing billing process
 | Aspect                     | Subscription-Based                           | Entra ID Application                                 | AI Gateway Token/PTU                                       |
 | -------------------------- | -------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------- |
 | **Caller identification**  | APIM subscription key (`ApimSubscriptionId`) | JWT `appid`/`azp` claim                              | JWT `appid`/`azp` claim                                    |
-| **Data source**            | `ApiManagementGatewayLogs` in Log Analytics  | `customMetrics` in Application Insights              | `customMetrics` in Application Insights                    |
-| **Tracking mechanism**     | Built-in APIM logging                        | `emit-metric` policy                                 | `emit-metric` policy (outbound response parsing)           |
-| **Metric name**            | N/A (built-in logs)                          | `caller-requests`                                    | `caller-tokens`                                            |
+| **Data source**            | `ApiManagementGatewayLogs` in Log Analytics  | `customMetrics` in Application Insights              | `ApiManagementGatewayLlmLog` in Log Analytics              |
+| **Tracking mechanism**     | Built-in APIM logging                        | `emit-metric` policy                                 | APIM diagnostic setting (zero-buffering)                   |
+| **Metric name**            | N/A (built-in logs)                          | `caller-requests`                                    | N/A (per-request diagnostic log)                           |
 | **Cost Management export** | Yes (storage account)                        | No (metrics-based)                                   | No (metrics-based)                                         |
 | **Best for**               | Dedicated subscriptions per BU               | OAuth client-credentials flows, shared subscriptions | AI Gateway scenarios (Azure OpenAI, PTU capacity planning) |
 
-All three approaches are deployed together. Toggle `enable_entraid_tracking` and `enable_token_tracking` in the notebook to include or exclude each flow.
+All three approaches are deployed together. Toggle `enable_entraid_tracking` and `enable_token_tracking` in the notebook to include or exclude each flow. Setting `enable_foundry = True` adds a real Azure OpenAI backend so token tracking uses actual model responses instead of mock data.
+
+### Streaming Support
+
+When `enable_foundry = True`, the notebook demonstrates both non-streaming and streaming (SSE) chat completions. For streaming, half the requests explicitly send `stream_options.include_usage = true` and half intentionally omit it so the `pf-ensure-stream-include-usage.xml` policy fragment can prove when APIM had to inject the flag (when `force_stream_include_usage` is enabled). Token counts are captured by the APIM `ApiManagementGatewayLlmLog` diagnostic setting with **zero response buffering**, and proof of the policy mutation is recorded in `ApiManagementGatewayLogs.TraceRecords`.
+
+- **Non-streaming**: The gateway logs exact token counts from the JSON response
+- **Streaming (SSE)**: The gateway reads token counts from the final SSE chunk (requires `stream_options.include_usage = true`; the sample proves when APIM had to add it)
+
+The workbook surfaces **both** streaming variants side-by-side so you can see exactly how each request acquired the usage object:
+
+- **Streaming (client-supplied usage)** — the client already set `stream_options.include_usage = true`; APIM forwards the request unchanged.
+- **Streaming (policy-injected usage)** — the client omitted the flag; the APIM policy fragment injected it and emitted a trace into `ApiManagementGatewayLogs.TraceRecords` (look for `IncludeUsageInjected`).
+
+The **AI Gateway** tab's *Streaming vs Non-Streaming Breakdown* and the **Per-Request Detail** tab's `AI Delivery Mode` + `Usage Provenance` columns both render this distinction, so you can confirm token capture works regardless of whether the client or APIM supplied the usage option.
+
+> **Business unit attribution**: Join `ApiManagementGatewayLlmLog` with `ApiManagementGatewayLogs` on `CorrelationId` to map token counts to `ApimSubscriptionId` (business unit). See `bu-token-usage.kql` for a ready-to-use query.
+
+### Context Propagation
+
+The token tracking policy forwards two headers to the backend:
+
+| Header                     | Value                                 | Purpose                                                |
+| -------------------------- | ------------------------------------- | ------------------------------------------------------ |
+| `x-business-unit`          | Extracted `callerId` from JWT `appid` | Correlate backend logs with APIM caller metrics        |
+| `x-ms-client-request-id`   | `context.RequestId`                   | End-to-end correlation ID across APIM and backend logs |
 
 ## 🛩️ Lab Components
 
@@ -79,13 +108,26 @@ This lab deploys and configures:
 - **Diagnostic Settings** - Links APIM to Log Analytics with `logAnalyticsDestinationType: Dedicated` for resource-specific tables
 - **Sample API & Subscriptions** - 4 subscriptions representing different business units
 - **Entra ID Tracking API** (optional) - A second API with the `emit-metric` policy that extracts `appid` from JWT tokens and emits `caller-requests` custom metrics
-- **AI Gateway Token Tracking API** (optional) - A third API with the `emit-metric` policy that parses Azure OpenAI response bodies to extract `prompt_tokens`, `completion_tokens`, and `total_tokens`, emitting `caller-tokens` custom metrics with `CallerId`, `TokenType`, and `Model` dimensions
+- **AI Gateway Token Tracking API** (optional) - A third API with inbound caller identity propagation and `stream_options.include_usage` enforcement; token counts are captured by the `ApiManagementGatewayLlmLog` diagnostic setting and correlated to business units via `CorrelationId` join with `ApiManagementGatewayLogs`
+- **AOAI Gateway API** (optional, requires `enable_foundry`) - A fourth API that routes real Azure OpenAI chat completions through APIM using a managed-identity-authenticated backend, enabling accurate token tracking against a live model deployment
+- **Microsoft Foundry** (optional) - When `enable_foundry = True`, deploys an Azure AI Foundry Hub, Project, Azure AI Services account with a `gpt-5-mini` model deployment, and an APIM backend with managed identity authentication (`Cognitive Services OpenAI User` role)
 - **Azure Monitor Workbook** - Pre-built tabbed dashboard with:
   - **Subscription-Based Costing tab**: Cost allocation table (base + variable cost per BU), base vs variable cost stacked bar chart, cost breakdown by API, request count and distribution charts, success/error rate analysis, response code distribution, business unit drill-down
   - **Entra ID Application Costing tab**: Usage by caller ID (bar chart + table), cost allocation by caller (table + pie chart), hourly request trend by caller
-  - **AI Gateway Token/PTU tab**: Token consumption by client (prompt vs completion bar chart), token cost allocation table with configurable per-1K-token rates, token/cost distribution pie charts, hourly token trend with PTU capacity threshold line, prompt vs completion area chart, model breakdown table
+  - **AI Gateway Token/PTU tab**: Three rows of summary tiles grouped under **APIM Inbound** (total APIM requests, AI APIM requests, inbound), **AI Backend** (backend requests, successful, throttled, failed), and **Tokens** (total tokens), followed by a request-funnel table, scope-reconciliation explainer + table, token cost allocation table with configurable per-1K-token rates, model and streaming pie charts, streaming vs non-streaming breakdown table, token-share pie, and hourly token-type trend chart
 - **SKU-Based Pricing** - Automatically derives base monthly cost, overage rate, and included request allowance from the deployed APIM SKU using built-in pricing data (sourced from the [Azure API Management pricing page](https://azure.microsoft.com/pricing/details/api-management/), March 2026)
 - **Budget Alerts** (optional) - Per-BU scheduled query alerts when request thresholds are exceeded
+
+### Workbook Query Optimization
+
+Azure Monitor Workbook query items execute independently — there is no native mechanism to share a materialized table across query items. The workbook applies two patterns to minimise data scanned:
+
+| Pattern | Where applied | Effect |
+| ------- | ------------- | ------ |
+| **`materialize()` for multi-reference `let` bindings** | Subscription-Based and Entra ID tabs (any query that derives both a `toscalar(count)` total and a per-BU `summarize` from the same base set) | Log Analytics computes the base set once per query execution instead of scanning the underlying table twice |
+| **Column-project before joins** | AI Gateway tab (all `ApiManagementGatewayLlmLog ⟕ ApiManagementGatewayLogs` joins) | Each query projects only the columns it needs from both sides of the join, reducing the join's memory and network footprint |
+
+> **Why not a single base query for the AI Gateway tab?** Workbooks cannot share a materialized table across query items. Merge items can combine two already-computed result sets but cannot perform arbitrary re-aggregation. Each AI Gateway visual therefore runs its own join, but column-projecting both sides keeps each join as lean as possible.
 
 ### Cost Allocation Model
 
@@ -109,10 +151,36 @@ This lab deploys and configures:
 
 ## ⚙️ Configuration
 
-1. Decide which of the [Infrastructure Architectures][infrastructure-architectures] you wish to use.
-    1. If the infrastructure *does not* yet exist, navigate to the desired [infrastructure][infrastructure-folder] folder and follow its README.md.
-    1. If the infrastructure *does* exist, adjust the `user-defined parameters` in the *Initialize notebook variables* below. Please ensure that all parameters match your infrastructure.
-2. Run All Cells.
+### Quick Setup Checklist
+
+Follow these steps to prepare and run the costing sample:
+
+1. **Choose an infrastructure**
+   - Select one from the [Infrastructure Architectures][infrastructure-architectures] (or use an existing APIM deployment)
+   - If your chosen infrastructure does not yet exist, navigate to its folder under [infrastructure][infrastructure-folder] and follow its README to deploy it first
+
+2. **Configure user parameters** (in the notebook's first code cell, under `USER CONFIGURATION`)
+   - **Deployment**: Match `deployment`, `rg_location`, and `index` to your chosen infrastructure
+   - **Features to deploy**: Toggle `enable_entraid_tracking`, `enable_token_tracking`, and `enable_foundry` to control which cost-tracking approaches are set up
+   - **Traffic to run**: Use `run_regular_requests` and `run_ai_requests` to skip phases if iterating on workbook logic
+   - **Optional**: For real Entra ID token testing, set `use_real_jwt = True` and populate JWT credentials (see [Getting Started](../../README.md#-getting-started))
+   - **Alerts**: Customize `alert_threshold`, `alert_email`, and `cost_export_frequency` if desired
+
+3. **Run all cells** (`Run All` in Jupyter)
+   - Deployment takes ~3–5 minutes (longer if `enable_foundry = True`)
+   - Traffic generation takes ~2–3 minutes
+   - At the end, the notebook prints Azure portal links — click the workbook link to view your cost dashboard
+
+### What Each Configuration Toggle Does
+
+| Toggle                    | Purpose                                        | Impact if disabled                                               |
+| ------------------------- | ---------------------------------------------- | ---------------------------------------------------------------- |
+| `enable_entraid_tracking` | Deploy Entra ID JWT tracking API               | No `caller-requests` metrics in Entra ID workbook tab            |
+| `enable_token_tracking`   | Deploy AI Gateway token tracking API           | No per-caller token/PTU data in AI Gateway workbook tab          |
+| `enable_foundry`          | Deploy real Azure OpenAI via Foundry           | D1 skipped; D2 uses mock instead (adds ~5 min if enabled)        |
+| `run_regular_requests`    | Generate BU + Entra ID traffic                 | Workbook Subscription and Entra ID tabs show no data             |
+| `run_ai_requests`         | Generate AI traffic (real or mock)             | Workbook AI Gateway tab shows no data                            |
+| `create_budget_alerts`    | Deploy per-BU request thresholds               | No budget alerts (Cell B4 creates zero alerts)                   |
 
 ## 🖼️ Expected Results
 
@@ -160,7 +228,7 @@ The Entra ID tab shows cost attribution by calling application, using the `emit-
 
 ### AI Gateway Token/PTU Tab
 
-The AI Gateway tab shows per-client token consumption and estimated costs when APIM is used as an AI Gateway in front of Azure OpenAI or other LLM backends. It uses the `emit-metric` policy's `caller-tokens` custom metric with `CallerId`, `TokenType` (prompt/completion/total), and `Model` dimensions.
+The AI Gateway tab shows per-client token consumption and estimated costs when APIM is used as an AI Gateway in front of Azure OpenAI or other LLM backends. It uses the `ApiManagementGatewayLlmLog` diagnostic data (PromptTokens, CompletionTokens, TotalTokens, ModelName) joined with `ApiManagementGatewayLogs` via `CorrelationId` for `ApimSubscriptionId`-based business unit attribution.
 
 ![AI Gateway - Token Consumption by Client](screenshots/AIGateway-01.png)
 
@@ -170,6 +238,15 @@ The AI Gateway tab shows per-client token consumption and estimated costs when A
 
 ![AI Gateway - Model & Caller Breakdown](screenshots/AIGateway-04.png)
 
+### Streaming vs Non-Streaming Verification
+
+When `enable_foundry = True`, the multi-caller traffic phase alternates between non-streaming and streaming chat completions for every business unit. The **AI Gateway** tab includes a *Streaming vs Non-Streaming Breakdown* group with:
+
+- A **pie chart** showing overall request distribution across delivery modes
+- A **color-coded table** showing per-BU request counts and prompt, completion, and total token counts split by delivery mode
+
+This makes it easy to confirm that token tracking works identically for both modes. The streaming visuals also distinguish between **client-supplied usage** (the caller already set `stream_options.include_usage = true`) and **APIM-injected usage** (the policy fragment added the flag and logged proof into `TraceRecords`), so you can verify policy behavior end to end. The same split is available per-request on the **Per-Request Detail** tab via the `AI Delivery Mode` and `Usage Provenance` columns.
+
 ## 🧹 Clean Up
 
 To remove all resources created by this sample, open and run `clean-up.ipynb`. This deletes:
@@ -178,6 +255,7 @@ To remove all resources created by this sample, open and run `clean-up.ipynb`. T
 - Application Insights, Log Analytics, Storage Account
 - Azure Monitor Workbook
 - Cost Management export
+- Microsoft Foundry Hub, Project, Azure AI Services (when `enable_foundry = True`)
 
 > The clean-up notebook does **not** delete your APIM instance or resource group.
 
@@ -194,6 +272,10 @@ To remove all resources created by this sample, open and run `clean-up.ipynb`. T
 - [Microsoft Entra ID application model](https://learn.microsoft.com/entra/identity-platform/application-model)
 - [Azure OpenAI usage and token metrics](https://learn.microsoft.com/azure/ai-services/openai/how-to/monitoring)
 - [PTU provisioned throughput concepts](https://learn.microsoft.com/azure/ai-services/openai/concepts/provisioned-throughput)
+- [Azure OpenAI streaming with usage](https://learn.microsoft.com/azure/ai-services/openai/how-to/streaming)
+- [APIM azure-openai-emit-token-metric policy](https://learn.microsoft.com/azure/api-management/azure-openai-emit-token-metric-policy)
+- [Azure AI Foundry documentation](https://learn.microsoft.com/azure/ai-studio/)
+- [Tracking every token (Tech Community blog)](https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/tracking-every-token-granular-cost-and-usage-metrics-for-microsoft-foundry-agent/4503143)
 
 [infrastructure-architectures]: ../../README.md#infrastructure-architectures
 [infrastructure-folder]: ../../infrastructure/

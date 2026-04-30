@@ -310,6 +310,7 @@ class Infrastructure:
                     f' --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
                     'Public access disabled successfully',
                     'Failed to disable public access',
+                    timeout=1800,
                 )
 
                 return output.success
@@ -506,6 +507,7 @@ class Infrastructure:
                 f' --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
                 f"Deployment '{self.infra.value}' succeeded",
                 utils.get_deployment_failure_message(self.infra.value),
+                timeout=1800,
             )
 
             # ------------------------------
