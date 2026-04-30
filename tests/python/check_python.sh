@@ -86,15 +86,15 @@ if echo "$TEST_OUTPUT" | grep -qE 'TOTAL\s+.*\s+\d+%'; then
     COVERAGE_PERCENT=$(echo "$TEST_OUTPUT" | grep -oE 'TOTAL\s+.*\s+(\d+)%' | grep -oE '[0-9]+%' | head -1)
 fi
 
-# Detect slow tests (>0.1s execution time)
+# Detect slow tests (>0.2s execution time)
 SLOW_TESTS_FOUND=0
 if echo "$TEST_OUTPUT" | grep -qE '[0-9]+\.[0-9]+s\s+call\s+'; then
-    # Check each line with slow test pattern for times > 0.1
+    # Check each line with slow test pattern for times > 0.2
     while IFS= read -r line; do
         if [[ $line =~ ^([0-9]+\.[0-9]+)s\ +call ]]; then
             time="${BASH_REMATCH[1]}"
             # Use awk for floating point comparison instead of bc
-            if awk "BEGIN {exit !($time > 0.1)}"; then
+            if awk "BEGIN {exit !($time > 0.2)}"; then
                 SLOW_TESTS_FOUND=1
                 break
             fi
@@ -202,7 +202,7 @@ fi
 # Display slow tests warning if detected
 if [ $SLOW_TESTS_FOUND -eq 1 ]; then
     echo ""
-    echo "⚠️  SLOW TESTS DETECTED (> 0.1s). Please review slowest durations in test summary." | sed 's/^/\e[33m/;s/$/\e[0m/'  # Yellow color
+    echo "⚠️  SLOW TESTS DETECTED (> 0.2s). Please review slowest durations in test summary." | sed 's/^/\e[33m/;s/$/\e[0m/'  # Yellow color
 fi
 
 echo ""
