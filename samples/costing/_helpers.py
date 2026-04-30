@@ -367,16 +367,40 @@ def send_aoai_traffic(
 
 
 def print_portal_links(items: list[tuple[str, str | None]]) -> None:
-    """Print a numbered list of Azure portal links, skipping entries with no URL.
+    """Print a prominent "NEXT STEP" box with the workbook URL, then numbered links.
+
+    The first item is assumed to be the workbook (the primary action).
+    All items are printed as a numbered reference list for easy cross-checking.
 
     Each item is a `(label, url)` tuple. When `url` is None or empty, the
     entry is rendered as `(not deployed)` so the numbering still reflects the
     intended priority order.
 
     Args:
-        items: Ordered list of `(label, url_or_none)` tuples.
+        items: Ordered list of `(label, url_or_none)` tuples. First item should be workbook.
     """
 
+    print('')
+    print('================================================================================')
+    print_info('NEXT STEP: OPEN THE AZURE MONITOR WORKBOOK')
+    print('================================================================================')
+    print_info('1) Copy the URL below')
+    print_info('2) Paste it into your browser address bar')
+    print_info('3) Press Enter')
+    print('')
+
+    # Extract and highlight workbook URL from the first item
+    if items:
+        workbook_label, workbook_url = items[0]
+        if workbook_url:
+            print_val('WORKBOOK URL', workbook_url)
+        else:
+            print_warning(f'{workbook_label} is not available')
+    else:
+        print_warning('No portal links provided')
+
+    print('')
+    print_info('Additional portal links for reference:')
     print('')
 
     n = 0
@@ -495,7 +519,11 @@ def build_costing_apis(
         if not force_stream_include_usage:
             # Remove the streaming-usage enforcement fragment when not forcing stream_options.include_usage
             token_metric_policy_xml = re.sub(
-                r'\s*<!-- Ensure streaming AI requests include stream_options\.include_usage = true \(reusable fragment\) -->\s*<include-fragment fragment-id="Ensure-Stream-Include-Usage" />\s*',
+                (
+                    r'\s*<!-- Ensure streaming AI requests include stream_options\.include_usage = true '
+                    r'\(reusable fragment\) -->\s*<include-fragment '
+                    r'fragment-id="Ensure-Stream-Include-Usage" />\s*'
+                ),
                 '',
                 token_metric_policy_xml,
             )
