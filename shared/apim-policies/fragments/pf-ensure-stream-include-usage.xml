@@ -24,27 +24,34 @@
 -->
 <fragment>
     <choose>
-        <when condition="@(context.Request.Body != null && context.Request.Headers.GetValueOrDefault("Content-Type", "").Contains("json"))">
-            <set-body>@{
+        <when condition="@(context.Request.Body != null)">
+            <set-body><![CDATA[@{
                 try {
+                    var contentType = context.Request.Headers.GetValueOrDefault("Content-Type", "");
+                    if (!contentType.Contains("json")) {
+                        return context.Request.Body.As<string>(preserveContent: true);
+                    }
+
                     var body = context.Request.Body.As<Newtonsoft.Json.Linq.JObject>(preserveContent: true);
                     if (body["stream"]?.Value<bool>() == true) {
-                        // Ensure stream_options object exists
+                        // Ensure stream_options object exists.
                         if (body["stream_options"] == null) {
                             body["stream_options"] = new Newtonsoft.Json.Linq.JObject();
                         }
-                        // Ensure include_usage is set to true
+
+                        // Ensure include_usage is set to true.
                         var streamOptions = (Newtonsoft.Json.Linq.JObject)body["stream_options"];
                         if (streamOptions["include_usage"]?.Value<bool>() != true) {
                             streamOptions["include_usage"] = true;
                         }
                     }
+
                     return body.ToString();
                 } catch {
-                    // If JSON parsing fails, return original body unchanged
+                    // If JSON parsing fails, return original body unchanged.
                     return context.Request.Body.As<string>(preserveContent: true);
                 }
-            }</set-body>
+            }]]></set-body>
         </when>
     </choose>
 </fragment>

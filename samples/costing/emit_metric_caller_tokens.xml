@@ -58,7 +58,7 @@
     <inbound>
         <base />
         <!-- Ensure streaming AI requests include stream_options.include_usage = true (reusable fragment) -->
-        <include-fragment fragment-id="pf-ensure-stream-include-usage" />
+        <include-fragment fragment-id="Ensure-Stream-Include-Usage" />
         <!-- Extract caller identity (appid/azp from JWT, or APIM subscription ID) -->
         <include-fragment fragment-id="Extract-CallerId" />
         <!-- Count each request per caller (same as emit_metric_caller_id.xml) -->

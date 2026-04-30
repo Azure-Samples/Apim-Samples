@@ -481,11 +481,21 @@ def build_costing_apis(
 
     token_metric_policy_xml: str | None = None
     if enable_token_tracking:
+        if force_stream_include_usage:
+            pf_stream_usage_path = Path(utils.get_project_root()) / 'shared' / 'apim-policies' / 'fragments' / 'pf-ensure-stream-include-usage.xml'
+            pfs.append(
+                PolicyFragment(
+                    'Ensure-Stream-Include-Usage',
+                    pf_stream_usage_path.read_text(encoding='utf-8'),
+                    'Ensures streaming chat requests include stream_options.include_usage = true.',
+                )
+            )
+
         token_metric_policy_xml = Path(utils.determine_policy_path('emit_metric_caller_tokens.xml', sample_folder)).read_text(encoding='utf-8')
         if not force_stream_include_usage:
             # Remove the streaming-usage enforcement fragment when not forcing stream_options.include_usage
             token_metric_policy_xml = re.sub(
-                r'\s*<!-- Ensure streaming AI requests include stream_options\.include_usage = true \(reusable fragment\) -->\s*<include-fragment fragment-id="pf-ensure-stream-include-usage" />\s*',
+                r'\s*<!-- Ensure streaming AI requests include stream_options\.include_usage = true \(reusable fragment\) -->\s*<include-fragment fragment-id="Ensure-Stream-Include-Usage" />\s*',
                 '',
                 token_metric_policy_xml,
             )
