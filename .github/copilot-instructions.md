@@ -444,6 +444,7 @@ When designing or restructuring a sample notebook:
   - Python: see `.github/python.instructions.md`
   - Bicep: see `.github/bicep.instructions.md`
   - JSON: see `.github/json.instructions.md`
+  - Markdown: see `.github/markdown.instructions.md`
 
 ## Formatting and Style
 
@@ -455,8 +456,8 @@ When designing or restructuring a sample notebook:
 - Only use apostrophe (U+0027) and quotes (U+0022), not left or right single or double quotation marks.
 - Use only ASCII punctuation in text content. Replace em-dashes (U+2014) and en-dashes (U+2013) with a plain hyphen-minus (`-`), the minus sign (U+2212) with `-`, the horizontal ellipsis (U+2026) with `...`, and math comparison glyphs (U+2264, U+2265, U+2260) with `<=`, `>=`, `!=`. These typographic characters do not always render correctly in downstream surfaces such as Azure Monitor Workbook markdown tiles, slide-deck HTML, and some terminal fonts. This rule applies to every text-bearing file in the repository, including Markdown, Python docstrings/comments, Bicep `@description` strings, XML policy comments, and **JSON string values that contain user-facing text (notably Azure Monitor Workbook `*.workbook.json` files where markdown is embedded in `content.json` strings).**
 - Do not localize URLs (e.g. no "en-us" in links).
-- Never use emoji variation selectors in Markdown. They are sneaky little things that can cause rendering and Markdown anchor link issues.
-- **Markdown tables must be column-aligned.** Pad cell values with spaces so that every `|` delimiter in a column lines up vertically. Use the separator row (`---`, `:---:`, etc.) to establish column widths and align all subsequent rows to match. This applies to every Markdown file in the repository (READMEs, skills, instructions, etc.).
+
+For Markdown-specific formatting guidelines (including critical rules about emoji variation selectors and table alignment), see `.github/markdown.instructions.md`.
 
 ## Testing and Edge Cases
 
