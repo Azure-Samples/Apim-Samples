@@ -1,6 +1,6 @@
 ---
 description: 'Python coding conventions and guidelines'
-applyTo: '**/*.py'
+applyTo: '**/*.py,**/*.ipynb'
 ---
 
 # Copilot Instructions (Python)
@@ -18,9 +18,10 @@ This ensures all code changes comply with the project's linting standards from t
 ## Ruff Expectations
 
 - Use explicit imports (avoid `from module import *`), especially in notebooks, to prevent `F403/F405`.
-- Keep lines within the configured length limit (see `pyproject.toml`), and wrap long strings or calls.
+- Keep lines within the configured length limit (**150 characters** per `pyproject.toml`), and wrap long strings or calls. **Inline comments on assignments are the most commonly missed line-length offender** — when `var = value  # comment` would exceed 150 chars, move the comment to its own line(s) above the assignment.
 - Avoid f-strings without placeholders (e.g., `F541`).
 - **Ruff gap:** `PLC0415` (`import-outside-toplevel`) only flags imports inside functions and classes. It does **not** flag imports inside module-level `if` / `else` / `try` blocks. Ruff will not catch those, so the top-of-file import rule below must be enforced manually.
+- **Notebook cells follow the same rules** as `.py` files except for `F821` and `F401` (suppressed via per-file-ignores because notebook cells share kernel state). Line-length, quote style, and import placement still apply. After editing notebook cells, run `get_errors` and resolve any ruff `compileError` entries; ignore only the `"X" is not defined` cross-cell false positives.
 
 ## Goals
 
