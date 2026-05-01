@@ -255,6 +255,14 @@ The AI Gateway tab shows per-client token consumption and estimated costs when A
 
 ![AI Gateway - Model & Caller Breakdown](screenshots/AIGateway-04.png)
 
+![AI Gateway - Token & PTU Summary](screenshots/AI-Gateway-Token-PTU.png)
+
+### Per-Request Detail Tab
+
+The Per-Request Detail tab provides a row-level drill-in across every AI request, joining gateway logs with LLM diagnostic data so you can inspect a single call end to end. The `AI Delivery Mode` and `Usage Provenance` columns make it easy to confirm whether a streaming request supplied its own `usage` chunk or relied on the APIM policy fragment to inject one.
+
+![Per-Request Detail](screenshots/Per-Request%20Detail.png)
+
 ### Streaming vs Non-Streaming Verification
 
 When `enable_foundry = True`, the multi-caller traffic phase alternates between non-streaming and streaming chat completions for every business unit. The **AI Gateway** tab includes a *Streaming vs Non-Streaming Breakdown* group with:
