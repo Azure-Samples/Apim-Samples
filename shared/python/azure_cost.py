@@ -151,6 +151,12 @@ _MODEL_PRICING: dict[tuple[str, str], ModelPricing] = {
         prompt_rate_per_k=0.00015,  # $0.15 / 1M input tokens
         completion_rate_per_k=0.0006,  # $0.60 / 1M output tokens
     ),
+    ('gpt-4.1-nano', 'globalstandard'): ModelPricing(
+        model='gpt-4.1-nano',
+        sku='GlobalStandard',
+        prompt_rate_per_k=0.0001,  # $0.10 / 1M input tokens
+        completion_rate_per_k=0.0004,  # $0.40 / 1M output tokens
+    ),
 }
 
 

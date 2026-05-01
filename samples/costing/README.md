@@ -16,7 +16,7 @@ This sample demonstrates how to track and allocate API costs using Azure API Man
 6. **Enable cost governance** - Establish patterns for consistent tagging and naming conventions
 7. **Enable budget alerts** - Create scheduled query alerts when callers exceed configurable thresholds
 8. **Track AI token consumption per client** - When APIM is used as an AI Gateway, capture prompt, completion, and total token usage per calling application, enabling per-client cost attribution for PTU or pay-as-you-go OpenAI deployments
-9. **Real AOAI interactions via Foundry** (optional) - Deploy a full Microsoft Foundry environment (Hub + Project + Azure AI Services) and route real Azure OpenAI chat completions through APIM, demonstrating accurate token tracking for both non-streaming and streaming (SSE) responses
+9. **Real AOAI interactions via Foundry** (optional) - Deploy a full Microsoft Foundry environment (Hub + Project + Azure AI Services) and route real Azure OpenAI traffic through APIM across **both the Chat Completions and Responses APIs**, demonstrating accurate token tracking for non-streaming, streaming (SSE), and stateless (`store: false`) requests
 
 > **Note on non-OpenAI models**: This sample deploys an Azure OpenAI model only (default: `gpt-5-mini`). Other model families on Azure AI Services - such as Anthropic Claude via the Azure Marketplace - are gated by separate quota that is granted through a manual approval process, which puts them beyond the scope of a self-service sample. If you have approved quota for another provider, you can extend the sample by adding a second deployment in `main.bicep`; the token-tracking policy and workbook queries are model-agnostic.
 
@@ -86,6 +86,23 @@ The workbook surfaces **both** streaming variants side-by-side so you can see ex
 
 The **AI Gateway** tab's *Streaming vs Non-Streaming Breakdown* and the **Per-Request Detail** tab's `AI Delivery Mode` + `Usage Provenance` columns both render this distinction, so you can confirm token capture works regardless of whether the client or APIM supplied the usage option.
 
+### AI Surface Coverage (Chat Completions + Responses API)
+
+The notebook exercises **six** AI request modes per business unit per model so you can see APIM token tracking work across both Azure OpenAI surfaces and every streaming variant. Mode is chosen by `j % 6` for the `j`-th request within a business unit, giving a deterministic, even mix:
+
+| Mode | API surface | Streaming | Notes |
+| --- | --- | --- | --- |
+| 0 | Chat Completions | No | Baseline non-streaming chat. |
+| 1 | Chat Completions | Yes | Client sends `stream_options.include_usage = true`; APIM forwards unchanged. |
+| 2 | Chat Completions | Yes | Client omits `stream_options`; the `pf-ensure-stream-include-usage.xml` fragment injects it and emits an `IncludeUsageInjected` trace. |
+| 3 | Responses API | No | Stateful (`store` defaults to `true`); uses `input` + `max_output_tokens`. |
+| 4 | Responses API | Yes | Streaming Responses; the policy fragment is a no-op for this surface. |
+| 5 | Responses API | No | Stateless variant with `store: false` to demonstrate ephemeral usage. |
+
+The Chat Completions and Responses APIs use different api-versions (`2024-10-21` vs `2025-03-01-preview`), different routes (`/deployments/{id}/chat/completions` vs `/responses`), and different request shapes (`messages` + `max_completion_tokens` vs `input` + `max_output_tokens`). They share the same `aoai-backend` and the same APIM AI logger, so `ApiManagementGatewayLlmLog` rows from both surfaces flow into the same workspace and are split by `OperationId` (`chat-completions-create` vs `responses-create`) in the workbook.
+
+The `pf-ensure-stream-include-usage.xml` fragment short-circuits for the Responses API: it only inspects the body when `messages` is present, so Responses requests pass through untouched. The workbook's *Streaming vs Non-Streaming Breakdown*, *Token Counts by Business Unit & Delivery Mode* table, and *Per-Request Detail* tab all surface an `API Surface` column / slice (`Chat` vs `Responses`) so you can verify each mode produced its expected rows.
+
 > **Business unit attribution**: Join `ApiManagementGatewayLlmLog` with `ApiManagementGatewayLogs` on `CorrelationId` to map token counts to `ApimSubscriptionId` (business unit). See `bu-token-usage.kql` for a ready-to-use query.
 
 ### Context Propagation
@@ -114,7 +131,7 @@ This lab deploys and configures:
 - **Azure Monitor Workbook** - Pre-built tabbed dashboard with:
   - **Subscription-Based Costing tab**: Cost allocation table (base + variable cost per BU), base vs variable cost stacked bar chart, cost breakdown by API, request count and distribution charts, success/error rate analysis, response code distribution, business unit drill-down
   - **Entra ID Application Costing tab**: Usage by caller ID (bar chart + table), cost allocation by caller (table + pie chart), hourly request trend by caller
-  - **AI Gateway Token/PTU tab**: Three rows of summary tiles grouped under **APIM Inbound** (total APIM requests, AI APIM requests, inbound), **AI Backend** (backend requests, successful, throttled, failed), and **Tokens** (total tokens), followed by a request-funnel table, scope-reconciliation explainer + table, token cost allocation table with configurable per-1K-token rates, model and streaming pie charts, streaming vs non-streaming breakdown table, token-share pie, and hourly token-type trend chart
+  - **AI Gateway Token/PTU tab**: Summary tiles grouped under **APIM Inbound** (AI Requests across all subs, AI Requests per BU) and **AI Backend** (a Successful row with `Successful (all 2xx)`, `Successful (2xx, with tokens)`, `Successful (no tokens)`, and an Errors row with `Throttled (429)`, `Client Errors (4xx)`, `Server Errors (5xx)`), then a **Tokens** row (total tokens), followed by a request-funnel table, a Token Coverage Investigation drill-in for `Successful (no tokens)`, scope-reconciliation explainer + table, token cost allocation table with configurable per-1K-token rates, model and streaming pie charts, streaming vs non-streaming breakdown table, token-share pie, and hourly token-type trend chart
 - **SKU-Based Pricing** - Automatically derives base monthly cost, overage rate, and included request allowance from the deployed APIM SKU using built-in pricing data (sourced from the [Azure API Management pricing page](https://azure.microsoft.com/pricing/details/api-management/), March 2026)
 - **Budget Alerts** (optional) - Per-BU scheduled query alerts when request thresholds are exceeded
 

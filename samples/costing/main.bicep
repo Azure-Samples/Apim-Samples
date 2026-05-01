@@ -85,6 +85,16 @@ param aiModels array = [
     version: '2025-08-07'
     capacity: 10
   }
+  {
+    name: 'gpt-4o-mini'
+    version: '2024-07-18'
+    capacity: 10
+  }
+  {
+    name: 'gpt-4.1-nano'
+    version: '2025-04-14'
+    capacity: 10
+  }
 ]
 
 

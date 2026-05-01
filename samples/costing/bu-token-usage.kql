@@ -20,6 +20,11 @@ ApiManagementGatewayLlmLog
     TotalTokens,
     ModelName,
     IsStreamCompletion
+// Collapse dated AOAI base-model variants (e.g. 'gpt-4o-mini-2024-07-18')
+// into the deployment alias (e.g. 'gpt-4o-mini'). The trailing date suffix
+// is informational only and would otherwise split a single deployment
+// across multiple rows.
+| extend ModelName = replace_regex(ModelName, @'-\d{4}-\d{2}-\d{2}$', '')
 | join kind=inner (
     ApiManagementGatewayLogs
     | where TimeGenerated > ago(timeWindow)
@@ -29,11 +34,14 @@ ApiManagementGatewayLlmLog
         ApiId,
         OperationId
 ) on CorrelationId
+| extend
+    ApiSurface = iff(OperationId contains 'responses-create', 'Responses', 'Chat'),
+    StreamMode = iff(IsStreamCompletion == true, 'Stream', 'Sync')
 | summarize
     TotalPromptTokens     = sum(PromptTokens),
     TotalCompletionTokens = sum(CompletionTokens),
     TotalTokens           = sum(TotalTokens),
     Requests              = count(),
     StreamingRequests     = countif(IsStreamCompletion == true)
-    by BusinessUnit, ModelName
+    by BusinessUnit, ModelName, ApiSurface, StreamMode
 | order by TotalTokens desc
