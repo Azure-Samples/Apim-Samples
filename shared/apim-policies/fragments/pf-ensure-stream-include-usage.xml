@@ -28,6 +28,13 @@
 <fragment>
     <set-variable name="streamIncludeUsageAction" value='@{
         try {
+            // Responses API uses different request/response shapes (input/output_tokens)
+            // and does not honor stream_options.include_usage. Skip injection so we do
+            // not corrupt a Responses body or trigger a 400 from the AOAI backend.
+            if (context.Operation != null &amp;&amp; context.Operation.Name == "responses-create") {
+                return "not-applicable";
+            }
+
             if (context.Request.Body == null) {
                 return "not-applicable";
             }
@@ -38,6 +45,13 @@
             }
 
             var body = context.Request.Body.As&lt;Newtonsoft.Json.Linq.JObject&gt;(preserveContent: true);
+
+            // Responses API bodies use "input" (string) instead of "messages" (array).
+            // Treat any body that has "input" but no "messages" as a Responses shape and skip.
+            if (body["messages"] == null &amp;&amp; body["input"] != null) {
+                return "not-applicable";
+            }
+
             if (body["stream"]?.Value&lt;bool&gt;() != true) {
                 return "not-applicable";
             }
@@ -70,7 +84,7 @@
     </choose>
 
     <choose>
-        <when condition="@(context.Request.Body != null)">
+        <when condition='@(((string)context.Variables.GetValueOrDefault&lt;string&gt;("streamIncludeUsageAction", string.Empty)) != "not-applicable" &amp;&amp; context.Request.Body != null)'>
             <set-body><![CDATA[@{
                 try {
                     var contentType = context.Request.Headers.GetValueOrDefault("Content-Type", "");
@@ -79,6 +93,12 @@
                     }
 
                     var body = context.Request.Body.As<Newtonsoft.Json.Linq.JObject>(preserveContent: true);
+
+                    // Skip rewriting for Responses-API-shaped bodies (no messages array).
+                    if (body["messages"] == null) {
+                        return body.ToString();
+                    }
+
                     if (body["stream"]?.Value<bool>() == true) {
                         // Ensure stream_options object exists.
                         if (body["stream_options"] == null) {

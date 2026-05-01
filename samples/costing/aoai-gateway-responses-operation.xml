@@ -1,0 +1,32 @@
+<!--
+    AOAI Gateway Responses Operation Policy
+
+    Routes /responses requests to the Azure OpenAI backend with managed
+    identity authentication. Pinned to api-version 2025-03-01-preview, which
+    is the first widely-available preview that exposes the Responses API on
+    Azure OpenAI. Existing /chat/completions traffic continues to use the
+    operation-level api-version override on chat-completion (2024-10-21).
+
+    The API-level policy (emit_metric_caller_tokens.xml) handles caller
+    identification, context-propagation headers, and token metric emission
+    for both Chat and Responses operations uniformly.
+-->
+<policies>
+    <inbound>
+        <base />
+        <set-backend-service backend-id="aoai-backend" />
+        <authentication-managed-identity resource="https://cognitiveservices.azure.com" />
+        <set-query-parameter name="api-version" exists-action="skip">
+            <value>2025-03-01-preview</value>
+        </set-query-parameter>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

@@ -297,66 +297,115 @@ def send_aoai_traffic(
     chat_body: dict,
     stream_body: dict,
     stream_body_without_usage: dict | None = None,
-) -> tuple[int, int, int, int, bool]:
-    """Send `count` AOAI requests alternating non-streaming / streaming.
+    responses_url: str | None = None,
+    responses_body: dict | None = None,
+    responses_stream_body: dict | None = None,
+    responses_stateless_body: dict | None = None,
+) -> tuple[dict[str, int], dict[str, int], bool]:
+    """Send `count` AOAI requests cycling through up to six modes.
 
-    Encapsulates the inner request loop used by cell D1's per-(BU, model) loop:
-    even iterations send non-streaming chat completions, odd iterations send
-    streaming chat completions. When `stream_body_without_usage` is supplied,
-    streaming iterations alternate between a client body that already sets
-    `stream_options.include_usage = true` and one that omits it entirely so
-    the APIM policy fragment can prove when it injected the flag. On the first
-    timeout the function bails out for the rest of `count` to avoid stacking
-    cold-start delays into multi-minute hangs.
+    The dispatcher cycles `j % 6` across these modes:
+
+      | j%6 | API       | Mode                                                       |
+      |-----|-----------|------------------------------------------------------------|
+      | 0   | chat      | non-streaming                                              |
+      | 1   | chat      | streaming WITH stream_options.include_usage                |
+      | 2   | chat      | streaming WITHOUT stream_options (APIM injects + traces)   |
+      | 3   | responses | non-streaming, stateful (default store=true)               |
+      | 4   | responses | streaming                                                  |
+      | 5   | responses | non-streaming, stateless (store=false)                     |
+
+    Mode 2 is intentionally preserved - it is the only case where APIM's
+    `Ensure-Stream-Include-Usage` fragment mutates the request body and writes
+    a `TraceRecords` entry, which the workbook surfaces as proof of injection.
+
+    Mode 5 sends `{store: false}`. Per-request token counts are identical to
+    mode 3; the educational point is the **stateless** behavior (no chaining
+    via `previous_response_id`, no server-side retrieval).
+
+    On the first timeout the function bails out for the rest of `count` to
+    avoid stacking cold-start delays into multi-minute hangs.
 
     Args:
         session: Pre-configured `requests.Session` (built via `build_session`).
         chat_url: Full chat-completions URL for the target deployment.
         caller_headers: Per-call headers (api-key for the BU + Authorization JWT).
         count: Total number of requests to send for this (BU, model) cell.
-        chat_body: JSON body for non-streaming requests.
-        stream_body: JSON body for streaming requests where the client already
-            sets `stream_options.include_usage: True`.
-        stream_body_without_usage: Optional JSON body for streaming requests
-            that intentionally omits `stream_options.include_usage` so APIM can
-            inject it and emit a trace record proving the mutation.
+        chat_body: Non-streaming chat completions body.
+        stream_body: Streaming chat completions body with
+            `stream_options.include_usage = true` set by the client.
+        stream_body_without_usage: Streaming chat completions body that omits
+            `stream_options` so APIM can inject it and emit a trace record.
+            When None, mode 2 falls back to mode 1.
+        responses_url: Full /responses URL. When None, modes 3/4/5 are skipped
+            and replaced by mode-0/1/0 respectively (Chat fallback).
+        responses_body: Responses API non-streaming body (used for mode 3).
+        responses_stream_body: Responses API streaming body (used for mode 4).
+        responses_stateless_body: Responses API non-streaming body with
+            `store: false` (used for mode 5).
 
     Returns:
-        `(non_streaming_delivered, streaming_delivered, planned_ns, planned_s, bailed)`.
-        `*_delivered` counts only requests that returned an HTTP response.
+        `(delivered, planned, bailed)` where `delivered` and `planned` are
+        dicts with these keys:
+            chat_non_streaming
+            chat_stream_with_usage
+            chat_stream_without_usage
+            responses_non_streaming
+            responses_stream
+            responses_non_streaming_stateless
         `bailed` is True if a timeout caused the loop to exit early.
     """
-    non_streaming_count = 0
-    streaming_count = 0
-    planned_non_streaming = 0
-    planned_streaming = 0
+    keys = (
+        'chat_non_streaming',
+        'chat_stream_with_usage',
+        'chat_stream_without_usage',
+        'responses_non_streaming',
+        'responses_stream',
+        'responses_non_streaming_stateless',
+    )
+    delivered = dict.fromkeys(keys, 0)
+    planned = dict.fromkeys(keys, 0)
     bailed = False
+
+    responses_available = (
+        responses_url is not None and responses_body is not None and responses_stream_body is not None and responses_stateless_body is not None
+    )
 
     for j in range(count):
         if bailed:
             break
 
-        use_streaming = j % 2 == 1
-        if use_streaming:
-            planned_streaming += 1
-        else:
-            planned_non_streaming += 1
+        # Resolve mode from j % 6, with safe fallbacks when optional bodies/URLs missing.
+        mode = j % 6
+        if mode == 2 and stream_body_without_usage is None:
+            mode = 1
+        if mode in (3, 4, 5) and not responses_available:
+            mode = 0 if mode in (3, 5) else 1
 
-        if use_streaming:
-            streaming_iteration = planned_streaming - 1
-            body = stream_body_without_usage if stream_body_without_usage is not None and streaming_iteration % 2 == 0 else stream_body
-        else:
-            body = chat_body
+        if mode == 0:
+            url, body, key, is_stream = chat_url, chat_body, 'chat_non_streaming', False
+        elif mode == 1:
+            url, body, key, is_stream = chat_url, stream_body, 'chat_stream_with_usage', True
+        elif mode == 2:
+            url, body, key, is_stream = chat_url, stream_body_without_usage, 'chat_stream_without_usage', True
+        elif mode == 3:
+            url, body, key, is_stream = responses_url, responses_body, 'responses_non_streaming', False
+        elif mode == 4:
+            url, body, key, is_stream = responses_url, responses_stream_body, 'responses_stream', True
+        else:  # mode == 5
+            url, body, key, is_stream = responses_url, responses_stateless_body, 'responses_non_streaming_stateless', False
+
+        planned[key] += 1
 
         try:
             r = session.post(
-                chat_url,
+                url,
                 json=body,
                 headers=caller_headers,
-                timeout=45 if use_streaming else 30,
-                stream=use_streaming,
+                timeout=45 if is_stream else 30,
+                stream=is_stream,
             )
-            if use_streaming and r.status_code == 200:
+            if is_stream and r.status_code == 200:
                 # Drain SSE stream so APIM logs the final chunk (with usage).
                 for _ in r.iter_lines(decode_unicode=True):
                     pass
@@ -368,12 +417,9 @@ def send_aoai_traffic(
             continue
 
         # 4xx/5xx still count: they appear in ApiManagementGatewayLogs.
-        if use_streaming:
-            streaming_count += 1
-        else:
-            non_streaming_count += 1
+        delivered[key] += 1
 
-    return non_streaming_count, streaming_count, planned_non_streaming, planned_streaming, bailed
+    return delivered, planned, bailed
 
 
 def print_portal_links(items: list[tuple[str, str | None]]) -> None:
@@ -550,6 +596,9 @@ def build_costing_apis(
 
     if enable_foundry and enable_token_tracking and token_metric_policy_xml is not None:
         aoai_operation_policy_xml = Path(utils.determine_policy_path('aoai-gateway-operation.xml', sample_folder)).read_text(encoding='utf-8')
+        aoai_responses_operation_policy_xml = Path(utils.determine_policy_path('aoai-gateway-responses-operation.xml', sample_folder)).read_text(
+            encoding='utf-8'
+        )
 
         paths['aoai_api_path'] = 'aoai-gateway'
         aoai_chat_post = APIOperation(
@@ -561,6 +610,18 @@ def build_costing_apis(
             policyXml=aoai_operation_policy_xml,
             templateParameters=[{'name': 'deploymentId', 'type': 'string', 'required': True}],
         )
+        # Responses API operation. Uses the modern stateless/stateful
+        # /responses surface. Pinned to api-version 2025-03-01-preview via a
+        # per-operation set-query-parameter so chat-completion stays on
+        # 2024-10-21 unaffected.
+        aoai_responses_post = APIOperation(
+            'responses-create',
+            'Responses Create',
+            '/responses',
+            HTTP_VERB.POST,
+            'Azure OpenAI Responses API create (streaming, non-streaming, and stateless via store=false)',
+            policyXml=aoai_responses_operation_policy_xml,
+        )
         apis.append(
             API(
                 f'{api_prefix}aoai-gateway',
@@ -568,7 +629,7 @@ def build_costing_apis(
                 paths['aoai_api_path'],
                 'Azure OpenAI gateway for demonstrating real token tracking with Foundry',
                 policyXml=token_metric_policy_xml,
-                operations=[aoai_chat_post],
+                operations=[aoai_chat_post, aoai_responses_post],
                 tags=['costing', 'emit-metric', 'ai-gateway', 'aoai', 'foundry'],
                 subscriptionRequired=True,
                 serviceUrl='https://placeholder.openai.azure.com/openai',
@@ -816,30 +877,59 @@ def print_aoai_traffic_summary(
     model_request_counts: dict[str, dict[str, int]],
     bu_model_counts: dict[tuple[str, str], dict[str, int]],
 ) -> tuple[int, int, int]:
-    """Print per-model and per-BU×per-model AOAI request tables.
+    """Print per-model and per-BU x per-model AOAI request tables.
+
+    Each per-(model) and per-(BU, model) value is a dict carrying delivered
+    counts for the six AOAI traffic modes:
+
+        chat_non_streaming, chat_stream_with_usage, chat_stream_without_usage,
+        responses_non_streaming, responses_stream, responses_non_streaming_stateless
+
+    The summary tables collapse those into Chat-Sync, Chat-Stream, Resp-Sync,
+    Resp-Stream so the per-row width stays readable while still surfacing the
+    Chat vs Responses split. The streaming-with vs without-usage detail and
+    the stateful vs stateless Responses split are visible in the workbook.
 
     Returns:
-        `(grand_non_streaming, grand_streaming, total)` — used by the caller
-        for the trailing summary line and persistence step.
+        `(grand_chat, grand_responses, total)` where `grand_chat` is the sum
+        of all chat modes and `grand_responses` is the sum of all responses
+        modes across every (model) row. Used by the caller for the trailing
+        summary line.
     """
+
+    def _agg(counts: dict[str, int]) -> tuple[int, int, int, int]:
+        chat_sync = counts.get('chat_non_streaming', 0)
+        chat_stream = counts.get('chat_stream_with_usage', 0) + counts.get('chat_stream_without_usage', 0)
+        resp_sync = counts.get('responses_non_streaming', 0) + counts.get('responses_non_streaming_stateless', 0)
+        resp_stream = counts.get('responses_stream', 0)
+        return chat_sync, chat_stream, resp_sync, resp_stream
+
     print()
     print_info('Requests per model')
     summary_table = TableLogger()
     summary_table.header(
         Column('Model'),
-        Column('Non-streaming', align='>'),
-        Column('Streaming', align='>'),
+        Column('Chat-Sync', align='>'),
+        Column('Chat-Stream', align='>'),
+        Column('Resp-Sync', align='>'),
+        Column('Resp-Stream', align='>'),
         Column('Total', align='>'),
     )
     summary_rows = []
-    grand_ns = grand_s = 0
+    grand_chat = grand_resp = 0
+    g_cs = g_cstream = g_rs = g_rstream = 0
     for m, counts in model_request_counts.items():
-        total = counts['non_streaming'] + counts['streaming']
-        summary_rows.append([m, counts['non_streaming'], counts['streaming'], total])
-        grand_ns += counts['non_streaming']
-        grand_s += counts['streaming']
+        cs, cstream, rs, rstream = _agg(counts)
+        total = cs + cstream + rs + rstream
+        summary_rows.append([m, cs, cstream, rs, rstream, total])
+        g_cs += cs
+        g_cstream += cstream
+        g_rs += rs
+        g_rstream += rstream
+        grand_chat += cs + cstream
+        grand_resp += rs + rstream
     summary_table.populate(summary_rows)
-    summary_table.total('GRAND TOTAL', grand_ns, grand_s, grand_ns + grand_s)
+    summary_table.total('GRAND TOTAL', g_cs, g_cstream, g_rs, g_rstream, g_cs + g_cstream + g_rs + g_rstream)
     summary_table.print()
 
     print()
@@ -848,23 +938,28 @@ def print_aoai_traffic_summary(
     bu_model_table.header(
         Column('Business Unit'),
         Column('Model'),
-        Column('Non-streaming', align='>'),
-        Column('Streaming', align='>'),
+        Column('Chat-Sync', align='>'),
+        Column('Chat-Stream', align='>'),
+        Column('Resp-Sync', align='>'),
+        Column('Resp-Stream', align='>'),
         Column('Total', align='>'),
     )
     bu_rows = []
-    bu_grand_ns = bu_grand_s = 0
+    bu_cs = bu_cstream = bu_rs = bu_rstream = 0
     for bu, m in sorted(bu_model_counts.keys()):
         counts = bu_model_counts[(bu, m)]
-        total = counts['non_streaming'] + counts['streaming']
-        bu_rows.append([bu, m, counts['non_streaming'], counts['streaming'], total])
-        bu_grand_ns += counts['non_streaming']
-        bu_grand_s += counts['streaming']
+        cs, cstream, rs, rstream = _agg(counts)
+        total = cs + cstream + rs + rstream
+        bu_rows.append([bu, m, cs, cstream, rs, rstream, total])
+        bu_cs += cs
+        bu_cstream += cstream
+        bu_rs += rs
+        bu_rstream += rstream
     bu_model_table.populate(bu_rows)
-    bu_model_table.total('GRAND TOTAL', '', bu_grand_ns, bu_grand_s, bu_grand_ns + bu_grand_s)
+    bu_model_table.total('GRAND TOTAL', '', bu_cs, bu_cstream, bu_rs, bu_rstream, bu_cs + bu_cstream + bu_rs + bu_rstream)
     bu_model_table.print()
 
-    return grand_ns, grand_s, grand_ns + grand_s
+    return grand_chat, grand_resp, grand_chat + grand_resp
 
 
 def persist_aoai_traffic(
@@ -880,15 +975,36 @@ def persist_aoai_traffic(
 ) -> int:
     """Roll up per-(BU,model) AOAI counts into a single trafficSources entry.
 
+    Each `bu_model_counts[(bu, m)]` and `bu_model_planned[(bu, m)]` entry is a
+    six-key dict matching the dispatcher's mode keys. Persisted shape per
+    (BU, model) under `byModel[].chat` / `byModel[].responses` mirrors the
+    dispatcher modes so the workbook cross-reference and tests can identify
+    which AI surface was exercised.
+
     Returns the total planned request count across all BU/model pairs (used
     by the caller for a trailing print line). The total delivered count is
     derived inside the function and stored as `totalRequests` in the JSON.
     """
+
+    def _shape(counts: dict[str, int]) -> dict:
+        return {
+            'chat': {
+                'nonStreaming': counts.get('chat_non_streaming', 0),
+                'streamingWithUsage': counts.get('chat_stream_with_usage', 0),
+                'streamingWithoutUsage': counts.get('chat_stream_without_usage', 0),
+            },
+            'responses': {
+                'nonStreaming': counts.get('responses_non_streaming', 0),
+                'streaming': counts.get('responses_stream', 0),
+                'nonStreamingStateless': counts.get('responses_non_streaming_stateless', 0),
+            },
+        }
+
     ai_bu_rollup: dict[str, dict] = {}
     total_delivered = 0
     for (bu, m), counts in bu_model_counts.items():
         bu_info_local = subscriptions.get(bu, {})
-        planned = bu_model_planned.get((bu, m), {'non_streaming': 0, 'streaming': 0})
+        planned = bu_model_planned.get((bu, m), {})
         entry = ai_bu_rollup.setdefault(
             bu,
             {
@@ -901,23 +1017,21 @@ def persist_aoai_traffic(
                 'byModel': [],
             },
         )
-        model_total = counts['non_streaming'] + counts['streaming']
-        planned_total = planned['non_streaming'] + planned['streaming']
+        model_total = sum(counts.values())
+        planned_total = sum(planned.values())
         entry['planned'] += planned_total
         entry['requests'] += model_total
         total_delivered += model_total
         entry['byModel'].append(
             {
                 'model': m,
-                'plannedNonStreaming': planned['non_streaming'],
-                'plannedStreaming': planned['streaming'],
-                'nonStreaming': counts['non_streaming'],
-                'streaming': counts['streaming'],
+                'planned': _shape(planned),
+                'delivered': _shape(counts),
                 'total': model_total,
             }
         )
 
-    total_planned = sum(p['non_streaming'] + p['streaming'] for p in bu_model_planned.values())
+    total_planned = sum(sum(p.values()) for p in bu_model_planned.values())
     persist_traffic_source(
         local_data_path,
         sample_folder=sample_folder,
