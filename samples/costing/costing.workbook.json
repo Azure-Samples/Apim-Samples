@@ -1241,7 +1241,7 @@
                 },
                 {
                   "content": {
-                    "query": "let total2xx = toscalar(\n    ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n    | where ApiId in~ (split('{AiApiIds}', ','))\n    | where ResponseCode between (200 .. 299)\n    | summarize count()\n);\nApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0 and CompletionTokens > 0 and isnotempty(ModelName)\n| project CorrelationId\n| join kind=inner (\n    ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n    | project CorrelationId\n) on CorrelationId\n| summarize RequestCount = dcount(CorrelationId)\n| extend Label = 'Successful (2xx, with tokens)', Status = 'billable'\n| extend Display = strcat(tostring(RequestCount), ' / ', tostring(round(todouble(RequestCount) * 100.0 / iif(total2xx == 0, 1, total2xx), 1)), '%')\n| project Label, Display, Status",
+                    "query": "let total2xx = toscalar(\n    ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n    | where ApiId in~ (split('{AiApiIds}', ','))\n    | where ResponseCode between (200 .. 299)\n    | summarize count()\n);\nApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0 and CompletionTokens > 0 and isnotempty(ModelName)\n| project CorrelationId\n| join kind=inner (\n    ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n    | project CorrelationId\n) on CorrelationId\n| summarize RequestCount = dcount(CorrelationId)\n| extend Label = 'Successful (2xx, with tokens)'\n| extend Status = strcat('billable - ', tostring(round(todouble(RequestCount) * 100.0 / iif(total2xx == 0, 1, total2xx), 1)), '%')\n| project Label, RequestCount, Status",
                     "queryType": 0,
                     "resourceType": "microsoft.operationalinsights/workspaces",
                     "size": 4,
@@ -1257,8 +1257,19 @@
                         "formatter": 1
                       },
                       "leftContent": {
-                        "columnMatch": "Display",
-                        "formatter": 1
+                        "columnMatch": "RequestCount",
+                        "formatter": 12,
+                        "formatOptions": {
+                          "min": 0,
+                          "palette": "blue"
+                        },
+                        "numberFormat": {
+                          "unit": 17,
+                          "options": {
+                            "style": "decimal",
+                            "useGrouping": true
+                          }
+                        }
                       },
                       "subtitleContent": {
                         "columnMatch": "Status",
@@ -1277,7 +1288,7 @@
                 },
                 {
                   "content": {
-                    "query": "let aiApis = split('{AiApiIds}', ',');\nlet twoXx = ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n| where ApiId in~ (aiApis)\n| where ResponseCode between (200 .. 299)\n| project CorrelationId;\nlet total2xx = toscalar(twoXx | summarize count());\nlet withTokens = ApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0 and CompletionTokens > 0 and isnotempty(ModelName)\n| distinct CorrelationId;\ntwoXx\n| join kind=leftouter withTokens on CorrelationId\n| where isempty(CorrelationId1)\n| summarize NoTokenRequests = dcount(CorrelationId)\n| extend Label = 'Successful (no tokens)', Status = '⚠ investigate'\n| extend Display = strcat(tostring(NoTokenRequests), ' / ', tostring(round(todouble(NoTokenRequests) * 100.0 / iif(total2xx == 0, 1, total2xx), 1)), '%')\n| project Label, Display, Status",
+                    "query": "let aiApis = split('{AiApiIds}', ',');\nlet twoXx = ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n| where ApiId in~ (aiApis)\n| where ResponseCode between (200 .. 299)\n| project CorrelationId;\nlet total2xx = toscalar(twoXx | summarize count());\nlet withTokens = ApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0 and CompletionTokens > 0 and isnotempty(ModelName)\n| distinct CorrelationId;\ntwoXx\n| join kind=leftouter withTokens on CorrelationId\n| where isempty(CorrelationId1)\n| summarize NoTokenRequests = dcount(CorrelationId)\n| extend Label = 'Successful (no tokens)'\n| extend Status = strcat('⚠ investigate - ', tostring(round(todouble(NoTokenRequests) * 100.0 / iif(total2xx == 0, 1, total2xx), 1)), '%')\n| project Label, NoTokenRequests, Status",
                     "queryType": 0,
                     "resourceType": "microsoft.operationalinsights/workspaces",
                     "size": 4,
@@ -1293,8 +1304,19 @@
                         "formatter": 1
                       },
                       "leftContent": {
-                        "columnMatch": "Display",
-                        "formatter": 1
+                        "columnMatch": "NoTokenRequests",
+                        "formatter": 12,
+                        "formatOptions": {
+                          "min": 0,
+                          "palette": "yellow"
+                        },
+                        "numberFormat": {
+                          "unit": 17,
+                          "options": {
+                            "style": "decimal",
+                            "useGrouping": true
+                          }
+                        }
                       },
                       "subtitleContent": {
                         "columnMatch": "Status",
@@ -1368,7 +1390,7 @@
                 },
                 {
                   "content": {
-                    "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n| where ApiId in~ (split('{AiApiIds}', ','))\n| where ResponseCode == 429\n| summarize Requests = count()\n| extend Label = 'Throttled (429)', Status = 'rate limited'\n| project Label, Requests, Status",
+                    "query": "let total4xx = toscalar(\n    ApiManagementGatewayLogs\n    | where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n    | where ApiId in~ (split('{AiApiIds}', ','))\n    | where ResponseCode >= 400 and ResponseCode < 500\n    | summarize count()\n);\nApiManagementGatewayLogs\n| where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-'\n| where ApiId in~ (split('{AiApiIds}', ','))\n| where ResponseCode == 429\n| summarize Requests = count()\n| extend Label = 'Throttled (429)'\n| extend Status = strcat('rate limited - ', tostring(round(todouble(Requests) * 100.0 / iif(total4xx == 0, 1, total4xx), 1)), '%')\n| project Label, Requests, Status",
                     "queryType": 0,
                     "resourceType": "microsoft.operationalinsights/workspaces",
                     "size": 4,
@@ -1603,7 +1625,7 @@
                         "formatter": 12,
                         "formatOptions": {
                           "min": 0,
-                          "palette": "orange"
+                          "palette": "yellow"
                         },
                         "numberFormat": {
                           "unit": 17,
