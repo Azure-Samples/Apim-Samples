@@ -29,6 +29,7 @@ jobs:
           # ISC: pexpect, ptyprocess
           # LGPL-3.0-or-later: pyzmq (libzmq shared library)
           # HPND: pillow
+          # MIT AND HPND-Markus-Kuhn: pywin32
           # Python-2.0, GPL-1.0-or-later, 0BSD: typing-extensions (CPython compound license)
           allow-licenses: >-
             MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause,
@@ -38,6 +39,7 @@ jobs:
             PSF-2.0,
             ISC,
             HPND,
+            MIT AND HPND-Markus-Kuhn,
             Python-2.0,
             GPL-1.0-or-later,
             0BSD
