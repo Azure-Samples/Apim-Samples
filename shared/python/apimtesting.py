@@ -66,7 +66,8 @@ class ApimTesting:
             return True
         except AssertionError as e:
             self.tests_failed += 1
-            self.errors.append(f'{str(e)}')
+            label_suffix = f' [{label}]' if label else ''
+            self.errors.append(f'Test {self.total_tests}{label_suffix}: {str(e)}')
             print(f'❌ Test {self.total_tests}: FAIL - {str(e)}')
 
             return False
