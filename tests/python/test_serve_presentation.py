@@ -1,6 +1,7 @@
 """Unit tests for serve_presentation module."""
 
 import importlib
+import os
 import re
 import runpy
 import signal
@@ -195,6 +196,10 @@ def test_presentation_handler_logs_update_on_head_poll(tmp_path: Path) -> None:
         mock_print.assert_not_called()
 
         watched_file.write_text('<html>v2</html>')
+        # Force mtime to advance deterministically (Windows mtime resolution
+        # can be coarse enough that two rapid writes share the same value).
+        current_stat = watched_file.stat()
+        os.utime(watched_file, (current_stat.st_atime, current_stat.st_mtime + 1))
 
         with patch('serve_presentation.get_local_timestamp', return_value='02/26/2026 15:45:12.123'):
             with patch('builtins.print') as mock_print:
