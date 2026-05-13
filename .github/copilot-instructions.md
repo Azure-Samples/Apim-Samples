@@ -601,3 +601,4 @@ Samples that require administrative or operational endpoints (cache loading, con
 ### API Management Policy XML Instructions
 
 - Policies should use camelCase for all variable names.
+- Policy expressions (`@(...)` and `@{...}`) may **only** reference .NET types and members on APIM's [allow-list](https://learn.microsoft.com/azure/api-management/api-management-policy-expressions#CLRTypes). Using anything outside the list (e.g. `System.Globalization.*`, `DateTime.TryParse`, `DateTime.ToUniversalTime`, `System.Text.Json`) causes a deploy-time `ValidationError: One or more fields contain incorrect values` with no further detail. Verify each type/member against the allow-list before writing the expression. See `.github/skills/apim-policies/SKILL.md` for common pitfalls and allowed replacements.

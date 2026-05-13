@@ -167,6 +167,30 @@ Policy expressions use C# syntax within `@()` for single statements or `@{}` for
 }" />
 ```
 
+### Allowed .NET Types and Members (CRITICAL)
+
+Policy expressions may **only** reference the .NET Framework types and members on APIM's [allow-list](https://learn.microsoft.com/azure/api-management/api-management-policy-expressions#CLRTypes). Anything outside the list causes a deploy-time `ValidationError: One or more fields contain incorrect values` with no further detail, which is hard to diagnose.
+
+Before using a type or member in a policy expression, verify it appears on the official allow-list. Common pitfalls:
+
+- **Whole namespaces are absent.** `System.Globalization` (e.g. `DateTimeStyles`, `CultureInfo`), `System.Threading`, `System.IO` (except `StringReader`/`StringWriter`), `System.Net.Http`, `System.Reflection`, and `System.Diagnostics` are not allowed.
+- **`System.DateTime` is restricted.** Allowed members include `Parse`, `UtcNow`, `Now`, `AddSeconds`, `Subtract`, `ToString`, `Ticks`. **Not allowed:** `TryParse`, `TryParseExact`, `ParseExact`, `ToUniversalTime`, `ToLocalTime`, `SpecifyKind`. For round-trip-safe time math, prefer `System.DateTimeOffset` (`All` members allowed) and `ToUnixTimeSeconds()` / `ToUnixTimeMilliseconds()`.
+- **`System.Enum` is restricted to** `Parse`, `TryParse`, `ToString`. No `GetValues`, `GetNames`, `IsDefined`.
+- **`System.Text.RegularExpressions.Regex` is restricted to** the constructor plus `IsMatch`, `Match`, `Matches`, `Replace`, `Unescape`, `Split`. No `CompileToAssembly`, `CacheSize`.
+- **Numeric primitives are fully allowed**, so `int.TryParse`, `long.TryParse`, `double.TryParse` are safe.
+- **JSON via `Newtonsoft.Json`** is the only supported JSON library — do not use `System.Text.Json`.
+
+When a member you need is not allowed, refactor to an equivalent that is. Examples:
+
+| Disallowed | Allowed replacement |
+|---|---|
+| `DateTime.TryParse(s, ..., DateTimeStyles.RoundtripKind, out dt)` | Store as Unix epoch via `DateTimeOffset.UtcNow.ToUnixTimeSeconds()`, parse with `long.TryParse` |
+| `DateTime.ParseExact(s, fmt, CultureInfo.InvariantCulture)` | `DateTime.Parse(s)` (allowed) or epoch-based representation |
+| `Enum.GetValues(typeof(T))` | Hard-code the comparison values or store as a string |
+| `System.Text.Json.JsonSerializer.Deserialize<T>(s)` | `JsonConvert.DeserializeObject<T>(s)` |
+
+If you are unsure whether a member is allowed, fetch the [allowed types table](https://learn.microsoft.com/azure/api-management/api-management-policy-expressions#CLRTypes) and confirm before writing the expression.
+
 ## Reference Documentation
 
 - **Shared policies in this repo**: `shared/apim-policies/` (reusable policy XML fragments)
