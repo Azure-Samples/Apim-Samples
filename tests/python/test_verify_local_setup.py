@@ -512,6 +512,15 @@ def test_check_azure_cli_subprocess_error() -> None:
             assert 'Reinstall' in fix
 
 
+def test_check_azure_cli_timeout() -> None:
+    """Azure CLI check should fail instead of hanging when az does not respond."""
+    with patch('shutil.which', return_value='/usr/bin/az'):
+        with patch('subprocess.run', side_effect=subprocess.TimeoutExpired('az --version', vls.AZURE_CLI_TIMEOUT_SECONDS)):
+            ok, fix = vls.check_azure_cli()
+            assert ok is False
+            assert 'timed out' in fix
+
+
 def test_check_azure_cli_empty_version() -> None:
     """Azure CLI check should handle empty version output."""
     with patch('shutil.which', return_value='/usr/bin/az'):
@@ -550,6 +559,15 @@ def test_check_bicep_cli_subprocess_error() -> None:
             ok, fix = vls.check_bicep_cli()
             assert ok is False
             assert 'Install Bicep' in fix
+
+
+def test_check_bicep_cli_timeout() -> None:
+    """Bicep CLI check should fail instead of hanging when az does not respond."""
+    with patch('shutil.which', return_value='/usr/bin/az'):
+        with patch('subprocess.run', side_effect=subprocess.TimeoutExpired('az bicep version', vls.AZURE_CLI_TIMEOUT_SECONDS)):
+            ok, fix = vls.check_bicep_cli()
+            assert ok is False
+            assert 'timed out' in fix
 
 
 @pytest.mark.parametrize(
@@ -594,6 +612,15 @@ def test_check_azure_login_not_logged_in() -> None:
             ok, fix = vls.check_azure_login()
             assert ok is False
             assert 'az login' in fix
+
+
+def test_check_azure_login_timeout() -> None:
+    """Azure login check should fail instead of hanging when az account show stalls."""
+    with patch('shutil.which', return_value='/usr/bin/az'):
+        with patch('subprocess.run', side_effect=subprocess.TimeoutExpired('az account show', vls.AZURE_CLI_TIMEOUT_SECONDS)):
+            ok, fix = vls.check_azure_login()
+            assert ok is False
+            assert 'timed out' in fix
 
 
 def test_check_azure_login_no_cli() -> None:
@@ -648,6 +675,7 @@ def test_check_azure_providers_no_az() -> None:
     'exception',
     [
         subprocess.CalledProcessError(1, 'az'),
+        subprocess.TimeoutExpired('az provider list', vls.AZURE_CLI_TIMEOUT_SECONDS),
     ],
 )
 def test_check_azure_providers_subprocess_error(exception: Exception) -> None:
@@ -656,7 +684,7 @@ def test_check_azure_providers_subprocess_error(exception: Exception) -> None:
         with patch('subprocess.run', side_effect=exception):
             ok, fix = vls.check_azure_providers()
             assert ok is False
-            assert 'Log in' in fix or 'login' in fix.lower()
+            assert 'Log in' in fix or 'login' in fix.lower() or 'timed out' in fix
 
 
 def test_check_azure_providers_json_error() -> None:

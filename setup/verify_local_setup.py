@@ -25,6 +25,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+AZURE_CLI_TIMEOUT_SECONDS = 15
+
 # Configure UTF-8 encoding for console output
 if sys.stdout.encoding != 'utf-8':  # pragma: no cover
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -210,10 +212,19 @@ def check_azure_cli():
         return False, 'Install Azure CLI: https://learn.microsoft.com/cli/azure/install-azure-cli'
 
     try:
-        result = subprocess.run([az_path, '--version'], capture_output=True, text=True, check=True)
+        result = subprocess.run(
+            [az_path, '--version'],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=AZURE_CLI_TIMEOUT_SECONDS,
+            stdin=subprocess.DEVNULL,
+        )
         version_line = (result.stdout.splitlines() or ['unknown version'])[0].strip()
         version = version_line.split()[-1] if version_line else 'unknown'
         return True, f'Azure CLI {version} detected'
+    except subprocess.TimeoutExpired:
+        return False, f'Azure CLI version check timed out after {AZURE_CLI_TIMEOUT_SECONDS} seconds. Retry verification or run: az --version'
     except subprocess.CalledProcessError:
         return False, 'Reinstall Azure CLI: https://learn.microsoft.com/cli/azure/install-azure-cli'
 
@@ -225,7 +236,14 @@ def check_bicep_cli():
         return False, 'Install Azure CLI first: https://learn.microsoft.com/cli/azure/install-azure-cli'
 
     try:
-        result = subprocess.run([az_path, 'bicep', 'version'], capture_output=True, text=True, check=True)
+        result = subprocess.run(
+            [az_path, 'bicep', 'version'],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=AZURE_CLI_TIMEOUT_SECONDS,
+            stdin=subprocess.DEVNULL,
+        )
         version_line = (result.stdout.splitlines() or ['unknown version'])[0].strip()
         version = 'unknown'
         if 'version' in version_line.lower():
@@ -235,6 +253,8 @@ def check_bicep_cli():
                     version = parts[index + 1]
                     break
         return True, f'Bicep {version} detected'
+    except subprocess.TimeoutExpired:
+        return False, f'Bicep version check timed out after {AZURE_CLI_TIMEOUT_SECONDS} seconds. Retry verification or run: az bicep version'
     except subprocess.CalledProcessError:
         return False, 'Install Bicep: az bicep install'
 
@@ -251,12 +271,16 @@ def check_azure_login():
             capture_output=True,
             text=True,
             check=True,
+            timeout=AZURE_CLI_TIMEOUT_SECONDS,
+            stdin=subprocess.DEVNULL,
         )
         account = json.loads(result.stdout)
         name = account.get('name', 'unknown')
         tenant = account.get('tenantId', 'unknown')
         subscription = account.get('id', 'unknown')
         return True, f'Logged in (sub: {name}, id: {subscription}, tenant: {tenant})'
+    except subprocess.TimeoutExpired:
+        return False, f'Azure login check timed out after {AZURE_CLI_TIMEOUT_SECONDS} seconds. Retry verification or run: az account show'
     except (subprocess.CalledProcessError, json.JSONDecodeError):
         return False, (
             'Log in via the APIM Developer CLI or `az login --tenant <tenant-id>`,'
@@ -292,6 +316,8 @@ def check_azure_providers():
             capture_output=True,
             text=True,
             check=True,
+            timeout=AZURE_CLI_TIMEOUT_SECONDS,
+            stdin=subprocess.DEVNULL,
         )
         registered_providers = sorted(set(json.loads(result.stdout)))
 
@@ -302,6 +328,11 @@ def check_azure_providers():
 
         fix_cmds = ', '.join([f'az provider register -n {provider}' for provider in missing_providers])
         return False, f'Register missing providers: {fix_cmds}'
+    except subprocess.TimeoutExpired:
+        return False, (
+            f'Azure provider check timed out after {AZURE_CLI_TIMEOUT_SECONDS} seconds. '
+            'Retry verification after Azure CLI responds normally.'
+        )
     except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError):
         return False, 'Log in then retry: az login --tenant <tenant> && az account set --subscription <subscription>'
 
