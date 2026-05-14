@@ -570,3 +570,79 @@ def test_plot_barchart_skips_average_when_filtered_empty(monkeypatch):
 
     axhline_mock.assert_not_called()
     text_mock.assert_not_called()
+
+
+# ------------------------------
+#    TEST VERTICAL SEPARATOR
+# ------------------------------
+
+
+def test_barchart_init_default_vertical_separator():
+    """Vertical separator defaults to None when not provided."""
+    chart = BarChart('Test', 'X', 'Y', [])
+    assert chart.vertical_separator is None
+
+
+def test_barchart_init_with_vertical_separator():
+    """Vertical separator is stored verbatim on the instance."""
+    separator = (3.5, 'Waited 30s')
+    chart = BarChart('Test', 'X', 'Y', [], vertical_separator=separator)
+    assert chart.vertical_separator == separator
+
+
+def test_plot_barchart_draws_vertical_separator(monkeypatch):
+    """Plot draws an axvline and annotation when vertical_separator is provided."""
+
+    results = [
+        {'run': 1, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 1}'},
+        {'run': 2, 'response_time': 0.2, 'status_code': 200, 'response': '{"index": 1}'},
+    ]
+
+    mock_ax = MagicMock()
+    mock_ax.get_ylim.return_value = (0, 500)
+    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: mock_ax, raising=False)
+    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext', 'axhline']:
+        monkeypatch.setattr(charts.plt, attr, MagicMock())
+
+    axvline_mock = MagicMock()
+    text_mock = MagicMock()
+    monkeypatch.setattr(charts.plt, 'axvline', axvline_mock)
+    monkeypatch.setattr(charts.plt, 'text', text_mock)
+
+    separator = (1.5, 'Waited 20s for Retry-After to elapse')
+    chart = BarChart('Test', 'X', 'Y', results, vertical_separator=separator)
+    chart._plot_barchart(results)
+
+    axvline_mock.assert_called_once()
+    axvline_kwargs = axvline_mock.call_args.kwargs
+    assert axvline_kwargs['x'] == 1.5
+    assert axvline_kwargs['linestyle'] == '--'
+
+    # The annotation text call should include the separator label as a positional arg.
+    annotation_calls = [c for c in text_mock.call_args_list if separator[1] in c.args]
+    assert len(annotation_calls) == 1
+    annotation_args = annotation_calls[0].args
+    assert annotation_args[0] == 1.5  # x position
+    assert annotation_args[2] == separator[1]
+
+
+def test_plot_barchart_omits_vertical_separator_when_none(monkeypatch):
+    """Plot does not draw an axvline when vertical_separator is None."""
+
+    results = [
+        {'run': 1, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 1}'},
+    ]
+
+    mock_ax = MagicMock()
+    mock_ax.get_ylim.return_value = (0, 500)
+    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: mock_ax, raising=False)
+    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext', 'axhline', 'text']:
+        monkeypatch.setattr(charts.plt, attr, MagicMock())
+
+    axvline_mock = MagicMock()
+    monkeypatch.setattr(charts.plt, 'axvline', axvline_mock)
+
+    chart = BarChart('Test', 'X', 'Y', results)
+    chart._plot_barchart(results)
+
+    axvline_mock.assert_not_called()
