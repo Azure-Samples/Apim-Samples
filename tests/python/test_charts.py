@@ -618,12 +618,49 @@ def test_plot_barchart_draws_vertical_separator(monkeypatch):
     assert axvline_kwargs['x'] == 1.5
     assert axvline_kwargs['linestyle'] == '--'
 
-    # The annotation text call should include the separator label as a positional arg.
+    # The annotation text call should include the separator label as a positional arg. The
+    # label is nudged 0.25 bar-positions to the left of the separator line so the text does
+    # not visually touch it.
     annotation_calls = [c for c in text_mock.call_args_list if separator[1] in c.args]
     assert len(annotation_calls) == 1
     annotation_args = annotation_calls[0].args
-    assert annotation_args[0] == 1.5  # x position
+    assert annotation_args[0] == 1.5 - 0.25  # x position (nudged left)
     assert annotation_args[2] == separator[1]
+
+
+def test_plot_barchart_draws_multiple_vertical_separators(monkeypatch):
+    """Plot draws one axvline + annotation per entry when given a list of separators."""
+
+    results = [{'run': i, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 1}'} for i in range(1, 6)]
+
+    mock_ax = MagicMock()
+    mock_ax.get_ylim.return_value = (0, 500)
+    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: mock_ax, raising=False)
+    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext', 'axhline']:
+        monkeypatch.setattr(charts.plt, attr, MagicMock())
+
+    axvline_mock = MagicMock()
+    text_mock = MagicMock()
+    monkeypatch.setattr(charts.plt, 'axvline', axvline_mock)
+    monkeypatch.setattr(charts.plt, 'text', text_mock)
+
+    separators = [
+        (1.5, 'Waited 10s after 429'),
+        (3.5, 'Waited 5s after 429'),
+    ]
+    chart = BarChart('Test', 'X', 'Y', results, vertical_separator=separators)
+    chart._plot_barchart(results)
+
+    assert axvline_mock.call_count == len(separators)
+    xs = [c.kwargs['x'] for c in axvline_mock.call_args_list]
+    assert xs == [s[0] for s in separators]
+
+    for sep_x, sep_label in separators:
+        annotation_calls = [c for c in text_mock.call_args_list if sep_label in c.args]
+        assert len(annotation_calls) == 1
+        annotation_args = annotation_calls[0].args
+        assert annotation_args[0] == sep_x - 0.25
+        assert annotation_args[2] == sep_label
 
 
 def test_plot_barchart_omits_vertical_separator_when_none(monkeypatch):
