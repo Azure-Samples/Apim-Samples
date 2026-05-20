@@ -90,7 +90,8 @@ while true; do
   echo "Setup"
   echo "  1) Complete environment setup"
   echo "  2) Azure CLI login"
-  echo "  u) Update & sync uv dependencies (refresh uv.lock)"
+  echo "  u) Install uv dependencies from uv.lock (uv sync)"
+  echo "  l) Upgrade uv dependencies & sync (refresh uv.lock)"
   echo ""
   echo "Verify"
   echo "  3) Verify local setup"
@@ -177,6 +178,15 @@ while true; do
       run_cmd bash "${REPO_ROOT}/setup/clean-local-artifacts.sh"
       ;;
     u)
+      if has_uv; then
+        run_cmd uv sync
+      else
+        echo ""
+        echo "uv is not installed or not on PATH. Install uv first (see setup/README.md)."
+        echo ""
+      fi
+      ;;
+    l)
       if has_uv; then
         if run_cmd uv lock --upgrade; then
           run_cmd uv sync
