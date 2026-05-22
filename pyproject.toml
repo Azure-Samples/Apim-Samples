@@ -14,7 +14,7 @@ dependencies = [
   "jinja2",
   "matplotlib",
   "pandas",
-  "pyjwt>=2.12.1",
+  "pyjwt>=2.13.0",
   "python-dotenv",
   "requests",
   "tornado>=6.5.5",
@@ -23,7 +23,7 @@ dependencies = [
 [dependency-groups]
 # Developer tooling (installed automatically by default with `uv sync`)
 dev = [
-  "ruff>=0.15.13",
+  "ruff>=0.15.14",
   "pytest>=9.0.3",
   "pytest-cov>=7.1.0",
   "coverage>=7.14.0",
