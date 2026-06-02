@@ -1015,7 +1015,7 @@
         <ul style="list-style: none; padding: 0;">
           <li style="padding: 6px 0; font-size: 15px; color: #444; display: flex; gap: 10px; align-items: flex-start;">
             <div class="bullet" style="flex-shrink:0; width:8px; height:8px; border-radius:50%; background:#0078D4; margin-top:7px;"></div>
-            <div>10 real-world scenarios covering auth, networking, costing, and more</div>
+            <div>11 real-world scenarios covering auth, networking, costing, AI failover, and more</div>
           </li>
           <li style="padding: 6px 0; font-size: 15px; color: #444; display: flex; gap: 10px; align-items: flex-start;">
             <div class="bullet" style="flex-shrink:0; width:8px; height:8px; border-radius:50%; background:#0078D4; margin-top:7px;"></div>
@@ -1095,15 +1095,11 @@
   <div class="slide slide-light">
     <div class="header-bar">
       <div class="accent"></div>
-      <h2>10 Real-World Policy Samples</h2>
+      <h2>11 Real-World Policy Samples</h2>
     </div>
     <p class="subtitle">From authentication &amp; authorization to network routing, cost tracking, and secure access patterns</p>
 
     <div class="arch-grid" style="flex: 1; grid-template-columns: 1fr 1fr 1fr;">
-      <div class="arch-card">
-        <h4>General</h4>
-        <p>Basic APIM setup &amp; policy usage. Perfect starting point.</p>
-      </div>
       <div class="arch-card">
         <h4>AuthX</h4>
         <p>JWT authentication &amp; role-based authorization with a mock HR API.</p>
@@ -1125,16 +1121,24 @@
         <p>Per-API CORS origin validation with custom policy fragments &amp; maintainable origin mappings.</p>
       </div>
       <div class="arch-card">
-        <h4>Credential Manager</h4>
-        <p>APIM Credential Manager with Spotify's REST API.</p>
+        <h4>Egress Control</h4>
+        <p>Route APIM outbound traffic through Azure Firewall in a hub/spoke topology.</p>
+      </div>
+      <div class="arch-card">
+        <h4>General</h4>
+        <p>Basic APIM setup &amp; policy usage. Perfect starting point.</p>
+      </div>
+      <div class="arch-card">
+        <h4>Inference Failover</h4>
+        <p>AOAI model-safe fallback with focused LLM request and token telemetry.</p>
       </div>
       <div class="arch-card">
         <h4>Load Balancing</h4>
         <p>Priority &amp; weighted load balancing across backends.</p>
       </div>
       <div class="arch-card">
-        <h4>Egress Control</h4>
-        <p>Route APIM outbound traffic through Azure Firewall in a hub/spoke topology.</p>
+        <h4>OAuth 3rd-Party</h4>
+        <p>APIM Credential Manager with Spotify's REST API.</p>
       </div>
       <div class="arch-card">
         <h4>Secure Blob Access</h4>
@@ -1422,7 +1426,7 @@
       <div class="summary-item">
         <div class="big-icon">&#9889;</div>
         <h4 style="color: #50E6FF;">Empower</h4>
-        <p>9 real-world samples with guided Jupyter notebooks and à la carte flexibility.</p>
+        <p>11 real-world samples with guided Jupyter notebooks and à la carte flexibility.</p>
       </div>
       <div class="summary-item">
         <div class="big-icon">&#128640;</div>

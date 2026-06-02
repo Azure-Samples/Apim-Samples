@@ -37,6 +37,7 @@ All repository contributions should treat accessibility as a first-class quality
 │   ├── costing/             # APIM costing and showback
 │   ├── egress-control/      # Egress control via NVA routing
 │   ├── general/             # Basic policy demonstrations
+│   ├── inference-failover/  # AOAI model failover with LLM telemetry
 │   ├── load-balancing/      # Backend pool load balancing
 │   ├── oauth-3rd-party/     # OAuth 3rd-party (Spotify example)
 │   └── secure-blob-access/  # Valet key pattern for blob storage

@@ -19,12 +19,12 @@
         <retry count="{retry_count}" interval="0" first-fast-retry="true" condition="@(context.Response.StatusCode == 429 || context.Response.StatusCode == 503)">
             <forward-request buffer-request-body="true" />
             <choose>
-                <when condition="@((context.Response.StatusCode == 429 || context.Response.StatusCode == 503) && context.Response.Headers.ContainsKey("Retry-After"))">
+                <when condition="@((context.Response.StatusCode == 429 || context.Response.StatusCode == 503) &amp;&amp; context.Response.Headers.ContainsKey('Retry-After'))">
                     <cache-lookup-value key="lb-retry-min-{cache_key}" variable-name="cachedRetryEpoch" />
                     <set-variable name="updatedRetryEpoch" value="@{{
                         // Parse the Retry-After header value as an integer number of seconds
                         int seconds;
-                        var raHeader = context.Response.Headers.GetValueOrDefault("Retry-After", "0");
+                        var raHeader = context.Response.Headers.GetValueOrDefault('Retry-After', '0');
                         if (!int.TryParse(raHeader, out seconds)) {{ seconds = 0; }}
 
                         // Calculate the candidate epoch time based on the Retry-After header
@@ -37,10 +37,10 @@
                         // epoch permanently in the past and the on-error block always emits Retry-After: 0,
                         // even when the pool is actually exhausted again.
                         long cachedEpoch;
-                        var cached = context.Variables.ContainsKey("cachedRetryEpoch") ? context.Variables["cachedRetryEpoch"] as string : null;
-                        return (long.TryParse(cached, out cachedEpoch) && cachedEpoch > nowEpoch && cachedEpoch < candidateEpoch) ? cachedEpoch.ToString() : candidateEpoch.ToString();
+                        var cached = context.Variables.ContainsKey('cachedRetryEpoch') ? context.Variables['cachedRetryEpoch'] as string : null;
+                        return (long.TryParse(cached, out cachedEpoch) &amp;&amp; cachedEpoch &gt; nowEpoch &amp;&amp; cachedEpoch &lt; candidateEpoch) ? cachedEpoch.ToString() : candidateEpoch.ToString();
                     }}" />
-                    <cache-store-value key="lb-retry-min-{cache_key}" value="@((string)context.Variables["updatedRetryEpoch"])" duration="300" />
+                    <cache-store-value key="lb-retry-min-{cache_key}" value="@((string)context.Variables['updatedRetryEpoch'])" duration="300" />
                 </when>
             </choose>
         </retry>

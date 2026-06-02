@@ -34,6 +34,29 @@ Every APIM policy document follows this structure:
 
 The `<base />` element inherits policies from parent scopes (Global → Product → API → Operation).
 
+### Backend Section Cardinality (CRITICAL)
+
+The `<backend>` section may contain only one direct child policy. APIM rejects a policy during deployment when `<backend>` contains sibling policies such as `<retry>` followed by `<choose>`, or `<base />` followed by `<retry>`.
+
+When retrying a backend request, make `<retry>` the sole direct child of `<backend>` and place `<forward-request>` plus any policies that must execute on every attempt inside `<retry>`. Move terminal fallback handling to `<on-error>` or `<outbound>` as appropriate.
+
+```xml
+<backend>
+    <retry count="3" interval="1" first-fast-retry="true"
+        condition="@(context.Response.StatusCode == 429 || context.Response.StatusCode >= 500)">
+        <forward-request buffer-request-body="true" />
+    </retry>
+</backend>
+```
+
+When a custom backend policy is not needed, keep `<base />` as the only direct child:
+
+```xml
+<backend>
+    <base />
+</backend>
+```
+
 ## Policy Categories Quick Reference
 
 | Category | Common Policies | Section |

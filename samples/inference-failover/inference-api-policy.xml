@@ -1,0 +1,45 @@
+<!--
+    Inference API policy template.
+
+    The notebook replaces BACKEND_POOL_ID and RETRY_COUNT for each model-safe API.
+    Managed identity authentication is applied after pool selection, so every selected
+    Azure OpenAI backend receives a bearer token rather than an API key.
+-->
+<policies>
+    <inbound>
+        <base />
+        <set-backend-service backend-id="BACKEND_POOL_ID" />
+        <authentication-managed-identity resource="https://cognitiveservices.azure.com" output-token-variable-name="managed-id-access-token" ignore-error="false" />
+        <set-header name="Authorization" exists-action="override">
+            <value>@("Bearer " + (string)context.Variables["managed-id-access-token"])</value>
+        </set-header>
+        <set-header name="x-ms-client-request-id" exists-action="override">
+            <value>@(context.RequestId.ToString())</value>
+        </set-header>
+        <set-query-parameter name="api-version" exists-action="skip">
+            <value>2024-10-21</value>
+        </set-query-parameter>
+    </inbound>
+    <backend>
+        <retry count="RETRY_COUNT" interval="1" first-fast-retry="true" condition="@(context.Response != null &amp;&amp; (context.Response.StatusCode == 429 || context.Response.StatusCode == 503))">
+            <forward-request buffer-request-body="true" />
+        </retry>
+    </backend>
+    <outbound>
+        <choose>
+            <when condition="@(context.Response != null &amp;&amp; (context.Response.StatusCode == 429 || context.Response.StatusCode == 503))">
+                <return-response>
+                    <set-status code="503" reason="Inference Service Unavailable" />
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"error":"Inference service is temporarily unavailable."}</set-body>
+                </return-response>
+            </when>
+        </choose>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

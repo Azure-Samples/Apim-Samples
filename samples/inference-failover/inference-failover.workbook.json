@@ -1,0 +1,292 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Microsoft/Application-Insights-Workbooks/refs/heads/master/schema/workbook.json",
+  "fallbackResourceIds": [
+    "Azure Monitor"
+  ],
+  "fromTemplateId": "sentinel-UserWorkbook",
+  "items": [
+    {
+      "content": {
+        "parameters": [
+          {
+            "id": "2dcab739-1e33-4495-b408-980007ee8bd2",
+            "isRequired": true,
+            "label": "Time Range",
+            "name": "TimeRange",
+            "type": 4,
+            "typeSettings": {
+              "allowCustom": true,
+              "selectableValues": [
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 14400000
+                },
+                {
+                  "durationMs": 86400000
+                }
+              ]
+            },
+            "value": {
+              "durationMs": 3600000
+            },
+            "version": "KqlParameterItem/1.0"
+          },
+          {
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000001",
+            "isHiddenWhenLocked": true,
+            "label": "Selected Tab",
+            "name": "selectedTab",
+            "type": 1,
+            "value": "overview",
+            "version": "KqlParameterItem/1.0"
+          }
+        ],
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "style": "pills",
+        "version": "KqlParameterItem/1.0"
+      },
+      "name": "parameters - shared",
+      "type": 9
+    },
+    {
+      "content": {
+        "links": [
+          {
+            "cellValue": "selectedTab",
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000010",
+            "linkTarget": "parameter",
+            "linkLabel": "Overview",
+            "preText": "",
+            "style": "link",
+            "subTarget": "overview"
+          },
+          {
+            "cellValue": "selectedTab",
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000011",
+            "linkTarget": "parameter",
+            "linkLabel": "Failover Outcomes",
+            "preText": "",
+            "style": "link",
+            "subTarget": "outcomes"
+          },
+          {
+            "cellValue": "selectedTab",
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000012",
+            "linkTarget": "parameter",
+            "linkLabel": "Backend Distribution",
+            "preText": "",
+            "style": "link",
+            "subTarget": "distribution"
+          },
+          {
+            "cellValue": "selectedTab",
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000013",
+            "linkTarget": "parameter",
+            "linkLabel": "Tokens & Latency",
+            "preText": "",
+            "style": "link",
+            "subTarget": "tokens"
+          }
+        ],
+        "style": "tabs",
+        "version": "LinkItem/1.0"
+      },
+      "name": "links - tabs",
+      "type": 11
+    },
+    {
+      "conditionalVisibility": {
+        "comparison": "isEqualTo",
+        "parameterName": "selectedTab",
+        "value": "overview"
+      },
+      "content": {
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "json": "# Inference Failover Telemetry\n\nThis workbook observes Azure OpenAI inference requests routed through APIM backend pools. All model deployments are regional `Standard` pay-as-you-go deployments with deliberately small capacity. The `PTU` labels describe the preference tiers simulated by the policy; they do not represent provisioned throughput billing or capacity.\n\nThe workbook is intentionally limited to AI traffic: terminal response outcomes, concrete backend distribution when recorded by gateway logs, latency, and LLM token consumption. A `503` terminal response means the fallback chain was exhausted; it does not reveal backend placement details to callers.\n\n**Pick a Time Range** at the top - it applies to every tab. Then open the tab that matches your question."
+            },
+            "name": "text - overview-intro",
+            "type": 1
+          },
+          {
+            "content": {
+              "expandable": true,
+              "expanded": true,
+              "groupType": "editable",
+              "items": [
+                {
+                  "content": {
+                    "json": "| Tab | Question it answers |\n|---|---|\n| **Failover Outcomes** | How did terminal responses break down - successful, throttled, or fallback exhausted? |\n| **Backend Distribution** | Which backends served traffic, and how often did each fail over or return `503`? |\n| **Tokens & Latency** | How many tokens were consumed per model, and how did backend latency trend over time? |"
+                  },
+                  "name": "text - overview-tabmap",
+                  "type": 1
+                }
+              ],
+              "loadType": "always",
+              "title": "What each tab shows",
+              "version": "NotebookGroup/1.0"
+            },
+            "name": "group - overview-tabmap",
+            "type": 12
+          },
+          {
+            "content": {
+              "expandable": true,
+              "expanded": false,
+              "groupType": "editable",
+              "items": [
+                {
+                  "content": {
+                    "json": "- Successful token-bearing calls appear in both gateway logs and `ApiManagementGatewayLlmLog`.\n- Backend `429` or `503` responses can open a circuit for one minute and move later attempts through the preference chain.\n- Requests returning the terminal generic `503` have exhausted eligible fallback capacity and do not carry token usage.\n- Health probes are not model requests; serviceability is demonstrated by real inference traffic in the notebook harness."
+                  },
+                  "name": "text - overview-signal-notes",
+                  "type": 1
+                }
+              ],
+              "loadType": "always",
+              "title": "Reading the signals",
+              "version": "NotebookGroup/1.0"
+            },
+            "name": "group - overview-signals",
+            "type": 12
+          }
+        ],
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - tab-1-overview",
+      "type": 12
+    },
+    {
+      "conditionalVisibility": {
+        "comparison": "isEqualTo",
+        "parameterName": "selectedTab",
+        "value": "outcomes"
+      },
+      "content": {
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "json": "## Failover Outcomes\n\nTerminal response outcomes for the inference APIs. A `503` means the fallback chain was exhausted; `429` indicates a throttled backend that may have triggered failover."
+            },
+            "name": "text - outcomes",
+            "type": 1
+          },
+          {
+            "content": {
+              "noDataMessage": "No inference requests found for the selected time range.",
+              "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| extend Outcome = case(ResponseCode between (200 .. 299), 'Successful inference', ResponseCode == 503, 'Fallback exhausted', ResponseCode == 429, 'Backend throttled', 'Other')\n| summarize Requests = count() by Outcome\n| order by Requests desc",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "timeContext": {
+                "durationMs": 3600000
+              },
+              "version": "KqlItem/1.0",
+              "visualization": "tiles"
+            },
+            "name": "query - outcome-summary",
+            "type": 3
+          }
+        ],
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - tab-2-outcomes",
+      "type": 12
+    },
+    {
+      "conditionalVisibility": {
+        "comparison": "isEqualTo",
+        "parameterName": "selectedTab",
+        "value": "distribution"
+      },
+      "content": {
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "json": "## Backend Distribution\n\nWhich backends served traffic for each API, including how many requests were successful versus unavailable. When gateway logs do not record a backend, the row is labeled `(backend not recorded)`."
+            },
+            "name": "text - distribution",
+            "type": 1
+          },
+          {
+            "content": {
+              "noDataMessage": "No backend distribution data found for the selected time range.",
+              "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| project ApiId, BackendId, ResponseCode\n| extend Backend = iff(isempty(BackendId), '(backend not recorded)', BackendId)\n| summarize Requests = count(), Successful = countif(ResponseCode between (200 .. 299)), Unavailable = countif(ResponseCode == 503) by ApiId, Backend\n| order by ApiId asc, Requests desc",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "timeContext": {
+                "durationMs": 3600000
+              },
+              "version": "KqlItem/1.0",
+              "visualization": "barchart"
+            },
+            "name": "query - backend-distribution",
+            "type": 3
+          }
+        ],
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - tab-3-distribution",
+      "type": 12
+    },
+    {
+      "conditionalVisibility": {
+        "comparison": "isEqualTo",
+        "parameterName": "selectedTab",
+        "value": "tokens"
+      },
+      "content": {
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "json": "## Tokens & Latency\n\nLLM token consumption per model and backend from `ApiManagementGatewayLlmLog`, plus the backend latency trend over time. Only successful, token-bearing responses contribute token totals."
+            },
+            "name": "text - tokens",
+            "type": 1
+          },
+          {
+            "content": {
+              "noDataMessage": "No successful token-bearing inference rows found for the selected time range.",
+              "query": "let routes = materialize(ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| project CorrelationId, ApiId, BackendId);\nApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0 and isnotempty(ModelName)\n| project CorrelationId, ModelName, PromptTokens, CompletionTokens, TotalTokens\n| summarize PromptTokens = sum(PromptTokens), CompletionTokens = sum(CompletionTokens), TotalTokens = sum(TotalTokens) by CorrelationId, ModelName\n| join kind=inner routes on CorrelationId\n| extend Backend = iff(isempty(BackendId), '(backend not recorded)', BackendId)\n| summarize Requests = count(), PromptTokens = sum(PromptTokens), CompletionTokens = sum(CompletionTokens), TotalTokens = sum(TotalTokens) by ApiId, Backend, ModelName\n| order by TotalTokens desc",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "timeContext": {
+                "durationMs": 3600000
+              },
+              "version": "KqlItem/1.0",
+              "visualization": "table"
+            },
+            "name": "query - token-throughput",
+            "type": 3
+          },
+          {
+            "content": {
+              "noDataMessage": "No latency data found for the selected time range.",
+              "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| summarize AverageBackendMs = round(avg(BackendTime), 1), P95BackendMs = round(percentile(BackendTime, 95), 1), Requests = count() by bin(TimeGenerated, 5m), ApiId\n| order by TimeGenerated asc",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "timeContext": {
+                "durationMs": 3600000
+              },
+              "version": "KqlItem/1.0",
+              "visualization": "timechart"
+            },
+            "name": "query - backend-latency-trend",
+            "type": 3
+          }
+        ],
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - tab-4-tokens",
+      "type": 12
+    }
+  ],
+  "version": "Notebook/1.0"
+}

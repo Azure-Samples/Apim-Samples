@@ -1,0 +1,19 @@
+// Confirms that AOAI-only gateway and token logs are reaching Log Analytics.
+//
+// Parameters (prepend as KQL 'let' bindings before running):
+//   let timeWindow = 30m;
+//   let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-4-1-mini']);
+//
+let requests = ApiManagementGatewayLogs
+| where TimeGenerated > ago(timeWindow)
+| where ApiId in~ (apiIds)
+| summarize RequestRows = count(), SuccessfulRequests = countif(ResponseCode between (200 .. 299)), UnavailableResponses = countif(ResponseCode == 503);
+let tokens = ApiManagementGatewayLlmLog
+| where TimeGenerated > ago(timeWindow)
+| where TotalTokens > 0
+| summarize TokenRows = dcount(CorrelationId), TotalTokens = sum(TotalTokens);
+requests
+| extend JoinKey = 1
+| join kind=inner (tokens | extend JoinKey = 1) on JoinKey
+| project RequestRows, SuccessfulRequests, UnavailableResponses, TokenRows, TotalTokens
+| where RequestRows > 0 and TokenRows > 0

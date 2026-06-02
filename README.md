@@ -62,18 +62,20 @@ It's quick and easy to get started!
 
 <details open>
 
-| Sample Name                                                 | Description                                                                                                         | Supported Infrastructure(s)   |
-|:------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------|:------------------------------|
-| [AuthX][sample-authx]                                       | Authentication and role-based authorization in a mock HR API.                                                       | All infrastructures           |
-| [AuthX Pro][sample-authx-pro]                               | Authentication and role-based authorization in a mock product with multiple APIs and policy fragments.              | All infrastructures           |
-| [Azure Maps][sample-azure-maps]                             | Proxying calls to Azure Maps with APIM policies.                                                                    | All infrastructures           |
-| [Costing][sample-costing]                                   | Track and allocate API costs per business unit using APIM subscriptions, Entra ID application tracking, and AI Gateway token/PTU tracking across **both** Azure OpenAI Chat Completions and Responses APIs, including streaming (SSE) token usage which is not simple to capture correctly in APIM. | All infrastructures           |
-| [Dynamic CORS][sample-dynamic-cors]                         | Dynamic per-API CORS origin validation using custom policy fragments and a maintainable origin mapping. | All infrastructures           |
-| [Egress Control][sample-egress-control]                     | Control APIM outbound internet traffic by routing it through a Network Virtual Appliance (NVA) in a hub/spoke topology. | appgw-apim, appgw-apim-pe     |
-| [General][sample-general]                                   | Basic demo of APIM sample setup and policy usage.                                                                   | All infrastructures           |
-| [Load Balancing][sample-load-balancing]                     | Priority and weighted load balancing across backends.                                                               | apim-aca, afd-apim-pe         |
-| [OAuth 3rd-Party][sample-oauth-3rd-party]                   | Authenticate with APIM which then uses its Credential Manager with Spotify's REST API.                              | All infrastructures           |
-| [Secure Blob Access][sample-secure-blob-access]             | Secure blob access via the [valet key pattern][valet-key-pattern].                                                  | All infrastructures           |
+| Sample Name | Description | Supported Infrastructure(s) |
+| :--- | :--- | :--- |
+| [AuthX][sample-authx] | Authentication and role-based authorization in a mock HR API. | All infrastructures |
+| [AuthX Pro][sample-authx-pro] | Authentication and role-based authorization in a mock product with multiple APIs and policy fragments. | All infrastructures |
+| [Azure Maps][sample-azure-maps] | Proxying calls to Azure Maps with APIM policies. | All infrastructures |
+| [Costing][sample-costing] | Track and allocate API costs per business unit using APIM subscriptions, Entra ID application tracking, and AI Gateway token/PTU tracking across **both** Azure OpenAI Chat Completions and Responses APIs, including streaming (SSE) token usage which is not simple to capture correctly in APIM. | All infrastructures |
+| [Dynamic CORS][sample-dynamic-cors] | Dynamic per-API CORS origin validation using custom policy fragments and a maintainable origin mapping. | All infrastructures |
+| [Egress Control][sample-egress-control] | Control APIM outbound internet traffic by routing it through a Network Virtual Appliance (NVA) in a hub/spoke topology. | appgw-apim, appgw-apim-pe |
+| [General][sample-general] | Basic demo of APIM sample setup and policy usage. | All infrastructures |
+| [Inference Failover][sample-inference-failover] | Route compatible Azure OpenAI models through priority and weighted APIM backend pools with focused LLM failover and token telemetry. | All infrastructures |
+| [Load Balancing][sample-load-balancing] | Priority and weighted load balancing across backends. | apim-aca, afd-apim-pe |
+| [OAuth 3rd-Party][sample-oauth-3rd-party] | Authenticate with APIM which then uses its Credential Manager with Spotify's REST API. | All infrastructures |
+| [Secure Blob Access][sample-secure-blob-access] | Secure blob access via the [valet key pattern][valet-key-pattern]. | All infrastructures |
+
 </details>
 
 ### Compatibility Matrices
@@ -383,6 +385,7 @@ _For much more API Management content, please also check out [APIM Love](https:/
 [sample-costing]: ./samples/costing/README.md
 [sample-dynamic-cors]: ./samples/dynamic-cors/README.md
 [sample-general]: ./samples/general/README.md
+[sample-inference-failover]: ./samples/inference-failover/README.md
 [sample-load-balancing]: ./samples/load-balancing/README.md
 [sample-egress-control]: ./samples/egress-control/README.md
 [sample-oauth-3rd-party]: ./samples/oauth-3rd-party/README.md

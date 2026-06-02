@@ -314,6 +314,8 @@ For samples with custom policies, create XML files following the APIM policy str
 </policies>
 ```
 
+The `<backend>` section may contain only one direct child policy. Keep `<base />` as the only child when inheriting backend behavior. When retrying, replace `<base />` with a single `<retry>` child, nest `<forward-request>` and any per-attempt policies inside `<retry>`, and move terminal fallback handling to `<on-error>` or `<outbound>` as appropriate.
+
 Load policies in the notebook:
 
 ```python
