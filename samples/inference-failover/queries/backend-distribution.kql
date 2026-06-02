@@ -1,4 +1,4 @@
-// Shows the concrete backend destinations exercised by AI inference traffic.
+// Shows the final concrete backend destinations exercised by AI inference traffic.
 //
 // Parameters (prepend as KQL 'let' bindings before running):
 //   let timeWindow = 1h;
@@ -7,8 +7,8 @@
 ApiManagementGatewayLogs
 | where TimeGenerated > ago(timeWindow)
 | where ApiId in~ (apiIds)
-| project TimeGenerated, ApiId, BackendId, ResponseCode, BackendTime
-| extend Backend = iff(isempty(BackendId), '(backend not recorded)', BackendId)
+| project TimeGenerated, ApiId, BackendId, BackendUrl, ResponseCode, BackendResponseCode, BackendTime
+| extend Backend = case(isnotempty(BackendUrl), BackendUrl, isnotempty(BackendId), BackendId, '(backend not recorded)')
 | summarize Requests = count(), Successes = countif(ResponseCode between (200 .. 299)), Throttled = countif(ResponseCode == 429), Failures = countif(ResponseCode >= 500), AverageBackendMs = round(avg(BackendTime), 1) by ApiId, Backend
 | extend SuccessRate = round(100.0 * Successes / Requests, 1)
 | order by ApiId asc, Requests desc

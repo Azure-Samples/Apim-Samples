@@ -7,12 +7,12 @@
 let requestRoutes = ApiManagementGatewayLogs
 | where TimeGenerated > ago(timeWindow)
 | where ApiId in~ (apiIds)
-| project CorrelationId, ApiId, BackendId;
+| project CorrelationId, ApiId, BackendId, BackendUrl;
 ApiManagementGatewayLlmLog
 | where TimeGenerated > ago(timeWindow)
 | where TotalTokens > 0 and isnotempty(ModelName)
 | summarize PromptTokens = sum(PromptTokens), CompletionTokens = sum(CompletionTokens), TotalTokens = sum(TotalTokens) by CorrelationId, ModelName
 | join kind=inner requestRoutes on CorrelationId
-| extend Backend = iff(isempty(BackendId), '(backend not recorded)', BackendId)
+| extend Backend = case(isnotempty(BackendUrl), BackendUrl, isnotempty(BackendId), BackendId, '(backend not recorded)')
 | summarize Requests = count(), PromptTokens = sum(PromptTokens), CompletionTokens = sum(CompletionTokens), TotalTokens = sum(TotalTokens) by ApiId, Backend, ModelName
 | order by TotalTokens desc

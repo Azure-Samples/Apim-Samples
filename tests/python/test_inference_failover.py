@@ -7,26 +7,31 @@ from xml.etree import ElementTree
 SAMPLE_PATH = Path(__file__).resolve().parents[2] / 'samples' / 'inference-failover'
 SIMPLE_APIM_BICEP_PATH = Path(__file__).resolve().parents[2] / 'infrastructure' / 'simple-apim' / 'main.bicep'
 BICEP_PATH = SAMPLE_PATH / 'main.bicep'
+DIAGNOSTICS_BICEP_PATH = Path(__file__).resolve().parents[2] / 'shared' / 'bicep' / 'modules' / 'apim' / 'v1' / 'diagnostics.bicep'
 NOTEBOOK_PATH = SAMPLE_PATH / 'create.ipynb'
 POLICY_PATH = SAMPLE_PATH / 'inference-api-policy.xml'
 WORKBOOK_PATH = SAMPLE_PATH / 'inference-failover.workbook.json'
 WORKBOOK_UPDATE_PATH = SAMPLE_PATH / 'update-workbook.ps1'
+QUERIES_PATH = SAMPLE_PATH / 'queries'
 KQL_PATHS = [
-    SAMPLE_PATH / 'backend-distribution.kql',
-    SAMPLE_PATH / 'failover-outcomes.kql',
-    SAMPLE_PATH / 'token-throughput.kql',
-    SAMPLE_PATH / 'verify-llm-ingestion.kql',
+    QUERIES_PATH / 'backend-distribution.kql',
+    QUERIES_PATH / 'failure-analysis.kql',
+    QUERIES_PATH / 'failover-outcomes.kql',
+    QUERIES_PATH / 'llm-telemetry-coverage.kql',
+    QUERIES_PATH / 'request-details.kql',
+    QUERIES_PATH / 'token-throughput.kql',
+    QUERIES_PATH / 'verify-llm-ingestion.kql',
 ]
 EXPECTED_BACKENDS = {
     'gpt-5-1-PTU-eastus2',
-    'gpt-5-1-PAYGO-eastus2',
+    'gpt-5-1-PAYG-eastus2',
     'gpt-5-1-PTU-westus3',
-    'gpt-5-1-PAYGO-westus3',
-    'gpt-5-1-PAYGO-southcentralus',
+    'gpt-5-1-PAYG-westus3',
+    'gpt-5-1-PAYG-southcentralus',
     'gpt-4-1-mini-PTU-eastus2',
-    'gpt-4-1-mini-PAYGO-eastus2',
+    'gpt-4-1-mini-PAYG-eastus2',
     'gpt-4-1-mini-PTU-westus3',
-    'gpt-4-1-mini-PAYGO-southcentralus',
+    'gpt-4-1-mini-PAYG-southcentralus',
 }
 
 
@@ -51,9 +56,16 @@ def test_inference_failover_workbook_is_aoai_only_and_query_backed() -> None:
 
     assert workbook['$schema'].endswith('/schema/workbook.json')
     assert 'query - outcome-summary' in item_names
+    assert 'query - outcome-status-matrix' in item_names
     assert 'query - backend-distribution' in item_names
+    assert 'query - failover-summary' in item_names
+    assert 'query - failover-request-trails' in item_names
+    assert 'query - failure-taxonomy' in item_names
+    assert 'query - raw-failure-explorer' in item_names
     assert 'query - token-throughput' in item_names
+    assert 'query - llm-telemetry-coverage' in item_names
     assert 'query - backend-latency-trend' in item_names
+    assert 'query - request-explorer' in item_names
     assert 'apimanagementgatewayllmlog' in serialized
     assert 'cost export' not in serialized
     assert 'business unit' not in serialized
@@ -67,6 +79,11 @@ def test_inference_failover_kql_queries_scope_to_ai_gateway_signals() -> None:
     assert all(path.exists() for path in KQL_PATHS)
     assert 'ApiManagementGatewayLogs' in query_text
     assert 'ApiManagementGatewayLlmLog' in query_text
+    assert 'BackendResponseCode' in query_text
+    assert 'BackendUrl' in query_text
+    assert 'TraceRecords' in query_text
+    assert 'LastErrorReason' in query_text
+    assert 'InferenceFallbackExhausted' in query_text
     assert 'inference-gpt-5-1' in query_text
     assert 'inference-gpt-4-1-mini' in query_text
     assert 'CostManagement' not in query_text
@@ -91,6 +108,14 @@ def test_inference_policies_use_managed_identity_retries_and_generic_terminal_er
     assert 'buffer-request-body="true"' in api_policy
     assert 'Inference service is temporarily unavailable.' in api_policy
     assert 'BackendId' not in api_policy
+    assert 'InferenceRequestAccepted' in api_policy
+    assert 'InferenceBackendAttemptComplete' in api_policy
+    assert 'InferenceGatewayResponse' in api_policy
+    assert 'InferenceFallbackExhausted' in api_policy
+    assert api_policy.count('<trace source="InferenceFailover"') == 4
+    assert api_policy.count('<set-header name="X-Backend-Retry" exists-action="override">') == 3
+    assert '((int)context.Variables["backendAttempt"]) - 1 : 0' in api_policy
+    assert api_policy.index('<set-variable name="backendAttempt" value="@(0)" />') < api_policy.index('<authentication-managed-identity')
 
 
 def test_inference_bicep_contains_only_compatible_model_backend_pools() -> None:
@@ -110,22 +135,54 @@ def test_inference_bicep_contains_only_compatible_model_backend_pools() -> None:
     assert f'backendPoolName: {single_quote}inference-gpt-5-1-pool{single_quote}' in bicep
     assert f'backendPoolName: {single_quote}inference-gpt-4-1-mini-pool{single_quote}' in bicep
     assert "name: 'gpt-5-1-PTU-westus3'\n        priority: 2" in bicep
-    assert "name: 'gpt-5-1-PAYGO-eastus2'\n        priority: 3" in bicep
+    assert "name: 'gpt-5-1-PAYG-eastus2'\n        priority: 3" in bicep
     assert "name: 'gpt-4-1-mini-PTU-westus3'\n        priority: 2" in bicep
-    assert "name: 'gpt-4-1-mini-PAYGO-eastus2'\n        priority: 3" in bicep
+    assert "name: 'gpt-4-1-mini-PAYG-eastus2'\n        priority: 3" in bicep
     backend_declaration_order = [
         'gpt-5-1-PTU-eastus2',
         'gpt-5-1-PTU-westus3',
-        'gpt-5-1-PAYGO-eastus2',
-        'gpt-5-1-PAYGO-westus3',
-        'gpt-5-1-PAYGO-southcentralus',
+        'gpt-5-1-PAYG-eastus2',
+        'gpt-5-1-PAYG-westus3',
+        'gpt-5-1-PAYG-southcentralus',
         'gpt-4-1-mini-PTU-eastus2',
         'gpt-4-1-mini-PTU-westus3',
-        'gpt-4-1-mini-PAYGO-eastus2',
-        'gpt-4-1-mini-PAYGO-southcentralus',
+        'gpt-4-1-mini-PAYG-eastus2',
+        'gpt-4-1-mini-PAYG-southcentralus',
     ]
     declaration_offsets = [bicep.index(f"backendName: '{backend}'") for backend in backend_declaration_order]
     assert declaration_offsets == sorted(declaration_offsets)
+
+
+def test_inference_event_hub_export_is_regional_comprehensive_and_default_off() -> None:
+    """Keep external APIM telemetry streaming optional, regional, and broadly configured."""
+    bicep = BICEP_PATH.read_text(encoding='utf-8')
+    diagnostics_bicep = DIAGNOSTICS_BICEP_PATH.read_text(encoding='utf-8')
+
+    assert 'param enableEventHubExport bool = false' in bicep
+    assert "resource eventHubNamespace 'Microsoft.EventHub/namespaces@2024-01-01' = if (enableEventHubExport)" in bicep
+    assert 'location: location' in bicep
+    assert "resource eventHub 'Microsoft.EventHub/namespaces/eventhubs@2024-01-01' = if (enableEventHubExport)" in bicep
+    assert 'messageRetentionInDays: 7' in bicep
+    assert 'partitionCount: 4' in bicep
+    assert "resource eventHubConsumerGroup 'Microsoft.EventHub/namespaces/eventhubs/consumergroups@2024-01-01'" in bicep
+    assert "var eventHubConsumerGroupName = 'external-observability'" in bicep
+    assert "resource eventHubExportAuthorizationRule 'Microsoft.EventHub/namespaces/authorizationRules@2024-01-01'" in bicep
+    assert "'Listen'\n      'Send'\n      'Manage'" in bicep
+    assert 'enableEventHub: enableEventHubExport' in bicep
+    assert "eventHubAuthorizationRuleId: enableEventHubExport ? eventHubExportAuthorizationRule.id : ''" in bicep
+    assert "eventHubName: enableEventHubExport ? eventHub.name : ''" in bicep
+    assert 'output eventHubExportEnabled bool = enableEventHubExport' in bicep
+    assert 'output eventHubId string' in bicep
+    assert 'output eventHubConsumerGroupName string' in bicep
+    assert 'listKeys(' not in bicep
+
+    assert 'param enableEventHub bool = false' in diagnostics_bicep
+    assert 'eventHubAuthorizationRuleId: enableEventHubDestination ? eventHubAuthorizationRuleId : null' in diagnostics_bicep
+    assert 'eventHubName: enableEventHubDestination ? eventHubName : null' in diagnostics_bicep
+    assert "category: 'GatewayLogs'" in diagnostics_bicep
+    assert "category: 'GatewayLlmLogs'" in diagnostics_bicep
+    assert "category: 'WebSocketConnectionLogs'" in diagnostics_bicep
+    assert "category: 'AllMetrics'" in diagnostics_bicep
 
 
 def test_inference_notebook_is_clean_and_defaults_to_simple_apim() -> None:
@@ -137,10 +194,68 @@ def test_inference_notebook_is_clean_and_defaults_to_simple_apim() -> None:
     assert all(not cell['outputs'] for cell in code_cells)
     assert 'index = 1' in ''.join(code_cells[0]['source'])
     assert 'deployment = INFRASTRUCTURE.SIMPLE_APIM' in code_source
-    assert "response.headers.get('X-Backend-URL', '')" in code_source
+    assert 'enable_event_hub_export = False' in code_source
+    assert "'enableEventHubExport': {'value': enable_event_hub_export}" in code_source
+    assert "output.get('eventHubNamespaceId', 'Event Hubs namespace ID')" in code_source
+    assert "response.headers.get('X-Backend-URL', 'unknown')" in code_source
+    assert "response.headers.get('X-Backend-Retry')" in code_source
+    assert "'backend_retry': backend_retry" in code_source
     assert 'X-Backend-Id' not in code_source
+    assert "queries_path = Path(utils.determine_policy_path('queries', sample_folder))" in code_source
+    assert "queries_path / 'verify-llm-ingestion.kql'" in code_source
+    assert "queries_path / 'backend-distribution.kql'" in code_source
+    assert "queries_path / 'token-throughput.kql'" in code_source
     assert 'plt.show()' in code_source
     assert 'Route Graph' in '\n'.join(''.join(cell['source']) for cell in notebook['cells'])
+
+
+def test_inference_notebook_generates_local_html_report() -> None:
+    """Keep the end-of-run local report and link in the notebook flow."""
+    notebook = json.loads(NOTEBOOK_PATH.read_text(encoding='utf-8'))
+    code_source = '\n'.join(''.join(cell['source']) for cell in notebook['cells'] if cell['cell_type'] == 'code')
+
+    assert 'import htmlreport' in code_source
+    assert 'importlib.reload(htmlreport)' in code_source
+    assert "'inference-failover-report.html'" in code_source
+    assert "'', 'Scenario', 'Requests', 'HTTP 200', 'Other', 'APIM retries', 'Priority / weight mix', 'What the data says'" in code_source
+    assert "htmlreport.HtmlText(f'Scenario Outcomes: {model_name}', bold_tokens=(model_name,))" in code_source
+    assert 'if retry_count > 0' in code_source
+    assert 'caller_succeeded = not non_200_responses' in code_source
+    assert "htmlreport.HtmlSuccess('All requests returned HTTP 200') if caller_succeeded else ''" in code_source
+    assert "observation_items = tuple(f'{item.strip()}' for item in '; '.join(observations).split(';'))" in code_source
+    assert 'htmlreport.HtmlList(observation_items)' in code_source
+    assert 'htmlreport.HtmlText(retry_mix, preserve_line_breaks=True)' in code_source
+    assert 'def get_priority_and_weight(' in code_source
+    assert "weights_by_priority.setdefault(priority, []).append(f'W{weight}: {count} ({count / total_requests:.1%})')" in code_source
+    assert "priority_mix = '\\n'.join(f'P{priority}: {\", \".join(weight_mix)}'" in code_source
+    assert 'htmlreport.HtmlText(priority_mix, bold_tokens=priority_tokens, preserve_line_breaks=True)' in code_source
+    assert "column_widths=['4%', '11%', '7%', '7%', '6%', '12%', '18%', '35%']" in code_source
+    assert "f'APIM source region: {apim_source_region} | Deployment: {nb_helper.deployment.name} | Resource group: {rg_name}'" in code_source
+    assert 'report.add_info_callout(' in code_source
+    assert "'Lab Capacity Is Intentionally Low'" in code_source
+    assert "'Each regional Azure OpenAI deployment is intentionally configured at 1 thousand TPM" in code_source
+    assert 'observed_backend_failures = backend_retries_absorbed + caller_visible_failures' in code_source
+    assert 'shielded_percentage = backend_retries_absorbed / observed_backend_failures * 100' in code_source
+    assert "f'APIM absorbed {backend_retries_absorbed} backend failures and sent {caller_visible_failures} failures to callers'" in code_source
+    assert "f'APIM prevented {shielded_percentage:.1f}% of observed failed backend attempts from reaching callers'" in code_source
+    assert 'terminal_503_responses = status_counts.get(503, 0)' in code_source
+    assert 'caller-visible HTTP 503 responses followed eligible-capacity exhaustion in the low-TPM pool' in code_source
+    assert "'Observed X-Backend-URL values'" not in code_source.split('report = htmlreport.HtmlReport(', maxsplit=1)[1]
+    assert 'if all_scenario_requests_succeeded:' in code_source
+    assert 'report.add_success_callout(' in code_source
+    assert "'All scenario requests returned HTTP 200'" in code_source
+    assert "print_val('Local HTML report', report_url)" in code_source
+
+
+def test_inference_notebook_uses_tuned_gpt_4_1_mini_pressure_window() -> None:
+    """Keep the independent pool pressure run demonstrative without flooding callers with terminal failures."""
+    notebook = json.loads(NOTEBOOK_PATH.read_text(encoding='utf-8'))
+    notebook_source = '\n'.join(''.join(cell['source']) for cell in notebook['cells'])
+
+    assert '| 3 | Sustained pressure | gpt-4.1-mini | 15 | none |' in notebook_source
+    assert 'pressure_payload, 15, gpt_4_1_mini_backend_url_index' in notebook_source
+    assert 'tests.verify(len(scenario3_gpt_4_1_mini), 15)' in notebook_source
+    assert '(`134` requests)' in notebook_source
 
 
 def test_simple_apim_exposes_backend_url_for_learning_by_default() -> None:

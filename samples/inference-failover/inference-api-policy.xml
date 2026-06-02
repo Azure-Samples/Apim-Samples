@@ -8,6 +8,7 @@
 <policies>
     <inbound>
         <base />
+        <set-variable name="backendAttempt" value="@(0)" />
         <set-backend-service backend-id="BACKEND_POOL_ID" />
         <authentication-managed-identity resource="https://cognitiveservices.azure.com" output-token-variable-name="managed-id-access-token" ignore-error="false" />
         <set-header name="Authorization" exists-action="override">
@@ -19,17 +20,51 @@
         <set-query-parameter name="api-version" exists-action="skip">
             <value>2024-10-21</value>
         </set-query-parameter>
+        <trace source="InferenceFailover" severity="information">
+            <message>@("InferenceRequestAccepted|requestId=" + context.RequestId.ToString())</message>
+            <metadata name="EventName" value="InferenceRequestAccepted" />
+            <metadata name="RequestId" value="@(context.RequestId.ToString())" />
+        </trace>
     </inbound>
     <backend>
         <retry count="RETRY_COUNT" interval="1" first-fast-retry="true" condition="@(context.Response != null &amp;&amp; (context.Response.StatusCode == 429 || context.Response.StatusCode == 503))">
+            <set-variable name="backendAttempt" value='@(((int)context.Variables["backendAttempt"]) + 1)' />
             <forward-request buffer-request-body="true" />
+            <trace source="InferenceFailover" severity="information">
+                <message>@("InferenceBackendAttemptComplete|attempt=" + ((int)context.Variables["backendAttempt"]).ToString() + "|backendResponseCode=" + (context.Response == null ? "none" : context.Response.StatusCode.ToString()) + "|willRetry=" + (context.Response != null &amp;&amp; (context.Response.StatusCode == 429 || context.Response.StatusCode == 503)).ToString())</message>
+                <metadata name="EventName" value="InferenceBackendAttemptComplete" />
+                <metadata name="RequestId" value="@(context.RequestId.ToString())" />
+                <metadata name="Attempt" value='@(((int)context.Variables["backendAttempt"]).ToString())' />
+                <metadata name="BackendResponseCode" value='@(context.Response == null ? "none" : context.Response.StatusCode.ToString())' />
+                <metadata name="WillRetry" value='@((context.Response != null &amp;&amp; (context.Response.StatusCode == 429 || context.Response.StatusCode == 503)).ToString())' />
+            </trace>
         </retry>
     </backend>
     <outbound>
+        <set-header name="X-Backend-Retry" exists-action="override">
+            <value>@((((int)context.Variables["backendAttempt"]) > 0 ? ((int)context.Variables["backendAttempt"]) - 1 : 0).ToString())</value>
+        </set-header>
+        <trace source="InferenceFailover" severity="information">
+            <message>@("InferenceGatewayResponse|attempts=" + ((int)context.Variables["backendAttempt"]).ToString() + "|backendResponseCode=" + (context.Response == null ? "none" : context.Response.StatusCode.ToString()))</message>
+            <metadata name="EventName" value="InferenceGatewayResponse" />
+            <metadata name="RequestId" value="@(context.RequestId.ToString())" />
+            <metadata name="Attempts" value='@(((int)context.Variables["backendAttempt"]).ToString())' />
+            <metadata name="BackendResponseCode" value='@(context.Response == null ? "none" : context.Response.StatusCode.ToString())' />
+        </trace>
         <choose>
             <when condition="@(context.Response != null &amp;&amp; (context.Response.StatusCode == 429 || context.Response.StatusCode == 503))">
+                <trace source="InferenceFailover" severity="error">
+                    <message>@("InferenceFallbackExhausted|attempts=" + ((int)context.Variables["backendAttempt"]).ToString() + "|backendResponseCode=" + context.Response.StatusCode.ToString())</message>
+                    <metadata name="EventName" value="InferenceFallbackExhausted" />
+                    <metadata name="RequestId" value="@(context.RequestId.ToString())" />
+                    <metadata name="Attempts" value='@(((int)context.Variables["backendAttempt"]).ToString())' />
+                    <metadata name="BackendResponseCode" value="@(context.Response.StatusCode.ToString())" />
+                </trace>
                 <return-response>
                     <set-status code="503" reason="Inference Service Unavailable" />
+                    <set-header name="X-Backend-Retry" exists-action="override">
+                        <value>@((((int)context.Variables["backendAttempt"]) > 0 ? ((int)context.Variables["backendAttempt"]) - 1 : 0).ToString())</value>
+                    </set-header>
                     <set-header name="Content-Type" exists-action="override">
                         <value>application/json</value>
                     </set-header>
@@ -40,6 +75,9 @@
         <base />
     </outbound>
     <on-error>
+        <set-header name="X-Backend-Retry" exists-action="override">
+            <value>@((((int)context.Variables["backendAttempt"]) > 0 ? ((int)context.Variables["backendAttempt"]) - 1 : 0).ToString())</value>
+        </set-header>
         <base />
     </on-error>
 </policies>

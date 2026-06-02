@@ -2,9 +2,9 @@
 Unit tests for the ApimTesting module.
 """
 
-from unittest.mock import patch
-import sys
 import os
+import sys
+from unittest.mock import patch
 
 # APIM Samples imports
 from apimtesting import ApimTesting
@@ -40,6 +40,12 @@ def test_apimtesting_init_with_parameters():
     assert not testing.tests_failed
     assert not testing.total_tests
     assert not testing.errors
+
+
+def test_format_runtime():
+    """Test runtime formatting for sub-minute and multi-hour durations."""
+    assert ApimTesting.format_runtime(8.25) == '00:00:08.25'
+    assert ApimTesting.format_runtime(7384.5) == '02:03:04.50'
 
 
 # ------------------------------
@@ -269,6 +275,19 @@ def test_print_summary_with_none_values():
         calls = [call.args[0] for call in mock_print.call_args_list if call.args]
         na_messages = [call for call in calls if 'N/A' in call]
         assert len(na_messages) > 0
+
+
+def test_print_summary_runtime():
+    """Test that print_summary reports elapsed runtime from suite initialization."""
+    with patch('apimtesting.perf_counter', side_effect=[100.0, 223.456]):
+        testing = ApimTesting()
+
+        with patch('builtins.print') as mock_print:
+            testing.print_summary()
+
+    calls = [call.args[0] for call in mock_print.call_args_list if call.args]
+    runtime_messages = [call for call in calls if 'Runtime' in call]
+    assert runtime_messages == ['    • Runtime      : 00:02:03.46 (HH:MM:SS.ss)\n']
 
 
 # ------------------------------

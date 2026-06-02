@@ -2,6 +2,8 @@
 Rudimentary test framework to offload validations from the Jupyter notebooks.
 """
 
+from time import perf_counter
+
 # APIM Samples imports
 from apimtypes import INFRASTRUCTURE
 
@@ -35,10 +37,19 @@ class ApimTesting:
         self.tests_failed = 0
         self.total_tests = 0
         self.errors = []
+        self.start_time = perf_counter()
 
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
+
+    @staticmethod
+    def format_runtime(runtime_seconds: float) -> str:
+        """Format an elapsed runtime as hours, minutes, and seconds."""
+        hours, remaining_seconds = divmod(runtime_seconds, 3600)
+        minutes, seconds = divmod(remaining_seconds, 60)
+
+        return f'{int(hours):02}:{int(minutes):02}:{seconds:05.2f}'
 
     def verify(self, value: any, expected: any, label: str = '') -> bool:
         """
@@ -82,6 +93,7 @@ class ApimTesting:
 
         # Calculate success rate and create visual elements
         success_rate = (self.tests_passed / self.total_tests * 100) if self.total_tests > 0 else 0
+        runtime = self.format_runtime(perf_counter() - self.start_time)
         border_width = 70
         border_line = '=' * border_width
 
@@ -104,7 +116,8 @@ class ApimTesting:
         print(f'    • Total Tests  : {self.total_tests:>5}')
         print(f'    • Tests Passed : {self.tests_passed:>5}')
         print(f'    • Tests Failed : {self.tests_failed:>5} {"❌" if self.tests_failed > 0 else ""}')
-        print(f'    • Success Rate : {success_rate:>5.1f}%\n')
+        print(f'    • Success Rate : {success_rate:>5.1f}%')
+        print(f'    • Runtime      : {runtime} (HH:MM:SS.ss)\n')
 
         # Overall result
         if not self.tests_failed and self.total_tests > 0:

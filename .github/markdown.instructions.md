@@ -8,6 +8,14 @@ This document provides standards for Markdown files in the APIM Samples reposito
 
 ## Critical Rules
 
+### Markdownlint Must Pass Before Finalizing
+
+After creating or editing any Markdown file, check the editor diagnostics for every changed `.md` file and resolve all markdownlint warnings before finalizing the work. If the repository adds a Markdown lint command in the future, run it as well.
+
+Do not assume a visually correct preview is lint-clean. Markdownlint also enforces source-level consistency for whitespace, table delimiters, nested list indentation, code-fence languages, inline HTML, and unused link definitions.
+
+Use a narrowly scoped `<!-- markdownlint-disable-next-line RULE -->` comment only when Markdown syntax cannot express the required behavior, such as an intentional `<details>` disclosure. Do not disable a rule for an entire file when a local exception is enough.
+
 ### 🚨 No Emoji Variation Selectors in Markdown Links
 
 **This is the most important rule.** Emoji variation selectors cause rendering and Markdown anchor link failures.
@@ -46,8 +54,18 @@ This document provides standards for Markdown files in the APIM Samples reposito
 - Never use typographic/curly quotes: `'` `'` `"` `"`
 - Improves consistency across editors and platforms
 
+### Blank Lines
+
+- Use exactly one blank line between paragraphs and sections. Do not add multiple consecutive blank lines.
+- Surround headings, tables, lists, and fenced code blocks with a blank line.
+- Add a blank line between introductory text such as `**Windows:**` and the fenced code block that follows it.
+- Keep a blank line between the final table row and any following HTML closing tag or paragraph.
+
 ### Markdown Tables
-**Markdown tables must be column-aligned.** Pad cell values with spaces so that every `|` delimiter in a column lines up vertically.
+
+Use one table style consistently within each table. Always include one space on both sides of each pipe delimiter, including separator rows. Never write compact separators such as `|---|---|`.
+
+**Prefer aligned tables** for short values. Pad cell values with spaces so that every `|` delimiter in a column lines up vertically.
 
 ❌ **WRONG** — misaligned columns:
 ```markdown
@@ -66,6 +84,29 @@ This document provides standards for Markdown files in the APIM Samples reposito
 ```
 
 Use the separator row (`---`, `:---:`, `---:`, etc.) to establish column widths, then align all subsequent rows to match.
+
+**Use compact tables** for prose-heavy content when alignment would create very long lines. Keep spaces around every pipe delimiter and use the same compact style for the header, separator, and each row.
+
+```markdown
+| Name | Description |
+| --- | --- |
+| Simple API Management | Public API Management instance for learning and experimentation. |
+| Private Link | Private ingress for security-focused scenarios. |
+```
+
+### Lists
+
+- Surround lists with a blank line.
+- Indent nested unordered list items consistently. Prefer two spaces for each nested level to satisfy `MD007`.
+- Use `1.` for every item in ordered Markdown source. Markdown renderers calculate the visible numbering, and this satisfies the repository's `MD029` style.
+- If an established formatter forces a different nested indentation style, use the smallest possible scoped markdownlint annotation and keep the list internally consistent.
+
+### Inline HTML
+
+- Prefer native Markdown syntax over inline HTML whenever Markdown can express the same result.
+- Use Markdown image syntax instead of `<img>` tags.
+- Use inline HTML only when it adds behavior Markdown does not provide, such as `<details>` disclosures.
+- Add `<!-- markdownlint-disable-next-line MD033 -->` immediately before an intentional inline HTML opening tag. Keep the exception local.
 
 ### File Links
 
@@ -179,13 +220,14 @@ Structured guides for domain-specific tasks (Bicep, Python policies, sample crea
 ### Emphasis
 
 - Use `**bold**` for emphasis and strong concepts
-- Use `*italic*` for variables or placeholders
+- Use `_italic_` for variables or placeholders to satisfy the repository's `MD049` style
 - Use `code` (backticks) for symbols, filenames, and technical terms
 - Use blockquotes `>` for notes, tips, and callouts
 
 ### Cross-References
 
 - Use reference-style links at the bottom for multiple references to the same target
+- Remove reference-style link definitions when their final usage is removed. Unused definitions fail `MD053`.
 - Example:
   ```markdown
   See the [setup guide][setup] and [troubleshooting][troubleshooting] pages.
@@ -210,11 +252,14 @@ Structured guides for domain-specific tasks (Bicep, Python policies, sample crea
 
 - Provide meaningful `alt` text for all images and diagrams
 - Alt text should describe the image purpose, not just say "screenshot" or "diagram"
+- Use native Markdown image syntax instead of inline HTML: `![alt text](path/to/image.png "Optional title")`
 - Example: `![Deployment workflow showing resource dependencies](images/deployment.png)`
 
 ### Code Blocks
 
 - Use language tags for syntax highlighting: ` ```python `, ` ```bicep `, ` ```json `
+- Use `text` for plain terminal output, menu choices, and other non-code examples
+- Surround every fenced code block with blank lines
 - Include enough context in code examples that they're self-explanatory
 
 ---
@@ -224,7 +269,12 @@ Structured guides for domain-specific tasks (Bicep, Python policies, sample crea
 | Issue | Cause | Fix |
 | --- | --- | --- |
 | Anchor links break | Emoji in heading + encoded in link | Remove emoji from link reference: `[text](#heading-only)` |
-| Tables misaligned | Inconsistent column widths | Pad cells with spaces to align `\|` delimiters |
+| Tables misaligned | Mixed table styles or missing spaces around pipes | Use one consistent aligned or compact style and write separator rows as `\| --- \| --- \|` |
+| Sections run together | Missing or repeated blank lines | Use exactly one blank line around headings, tables, lists, and fences |
+| Code fence warning | Missing fence language | Add the appropriate language, or use `text` for plain output |
+| List indentation warning | Inconsistent nesting or ordered prefixes | Use two spaces per unordered nesting level and `1.` for ordered items |
+| Inline HTML warning | HTML used where Markdown is sufficient | Prefer native Markdown; add a local `MD033` exception only for required HTML behavior |
+| Unused reference warning | Link definition remains after its final usage was removed | Delete the unused reference definition |
 | File links broken | Wrong path or encoded characters | Use relative paths, encode spaces: `My%20File.md` |
 | Symbols not highlighted | Missing backticks | Wrap in backticks: `symbolName` |
 | Line ending issues | Mixed CRLF/LF | Ensure all `.md` files use LF only |

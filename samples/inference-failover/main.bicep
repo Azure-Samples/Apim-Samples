@@ -23,6 +23,9 @@ param logAnalyticsWorkspaceName string = 'log-${resourceSuffix}'
 @description('Array of inference APIs assembled by the notebook.')
 param apis array = []
 
+@description('Deploy a regional Event Hub and stream APIM logs and metrics for external consumers.')
+param enableEventHubExport bool = false
+
 
 // ------------------------------
 //    VARIABLES
@@ -39,6 +42,15 @@ var workbookName = 'APIM Inference Failover ${index}'
 
 @description('Deterministic resource name of the telemetry workbook.')
 var workbookResourceName = guid(resourceGroup().id, 'inference-failover', string(index))
+
+@description('Name of the optional Event Hubs namespace deployed in the APIM region.')
+var eventHubNamespaceName = 'evhns-if-${index}-${take(resourceSuffix, 6)}'
+
+@description('Name of the optional Event Hub receiving APIM telemetry.')
+var eventHubName = 'apim-inference-failover'
+
+@description('Name of the optional Event Hub consumer group for external observability processors.')
+var eventHubConsumerGroupName = 'external-observability'
 
 @description('Regional Azure OpenAI resources used as the source of model-safe backend destinations.')
 var aoaiAccounts = [
@@ -77,7 +89,7 @@ var deployments = [
   }
   {
     accountIndex: 0
-    backendName: 'gpt-5-1-PAYGO-eastus2'
+    backendName: 'gpt-5-1-PAYG-eastus2'
     deploymentName: 'b-gpt-5-1'
     modelName: 'gpt-5.1'
     modelVersion: '2025-11-13'
@@ -86,7 +98,7 @@ var deployments = [
   }
   {
     accountIndex: 1
-    backendName: 'gpt-5-1-PAYGO-westus3'
+    backendName: 'gpt-5-1-PAYG-westus3'
     deploymentName: 'e-gpt-5-1'
     modelName: 'gpt-5.1'
     modelVersion: '2025-11-13'
@@ -95,7 +107,7 @@ var deployments = [
   }
   {
     accountIndex: 2
-    backendName: 'gpt-5-1-PAYGO-southcentralus'
+    backendName: 'gpt-5-1-PAYG-southcentralus'
     deploymentName: 'g-gpt-5-1'
     modelName: 'gpt-5.1'
     modelVersion: '2025-11-13'
@@ -122,7 +134,7 @@ var deployments = [
   }
   {
     accountIndex: 0
-    backendName: 'gpt-4-1-mini-PAYGO-eastus2'
+    backendName: 'gpt-4-1-mini-PAYG-eastus2'
     deploymentName: 'd-gpt-4-1-mini'
     modelName: 'gpt-4.1-mini'
     modelVersion: '2025-04-14'
@@ -131,7 +143,7 @@ var deployments = [
   }
   {
     accountIndex: 2
-    backendName: 'gpt-4-1-mini-PAYGO-southcentralus'
+    backendName: 'gpt-4-1-mini-PAYG-southcentralus'
     deploymentName: 'h-gpt-4-1-mini'
     modelName: 'gpt-4.1-mini'
     modelVersion: '2025-04-14'
@@ -162,6 +174,67 @@ resource logAnalyticsWorkspace 'Microsoft.OperationalInsights/workspaces@2022-10
 
 
 // ------------------------------
+//    OPTIONAL EVENT HUB EXPORT
+// ------------------------------
+
+// Azure Monitor requires regional resources to export diagnostics to an Event Hubs namespace in the same region.
+// The notebook passes its infrastructure/APIM region as the sample location parameter.
+// https://learn.microsoft.com/azure/templates/microsoft.eventhub/namespaces
+resource eventHubNamespace 'Microsoft.EventHub/namespaces@2024-01-01' = if (enableEventHubExport) {
+  name: eventHubNamespaceName
+  location: location
+  sku: {
+    name: 'Standard'
+    tier: 'Standard'
+    capacity: 1
+  }
+  properties: {
+    disableLocalAuth: false
+    isAutoInflateEnabled: true
+    kafkaEnabled: false
+    maximumThroughputUnits: 5
+    minimumTlsVersion: '1.2'
+    publicNetworkAccess: 'Enabled'
+    zoneRedundant: false
+  }
+}
+
+// Azure Monitor diagnostic streaming does not support compacted event hubs.
+// https://learn.microsoft.com/azure/templates/microsoft.eventhub/namespaces/eventhubs
+resource eventHub 'Microsoft.EventHub/namespaces/eventhubs@2024-01-01' = if (enableEventHubExport) {
+  name: eventHubName
+  parent: eventHubNamespace
+  properties: {
+    messageRetentionInDays: 7
+    partitionCount: 4
+    status: 'Active'
+  }
+}
+
+// Provide a dedicated consumer-group checkpoint scope for downstream observability processors.
+// https://learn.microsoft.com/azure/templates/microsoft.eventhub/namespaces/eventhubs/consumergroups
+resource eventHubConsumerGroup 'Microsoft.EventHub/namespaces/eventhubs/consumergroups@2024-01-01' = if (enableEventHubExport) {
+  name: eventHubConsumerGroupName
+  parent: eventHub
+  properties: {}
+}
+
+// Azure Monitor diagnostic streaming requires Manage, Send, and Listen permissions on a namespace authorization rule.
+// https://learn.microsoft.com/azure/templates/microsoft.eventhub/namespaces/authorizationrules
+resource eventHubExportAuthorizationRule 'Microsoft.EventHub/namespaces/authorizationRules@2024-01-01' = if (enableEventHubExport) {
+  name: 'diagnostic-export'
+  parent: eventHubNamespace
+  properties: {
+    rights: [
+      'Listen'
+      'Send'
+      'Manage'
+    ]
+  }
+}
+
+
+// ------------------------------
 //    AZURE OPENAI DEPLOYMENTS
 // ------------------------------
 
@@ -180,7 +253,7 @@ resource openAiAccounts 'Microsoft.CognitiveServices/accounts@2024-10-01' = [for
   }
 }]
 
-// All deployments use regional Standard PAYG capacity. The PTU/PAYGO label is only the route tier being simulated.
+// All deployments use regional Standard PAYG capacity. The PTU/PAYG label is only the route tier being simulated.
 // https://learn.microsoft.com/azure/templates/microsoft.cognitiveservices/accounts/deployments
 @batchSize(1)
 resource openAiDeployments 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = [for deployment in deployments: {
@@ -216,14 +289,13 @@ resource apimOpenAiRoleAssignments 'Microsoft.Authorization/roleAssignments@2022
 // ------------------------------
 
 // Each backend targets exactly one compatible deployment. Managed identity authentication is applied by the inference API policy for the selected backend.
-// https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/backends
-resource inferenceBackends 'Microsoft.ApiManagement/service/backends@2024-06-01-preview' = [for (deployment, deploymentIndex) in deployments: {
-  name: deployment.backendName
-  parent: apimService
-  properties: {
-    description: '${deployment.route}: ${deployment.deploymentName} (${deployment.modelName})'
-    protocol: 'http'
-    type: 'Single'
+module inferenceBackends '../../shared/bicep/modules/apim/v1/backend.bicep' = [for (deployment, deploymentIndex) in deployments: {
+  name: 'backend-${deployment.backendName}'
+  params: {
+    apimName: apimName
+    backendName: deployment.backendName
+    backendDescription: '${deployment.route}: ${deployment.deploymentName} (${deployment.modelName})'
+    backendType: 'Single'
     url: '${openAiAccounts[deployment.accountIndex].properties.endpoint}openai/deployments/${deployment.deploymentName}'
     tls: {
       validateCertificateChain: true
@@ -280,17 +352,17 @@ module gpt51BackendPool '../../shared/bicep/modules/apim/v1/backend-pool.bicep' 
         weight: 100
       }
       {
-        name: 'gpt-5-1-PAYGO-eastus2'
+        name: 'gpt-5-1-PAYG-eastus2'
         priority: 3
         weight: 100
       }
       {
-        name: 'gpt-5-1-PAYGO-westus3'
+        name: 'gpt-5-1-PAYG-westus3'
         priority: 4
         weight: 50
       }
       {
-        name: 'gpt-5-1-PAYGO-southcentralus'
+        name: 'gpt-5-1-PAYG-southcentralus'
         priority: 4
         weight: 50
       }
@@ -319,12 +391,12 @@ module gpt41MiniBackendPool '../../shared/bicep/modules/apim/v1/backend-pool.bic
         weight: 100
       }
       {
-        name: 'gpt-4-1-mini-PAYGO-eastus2'
+        name: 'gpt-4-1-mini-PAYG-eastus2'
         priority: 3
         weight: 100
       }
       {
-        name: 'gpt-4-1-mini-PAYGO-southcentralus'
+        name: 'gpt-4-1-mini-PAYG-southcentralus'
         priority: 4
         weight: 100
       }
@@ -343,8 +415,11 @@ module apimDiagnostics '../../shared/bicep/modules/apim/v1/diagnostics.bicep' = 
     apimResourceGroupName: resourceGroup().name
     diagnosticSettingsNameSuffix: diagnosticsSuffix
     enableApplicationInsights: false
+    enableEventHub: enableEventHubExport
     enableLlmLogs: true
     enableLogAnalytics: true
+    eventHubAuthorizationRuleId: enableEventHubExport ? eventHubExportAuthorizationRule.id : ''
+    eventHubName: enableEventHubExport ? eventHub.name : ''
     logAnalyticsWorkspaceId: logAnalyticsWorkspace.id
   }
 }
@@ -408,6 +483,27 @@ output workbookName string = workbookName
 
 @description('Resource ID of the deployed telemetry workbook.')
 output workbookId string = workbook.id
+
+@description('Whether optional APIM telemetry streaming to Event Hubs is enabled.')
+output eventHubExportEnabled bool = enableEventHubExport
+
+@description('Resource ID of the optional Event Hubs namespace.')
+output eventHubNamespaceId string = enableEventHubExport ? eventHubNamespace.id : ''
+
+@description('Name of the optional Event Hubs namespace.')
+output eventHubNamespaceName string = enableEventHubExport ? eventHubNamespace.name : ''
+
+@description('Resource ID of the optional Event Hub receiving APIM telemetry.')
+output eventHubId string = enableEventHubExport ? eventHub.id : ''
+
+@description('Name of the optional Event Hub receiving APIM telemetry.')
+output eventHubName string = enableEventHubExport ? eventHub.name : ''
+
+@description('Name of the optional Event Hub consumer group for external observability processors.')
+output eventHubConsumerGroupName string = enableEventHubExport ? eventHubConsumerGroup.name : ''
+
+@description('Location of the optional Event Hubs namespace. This matches the APIM service region.')
+output eventHubLocation string = eventHubNamespace.?location ?? ''
 
 @description('Regional Azure OpenAI resource names deployed for the experiment.')
 output openAiAccountNames array = [for account in aoaiAccounts: account.name]

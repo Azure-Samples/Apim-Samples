@@ -1,0 +1,22 @@
+// Reports caller-visible outcomes separately from final backend outcomes and retry activity.
+//
+// Parameters (prepend as KQL 'let' bindings before running):
+//   let timeWindow = 1h;
+//   let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-4-1-mini']);
+//
+ApiManagementGatewayLogs
+| where TimeGenerated > ago(timeWindow)
+| where ApiId in~ (apiIds)
+| extend TraceText = tostring(TraceRecords)
+| extend AttemptCount = countof(TraceText, 'InferenceBackendAttemptComplete')
+| extend FailoverOccurred = AttemptCount > 1
+| extend FallbackExhausted = TraceText has 'InferenceFallbackExhausted'
+| extend Outcome = case(
+	FallbackExhausted, 'Fallback exhausted',
+	ResponseCode between (200 .. 299) and FailoverOccurred, 'Recovered after failover',
+	ResponseCode between (200 .. 299), 'Successful without failover',
+	ResponseCode == 429, 'Caller received throttling',
+	ResponseCode >= 500, 'Caller received server error',
+	'Other')
+| summarize Requests = count(), AverageAttempts = round(avg(AttemptCount), 2), AverageBackendMs = round(avg(BackendTime), 1) by ApiId, Outcome, ResponseCode, BackendResponseCode
+| order by ApiId asc, Requests desc

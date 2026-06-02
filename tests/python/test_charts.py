@@ -95,6 +95,15 @@ def test_barchart_init_empty_results():
     assert chart.api_results == []
 
 
+def test_barchart_init_with_backend_labels():
+    """Test BarChart initialization with human-readable backend labels."""
+    backend_labels = {0: 'Priority 1: PTU (East US 2)'}
+
+    chart = BarChart(title='Test Chart', x_label='X Axis', y_label='Y Axis', api_results=[], backend_labels=backend_labels)
+
+    assert chart.backend_labels == backend_labels
+
+
 # ------------------------------
 #    TEST PLOT METHOD
 # ------------------------------
@@ -109,6 +118,19 @@ def test_plot_calls_internal_method(mock_dataframe, mock_plt, sample_api_results
     with patch.object(chart, '_plot_barchart') as mock_plot_barchart:
         chart.plot()
         mock_plot_barchart.assert_called_once_with(sample_api_results)
+
+
+@patch('charts.plt')
+@patch('charts.pd.DataFrame')
+def test_render_returns_figure_without_displaying(mock_dataframe, mock_plt, sample_api_results):
+    """Test that render() returns an exportable figure without inline display."""
+    chart = BarChart('Test', 'X', 'Y', sample_api_results)
+    figure = MagicMock()
+
+    with patch.object(chart, '_plot_barchart', return_value=figure) as mock_plot_barchart:
+        assert chart.render() is figure
+        mock_plot_barchart.assert_called_once_with(sample_api_results, show=False)
+        mock_plt.show.assert_not_called()
 
 
 # ------------------------------
@@ -203,6 +225,74 @@ def test_plot_barchart_error_status_codes(mock_dataframe, mock_plt):
     for row in call_args:
         assert row['Backend Index'] == 99
         assert row['Status Code'] in [404, 500]
+
+
+@patch('charts.plt')
+@patch('charts.pd.DataFrame')
+def test_plot_barchart_shows_harness_error_counts(mock_dataframe, mock_plt):
+    """Test that the side panel reports 4xx and 5xx responses received by the harness."""
+    api_results = [
+        {'run': 1, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 1}'},
+        {'run': 2, 'response_time': 0.2, 'status_code': 429, 'response': 'Too Many Requests'},
+        {'run': 3, 'response_time': 0.3, 'status_code': 503, 'response': 'Service Unavailable'},
+    ]
+
+    mock_df = MagicMock()
+    mock_dataframe.return_value = mock_df
+    mock_df.__getitem__.return_value = mock_df
+    mock_df.__iter__.return_value = iter([])
+    mock_df.iterrows.return_value = iter(
+        [
+            (0, {'Status Code': 200, 'Backend Index': 1}),
+            (1, {'Status Code': 429, 'Backend Index': 99}),
+            (2, {'Status Code': 503, 'Backend Index': 99}),
+        ]
+    )
+    mock_ax = MagicMock()
+    mock_df.plot.return_value = mock_ax
+    mock_df.empty = False
+
+    chart = BarChart('Test', 'X', 'Y', api_results)
+    chart._plot_barchart(api_results)
+
+    mock_ax.legend.assert_called_once()
+    assert mock_ax.legend.call_args.kwargs['bbox_to_anchor'] == (1.01, 1)
+    mock_ax.text.assert_called_once()
+    assert mock_ax.legend.call_args.args[1] == [
+        '!!! 4xx CLIENT ERRORS - 1 request !!!',
+        '!!! 5xx SERVER ERRORS - 1 request !!!',
+    ]
+    assert mock_df.plot.call_args.kwargs['color'] == ['gray', '#d83b01', '#a4262c']
+    assert mock_ax.text.call_args.args[2] == 'Requests: 3\nResponses: 3 (100.0%)\n\n2xx: 1 (33.3%)\n4xx: 1 (33.3%)\n5xx: 1 (33.3%)'
+    assert mock_ax.text.call_args.kwargs['fontweight'] == 'bold'
+    assert mock_ax.text.call_args.kwargs['bbox']['edgecolor'] == '#a4262c'
+    mock_plt.subplots_adjust.assert_called_once_with(right=0.76, bottom=0.3)
+
+
+@patch('charts.plt')
+@patch('charts.pd.DataFrame')
+def test_plot_barchart_uses_human_readable_backend_labels(mock_dataframe, mock_plt):
+    """Test that custom backend labels replace numeric legend labels when provided."""
+    api_results = [
+        {'run': 1, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 0}'},
+        {'run': 2, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 0}'},
+    ]
+
+    mock_df = MagicMock()
+    mock_dataframe.return_value = mock_df
+    mock_df.__getitem__.return_value = mock_df
+    mock_df.__iter__.return_value = iter([])
+    mock_df.iterrows.return_value = iter([])
+    mock_df.unique.return_value = [0]
+    mock_ax = MagicMock()
+    mock_df.plot.return_value = mock_ax
+    mock_df.empty = False
+
+    chart = BarChart('Test', 'X', 'Y', api_results, backend_labels={0: 'Priority 1 / Weight 100: PTU (East US 2)'})
+    chart._plot_barchart(api_results)
+
+    legend_names = mock_ax.legend.call_args.args[1]
+    assert legend_names == ['Priority 1 / Weight 100: PTU (East US 2) - 2 requests']
 
 
 @patch('charts.plt')
