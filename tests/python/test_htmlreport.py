@@ -6,7 +6,7 @@ from unittest.mock import MagicMock
 import pytest
 
 # APIM Samples imports
-from htmlreport import HtmlList, HtmlReport, HtmlSuccess, HtmlText
+from htmlreport import HtmlList, HtmlReport, HtmlSuccess, HtmlText, HtmlWarning
 
 
 def test_html_report_writes_self_contained_content(tmp_path: Path) -> None:
@@ -28,8 +28,11 @@ def test_html_report_writes_self_contained_content(tmp_path: Path) -> None:
                 HtmlList(('One <item>.', 'Two.')),
             ]
         ],
+        HtmlText('Bold <caption> then plain text.', ('Bold <caption>',)),
         column_widths=['10%', '50%', '40%'],
     )
+    report.add_table('Warnings', ['Status'], [[HtmlWarning('Some requests returned non-200 responses')]])
+    report.add_metrics('Neutral tests', {'Result': 'Passed', 'Success rate': '100.0%'}, highlight_success=False)
     report.add_figure('Route graph', figure, 'Embedded output')
     report.add_links('Explore', {'Workbook': 'https://portal.azure.com/example'})
     output_path = report.write(tmp_path / 'report.html')
@@ -50,14 +53,24 @@ def test_html_report_writes_self_contained_content(tmp_path: Path) -> None:
     assert '<h2>Lab &lt;note&gt;</h2><p>Capacity is intentionally low.</p>' in document
     assert '<th scope="col">Name</th>' in document
     assert '<h2>Rows for <strong>gpt-5.1</strong></h2>' in document
+    assert '<p><strong>Bold &lt;caption&gt;</strong> then plain text.</p>' in document
     assert '<td><strong>P1</strong>: route-a<br><strong>P2</strong>: route-b</td>' in document
     assert '<tr class="table-row-success">' in document
     assert '<td><span class="table-success" role="img" aria-label="All requests returned HTTP 200">&#10003;</span></td>' in document
     assert '.table-row-success td { background: #146c43; border-color: #0a3622; color: #ffffff; }' in document
     assert '.table-success { color: #198754; display: inline-block; font-size: 1.8rem; font-weight: 900; line-height: 1; }' in document
+    assert '<tr class="table-row-warning">' in document
+    assert '<td><span class="table-warning" role="img" aria-label="Some requests returned non-200 responses">&#9888;</span></td>' in document
+    assert '.table-row-warning td { background: #fff3cd; border-color: #b45309; color: #3d2c00; }' in document
+    assert '.table-warning { color: #8a4b00; display: inline-block; font-size: 1.5rem; font-weight: 900; line-height: 1; }' in document
     assert '<td><ul class="table-list"><li>One &lt;item&gt;.</li><li>Two.</li></ul></td>' in document
-    assert '.table-list { list-style-position: inside; margin: 0; padding: 0; }' in document
+    assert '.table-list { list-style: none; margin: 0; padding: 0; }' in document
+    assert '.table-list li { column-gap: 0.1rem; display: grid; grid-template-columns: 0.55rem 1fr; margin: 0 0 0.2rem; }' in document
+    assert ".table-list li::before { content: '\\2022'; }" in document
     assert '<colgroup><col style="width: 10%"><col style="width: 50%"><col style="width: 40%"></colgroup>' in document
+    assert '.table-wrap { max-width: 100%; overflow-x: auto; } table { border-collapse: collapse; table-layout: fixed; width: 100%; }' in document
+    assert 'overflow-wrap: anywhere;' in document
+    assert 'word-break: break-word;' in document
     assert 'vertical-align: top;' in document
     assert 'data:image/png;base64,cG5nIGJ5dGVz' in document
     assert 'href="https://portal.azure.com/example"' in document

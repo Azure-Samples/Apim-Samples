@@ -205,6 +205,22 @@ def test_inference_notebook_is_clean_and_defaults_to_simple_apim() -> None:
     assert "queries_path / 'verify-llm-ingestion.kql'" in code_source
     assert "queries_path / 'backend-distribution.kql'" in code_source
     assert "queries_path / 'token-throughput.kql'" in code_source
+    assert "columns=['API', 'Backend URL', 'Requests', 'Successes', 'Throttled', 'Failures', 'AverageBackendMs', 'SuccessRate']" in code_source
+    assert 'def with_backend_identifier(frame: pd.DataFrame) -> pd.DataFrame:' in code_source
+    assert "backend_identifiers = frame['Backend URL'].str.extract(r'/deployments/([a-z])-', expand=False).fillna('')" in code_source
+    assert "frame.insert(1, 'Backend', backend_identifiers)" in code_source
+    assert "frame['Backend'] = frame['Backend'].replace('?', '')" in code_source
+    assert 'distribution_frame = with_backend_identifier(distribution_frame)' in code_source
+    assert 'def format_gateway_distribution(frame: pd.DataFrame) -> pd.DataFrame:' in code_source
+    assert "backend_names = display_frame['Backend URL'].str.extract(r'/deployments/([a-z]-[^/]+)', expand=False).fillna('')" in code_source
+    assert "display_frame['Backend'] = backend_names.str.replace('-', ') ', n=1, regex=False)" in code_source
+    assert "display_frame = display_frame.drop(columns=['Backend URL'])" in code_source
+    assert "display_frame['AverageBackendMs'] = average_backend_ms.map(lambda value: '' if pd.isna(value) else f'{value:,.1f}')" in code_source
+    assert "display_frame['SuccessRate'] = success_rate.map(lambda value: '' if pd.isna(value) else f'{value:.2f}%')" in code_source
+    assert 'distribution_frame = format_gateway_distribution(distribution_frame)' in code_source
+    assert code_source.count("distribution_frame.pivot(index='API', columns='Backend', values='Requests')") == 2
+    assert "columns=['API', 'Backend URL', 'Model', 'Requests', 'PromptTokens', 'CompletionTokens', 'TotalTokens']" in code_source
+    assert 'token_frame = with_backend_identifier(token_frame)' in code_source
     assert 'plt.show()' in code_source
     assert 'Route Graph' in '\n'.join(''.join(cell['source']) for cell in notebook['cells'])
 
@@ -217,11 +233,12 @@ def test_inference_notebook_generates_local_html_report() -> None:
     assert 'import htmlreport' in code_source
     assert 'importlib.reload(htmlreport)' in code_source
     assert "'inference-failover-report.html'" in code_source
-    assert "'', 'Scenario', 'Requests', 'HTTP 200', 'Other', 'APIM retries', 'Priority / weight mix', 'What the data says'" in code_source
+    assert "'', 'Test #', 'Scenario', 'Requests', 'HTTP 200', 'Other', 'APIM retries', 'Priority / weight mix', 'What the data says'" in code_source
     assert "htmlreport.HtmlText(f'Scenario Outcomes: {model_name}', bold_tokens=(model_name,))" in code_source
     assert 'if retry_count > 0' in code_source
     assert 'caller_succeeded = not non_200_responses' in code_source
-    assert "htmlreport.HtmlSuccess('All requests returned HTTP 200') if caller_succeeded else ''" in code_source
+    assert "htmlreport.HtmlSuccess('All requests returned HTTP 200')" in code_source
+    assert "else htmlreport.HtmlWarning('Some requests returned non-200 responses')" in code_source
     assert "observation_items = tuple(f'{item.strip()}' for item in '; '.join(observations).split(';'))" in code_source
     assert 'htmlreport.HtmlList(observation_items)' in code_source
     assert 'htmlreport.HtmlText(retry_mix, preserve_line_breaks=True)' in code_source
@@ -229,11 +246,17 @@ def test_inference_notebook_generates_local_html_report() -> None:
     assert "weights_by_priority.setdefault(priority, []).append(f'W{weight}: {count} ({count / total_requests:.1%})')" in code_source
     assert "priority_mix = '\\n'.join(f'P{priority}: {\", \".join(weight_mix)}'" in code_source
     assert 'htmlreport.HtmlText(priority_mix, bold_tokens=priority_tokens, preserve_line_breaks=True)' in code_source
-    assert "column_widths=['4%', '11%', '7%', '7%', '6%', '12%', '18%', '35%']" in code_source
+    assert "column_widths=['4%', '5%', '10%', '6%', '6%', '5%', '11%', '17%', '36%']" in code_source
+    assert "'A-1',\n                'Baseline Warm Path'" in code_source
+    assert "'B-1',\n                'Baseline Warm Path'" in code_source
+    assert "add_scenario_figure(report, f'{test_id}) {title}', description, api_results, backend_labels)" in code_source
+    assert "'The green checkmark indicates that every request returned HTTP 200'," in code_source
+    assert 'highlight_success=False' in code_source
+    assert 'The amber warning triangle indicates that one or more requests returned a caller-visible non-200 response' in code_source
     assert "f'APIM source region: {apim_source_region} | Deployment: {nb_helper.deployment.name} | Resource group: {rg_name}'" in code_source
     assert 'report.add_info_callout(' in code_source
     assert "'Lab Capacity Is Intentionally Low'" in code_source
-    assert "'Each regional Azure OpenAI deployment is intentionally configured at 1 thousand TPM" in code_source
+    assert "'Each regional Azure OpenAI deployment is intentionally configured at 1,000 TPM so that" in code_source
     assert 'observed_backend_failures = backend_retries_absorbed + caller_visible_failures' in code_source
     assert 'shielded_percentage = backend_retries_absorbed / observed_backend_failures * 100' in code_source
     assert "f'APIM absorbed {backend_retries_absorbed} backend failures and sent {caller_visible_failures} failures to callers'" in code_source

@@ -29,6 +29,13 @@ class HtmlSuccess:
 
 
 @dataclass(frozen=True)
+class HtmlWarning:
+    """Describe an accessible warning marker for a report table cell."""
+
+    label: str
+
+
+@dataclass(frozen=True)
 class HtmlList:
     """Describe an escaped flush-left bullet list for a report table cell."""
 
@@ -44,9 +51,9 @@ class HtmlReport:
         self.subtitle = subtitle
         self.sections: list[str] = []
 
-    def add_metrics(self, title: str, metrics: dict[str, object]) -> None:
+    def add_metrics(self, title: str, metrics: dict[str, object], highlight_success: bool = True) -> None:
         """Add a compact grid of named values."""
-        metric_items = ''.join(self._metric(label, value) for label, value in metrics.items())
+        metric_items = ''.join(self._metric(label, value, highlight_success) for label, value in metrics.items())
         self.sections.append(self._section(title, f'<div class="metrics">{metric_items}</div>'))
 
     def add_success_callout(self, title: str, message: str) -> None:
@@ -74,7 +81,7 @@ class HtmlReport:
         title: str | HtmlText,
         headers: list[str],
         rows: list[list[object]],
-        description: str = '',
+        description: str | HtmlText = '',
         column_widths: list[str] | None = None,
     ) -> None:
         """Add an accessible data table."""
@@ -92,7 +99,7 @@ class HtmlReport:
         body = self._paragraph(description) + table_html
         self.sections.append(self._section(title, body))
 
-    def add_figure(self, title: str, figure: Figure, description: str = '') -> None:
+    def add_figure(self, title: str, figure: Figure, description: str | HtmlText = '') -> None:
         """Embed a matplotlib figure as a PNG data URI."""
         buffer = BytesIO()
         figure.savefig(buffer, format='png', bbox_inches='tight', dpi=140)
@@ -139,10 +146,14 @@ class HtmlReport:
     .status-icon {{ font-size: 2rem; font-weight: bold; line-height: 1; }}
     .table-success {{ color: #198754; display: inline-block; font-size: 1.8rem; font-weight: 900; line-height: 1; }}
     .table-row-success td {{ background: #146c43; border-color: #0a3622; color: #ffffff; }} .table-row-success .table-success {{ color: #ffffff; }}
-    .table-list {{ list-style-position: inside; margin: 0; padding: 0; }}
-    .table-list li {{ margin: 0 0 0.2rem; }} .table-list li:last-child {{ margin-bottom: 0; }}
-    .table-wrap {{ overflow-x: auto; }} table {{ border-collapse: collapse; width: 100%; }}
-    th, td {{ border: 1px solid #d0d7de; padding: 0.55rem; text-align: left; vertical-align: top; }} th {{ background: #eaf2f8; color: #12344d; }}
+    .table-warning {{ color: #8a4b00; display: inline-block; font-size: 1.5rem; font-weight: 900; line-height: 1; }}
+    .table-row-warning td {{ background: #fff3cd; border-color: #b45309; color: #3d2c00; }}
+    .table-list {{ list-style: none; margin: 0; padding: 0; }}
+    .table-list li {{ column-gap: 0.1rem; display: grid; grid-template-columns: 0.55rem 1fr; margin: 0 0 0.2rem; }}
+    .table-list li::before {{ content: '\\2022'; }} .table-list li:last-child {{ margin-bottom: 0; }}
+    .table-wrap {{ max-width: 100%; overflow-x: auto; }} table {{ border-collapse: collapse; table-layout: fixed; width: 100%; }}
+    th, td {{ border: 1px solid #d0d7de; overflow-wrap: anywhere; padding: 0.55rem; text-align: left; vertical-align: top; word-break: break-word; }}
+    th {{ background: #eaf2f8; color: #12344d; }}
     img {{ display: block; height: auto; max-width: 100%; }} .links {{ line-height: 1.8; padding-left: 1.25rem; }}
     a {{ color: #005a9e; }} a:focus, a:hover {{ color: #003f6f; }}
   </style>
@@ -158,9 +169,9 @@ class HtmlReport:
         return output_path.resolve()
 
     @staticmethod
-    def _paragraph(text: str) -> str:
+    def _paragraph(text: str | HtmlText) -> str:
         """Render optional escaped paragraph text."""
-        return f'<p>{html.escape(text)}</p>' if text else ''
+        return f'<p>{HtmlReport._render_text(text)}</p>' if text else ''
 
     @staticmethod
     def _section(title: str | HtmlText, body: str) -> str:
@@ -168,14 +179,14 @@ class HtmlReport:
         return f'<section><h2>{HtmlReport._render_text(title)}</h2>{body}</section>'
 
     @staticmethod
-    def _metric(label: object, value: object) -> str:
+    def _metric(label: object, value: object, highlight_success: bool = True) -> str:
         """Render one metric, highlighting perfect run outcomes."""
         normalized_label = str(label).strip().casefold()
         normalized_value = str(value).strip().casefold()
         is_perfect = (normalized_label == 'result' and normalized_value == 'passed') or (
             normalized_label == 'success rate' and re.fullmatch(r'100(?:\.0+)?%', normalized_value)
         )
-        success_class = ' metric-success' if is_perfect else ''
+        success_class = ' metric-success' if highlight_success and is_perfect else ''
 
         return (
             f'<div class="metric{success_class}"><span class="metric-label">{html.escape(str(label))}</span>'
@@ -184,17 +195,25 @@ class HtmlReport:
 
     @staticmethod
     def _table_row(row: list[object]) -> str:
-        """Render one table row, highlighting caller-perfect scenarios."""
-        success_class = ' class="table-row-success"' if any(isinstance(value, HtmlSuccess) for value in row) else ''
+        """Render one table row, highlighting caller-perfect and warning scenarios."""
+        if any(isinstance(value, HtmlWarning) for value in row):
+            row_class = ' class="table-row-warning"'
+        elif any(isinstance(value, HtmlSuccess) for value in row):
+            row_class = ' class="table-row-success"'
+        else:
+            row_class = ''
         cells = ''.join(f'<td>{HtmlReport._render_text(value)}</td>' for value in row)
 
-        return f'<tr{success_class}>{cells}</tr>'
+        return f'<tr{row_class}>{cells}</tr>'
 
     @staticmethod
     def _render_text(value: object) -> str:
         """Render escaped text with narrowly scoped formatting when requested."""
         if isinstance(value, HtmlSuccess):
             return f'<span class="table-success" role="img" aria-label="{html.escape(value.label, quote=True)}">&#10003;</span>'
+
+        if isinstance(value, HtmlWarning):
+            return f'<span class="table-warning" role="img" aria-label="{html.escape(value.label, quote=True)}">&#9888;</span>'
 
         if isinstance(value, HtmlList):
             list_items = ''.join(f'<li>{html.escape(item)}</li>' for item in value.items)
