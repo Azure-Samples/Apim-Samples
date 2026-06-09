@@ -1171,7 +1171,7 @@ def determine_shared_policy_path(policy_xml_filename: str) -> str:
 
 
 def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str = None) -> str:
-    """Determine the full path to a policy XML file, auto-detecting the sample directory if needed."""
+    """Resolve a sample policy path, preferring the canonical policy directory."""
     # Determine if this is a full path or just a filename
     path_obj = Path(policy_xml_filepath_or_filename)
 
@@ -1219,9 +1219,13 @@ def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str
             except Exception as e:
                 raise ValueError(f'Could not auto-detect sample name. Please provide sample_name parameter explicitly. Error: {e}') from e
 
-        # Construct the full path
+        # Prefer the canonical policy directory while migrated samples coexist
+        # with legacy samples that still keep policy files at the sample root.
         project_root = get_project_root()
-        policy_xml_filepath = str(Path(project_root) / 'samples' / sample_name / policy_xml_filepath_or_filename)
+        sample_path = Path(project_root) / 'samples' / sample_name
+        canonical_path = sample_path / 'apim-policies' / policy_xml_filepath_or_filename
+        legacy_path = sample_path / policy_xml_filepath_or_filename
+        policy_xml_filepath = str(canonical_path if canonical_path.exists() else legacy_path)
 
     return policy_xml_filepath
 

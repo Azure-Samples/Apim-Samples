@@ -103,7 +103,7 @@ The Chat Completions and Responses APIs use different api-versions (`2024-10-21`
 
 The `pf-ensure-stream-include-usage.xml` fragment short-circuits for the Responses API: it only inspects the body when `messages` is present, so Responses requests pass through untouched. The workbook's *Streaming vs Non-Streaming Breakdown*, *Token Counts by Business Unit & Delivery Mode* table, and *Per-Request Detail* tab all surface an `API Surface` column / slice (`Chat` vs `Responses`) so you can verify each mode produced its expected rows.
 
-> **Business unit attribution**: Join `ApiManagementGatewayLlmLog` with `ApiManagementGatewayLogs` on `CorrelationId` to map token counts to `ApimSubscriptionId` (business unit). See `bu-token-usage.kql` for a ready-to-use query.
+> **Business unit attribution**: Join `ApiManagementGatewayLlmLog` with `ApiManagementGatewayLogs` on `CorrelationId` to map token counts to `ApimSubscriptionId` (business unit). See [queries/bu-token-usage.kql](queries/bu-token-usage.kql) for a ready-to-use query.
 
 ### Context Propagation
 

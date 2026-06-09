@@ -464,6 +464,59 @@ def test_determine_policy_path_full_path():
     assert result == full_path
 
 
+def test_determine_policy_path_prefers_canonical_directory(monkeypatch, tmp_path):
+    """Test canonical sample policy paths take precedence over legacy paths."""
+    sample_path = tmp_path / 'samples' / 'test-sample'
+    canonical_path = sample_path / 'apim-policies' / 'policy.xml'
+    canonical_path.parent.mkdir(parents=True)
+    canonical_path.write_text('<canonical />', encoding='utf-8')
+    (sample_path / 'policy.xml').write_text('<legacy />', encoding='utf-8')
+    monkeypatch.setattr(utils, 'get_project_root', lambda: tmp_path)
+
+    result = utils.determine_policy_path('policy.xml', 'test-sample')
+
+    assert result == str(canonical_path)
+
+
+def test_determine_policy_path_falls_back_to_sample_root(monkeypatch, tmp_path):
+    """Test unmigrated sample policies still resolve from the sample root."""
+    legacy_path = tmp_path / 'samples' / 'test-sample' / 'policy.xml'
+    legacy_path.parent.mkdir(parents=True)
+    legacy_path.write_text('<legacy />', encoding='utf-8')
+    monkeypatch.setattr(utils, 'get_project_root', lambda: tmp_path)
+
+    result = utils.determine_policy_path('policy.xml', 'test-sample')
+
+    assert result == str(legacy_path)
+
+
+def test_determine_policy_path_auto_detects_canonical_directory(monkeypatch, tmp_path):
+    """Test auto-detected sample names resolve canonical policy paths."""
+    canonical_path = tmp_path / 'samples' / 'test-sample' / 'apim-policies' / 'policy.xml'
+    canonical_path.parent.mkdir(parents=True)
+    canonical_path.write_text('<canonical />', encoding='utf-8')
+
+    class FakeFrame:
+        def __init__(self):
+            self.f_back = MagicMock()
+            self.f_back.f_globals = {'__file__': str(tmp_path / 'samples' / 'test-sample' / 'helper.py')}
+
+    monkeypatch.setattr(utils, 'get_project_root', lambda: tmp_path)
+    monkeypatch.setattr(utils.inspect, 'currentframe', FakeFrame)
+
+    result = utils.determine_policy_path('policy.xml')
+
+    assert result == str(canonical_path)
+
+
+def test_read_policy_xml_missing_filename_raises(monkeypatch, tmp_path):
+    """Test missing filename-only policies raise FileNotFoundError after fallback."""
+    monkeypatch.setattr(utils, 'get_project_root', lambda: tmp_path)
+
+    with pytest.raises(FileNotFoundError):
+        utils.read_policy_xml('missing.xml', sample_name='test-sample')
+
+
 def test_wait_for_apim_blob_permissions_success(monkeypatch, suppress_console):
     """Test wait_for_apim_blob_permissions with successful wait."""
     monkeypatch.setattr(az, 'check_apim_blob_permissions', lambda *args: True)
