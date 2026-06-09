@@ -1516,6 +1516,7 @@ def test_deploy_sample_with_infrastructure_selection(monkeypatch, suppress_conso
     # Verify the helper was updated with selected infrastructure
     assert nb_helper.deployment == selected_infra
     assert nb_helper.rg_name == 'apim-infra-apim-aca-2'
+    assert nb_helper._infrastructure_selection_completed is True
     assert result.success is True
 
 
@@ -1608,21 +1609,13 @@ def test_deploy_sample_with_jwt(monkeypatch, suppress_console):
 
 
 def test_deploy_sample_infrastructure_selection_already_completed(monkeypatch, suppress_console):
-    """Test deploy_sample when infrastructure selection was already completed in globals."""
+    """Test deploy_sample skips repeated infrastructure selection on the same helper."""
     nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM])
 
     # Mock does_resource_group_exist to return False (infrastructure doesn't exist)
     monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: False)
 
-    # Set the global variable to simulate previous infrastructure selection
-    original_globals = builtins.globals
-
-    def mock_globals():
-        result = original_globals()
-        result['infrastructure_selection_completed'] = True
-        return result
-
-    monkeypatch.setattr('builtins.globals', mock_globals)
+    nb_helper._infrastructure_selection_completed = True
 
     # Mock successful deployment
     mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')

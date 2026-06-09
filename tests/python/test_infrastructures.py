@@ -842,7 +842,7 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
     class TestInfrastructure(infrastructures.Infrastructure):
         """Concrete subclass for testing deploy success."""
 
-        def verify_infrastructure(self) -> bool:
+        def _verify_infrastructure(self, rg_name: str) -> bool:
             return True
 
     # Mock file writing and JSON dumps to avoid MagicMock serialization issues
@@ -871,6 +871,32 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
     mock_json_dumps.assert_called_once()
 
     assert result.success is True
+
+
+@pytest.mark.unit
+@patch('os.getcwd', return_value='/original/path')
+@patch('os.chdir')
+def test_deploy_infrastructure_returns_failed_output_when_verification_fails(mock_chdir, mock_getcwd, mock_utils, mock_az):
+    """A successful ARM deployment should report failure when post-deployment verification fails."""
+    mock_utils.Output.side_effect = Output
+    mock_az.run.return_value = Output(
+        True,
+        '{"apimResourceGatewayURL": {"value": "https://test-apim.azure-api.net"}, "apiOutputs": {"value": []}}',
+    )
+
+    infra = infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=TEST_INDEX, rg_location=TEST_LOCATION)
+    infra._verify_infrastructure = Mock(return_value=False)
+
+    with (
+        patch('builtins.open', MagicMock()),
+        patch('json.dumps', return_value='{"mocked": "params"}'),
+        patch('utils.read_policy_xml', return_value='<policy/>'),
+    ):
+        result = infra.deploy_infrastructure()
+
+    assert result.success is False
+    assert result.text == 'Infrastructure verification failed'
+    infra._verify_infrastructure.assert_called_once_with(infra.rg_name)
 
 
 @pytest.mark.unit
@@ -2839,6 +2865,31 @@ def test_afd_apim_aca_deploy_infrastructure_returns_failed_output_when_approve_f
 
 
 @pytest.mark.unit
+def test_afd_apim_aca_deploy_infrastructure_stops_before_lockdown_when_connectivity_fails(mock_utils, mock_az):
+    """AFD deploy should keep public access enabled when APIM connectivity cannot be verified."""
+    mock_utils.Output.side_effect = Output
+
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location='eastus', index=1)
+
+    base_output = Mock(success=True, json_data={'any': 'value'})
+    base_output.get.side_effect = lambda key, *_args, **_kwargs: {
+        'apimServiceId': '/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test',
+        'apimResourceGatewayURL': 'https://test-apim.azure-api.net',
+    }.get(key)
+
+    infra._approve_private_link_connections = Mock(return_value=True)
+    infra._verify_apim_connectivity = Mock(return_value=False)
+    infra._disable_apim_public_access = Mock(return_value=True)
+
+    with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=base_output):
+        result = infra.deploy_infrastructure(is_update=False)
+
+    assert result.success is False
+    assert result.text == 'APIM connectivity verification failed'
+    infra._disable_apim_public_access.assert_not_called()
+
+
+@pytest.mark.unit
 def test_appgw_apim_pe_deploy_infrastructure_success_calls_steps_and_sets_appgw_fields(mock_utils, mock_az):
     """APPGW PE deploy should create prereqs, deploy, approve, verify connectivity, disable public access."""
     mock_utils.Output.side_effect = Output
@@ -2889,6 +2940,34 @@ def test_appgw_apim_pe_deploy_infrastructure_returns_failed_output_when_keyvault
 
     assert result.success is False
     assert result.text == 'Failed to create Key Vault'
+
+
+@pytest.mark.unit
+def test_appgw_apim_pe_deploy_infrastructure_stops_before_lockdown_when_connectivity_fails(mock_utils, mock_az):
+    """Application Gateway deploy should keep public access enabled when APIM connectivity cannot be verified."""
+    mock_utils.Output.side_effect = Output
+
+    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
+
+    base_output = Mock(success=True, json_data={'any': 'value'})
+    base_output.get.side_effect = lambda key, *_args, **_kwargs: {
+        'apimServiceId': '/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test',
+        'apimResourceGatewayURL': 'https://test-apim.azure-api.net',
+        'appGatewayDomainName': 'api.example.com',
+        'appgwPublicIpAddress': '1.2.3.4',
+    }.get(key)
+
+    infra._prepare_keyvault_certificate = Mock(return_value=True)
+    infra._approve_private_link_connections = Mock(return_value=True)
+    infra._verify_apim_connectivity = Mock(return_value=False)
+    infra._disable_apim_public_access = Mock(return_value=True)
+
+    with patch.object(infrastructures.Infrastructure, 'deploy_infrastructure', return_value=base_output):
+        result = infra.deploy_infrastructure(is_update=False)
+
+    assert result.success is False
+    assert result.text == 'APIM connectivity verification failed'
+    infra._disable_apim_public_access.assert_not_called()
 
 
 @pytest.mark.unit
@@ -4041,8 +4120,7 @@ def test_verify_apim_connectivity_non_200_response(mock_utils):
 
     with patch('requests.get') as mock_get:
         mock_get.return_value = Mock(status_code=404)
-        # Should still return True (continues anyway)
-        assert infra._verify_apim_connectivity('https://test.apim.net') is True
+        assert infra._verify_apim_connectivity('https://test.apim.net') is False
 
 
 @pytest.mark.unit
@@ -4052,8 +4130,7 @@ def test_verify_apim_connectivity_exception(mock_utils):
 
     with patch('requests.get') as mock_get:
         mock_get.side_effect = Exception('Connection timeout')
-        # Should still return True (continues anyway)
-        assert infra._verify_apim_connectivity('https://test.apim.net') is True
+        assert infra._verify_apim_connectivity('https://test.apim.net') is False
 
 
 @pytest.mark.unit

@@ -296,6 +296,7 @@ class NotebookHelper:
         self.index = index
         self.is_debug = is_debug
         self.apim_sku = apim_sku
+        self._infrastructure_selection_completed = False
 
         validate_infrastructure(deployment, self.supported_infrastructures)
 
@@ -539,8 +540,8 @@ class NotebookHelper:
         if not rg_exists:
             print_info('Desired infrastructure does not exist.\n')
 
-            # Check if we've already done infrastructure selection (prevent double execution)
-            if 'infrastructure_selection_completed' not in globals():
+            # Check if this helper has already completed infrastructure selection.
+            if not self._infrastructure_selection_completed:
                 # Use the NotebookHelper's infrastructure selection process
                 selected_deployment, selected_index = self._query_and_select_infrastructure()
 
@@ -551,6 +552,7 @@ class NotebookHelper:
                 self.deployment = selected_deployment
                 self.index = selected_index
                 self.rg_name = az.get_infra_rg_name(self.deployment, self.index)
+                self._infrastructure_selection_completed = True
 
                 # Verify the updates were applied correctly
                 print_plain('📝 Updated infrastructure variables')
