@@ -88,6 +88,11 @@ def normalize_notebook_metadata(notebook: dict) -> dict:
 
 def normalize_stream(input_stream, output_stream) -> None:
     """Read a notebook from input_stream, normalize it, write to output_stream."""
+    if hasattr(input_stream, 'reconfigure'):
+        input_stream.reconfigure(encoding='utf-8')
+    if hasattr(output_stream, 'reconfigure'):
+        output_stream.reconfigure(encoding='utf-8', newline='\n')
+
     notebook = json.load(input_stream)
     normalize_notebook_metadata(notebook)
     json.dump(notebook, output_stream, indent=1, ensure_ascii=False)
