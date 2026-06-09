@@ -148,8 +148,10 @@ Each sample in `samples/[sample-name]/` must contain:
 - `create.ipynb` - Jupyter notebook that deploys and demonstrates the sample
 - `main.bicep` - Bicep template for deploying sample resources
 - `README.md` - Documentation explaining the sample, use cases, and concepts
-- `*.xml` - APIM policy files (if applicable to the sample)
-- `*.kql` - KQL (Kusto Query Language) files (if applicable to the sample)
+- `apim-policies/*.xml` - Sample-owned APIM policy files (if applicable to the sample)
+- `queries/*.kql` - KQL (Kusto Query Language) files (if applicable to the sample)
+
+New sample-owned APIM policy XML and KQL files must not be placed at the sample root. Existing root-level files may remain until their sample is migrated.
 
 ### New Sample Sync Checklist
 
@@ -524,11 +526,12 @@ Check `docs/README.md` for local preview instructions and styling notes. The pag
 
 ### KQL (Kusto Query Language) Instructions
 
-- Store KQL queries in dedicated `.kql` files within the sample folder rather than embedding them inline in Python code. This keeps notebooks readable and lets users copy-paste the query directly into a Log Analytics or Azure Data Explorer query editor.
-- Load `.kql` files at runtime using `utils.determine_policy_path()` and `Path.read_text()`:
+- Store every sample-owned KQL query in a dedicated `.kql` file under `samples/<sample-name>/queries/` rather than at the sample root or embedded inline in Python code. This keeps notebooks readable and lets users copy-paste the query directly into a Log Analytics or Azure Data Explorer query editor.
+- Resolve `.kql` files from the sample's `queries/` directory and load them with `Path.read_text()`:
   ```python
   from pathlib import Path
-  kql_path = utils.determine_policy_path('my-query.kql', sample_folder)
+
+  kql_path = Path(utils.get_project_root()) / 'samples' / sample_folder / 'queries' / 'my-query.kql'
   kql_query = Path(kql_path).read_text(encoding='utf-8')
   ```
 - Parameterise KQL queries using native `let` bindings. Define parameters as `let` statements prepended to the query body at runtime, keeping the `.kql` file free of Python string interpolation:
@@ -600,5 +603,8 @@ Samples that require administrative or operational endpoints (cache loading, con
 
 ### API Management Policy XML Instructions
 
+- Store every sample-owned APIM policy XML file under `samples/<sample-name>/apim-policies/`. Keep reusable, cross-sample policy assets under `shared/apim-policies/`.
+- When migrating existing samples, update policy path helpers to check `samples/<sample-name>/apim-policies/` first and the sample root second as a temporary backwards-compatible fallback. New files must use `apim-policies/`; do not rely on the fallback for newly created policies.
+- After moving KQL or policy XML files, check and update every notebook, Python helper, Bicep `loadTextContent()` call, test, script, and documentation reference that consumes them. Add or update tests for canonical-directory resolution, root-level fallback, explicit paths, auto-detected sample names, and missing files before considering the migration complete.
 - Policies should use camelCase for all variable names.
 - Policy expressions (`@(...)` and `@{...}`) may **only** reference .NET types and members on APIM's [allow-list](https://learn.microsoft.com/azure/api-management/api-management-policy-expressions#CLRTypes). Using anything outside the list (e.g. `System.Globalization.*`, `DateTime.TryParse`, `DateTime.ToUniversalTime`, `System.Text.Json`) causes a deploy-time `ValidationError: One or more fields contain incorrect values` with no further detail. Verify each type/member against the allow-list before writing the expression. See `.github/skills/apim-policies/SKILL.md` for common pitfalls and allowed replacements.

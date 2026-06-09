@@ -193,7 +193,10 @@ If you are unsure whether a member is allowed, fetch the [allowed types table](h
 
 ## Reference Documentation
 
+- **Sample-owned policies in this repo**: `samples/<sample-name>/apim-policies/` (all XML policies specific to one sample)
 - **Shared policies in this repo**: `shared/apim-policies/` (reusable policy XML fragments)
+
+Policy-loading helpers must check the sample's `apim-policies/` directory first. During migration only, they may check the sample root second so existing root-level policies continue to work. New policy files must not use the fallback location.
 
 ## Official Documentation
 

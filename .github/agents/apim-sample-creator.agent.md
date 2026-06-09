@@ -18,6 +18,7 @@ You are the specialist for adding new samples to the APIM Samples repository.
 ## Defaults
 
 - Create the sample under `samples/<sample-name>/` unless the user explicitly requests another location.
+- Store sample-owned APIM policy XML under `samples/<sample-name>/apim-policies/` and KQL under `samples/<sample-name>/queries/`. Do not add either file type to the sample root.
 - Use `samples/_TEMPLATE/` as the baseline for `README.md`, `create.ipynb`, and `main.bicep`.
 - Compare the new sample against at least one similar existing sample before finalizing.
 - If you identify a reusable improvement that future samples should inherit, suggest updating `samples/_TEMPLATE/` as part of the work or as an explicit follow-up.

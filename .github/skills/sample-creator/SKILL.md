@@ -13,10 +13,13 @@ Every sample under `samples/` must contain these files:
 
 ```
 samples/<sample-name>/
-├── README.md         (documentation)
-├── create.ipynb      (Jupyter notebook for deployment)
-├── main.bicep        (infrastructure as code)
-└── *.xml             (optional: APIM policy files)
+├── README.md              (documentation)
+├── create.ipynb           (Jupyter notebook for deployment)
+├── main.bicep             (infrastructure as code)
+├── apim-policies/         (optional: sample-owned APIM policy XML)
+│   └── *.xml
+└── queries/               (optional: sample-owned KQL queries)
+    └── *.kql
 ```
 
 ## Step 1: Gather Requirements
@@ -293,7 +296,7 @@ output apiOutputs array = [for i in range(0, length(apis)): {
 
 ## Step 6: Create Policy XML Files (If Needed)
 
-For samples with custom policies, create XML files following the APIM policy structure:
+For samples with custom policies, create XML files under `samples/<sample-name>/apim-policies/` following the APIM policy structure. Do not place new policy files at the sample root. Keep policies intended for reuse across samples under `shared/apim-policies/`.
 
 ```xml
 <policies>
@@ -319,6 +322,14 @@ Load policies in the notebook:
 ```python
 pol_example = utils.read_policy_xml('example-policy.xml', sample_name = sample_folder)
 ```
+
+The policy path helper must resolve the sample's `apim-policies/` directory before checking the sample root. The root lookup is a temporary backwards-compatible fallback for samples that have not yet been migrated, not a location for new files.
+
+## Step 6a: Create KQL Query Files (If Needed)
+
+Store every sample-owned KQL query under `samples/<sample-name>/queries/`. Do not place new `.kql` files at the sample root or embed reusable queries directly in notebook code.
+
+After adding or moving policy XML or KQL files, verify all notebook, Python helper, Bicep, test, script, and documentation references. Test canonical-directory lookup, legacy root fallback for policy XML, explicit paths, sample-name auto-detection, and missing-file behavior where applicable.
 
 ## Step 7: Update Repository Surfaces
 
@@ -398,6 +409,7 @@ Available infrastructure types:
 - **Folder name**: kebab-case (e.g., `oauth-validation`)
 - **API prefix**: short, unique, ending with hyphen (e.g., `oauth-`)
 - **Policy files**: descriptive, kebab-case with `.xml` extension
+- **Query files**: descriptive, kebab-case with `.kql` extension
 - **Python variable names**: snake_case per PEP 8 (note: `apimtypes` constructor parameters use camelCase for JSON mapping)
 
 ## Validation Checklist
@@ -408,6 +420,9 @@ Before committing, verify:
 - [ ] create.ipynb has all required cells with correct order
 - [ ] main.bicep references shared modules correctly
 - [ ] Policy XML files are well-formed
+- [ ] Sample-owned policy XML files are under `apim-policies/`
+- [ ] Sample-owned KQL files are under `queries/`
+- [ ] File consumers and path-resolution tests cover the canonical locations and any temporary fallback
 - [ ] `sample_folder` matches the actual folder name
 - [ ] `supported_infras` list is accurate
 - [ ] All API paths use the defined `api_prefix`
