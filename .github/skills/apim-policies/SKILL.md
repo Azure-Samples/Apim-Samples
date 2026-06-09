@@ -85,7 +85,7 @@ Apply policies based on conditions:
 
 ```xml
 <choose>
-    <when condition="@(context.Request.Headers.GetValueOrDefault("X-Custom","") == "value")">
+    <when condition="@(context.Request.Headers.GetValueOrDefault(&quot;X-Custom&quot;, &quot;&quot;) == &quot;value&quot;)">
         <!-- policies when condition is true -->
     </when>
     <otherwise>
@@ -123,6 +123,20 @@ Retry failed requests with conditions:
 
 Policy expressions use C# syntax within `@()` for single statements or `@{}` for multi-statement blocks.
 
+### Quotes in XML Attributes
+
+When a policy expression is inside a double-quoted XML attribute, encode every double quote within the expression as `&quot;`. Raw inner double quotes terminate the attribute and make the policy XML malformed.
+
+```xml
+<set-variable name="callerId" value="@((string)context.Variables[&quot;callerId&quot;])" />
+```
+
+Double quotes do not need entity encoding when the expression is element text:
+
+```xml
+<value>@((string)context.Variables["callerId"])</value>
+```
+
 ### Common Expressions
 
 ```csharp
@@ -156,7 +170,7 @@ Policy expressions use C# syntax within `@()` for single statements or `@{}` for
 ```xml
 <set-variable name="result" value="@{
     string[] value;
-    if (context.Request.Headers.TryGetValue("Authorization", out value))
+    if (context.Request.Headers.TryGetValue(&quot;Authorization&quot;, out value))
     {
         if(value != null && value.Length > 0)
         {
