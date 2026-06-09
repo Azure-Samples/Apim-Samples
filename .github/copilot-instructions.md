@@ -224,8 +224,9 @@ Structure:
    - **DO NOT** manually query for APIM services
    - **DO NOT** pass `apimServiceName` to `bicep_parameters` if the infrastructure already provides it
 3. Call `nb_helper.deploy_sample(bicep_parameters)` to deploy Bicep template
-4. Extract deployment outputs and store as **individual variables** (not in a dictionary)
-   - Example: `apim_name = output.get('apimServiceName')`, `app_insights_name = output.get('applicationInsightsName')`
+4. Call `nb_helper.get_deployment_context(output)` to validate common outputs, then store its fields as **individual variables** (not in a dictionary)
+  - Example: `apim_name = deployment_context.apim_name`, `apim_gateway_url = deployment_context.apim_gateway_url`
+  - Continue to use `output.get(...)` or `output.getJson(...)` for sample-specific outputs that are not part of `SampleDeploymentContext`
 
 **Invalid approach** (do NOT do this):
 ```python
@@ -245,7 +246,10 @@ bicep_parameters = {
     'costExportFrequency': {'value': cost_export_frequency}
 }
 output = nb_helper.deploy_sample(bicep_parameters)
-apim_name = output.get('apimServiceName')  # Get from output
+deployment_context = nb_helper.get_deployment_context(output)
+apim_name = deployment_context.apim_name
+apim_gateway_url = deployment_context.apim_gateway_url
+apim_apis = deployment_context.apis
 ```
 
 **Subsequent cells:**
@@ -271,7 +275,8 @@ deployment = INFRASTRUCTURE.SIMPLE_APIM
 subscription_id = get_account_info()[2]
 
 # Deployment cell
-apim_name = apim_services[0]['name']
+deployment_context = nb_helper.get_deployment_context(output)
+apim_name = deployment_context.apim_name
 app_insights_name = output.get('applicationInsightsName')
 
 # Cost export cell
@@ -289,6 +294,8 @@ storage_account_id = f'/subscriptions/{subscription_id}/...'
   2. If not found, queries all available infrastructures and prompts user to select or create new
   3. Executes the Bicep deployment with provided parameters
   4. Returns `Output` object containing deployment results (resource names, IDs, connection strings, endpoints)
+- `get_deployment_context(output=None)`: Validates and returns the common APIM service name, gateway URL, and API outputs. When `output` is omitted, it uses the successful output cached by `deploy_sample()`.
+- `create_apim_requests(apim_gateway_url, subscription_key=None, headers=None)`: Resolves the selected infrastructure endpoint and creates a configured `ApimRequests` client.
 
 **How to use:**
 1. Initialize in the configuration cell (Cell 4):
@@ -313,11 +320,13 @@ storage_account_id = f'/subscriptions/{subscription_id}/...'
    output = nb_helper.deploy_sample(bicep_parameters)
    ```
 
-3. Extract outputs:
+3. Extract common and sample-specific outputs:
    ```python
-   apim_name = output.get('apimServiceName')
+  deployment_context = nb_helper.get_deployment_context(output)
+  apim_name = deployment_context.apim_name
+  apim_gateway_url = deployment_context.apim_gateway_url
+  apim_apis = deployment_context.apis
    app_insights_name = output.get('applicationInsightsName')
-   # ... extract all needed resources
    ```
 
 **CRITICAL: Do not bypass NotebookHelper!**
@@ -392,10 +401,10 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 ### Testing and Traffic Generation
 
 - Use the `ApimRequests` and `ApimTesting` classes from `apimrequests.py` and `apimtesting.py` for structured API testing with verbose logging and response formatting.
-- **Favour `requests.Session()` for loops, multi-caller traffic, and any code that sends more than one HTTP request.** Creating a new `ApimRequests` instance (or a bare `requests.get/post`) inside a loop opens a fresh TCP+TLS connection on every iteration, adding 200-500 ms per request. Instead, create a single `requests.Session()` at the top of the section, configure `session.verify` and `session.headers` once from `utils.get_endpoint()`, and route all calls through it. Close the session in a `finally` block. Import as `import requests as http_requests` for clarity when the `requests` name would shadow other uses.
-- `ApimRequests` already uses a session internally for its `multiGet`/`multiPost` methods, so a single `ApimRequests` instance per loop iteration is acceptable when you need its verbose logging. However, if you only need to send requests without per-request logging, prefer a raw `requests.Session()` loop — it is simpler and avoids creating throw-away objects.
+- **Favour `requests.Session()` for high-volume loops and multi-caller traffic that does not need per-request logging.** Creating a bare `requests.get/post` inside a loop opens a fresh TCP+TLS connection on every iteration, adding 200-500 ms per request. Create one session at the top of the section, route all calls through it, and close it in a `finally` block. Import as `import requests as http_requests` for clarity when the `requests` name would shadow other uses.
+- `ApimRequests` uses one reusable session for single, multiple, and asynchronous requests. Create it through `nb_helper.create_apim_requests(...)` and use it as a context manager so endpoint routing, infrastructure headers, TLS behavior, and cleanup remain consistent.
 - **One session per cell is fine.** Each notebook cell should be independently runnable, so create and close a session within the same cell rather than sharing one across cells.
-- Use `utils.get_endpoint(deployment, rg_name, apim_gateway_url)` to determine the correct endpoint URL, headers, and TLS verification flag based on the infrastructure type. `allow_insecure_tls` is returned as `True` only for Application Gateway infrastructures because they use a self-signed certificate; it defaults to `False` everywhere else.
+- For `ApimRequests`, use `nb_helper.create_apim_requests(...)` to resolve the correct endpoint URL, headers, and TLS behavior. Use `utils.get_endpoint(...)` directly only when constructing a raw session for high-volume traffic.
 - Session pattern example (preferred for loops):
   ```python
   import requests as http_requests
@@ -418,14 +427,11 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
   ```
 - ApimRequests example (for structured test verification with logging):
   ```python
-  from apimrequests import ApimRequests
   from apimtesting import ApimTesting
 
   tests = ApimTesting("Sample Tests", sample_folder, nb_helper.deployment)
-  endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(deployment, rg_name, apim_gateway_url)
-  reqs = ApimRequests(endpoint_url, subscription_key, request_headers, allowInsecureTls=allow_insecure_tls)
-
-  output = reqs.singleGet('/api-path', msg='Calling API')
+  with nb_helper.create_apim_requests(apim_gateway_url, subscription_key) as reqs:
+      output = reqs.singleGet('/api-path', msg='Calling API')
   tests.verify('Expected String' in output, True)
   ```
 

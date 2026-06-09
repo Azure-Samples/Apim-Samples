@@ -546,8 +546,15 @@ class MockApimRequestsPatches:
         self.mocks = {}
 
     def __enter__(self):
+        self.session_patch = patch('apimrequests.requests.Session')
+        self.session_class = self.session_patch.__enter__()
+        self.patches.append(self.session_patch)
+        self.session = MagicMock()
+        self.session_class.return_value = self.session
+        self.request = self.session.request
+        self.mocks['request'] = self.request
+
         patch_targets = [
-            ('apimrequests.requests.request', 'request'),
             ('apimrequests.print_message', 'print_message'),
             ('apimrequests.print_info', 'print_info'),
             ('apimrequests.print_error', 'print_error'),

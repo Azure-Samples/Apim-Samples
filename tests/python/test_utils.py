@@ -1558,7 +1558,81 @@ def test_deploy_sample_existing_infrastructure(monkeypatch):
     # Verify the helper was not modified (still has original values)
     assert nb_helper.deployment == INFRASTRUCTURE.SIMPLE_APIM
     assert nb_helper.rg_name == 'test-rg'
+    assert nb_helper.deployment_outputs is mock_output
     assert result.success is True
+
+
+def test_get_deployment_context_uses_cached_successful_output():
+    """Test common deployment outputs are validated and exposed as typed fields."""
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM)
+    nb_helper.deployment_outputs = utils.Output(
+        True,
+        json.dumps(
+            {
+                'apimServiceName': {'value': 'test-apim'},
+                'apimResourceGatewayURL': {'value': 'https://test-apim.azure-api.net'},
+                'apiOutputs': {'value': [{'name': 'api-one'}]},
+            }
+        ),
+    )
+
+    context = nb_helper.get_deployment_context()
+
+    assert context.apim_name == 'test-apim'
+    assert context.apim_gateway_url == 'https://test-apim.azure-api.net'
+    assert context.apis == [{'name': 'api-one'}]
+
+
+def test_get_deployment_context_rejects_missing_or_failed_output():
+    """Test deployment context creation fails clearly without successful outputs."""
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM)
+
+    with pytest.raises(RuntimeError, match='No sample deployment output'):
+        nb_helper.get_deployment_context()
+
+    with pytest.raises(RuntimeError, match='failed sample deployment'):
+        nb_helper.get_deployment_context(utils.Output(False, 'Deployment failed'))
+
+
+def test_get_deployment_context_rejects_invalid_api_outputs():
+    """Test API outputs must retain their structured list shape."""
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM)
+    output = utils.Output(
+        True,
+        json.dumps(
+            {
+                'apimServiceName': {'value': 'test-apim'},
+                'apimResourceGatewayURL': {'value': 'https://test-apim.azure-api.net'},
+                'apiOutputs': {'value': 'not-a-list'},
+            }
+        ),
+    )
+
+    with pytest.raises(TypeError, match='apiOutputs'):
+        nb_helper.get_deployment_context(output)
+
+
+def test_create_apim_requests_uses_selected_infrastructure_and_merges_headers(monkeypatch):
+    """Test NotebookHelper creates a configured APIM client with caller header precedence."""
+    nb_helper = utils.NotebookHelper('test-sample', 'selected-rg', 'eastus', INFRASTRUCTURE.APPGW_APIM)
+    monkeypatch.setattr(
+        utils,
+        'get_endpoint',
+        lambda deployment, rg_name, gateway_url: ('https://1.2.3.4', {'Host': 'api.example.com', 'X-Source': 'infra'}, True),
+    )
+
+    client = nb_helper.create_apim_requests(
+        'https://test-apim.azure-api.net',
+        subscription_key='test-key',
+        headers={'Authorization': 'Bearer token', 'X-Source': 'caller'},
+    )
+
+    assert client._url == 'https://1.2.3.4'
+    assert client.subscriptionKey == 'test-key'
+    assert client.allowInsecureTls is True
+    assert client.headers['Host'] == 'api.example.com'
+    assert client.headers['Authorization'] == 'Bearer token'
+    assert client.headers['X-Source'] == 'caller'
 
 
 def test_deploy_sample_deployment_failure(monkeypatch):

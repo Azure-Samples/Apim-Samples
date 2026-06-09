@@ -14,12 +14,14 @@ import sys
 import tempfile
 import time
 import warnings
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Tuple
 
 # APIM Samples imports
 import azure_resources as az
 import logging_config
+from apimrequests import ApimRequests
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, get_project_root  # noqa: F401 (Endpoints re-exported for callers)
 from console import print_error, print_info, print_message, print_ok, print_plain, print_secret, print_val, print_warning
 
@@ -88,6 +90,15 @@ def build_infrastructure_tags(infrastructure: str | INFRASTRUCTURE, custom_tags:
 # ------------------------------
 #    CLASSES
 # ------------------------------
+
+
+@dataclass(frozen=True)
+class SampleDeploymentContext:
+    """Common outputs produced by every sample deployment."""
+
+    apim_name: str
+    apim_gateway_url: str
+    apis: list[dict[str, Any]]
 
 
 class InfrastructureNotebookHelper:
@@ -297,6 +308,7 @@ class NotebookHelper:
         self.is_debug = is_debug
         self.apim_sku = apim_sku
         self._infrastructure_selection_completed = False
+        self.deployment_outputs: Output | None = None
 
         validate_infrastructure(deployment, self.supported_infrastructures)
 
@@ -580,6 +592,7 @@ class NotebookHelper:
 
         # Print a deployment summary, if successful; otherwise, exit with an error
         if output.success:
+            self.deployment_outputs = output
             if self.use_jwt:
                 apim_name = output.get('apimServiceName')
                 self._clean_up_jwt(apim_name)
@@ -589,6 +602,55 @@ class NotebookHelper:
             raise SystemExit('Deployment failed')
 
         return output
+
+    def get_deployment_context(self, output: Output | None = None) -> SampleDeploymentContext:
+        """Return validated common outputs from a successful sample deployment."""
+
+        deployment_output = output or self.deployment_outputs
+        if deployment_output is None:
+            raise RuntimeError('No sample deployment output is available. Run deploy_sample() first or pass an Output instance.')
+        if not deployment_output.success:
+            raise RuntimeError('Cannot create a deployment context from a failed sample deployment.')
+
+        apim_name = deployment_output.get('apimServiceName', suppress_logging=True)
+        apim_gateway_url = deployment_output.get('apimResourceGatewayURL', suppress_logging=True)
+        apis = deployment_output.getJson('apiOutputs', suppress_logging=True)
+
+        missing_outputs = [
+            name
+            for name, value in (
+                ('apimServiceName', apim_name),
+                ('apimResourceGatewayURL', apim_gateway_url),
+                ('apiOutputs', apis),
+            )
+            if value is None
+        ]
+        if missing_outputs:
+            raise ValueError(f'Missing required sample deployment output(s): {", ".join(missing_outputs)}')
+        if not isinstance(apis, list) or not all(isinstance(api, dict) for api in apis):
+            raise TypeError("Sample deployment output 'apiOutputs' must be a list of objects.")
+
+        return SampleDeploymentContext(apim_name=apim_name, apim_gateway_url=apim_gateway_url, apis=apis)
+
+    def create_apim_requests(
+        self,
+        apim_gateway_url: str,
+        subscription_key: str | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> ApimRequests:
+        """Create an APIM request client for the helper's selected infrastructure."""
+
+        endpoint_url, request_headers, allow_insecure_tls = get_endpoint(self.deployment, self.rg_name, apim_gateway_url)
+        merged_headers = request_headers.copy() if request_headers else {}
+        if headers:
+            merged_headers.update(headers)
+
+        return ApimRequests(
+            endpoint_url,
+            subscription_key,
+            merged_headers or None,
+            allowInsecureTls=allow_insecure_tls,
+        )
 
     def wait_for_kql(
         self,
