@@ -90,3 +90,9 @@ def test_html_report_rejects_mismatched_table_column_widths() -> None:
 
     with pytest.raises(ValueError, match='Table column widths must match the header count'):
         report.add_table('Rows', ['Name', 'Value'], [['one', 1]], column_widths=['100%'])
+
+
+def test_html_report_renders_plain_rows_and_unformatted_html_text() -> None:
+    """Render fallback table rows and HtmlText without optional bold formatting."""
+    assert HtmlReport._table_row(['<plain>']) == '<tr><td>&lt;plain&gt;</td></tr>'
+    assert HtmlReport._render_text(HtmlText('<plain>')) == '&lt;plain&gt;'

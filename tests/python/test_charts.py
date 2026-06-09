@@ -13,6 +13,14 @@ import pytest
 from apimtypes import HttpStatusCode
 from charts import BarChart
 
+
+def test_request_summary_formatters_handle_singular_plural_and_empty_totals():
+    """Format request counts grammatically and avoid division by zero."""
+    assert charts._format_request_count(1) == '1 request'
+    assert charts._format_request_count(2) == '2 requests'
+    assert charts._format_percentage(1, 2) == '50.0%'
+    assert charts._format_percentage(0, 0) == '0.0%'
+
 # Add the shared/python directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'shared', 'python'))
 
@@ -773,3 +781,31 @@ def test_plot_barchart_omits_vertical_separator_when_none(monkeypatch):
     chart._plot_barchart(results)
 
     axvline_mock.assert_not_called()
+
+
+def test_render_executes_plotting_without_displaying(monkeypatch):
+    """Render returns the generated figure without calling pyplot.show."""
+    results = [{'run': 1, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 1}'}]
+    mock_ax = MagicMock()
+    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: mock_ax, raising=False)
+    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'figtext', 'axhline', 'text']:
+        monkeypatch.setattr(charts.plt, attr, MagicMock())
+    show_mock = MagicMock()
+    monkeypatch.setattr(charts.plt, 'show', show_mock)
+
+    assert BarChart('Test', 'X', 'Y', results).render() is mock_ax.figure
+    show_mock.assert_not_called()
+
+
+def test_plot_barchart_shows_other_non_200_responses(monkeypatch):
+    """Give non-4xx and non-5xx responses a distinct accessible legend entry."""
+    results = [{'run': 1, 'response_time': 0.1, 'status_code': 302, 'response': ''}]
+    mock_ax = MagicMock()
+    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: mock_ax, raising=False)
+    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext']:
+        monkeypatch.setattr(charts.plt, attr, MagicMock())
+
+    BarChart('Test', 'X', 'Y', results)._plot_barchart(results)
+
+    legend_names = mock_ax.legend.call_args.args[1]
+    assert legend_names == ['!!! OTHER NON-200 RESPONSES - 1 request !!!']
