@@ -68,6 +68,17 @@ def empty_api_results():
     return []
 
 
+@pytest.fixture
+def mock_chart_plotting(monkeypatch):
+    """Replace chart plotting boundaries while retaining real pandas data processing."""
+    mock_plt = MagicMock()
+    mock_ax = MagicMock()
+    monkeypatch.setattr(charts, 'plt', mock_plt)
+    monkeypatch.setattr(charts.pd.DataFrame, 'plot', lambda self, *args, **kwargs: mock_ax)
+
+    return mock_plt, mock_ax
+
+
 # ------------------------------
 #    TEST BARCHART INITIALIZATION
 # ------------------------------
@@ -613,7 +624,7 @@ def test_average_line_all_data_outliers(mock_pd, mock_plt):
     mock_plt.text.assert_called()
 
 
-def test_plot_barchart_skips_average_line_without_success(monkeypatch):
+def test_plot_barchart_skips_average_line_without_success(mock_chart_plotting):
     """Ensure average line is skipped when there are no 200 responses."""
 
     no_success_results = [
@@ -623,23 +634,15 @@ def test_plot_barchart_skips_average_line_without_success(monkeypatch):
 
     chart = BarChart('Test', 'X', 'Y', no_success_results)
 
-    # Prevent real plotting
-    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: MagicMock(), raising=False)
-    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext']:
-        monkeypatch.setattr(charts.plt, attr, MagicMock())
-
-    axhline_mock = MagicMock()
-    text_mock = MagicMock()
-    monkeypatch.setattr(charts.plt, 'axhline', axhline_mock)
-    monkeypatch.setattr(charts.plt, 'text', text_mock)
+    mock_plt, _ = mock_chart_plotting
 
     chart._plot_barchart(no_success_results)
 
-    axhline_mock.assert_not_called()
-    text_mock.assert_not_called()
+    mock_plt.axhline.assert_not_called()
+    mock_plt.text.assert_not_called()
 
 
-def test_plot_barchart_skips_average_when_filtered_empty(monkeypatch):
+def test_plot_barchart_skips_average_when_filtered_empty(monkeypatch, mock_chart_plotting):
     """Ensure average line is skipped when all successful rows are filtered out."""
 
     success_results = [
@@ -649,25 +652,17 @@ def test_plot_barchart_skips_average_when_filtered_empty(monkeypatch):
 
     chart = BarChart('Test', 'X', 'Y', success_results)
 
-    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: MagicMock(), raising=False)
+    mock_plt, _ = mock_chart_plotting
 
     def fake_quantile(self, q, *args, **kwargs):
         return 0  # Force all rows to be excluded
 
-    monkeypatch.setattr(pd.Series, 'quantile', fake_quantile, raising=False)
-
-    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext']:
-        monkeypatch.setattr(charts.plt, attr, MagicMock())
-
-    axhline_mock = MagicMock()
-    text_mock = MagicMock()
-    monkeypatch.setattr(charts.plt, 'axhline', axhline_mock)
-    monkeypatch.setattr(charts.plt, 'text', text_mock)
+    monkeypatch.setattr(charts.pd.Series, 'quantile', fake_quantile)
 
     chart._plot_barchart(success_results)
 
-    axhline_mock.assert_not_called()
-    text_mock.assert_not_called()
+    mock_plt.axhline.assert_not_called()
+    mock_plt.text.assert_not_called()
 
 
 # ------------------------------
@@ -688,7 +683,7 @@ def test_barchart_init_with_vertical_separator():
     assert chart.vertical_separator == separator
 
 
-def test_plot_barchart_draws_vertical_separator(monkeypatch):
+def test_plot_barchart_draws_vertical_separator(mock_chart_plotting):
     """Plot draws an axvline and annotation when vertical_separator is provided."""
 
     results = [
@@ -696,51 +691,35 @@ def test_plot_barchart_draws_vertical_separator(monkeypatch):
         {'run': 2, 'response_time': 0.2, 'status_code': 200, 'response': '{"index": 1}'},
     ]
 
-    mock_ax = MagicMock()
+    mock_plt, mock_ax = mock_chart_plotting
     mock_ax.get_ylim.return_value = (0, 500)
-    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: mock_ax, raising=False)
-    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext', 'axhline']:
-        monkeypatch.setattr(charts.plt, attr, MagicMock())
-
-    axvline_mock = MagicMock()
-    text_mock = MagicMock()
-    monkeypatch.setattr(charts.plt, 'axvline', axvline_mock)
-    monkeypatch.setattr(charts.plt, 'text', text_mock)
 
     separator = (1.5, 'Waited 20s for Retry-After to elapse')
     chart = BarChart('Test', 'X', 'Y', results, vertical_separator=separator)
     chart._plot_barchart(results)
 
-    axvline_mock.assert_called_once()
-    axvline_kwargs = axvline_mock.call_args.kwargs
+    mock_plt.axvline.assert_called_once()
+    axvline_kwargs = mock_plt.axvline.call_args.kwargs
     assert axvline_kwargs['x'] == 1.5
     assert axvline_kwargs['linestyle'] == '--'
 
     # The annotation text call should include the separator label as a positional arg. The
     # label is nudged 0.25 bar-positions to the left of the separator line so the text does
     # not visually touch it.
-    annotation_calls = [c for c in text_mock.call_args_list if separator[1] in c.args]
+    annotation_calls = [c for c in mock_plt.text.call_args_list if separator[1] in c.args]
     assert len(annotation_calls) == 1
     annotation_args = annotation_calls[0].args
     assert annotation_args[0] == 1.5 - 0.25  # x position (nudged left)
     assert annotation_args[2] == separator[1]
 
 
-def test_plot_barchart_draws_multiple_vertical_separators(monkeypatch):
+def test_plot_barchart_draws_multiple_vertical_separators(mock_chart_plotting):
     """Plot draws one axvline + annotation per entry when given a list of separators."""
 
     results = [{'run': i, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 1}'} for i in range(1, 6)]
 
-    mock_ax = MagicMock()
+    mock_plt, mock_ax = mock_chart_plotting
     mock_ax.get_ylim.return_value = (0, 500)
-    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: mock_ax, raising=False)
-    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext', 'axhline']:
-        monkeypatch.setattr(charts.plt, attr, MagicMock())
-
-    axvline_mock = MagicMock()
-    text_mock = MagicMock()
-    monkeypatch.setattr(charts.plt, 'axvline', axvline_mock)
-    monkeypatch.setattr(charts.plt, 'text', text_mock)
 
     separators = [
         (1.5, 'Waited 10s after 429'),
@@ -749,61 +728,47 @@ def test_plot_barchart_draws_multiple_vertical_separators(monkeypatch):
     chart = BarChart('Test', 'X', 'Y', results, vertical_separator=separators)
     chart._plot_barchart(results)
 
-    assert axvline_mock.call_count == len(separators)
-    xs = [c.kwargs['x'] for c in axvline_mock.call_args_list]
+    assert mock_plt.axvline.call_count == len(separators)
+    xs = [c.kwargs['x'] for c in mock_plt.axvline.call_args_list]
     assert xs == [s[0] for s in separators]
 
     for sep_x, sep_label in separators:
-        annotation_calls = [c for c in text_mock.call_args_list if sep_label in c.args]
+        annotation_calls = [c for c in mock_plt.text.call_args_list if sep_label in c.args]
         assert len(annotation_calls) == 1
         annotation_args = annotation_calls[0].args
         assert annotation_args[0] == sep_x - 0.25
         assert annotation_args[2] == sep_label
 
 
-def test_plot_barchart_omits_vertical_separator_when_none(monkeypatch):
+def test_plot_barchart_omits_vertical_separator_when_none(mock_chart_plotting):
     """Plot does not draw an axvline when vertical_separator is None."""
 
     results = [
         {'run': 1, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 1}'},
     ]
 
-    mock_ax = MagicMock()
+    mock_plt, mock_ax = mock_chart_plotting
     mock_ax.get_ylim.return_value = (0, 500)
-    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: mock_ax, raising=False)
-    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext', 'axhline', 'text']:
-        monkeypatch.setattr(charts.plt, attr, MagicMock())
-
-    axvline_mock = MagicMock()
-    monkeypatch.setattr(charts.plt, 'axvline', axvline_mock)
 
     chart = BarChart('Test', 'X', 'Y', results)
     chart._plot_barchart(results)
 
-    axvline_mock.assert_not_called()
+    mock_plt.axvline.assert_not_called()
 
 
-def test_render_executes_plotting_without_displaying(monkeypatch):
+def test_render_executes_plotting_without_displaying(mock_chart_plotting):
     """Render returns the generated figure without calling pyplot.show."""
     results = [{'run': 1, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 1}'}]
-    mock_ax = MagicMock()
-    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: mock_ax, raising=False)
-    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'figtext', 'axhline', 'text']:
-        monkeypatch.setattr(charts.plt, attr, MagicMock())
-    show_mock = MagicMock()
-    monkeypatch.setattr(charts.plt, 'show', show_mock)
+    mock_plt, mock_ax = mock_chart_plotting
 
     assert BarChart('Test', 'X', 'Y', results).render() is mock_ax.figure
-    show_mock.assert_not_called()
+    mock_plt.show.assert_not_called()
 
 
-def test_plot_barchart_shows_other_non_200_responses(monkeypatch):
+def test_plot_barchart_shows_other_non_200_responses(mock_chart_plotting):
     """Give non-4xx and non-5xx responses a distinct accessible legend entry."""
     results = [{'run': 1, 'response_time': 0.1, 'status_code': 302, 'response': ''}]
-    mock_ax = MagicMock()
-    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: mock_ax, raising=False)
-    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext']:
-        monkeypatch.setattr(charts.plt, attr, MagicMock())
+    _, mock_ax = mock_chart_plotting
 
     BarChart('Test', 'X', 'Y', results)._plot_barchart(results)
 
