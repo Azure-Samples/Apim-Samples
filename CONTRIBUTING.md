@@ -14,6 +14,7 @@ Thank you for your interest in contributing!
 
 - Use standard Python and Bicep best practices.
 - Keep reusable assets in the `shared` folder.
+- Follow the [Python helper strategy](shared/python/README.md) when deciding what stays in a notebook, belongs in a sample-local module, or should be promoted to `shared/python/`.
 - For infrastructure or sample changes, update the relevant `create.ipynb` and `main.bicep` files.
 - Keep documentation clear and concise.
 

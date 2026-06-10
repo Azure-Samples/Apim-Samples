@@ -150,11 +150,21 @@ AttributeError: module 'utils' has no attribute 'function_name'
 ```
 
 **Solution:**
-Reload the utils module in your notebook by pressing `Restart` in the notebook to load updated files. You will need to re-run all cells from the beginning then as any variable assignments will have been lost.
+For pure-Python helper modules under active development, enable selective autoreload once after the module's folder is available on `sys.path`:
+
+```python
+utils.enable_module_autoreload('my_sample_helpers')
+```
+
+IPython checks the registered module before each cell and reloads it only when its source file changed. Existing notebook variables, including deployment outputs, remain available. Register only modules being actively edited rather than enabling global autoreload.
+
+Prefer module-qualified calls such as `my_sample_helpers.build_client()` so the latest module attribute is always used. IPython also updates many existing `from module import name` bindings, but module-qualified access is easier to reason about.
+
+Restart the kernel when changing native extension modules, import-time process state, class constructor state already captured by existing instances, or foundational shared types whose identities are used across modules. Rerun the relevant initialization cell when an edit changes values that were already computed. Rerun deployment only when Bicep or deployed-resource configuration changed.
 
 **Anti-pattern:**
 
-Avoid introducing a programmatic reload.
+Avoid scattered unconditional reloads.
 
 ```python
 import importlib

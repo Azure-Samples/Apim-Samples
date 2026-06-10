@@ -209,6 +209,7 @@ Structure:
 #### Cell 5+: Functional Cells (Markdown + Code pairs)
 - Each logical operation gets a markdown heading cell followed by one or more code cells
 - Keep educational configuration, scenario steps, and key APIM concepts visible in the notebook. Extract non-educational Python mechanics, such as reusable orchestration, parsing, retries, polling, data transformation, and repeated request setup, into existing shared helpers or focused sample-local Python helper modules. Prefer extending `NotebookHelper`, `InfrastructureNotebookHelper`, `ApimRequests`, `ApimTesting`, or another established helper when the behavior is broadly reusable.
+- Follow `shared/python/README.md` for the complete helper and supporting-class strategy, including ownership, dependency direction, state, lifecycle, selective autoreload, promotion, and testing rules.
 
 **First operation cell (typically deployment):**
 

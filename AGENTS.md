@@ -187,6 +187,8 @@ apis = [api]
 
 ## Python Modules
 
+The [Python helper strategy](shared/python/README.md) is the authoritative guide for notebook boundaries, helper ownership, supporting-class design, state, lifecycles, promotion criteria, and testing.
+
 Key modules in `shared/python/`:
 
 | Module               | Purpose                                                     |
@@ -197,6 +199,8 @@ Key modules in `shared/python/`:
 | `console.py`         | Formatted console output (print_ok, print_error)            |
 | `apimrequests.py`    | HTTP request helpers for testing APIs                       |
 | `apimtesting.py`     | Test framework for sample verification                      |
+
+When extracting notebook mechanics, start with a focused sample-local module. Promote it to `shared/python/` only after a second real consumer establishes a stable cross-sample contract.
 
 ## Bicep Modules
 

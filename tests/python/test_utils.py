@@ -6,7 +6,7 @@ import logging
 import os
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import azure_resources as az
 import console as console_module
@@ -71,6 +71,36 @@ def suppress_builtin_print(monkeypatch):
 # ------------------------------
 #    get_infra_rg_name & get_rg_name
 # ------------------------------
+
+
+def test_enable_module_autoreload_configures_selective_mode(monkeypatch):
+    shell = MagicMock()
+    monkeypatch.setattr(utils, 'get_ipython', lambda: shell)
+
+    configured = utils.enable_module_autoreload('sample_helpers', 'sample_helpers', 'shared_helpers')
+
+    assert configured is True
+    shell.extension_manager.load_extension.assert_called_once_with('autoreload')
+    assert shell.run_line_magic.call_args_list == [
+        call('autoreload', '1'),
+        call('aimport', 'sample_helpers'),
+        call('aimport', 'shared_helpers'),
+    ]
+
+
+def test_enable_module_autoreload_returns_false_outside_ipython(monkeypatch):
+    monkeypatch.setattr(utils, 'get_ipython', lambda: None)
+
+    assert utils.enable_module_autoreload('sample_helpers') is False
+
+
+@pytest.mark.parametrize('module_names', [(), ('',), (' sample_helpers',)])
+def test_enable_module_autoreload_rejects_invalid_module_names(monkeypatch, module_names):
+    shell = MagicMock()
+    monkeypatch.setattr(utils, 'get_ipython', lambda: shell)
+
+    with pytest.raises(ValueError):
+        utils.enable_module_autoreload(*module_names)
 
 
 def test_get_infra_rg_name(monkeypatch):

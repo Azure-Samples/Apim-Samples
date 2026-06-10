@@ -33,6 +33,7 @@ This ensures all code changes comply with the project's linting standards from t
 
 - Python code lives primarily under `shared/python/`, `setup/`, `infrastructure/`, and `tests/python/`.
 - The repository uses Azure CLI from Python for many operations.
+- Follow `shared/python/README.md` as the authoritative architecture guide for notebook boundaries, helper placement, functions versus classes, explicit state, resource lifecycles, promotion criteria, and helper testing.
 
 ## Style and Conventions
 

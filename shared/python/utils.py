@@ -24,6 +24,7 @@ import logging_config
 from apimrequests import ApimRequests
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, get_project_root  # noqa: F401 (Endpoints re-exported for callers)
 from console import print_error, print_info, print_message, print_ok, print_plain, print_secret, print_val, print_warning
+from IPython import get_ipython
 
 # Configure warning filter to suppress IPython exit warnings
 warnings.filterwarnings(
@@ -37,6 +38,41 @@ warnings.filterwarnings(
 # ------------------------------
 #    HELPER FUNCTIONS
 # ------------------------------
+
+
+def enable_module_autoreload(*module_names: str) -> bool:
+    """Reload selected Python modules before a notebook cell only when their files change.
+
+    Uses IPython's selective autoreload mode. Register modules after their folders have
+    been added to ``sys.path``. This preserves notebook variables and deployed-resource
+    context while allowing edits to pure-Python helper modules to take effect.
+
+    Args:
+        module_names: Importable module names to watch, such as ``dynamic_cors_helpers``.
+
+    Returns:
+        True when selective autoreload was configured, or False outside IPython.
+    """
+    if not module_names:
+        raise ValueError('At least one module name is required for autoreload.')
+
+    unique_module_names = tuple(dict.fromkeys(module_names))
+    for module_name in unique_module_names:
+        if not module_name or module_name.strip() != module_name or not all(part.isidentifier() for part in module_name.split('.')):
+            raise ValueError(f'Invalid module name for autoreload: {module_name!r}')
+
+    shell = get_ipython()
+    if shell is None:
+        print_warning('Module autoreload is available only in an IPython or Jupyter session.')
+        return False
+
+    shell.extension_manager.load_extension('autoreload')
+    shell.run_line_magic('autoreload', '1')
+    for module_name in unique_module_names:
+        shell.run_line_magic('aimport', module_name)
+
+    print_info(f'Watching for Python changes: {", ".join(unique_module_names)}')
+    return True
 
 
 def get_deployment_failure_message(deployment_name: str) -> str:
