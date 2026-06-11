@@ -297,6 +297,7 @@ def test_check_shared_modules_success(monkeypatch: pytest.MonkeyPatch) -> None:
             'utils': SimpleNamespace(__name__='utils'),
             'apimtypes': SimpleNamespace(__name__='apimtypes'),
             'authfactory': SimpleNamespace(__name__='authfactory'),
+            'auth_testing': SimpleNamespace(__name__='auth_testing'),
             'apimrequests': SimpleNamespace(__name__='apimrequests'),
         }
     )
@@ -307,7 +308,7 @@ def test_check_shared_modules_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert not fix
 
 
-@pytest.mark.parametrize('missing_module', ['utils', 'apimtypes', 'authfactory', 'apimrequests'])
+@pytest.mark.parametrize('missing_module', ['utils', 'apimtypes', 'authfactory', 'auth_testing', 'apimrequests'])
 def test_check_shared_modules_missing(monkeypatch: pytest.MonkeyPatch, missing_module: str) -> None:
     """Shared modules check should fail when any module is missing."""
     fake_import = _fake_import_factory({missing_module: ImportError(f'{missing_module} missing')})

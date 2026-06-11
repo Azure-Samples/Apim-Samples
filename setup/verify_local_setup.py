@@ -119,6 +119,7 @@ def check_shared_modules():
         __import__('utils')
         __import__('apimtypes')
         __import__('authfactory')
+        __import__('auth_testing')
         __import__('apimrequests')
 
         return True, ''
@@ -330,8 +331,7 @@ def check_azure_providers():
         return False, f'Register missing providers: {fix_cmds}'
     except subprocess.TimeoutExpired:
         return False, (
-            f'Azure provider check timed out after {AZURE_CLI_TIMEOUT_SECONDS} seconds. '
-            'Retry verification after Azure CLI responds normally.'
+            f'Azure provider check timed out after {AZURE_CLI_TIMEOUT_SECONDS} seconds. Retry verification after Azure CLI responds normally.'
         )
     except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError):
         return False, 'Log in then retry: az login --tenant <tenant> && az account set --subscription <subscription>'

@@ -39,6 +39,27 @@ A helper should move from sample-local to shared only when all of these are true
 
 When promoting a helper, migrate all consumers in the same change and remove the sample-local duplicate.
 
+## Helper Placement Decision Sequence
+
+Use this sequence for each extracted behavior:
+
+1. Leave educational configuration, scenario definitions, and expected outcomes in the notebook.
+2. Extract only mechanics that can be expressed through explicit inputs and outputs.
+3. Keep behavior sample-local while it has one consumer or uses sample-specific vocabulary.
+4. Move behavior directly to a focused shared module when two active consumers already need the same contract.
+5. Extend an established shared class only when the behavior belongs to that class's existing state and lifecycle.
+
+The number of lines is a signal to inspect a notebook, not a reason by itself to create a helper. Ownership follows the narrowest real consumer set.
+
+| Behavior                                           | Placement                                      | Reason                                                        |
+| -------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------- |
+| Dynamic CORS cache orchestration                   | `samples/dynamic-cors/dynamic_cors_helpers.py` | One sample owns the behavior and vocabulary                   |
+| Costing-specific API construction                  | `samples/costing/_helpers.py`                  | One sample owns the evolving cost model                       |
+| Role-based JWT request execution for AuthX samples | `shared/python/auth_testing.py`                | AuthX and AuthX-Pro use the same request and session contract |
+| APIM endpoint resolution                           | `NotebookHelper`                               | Broad notebook coordination using existing helper state       |
+
+Do not create both a sample-local wrapper and a shared helper for the same operation. A notebook should call the narrowest owning contract directly.
+
 ## Notebook Boundary
 
 A notebook is the user-facing workflow, not a general-purpose Python module. Each code cell should communicate one operation and remain understandable when read from top to bottom.
