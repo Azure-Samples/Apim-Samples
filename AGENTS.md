@@ -107,6 +107,7 @@ Skills provide templates, patterns, and step-by-step workflows.
 5. **Create required files**:
     - `README.md` - Follow the template structure
     - `create.ipynb` - Jupyter notebook with initialization, deployment, and verification cells
+    - `<domain>_helpers.py` - Add a descriptive sample-local module when parsing, retries, sessions, persistence, command composition, or multi-step orchestration would otherwise live in notebook cells
     - `main.bicep` - Reference shared modules from `shared/bicep/modules/`; add sample-owned policy files under `apim-policies/` and KQL queries under `queries/` when needed
 6. **Update repo surfaces**:
     - Root `README.md` sample table
@@ -188,6 +189,16 @@ apis = [api]
 ## Python Modules
 
 The [Python helper strategy](shared/python/README.md) is the authoritative guide for notebook boundaries, helper ownership, supporting-class design, state, lifecycles, promotion criteria, and testing.
+
+Apply this sequence whenever creating or refactoring a notebook:
+
+1. Keep educational configuration, scenario definitions, APIM concepts, expected outcomes, and assertions visible in the notebook.
+2. Extract incidental mechanics behind explicit inputs and typed outputs.
+3. Start one-consumer behavior in `samples/<sample>/<domain>_helpers.py`; promote only after a second active consumer needs the same stable contract.
+4. Compose existing `NotebookHelper`, `ApimRequests`, `ApimTesting`, and `azure_resources` boundaries without adding forwarding wrappers.
+5. Make the helper own deterministic cleanup for sessions, files, and temporary resources, and inject remote or timing boundaries for tests.
+6. Add focused tests under `tests/python/test_<sample>_helpers.py`, then replace notebook mechanics with a scenario-readable call.
+7. Register actively edited sample-local pure-Python modules with selective autoreload.
 
 Key modules in `shared/python/`:
 

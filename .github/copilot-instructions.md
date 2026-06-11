@@ -54,7 +54,9 @@ Uniformity, clarity, and ease of use are paramount across all infrastructures an
 - **Follow the established templates.** New infrastructures must follow the structure of existing infrastructures. New samples must follow `samples/_TEMPLATE`. Deviations are permitted only when a sample has genuinely unique requirements, and those deviations should be minimal.
 - **Use consistent naming, headings, and cell order.** Markdown headings, variable names, section labels (e.g. `USER CONFIGURATION`, `SYSTEM CONFIGURATION`), emoji usage, and code cell ordering must match the patterns established by the template and existing artefacts.
 - **Keep README structure uniform.** Infrastructure READMEs and sample READMEs each follow their own standard layout (see the guidelines below). Readers should be able to predict where to find objectives, configuration steps, and execution instructions.
-- **Reuse shared utilities.** Use `NotebookHelper`, `InfrastructureNotebookHelper`, `ApimRequests`, `ApimTesting`, and shared Bicep modules rather than inventing ad-hoc alternatives. Shared code is the single best tool for enforcing uniformity.
+- **Reuse established utilities at their existing boundary.** Compose `NotebookHelper`, `InfrastructureNotebookHelper`, `ApimRequests`, `ApimTesting`, `azure_resources`, and shared Bicep modules rather than inventing parallel abstractions. Do not add a sample-local wrapper that merely forwards to a shared helper.
+- **Keep notebooks educational.** Leave configuration, scenario declarations, APIM concepts, expected outcomes, and assertions visible. Move incidental mechanics such as parsing, retries, polling, persistence, command composition, response normalization, repeated request setup, and resource cleanup into testable Python helpers.
+- **Choose the narrowest real owner.** New one-sample behavior starts in a descriptive `samples/<sample>/<domain>_helpers.py` module. Promote it to a focused `shared/python/` module only when at least two active consumers need the same stable contract; anticipated reuse is not sufficient.
 - **Mirror tone and depth.** Similar sections across artefacts should use similar levels of detail. If one sample's README explains configuration in three sentences, another sample of comparable complexity should do the same.
 - **Sort samples alphabetically.** Wherever samples are listed (README tables, landing page cards, JSON-LD structured data, diagrams, AGENTS.md), they must appear in alphabetical order by their display name. Infrastructures keep their current deliberate ordering.
 - **Use consistent sample display names.** The display name used for a sample in README tables, landing page cards, JSON-LD, and compatibility diagrams must be identical. The canonical name is the one shown in the compatibility-matrix SVG diagram (e.g. "Costing", not "Costing & Showback"; "OAuth 3rd-Party", not "Credential Manager (with Spotify)"). Longer descriptions belong in the Description column or card body text, not in the name.
@@ -148,6 +150,7 @@ Each sample in `samples/[sample-name]/` must contain:
 - `create.ipynb` - Jupyter notebook that deploys and demonstrates the sample
 - `main.bicep` - Bicep template for deploying sample resources
 - `README.md` - Documentation explaining the sample, use cases, and concepts
+- `<domain>_helpers.py` - Optional sample-local Python mechanics when the notebook would otherwise own parsing, retries, sessions, persistence, or multi-step orchestration
 - `apim-policies/*.xml` - Sample-owned APIM policy files (if applicable to the sample)
 - `queries/*.kql` - KQL (Kusto Query Language) files (if applicable to the sample)
 
@@ -208,8 +211,13 @@ Structure:
 
 #### Cell 5+: Functional Cells (Markdown + Code pairs)
 - Each logical operation gets a markdown heading cell followed by one or more code cells
-- Keep educational configuration, scenario steps, and key APIM concepts visible in the notebook. Extract non-educational Python mechanics, such as reusable orchestration, parsing, retries, polling, data transformation, and repeated request setup, into existing shared helpers or focused sample-local Python helper modules. Prefer extending `NotebookHelper`, `InfrastructureNotebookHelper`, `ApimRequests`, `ApimTesting`, or another established helper when the behavior is broadly reusable.
+- Keep educational configuration, scenario steps, and key APIM concepts visible in the notebook. Extract non-educational Python mechanics, such as reusable orchestration, parsing, retries, polling, data transformation, and repeated request setup, into existing shared helpers or focused sample-local Python helper modules. Compose established helpers first; extend one only when the behavior belongs to its existing responsibility, state, and lifecycle.
 - Follow `shared/python/README.md` for the complete helper and supporting-class strategy, including ownership, dependency direction, state, lifecycle, selective autoreload, promotion, and testing rules.
+- Before finalizing a notebook, explicitly review each code cell for incidental mechanics. Line count is only a signal; extract based on responsibility and testability, not size alone.
+- Sample-local helpers must use explicit inputs and typed outputs, must not read notebook globals, and must own every session, temporary file, or other closeable resource they create. Prefer context managers for lifecycles that span multiple calls.
+- Inject remote, sleep, clock, session-factory, or command-runner boundaries when needed to test success, failure, retry, and cleanup paths without live Azure access or real delays.
+- Add `tests/python/test_<sample>_helpers.py` for each extracted sample-local module. Target meaningful success, failure, malformed-input, and cleanup coverage, not line-count padding.
+- Load actively edited sample-local modules through a module-qualified import and register selective autoreload with `utils.enable_module_autoreload('<module_name>')`. Do not use broad autoreload that can discard notebook state.
 
 **First operation cell (typically deployment):**
 

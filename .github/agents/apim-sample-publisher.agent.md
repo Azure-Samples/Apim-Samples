@@ -50,11 +50,20 @@ Treat search visibility as a publication criterion, not as optional polish. Revi
 ## Quality Pass
 
 1. Inspect the working-tree diff first. Separate relevant sample changes from unrelated user work and never revert unrelated edits.
-2. Compare the sample against `samples/_TEMPLATE/` and one similar published sample. Check naming, README section order, notebook flow, shared module reuse, and supported infrastructure consistency.
+2. Compare the sample against `samples/_TEMPLATE/`, `shared/python/README.md`, and one similar published sample. Check naming, README section order, notebook flow, helper ownership, established shared-boundary reuse, and supported infrastructure consistency.
 3. Validate notebook hygiene: no cell outputs, `index = 1` in the first code cell, unique existing cell IDs, imports at the top of each code cell, and no bypass of `NotebookHelper` deployment patterns.
-4. Validate sample-owned structured files. Parse JSON and notebooks, check XML well-formedness, review APIM policy expressions against the allowed policy-expression surface, and compile or lint Bicep when the toolchain is available.
-5. Confirm sample-owned APIM policy XML is under `apim-policies/` and KQL is under `queries/`. For migrations, verify every notebook, helper, Bicep, test, script, and documentation reference, including canonical-directory lookup, temporary root-level policy fallback, explicit paths, auto-detection, and missing-file behavior.
-6. Run the combined Python quality checks from the repository root:
+4. Review every notebook code cell for incidental mechanics. Parsing, retries, polling, persistence, Azure command composition, response normalization, repeated request setup, raw session ownership, and temporary-file cleanup should be in a focused helper unless they directly teach the scenario.
+5. Validate each extracted helper against the repository architecture:
+   - One-consumer behavior is sample-local; shared behavior has at least two active consumers using the same stable contract.
+   - The notebook calls the narrowest owning contract directly, without a forwarding wrapper.
+   - Inputs and typed outputs are explicit; the helper does not inspect notebook globals or IPython state.
+   - Constructors avoid remote or file side effects, and owned resources close on success and exceptions.
+   - Remote, session, sleep, clock, or command boundaries are injectable where deterministic tests require them.
+   - Actively edited sample-local modules use module-qualified imports and selective autoreload, not broad autoreload.
+6. Confirm every sample-local helper has focused tests under `tests/python/test_<sample>_helpers.py` covering meaningful success, failure, malformed-input, and cleanup paths without live Azure access. Target at least 95% coverage for changed helper modules.
+7. Validate sample-owned structured files. Parse JSON and notebooks, check XML well-formedness, review APIM policy expressions against the allowed policy-expression surface, and compile or lint Bicep when the toolchain is available.
+8. Confirm sample-owned APIM policy XML is under `apim-policies/` and KQL is under `queries/`. For migrations, verify every notebook, helper, Bicep, test, script, and documentation reference, including canonical-directory lookup, temporary root-level policy fallback, explicit paths, auto-detection, and missing-file behavior.
+9. Run the combined Python quality checks from the repository root:
 
    ```powershell
    .\tests\python\check_python.ps1
@@ -64,15 +73,15 @@ Treat search visibility as a publication criterion, not as optional polish. Revi
    ./tests/python/check_python.sh
    ```
 
-7. Export the self-contained presentation and treat warnings about missing images as failures to investigate:
+10. Export the self-contained presentation and treat warnings about missing images as failures to investigate:
 
    ```bash
    uv run python setup/export_presentation.py
    ```
 
-8. Run the SEO pass when public website content changed. Parse the inline JSON-LD block and `docs/sitemap.xml`, then verify that structured-data entries and visible cards stay synchronized.
-9. Preview the staged website when website or deck content changed. Use `uv run python setup/serve_website.py` and review both the landing page and `/slide-deck.html`. Check desktop and narrow layouts when visual changes are material.
-10. Inspect the final diff after validation. Do not include generated artifacts such as `build/`, `_site/`, coverage files, or lint reports unless the repository intentionally tracks them.
+11. Run the SEO pass when public website content changed. Parse the inline JSON-LD block and `docs/sitemap.xml`, then verify that structured-data entries and visible cards stay synchronized.
+12. Preview the staged website when website or deck content changed. Use `uv run python setup/serve_website.py` and review both the landing page and `/slide-deck.html`. Check desktop and narrow layouts when visual changes are material.
+13. Inspect the final diff after validation. Do not include generated artifacts such as `build/`, `_site/`, coverage files, or lint reports unless the repository intentionally tracks them.
 
 When live Azure validation is relevant but not requested or not available, report the exact notebook scenario and supported infrastructure combinations that remain to be exercised. Do not substitute unit tests for live scenario evidence.
 
@@ -90,5 +99,6 @@ Return a concise publish-readiness report with:
 
 - **Sample**: folder name, canonical display name, and supported infrastructures.
 - **Updated**: source files changed during the publishing pass.
-- **Validated**: commands run and their pass or fail results, including SEO source checks when website content changed.
+- **Architecture**: notebook/helper ownership decision, shared-boundary reuse, and any remaining mechanics intentionally kept visible.
+- **Validated**: focused helper tests, coverage, combined checks, and SEO source checks when website content changed.
 - **Remaining**: manual visual checks, live Azure scenarios, or unresolved blockers. State `None` when the sample is ready for review.

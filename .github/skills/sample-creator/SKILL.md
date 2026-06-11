@@ -1,6 +1,6 @@
 ---
 name: sample-creator
-description: Guide for creating new Azure API Management (APIM) usage samples in this repository. Use when users want to create a new sample folder under `samples/`, scaffold from `samples/_TEMPLATE`, or update README, website, slide deck, and compatibility listings for a new sample. This skill provides the required folder structure, file templates, naming conventions, and step-by-step guidance based on the `samples/_TEMPLATE` structure.
+description: Guide for creating or scaffolding Azure API Management (APIM) usage samples with the repository's notebook/helper architecture. Use when users want a new sample under `samples/`, a sample-local helper, `samples/_TEMPLATE` scaffolding, or synchronized README, website, slide deck, and compatibility listings.
 ---
 
 # Sample Creator
@@ -16,6 +16,7 @@ samples/<sample-name>/
 ├── README.md              (documentation)
 ├── create.ipynb           (Jupyter notebook for deployment)
 ├── main.bicep             (infrastructure as code)
+├── <domain>_helpers.py    (optional: sample-local Python mechanics)
 ├── apim-policies/         (optional: sample-owned APIM policy XML)
 │   └── *.xml
 └── queries/               (optional: sample-owned KQL queries)
@@ -40,6 +41,7 @@ Before creating the sample, collect:
 6. **APIs to create** - List of APIs with operations, paths, and policies
 7. **Policy requirements** - Any custom APIM policies needed
 8. **Downstream updates** - Whether the sample requires updates to the website, slide deck, or compatibility artifacts. Default to yes for new samples.
+9. **Helper boundary** - Which parts are educational scenario content and which are incidental mechanics such as parsing, retries, sessions, persistence, command composition, polling, or cleanup.
 
 ## Step 2: Create the Sample Folder
 
@@ -91,6 +93,16 @@ Use this template:
 
 ## Step 4: Create create.ipynb
 
+Before writing cells, apply the helper-placement sequence from `shared/python/README.md`:
+
+1. Keep user configuration, scenario declarations, APIM concepts, expected outcomes, and assertions visible in the notebook.
+2. Compose established `NotebookHelper`, `ApimRequests`, `ApimTesting`, and `azure_resources` boundaries directly.
+3. Put one-sample mechanics in a descriptive `samples/<sample-name>/<domain>_helpers.py` module.
+4. Promote behavior to `shared/python/` only when at least two active consumers need the same stable contract.
+5. Give helpers explicit inputs and typed outputs, deterministic resource cleanup, and injectable remote or timing boundaries for unit tests.
+
+Line count alone does not determine extraction. Extract behavior because its responsibility, lifecycle, repetition, or testability belongs outside the educational workflow.
+
 The notebook must contain these cells in order:
 
 ### Cell 1: Markdown - Initialize Header
@@ -104,11 +116,16 @@ The notebook must contain these cells in order:
 ### Cell 2: Python - Initialization
 
 ```python
-import utils
+import importlib
+import sys
+from pathlib import Path
 from typing import List
+
+import utils
+
 from apimtypes import API, APIM_SKU, GET_APIOperation, INFRASTRUCTURE, POST_APIOperation, Region
 from console import print_error, print_ok
-from azure_resources import get_infra_rg_name
+from azure_resources import get_account_info, get_infra_rg_name
 
 # ------------------------------
 #    USER CONFIGURATION
@@ -131,6 +148,16 @@ sample_folder    = '<sample-name>'
 rg_name          = get_infra_rg_name(deployment, index)
 supported_infras = [<LIST_OF_SUPPORTED_INFRASTRUCTURES>]
 nb_helper        = utils.NotebookHelper(sample_folder, rg_name, rg_location, deployment, supported_infras, index = index, apim_sku = apim_sku)
+
+# Add only when this sample has a sample-local helper module.
+# sample_dir = str(Path(utils.determine_policy_path('<domain>_helpers.py', sample_folder)).parent)
+# if sample_dir not in sys.path:
+#     sys.path.insert(0, sample_dir)
+# sample_helpers = importlib.import_module('<domain>_helpers')
+# utils.enable_module_autoreload('<domain>_helpers')
+
+# Get account info (returns: current_user, current_user_id, tenant_id, subscription_id)
+_, _, _, subscription_id = get_account_info()
 
 # Define the APIs and their operations and policies
 # <Add policy loading if needed>
@@ -163,23 +190,21 @@ Creates the bicep deployment into the previously-specified resource group. A bic
 
 ```python
 # Build the bicep parameters
+if 'nb_helper' not in locals():
+    raise SystemExit(1)
+
 bicep_parameters = {
     'apis': {'value': [api.to_dict() for api in apis]}
 }
 
 # Deploy the sample
 output = nb_helper.deploy_sample(bicep_parameters)
+deployment_context = nb_helper.get_deployment_context(output)
+apim_name = deployment_context.apim_name
+apim_gateway_url = deployment_context.apim_gateway_url
+apim_apis = deployment_context.apis
 
-if output.success:
-    # Extract deployment outputs for testing
-    apim_name        = output.get('apimServiceName', 'APIM Service Name')
-    apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM API Gateway URL')
-    apim_apis        = output.getJson('apiOutputs', 'APIs')
-
-    print_ok('Deployment completed successfully')
-else:
-    print_error('Deployment failed!')
-    raise SystemExit(1)
+print_ok('Deployment completed successfully')
 ```
 
 ### Cell 5: Markdown - Verify Header
@@ -195,26 +220,41 @@ Assert that the deployment was successful by making calls to the deployed APIs.
 Use `ApimRequests` and `ApimTesting` for structured test verification with verbose logging. If the sample also needs **traffic generation loops** (multi-caller simulation, load generation, etc.), add separate cells that use `requests.Session()` instead — see the "Testing and Traffic Generation" section in `copilot-instructions.md` for the session pattern.
 
 ```python
-from apimrequests import ApimRequests
 from apimtesting import ApimTesting
+
+if 'deployment_context' not in locals():
+    raise SystemExit(1)
 
 # Initialize testing framework
 tests = ApimTesting('<Sample Name> Tests', sample_folder, nb_helper.deployment)
 
-# Determine endpoints
-# endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(deployment, rg_name, apim_gateway_url)
-
 # ********** TEST EXECUTIONS **********
 
 # Example: Test API response
-# reqs = ApimRequests(endpoint_url, subscription_key, request_headers, allowInsecureTls = allow_insecure_tls)
-# output = reqs.singleGet('/<api-route>', msg = 'Testing API. Expect 200.')
-# tests.verify('Expected String' in output, True)
+# subscription_key = apim_apis[0]['subscriptionPrimaryKey']
+# with nb_helper.create_apim_requests(apim_gateway_url, subscription_key) as reqs:
+#     response = reqs.singleGet('/<api-route>', msg = 'Testing API. Expect 200.')
+# tests.verify('Expected String' in response, True)
 
 tests.print_summary()
 
 print_ok('All done!')
 ```
+
+### Optional Sample-Local Helper
+
+Create `samples/<sample-name>/<domain>_helpers.py` when notebook cells would otherwise own incidental mechanics. Prefer a function for one stateless operation, an immutable dataclass for a multi-value result, and a class only when operations share validated state or an owned lifecycle.
+
+The helper must:
+
+- Use explicit inputs and return values; never inspect notebook globals or IPython state.
+- Import Azure operations through `import azure_resources as az` and compose existing shared clients.
+- Keep constructors free of Azure, network, sleep, and file side effects.
+- Close sessions, temporary files, and other resources on both success and exceptions.
+- Accept injected command runners, session factories, sleeps, or clocks when needed for deterministic tests.
+- Expose a small domain-specific API that reads like the scenario.
+
+Add `tests/python/test_<sample-name>_helpers.py` and cover success, failure, malformed input, and cleanup paths without live Azure access. Target at least 95% meaningful coverage for the helper.
 
 ## Step 5: Create main.bicep
 
@@ -346,6 +386,8 @@ Update these files when a new sample is added:
 Keep the canonical display name identical across README tables, the website, the slide deck, and compatibility diagrams.
 
 If the sample work exposes a reusable structural improvement, suggest updating `samples/_TEMPLATE/` as part of the same task or as a follow-up.
+
+Before completing the sample, compare its notebook/helper boundary against `shared/python/README.md`. Confirm that no parser, retry loop, polling schedule, persistence format, repeated request setup, raw session lifecycle, or temporary-file cleanup remains in a notebook unless that code directly teaches the scenario.
 
 ## API and Operation Types
 

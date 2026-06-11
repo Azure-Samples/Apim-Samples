@@ -35,6 +35,19 @@ This ensures all code changes comply with the project's linting standards from t
 - The repository uses Azure CLI from Python for many operations.
 - Follow `shared/python/README.md` as the authoritative architecture guide for notebook boundaries, helper placement, functions versus classes, explicit state, resource lifecycles, promotion criteria, and helper testing.
 
+## Notebook and Helper Architecture
+
+- Keep user configuration, scenario intent, APIM concepts, expected outcomes, and assertions in notebooks.
+- Extract incidental mechanics such as parsers, retries, polling, persistence, Azure command composition, response normalization, repeated request setup, and multi-step cleanup into Python modules.
+- Start one-sample behavior in a descriptive `samples/<sample>/<domain>_helpers.py` module. Promote directly to a focused `shared/python/` module only after a second active consumer establishes the same stable contract.
+- Do not create a sample-local forwarding wrapper around a shared helper. Compose the narrowest owning contract directly.
+- Helpers must use explicit inputs and return values or typed dataclasses. They must not read or mutate notebook globals, IPython state, or variables owned by another cell.
+- Constructors capture and validate state; explicit methods perform Azure, network, file, sleep, or other observable work.
+- A helper that creates an HTTP session, temporary file, or closeable resource owns deterministic cleanup on success and exceptions. Use a context manager when ownership spans multiple calls.
+- Inject command runners, session factories, sleeps, clocks, or other external boundaries when this avoids live Azure access, network calls, or real waits in unit tests.
+- Use module-qualified imports plus `utils.enable_module_autoreload('<module_name>')` for actively edited sample-local pure-Python modules. Do not use broad autoreload.
+- Line count alone does not justify extraction. Extract when responsibility, lifecycle, repetition, or testability belongs outside the educational workflow.
+
 ## Style and Conventions
 
 - Prefer Python 3.12+ features unless otherwise required.
@@ -89,6 +102,8 @@ Before completing any Python code changes, verify:
 - Add or update pytest unit tests when changing behavior.
 - Prefer focused tests for the code being changed.
 - Avoid tests that require live Azure access; mock Azure CLI interactions and `azure_resources` helpers.
+- Every extracted helper requires focused tests for its public success and failure contracts. Include malformed inputs and resource cleanup where applicable.
+- Place sample-local helper tests in `tests/python/test_<sample>_helpers.py` and target at least 95% meaningful statement and branch coverage for changed helper modules.
 - Abstract and consolidate common test overhead into the `test_helpers.py` file.
 
 ## Azure Helper Imports
