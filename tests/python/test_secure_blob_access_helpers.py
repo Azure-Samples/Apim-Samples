@@ -142,11 +142,12 @@ def test_runner_preserves_failed_download_body_and_closes_after_exception():
     session.get.return_value.text = 'forbidden details'
     runner = SecureBlobAccessRunner(requests, session_factory=lambda: session)
 
-    with pytest.raises(RuntimeError, match='cell failed'), runner:
-        download = runner.download(ValetKey('https://storage/blob', None))
-        assert download.content is None
-        assert download.response_body == 'forbidden details'
-        raise RuntimeError('cell failed')
+    with pytest.raises(RuntimeError, match='cell failed'):
+        with runner:
+            download = runner.download(ValetKey('https://storage/blob', None))
+            assert download.content is None
+            assert download.response_body == 'forbidden details'
+            raise RuntimeError('cell failed')
 
     session.close.assert_called_once_with()
     requests.close.assert_called_once_with()

@@ -70,11 +70,12 @@ def test_runner_persists_results_when_cell_raises(monkeypatch, tmp_path):
     runner = _create_runner(monkeypatch, results_path)
     suite = MagicMock()
     suite.verify.return_value = False
+    fail_cell = MagicMock(side_effect=RuntimeError('cell failed'))
 
     with pytest.raises(RuntimeError, match='cell failed'):
         with runner:
             runner.track(suite, 'Option 1', 'recorded before failure', 500, 200)
-            raise RuntimeError('cell failed')
+            fail_cell()
 
     assert load_test_results(results_path)[0]['Test'] == 'recorded before failure'
     runner.session.close.assert_called_once()

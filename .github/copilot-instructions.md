@@ -46,6 +46,7 @@ In case of any conflicting instructions, the following hierarchy shall apply. If
 - Consider non-native English speakers in code comments and documentation, using clear and simple language.
 - Treat accessibility as a default quality requirement across the entire repository, not only for presentations.
 - New or updated user-facing experiences (docs, webpages, notebooks, dashboards/workbooks, and slide content) must target WCAG 2.0 AA contrast and non-color-only communication as the baseline.
+- Continuously refine repository instructions, skills, and agents when a surfaced problem reveals an addressable gap. Update the narrowest authoritative customization in the same change when practical, so future work benefits without duplicating or overfitting guidance.
 
 ## Consistency & Uniformity
 

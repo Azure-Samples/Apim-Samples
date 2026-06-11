@@ -109,8 +109,9 @@ def test_structured_expectation_rejects_non_json_response(requests_mock, tests_m
 
 @pytest.mark.unit
 def test_context_manager_closes_requests_on_exception(requests_mock, tests_mock):
-    with pytest.raises(RuntimeError), RoleBasedAuthTestRunner(requests_mock, tests_mock, 'jwt-key'):
-        raise RuntimeError('test failure')
+    with pytest.raises(RuntimeError):
+        with RoleBasedAuthTestRunner(requests_mock, tests_mock, 'jwt-key'):
+            raise RuntimeError('test failure')
 
     requests_mock.close.assert_called_once_with()
 

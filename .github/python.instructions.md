@@ -101,6 +101,8 @@ Before completing any Python code changes, verify:
 - Slow tests (> 0.1s runtime) should be identified and fixed, if possible.
 - Add or update pytest unit tests when changing behavior.
 - Prefer focused tests for the code being changed.
+- When testing cleanup after an exception, place `pytest.raises(...)` in an outer `with` block and the resource-owning context manager in a nested inner block. Do not combine them in one comma-separated `with` statement because static analysis may report the cleanup assertions as unreachable.
+- If static analysis still treats assertions after `pytest.raises(...)` as unreachable because the test body contains a literal `raise`, trigger the expected exception through the exercised method or a mock `side_effect` instead. Keep the exception and post-block cleanup assertions unchanged.
 - Avoid tests that require live Azure access; mock Azure CLI interactions and `azure_resources` helpers.
 - Every extracted helper requires focused tests for its public success and failure contracts. Include malformed inputs and resource cleanup where applicable.
 - Place sample-local helper tests in `tests/python/test_<sample>_helpers.py` and target at least 95% meaningful statement and branch coverage for changed helper modules.
