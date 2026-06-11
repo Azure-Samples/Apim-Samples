@@ -63,16 +63,18 @@ class ApimTesting:
         Returns:
             bool: True, if the assertion passes; otherwise, False.
         """
+        self.total_tests += 1
+
         try:
             if label:
-                print(f'🔍 Assert that {label} value [{value}] matches expected value [{expected}].')
+                print(f'🔍 Test {self.total_tests}: Assert that {label} value [{value}] matches expected value [{expected}].')
             else:
-                print(f'🔍 Assert that value [{value}] matches expected value [{expected}].')
+                print(f'🔍 Test {self.total_tests}: Assert that value [{value}] matches expected value [{expected}].')
 
-            self.total_tests += 1
             assert value == expected, f'Value [{value}] does not match expected value [{expected}]'
             self.tests_passed += 1
             print(f'✅ Test {self.total_tests}: PASS')
+            print()
 
             return True
         except AssertionError as e:
@@ -80,6 +82,7 @@ class ApimTesting:
             label_suffix = f' [{label}]' if label else ''
             self.errors.append(f'Test {self.total_tests}{label_suffix}: {str(e)}')
             print(f'❌ Test {self.total_tests}: FAIL - {str(e)}')
+            print()
 
             return False
 
