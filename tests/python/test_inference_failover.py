@@ -336,17 +336,7 @@ def test_inference_notebook_generates_local_html_report() -> None:
     assert "'inference-failover-report.html'" in code_source
     assert "'', 'Test #', 'Scenario', 'Requests', 'HTTP 200', 'Other', 'APIM retries', 'Priority / weight mix', 'What the data says'" in code_source
     assert "htmlreport.HtmlText(f'Scenario Outcomes: {model_name}', bold_tokens=(model_name,))" in code_source
-    assert 'if retry_count > 0' in code_source
-    assert 'caller_succeeded = not non_200_responses' in code_source
-    assert "htmlreport.HtmlSuccess('All requests returned HTTP 200')" in code_source
-    assert "else htmlreport.HtmlWarning('Some requests returned non-200 responses')" in code_source
-    assert "observation_items = tuple(f'{item.strip()}' for item in '; '.join(observations).split(';'))" in code_source
-    assert 'htmlreport.HtmlList(observation_items)' in code_source
-    assert 'htmlreport.HtmlText(retry_mix, preserve_line_breaks=True)' in code_source
-    assert 'def get_priority_and_weight(' in code_source
-    assert "weights_by_priority.setdefault(priority, []).append(f'W{weight}: {count} ({count / total_requests:.1%})')" in code_source
-    assert "priority_mix = '\\n'.join(f'P{priority}: {\", \".join(weight_mix)}'" in code_source
-    assert 'htmlreport.HtmlText(priority_mix, bold_tokens=priority_tokens, preserve_line_breaks=True)' in code_source
+    assert 'inference_failover_helpers.build_scenario_report_row(' in code_source
     assert "column_widths=['4%', '5%', '10%', '6%', '6%', '5%', '11%', '17%', '36%']" in code_source
     assert "'A-1',\n                'Baseline Warm Path'" in code_source
     assert "'B-1',\n                'Baseline Warm Path'" in code_source
@@ -358,12 +348,6 @@ def test_inference_notebook_generates_local_html_report() -> None:
     assert 'report.add_info_callout(' in code_source
     assert "'Lab Capacity Is Intentionally Low'" in code_source
     assert "'Each regional Azure OpenAI deployment is intentionally configured at 1,000 TPM so that" in code_source
-    assert 'observed_backend_failures = backend_retries_absorbed + caller_visible_failures' in code_source
-    assert 'shielded_percentage = backend_retries_absorbed / observed_backend_failures * 100' in code_source
-    assert "f'APIM absorbed {backend_retries_absorbed} backend failures and sent {caller_visible_failures} failures to callers'" in code_source
-    assert "f'APIM prevented {shielded_percentage:.1f}% of observed failed backend attempts from reaching callers'" in code_source
-    assert 'terminal_503_responses = status_counts.get(503, 0)' in code_source
-    assert 'caller-visible HTTP 503 responses followed eligible-capacity exhaustion in the low-TPM pool' in code_source
     assert "'Observed X-Backend-URL values'" not in code_source.split('report = htmlreport.HtmlReport(', maxsplit=1)[1]
     assert 'if all_scenario_requests_succeeded:' in code_source
     assert 'report.add_success_callout(' in code_source

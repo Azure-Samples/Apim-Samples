@@ -146,6 +146,16 @@ def test_context_manager_closes_session_after_exception():
 
 
 @pytest.mark.unit
+def test_close_is_idempotent_without_an_open_session():
+    runner, session = _create_runner()
+
+    runner.close()
+    runner.close()
+
+    session.close.assert_not_called()
+
+
+@pytest.mark.unit
 def test_pause_uses_injected_sleep_and_rejects_negative_values():
     sleep = MagicMock()
     runner, _ = _create_runner(sleep=sleep)
@@ -206,6 +216,18 @@ def test_with_backend_identifier_leaves_frames_without_urls_unchanged():
     result = with_backend_identifier(source)
 
     assert result.equals(source)
+    assert result is not source
+
+
+@pytest.mark.unit
+def test_format_gateway_distribution_leaves_frames_without_backend_urls():
+    source = pd.DataFrame([['api', 'not available', 'not available']], columns=['API', 'AverageBackendMs', 'SuccessRate'])
+
+    result = format_gateway_distribution(source)
+
+    assert result['AverageBackendMs'].tolist() == ['']
+    assert result['SuccessRate'].tolist() == ['']
+    assert 'Backend' not in result.columns
     assert result is not source
 
 
@@ -273,3 +295,16 @@ def test_build_scenario_report_row_reports_failover_retries_and_terminal_503():
     assert 'no resolved backend' in observations
     assert 'HTTP 503 responses' in observations
     assert 'APIM prevented 80.0%' in observations
+
+
+@pytest.mark.unit
+def test_build_scenario_report_row_reports_unresolved_non_503_failure():
+    results = [{'status_code': 429, 'backend_retry': 0, 'backend_url': 'unknown'}]
+
+    row = build_scenario_report_row('A-3', 'Capacity Exhausted', results, {}, {})
+
+    assert isinstance(row[0], HtmlWarning)
+    assert row[7] == HtmlText('No resolved backend: 1 (100.0%)', preserve_line_breaks=True)
+    observations = '\n'.join(row[8].items)
+    assert 'caller-visible failures remained' in observations
+    assert 'Deepest routed tier' not in observations
