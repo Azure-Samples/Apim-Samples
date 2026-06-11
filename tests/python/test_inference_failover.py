@@ -104,8 +104,6 @@ def test_inference_policies_use_managed_identity_retries_and_generic_terminal_er
     retry_condition = retry.attrib['condition']
     terminal_condition = policy_root.find('outbound/choose/when').attrib['condition']
     transport_condition = policy_root.find('on-error/choose/when').attrib['condition']
-    assert 'authentication-managed-identity' in api_policy
-    assert 'https://cognitiveservices.azure.com' in api_policy
     assert 'count="RETRY_COUNT"' in api_policy
     assert 'api-key' not in api_policy
     assert all(f'StatusCode == {status_code}' in retry_condition for status_code in (409, 429, 500, 502, 503, 504))
@@ -130,6 +128,15 @@ def test_inference_policies_use_managed_identity_retries_and_generic_terminal_er
     assert '((int)context.Variables["backendAttempt"]) - 1 : 0' in api_policy
     assert api_policy.index('<set-variable name="backendAttempt" value="@(0)" />') < api_policy.index('<authentication-managed-identity')
     assert not (SAMPLE_PATH / 'inference-api-policy.xml').exists()
+
+
+def test_inference_policy_uses_exact_managed_identity_resource() -> None:
+    """Require the exact Cognitive Services resource in the parsed policy structure."""
+    policy_root = ElementTree.fromstring(POLICY_PATH.read_text(encoding='utf-8'))
+    managed_identity = policy_root.find('inbound/authentication-managed-identity')
+
+    assert managed_identity is not None
+    assert managed_identity.attrib['resource'] == 'https://cognitiveservices.azure.com'
 
 
 def test_inference_policy_decisions_cover_every_documented_status() -> None:
