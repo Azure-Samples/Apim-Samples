@@ -5,34 +5,23 @@
     Managed identity authentication is applied after pool selection, so every selected
     Azure OpenAI backend receives a bearer token rather than an API key.
 
-    Response handling matrix:
+    HTTP Response Code handling matrix:
 
-    Code  Category  Retry      Shift Region  Failover           Severity
-    200   Success   N/A        No            No                 None
-    400   Client    No         No            No                 Low
-    401   Auth      No         No            No                 Medium
-    403   AuthZ     No         No            No                 Medium
-    404   Config    No         No            No                 Medium
-    409   Conflict  Sometimes  No            No                 Medium
-    429   Capacity  Yes        Yes (bias)    No                 Medium
-    500   Infra     Yes        Yes           Yes (if sustained) High
-    502   Infra     Yes        Yes           Yes                High
-    503   Infra     Yes        Yes           Yes                High
-    504   Infra     Yes        Yes           Yes                High
-
-    "Sometimes" means that 409 is retried only when the backend supplies Retry-After.
-    The 409 response does not trip a circuit breaker, so the retry stays on the selected
-    backend rather than intentionally shifting region. A 429 trips the capacity breaker;
-    Retry-After biases APIM away from that backend, but an exhausted 429 remains a 429.
-    A 500 must be sustained before its circuit opens. A 502, 503, or 504 opens the
-    infrastructure breaker immediately. Exhausted infrastructure failures are normalized
-    to a generic 503 without exposing backend identity.
-
-    A null backend response is not an HTTP status. It represents an APIM-to-backend
-    transport failure such as DNS resolution, connection establishment, or timeout.
-    Those failures are retryable and exhausted forward-request connection/timeouts are
-    normalized to the same generic 503. A caller disconnect is different: changing the
-    backend URL cannot simulate it because the broken connection is on the caller side.
+    Backend  Trip Breaker  Retry      Frontend    Category   Severity  Handling
+    ================================================================================================================================================
+    200      -             -          200         Success    None      Return the successful response.
+    400      No            No         400         Client     Low       Return unchanged; may indicate an invalid request or content filtering.
+    401      No            No         401         Auth       Medium    Return unchanged; correct backend authentication.
+    403      No            No         403         AuthZ      Medium    Return unchanged; correct backend authorization.
+    404      No            No         404         Config     Medium    Return unchanged; correct the backend URL or deployment name.
+    408      No            No         408         Timeout    Medium    Return the explicit HTTP timeout; transport timeouts have no response.
+    409      No            Sometimes  200 or 409  Conflict   Medium    Retry only when Retry-After marks the conflict as transient.
+    429      Yes           Yes        200 or 429  Capacity   Medium    Honor Retry-After and retry another eligible backend; preserve exhausted 429.
+    500      Yes           Yes        200 or 503  Infra      High      Retry another eligible backend; normalize an exhausted chain to 503.
+    502      Yes           Yes        200 or 503  Infra      High      Retry another eligible backend; normalize an exhausted chain to 503.
+    503      Yes           Yes        200 or 503  Infra      High      Retry another eligible backend; normalize an exhausted chain to 503.
+    504      Yes           Yes        200 or 503  Infra      High      Retry another eligible backend; normalize an exhausted chain to 503.
+    null     No            Yes        200 or 503  Transport  High      Retry after no backend response; normalize handled transport failures to 503.
 -->
 <policies>
     <inbound>
@@ -56,7 +45,7 @@
         </trace>
     </inbound>
     <backend>
-        <!-- Match the load-balancing sample: retry immediately and let the backend pool's circuit breakers control regional selection. -->
+        <!-- Match the load-balancing sample: retry immediately and let the backend pool's circuit breakers control backend selection. -->
         <!-- Retry a null response because APIM could not obtain any HTTP response from the backend. -->
         <!-- Retry 409 only when Retry-After explicitly marks it as transient. Retry all capacity and listed infrastructure failures. -->
         <retry count="RETRY_COUNT" interval="0" first-fast-retry="true" condition="@(context.Response == null || (context.Response.StatusCode == 409 &amp;&amp; context.Response.Headers.ContainsKey(&quot;Retry-After&quot;)) || context.Response.StatusCode == 429 || context.Response.StatusCode == 500 || context.Response.StatusCode == 502 || context.Response.StatusCode == 503 || context.Response.StatusCode == 504)">
@@ -84,8 +73,8 @@
             <metadata name="BackendResponseCode" value='@(context.Response == null ? "none" : context.Response.StatusCode.ToString())' />
         </trace>
         <choose>
-            <!-- A terminal 409 or 429 is returned unchanged because the matrix does not classify it as failover. -->
-            <!-- Reaching this branch means the listed infrastructure failures persisted through the regional retry chain. -->
+            <!-- A terminal 409 or 429 is returned unchanged because the matrix does not normalize it to 503. -->
+            <!-- Reaching this branch means the listed infrastructure failures persisted through the eligible backend chain. -->
             <when condition="@(context.Response != null &amp;&amp; (context.Response.StatusCode == 500 || context.Response.StatusCode == 502 || context.Response.StatusCode == 503 || context.Response.StatusCode == 504))">
                 <trace source="InferenceFailover" severity="error">
                     <message>@("InferenceFallbackExhausted|attempts=" + ((int)context.Variables["backendAttempt"]).ToString() + "|backendResponseCode=" + context.Response.StatusCode.ToString())</message>

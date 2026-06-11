@@ -304,9 +304,11 @@ module inferenceBackends '../../shared/bicep/modules/apim/v1/backend.bicep' = [f
     circuitBreaker: {
       rules: [
         {
-          // A 429 is a capacity signal. Retry-After controls how long APIM biases
-          // regional pool selection away from this backend.
-          name: 'capacity-throttled'
+          // APIM allows only one circuit breaker rule per backend, so all failure
+          // signals share one rule. The first 429, 500, 502, 503, or 504 response
+          // trips this backend's circuit. acceptRetryAfter honors the Retry-After
+          // header on 429 responses when determining how long to avoid the backend.
+          name: 'failover-on-capacity-or-infrastructure-failure'
           acceptRetryAfter: true
           failureCondition: {
             count: 1
@@ -316,35 +318,10 @@ module inferenceBackends '../../shared/bicep/modules/apim/v1/backend.bicep' = [f
                 min: 429
                 max: 429
               }
-            ]
-          }
-          tripDuration: 'PT1M'
-        }
-        {
-          // A single 500 is retryable, but only sustained 500 responses shift
-          // regional selection and qualify as infrastructure failover.
-          name: 'sustained-internal-error'
-          acceptRetryAfter: false
-          failureCondition: {
-            count: 2
-            interval: 'PT1M'
-            statusCodeRanges: [
               {
                 min: 500
                 max: 500
               }
-            ]
-          }
-          tripDuration: 'PT1M'
-        }
-        {
-          // Gateway and availability failures shift region immediately.
-          name: 'infrastructure-unavailable'
-          acceptRetryAfter: false
-          failureCondition: {
-            count: 1
-            interval: 'PT1M'
-            statusCodeRanges: [
               {
                 min: 502
                 max: 504

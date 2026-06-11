@@ -30,23 +30,23 @@ An AI platform prefers provisioned capacity tiers across its available regions b
 
 ### Response Handling Rules
 
-The inference policy uses the following response-handling matrix. "Failover" means returning the sample's generic caller-facing `503` after the eligible regional retry chain is exhausted; it is distinct from shifting an individual retry to another region.
+The inference policy uses the following response-handling matrix. "Trip Breaker" applies to the backend that returned the response. "Caller Codes" lists the recovery code first and the exhausted terminal code second when both are possible.
 
-| Code | Category | Retry     | Shift Region | Failover           | Severity |
-| ---- | -------- | --------- | ------------ | ------------------ | -------- |
-| 200  | Success  | N/A       | No           | No                 | None     |
-| 400  | Client   | No        | No           | No                 | Low      |
-| 401  | Auth     | No        | No           | No                 | Medium   |
-| 403  | AuthZ    | No        | No           | No                 | Medium   |
-| 404  | Config   | No        | No           | No                 | Medium   |
-| 409  | Conflict | Sometimes | No           | No                 | Medium   |
-| 429  | Capacity | Yes       | Yes (bias)   | No                 | Medium   |
-| 500  | Infra    | Yes       | Yes          | Yes (if sustained) | High     |
-| 502  | Infra    | Yes       | Yes          | Yes                | High     |
-| 503  | Infra    | Yes       | Yes          | Yes                | High     |
-| 504  | Infra    | Yes       | Yes          | Yes                | High     |
-
-The policy interprets "Sometimes" as a `409` carrying `Retry-After`: APIM retries it immediately against the selected backend but does not open that backend's circuit or intentionally shift region. A `429` opens the capacity circuit, and `Retry-After` biases subsequent pool selection away from the constrained backend; if every eligible attempt still returns `429`, APIM preserves that response instead of converting it to failover. A `500` becomes a regional failover signal only after two occurrences within one minute, while `502`, `503`, and `504` open the infrastructure circuit immediately. After the regional chain is exhausted, those infrastructure responses become a generic caller-facing `503`.
+| Backend Code | Trip Breaker | Retry | Caller Codes | Category | Severity | Handling |
+| --- | --- | --- | --- | --- | --- | --- |
+| 200 | - | - | 200 | Success | None | Return the successful response. |
+| 400 | No | No | 400 | Client | Low | Return unchanged; may indicate an invalid request or content filtering. |
+| 401 | No | No | 401 | Auth | Medium | Return unchanged; correct backend authentication. |
+| 403 | No | No | 403 | AuthZ | Medium | Return unchanged; correct backend authorization. |
+| 404 | No | No | 404 | Config | Medium | Return unchanged; correct the backend URL or deployment name. |
+| 408 | No | No | 408 | Timeout | Medium | Return the explicit HTTP timeout; transport timeouts have no response. |
+| 409 | No | Sometimes | 200 or 409 | Conflict | Medium | Retry only when `Retry-After` marks the conflict as transient. |
+| 429 | Yes | Yes | 200 or 429 | Capacity | Medium | Honor `Retry-After` and retry another eligible backend; preserve an exhausted `429`. |
+| 500 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |
+| 502 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |
+| 503 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |
+| 504 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |
+| null | No | Yes | 200 or 503 | Transport | High | Retry after no backend response; normalize handled transport failures to `503`. |
 
 ### Failure Test Coverage
 
@@ -61,10 +61,10 @@ The notebook runs deterministic gateway contract probes before its capacity scen
 | `404` | Yes | Call an unknown APIM operation. For a backend-side variant, temporarily target a nonexistent model deployment in an isolated backend. | `404` and no retry. |
 | `409` without `Retry-After` | No | Use a local fault server, Mockoon, WireMock, or a temporary Container App that returns `409` without the header. | One attempt; caller keeps `409`. |
 | `409` with `Retry-After` | No | Return `409` plus `Retry-After: 1` from the controlled fault origin. | Retry count increases, but the backend circuit does not open. |
-| `429` | Yes, workload-dependent | Run the pressure cells. For deterministic CI, return `429` plus `Retry-After` from a controlled fault origin. | Regional selection is biased; exhausted capacity remains `429`. |
-| `500` | No | Return `500` twice within one minute, then recover. | First response is retryable; sustained failures open the circuit and can exhaust as generic `503`. |
-| `502` | No | Return an explicit `502` from the controlled fault origin. | Immediate infrastructure circuit trip and regional retry. |
-| `503` | Organic but not guaranteed | Return `503`, optionally with `Retry-After`, from the controlled fault origin. | Immediate regional retry; exhausted chain becomes generic `503`. |
+| `429` | Yes, workload-dependent | Run the pressure cells. For deterministic CI, return `429` plus `Retry-After` from a controlled fault origin. | Backend selection avoids the constrained backend; exhausted capacity remains `429`. |
+| `500` | No | Return an explicit `500` from the controlled fault origin. | Immediate circuit trip and backend failover; an exhausted chain becomes generic `503`. |
+| `502` | No | Return an explicit `502` from the controlled fault origin. | Immediate circuit trip and backend failover. |
+| `503` | Organic but not guaranteed | Return `503`, optionally with `Retry-After`, from the controlled fault origin. | Immediate backend failover; an exhausted chain becomes generic `503`. |
 | `504` | No | Return an explicit `504`; separately delay the origin beyond the APIM forwarding timeout to test transport timeout behavior. | HTTP `504` trips the circuit; timeout produces no backend HTTP response but is retried and normalized to `503`. |
 | DNS/connection failure | No | Point one isolated backend at a reserved nonexistent host such as `https://unresolvable.invalid`. | `BackendConnectionFailure`, retries, then generic `503` if all destinations fail. |
 | TLS failure | No | Point an isolated backend at a host with an expired certificate or a certificate-name mismatch while TLS validation remains enabled. | Backend connection failure, retries, and no certificate detail disclosed to the caller. |

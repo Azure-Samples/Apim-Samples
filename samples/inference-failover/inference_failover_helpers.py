@@ -2,6 +2,7 @@
 
 import json
 import time
+from collections import Counter
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -12,6 +13,7 @@ import requests as http_requests
 # APIM Samples imports
 from apimtypes import SUBSCRIPTION_KEY_PARAMETER_NAME
 from console import print_info, print_message
+from htmlreport import HtmlList, HtmlSuccess, HtmlText, HtmlWarning
 
 
 @dataclass(frozen=True)
@@ -274,3 +276,95 @@ def format_gateway_distribution(frame: pd.DataFrame) -> pd.DataFrame:
         result = result.drop(columns=['Backend URL'])
 
     return result
+
+
+def get_priority_and_weight(backend_index: int, backend_labels: Mapping[int, str]) -> tuple[int, int]:
+    """Return the routing priority and weight encoded in a backend legend label."""
+    route_label = backend_labels[backend_index].split(':', maxsplit=1)[0]
+    priority_label, weight_label = route_label.split(' / ', maxsplit=1)
+
+    return int(priority_label.removeprefix('Priority ')), int(weight_label.removeprefix('Weight '))
+
+
+def build_scenario_report_row(
+    test_id: str,
+    title: str,
+    api_results: list[dict[str, Any]],
+    backend_url_index: Mapping[str, int],
+    backend_labels: Mapping[int, str],
+) -> list[object]:
+    """Return one compact HTML report row with routing statistics and interpretation."""
+    total_requests = len(api_results)
+    if not total_requests:
+        return ['', test_id, title, 0, 0, 0, 'None', 'No requests', 'No scenario requests were captured.']
+
+    status_counts = Counter(result['status_code'] for result in api_results)
+    retry_counts = Counter(result['backend_retry'] for result in api_results)
+    backend_indexes = [get_backend_index(result['backend_url'], backend_url_index) for result in api_results]
+    priority_weight_counts = Counter(get_priority_and_weight(index, backend_labels) for index in backend_indexes if index in backend_labels)
+    priority_counts: Counter = Counter()
+    weights_by_priority: dict[int, list[str]] = {}
+    for (priority, weight), count in sorted(priority_weight_counts.items()):
+        priority_counts[priority] += count
+        weights_by_priority.setdefault(priority, []).append(f'W{weight}: {count} ({count / total_requests:.1%})')
+    routed_requests = sum(priority_counts.values())
+    unresolved_requests = total_requests - routed_requests
+    routed_beyond_primary = sum(count for priority, count in priority_counts.items() if priority > 1)
+    non_200_responses = total_requests - status_counts.get(200, 0)
+    caller_succeeded = not non_200_responses
+    retried_requests = sum(count for retry_count, count in retry_counts.items() if retry_count > 0)
+    backend_retries_absorbed = sum(retry_count * count for retry_count, count in retry_counts.items())
+    caller_visible_failures = non_200_responses
+    observed_backend_failures = backend_retries_absorbed + caller_visible_failures
+    terminal_503_responses = status_counts.get(503, 0)
+    priority_mix = '\n'.join(f'P{priority}: {", ".join(weight_mix)}' for priority, weight_mix in sorted(weights_by_priority.items()))
+    retry_mix = (
+        '\n'.join(f'{retry_count}: {count} ({count / total_requests:.1%})' for retry_count, count in sorted(retry_counts.items()) if retry_count > 0)
+        or 'None'
+    )
+    if unresolved_requests:
+        unresolved_mix = f'No resolved backend: {unresolved_requests} ({unresolved_requests / total_requests:.1%})'
+        priority_mix = f'{priority_mix}\n{unresolved_mix}' if priority_mix else unresolved_mix
+
+    observations = []
+    if non_200_responses:
+        observations.append(f'{non_200_responses}/{total_requests} ({non_200_responses / total_requests:.1%}) caller-visible non-200 responses')
+    else:
+        observations.append('All requests returned HTTP 200')
+    if backend_retries_absorbed:
+        observations.append(f'{retried_requests}/{total_requests} returned after a retry')
+    else:
+        observations.append('all responses returned without a backend retry')
+    if routed_beyond_primary:
+        observations.append(f'{routed_beyond_primary}/{total_requests} ({routed_beyond_primary / total_requests:.1%}) routed beyond P1')
+    else:
+        observations.append('no failover beyond P1 observed')
+    if priority_counts:
+        observations.append(f'Deepest routed tier: P{max(priority_counts)}')
+    if unresolved_requests:
+        observations.append(f'{unresolved_requests} calls returned no resolved backend, consistent with exhausted or rejected routing')
+    observations.append(f'APIM absorbed {backend_retries_absorbed} backend failures and sent {caller_visible_failures} failures to callers')
+    if observed_backend_failures:
+        shielded_percentage = backend_retries_absorbed / observed_backend_failures * 100
+        observations.append(f'APIM prevented {shielded_percentage:.1f}% of observed failed backend attempts from reaching callers')
+    else:
+        observations.append('APIM shielding percentage is not applicable because no backend failures occurred')
+    if terminal_503_responses:
+        observations.append(f'{terminal_503_responses} caller-visible HTTP 503 responses followed eligible-capacity exhaustion in the low-TPM pool')
+    elif caller_visible_failures:
+        observations.append('caller-visible failures remained because the model-safe pool exhausted its configured fallback chain')
+
+    priority_tokens = tuple(f'P{priority}' for priority in sorted(priority_counts))
+    observation_items = tuple(item.strip() for item in '; '.join(observations).split(';'))
+
+    return [
+        (HtmlSuccess('All requests returned HTTP 200') if caller_succeeded else HtmlWarning('Some requests returned non-200 responses')),
+        test_id,
+        title,
+        total_requests,
+        status_counts.get(200, 0),
+        non_200_responses,
+        HtmlText(retry_mix, preserve_line_breaks=True),
+        HtmlText(priority_mix, bold_tokens=priority_tokens, preserve_line_breaks=True),
+        HtmlList(observation_items),
+    ]

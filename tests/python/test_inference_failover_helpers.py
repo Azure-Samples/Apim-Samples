@@ -11,12 +11,15 @@ import pytest
 INFERENCE_FAILOVER_DIR = Path(__file__).resolve().parents[2] / 'samples' / 'inference-failover'
 sys.path.insert(0, str(INFERENCE_FAILOVER_DIR))
 
+from htmlreport import HtmlList, HtmlSuccess, HtmlText, HtmlWarning  # noqa: E402
 from inference_failover_helpers import (  # noqa: E402
     InferenceScenario,
     InferenceTrafficRunner,
+    build_scenario_report_row,
     format_backend_url_counts,
     format_gateway_distribution,
     get_backend_index,
+    get_priority_and_weight,
     parse_backend_retry,
     summarize_scenario,
     validate_status,
@@ -204,3 +207,69 @@ def test_with_backend_identifier_leaves_frames_without_urls_unchanged():
 
     assert result.equals(source)
     assert result is not source
+
+
+@pytest.mark.unit
+def test_get_priority_and_weight_parses_legend_label():
+    labels = {
+        0: 'Priority 1 / Weight 100: PTU (East US 2)',
+        3: 'Priority 4 / Weight 50: PAYG (West US 3)',
+    }
+
+    assert get_priority_and_weight(0, labels) == (1, 100)
+    assert get_priority_and_weight(3, labels) == (4, 50)
+
+
+@pytest.mark.unit
+def test_build_scenario_report_row_handles_empty_results():
+    row = build_scenario_report_row('A-1', 'Baseline', [], {}, {})
+
+    assert row == ['', 'A-1', 'Baseline', 0, 0, 0, 'None', 'No requests', 'No scenario requests were captured.']
+
+
+@pytest.mark.unit
+def test_build_scenario_report_row_all_success_without_retries():
+    labels = {0: 'Priority 1 / Weight 100: PTU (East US 2)'}
+    backend_url_index = {'/deployments/a-model': 0}
+    results = [
+        {'status_code': 200, 'backend_retry': 0, 'backend_url': 'https://host/deployments/a-model'},
+        {'status_code': 200, 'backend_retry': 0, 'backend_url': 'https://host/deployments/a-model'},
+    ]
+
+    row = build_scenario_report_row('A-1', 'Baseline', results, backend_url_index, labels)
+
+    assert isinstance(row[0], HtmlSuccess)
+    assert row[1:6] == ['A-1', 'Baseline', 2, 2, 0]
+    assert row[6] == HtmlText('None', preserve_line_breaks=True)
+    assert isinstance(row[7], HtmlText)
+    assert 'P1' in row[7].text
+    assert isinstance(row[8], HtmlList)
+    observations = '\n'.join(row[8].items)
+    assert 'All requests returned HTTP 200' in observations
+    assert 'no failover beyond P1 observed' in observations
+    assert 'no backend failures occurred' in observations
+
+
+@pytest.mark.unit
+def test_build_scenario_report_row_reports_failover_retries_and_terminal_503():
+    labels = {
+        0: 'Priority 1 / Weight 100: PTU (East US 2)',
+        1: 'Priority 2 / Weight 100: PTU (West US 3)',
+    }
+    backend_url_index = {'/deployments/a-model': 0, '/deployments/b-model': 1}
+    results = [
+        {'status_code': 200, 'backend_retry': 1, 'backend_url': 'https://host/deployments/b-model'},
+        {'status_code': 503, 'backend_retry': 3, 'backend_url': 'unknown'},
+    ]
+
+    row = build_scenario_report_row('A-2', 'Sustained Pressure', results, backend_url_index, labels)
+
+    assert isinstance(row[0], HtmlWarning)
+    assert row[3:6] == [2, 1, 1]
+    assert isinstance(row[6], HtmlText)
+    assert '1:' in row[6].text and '3:' in row[6].text
+    observations = '\n'.join(row[8].items)
+    assert 'routed beyond P1' in observations
+    assert 'no resolved backend' in observations
+    assert 'HTTP 503 responses' in observations
+    assert 'APIM prevented 80.0%' in observations

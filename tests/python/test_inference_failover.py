@@ -152,9 +152,11 @@ def test_inference_policy_decisions_cover_every_documented_status() -> None:
         401: (False, False),
         403: (False, False),
         404: (False, False),
+        408: (False, False),
         409: (True, False),
         429: (True, False),
         500: (True, True),
+        501: (False, False),
         502: (True, True),
         503: (True, True),
         504: (True, True),
@@ -171,21 +173,30 @@ def test_inference_readme_documents_exact_response_handling_matrix() -> None:
     """Keep the documented status-code contract synchronized with the policy."""
     readme = README_PATH.read_text(encoding='utf-8')
     expected_rows = [
-        '| 200  | Success  | N/A       | No           | No                 | None     |',
-        '| 400  | Client   | No        | No           | No                 | Low      |',
-        '| 401  | Auth     | No        | No           | No                 | Medium   |',
-        '| 403  | AuthZ    | No        | No           | No                 | Medium   |',
-        '| 404  | Config   | No        | No           | No                 | Medium   |',
-        '| 409  | Conflict | Sometimes | No           | No                 | Medium   |',
-        '| 429  | Capacity | Yes       | Yes (bias)   | No                 | Medium   |',
-        '| 500  | Infra    | Yes       | Yes          | Yes (if sustained) | High     |',
-        '| 502  | Infra    | Yes       | Yes          | Yes                | High     |',
-        '| 503  | Infra    | Yes       | Yes          | Yes                | High     |',
-        '| 504  | Infra    | Yes       | Yes          | Yes                | High     |',
+        '| 200 | - | - | 200 | Success | None | Return the successful response. |',
+        '| 400 | No | No | 400 | Client | Low | Return unchanged; may indicate an invalid request or content filtering. |',
+        '| 401 | No | No | 401 | Auth | Medium | Return unchanged; correct backend authentication. |',
+        '| 403 | No | No | 403 | AuthZ | Medium | Return unchanged; correct backend authorization. |',
+        '| 404 | No | No | 404 | Config | Medium | Return unchanged; correct the backend URL or deployment name. |',
+        '| 408 | No | No | 408 | Timeout | Medium | Return the explicit HTTP timeout; transport timeouts have no response. |',
+        '| 409 | No | Sometimes | 200 or 409 | Conflict | Medium | Retry only when `Retry-After` marks the conflict as transient. |',
+        (
+            '| 429 | Yes | Yes | 200 or 429 | Capacity | Medium | Honor `Retry-After` and retry another eligible '
+            'backend; preserve an exhausted `429`. |'
+        ),
+        '| 500 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |',
+        '| 502 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |',
+        '| 503 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |',
+        '| 504 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |',
+        (
+            '| null | No | Yes | 200 or 503 | Transport | High | Retry after no backend response; normalize handled '
+            'transport failures to `503`. |'
+        ),
     ]
 
     assert all(row in readme for row in expected_rows)
-    assert 'A `500` becomes a regional failover signal only after two occurrences within one minute' in readme
+    assert '| Backend Code | Trip Breaker | Retry | Caller Codes | Category | Severity | Handling |' in readme
+    assert '"Trip Breaker" applies to the backend that returned the response' in readme
     assert '`https://unresolvable.invalid`' in readme
     assert 'does **not** simulate a client disconnect' in readme
     assert '`409` without `Retry-After`' in readme
@@ -204,13 +215,25 @@ def test_inference_bicep_contains_only_compatible_model_backend_pools() -> None:
     assert 'capacity: 1' in bicep
     assert f'name: {single_quote}Standard{single_quote}' in bicep
     assert 'acceptRetryAfter: true' in bicep
-    assert "name: 'capacity-throttled'" in bicep
-    assert "name: 'sustained-internal-error'" in bicep
-    assert "name: 'infrastructure-unavailable'" in bicep
-    assert 'min: 429' in bicep
-    assert 'min: 500' in bicep
-    assert 'min: 502' in bicep
-    assert 'max: 504' in bicep
+    assert bicep.count("name: 'failover-on-capacity-or-infrastructure-failure'") == 1
+    assert "name: 'capacity-throttled'" not in bicep
+    assert "name: 'sustained-internal-error'" not in bicep
+    assert "name: 'infrastructure-unavailable'" not in bicep
+    circuit_breaker_block = re.search(
+        r"name: 'failover-on-capacity-or-infrastructure-failure'(?P<body>.*?)tripDuration: 'PT1M'",
+        bicep,
+        re.DOTALL,
+    )
+    assert circuit_breaker_block is not None
+    breaker_body = circuit_breaker_block.group('body')
+    assert re.search(r'count:\s*1\b', breaker_body)
+
+    status_ranges = {
+        status_code
+        for minimum, maximum in re.findall(r'min:\s*(\d+)\s+max:\s*(\d+)', breaker_body)
+        for status_code in range(int(minimum), int(maximum) + 1)
+    }
+    assert status_ranges == {429, 500, 502, 503, 504}
     assert 'enableLlmLogs: true' in bicep
     assert f'backendPoolName: {single_quote}inference-gpt-5-1-pool{single_quote}' in bicep
     assert f'backendPoolName: {single_quote}inference-gpt-4-1-mini-pool{single_quote}' in bicep
