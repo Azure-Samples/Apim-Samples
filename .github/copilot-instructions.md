@@ -395,7 +395,7 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 
 #### Prerequisites rules
 
-- **Do NOT repeat general prerequisites** (Azure subscription, Azure CLI, Python environment, APIM instance). These are documented once in the root README's [Getting Started](../../README.md#-getting-started) section and apply to all samples. The APIM Samples Developer CLI (`start.ps1` / `start.sh`) handles environment setup.
+- **Do NOT repeat general prerequisites** (Azure subscription, Azure CLI, Python environment, APIM instance). These are documented once in the [root README](../README.md), under Getting Started, and apply to all samples. The APIM Samples Developer CLI (`start.ps1` / `start.sh`) handles environment setup.
 - **Only add `## ✅ Prerequisites`** when a sample has genuinely unique requirements that go beyond the root README, such as:
   - Additional Azure RBAC role assignments beyond Contributor
   - External service accounts (e.g., a Spotify developer account)

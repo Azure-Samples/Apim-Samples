@@ -2,7 +2,7 @@
 
 This architecture provides a basic API gateway using Azure API Management, suitable for simple scenarios where secure API exposure and basic observability are required.
 
-<img src="../../assets/diagrams/Simple API Management Architecture.svg" alt="Diagram showing a simple Azure API Management architecture. API Management acts as a gateway for API consumers. Telemetry is sent to Azure Monitor." title="Simple API Management Architecture" width="800" />
+![Diagram showing a simple Azure API Management architecture. API Management acts as a gateway for API consumers. Telemetry is sent to Azure Monitor.](../../assets/diagrams/Simple%20API%20Management%20Architecture.svg "Simple API Management Architecture")
 
 > Diagram created with the [Azure Draw.io MCP Server](https://github.com/simonkurtz-MSFT/drawio-mcp-server).
 

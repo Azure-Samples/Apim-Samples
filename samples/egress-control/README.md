@@ -2,7 +2,7 @@
 
 Control APIM outbound internet traffic by routing it through a Network Virtual Appliance (NVA) — Azure Firewall — in a hub/spoke network topology.
 
-<img src="../../assets/diagrams/Azure Application Gateway, API Management & Container Apps Architecture VNet Egress Control.svg" alt="Diagram showing a hub/spoke topology where APIM outbound internet traffic routes through Azure Firewall in the hub VNet. The spoke VNet hosts Application Gateway and APIM, with a route table directing internet-bound traffic to the firewall." title="Application Gateway, API Management & Azure Firewall Egress Control" width="1000" />
+![Diagram showing a hub/spoke topology where APIM outbound internet traffic routes through Azure Firewall in the hub VNet. The spoke VNet hosts Application Gateway and APIM, with a route table directing internet-bound traffic to the firewall.](../../assets/diagrams/Azure%20Application%20Gateway%2C%20API%20Management%20%26%20Container%20Apps%20Architecture%20VNet%20Egress%20Control.svg "Application Gateway, API Management & Azure Firewall Egress Control")
 
 ⚙️ **Supported infrastructures**: appgw-apim, appgw-apim-pe
 
@@ -33,7 +33,7 @@ This sample demonstrates the hub/spoke pattern with:
 Three APIM APIs demonstrate the routing behaviour:
 
 | API | Backend | Expected result |
-|-----|---------|-----------------|
+| --- | --- | --- |
 | `egress-weather` | `https://api.weather.gov` (HTTPS) | ✅ 200 — allowed by firewall |
 | `egress-blocked-http` | `http://api.weather.gov` (HTTP/port 80) | ❌ 5xx — HTTP blocked by firewall |
 | `egress-blocked-host` | `https://api.accuweather.com` (HTTPS) | ❌ 5xx — host not in allow list |
@@ -55,8 +55,8 @@ The sample deploys the following resources into the infrastructure resource grou
 ## ⚙️ Configuration
 
 1. Decide which of the [Infrastructure Architectures](../../README.md#infrastructure-architectures) you wish to use.
-    1. If the infrastructure _does not_ yet exist, navigate to the desired [infrastructure](../../infrastructure/) folder and follow its README.md.
-    1. If the infrastructure _does_ exist, adjust the `user-defined parameters` in the _Initialize notebook variables_ cell below.
+    1. If the infrastructure *does not* yet exist, navigate to the desired [infrastructure](../../infrastructure/) folder and follow its README.md.
+    1. If the infrastructure *does* exist, adjust the `user-defined parameters` in the *Initialize notebook variables* cell below.
 1. Adjust `apim_nsg_name` if your infrastructure was deployed with strict NSGs (`nsg-apim-strict`).
 
 > **Supported VNet SKUs only**: APIM must be deployed with a VNet-capable SKU. For `appgw-apim-pe` (Private Link, default), use `STANDARDV2` or `PREMIUMV2`. For `appgw-apim`, use `DEVELOPER` or `PREMIUM` (VNet injection) or `STANDARDV2` or `PREMIUMV2` (VNet integration). Basic, Standard, and BasicV2 are not supported.
