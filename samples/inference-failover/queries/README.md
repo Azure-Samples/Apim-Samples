@@ -22,7 +22,7 @@ Adjust `timeWindow` when investigating a shorter incident window or a longer tre
 | `ApiManagementGatewayLogs` | Caller-visible response codes, final backend response codes, backend placement, timing, APIM errors, and policy trace records. |
 | `ApiManagementGatewayLlmLog` | Correlated model deployment, prompt token, completion token, total token, and message-chunk telemetry. |
 
-The retry-aware queries inspect `TraceRecords` emitted by the inference API policy. `InferenceBackendAttemptComplete` records each completed backend attempt, and `InferenceFallbackExhausted` marks requests where APIM exhausted the eligible fallback chain.
+The retry-aware queries count compact `InferenceAttempt` entries in `TraceRecords`. Exhausted fallback is derived from native `ResponseCode`, `BackendResponseCode`, and `LastErrorReason` fields.
 
 ## Query Catalog
 

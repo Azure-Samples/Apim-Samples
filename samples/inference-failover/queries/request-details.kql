@@ -9,12 +9,13 @@ let gatewayRequests = materialize(ApiManagementGatewayLogs
 | where TimeGenerated > ago(timeWindow)
 | where ApiId in~ (apiIds)
 | extend TraceText = tostring(TraceRecords)
-| extend AttemptCount = countof(TraceText, 'InferenceBackendAttemptComplete')
-| extend RetriedFailures = countof(TraceText, 'willRetry=True')
+| extend AttemptCount = countof(TraceText, 'InferenceAttempt')
+| extend RetriedFailures = max_of(AttemptCount - 1, 0)
 | extend FailoverOccurred = AttemptCount > 1
-| extend FallbackExhausted = TraceText has 'InferenceFallbackExhausted'
+| extend FallbackExhausted = (ResponseCode == 429 and BackendResponseCode in (429, 503))
+    or (ResponseCode == 503 and (BackendResponseCode in (500, 502, 503, 504) or LastErrorReason in ('BackendConnectionFailure', 'Timeout')))
 | extend AttemptTrail = strcat_array(
-    extract_all(@'(InferenceBackendAttemptComplete\|attempt=[0-9]+\|backendResponseCode=(?:[0-9]+|none)\|willRetry=(?:True|False))', TraceText),
+    extract_all(@'(InferenceAttempt\|n=[0-9]+\|code=(?:[0-9]+|none))', TraceText),
     ' -> '));
 let llmPerRequest = ApiManagementGatewayLlmLog
 | where TimeGenerated > ago(timeWindow)

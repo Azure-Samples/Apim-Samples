@@ -305,7 +305,7 @@ module inferenceBackends '../../shared/bicep/modules/apim/v1/backend.bicep' = [f
       rules: [
         {
           // APIM allows only one circuit breaker rule per backend, so all failure
-          // signals share one rule. The first 429, 500, 502, 503, or 504 response
+          // signals share one rule. The first 408, 429, 499, 500, 502, 503, or 504 response
           // trips this backend's circuit. acceptRetryAfter honors the Retry-After
           // header on 429 responses when determining how long to avoid the backend.
           name: 'failover-on-capacity-or-infrastructure-failure'
@@ -315,11 +315,15 @@ module inferenceBackends '../../shared/bicep/modules/apim/v1/backend.bicep' = [f
             interval: 'PT1M'
             statusCodeRanges: [
               {
+                min: 408
+                max: 408
+              }
+              {
                 min: 429
                 max: 429
               }
               {
-                min: 500
+                min: 499
                 max: 500
               }
               {

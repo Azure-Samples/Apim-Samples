@@ -1,11 +1,13 @@
 <!--
     Inference API policy template.
 
-    The notebook replaces BACKEND_POOL_ID and RETRY_COUNT for each model-safe API.
-    Managed identity authentication is applied after pool selection, so every selected
-    Azure OpenAI backend receives a bearer token rather than an API key.
+    The notebook replaces BACKEND_POOL_ID and RETRY_COUNT for each model-safe API. Managed identity authentication is applied after pool selection,
+    so every selected Azure OpenAI backend receives a bearer token rather than an API key.
 
-    HTTP Response Code handling matrix:
+    Retry-After values from capacity responses are stored as Unix epoch seconds. The pool-specific cache retains the soonest future recovery instant
+    across attempts so an exhausted pool can return a useful Retry-After value from on-error.
+
+    HTTP Response Code handling matrix for Azure OpenAI inference APIs:
 
     Backend  Trip Breaker  Retry      Frontend    Category   Severity  Handling
     ================================================================================================================================================
@@ -14,80 +16,84 @@
     401      No            No         401         Auth       Medium    Return unchanged; correct backend authentication.
     403      No            No         403         AuthZ      Medium    Return unchanged; correct backend authorization.
     404      No            No         404         Config     Medium    Return unchanged; correct the backend URL or deployment name.
-    408      No            No         408         Timeout    Medium    Return the explicit HTTP timeout; transport timeouts have no response.
+    408      Yes           Yes        200 or 408  Timeout    Medium    Return the explicit HTTP timeout; transport timeouts have no response.
     409      No            Sometimes  200 or 409  Conflict   Medium    Retry only when Retry-After marks the conflict as transient.
-    429      Yes           Yes        200 or 429  Capacity   Medium    Honor Retry-After and retry another eligible backend; preserve exhausted 429.
+    429      Yes           Yes        200 or 429  Capacity   Medium    Retry another backend; return exhausted capacity with the soonest Retry-After.
+    499      Yes           Yes        200 or 499  Custom     Medium    408s turned into 499 for PTU exhaustion. Retry another backend.
     500      Yes           Yes        200 or 503  Infra      High      Retry another eligible backend; normalize an exhausted chain to 503.
     502      Yes           Yes        200 or 503  Infra      High      Retry another eligible backend; normalize an exhausted chain to 503.
-    503      Yes           Yes        200 or 503  Infra      High      Retry another eligible backend; normalize an exhausted chain to 503.
+    503      Yes           Yes        200/429/503 Infra      High      Return 429 when Retry-After signals capacity; otherwise normalize exhaustion to 503.
     504      Yes           Yes        200 or 503  Infra      High      Retry another eligible backend; normalize an exhausted chain to 503.
     null     No            Yes        200 or 503  Transport  High      Retry after no backend response; normalize handled transport failures to 503.
 -->
 <policies>
     <inbound>
         <base />
-        <set-variable name="backendAttempt" value="@(0)" />
+
+        <set-variable name="backendAttempt" value='@(0)' />
         <set-backend-service backend-id="BACKEND_POOL_ID" />
+
         <authentication-managed-identity resource="https://cognitiveservices.azure.com" output-token-variable-name="managed-id-access-token" ignore-error="false" />
         <set-header name="Authorization" exists-action="override">
             <value>@("Bearer " + (string)context.Variables["managed-id-access-token"])</value>
         </set-header>
+
         <set-header name="x-ms-client-request-id" exists-action="override">
             <value>@(context.RequestId.ToString())</value>
         </set-header>
         <set-query-parameter name="api-version" exists-action="skip">
             <value>2024-10-21</value>
         </set-query-parameter>
-        <trace source="InferenceFailover" severity="information">
-            <message>@("InferenceRequestAccepted|requestId=" + context.RequestId.ToString())</message>
-            <metadata name="EventName" value="InferenceRequestAccepted" />
-            <metadata name="RequestId" value="@(context.RequestId.ToString())" />
-        </trace>
     </inbound>
     <backend>
         <!-- Match the load-balancing sample: retry immediately and let the backend pool's circuit breakers control backend selection. -->
         <!-- Retry a null response because APIM could not obtain any HTTP response from the backend. -->
-        <!-- Retry 409 only when Retry-After explicitly marks it as transient. Retry all capacity and listed infrastructure failures. -->
-        <retry count="RETRY_COUNT" interval="0" first-fast-retry="true" condition="@(context.Response == null || (context.Response.StatusCode == 409 &amp;&amp; context.Response.Headers.ContainsKey(&quot;Retry-After&quot;)) || context.Response.StatusCode == 429 || context.Response.StatusCode == 500 || context.Response.StatusCode == 502 || context.Response.StatusCode == 503 || context.Response.StatusCode == 504)">
+        <!-- Retry 409 only when Retry-After marks it as transient. Retry explicit timeouts, capacity responses, and listed infrastructure failures. -->
+        <retry count="RETRY_COUNT" interval="0" first-fast-retry="true" condition='@(context.Response == null || context.Response.StatusCode == 408 || (context.Response.StatusCode == 409 &amp;&amp; context.Response.Headers.ContainsKey("Retry-After")) || context.Response.StatusCode == 429 || context.Response.StatusCode == 499 || context.Response.StatusCode == 500 || context.Response.StatusCode == 502 || context.Response.StatusCode == 503 || context.Response.StatusCode == 504)'>
             <set-variable name="backendAttempt" value='@(((int)context.Variables["backendAttempt"]) + 1)' />
+
             <forward-request buffer-request-body="true" />
+
+            <!-- Look for capacity responses with Retry-After so exhausted fallback can return the soonest backend recovery time. -->
+            <choose>
+                <when condition='@(context.Response != null &amp;&amp; (context.Response.StatusCode == 429 || context.Response.StatusCode == 503) &amp;&amp; context.Response.Headers.ContainsKey("Retry-After"))'>
+                    <cache-lookup-value key="inference-retry-min-BACKEND_POOL_ID" variable-name="cachedRetryEpoch" />
+
+                    <set-variable name="updatedRetryEpoch" value='@{
+                        int seconds;
+                        var retryAfter = context.Response.Headers.GetValueOrDefault("Retry-After", "0");
+                        if (!int.TryParse(retryAfter, out seconds)) { seconds = 0; }
+
+                        var nowEpoch = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                        var candidateEpoch = nowEpoch + seconds;
+                        long cachedEpoch;
+                        var cached = context.Variables.ContainsKey("cachedRetryEpoch") ? context.Variables["cachedRetryEpoch"] as string : null;
+                        return (long.TryParse(cached, out cachedEpoch) &amp;&amp; cachedEpoch &gt; nowEpoch &amp;&amp; cachedEpoch &lt; candidateEpoch)
+                            ? cachedEpoch.ToString()
+                            : candidateEpoch.ToString();
+                    }' />
+
+                    <cache-store-value key="inference-retry-min-BACKEND_POOL_ID" value='@((string)context.Variables["updatedRetryEpoch"])' duration="300" />
+                </when>
+            </choose>
+
+            <!-- Record one compact event per backend call; gateway fields provide the final response and error details. -->
             <trace source="InferenceFailover" severity="information">
-                <message>@("InferenceBackendAttemptComplete|attempt=" + ((int)context.Variables["backendAttempt"]).ToString() + "|backendResponseCode=" + (context.Response == null ? "none" : context.Response.StatusCode.ToString()) + "|willRetry=" + (context.Response == null || (context.Response.StatusCode == 409 &amp;&amp; context.Response.Headers.ContainsKey("Retry-After")) || context.Response.StatusCode == 429 || context.Response.StatusCode == 500 || context.Response.StatusCode == 502 || context.Response.StatusCode == 503 || context.Response.StatusCode == 504).ToString())</message>
-                <metadata name="EventName" value="InferenceBackendAttemptComplete" />
-                <metadata name="RequestId" value="@(context.RequestId.ToString())" />
-                <metadata name="Attempt" value='@(((int)context.Variables["backendAttempt"]).ToString())' />
-                <metadata name="BackendResponseCode" value='@(context.Response == null ? "none" : context.Response.StatusCode.ToString())' />
-                <metadata name="WillRetry" value='@((context.Response == null || (context.Response.StatusCode == 409 &amp;&amp; context.Response.Headers.ContainsKey("Retry-After")) || context.Response.StatusCode == 429 || context.Response.StatusCode == 500 || context.Response.StatusCode == 502 || context.Response.StatusCode == 503 || context.Response.StatusCode == 504).ToString())' />
+                <message>@("InferenceAttempt|n=" + ((int)context.Variables["backendAttempt"]).ToString() + "|code=" + (context.Response == null ? "none" : context.Response.StatusCode.ToString()))</message>
             </trace>
         </retry>
     </backend>
     <outbound>
+        <set-variable name="backendRetry" value='@(Math.Max(0, ((int)context.Variables["backendAttempt"]) - 1).ToString())' />
         <set-header name="X-Backend-Retry" exists-action="override">
-            <value>@((((int)context.Variables["backendAttempt"]) > 0 ? ((int)context.Variables["backendAttempt"]) - 1 : 0).ToString())</value>
+            <value>@((string)context.Variables["backendRetry"])</value>
         </set-header>
-        <trace source="InferenceFailover" severity="information">
-            <message>@("InferenceGatewayResponse|attempts=" + ((int)context.Variables["backendAttempt"]).ToString() + "|backendResponseCode=" + (context.Response == null ? "none" : context.Response.StatusCode.ToString()))</message>
-            <metadata name="EventName" value="InferenceGatewayResponse" />
-            <metadata name="RequestId" value="@(context.RequestId.ToString())" />
-            <metadata name="Attempts" value='@(((int)context.Variables["backendAttempt"]).ToString())' />
-            <metadata name="BackendResponseCode" value='@(context.Response == null ? "none" : context.Response.StatusCode.ToString())' />
-        </trace>
+
+        <!-- Look for exhausted infrastructure failures to normalize as 503; terminal 408, 409, 429, and 499 responses remain unchanged. -->
         <choose>
-            <!-- A terminal 409 or 429 is returned unchanged because the matrix does not normalize it to 503. -->
-            <!-- Reaching this branch means the listed infrastructure failures persisted through the eligible backend chain. -->
-            <when condition="@(context.Response != null &amp;&amp; (context.Response.StatusCode == 500 || context.Response.StatusCode == 502 || context.Response.StatusCode == 503 || context.Response.StatusCode == 504))">
-                <trace source="InferenceFailover" severity="error">
-                    <message>@("InferenceFallbackExhausted|attempts=" + ((int)context.Variables["backendAttempt"]).ToString() + "|backendResponseCode=" + context.Response.StatusCode.ToString())</message>
-                    <metadata name="EventName" value="InferenceFallbackExhausted" />
-                    <metadata name="RequestId" value="@(context.RequestId.ToString())" />
-                    <metadata name="Attempts" value='@(((int)context.Variables["backendAttempt"]).ToString())' />
-                    <metadata name="BackendResponseCode" value="@(context.Response.StatusCode.ToString())" />
-                </trace>
+            <when condition='@(context.Response != null &amp;&amp; (context.Response.StatusCode == 500 || context.Response.StatusCode == 502 || context.Response.StatusCode == 503 || context.Response.StatusCode == 504))'>
                 <return-response>
                     <set-status code="503" reason="Inference Service Unavailable" />
-                    <set-header name="X-Backend-Retry" exists-action="override">
-                        <value>@((((int)context.Variables["backendAttempt"]) > 0 ? ((int)context.Variables["backendAttempt"]) - 1 : 0).ToString())</value>
-                    </set-header>
                     <set-header name="Content-Type" exists-action="override">
                         <value>application/json</value>
                     </set-header>
@@ -95,35 +101,59 @@
                 </return-response>
             </when>
         </choose>
+
         <base />
     </outbound>
     <on-error>
-        <set-header name="X-Backend-Retry" exists-action="override">
-            <value>@((((int)context.Variables["backendAttempt"]) > 0 ? ((int)context.Variables["backendAttempt"]) - 1 : 0).ToString())</value>
-        </set-header>
+        <set-variable name="backendRetry" value='@(Math.Max(0, context.Variables.GetValueOrDefault&lt;int&gt;("backendAttempt", 0) - 1).ToString())' />
+
+        <!-- Classify exhausted capacity separately from infrastructure and transport failures so each receives the correct terminal status. -->
         <choose>
-            <!-- DNS, TCP/TLS connection, and backend timeout failures have no HTTP status code. -->
-            <!-- Normalize only upstream transport reasons; ClientConnectionFailure remains a native APIM error. -->
-            <when condition="@(context.LastError != null &amp;&amp; (context.LastError.Reason == &quot;BackendConnectionFailure&quot; || context.LastError.Reason == &quot;Timeout&quot;))">
-                <trace source="InferenceFailover" severity="error">
-                    <message>@("InferenceTransportFailure|attempts=" + ((int)context.Variables["backendAttempt"]).ToString() + "|reason=" + context.LastError.Reason)</message>
-                    <metadata name="EventName" value="InferenceTransportFailure" />
-                    <metadata name="RequestId" value="@(context.RequestId.ToString())" />
-                    <metadata name="Attempts" value='@(((int)context.Variables["backendAttempt"]).ToString())' />
-                    <metadata name="Reason" value="@(context.LastError.Reason)" />
-                </trace>
-                <return-response>
-                    <set-status code="503" reason="Inference Service Unavailable" />
-                    <set-header name="X-Backend-Retry" exists-action="override">
-                        <value>@((((int)context.Variables["backendAttempt"]) > 0 ? ((int)context.Variables["backendAttempt"]) - 1 : 0).ToString())</value>
-                    </set-header>
-                    <set-header name="Content-Type" exists-action="override">
-                        <value>application/json</value>
-                    </set-header>
-                    <set-body>{"error":"Inference service is temporarily unavailable."}</set-body>
-                </return-response>
+            <when condition='@(context.Response != null &amp;&amp; (context.Response.StatusCode == 429 || context.Response.StatusCode == 503) &amp;&amp; context.Variables.ContainsKey("updatedRetryEpoch"))'>
+                <set-variable name="retryAfterSeconds" value='@{
+                    var retryEpoch = (string)context.Variables["updatedRetryEpoch"];
+                    long parsedEpoch;
+                    var nowEpoch = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                    if (!long.TryParse(retryEpoch, out parsedEpoch) || parsedEpoch &lt;= nowEpoch) { return 1L; }
+
+                    return Math.Max(0L, parsedEpoch - nowEpoch) + 1L;
+                }' />
+
+                <set-variable name="terminalStatus" value='@(429)' />
+            </when>
+
+            <!-- Normalize exhausted HTTP infrastructure responses and backend transport failures through one non-disclosing response. -->
+            <!-- ClientConnectionFailure remains a native APIM error. -->
+            <when condition='@((context.Response != null &amp;&amp; (context.Response.StatusCode == 500 || context.Response.StatusCode == 502 || context.Response.StatusCode == 503 || context.Response.StatusCode == 504)) || (context.LastError != null &amp;&amp; (context.LastError.Reason == "BackendConnectionFailure" || context.LastError.Reason == "Timeout")))'>
+                <set-variable name="terminalStatus" value='@(503)' />
             </when>
         </choose>
+
+        <!-- Look for a classified terminal failure before replacing the native APIM error response. -->
+        <choose>
+            <when condition='@(context.Variables.ContainsKey("terminalStatus"))'>
+                <!-- Add Retry-After only for exhausted capacity because infrastructure and transport failures have no recovery estimate. -->
+                <choose>
+                    <when condition='@(context.Variables.ContainsKey("retryAfterSeconds"))'>
+                        <set-header name="Retry-After" exists-action="override">
+                            <value>@(((long)context.Variables["retryAfterSeconds"]).ToString())</value>
+                        </set-header>
+                    </when>
+                </choose>
+
+                <set-status code='@((int)context.Variables["terminalStatus"])' reason='@((int)context.Variables["terminalStatus"] == 429 ? "Too Many Requests" : "Inference Service Unavailable")' />
+
+                <set-header name="X-Backend-Retry" exists-action="override">
+                    <value>@((string)context.Variables["backendRetry"])</value>
+                </set-header>
+                <set-header name="Content-Type" exists-action="override">
+                    <value>application/json</value>
+                </set-header>
+
+                <set-body>@((int)context.Variables["terminalStatus"] == 429 ? "{\"error\":\"Inference capacity is temporarily unavailable.\"}" : "{\"error\":\"Inference service is temporarily unavailable.\"}")</set-body>
+            </when>
+        </choose>
+
         <base />
     </on-error>
 </policies>

@@ -8,9 +8,10 @@ ApiManagementGatewayLogs
 | where TimeGenerated > ago(timeWindow)
 | where ApiId in~ (apiIds)
 | extend TraceText = tostring(TraceRecords)
-| extend AttemptCount = countof(TraceText, 'InferenceBackendAttemptComplete')
+| extend AttemptCount = countof(TraceText, 'InferenceAttempt')
 | extend FailoverOccurred = AttemptCount > 1
-| extend FallbackExhausted = TraceText has 'InferenceFallbackExhausted'
+| extend FallbackExhausted = (ResponseCode == 429 and BackendResponseCode in (429, 503))
+	or (ResponseCode == 503 and (BackendResponseCode in (500, 502, 503, 504) or LastErrorReason in ('BackendConnectionFailure', 'Timeout')))
 | extend Outcome = case(
 	FallbackExhausted, 'Fallback exhausted',
 	ResponseCode between (200 .. 299) and FailoverOccurred, 'Recovered after failover',

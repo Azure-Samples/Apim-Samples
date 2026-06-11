@@ -7,7 +7,7 @@
 let requests = ApiManagementGatewayLogs
 | where TimeGenerated > ago(timeWindow)
 | where ApiId in~ (apiIds)
-| summarize RequestRows = count(), SuccessfulRequests = countif(ResponseCode between (200 .. 299)), UnavailableResponses = countif(ResponseCode == 503);
+| summarize RequestRows = count(), SuccessfulRequests = countif(ResponseCode between (200 .. 299)), ThrottledResponses = countif(ResponseCode == 429), UnavailableResponses = countif(ResponseCode == 503);
 let tokens = ApiManagementGatewayLlmLog
 | where TimeGenerated > ago(timeWindow)
 | where TotalTokens > 0
@@ -15,5 +15,5 @@ let tokens = ApiManagementGatewayLlmLog
 requests
 | extend JoinKey = 1
 | join kind=inner (tokens | extend JoinKey = 1) on JoinKey
-| project RequestRows, SuccessfulRequests, UnavailableResponses, TokenRows, TotalTokens
+| project RequestRows, SuccessfulRequests, ThrottledResponses, UnavailableResponses, TokenRows, TotalTokens
 | where RequestRows > 0 and TokenRows > 0

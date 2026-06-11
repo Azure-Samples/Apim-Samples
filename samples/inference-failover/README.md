@@ -39,12 +39,13 @@ The inference policy uses the following response-handling matrix. "Trip Breaker"
 | 401 | No | No | 401 | Auth | Medium | Return unchanged; correct backend authentication. |
 | 403 | No | No | 403 | AuthZ | Medium | Return unchanged; correct backend authorization. |
 | 404 | No | No | 404 | Config | Medium | Return unchanged; correct the backend URL or deployment name. |
-| 408 | No | No | 408 | Timeout | Medium | Return the explicit HTTP timeout; transport timeouts have no response. |
+| 408 | Yes | Yes | 200 or 408 | Timeout | Medium | Retry another backend; return the explicit HTTP timeout if the fallback chain is exhausted. |
 | 409 | No | Sometimes | 200 or 409 | Conflict | Medium | Retry only when `Retry-After` marks the conflict as transient. |
-| 429 | Yes | Yes | 200 or 429 | Capacity | Medium | Honor `Retry-After` and retry another eligible backend; preserve an exhausted `429`. |
+| 429 | Yes | Yes | 200 or 429 | Capacity | Medium | Retry another eligible backend; return exhausted capacity with the soonest `Retry-After`. |
+| 499 | Yes | Yes | 200 or 499 | Custom | Medium | Retry another backend when PTU exhaustion is represented by a transformed `408`. |
 | 500 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |
 | 502 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |
-| 503 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |
+| 503 | Yes | Yes | 200, 429, or 503 | Infra | High | Retry another backend; return `429` when `Retry-After` identifies capacity, otherwise normalize exhaustion to `503`. |
 | 504 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |
 | null | No | Yes | 200 or 503 | Transport | High | Retry after no backend response; normalize handled transport failures to `503`. |
 
@@ -59,12 +60,14 @@ The notebook runs deterministic gateway contract probes before its capacity scen
 | `401` | Yes | Omit the APIM subscription key. | Gateway `401`; the inference policy is not entered. |
 | `403` | No | On an isolated deployment, remove **Cognitive Services OpenAI User** from APIM or add a temporary deny policy. Restore access immediately after the probe. | Backend/caller `403` and no retry. |
 | `404` | Yes | Call an unknown APIM operation. For a backend-side variant, temporarily target a nonexistent model deployment in an isolated backend. | `404` and no retry. |
+| `408` | No | Return an explicit `408` from the controlled fault origin. | Immediate circuit trip and backend failover; an exhausted chain keeps `408`. |
 | `409` without `Retry-After` | No | Use a local fault server, Mockoon, WireMock, or a temporary Container App that returns `409` without the header. | One attempt; caller keeps `409`. |
 | `409` with `Retry-After` | No | Return `409` plus `Retry-After: 1` from the controlled fault origin. | Retry count increases, but the backend circuit does not open. |
-| `429` | Yes, workload-dependent | Run the pressure cells. For deterministic CI, return `429` plus `Retry-After` from a controlled fault origin. | Backend selection avoids the constrained backend; exhausted capacity remains `429`. |
+| `429` | Yes, workload-dependent | Run the pressure cells. For deterministic CI, return `429` plus `Retry-After` from a controlled fault origin. | Backend selection avoids the constrained backend; exhausted capacity returns `429` with the soonest recovery delay. |
+| `499` | No | Transform a PTU-exhaustion `408` into `499`, or return `499` from the controlled fault origin. | Immediate circuit trip and backend failover; an exhausted chain keeps `499`. |
 | `500` | No | Return an explicit `500` from the controlled fault origin. | Immediate circuit trip and backend failover; an exhausted chain becomes generic `503`. |
 | `502` | No | Return an explicit `502` from the controlled fault origin. | Immediate circuit trip and backend failover. |
-| `503` | Organic but not guaranteed | Return `503`, optionally with `Retry-After`, from the controlled fault origin. | Immediate backend failover; an exhausted chain becomes generic `503`. |
+| `503` | Organic but not guaranteed | Return `503`, optionally with `Retry-After`, from the controlled fault origin. | Immediate failover; exhausted capacity with `Retry-After` becomes `429`, otherwise the chain becomes generic `503`. |
 | `504` | No | Return an explicit `504`; separately delay the origin beyond the APIM forwarding timeout to test transport timeout behavior. | HTTP `504` trips the circuit; timeout produces no backend HTTP response but is retried and normalized to `503`. |
 | DNS/connection failure | No | Point one isolated backend at a reserved nonexistent host such as `https://unresolvable.invalid`. | `BackendConnectionFailure`, retries, then generic `503` if all destinations fail. |
 | TLS failure | No | Point an isolated backend at a host with an expired certificate or a certificate-name mismatch while TLS validation remains enabled. | Backend connection failure, retries, and no certificate detail disclosed to the caller. |
@@ -72,7 +75,7 @@ The notebook runs deterministic gateway contract probes before its capacity scen
 
 Use a separate APIM API/backend pool or a disposable deployment for controlled origin tests. Do not add public fault-injection headers to the production-shaped inference APIs, and do not remove role assignments from a shared environment. A nonexistent backend hostname is useful for DNS failure, but it does **not** simulate a client disconnect: DNS happens between APIM and the backend, while a client disconnect happens between the caller and APIM.
 
-For the HTTP fault cases, a minimal local origin can return the requested status and optional `Retry-After` header. Expose it only to the test APIM network path, register one backend per region/priority under test, and apply the same inference policy and breaker configuration. Run each case twice: once with a later healthy pool member to prove recovery, and once with every member faulted to prove the terminal caller contract. Inspect `X-Backend-Retry`, `BackendResponseCode`, `LastErrorReason`, and the `InferenceBackendAttemptComplete`, `InferenceFallbackExhausted`, or `InferenceTransportFailure` trace event.
+For the HTTP fault cases, a minimal local origin can return the requested status and optional `Retry-After` header. Expose it only to the test APIM network path, register one backend per region/priority under test, and apply the same inference policy and breaker configuration. Run each case twice: once with a later healthy pool member to prove recovery, and once with every member faulted to prove the terminal caller contract. Inspect `X-Backend-Retry`, `ResponseCode`, `BackendResponseCode`, `LastErrorReason`, and the compact `InferenceAttempt` trace records.
 
 ### Model Deployments
 
@@ -99,7 +102,7 @@ This lab adds the following to an existing APIM infrastructure:
 - Model-specific APIM backends and one backend pool per model, so a retry never crosses to an incompatible deployment and circuit-breaker state remains isolated. APIM tracks circuit-breaker state at the backend resource; if models shared a backend, a `429` or another configured failure from one model could suppress traffic to a healthy model on that same backend.
 - Two AI Gateway APIs with managed identity authentication to Azure OpenAI: `POST /inference/gpt-5-1/chat/completions` retries four times through A -> D -> B -> E/G (equal terminal weights), while `POST /inference/gpt-4-1-mini/chat/completions` retries three times through C -> F -> D -> H.
 
-- Model-specific retry policies that buffer the POST body while immediately retrying conditional conflicts, throttling, and listed infrastructure failures; emit an information-level trace after every backend attempt; always return the caller-visible `X-Backend-Retry` count; preserve exhausted `409` and `429` responses; and return a generic `503` when infrastructure failover is exhausted.
+- Model-specific retry policies that buffer the POST body while immediately retrying conditional conflicts, throttling, and listed infrastructure failures; cache the soonest `Retry-After` recovery time per model-safe pool; emit an information-level trace after every backend attempt; return caller-visible retry counts; return exhausted capacity as `429` with the remaining recovery delay; and return a generic `503` when infrastructure failover is exhausted.
 - APIM AI Gateway diagnostics using the infrastructure-provided Log Analytics workspace and Application Insights component, plus an AOAI-only workbook for terminal outcomes, retry trails, backend distribution, APIM errors, token coverage, and latency.
 - An optional Standard Event Hubs namespace, telemetry hub, and `external-observability` consumer group in the APIM region for downstream stream processors, SIEM platforms, or external analytics systems.
 
@@ -113,8 +116,8 @@ Every inference call produces one `ApiManagementGatewayLogs` row. The workbook a
 | Caller-visible retries | `X-Backend-Retry` response header | The number of backend retries absorbed by APIM after the initial attempt. A healthy-path response normally returns `0`. |
 | Final backend response | `ApiManagementGatewayLogs.BackendResponseCode` | The HTTP status from the last selected Azure OpenAI backend. |
 | Final backend placement | `ApiManagementGatewayLogs.BackendId`, `BackendUrl` | The concrete backend used for the final attempt. |
-| Retry trail | `ApiManagementGatewayLogs.TraceRecords` | Each `InferenceBackendAttemptComplete` event records its attempt number, backend response code, and whether retry remained eligible. |
-| Exhausted fallback | `ApiManagementGatewayLogs.TraceRecords` | `InferenceFallbackExhausted` proves that APIM replaced the final `429` or `503` with the generic caller-facing `503`. |
+| Retry trail | `ApiManagementGatewayLogs.TraceRecords` | Each compact `InferenceAttempt` event records its sequence number and backend response code. Retry count is attempts minus one. |
+| Exhausted fallback | `ApiManagementGatewayLogs.ResponseCode`, `BackendResponseCode`, and `LastErrorReason` | The workbook derives whether APIM returned capacity exhaustion as `429` or normalized infrastructure or transport exhaustion to `503`. |
 | Native APIM failures | `Errors`, `LastErrorSource`, `LastErrorReason`, `LastErrorSection`, `LastErrorMessage` | Pipeline failures that are not ordinary Azure OpenAI HTTP responses. |
 | LLM usage and message chunks | `ApiManagementGatewayLlmLog` joined by `CorrelationId` | Model deployment, token usage, and whether prompt/completion message telemetry arrived. |
 
