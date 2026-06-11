@@ -188,10 +188,7 @@ def test_inference_readme_documents_exact_response_handling_matrix() -> None:
         '| 502 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |',
         '| 503 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |',
         '| 504 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |',
-        (
-            '| null | No | Yes | 200 or 503 | Transport | High | Retry after no backend response; normalize handled '
-            'transport failures to `503`. |'
-        ),
+        ('| null | No | Yes | 200 or 503 | Transport | High | Retry after no backend response; normalize handled transport failures to `503`. |'),
     ]
 
     assert all(row in readme for row in expected_rows)
