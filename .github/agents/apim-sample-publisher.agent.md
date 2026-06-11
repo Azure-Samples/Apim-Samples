@@ -63,9 +63,10 @@ Treat search visibility as a publication criterion, not as optional polish. Revi
    - Remote, session, sleep, clock, or command boundaries are injectable where deterministic tests require them.
    - Actively edited sample-local modules use module-qualified imports and selective autoreload, not broad autoreload.
 6. Confirm every sample-local helper has focused tests under `tests/python/test_<sample>_helpers.py` covering meaningful success, failure, malformed-input, and cleanup paths without live Azure access. Target at least 95% coverage for changed helper modules.
-7. Validate sample-owned structured files. Parse JSON and notebooks, check XML well-formedness, review APIM policy expressions against the allowed policy-expression surface, and compile or lint Bicep when the toolchain is available.
-8. Confirm sample-owned APIM policy XML is under `apim-policies/` and KQL is under `queries/`. For migrations, verify every notebook, helper, Bicep, test, script, and documentation reference, including canonical-directory lookup, temporary root-level policy fallback, explicit paths, auto-detection, and missing-file behavior.
-9. Run the combined Python quality checks from the repository root:
+7. For multi-model inference samples, confirm that every model uses model-specific APIM backends as well as a model-specific backend pool. APIM tracks circuit-breaker state at the backend resource, so sharing a backend across models can allow a `429` or another configured failure from one model to suppress traffic to an otherwise healthy model.
+8. Validate sample-owned structured files. Parse JSON and notebooks, check XML well-formedness, review APIM policy expressions against the allowed policy-expression surface, and compile or lint Bicep when the toolchain is available.
+9. Confirm sample-owned APIM policy XML is under `apim-policies/` and KQL is under `queries/`. For migrations, verify every notebook, helper, Bicep, test, script, and documentation reference, including canonical-directory lookup, temporary root-level policy fallback, explicit paths, auto-detection, and missing-file behavior.
+10. Run the combined Python quality checks from the repository root:
 
    ```powershell
    .\tests\python\check_python.ps1
@@ -75,8 +76,8 @@ Treat search visibility as a publication criterion, not as optional polish. Revi
    ./tests/python/check_python.sh
    ```
 
-10. Run markdownlint on all changed Markdown files and require zero violations. Fix violations instead of disabling rules unless a narrowly scoped suppression is necessary and documented.
-11. Export the self-contained presentation and treat warnings about missing images as failures to investigate:
+11. Run markdownlint on all changed Markdown files and require zero violations. Fix violations instead of disabling rules unless a narrowly scoped suppression is necessary and documented.
+12. Export the self-contained presentation and treat warnings about missing images as failures to investigate:
 
    ```bash
    uv run python setup/export_presentation.py

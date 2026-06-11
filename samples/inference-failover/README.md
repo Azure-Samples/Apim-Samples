@@ -96,7 +96,7 @@ This lab adds the following to an existing APIM infrastructure:
 
 - Three regional Azure OpenAI resources containing nine `Standard` model deployments at `1` thousand TPM each.
 - Nine concrete APIM backends named using `<model>-<PTU|PAYG>-<region>`, each with TLS validation and separate circuit breakers for capacity, sustained internal errors, and immediate gateway or availability failures.
-- One APIM backend pool per model so a retry never crosses to an incompatible deployment.
+- Model-specific APIM backends and one backend pool per model, so a retry never crosses to an incompatible deployment and circuit-breaker state remains isolated. APIM tracks circuit-breaker state at the backend resource; if models shared a backend, a `429` or another configured failure from one model could suppress traffic to a healthy model on that same backend.
 - Two AI Gateway APIs with managed identity authentication to Azure OpenAI: `POST /inference/gpt-5-1/chat/completions` retries four times through A -> D -> B -> E/G (equal terminal weights), while `POST /inference/gpt-4-1-mini/chat/completions` retries three times through C -> F -> D -> H.
 
 - Model-specific retry policies that buffer the POST body while immediately retrying conditional conflicts, throttling, and listed infrastructure failures; emit an information-level trace after every backend attempt; always return the caller-visible `X-Backend-Retry` count; preserve exhausted `409` and `429` responses; and return a generic `503` when infrastructure failover is exhausted.
