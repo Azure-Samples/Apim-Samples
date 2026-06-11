@@ -107,10 +107,10 @@ Skills provide templates, patterns, and step-by-step workflows.
 3. **Gather requirements**: Sample name, description, supported infrastructures, learning objectives
 4. **Create folder**: `samples/<sample-name>/` unless the user explicitly requests another location
 5. **Create required files**:
-   - `README.md` - Follow the template structure
-   - `create.ipynb` - Jupyter notebook with initialization, deployment, and verification cells
-   - `main.bicep` - Reference shared modules from `shared/bicep/modules/`
-   - `*.xml` - Policy files (if needed)
+    - `README.md` - Follow the template structure
+    - `create.ipynb` - Jupyter notebook with initialization, deployment, and verification cells
+    - `<domain>_helpers.py` - Add a descriptive sample-local module when parsing, retries, sessions, persistence, command composition, or multi-step orchestration would otherwise live in notebook cells
+    - `main.bicep` - Reference shared modules from `shared/bicep/modules/`; add sample-owned policy files under `apim-policies/` and KQL queries under `queries/` when needed
 6. **Update repo surfaces**:
     - Root `README.md` sample table
     - `docs/index.html` sample cards and JSON-LD list
@@ -133,7 +133,8 @@ Use `.github/agents/apim-sample-publisher.agent.md` after sample implementation 
 
 - **Folder**: kebab-case (e.g., `oauth-validation`, `rate-limiting`)
 - **API prefix**: Short, unique, with trailing hyphen (e.g., `oauth-`, `rl-`)
-- **Policy files**: Descriptive, kebab-case (e.g., `token-validation.xml`)
+- **Policy files**: Descriptive, kebab-case, and stored under `samples/<sample-name>/apim-policies/` (e.g., `token-validation.xml`)
+- **Query files**: Descriptive, kebab-case, and stored under `samples/<sample-name>/queries/` (e.g., `request-summary.kql`)
 - **Workbook files**: Azure Monitor Workbook JSON files use the `<name>.workbook.json` suffix (e.g., `costing.workbook.json`). One workbook per file, stored in the sample folder, loaded into Bicep via `loadJsonContent('<name>.workbook.json')`, and pushed back to Azure via a sample-local `update-workbook.ps1`. See the *Azure Monitor Workbook File Convention* section in `.github/copilot-instructions.md`.
 - **Admin APIs**: Samples needing admin/operational endpoints use path `{api_prefix}admin` with `subscriptionRequired=True` and kebab-case operation paths (e.g., `/load-cache`)
 
@@ -160,9 +161,11 @@ Available in Python via `from apimtypes import INFRASTRUCTURE`:
 
 ### Modifying Policies
 
-1. Edit the `*.xml` policy file in the sample folder
+1. Edit the `*.xml` policy file in the sample's `apim-policies/` folder
 2. Re-run the deployment cell in `create.ipynb`
 3. Test via the verification cells
+
+Existing root-level policy files may remain until their sample is migrated. Policy helpers should resolve `apim-policies/` first and the sample root second as a temporary fallback. After moving policy XML or KQL files, verify every notebook, helper, Bicep, test, script, and documentation reference, including path-resolution tests for canonical locations, fallback behavior, explicit paths, auto-detection, and missing files.
 
 ### Adding APIs to a Sample
 
@@ -191,6 +194,18 @@ apis = [api]
 
 ## Python Modules
 
+The [Python helper strategy](shared/python/README.md) is the authoritative guide for notebook boundaries, helper ownership, supporting-class design, state, lifecycles, promotion criteria, and testing.
+
+Apply this sequence whenever creating or refactoring a notebook:
+
+1. Keep educational configuration, scenario definitions, APIM concepts, expected outcomes, and assertions visible in the notebook.
+2. Extract incidental mechanics behind explicit inputs and typed outputs.
+3. Start one-consumer behavior in `samples/<sample>/<domain>_helpers.py`; promote only after a second active consumer needs the same stable contract.
+4. Compose existing `NotebookHelper`, `ApimRequests`, `ApimTesting`, and `azure_resources` boundaries without adding forwarding wrappers.
+5. Make the helper own deterministic cleanup for sessions, files, and temporary resources, and inject remote or timing boundaries for tests.
+6. Add focused tests under `tests/python/test_<sample>_helpers.py`, then replace notebook mechanics with a scenario-readable call.
+7. Register actively edited sample-local pure-Python modules with selective autoreload.
+
 Key modules in `shared/python/`:
 
 | Module               | Purpose                                                     |
@@ -201,6 +216,8 @@ Key modules in `shared/python/`:
 | `console.py`         | Formatted console output (print_ok, print_error)            |
 | `apimrequests.py`    | HTTP request helpers for testing APIs                       |
 | `apimtesting.py`     | Test framework for sample verification                      |
+
+When extracting notebook mechanics, start with a focused sample-local module. Promote it to `shared/python/` only after a second real consumer establishes a stable cross-sample contract.
 
 ## Bicep Modules
 

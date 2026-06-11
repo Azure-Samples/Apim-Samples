@@ -118,8 +118,8 @@ def make_apim():
 @pytest.mark.http
 def test_single_post_error():
     apim = make_apim()
-    with patch('apimrequests.requests.request') as mock_request, patch('apimrequests.print_error') as mock_print_error:
-        mock_request.side_effect = requests.RequestException('fail')
+    with patch('apimrequests.requests.Session') as session_class, patch('apimrequests.print_error') as mock_print_error:
+        session_class.return_value.request.side_effect = requests.RequestException('fail')
         result = apim.singlePost(PATH, data={'foo': 'bar'}, printResponse=True)
         assert result is None
         mock_print_error.assert_called()
@@ -145,7 +145,8 @@ def test_multi_get_non_json():
 @pytest.mark.http
 def test_request_header_merging():
     apim = make_apim()
-    with patch('apimrequests.requests.request') as mock_request:
+    with patch('apimrequests.requests.Session') as session_class:
+        mock_request = session_class.return_value.request
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.headers = {'Content-Type': 'application/json'}
@@ -201,6 +202,19 @@ def test_headers_property_is_dict_reference():
     h = apim.headers
     h['X-Ref'] = 'ref'
     assert apim.headers['X-Ref'] == 'ref'
+
+
+def test_context_manager_closes_reusable_session():
+    """Test context-manager exit closes the owned session and permits lazy recreation."""
+    with patch('apimrequests.requests.Session') as session_class:
+        with ApimRequests(DEFAULT_URL, DEFAULT_KEY) as apim:
+            first_session = apim._get_session()
+
+        first_session.close.assert_called_once()
+        assert apim._session is None
+
+        second_session = apim._get_session()
+        assert second_session is session_class.return_value
 
 
 def test_subscription_key_setter_updates_and_clears_header():
@@ -552,9 +566,9 @@ def test_print_response_code_success_and_error(apim, apimrequests_patches):
 def test_poll_async_operation_success(apim, apimrequests_patches):
     """Test _poll_async_operation method with successful completion."""
     mock_response = create_mock_http_response(status_code=200)
-    with patch('apimrequests.requests.get', return_value=mock_response):
-        with patch('apimrequests.time.sleep'):
-            result = apim._poll_async_operation('http://example.com/operation/123')
+    apimrequests_patches.session.get.return_value = mock_response
+    with patch('apimrequests.time.sleep'):
+        result = apim._poll_async_operation('http://example.com/operation/123')
 
     assert result == mock_response
     apimrequests_patches.print_ok.assert_called_once_with('Async operation completed successfully!')
@@ -565,11 +579,12 @@ def test_poll_async_operation_in_progress_then_success(apim, apimrequests_patche
     """Test _poll_async_operation method with in-progress then success."""
     # First call returns 202 (in progress), second call returns 200 (complete)
     responses = [MagicMock(status_code=202), MagicMock(status_code=200)]
-    with patch('apimrequests.requests.get', side_effect=responses) as mock_get, patch('apimrequests.time.sleep') as mock_sleep:
+    apimrequests_patches.session.get.side_effect = responses
+    with patch('apimrequests.time.sleep') as mock_sleep:
         result = apim._poll_async_operation('http://example.com/operation/123', poll_interval=1)
 
     assert result == responses[1]  # Should return the final success response
-    assert mock_get.call_count == 2
+    assert apimrequests_patches.session.get.call_count == 2
     mock_sleep.assert_called_once_with(1)
 
 
@@ -577,8 +592,8 @@ def test_poll_async_operation_in_progress_then_success(apim, apimrequests_patche
 def test_poll_async_operation_unexpected_status(apim, apimrequests_patches):
     """Test _poll_async_operation method with unexpected status code."""
     mock_response = MagicMock(status_code=500)
-    with patch('apimrequests.requests.get', return_value=mock_response):
-        result = apim._poll_async_operation('http://example.com/operation/123')
+    apimrequests_patches.session.get.return_value = mock_response
+    result = apim._poll_async_operation('http://example.com/operation/123')
 
     assert result == mock_response  # Should return the error response
     apimrequests_patches.print_error.assert_called_with('Unexpected status code during polling: 500')
@@ -587,8 +602,8 @@ def test_poll_async_operation_unexpected_status(apim, apimrequests_patches):
 @pytest.mark.unit
 def test_poll_async_operation_request_exception(apim, apimrequests_patches):
     """Test _poll_async_operation method with request exception."""
-    with patch('apimrequests.requests.get', side_effect=requests.exceptions.RequestException('Connection error')):
-        result = apim._poll_async_operation('http://example.com/operation/123')
+    apimrequests_patches.session.get.side_effect = requests.exceptions.RequestException('Connection error')
+    result = apim._poll_async_operation('http://example.com/operation/123')
 
     assert result is None
     apimrequests_patches.print_error.assert_called_with('Error polling operation: Connection error')
@@ -610,10 +625,10 @@ def test_poll_async_operation_timeout(apim, apimrequests_patches):
     mock_response = MagicMock(status_code=202)
 
     with (
-        patch('apimrequests.requests.get', return_value=mock_response),
         patch('apimrequests.time.sleep'),
         patch('apimrequests.time.time', side_effect=time_side_effect),
     ):
+        apimrequests_patches.session.get.return_value = mock_response
         result = apim._poll_async_operation('http://example.com/operation/123', timeout=60)
 
     assert result is None
@@ -763,8 +778,8 @@ def test_print_response_code_3xx(apim, apimrequests_patches):
 
 
 @pytest.mark.unit
-def test_multi_request_session_exception_on_close(apim):
-    """Test _multiRequest handles exception and ensures session is closed."""
+def test_multi_request_reuses_session_until_closed(apim):
+    """Test _multiRequest keeps its session open until the client is closed."""
     with patch('apimrequests.requests.Session') as mock_session_cls:
         mock_session = MagicMock()
         mock_response = create_mock_http_response(json_data={'ok': True})
@@ -774,9 +789,19 @@ def test_multi_request_session_exception_on_close(apim):
         with patch.object(apim, '_print_response_code'):
             result = apim._multiRequest(HTTP_VERB.GET, '/test', 1)
 
-    # Verify session was closed even after successful operation
+    mock_session.close.assert_not_called()
+    apim.close()
     mock_session.close.assert_called_once()
     assert len(result) == 1
+
+
+@pytest.mark.unit
+def test_close_is_idempotent_without_active_session(apim):
+    """Test close is safe before session creation and after a prior close."""
+    apim.close()
+    apim.close()
+
+    assert apim._session is None
 
 
 @pytest.mark.unit
@@ -830,12 +855,12 @@ def test_poll_async_operation_with_custom_headers(apim, apimrequests_patches):
     mock_response = create_mock_http_response(status_code=200)
     custom_headers = {'X-Custom': 'value'}
 
-    with patch('apimrequests.requests.get', return_value=mock_response) as mock_get:
-        result = apim._poll_async_operation('http://example.com/op', headers=custom_headers)
+    apimrequests_patches.session.get.return_value = mock_response
+    result = apim._poll_async_operation('http://example.com/op', headers=custom_headers)
 
     assert result == mock_response
     # Verify custom headers were passed
-    call_kwargs = mock_get.call_args[1]
+    call_kwargs = apimrequests_patches.session.get.call_args[1]
     assert call_kwargs['headers'] == custom_headers
     assert call_kwargs['verify'] is True
 
@@ -846,7 +871,9 @@ def test_poll_async_operation_can_opt_in_to_insecure_tls():
     apim = ApimRequests(DEFAULT_URL, allowInsecureTls=True)
     mock_response = create_mock_http_response(status_code=200)
 
-    with patch('apimrequests.requests.get', return_value=mock_response) as mock_get:
+    with patch('apimrequests.requests.Session') as session_class:
+        mock_get = session_class.return_value.get
+        mock_get.return_value = mock_response
         result = apim._poll_async_operation('http://example.com/op')
 
     assert result == mock_response
@@ -975,8 +1002,8 @@ def test_single_post_async_no_custom_headers(apim, apimrequests_patches):
 
 
 @pytest.mark.unit
-def test_multi_request_session_exception_on_request(apim):
-    """Test _multiRequest ensures session.close() is called even if request raises."""
+def test_multi_request_session_remains_available_after_request_exception(apim):
+    """Test _multiRequest leaves session lifecycle under explicit client control after an exception."""
     with patch('apimrequests.requests.Session') as mock_session_cls:
         mock_session = MagicMock()
         # Make request raise an exception after first call
@@ -987,7 +1014,8 @@ def test_multi_request_session_exception_on_request(apim):
             with pytest.raises(requests.exceptions.RequestException):
                 apim._multiRequest(HTTP_VERB.GET, '/test', 1)
 
-    # Verify session was closed even after exception
+    mock_session.close.assert_not_called()
+    apim.close()
     mock_session.close.assert_called_once()
 
 
@@ -1005,9 +1033,7 @@ def test_multi_request_merges_custom_headers(apim):
         with patch.object(apim, '_print_response_code'):
             apim._multiRequest(HTTP_VERB.GET, '/test', 1, headers=custom_headers, printResponse=False)
 
-        # Verify headers.update was called with merged headers
-        update_call_args = mock_session.headers.update.call_args
-        merged_headers = update_call_args[0][0]
+        merged_headers = mock_session.request.call_args.kwargs['headers']
 
         # Check custom headers are included
         assert merged_headers['X-Custom-Header'] == 'custom-value'
@@ -1039,7 +1065,8 @@ def test_single_request_merges_custom_headers(apim):
 
     mock_response = create_mock_http_response(json_data={'result': 'ok'})
 
-    with patch('apimrequests.requests.request') as mock_request:
+    with patch('apimrequests.requests.Session') as session_class:
+        mock_request = session_class.return_value.request
         mock_request.return_value = mock_response
 
         with patch.object(apim, '_print_response'):
@@ -1068,13 +1095,9 @@ def test_multi_request_custom_headers_do_not_affect_other_runs(apim):
         with patch.object(apim, '_print_response_code'):
             result = apim.multiGet('/test', runs=3, headers=custom_headers, printResponse=False)
 
-        # Verify headers.update was called once with merged headers
-        assert mock_session.headers.update.call_count == 1
-
-        # Verify headers contain custom header
-        update_call_args = mock_session.headers.update.call_args
-        merged_headers = update_call_args[0][0]
-        assert merged_headers['X-Request-Id'] == 'same-id'
+        assert mock_session.request.call_count == 3
+        for call in mock_session.request.call_args_list:
+            assert call.kwargs['headers']['X-Request-Id'] == 'same-id'
 
         # Verify all 3 runs completed
         assert len(result) == 3

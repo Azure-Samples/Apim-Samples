@@ -66,7 +66,7 @@
         <include-fragment fragment-id="Extract-CallerId" />
         <!-- Count each request per caller (same as emit_metric_caller_id.xml) -->
         <emit-metric name="caller-requests" value="1" namespace="apim-costing">
-            <dimension name="CallerId" value="@((string)context.Variables["callerId"])" />
+            <dimension name="CallerId" value="@((string)context.Variables[&quot;callerId&quot;])" />
             <dimension name="API" value="@(context.Api.Name)" />
             <dimension name="Operation" value="@(context.Operation.Name)" />
         </emit-metric>

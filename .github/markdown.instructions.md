@@ -8,13 +8,11 @@ This document provides standards for Markdown files in the APIM Samples reposito
 
 ## Critical Rules
 
-### Markdownlint Must Pass Before Finalizing
+### Markdownlint Must Pass
 
-After creating or editing any Markdown file, check the editor diagnostics for every changed `.md` file and resolve all markdownlint warnings before finalizing the work. If the repository adds a Markdown lint command in the future, run it as well.
-
-Do not assume a visually correct preview is lint-clean. Markdownlint also enforces source-level consistency for whitespace, table delimiters, nested list indentation, code-fence languages, inline HTML, and unused link definitions.
-
-Use a narrowly scoped `<!-- markdownlint-disable-next-line RULE -->` comment only when Markdown syntax cannot express the required behavior, such as an intentional `<details>` disclosure. Do not disable a rule for an entire file when a local exception is enough.
+- Every new or modified Markdown file must pass markdownlint with zero violations before the work is considered complete.
+- Run markdownlint against all changed `.md` files using the available CLI or VS Code diagnostics.
+- Fix violations instead of disabling rules. Add a narrowly scoped suppression only when the Markdown intentionally cannot comply, and explain why next to the suppression.
 
 ### 🚨 No Emoji Variation Selectors in Markdown Links
 
@@ -268,6 +266,7 @@ Structured guides for domain-specific tasks (Bicep, Python policies, sample crea
 
 | Issue | Cause | Fix |
 | --- | --- | --- |
+| Markdownlint failure | Markdown does not meet the configured lint rules | Fix every reported violation and rerun markdownlint |
 | Anchor links break | Emoji in heading + encoded in link | Remove emoji from link reference: `[text](#heading-only)` |
 | Tables misaligned | Mixed table styles or missing spaces around pipes | Use one consistent aligned or compact style and write separator rows as `\| --- \| --- \|` |
 | Sections run together | Missing or repeated blank lines | Use exactly one blank line around headings, tables, lists, and fences |

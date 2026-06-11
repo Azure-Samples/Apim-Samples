@@ -275,6 +275,24 @@ def test_normalize_stream():
     assert result['metadata']['language_info']['version'] == nnm.CANONICAL_VERSION
 
 
+def test_normalize_stream_configures_utf8_lf_streams():
+    """Git filter streams should use UTF-8 and disable Windows CRLF translation."""
+    nb = _make_notebook()
+
+    class ReconfigurableStringIO(io.StringIO):
+        def reconfigure(self, **kwargs):
+            self.configuration = kwargs
+
+    input_buf = ReconfigurableStringIO(json.dumps(nb))
+    output_buf = ReconfigurableStringIO()
+
+    nnm.normalize_stream(input_buf, output_buf)
+
+    assert input_buf.configuration == {'encoding': 'utf-8'}
+    assert output_buf.configuration == {'encoding': 'utf-8', 'newline': '\n'}
+    assert '\r\n' not in output_buf.getvalue()
+
+
 def test_normalize_stream_trailing_newline():
     """Output should end with exactly one newline."""
     nb = _make_notebook()

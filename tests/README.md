@@ -58,6 +58,7 @@ Run ruff separately when you only need linting:
 #### Ruff Reports
 
 All ruff runs generate timestamped reports in `tests/python/ruff/reports/`:
+
 - **JSON format**: Machine-readable for CI/CD integration
 - **Text format**: Human-readable detailed analysis
 - **Latest files**: `latest.json` and `latest.txt` always reflect the most recent run
@@ -79,7 +80,10 @@ Run tests separately when you only need test execution:
 ```
 
 Both scripts:
+
 - Run all tests in `tests/python` using pytest
+- Measure branch coverage for `shared/python`, `setup`, and sample-local Python helpers under `samples`
+- Require 100% aggregate coverage
 - Generate code coverage reports:
   - HTML: `htmlcov/index.html` (at repository root)
   - XML: `coverage.xml` (for VS Code integration)
@@ -89,17 +93,21 @@ Both scripts:
 #### Viewing Coverage Reports
 
 **In VS Code (no extra extensions):**
+
 - Open the Testing view (beaker icon in the Activity Bar).
 - Click the "Toggle Code Coverage" shield button in the Testing toolbar.
 - Run tests from the Testing view (Run All or individual test runs).
 - The Explorer will decorate Python files with coverage percentages, and the editor will show covered/uncovered lines.
 - Make sure the Python extension is enabled and `coverage`/`pytest-cov` are available in your venv. If needed:
+
    ```powershell
    pip install coverage pytest-cov
    ```
+
 - Note: Running pytest only from the terminal won't decorate the Explorer. Use the Testing UI to see coverage overlays.
 
 **In Browser:**
+
 - Open `htmlcov/index.html` in your browser for detailed coverage information
 
 ## Test Infrastructure
@@ -113,7 +121,7 @@ Both scripts:
 
 ### Test Files
 
-All test files follow the pattern `test_*.py` and test corresponding modules in `shared/python`.
+All test files follow the pattern `test_*.py` and cover modules in `shared/python`, `setup`, and sample-local Python helpers under `samples`.
 
 ### Pytest Markers
 
@@ -125,6 +133,7 @@ Markers are registered in `pytest.ini`.
 ## Continuous Integration
 
 On every push or pull request, GitHub Actions will:
+
 - Install dependencies
 - Run all Python tests with coverage
 - Run ruff on all Python code
@@ -164,12 +173,14 @@ To ensure robust functionality across environments, all samples should:
 For each sample and infrastructure combination:
 
 1. Deploy the infrastructure using the appropriate method:
+
    ```bash
    cd infrastructure/<infrastructure-name>
    # Execute the create.ipynb notebook
    ```
 
 2. Deploy and test the sample:
+
    ```bash
    cd samples/<sample-name>
    # Execute the create.ipynb notebook with the matching infrastructure
@@ -178,15 +189,16 @@ For each sample and infrastructure combination:
 3. Verify that all operations work correctly and no errors are reported
 
 4. Clean up resources when testing is complete:
+
    ```bash
    # Execute the clean-up.ipynb notebook in the infrastructure directory
    ```
 
 ## Test Notes
 
-| Date | Tester | Sample | Infrastructure | Environment | Notes |
-|------|--------|--------|---------------|-------------|-------|
-| YYYY-MM-DD | Name | sample-name | infra-name | Local/DevC | Any issues or observations |
+| Date       | Tester | Sample      | Infrastructure | Environment | Notes                      |
+| ---------- | ------ | ----------- | -------------- | ----------- | -------------------------- |
+| YYYY-MM-DD | Name   | sample-name | infra-name     | Local/DevC  | Any issues or observations |
 
 ## General Notes
 

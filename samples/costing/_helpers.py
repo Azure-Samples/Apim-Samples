@@ -810,7 +810,8 @@ def create_bu_budget_alerts(
     action_group_id = ag_result.json_data.get('id', '')
     print_ok(f'Action group created: {action_group_name}')
 
-    kql_template = Path(utils.determine_policy_path('budget-alert-threshold.kql', sample_folder)).read_text(encoding='utf-8')
+    kql_path = Path(utils.get_project_root()) / 'samples' / sample_folder / 'queries' / 'budget-alert-threshold.kql'
+    kql_template = kql_path.read_text(encoding='utf-8')
 
     print_info(f'Creating alerts for {len(bu_names)} business units (threshold: {alert_threshold} requests/hour)...')
 

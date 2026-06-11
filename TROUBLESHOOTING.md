@@ -17,11 +17,13 @@ This guide helps you resolve common issues when working with the Azure API Manag
 If you encounter import errors (e.g., `ModuleNotFoundError: No module named 'requests'` or cannot import shared modules), try these steps:
 
 1. **Fix Python path configuration**:
+
    ```bash
    python setup/local_setup.py --generate-env
    ```
 
 2. **Verify setup**:
+
    ```bash
    python setup/verify_local_setup.py
    ```
@@ -35,20 +37,24 @@ If you encounter import errors (e.g., `ModuleNotFoundError: No module named 'req
 ### "The content for this response was already consumed"
 
 **Error Message:**
-```
+
+```text
 ERROR: The content for this response was already consumed
 ```
 
 **Root Cause:** This misleading error message often indicates a Bicep template validation error, typically caused by parameter mismatches between the notebook and the Bicep template.
 
 **Solution:**
+
 1. Run the Azure CLI command with `--debug` to see the actual error:
+
    ```bash
    az deployment group validate --resource-group <rg-name> --template-file "main.bicep" --parameters "params.json" --debug
    ```
 
 2. Look for the real error in the debug output, often something like:
-   ```
+
+   ```text
    The following parameters were supplied, but do not correspond to any parameters defined in the template: 'parameterName'
    ```
 
@@ -56,6 +62,7 @@ ERROR: The content for this response was already consumed
 
 **Example Fix:**
 If the error mentions `apimSku` parameter not found:
+
 ```python
 # ❌ Incorrect - includes undefined/unexpected apimSku parameter
 bicep_parameters = {
@@ -72,17 +79,21 @@ bicep_parameters = {
 ### "Resource already exists" Conflicts
 
 **Error Message:**
-```
+
+```text
 The resource already exists and conflicts with...
 ```
 
 **Solution:**
+
 1. Use unique deployment names with timestamps:
+
    ```bash
    az deployment group create --name "sample-$(date +%Y%m%d-%H%M%S)" ...
    ```
 
 2. Or delete existing conflicting resources:
+
    ```bash
    az resource delete --ids /subscriptions/.../resourceGroups/.../providers/...
    ```
@@ -90,11 +101,13 @@ The resource already exists and conflicts with...
 ### Module Path Resolution Errors
 
 **Error Message:**
-```
+
+```text
 Unable to download the module...
 ```
 
 **Solution:**
+
 1. Ensure you're running deployments from the correct directory (sample directory, not project root)
 2. Verify relative paths to shared modules are correct
 3. The utility function `create_bicep_deployment_group_for_sample()` handles this automatically
@@ -104,11 +117,13 @@ Unable to download the module...
 ### Azure CLI Not Authenticated
 
 **Error Message:**
-```
+
+```text
 Please run 'az login' to setup account
 ```
 
 **Solution:**
+
 ```bash
 az login
 az account set --subscription "your-subscription-name-or-id"
@@ -124,16 +139,19 @@ az account set --subscription "your-subscription-name-or-id"
 ### Insufficient Permissions
 
 **Error Message:**
-```
+
+```text
 The client does not have authorization to perform action...
 ```
 
 **Solution:**
+
 1. Ensure you have the necessary role assignments:
    - **Contributor** or **Owner** on the resource group/subscription
    - **API Management Service Contributor** for APIM-specific operations
 
 2. Check your current permissions:
+
    ```bash
    az role assignment list --assignee $(az account show --query user.name -o tsv)
    ```
@@ -145,16 +163,27 @@ The client does not have authorization to perform action...
 These can be a bit nebulous. When making changes to imported modules, they are not automatically picked up.
 
 **Error Message:**
-```
+
+```text
 AttributeError: module 'utils' has no attribute 'function_name'
 ```
 
 **Solution:**
-Reload the utils module in your notebook by pressing `Restart` in the notebook to load updated files. You will need to re-run all cells from the beginning then as any variable assignments will have been lost.
+For pure-Python helper modules under active development, enable selective autoreload once after the module's folder is available on `sys.path`:
+
+```python
+utils.enable_module_autoreload('my_sample_helpers')
+```
+
+IPython checks the registered module before each cell and reloads it only when its source file changed. Existing notebook variables, including deployment outputs, remain available. Register only modules being actively edited rather than enabling global autoreload.
+
+Prefer module-qualified calls such as `my_sample_helpers.build_client()` so the latest module attribute is always used. IPython also updates many existing `from module import name` bindings, but module-qualified access is easier to reason about.
+
+Restart the kernel when changing native extension modules, import-time process state, class constructor state already captured by existing instances, or foundational shared types whose identities are used across modules. Rerun the relevant initialization cell when an edit changes values that were already computed. Rerun deployment only when Bicep or deployed-resource configuration changed.
 
 **Anti-pattern:**
 
-Avoid introducing a programmatic reload.
+Avoid scattered unconditional reloads.
 
 ```python
 import importlib
@@ -164,12 +193,14 @@ importlib.reload(utils)
 ### Python Path Issues
 
 **Error Message:**
-```
+
+```text
 ModuleNotFoundError: No module named 'utils'
 ```
 
 **Solution:**
 Use the provided setup script:
+
 ```bash
 python setup/local_setup.py --generate-env
 ```
@@ -177,12 +208,14 @@ python setup/local_setup.py --generate-env
 ### Working Directory Issues
 
 **Error Message:**
-```
+
+```text
 FileNotFoundError: [Errno 2] No such file or directory: 'main.bicep'
 ```
 
 **Solution:**
 Use the utility function that handles working directory management:
+
 ```python
 # ✅ Use this instead of manual directory management
 output = utils.create_bicep_deployment_group_for_sample('sample-name', rg_name, rg_location, bicep_parameters)
@@ -193,11 +226,13 @@ output = utils.create_bicep_deployment_group_for_sample('sample-name', rg_name, 
 ### Rate Limiting
 
 **Error Message:**
-```
+
+```text
 Rate limit exceeded
 ```
 
 **Solution:**
+
 1. Wait a few minutes before retrying
 2. Reduce the frequency of API calls
 3. Use `--verbose` to see retry information
@@ -205,12 +240,15 @@ Rate limit exceeded
 ### API Version Compatibility
 
 **Error Message:**
-```
+
+```text
 The api-version '...' is invalid
 ```
 
 **Solution:**
+
 1. Update Azure CLI to the latest version:
+
    ```bash
    az upgrade
    ```
@@ -222,7 +260,8 @@ The api-version '...' is invalid
 This is a bit cryptic. It's helpful to execute the `az` command from the error separately in the terminal and supply the `--debug` flag. You might then see errors such as this one:
 
 **Error Message:**
-```
+
+```text
 cli.azure.cli.core.azclierror: [WinError 193] %1 is not a valid Win32 application
 az_command_data_logger: [WinError 193] %1 is not a valid Win32 application
 ```
@@ -247,13 +286,15 @@ In one case, `%USERPROFILE%\.azure\bin` contained a `bicep.exe` file but with a 
 When you delete Azure API Management services or Key Vaults, they are soft-deleted and remain recoverable for a period of time (typically 48 days for APIM, 90 days for Key Vault). These soft-deleted resources continue to reserve their names and can cause deployment conflicts.
 
 **Common Issues:**
+
 - Deployment fails with "Name already exists" even though resource appears deleted
 - Cannot reuse the same name for a new APIM service or Key Vault
 - Key Vault creation fails during infrastructure deployment
 - Subscription quotas are affected by soft-deleted resources
 
 **Error During Infrastructure Deployment:**
-```
+
+```text
 Creating Key Vault: kv-sbfc4encghfag
 ❌ Failed to create Key Vault: kv-sbfc4encghfag
    This may be caused by a soft-deleted Key Vault with the same name.
@@ -261,6 +302,7 @@ Creating Key Vault: kv-sbfc4encghfag
 ```
 
 **Check for Soft-Deleted Resources:**
+
 ```bash
 # Using Python script (recommended)
 python shared/python/show_soft_deleted_resources.py
@@ -287,6 +329,7 @@ az keyvault purge --name <name> --location <location> --no-wait
 ```
 
 **Best Practices:**
+
 1. Check for soft-deleted resources before deploying with the same name
 2. Use unique names for resources to avoid conflicts
 3. Purge soft-deleted resources if you need to reuse the name immediately
@@ -297,7 +340,8 @@ az keyvault purge --name <name> --location <location> --no-wait
 Key Vaults can have **purge protection** enabled, which prevents them from being manually purged before their scheduled purge date. This is a security feature that cannot be disabled once enabled.
 
 **Error When Purging Protected Key Vaults:**
-```
+
+```text
 (MethodNotAllowed) Operation 'DeletedVaultPurge' is not allowed.
 Code: MethodNotAllowed
 Message: Operation 'DeletedVaultPurge' is not allowed.
@@ -305,12 +349,14 @@ Message: Operation 'DeletedVaultPurge' is not allowed.
 
 **Identifying Purge Protection:**
 The `show_soft_deleted_resources.py` script automatically detects and displays purge protection status:
+
 ```bash
 python shared/python/show_soft_deleted_resources.py
 ```
 
 Sample output:
-```
+
+```text
 1/2:
     Vault Name       : kv-glgoiqn66pbnu
     Location         : eastus2
@@ -324,12 +370,14 @@ Sample output:
 ```
 
 **Handling Purge-Protected Key Vaults:**
+
 - ✅ **Recoverable:** You can still recover the vault before the scheduled purge date
 - ❌ **Cannot purge manually:** The vault cannot be purged until its scheduled purge date
 - 💡 **Use different names:** Deploy new Key Vaults with different names
 - 🔒 **Security feature:** This is by design to prevent accidental data loss
 
 **Recovery Option:**
+
 ```bash
 # Recover a soft-deleted Key Vault (even with purge protection)
 az keyvault recover --name <vault-name>
@@ -338,13 +386,16 @@ az keyvault recover --name <vault-name>
 ### Resource Group Does Not Exist
 
 **Error Message:**
-```
+
+```text
 Resource group 'name' could not be found
 ```
 
 **Solution:**
+
 1. Create the infrastructure first by running the appropriate infrastructure deployment from the `/infrastructure/` folder
 2. Verify the resource group name matches the expected pattern:
+
    ```python
    rg_name = get_infra_rg_name(deployment, index)
    ```
@@ -352,18 +403,22 @@ Resource group 'name' could not be found
 ### APIM Service Not Found
 
 **Error Message:**
-```
+
+```text
 API Management service 'name' not found
 ```
 
 **Solution:**
+
 1. Ensure the infrastructure deployment completed successfully
 2. Check that the APIM service exists:
+
    ```bash
    az apim list --resource-group <rg-name>
    ```
 
 3. Verify the naming pattern matches:
+
    ```bash
    az resource list --resource-group <rg-name> --resource-type Microsoft.ApiManagement/service
    ```
@@ -371,13 +426,16 @@ API Management service 'name' not found
 ### Permission Propagation Delays
 
 **Error Message:**
-```
+
+```text
 403 Forbidden / Access denied errors when accessing storage
 ```
 
 **Solution:**
+
 1. Azure role assignments can take 5-10 minutes to propagate
 2. Use the built-in permission verification utility:
+
    ```python
    permissions_ready = utils.wait_for_apim_blob_permissions(
        apim_name=apim_name,
@@ -394,11 +452,13 @@ API Management service 'name' not found
 For more detailed error information:
 
 1. **Azure CLI:**
+
    ```bash
    az deployment group create ... --verbose --debug
    ```
 
 2. **Python/Notebook:**
+
    ```python
    import logging
    logging.basicConfig(level=logging.DEBUG)
