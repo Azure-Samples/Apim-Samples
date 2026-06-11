@@ -1642,6 +1642,23 @@ def test_get_deployment_context_rejects_invalid_api_outputs():
         nb_helper.get_deployment_context(output)
 
 
+def test_get_deployment_context_rejects_missing_required_output():
+    """Test deployment context identifies missing common outputs."""
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM)
+    output = utils.Output(
+        True,
+        json.dumps(
+            {
+                'apimServiceName': {'value': 'test-apim'},
+                'apimResourceGatewayURL': {'value': 'https://test-apim.azure-api.net'},
+            }
+        ),
+    )
+
+    with pytest.raises(ValueError, match='apiOutputs'):
+        nb_helper.get_deployment_context(output)
+
+
 def test_create_apim_requests_uses_selected_infrastructure_and_merges_headers(monkeypatch):
     """Test NotebookHelper creates a configured APIM client with caller header precedence."""
     nb_helper = utils.NotebookHelper('test-sample', 'selected-rg', 'eastus', INFRASTRUCTURE.APPGW_APIM)
@@ -1663,6 +1680,16 @@ def test_create_apim_requests_uses_selected_infrastructure_and_merges_headers(mo
     assert client.headers['Host'] == 'api.example.com'
     assert client.headers['Authorization'] == 'Bearer token'
     assert client.headers['X-Source'] == 'caller'
+
+
+def test_create_apim_requests_accepts_no_endpoint_or_caller_headers(monkeypatch):
+    """Test NotebookHelper preserves APIM client defaults when no headers are supplied."""
+    nb_helper = utils.NotebookHelper('test-sample', 'selected-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM)
+    monkeypatch.setattr(utils, 'get_endpoint', lambda *_: ('https://gateway.example', None, False))
+
+    client = nb_helper.create_apim_requests('https://test-apim.azure-api.net')
+
+    assert client.headers == {'Accept': 'application/json'}
 
 
 def test_deploy_sample_deployment_failure(monkeypatch):

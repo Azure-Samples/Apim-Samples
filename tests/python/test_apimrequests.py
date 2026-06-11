@@ -796,6 +796,15 @@ def test_multi_request_reuses_session_until_closed(apim):
 
 
 @pytest.mark.unit
+def test_close_is_idempotent_without_active_session(apim):
+    """Test close is safe before session creation and after a prior close."""
+    apim.close()
+    apim.close()
+
+    assert apim._session is None
+
+
+@pytest.mark.unit
 def test_single_post_async_with_message(apim, apimrequests_patches):
     """Test singlePostAsync with message parameter."""
     mock_response = create_mock_http_response(status_code=200, json_data={'result': 'ok'})

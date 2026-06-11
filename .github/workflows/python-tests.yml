@@ -75,7 +75,7 @@ jobs:
       - name: Run pytest with coverage and generate JUnit XML
         id: pytest
         run: |
-          COVERAGE_FILE=tests/python/.coverage-${{ matrix.python-version }} uv run pytest --cov=shared/python --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov-${{ matrix.python-version }} --cov-report=term-missing --junitxml=tests/python/junit-${{ matrix.python-version }}.xml tests/python/
+          COVERAGE_FILE=tests/python/.coverage-${{ matrix.python-version }} uv run pytest --cov --cov-config=tests/python/.coveragerc --cov-report=html:tests/python/htmlcov-${{ matrix.python-version }} --cov-report=term-missing --junitxml=tests/python/junit-${{ matrix.python-version }}.xml tests/python/
 
       - name: Upload coverage HTML report
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

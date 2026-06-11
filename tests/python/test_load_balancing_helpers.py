@@ -132,6 +132,30 @@ def test_context_manager_closes_both_clients_after_exception():
 
 
 @pytest.mark.unit
+def test_close_without_retry_session_still_closes_request_client():
+    runner, requests, session = _create_runner()
+
+    runner.close()
+
+    session.close.assert_not_called()
+    requests.close.assert_called_once_with()
+
+
+@pytest.mark.unit
+def test_retry_tracking_reuses_existing_session():
+    responses = [_response(), _response()]
+    session_factory = MagicMock()
+    runner, _, session = _create_runner(responses=responses, clock=MagicMock(side_effect=[1.0, 1.1, 2.0, 2.1]))
+    runner._session_factory = session_factory
+    runner._session = session
+
+    runner.run_retry_tracking('/retry-tracked', 2, 'retry-key')
+
+    session_factory.assert_not_called()
+    assert session.get.call_count == 2
+
+
+@pytest.mark.unit
 def test_retry_tracking_result_uses_only_values_through_first_wait():
     result = RetryTrackingResult(
         api_results=[

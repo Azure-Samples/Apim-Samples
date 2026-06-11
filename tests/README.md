@@ -79,7 +79,10 @@ Run tests separately when you only need test execution:
 ```
 
 Both scripts:
+
 - Run all tests in `tests/python` using pytest
+- Measure branch coverage for `shared/python`, `setup`, and sample-local Python helpers under `samples`
+- Require 100% aggregate coverage
 - Generate code coverage reports:
   - HTML: `htmlcov/index.html` (at repository root)
   - XML: `coverage.xml` (for VS Code integration)
@@ -113,7 +116,7 @@ Both scripts:
 
 ### Test Files
 
-All test files follow the pattern `test_*.py` and test corresponding modules in `shared/python`.
+All test files follow the pattern `test_*.py` and cover modules in `shared/python`, `setup`, and sample-local Python helpers under `samples`.
 
 ### Pytest Markers
 

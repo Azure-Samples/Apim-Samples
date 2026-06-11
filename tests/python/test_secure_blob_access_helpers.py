@@ -150,3 +150,30 @@ def test_runner_preserves_failed_download_body_and_closes_after_exception():
 
     session.close.assert_called_once_with()
     requests.close.assert_called_once_with()
+
+
+@pytest.mark.unit
+def test_runner_close_without_download_still_closes_apim_client():
+    requests = MagicMock()
+    runner = SecureBlobAccessRunner(requests)
+
+    runner.close()
+
+    requests.close.assert_called_once_with()
+
+
+@pytest.mark.unit
+def test_runner_reuses_direct_download_session():
+    requests = MagicMock()
+    session = MagicMock()
+    session.get.return_value.status_code = HttpStatusCode.OK
+    session.get.return_value.text = 'content'
+    session_factory = MagicMock(return_value=session)
+    runner = SecureBlobAccessRunner(requests, session_factory=session_factory)
+    valet_key = ValetKey('https://storage/blob', None)
+
+    runner.download(valet_key)
+    runner.download(valet_key)
+
+    session_factory.assert_called_once_with()
+    assert session.get.call_count == 2
