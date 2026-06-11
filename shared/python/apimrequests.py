@@ -66,6 +66,7 @@ class ApimRequests:
 
         self._url = url
         self._headers: dict[str, str] = headers.copy() if headers else {}
+        self._session: requests.Session | None = None
         self.subscriptionKey = apimSubscriptionKey
         self.allowInsecureTls = allowInsecureTls
 
@@ -149,6 +150,14 @@ class ApimRequests:
     #    PRIVATE METHODS
     # ------------------------------
 
+    def _get_session(self) -> requests.Session:
+        """Return the reusable HTTP session, creating it on first use."""
+
+        if self._session is None:
+            self._session = requests.Session()
+
+        return self._session
+
     def _execute_request(self, request_callable, *args, **kwargs) -> requests.Response:
         """
         Execute a request with the configured TLS verification behavior.
@@ -212,7 +221,7 @@ class ApimRequests:
 
             print_info(_redact_headers(merged_headers))
 
-            response = self._execute_request(requests.request, method.value, url, headers=merged_headers, json=data, timeout=30)
+            response = self._execute_request(self._get_session().request, method.value, url, headers=merged_headers, json=data, timeout=30)
 
             content_type = response.headers.get('Content-Type')
 
@@ -261,64 +270,57 @@ class ApimRequests:
 
         api_runs = []
 
-        session = requests.Session()
-
         merged_headers = self.headers.copy()
         if headers:
             merged_headers.update(headers)
 
-        session.headers.update(merged_headers)
+        if msg:
+            print_message(msg, blank_above=True)
 
-        try:
-            if msg:
-                print_message(msg, blank_above=True)
+        # Ensure path has a leading slash
+        if not path.startswith('/'):
+            path = '/' + path
 
-            # Ensure path has a leading slash
-            if not path.startswith('/'):
-                path = '/' + path
+        url = self._url + path
+        print_info(f'{method.value} {url}')
 
-            url = self._url + path
-            print_info(f'{method.value} {url}')
+        for i in range(runs):
+            print_info(f'▶️ Run {i + 1}/{runs}:')
 
-            for i in range(runs):
-                print_info(f'▶️ Run {i + 1}/{runs}:')
+            start_time = time.time()
+            response = self._execute_request(self._get_session().request, method.value, url, headers=merged_headers, json=data)
+            response_time = time.time() - start_time
+            print_info(f'⌚ {response_time:.2f} seconds')
 
-                start_time = time.time()
-                response = self._execute_request(session.request, method.value, url, json=data)
-                response_time = time.time() - start_time
-                print_info(f'⌚ {response_time:.2f} seconds')
+            if printResponse:
+                self._print_response(response)
+            else:
+                self._print_response_code(response)
 
-                if printResponse:
-                    self._print_response(response)
+            content_type = response.headers.get('Content-Type')
+
+            if content_type and 'application/json' in content_type:
+                resp_data = json.dumps(response.json(), indent=4)
+            else:
+                resp_data = response.text
+
+            api_runs.append(
+                {
+                    'run': i + 1,
+                    'response': resp_data,
+                    'status_code': response.status_code,
+                    'response_time': response_time,
+                    'headers': dict(response.headers),
+                }
+            )
+
+            # Sleep only between requests (not after the final run)
+            if i < runs - 1:
+                if sleepMs is not None:
+                    if sleepMs > 0:
+                        time.sleep(sleepMs / 1000)
                 else:
-                    self._print_response_code(response)
-
-                content_type = response.headers.get('Content-Type')
-
-                if content_type and 'application/json' in content_type:
-                    resp_data = json.dumps(response.json(), indent=4)
-                else:
-                    resp_data = response.text
-
-                api_runs.append(
-                    {
-                        'run': i + 1,
-                        'response': resp_data,
-                        'status_code': response.status_code,
-                        'response_time': response_time,
-                        'headers': dict(response.headers),
-                    }
-                )
-
-                # Sleep only between requests (not after the final run)
-                if i < runs - 1:
-                    if sleepMs is not None:
-                        if sleepMs > 0:
-                            time.sleep(sleepMs / 1000)
-                    else:
-                        time.sleep(SLEEP_TIME_BETWEEN_REQUESTS_MS / 1000)  # default sleep time
-        finally:
-            session.close()
+                    time.sleep(SLEEP_TIME_BETWEEN_REQUESTS_MS / 1000)  # default sleep time
 
         return api_runs
 
@@ -372,7 +374,7 @@ class ApimRequests:
             try:
                 print_info(f'GET {location_url}', True)
                 print_info(_redact_headers(headers))
-                response = self._execute_request(requests.get, location_url, headers=headers or {}, timeout=30)
+                response = self._execute_request(self._get_session().get, location_url, headers=headers or {}, timeout=30)
 
                 print_info(f'Polling operation - Status: {response.status_code}')
 
@@ -397,6 +399,19 @@ class ApimRequests:
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
+
+    def close(self) -> None:
+        """Close the reusable HTTP session."""
+
+        if self._session is not None:
+            self._session.close()
+            self._session = None
+
+    def __enter__(self) -> 'ApimRequests':
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        self.close()
 
     def singleGet(self, path: str, headers=None, msg: str | None = None, printResponse: bool = True) -> Any:
         """
@@ -519,7 +534,7 @@ class ApimRequests:
 
             # Make the initial async request
             response = self._execute_request(
-                requests.request,
+                self._get_session().request,
                 HTTP_VERB.POST.value,
                 url,
                 headers=merged_headers,

@@ -46,6 +46,7 @@ In case of any conflicting instructions, the following hierarchy shall apply. If
 - Consider non-native English speakers in code comments and documentation, using clear and simple language.
 - Treat accessibility as a default quality requirement across the entire repository, not only for presentations.
 - New or updated user-facing experiences (docs, webpages, notebooks, dashboards/workbooks, and slide content) must target WCAG 2.0 AA contrast and non-color-only communication as the baseline.
+- Continuously refine repository instructions, skills, and agents when a surfaced problem reveals an addressable gap. Update the narrowest authoritative customization in the same change when practical, so future work benefits without duplicating or overfitting guidance.
 
 ## Consistency & Uniformity
 
@@ -54,7 +55,9 @@ Uniformity, clarity, and ease of use are paramount across all infrastructures an
 - **Follow the established templates.** New infrastructures must follow the structure of existing infrastructures. New samples must follow `samples/_TEMPLATE`. Deviations are permitted only when a sample has genuinely unique requirements, and those deviations should be minimal.
 - **Use consistent naming, headings, and cell order.** Markdown headings, variable names, section labels (e.g. `USER CONFIGURATION`, `SYSTEM CONFIGURATION`), emoji usage, and code cell ordering must match the patterns established by the template and existing artefacts.
 - **Keep README structure uniform.** Infrastructure READMEs and sample READMEs each follow their own standard layout (see the guidelines below). Readers should be able to predict where to find objectives, configuration steps, and execution instructions.
-- **Reuse shared utilities.** Use `NotebookHelper`, `InfrastructureNotebookHelper`, `ApimRequests`, `ApimTesting`, and shared Bicep modules rather than inventing ad-hoc alternatives. Shared code is the single best tool for enforcing uniformity.
+- **Reuse established utilities at their existing boundary.** Compose `NotebookHelper`, `InfrastructureNotebookHelper`, `ApimRequests`, `ApimTesting`, `azure_resources`, and shared Bicep modules rather than inventing parallel abstractions. Do not add a sample-local wrapper that merely forwards to a shared helper.
+- **Keep notebooks educational.** Leave configuration, scenario declarations, APIM concepts, expected outcomes, and assertions visible. Move incidental mechanics such as parsing, retries, polling, persistence, command composition, response normalization, repeated request setup, and resource cleanup into testable Python helpers.
+- **Choose the narrowest real owner.** New one-sample behavior starts in a descriptive `samples/<sample>/<domain>_helpers.py` module. Promote it to a focused `shared/python/` module only when at least two active consumers need the same stable contract; anticipated reuse is not sufficient.
 - **Mirror tone and depth.** Similar sections across artefacts should use similar levels of detail. If one sample's README explains configuration in three sentences, another sample of comparable complexity should do the same.
 - **Sort samples alphabetically.** Wherever samples are listed (README tables, landing page cards, JSON-LD structured data, diagrams, AGENTS.md), they must appear in alphabetical order by their display name. Infrastructures keep their current deliberate ordering.
 - **Use consistent sample display names.** The display name used for a sample in README tables, landing page cards, JSON-LD, and compatibility diagrams must be identical. The canonical name is the one shown in the compatibility-matrix SVG diagram (e.g. "Costing", not "Costing & Showback"; "OAuth 3rd-Party", not "Credential Manager (with Spotify)"). Longer descriptions belong in the Description column or card body text, not in the name.
@@ -148,8 +151,11 @@ Each sample in `samples/[sample-name]/` must contain:
 - `create.ipynb` - Jupyter notebook that deploys and demonstrates the sample
 - `main.bicep` - Bicep template for deploying sample resources
 - `README.md` - Documentation explaining the sample, use cases, and concepts
-- `*.xml` - APIM policy files (if applicable to the sample)
-- `*.kql` - KQL (Kusto Query Language) files (if applicable to the sample)
+- `<domain>_helpers.py` - Optional sample-local Python mechanics when the notebook would otherwise own parsing, retries, sessions, persistence, or multi-step orchestration
+- `apim-policies/*.xml` - Sample-owned APIM policy files (if applicable to the sample)
+- `queries/*.kql` - KQL (Kusto Query Language) files (if applicable to the sample)
+
+New sample-owned APIM policy XML and KQL files must not be placed at the sample root. Existing root-level files may remain until their sample is migrated.
 
 ### New Sample Sync Checklist
 
@@ -206,6 +212,13 @@ Structure:
 
 #### Cell 5+: Functional Cells (Markdown + Code pairs)
 - Each logical operation gets a markdown heading cell followed by one or more code cells
+- Keep educational configuration, scenario steps, and key APIM concepts visible in the notebook. Extract non-educational Python mechanics, such as reusable orchestration, parsing, retries, polling, data transformation, and repeated request setup, into existing shared helpers or focused sample-local Python helper modules. Compose established helpers first; extend one only when the behavior belongs to its existing responsibility, state, and lifecycle.
+- Follow `shared/python/README.md` for the complete helper and supporting-class strategy, including ownership, dependency direction, state, lifecycle, selective autoreload, promotion, and testing rules.
+- Before finalizing a notebook, explicitly review each code cell for incidental mechanics. Line count is only a signal; extract based on responsibility and testability, not size alone.
+- Sample-local helpers must use explicit inputs and typed outputs, must not read notebook globals, and must own every session, temporary file, or other closeable resource they create. Prefer context managers for lifecycles that span multiple calls.
+- Inject remote, sleep, clock, session-factory, or command-runner boundaries when needed to test success, failure, retry, and cleanup paths without live Azure access or real delays.
+- Add `tests/python/test_<sample>_helpers.py` for each extracted sample-local module. Target meaningful success, failure, malformed-input, and cleanup coverage, not line-count padding.
+- Load actively edited sample-local modules through a module-qualified import and register selective autoreload with `utils.enable_module_autoreload('<module_name>')`. Do not use broad autoreload that can discard notebook state.
 
 **First operation cell (typically deployment):**
 
@@ -221,8 +234,9 @@ Structure:
    - **DO NOT** manually query for APIM services
    - **DO NOT** pass `apimServiceName` to `bicep_parameters` if the infrastructure already provides it
 3. Call `nb_helper.deploy_sample(bicep_parameters)` to deploy Bicep template
-4. Extract deployment outputs and store as **individual variables** (not in a dictionary)
-   - Example: `apim_name = output.get('apimServiceName')`, `app_insights_name = output.get('applicationInsightsName')`
+4. Call `nb_helper.get_deployment_context(output)` to validate common outputs, then store its fields as **individual variables** (not in a dictionary)
+  - Example: `apim_name = deployment_context.apim_name`, `apim_gateway_url = deployment_context.apim_gateway_url`
+  - Continue to use `output.get(...)` or `output.getJson(...)` for sample-specific outputs that are not part of `SampleDeploymentContext`
 
 **Invalid approach** (do NOT do this):
 ```python
@@ -242,7 +256,10 @@ bicep_parameters = {
     'costExportFrequency': {'value': cost_export_frequency}
 }
 output = nb_helper.deploy_sample(bicep_parameters)
-apim_name = output.get('apimServiceName')  # Get from output
+deployment_context = nb_helper.get_deployment_context(output)
+apim_name = deployment_context.apim_name
+apim_gateway_url = deployment_context.apim_gateway_url
+apim_apis = deployment_context.apis
 ```
 
 **Subsequent cells:**
@@ -268,7 +285,8 @@ deployment = INFRASTRUCTURE.SIMPLE_APIM
 subscription_id = get_account_info()[2]
 
 # Deployment cell
-apim_name = apim_services[0]['name']
+deployment_context = nb_helper.get_deployment_context(output)
+apim_name = deployment_context.apim_name
 app_insights_name = output.get('applicationInsightsName')
 
 # Cost export cell
@@ -286,6 +304,8 @@ storage_account_id = f'/subscriptions/{subscription_id}/...'
   2. If not found, queries all available infrastructures and prompts user to select or create new
   3. Executes the Bicep deployment with provided parameters
   4. Returns `Output` object containing deployment results (resource names, IDs, connection strings, endpoints)
+- `get_deployment_context(output=None)`: Validates and returns the common APIM service name, gateway URL, and API outputs. When `output` is omitted, it uses the successful output cached by `deploy_sample()`.
+- `create_apim_requests(apim_gateway_url, subscription_key=None, headers=None)`: Resolves the selected infrastructure endpoint and creates a configured `ApimRequests` client.
 
 **How to use:**
 1. Initialize in the configuration cell (Cell 4):
@@ -310,11 +330,13 @@ storage_account_id = f'/subscriptions/{subscription_id}/...'
    output = nb_helper.deploy_sample(bicep_parameters)
    ```
 
-3. Extract outputs:
+3. Extract common and sample-specific outputs:
    ```python
-   apim_name = output.get('apimServiceName')
+  deployment_context = nb_helper.get_deployment_context(output)
+  apim_name = deployment_context.apim_name
+  apim_gateway_url = deployment_context.apim_gateway_url
+  apim_apis = deployment_context.apis
    app_insights_name = output.get('applicationInsightsName')
-   # ... extract all needed resources
    ```
 
 **CRITICAL: Do not bypass NotebookHelper!**
@@ -389,10 +411,10 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 ### Testing and Traffic Generation
 
 - Use the `ApimRequests` and `ApimTesting` classes from `apimrequests.py` and `apimtesting.py` for structured API testing with verbose logging and response formatting.
-- **Favour `requests.Session()` for loops, multi-caller traffic, and any code that sends more than one HTTP request.** Creating a new `ApimRequests` instance (or a bare `requests.get/post`) inside a loop opens a fresh TCP+TLS connection on every iteration, adding 200-500 ms per request. Instead, create a single `requests.Session()` at the top of the section, configure `session.verify` and `session.headers` once from `utils.get_endpoint()`, and route all calls through it. Close the session in a `finally` block. Import as `import requests as http_requests` for clarity when the `requests` name would shadow other uses.
-- `ApimRequests` already uses a session internally for its `multiGet`/`multiPost` methods, so a single `ApimRequests` instance per loop iteration is acceptable when you need its verbose logging. However, if you only need to send requests without per-request logging, prefer a raw `requests.Session()` loop — it is simpler and avoids creating throw-away objects.
+- **Favour `requests.Session()` for high-volume loops and multi-caller traffic that does not need per-request logging.** Creating a bare `requests.get/post` inside a loop opens a fresh TCP+TLS connection on every iteration, adding 200-500 ms per request. Create one session at the top of the section, route all calls through it, and close it in a `finally` block. Import as `import requests as http_requests` for clarity when the `requests` name would shadow other uses.
+- `ApimRequests` uses one reusable session for single, multiple, and asynchronous requests. Create it through `nb_helper.create_apim_requests(...)` and use it as a context manager so endpoint routing, infrastructure headers, TLS behavior, and cleanup remain consistent.
 - **One session per cell is fine.** Each notebook cell should be independently runnable, so create and close a session within the same cell rather than sharing one across cells.
-- Use `utils.get_endpoint(deployment, rg_name, apim_gateway_url)` to determine the correct endpoint URL, headers, and TLS verification flag based on the infrastructure type. `allow_insecure_tls` is returned as `True` only for Application Gateway infrastructures because they use a self-signed certificate; it defaults to `False` everywhere else.
+- For `ApimRequests`, use `nb_helper.create_apim_requests(...)` to resolve the correct endpoint URL, headers, and TLS behavior. Use `utils.get_endpoint(...)` directly only when constructing a raw session for high-volume traffic.
 - Session pattern example (preferred for loops):
   ```python
   import requests as http_requests
@@ -415,14 +437,11 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
   ```
 - ApimRequests example (for structured test verification with logging):
   ```python
-  from apimrequests import ApimRequests
   from apimtesting import ApimTesting
 
   tests = ApimTesting("Sample Tests", sample_folder, nb_helper.deployment)
-  endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(deployment, rg_name, apim_gateway_url)
-  reqs = ApimRequests(endpoint_url, subscription_key, request_headers, allowInsecureTls=allow_insecure_tls)
-
-  output = reqs.singleGet('/api-path', msg='Calling API')
+  with nb_helper.create_apim_requests(apim_gateway_url, subscription_key) as reqs:
+      output = reqs.singleGet('/api-path', msg='Calling API')
   tests.verify('Expected String' in output, True)
   ```
 
@@ -484,6 +503,7 @@ Check `docs/README.md` for local preview instructions and styling notes. The pag
 
 ## Required before each commit
 - Ensure all code is well-documented and follows the guidelines in this file.
+- Ensure markdownlint passes with zero violations for all new or modified Markdown files.
 - Ensure that Jupyter notebooks do not contain any cell output.
 - Ensure that Jupyter notebooks have `index` assigned to `1` in the first cell.
 - If the change touches the infrastructure list, sample list, quick-start steps, or architecture SVGs, ensure `docs/index.html` (and the asset copy step in `.github/workflows/github-pages.yml` where relevant) has been updated to match.
@@ -524,11 +544,12 @@ Check `docs/README.md` for local preview instructions and styling notes. The pag
 
 ### KQL (Kusto Query Language) Instructions
 
-- Store KQL queries in dedicated `.kql` files within the sample folder rather than embedding them inline in Python code. This keeps notebooks readable and lets users copy-paste the query directly into a Log Analytics or Azure Data Explorer query editor.
-- Load `.kql` files at runtime using `utils.determine_policy_path()` and `Path.read_text()`:
+- Store every sample-owned KQL query in a dedicated `.kql` file under `samples/<sample-name>/queries/` rather than at the sample root or embedded inline in Python code. This keeps notebooks readable and lets users copy-paste the query directly into a Log Analytics or Azure Data Explorer query editor.
+- Resolve `.kql` files from the sample's `queries/` directory and load them with `Path.read_text()`:
   ```python
   from pathlib import Path
-  kql_path = utils.determine_policy_path('my-query.kql', sample_folder)
+
+  kql_path = Path(utils.get_project_root()) / 'samples' / sample_folder / 'queries' / 'my-query.kql'
   kql_query = Path(kql_path).read_text(encoding='utf-8')
   ```
 - Parameterise KQL queries using native `let` bindings. Define parameters as `let` statements prepended to the query body at runtime, keeping the `.kql` file free of Python string interpolation:
@@ -600,5 +621,9 @@ Samples that require administrative or operational endpoints (cache loading, con
 
 ### API Management Policy XML Instructions
 
+- Store every sample-owned APIM policy XML file under `samples/<sample-name>/apim-policies/`. Keep reusable, cross-sample policy assets under `shared/apim-policies/`.
+- When migrating existing samples, update policy path helpers to check `samples/<sample-name>/apim-policies/` first and the sample root second as a temporary backwards-compatible fallback. New files must use `apim-policies/`; do not rely on the fallback for newly created policies.
+- After moving KQL or policy XML files, check and update every notebook, Python helper, Bicep `loadTextContent()` call, test, script, and documentation reference that consumes them. Add or update tests for canonical-directory resolution, root-level fallback, explicit paths, auto-detected sample names, and missing files before considering the migration complete.
 - Policies should use camelCase for all variable names.
+- In policy expressions inside double-quoted XML attributes, escape embedded double quotes as `&quot;` (for example, `value="@((string)context.Variables[&quot;callerId&quot;])"`). Unescaped quotes make the XML malformed. Expressions in element text, such as `<value>@("text")</value>`, do not require this escaping.
 - Policy expressions (`@(...)` and `@{...}`) may **only** reference .NET types and members on APIM's [allow-list](https://learn.microsoft.com/azure/api-management/api-management-policy-expressions#CLRTypes). Using anything outside the list (e.g. `System.Globalization.*`, `DateTime.TryParse`, `DateTime.ToUniversalTime`, `System.Text.Json`) causes a deploy-time `ValidationError: One or more fields contain incorrect values` with no further detail. Verify each type/member against the allow-list before writing the expression. See `.github/skills/apim-policies/SKILL.md` for common pitfalls and allowed replacements.

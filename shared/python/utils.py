@@ -14,14 +14,17 @@ import sys
 import tempfile
 import time
 import warnings
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Tuple
 
 # APIM Samples imports
 import azure_resources as az
 import logging_config
+from apimrequests import ApimRequests
 from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, get_project_root  # noqa: F401 (Endpoints re-exported for callers)
 from console import print_error, print_info, print_message, print_ok, print_plain, print_secret, print_val, print_warning
+from IPython import get_ipython
 
 # Configure warning filter to suppress IPython exit warnings
 warnings.filterwarnings(
@@ -35,6 +38,41 @@ warnings.filterwarnings(
 # ------------------------------
 #    HELPER FUNCTIONS
 # ------------------------------
+
+
+def enable_module_autoreload(*module_names: str) -> bool:
+    """Reload selected Python modules before a notebook cell only when their files change.
+
+    Uses IPython's selective autoreload mode. Register modules after their folders have
+    been added to ``sys.path``. This preserves notebook variables and deployed-resource
+    context while allowing edits to pure-Python helper modules to take effect.
+
+    Args:
+        module_names: Importable module names to watch, such as ``dynamic_cors_helpers``.
+
+    Returns:
+        True when selective autoreload was configured, or False outside IPython.
+    """
+    if not module_names:
+        raise ValueError('At least one module name is required for autoreload.')
+
+    unique_module_names = tuple(dict.fromkeys(module_names))
+    for module_name in unique_module_names:
+        if not module_name or module_name.strip() != module_name or not all(part.isidentifier() for part in module_name.split('.')):
+            raise ValueError(f'Invalid module name for autoreload: {module_name!r}')
+
+    shell = get_ipython()
+    if shell is None:
+        print_warning('Module autoreload is available only in an IPython or Jupyter session.')
+        return False
+
+    shell.extension_manager.load_extension('autoreload')
+    shell.run_line_magic('autoreload', '1')
+    for module_name in unique_module_names:
+        shell.run_line_magic('aimport', module_name)
+
+    print_info(f'Watching for Python changes: {", ".join(unique_module_names)}')
+    return True
 
 
 def get_deployment_failure_message(deployment_name: str) -> str:
@@ -88,6 +126,15 @@ def build_infrastructure_tags(infrastructure: str | INFRASTRUCTURE, custom_tags:
 # ------------------------------
 #    CLASSES
 # ------------------------------
+
+
+@dataclass(frozen=True)
+class SampleDeploymentContext:
+    """Common outputs produced by every sample deployment."""
+
+    apim_name: str
+    apim_gateway_url: str
+    apis: list[dict[str, Any]]
 
 
 class InfrastructureNotebookHelper:
@@ -296,6 +343,8 @@ class NotebookHelper:
         self.index = index
         self.is_debug = is_debug
         self.apim_sku = apim_sku
+        self._infrastructure_selection_completed = False
+        self.deployment_outputs: Output | None = None
 
         validate_infrastructure(deployment, self.supported_infrastructures)
 
@@ -539,8 +588,8 @@ class NotebookHelper:
         if not rg_exists:
             print_info('Desired infrastructure does not exist.\n')
 
-            # Check if we've already done infrastructure selection (prevent double execution)
-            if 'infrastructure_selection_completed' not in globals():
+            # Check if this helper has already completed infrastructure selection.
+            if not self._infrastructure_selection_completed:
                 # Use the NotebookHelper's infrastructure selection process
                 selected_deployment, selected_index = self._query_and_select_infrastructure()
 
@@ -551,6 +600,7 @@ class NotebookHelper:
                 self.deployment = selected_deployment
                 self.index = selected_index
                 self.rg_name = az.get_infra_rg_name(self.deployment, self.index)
+                self._infrastructure_selection_completed = True
 
                 # Verify the updates were applied correctly
                 print_plain('📝 Updated infrastructure variables')
@@ -578,6 +628,7 @@ class NotebookHelper:
 
         # Print a deployment summary, if successful; otherwise, exit with an error
         if output.success:
+            self.deployment_outputs = output
             if self.use_jwt:
                 apim_name = output.get('apimServiceName')
                 self._clean_up_jwt(apim_name)
@@ -587,6 +638,55 @@ class NotebookHelper:
             raise SystemExit('Deployment failed')
 
         return output
+
+    def get_deployment_context(self, output: Output | None = None) -> SampleDeploymentContext:
+        """Return validated common outputs from a successful sample deployment."""
+
+        deployment_output = output or self.deployment_outputs
+        if deployment_output is None:
+            raise RuntimeError('No sample deployment output is available. Run deploy_sample() first or pass an Output instance.')
+        if not deployment_output.success:
+            raise RuntimeError('Cannot create a deployment context from a failed sample deployment.')
+
+        apim_name = deployment_output.get('apimServiceName', suppress_logging=True)
+        apim_gateway_url = deployment_output.get('apimResourceGatewayURL', suppress_logging=True)
+        apis = deployment_output.getJson('apiOutputs', suppress_logging=True)
+
+        missing_outputs = [
+            name
+            for name, value in (
+                ('apimServiceName', apim_name),
+                ('apimResourceGatewayURL', apim_gateway_url),
+                ('apiOutputs', apis),
+            )
+            if value is None
+        ]
+        if missing_outputs:
+            raise ValueError(f'Missing required sample deployment output(s): {", ".join(missing_outputs)}')
+        if not isinstance(apis, list) or not all(isinstance(api, dict) for api in apis):
+            raise TypeError("Sample deployment output 'apiOutputs' must be a list of objects.")
+
+        return SampleDeploymentContext(apim_name=apim_name, apim_gateway_url=apim_gateway_url, apis=apis)
+
+    def create_apim_requests(
+        self,
+        apim_gateway_url: str,
+        subscription_key: str | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> ApimRequests:
+        """Create an APIM request client for the helper's selected infrastructure."""
+
+        endpoint_url, request_headers, allow_insecure_tls = get_endpoint(self.deployment, self.rg_name, apim_gateway_url)
+        merged_headers = request_headers.copy() if request_headers else {}
+        if headers:
+            merged_headers.update(headers)
+
+        return ApimRequests(
+            endpoint_url,
+            subscription_key,
+            merged_headers or None,
+            allowInsecureTls=allow_insecure_tls,
+        )
 
     def wait_for_kql(
         self,
@@ -1171,7 +1271,7 @@ def determine_shared_policy_path(policy_xml_filename: str) -> str:
 
 
 def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str = None) -> str:
-    """Determine the full path to a policy XML file, auto-detecting the sample directory if needed."""
+    """Resolve a sample policy path, preferring the canonical policy directory."""
     # Determine if this is a full path or just a filename
     path_obj = Path(policy_xml_filepath_or_filename)
 
@@ -1219,9 +1319,13 @@ def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str
             except Exception as e:
                 raise ValueError(f'Could not auto-detect sample name. Please provide sample_name parameter explicitly. Error: {e}') from e
 
-        # Construct the full path
+        # Prefer the canonical policy directory while migrated samples coexist
+        # with legacy samples that still keep policy files at the sample root.
         project_root = get_project_root()
-        policy_xml_filepath = str(Path(project_root) / 'samples' / sample_name / policy_xml_filepath_or_filename)
+        sample_path = Path(project_root) / 'samples' / sample_name
+        canonical_path = sample_path / 'apim-policies' / policy_xml_filepath_or_filename
+        legacy_path = sample_path / policy_xml_filepath_or_filename
+        policy_xml_filepath = str(canonical_path if canonical_path.exists() else legacy_path)
 
     return policy_xml_filepath
 

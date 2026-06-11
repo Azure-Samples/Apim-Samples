@@ -345,13 +345,12 @@ class Infrastructure:
                 print_ok('APIM connectivity verified - Health check returned 200')
                 return True
 
-            print_warning(f'APIM health check returned status code {response.status_code} (expected 200)')
-            return True  # Continue anyway as this might be expected during deployment
+            print_error(f'APIM health check returned status code {response.status_code} (expected 200)')
+            return False
 
         except Exception as e:
-            print_warning(f'APIM connectivity test failed: {str(e)}')
-            print_info('Continuing deployment - this may be expected during infrastructure setup')
-            return True  # Continue anyway
+            print_error(f'APIM connectivity test failed: {str(e)}')
+            return False
 
     def _verify_infrastructure(self, rg_name: str) -> bool:
         """
@@ -397,8 +396,8 @@ class Infrastructure:
 
                             if subscription_key:
                                 print_ok('Subscription key available for API testing')
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print_warning(f'Subscription key verification skipped: {str(e)}')
 
                 # Call infrastructure-specific verification
                 if self._verify_infrastructure_specific(rg_name):
@@ -527,7 +526,8 @@ class Infrastructure:
                     print_val('Gateway URL', apim_gateway_url)
                     print_val('APIs Created', len(apim_apis))
 
-                    self._verify_infrastructure(self.rg_name)
+                    if not self._verify_infrastructure(self.rg_name):
+                        return utils.Output(False, 'Infrastructure verification failed')
             else:
                 print_error('Infrastructure creation failed!')
 
@@ -707,8 +707,10 @@ class AfdApimAcaInfrastructure(Infrastructure):
             print_error('Private link approval failed!')
             return utils.Output(False, 'Private link approval failed')
 
-        # Step 4: Verify connectivity (optional - continues on failure)
-        self._verify_apim_connectivity(apim_gateway_url)
+        # Step 4: Verify connectivity before disabling public access
+        if not self._verify_apim_connectivity(apim_gateway_url):
+            print_error('APIM connectivity verification failed! Public access remains enabled.')
+            return utils.Output(False, 'APIM connectivity verification failed')
 
         # Step 5: Disable public access
         if not self._disable_apim_public_access():
@@ -1013,9 +1015,11 @@ class AppGwApimPeInfrastructure(AppGatewayInfrastructure):
 
         print_ok('Step 3: Private link connection approval completed', blank_above=True)
 
-        # Step 4: Verify connectivity (optional - continues on failure)
+        # Step 4: Verify connectivity before disabling public access
         print_plain('\n📋 Step 4: Verifying API Management connectivity...\n')
-        self._verify_apim_connectivity(apim_gateway_url)
+        if not self._verify_apim_connectivity(apim_gateway_url):
+            print_error('APIM connectivity verification failed! Public access remains enabled.')
+            return utils.Output(False, 'APIM connectivity verification failed')
 
         print_ok('Step 4: API Management connectivity verification completed', blank_above=True)
 

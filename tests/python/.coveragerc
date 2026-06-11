@@ -1,6 +1,7 @@
 [run]
 branch = True
-source =
+source_dirs =
+    samples
     shared/python
     setup
 omit =
@@ -9,5 +10,6 @@ omit =
     tests/python/*
 
 [report]
+fail_under = 100
 show_missing = True
 skip_covered = False

@@ -6,7 +6,7 @@ import logging
 import os
 import subprocess
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import azure_resources as az
 import console as console_module
@@ -71,6 +71,36 @@ def suppress_builtin_print(monkeypatch):
 # ------------------------------
 #    get_infra_rg_name & get_rg_name
 # ------------------------------
+
+
+def test_enable_module_autoreload_configures_selective_mode(monkeypatch):
+    shell = MagicMock()
+    monkeypatch.setattr(utils, 'get_ipython', lambda: shell)
+
+    configured = utils.enable_module_autoreload('sample_helpers', 'sample_helpers', 'shared_helpers')
+
+    assert configured is True
+    shell.extension_manager.load_extension.assert_called_once_with('autoreload')
+    assert shell.run_line_magic.call_args_list == [
+        call('autoreload', '1'),
+        call('aimport', 'sample_helpers'),
+        call('aimport', 'shared_helpers'),
+    ]
+
+
+def test_enable_module_autoreload_returns_false_outside_ipython(monkeypatch):
+    monkeypatch.setattr(utils, 'get_ipython', lambda: None)
+
+    assert utils.enable_module_autoreload('sample_helpers') is False
+
+
+@pytest.mark.parametrize('module_names', [(), ('',), (' sample_helpers',)])
+def test_enable_module_autoreload_rejects_invalid_module_names(monkeypatch, module_names):
+    shell = MagicMock()
+    monkeypatch.setattr(utils, 'get_ipython', lambda: shell)
+
+    with pytest.raises(ValueError):
+        utils.enable_module_autoreload(*module_names)
 
 
 def test_get_infra_rg_name(monkeypatch):
@@ -462,6 +492,59 @@ def test_determine_policy_path_full_path():
     full_path = '/path/to/policy.xml'
     result = utils.determine_policy_path(full_path)
     assert result == full_path
+
+
+def test_determine_policy_path_prefers_canonical_directory(monkeypatch, tmp_path):
+    """Test canonical sample policy paths take precedence over legacy paths."""
+    sample_path = tmp_path / 'samples' / 'test-sample'
+    canonical_path = sample_path / 'apim-policies' / 'policy.xml'
+    canonical_path.parent.mkdir(parents=True)
+    canonical_path.write_text('<canonical />', encoding='utf-8')
+    (sample_path / 'policy.xml').write_text('<legacy />', encoding='utf-8')
+    monkeypatch.setattr(utils, 'get_project_root', lambda: tmp_path)
+
+    result = utils.determine_policy_path('policy.xml', 'test-sample')
+
+    assert result == str(canonical_path)
+
+
+def test_determine_policy_path_falls_back_to_sample_root(monkeypatch, tmp_path):
+    """Test unmigrated sample policies still resolve from the sample root."""
+    legacy_path = tmp_path / 'samples' / 'test-sample' / 'policy.xml'
+    legacy_path.parent.mkdir(parents=True)
+    legacy_path.write_text('<legacy />', encoding='utf-8')
+    monkeypatch.setattr(utils, 'get_project_root', lambda: tmp_path)
+
+    result = utils.determine_policy_path('policy.xml', 'test-sample')
+
+    assert result == str(legacy_path)
+
+
+def test_determine_policy_path_auto_detects_canonical_directory(monkeypatch, tmp_path):
+    """Test auto-detected sample names resolve canonical policy paths."""
+    canonical_path = tmp_path / 'samples' / 'test-sample' / 'apim-policies' / 'policy.xml'
+    canonical_path.parent.mkdir(parents=True)
+    canonical_path.write_text('<canonical />', encoding='utf-8')
+
+    class FakeFrame:
+        def __init__(self):
+            self.f_back = MagicMock()
+            self.f_back.f_globals = {'__file__': str(tmp_path / 'samples' / 'test-sample' / 'helper.py')}
+
+    monkeypatch.setattr(utils, 'get_project_root', lambda: tmp_path)
+    monkeypatch.setattr(utils.inspect, 'currentframe', FakeFrame)
+
+    result = utils.determine_policy_path('policy.xml')
+
+    assert result == str(canonical_path)
+
+
+def test_read_policy_xml_missing_filename_raises(monkeypatch, tmp_path):
+    """Test missing filename-only policies raise FileNotFoundError after fallback."""
+    monkeypatch.setattr(utils, 'get_project_root', lambda: tmp_path)
+
+    with pytest.raises(FileNotFoundError):
+        utils.read_policy_xml('missing.xml', sample_name='test-sample')
 
 
 def test_wait_for_apim_blob_permissions_success(monkeypatch, suppress_console):
@@ -1463,6 +1546,7 @@ def test_deploy_sample_with_infrastructure_selection(monkeypatch, suppress_conso
     # Verify the helper was updated with selected infrastructure
     assert nb_helper.deployment == selected_infra
     assert nb_helper.rg_name == 'apim-infra-apim-aca-2'
+    assert nb_helper._infrastructure_selection_completed is True
     assert result.success is True
 
 
@@ -1504,7 +1588,108 @@ def test_deploy_sample_existing_infrastructure(monkeypatch):
     # Verify the helper was not modified (still has original values)
     assert nb_helper.deployment == INFRASTRUCTURE.SIMPLE_APIM
     assert nb_helper.rg_name == 'test-rg'
+    assert nb_helper.deployment_outputs is mock_output
     assert result.success is True
+
+
+def test_get_deployment_context_uses_cached_successful_output():
+    """Test common deployment outputs are validated and exposed as typed fields."""
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM)
+    nb_helper.deployment_outputs = utils.Output(
+        True,
+        json.dumps(
+            {
+                'apimServiceName': {'value': 'test-apim'},
+                'apimResourceGatewayURL': {'value': 'https://test-apim.azure-api.net'},
+                'apiOutputs': {'value': [{'name': 'api-one'}]},
+            }
+        ),
+    )
+
+    context = nb_helper.get_deployment_context()
+
+    assert context.apim_name == 'test-apim'
+    assert context.apim_gateway_url == 'https://test-apim.azure-api.net'
+    assert context.apis == [{'name': 'api-one'}]
+
+
+def test_get_deployment_context_rejects_missing_or_failed_output():
+    """Test deployment context creation fails clearly without successful outputs."""
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM)
+
+    with pytest.raises(RuntimeError, match='No sample deployment output'):
+        nb_helper.get_deployment_context()
+
+    with pytest.raises(RuntimeError, match='failed sample deployment'):
+        nb_helper.get_deployment_context(utils.Output(False, 'Deployment failed'))
+
+
+def test_get_deployment_context_rejects_invalid_api_outputs():
+    """Test API outputs must retain their structured list shape."""
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM)
+    output = utils.Output(
+        True,
+        json.dumps(
+            {
+                'apimServiceName': {'value': 'test-apim'},
+                'apimResourceGatewayURL': {'value': 'https://test-apim.azure-api.net'},
+                'apiOutputs': {'value': 'not-a-list'},
+            }
+        ),
+    )
+
+    with pytest.raises(TypeError, match='apiOutputs'):
+        nb_helper.get_deployment_context(output)
+
+
+def test_get_deployment_context_rejects_missing_required_output():
+    """Test deployment context identifies missing common outputs."""
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM)
+    output = utils.Output(
+        True,
+        json.dumps(
+            {
+                'apimServiceName': {'value': 'test-apim'},
+                'apimResourceGatewayURL': {'value': 'https://test-apim.azure-api.net'},
+            }
+        ),
+    )
+
+    with pytest.raises(ValueError, match='apiOutputs'):
+        nb_helper.get_deployment_context(output)
+
+
+def test_create_apim_requests_uses_selected_infrastructure_and_merges_headers(monkeypatch):
+    """Test NotebookHelper creates a configured APIM client with caller header precedence."""
+    nb_helper = utils.NotebookHelper('test-sample', 'selected-rg', 'eastus', INFRASTRUCTURE.APPGW_APIM)
+    monkeypatch.setattr(
+        utils,
+        'get_endpoint',
+        lambda deployment, rg_name, gateway_url: ('https://1.2.3.4', {'Host': 'api.example.com', 'X-Source': 'infra'}, True),
+    )
+
+    client = nb_helper.create_apim_requests(
+        'https://test-apim.azure-api.net',
+        subscription_key='test-key',
+        headers={'Authorization': 'Bearer token', 'X-Source': 'caller'},
+    )
+
+    assert client._url == 'https://1.2.3.4'
+    assert client.subscriptionKey == 'test-key'
+    assert client.allowInsecureTls is True
+    assert client.headers['Host'] == 'api.example.com'
+    assert client.headers['Authorization'] == 'Bearer token'
+    assert client.headers['X-Source'] == 'caller'
+
+
+def test_create_apim_requests_accepts_no_endpoint_or_caller_headers(monkeypatch):
+    """Test NotebookHelper preserves APIM client defaults when no headers are supplied."""
+    nb_helper = utils.NotebookHelper('test-sample', 'selected-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM)
+    monkeypatch.setattr(utils, 'get_endpoint', lambda *_: ('https://gateway.example', None, False))
+
+    client = nb_helper.create_apim_requests('https://test-apim.azure-api.net')
+
+    assert client.headers == {'Accept': 'application/json'}
 
 
 def test_deploy_sample_deployment_failure(monkeypatch):
@@ -1555,21 +1740,13 @@ def test_deploy_sample_with_jwt(monkeypatch, suppress_console):
 
 
 def test_deploy_sample_infrastructure_selection_already_completed(monkeypatch, suppress_console):
-    """Test deploy_sample when infrastructure selection was already completed in globals."""
+    """Test deploy_sample skips repeated infrastructure selection on the same helper."""
     nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM])
 
     # Mock does_resource_group_exist to return False (infrastructure doesn't exist)
     monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: False)
 
-    # Set the global variable to simulate previous infrastructure selection
-    original_globals = builtins.globals
-
-    def mock_globals():
-        result = original_globals()
-        result['infrastructure_selection_completed'] = True
-        return result
-
-    monkeypatch.setattr('builtins.globals', mock_globals)
+    nb_helper._infrastructure_selection_completed = True
 
     # Mock successful deployment
     mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
