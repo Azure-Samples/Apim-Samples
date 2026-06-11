@@ -1,5 +1,8 @@
 # Samples: Inference Failover
 
+<!-- markdownlint-disable MD013 -->
+<!-- Long technical prose and wide telemetry tables are intentionally not hard-wrapped. -->
+
 This sample uses Azure API Management as an AI Gateway for two Azure OpenAI models, combining priority and weighted backend failover with focused LLM telemetry in Log Analytics and an Azure Monitor Workbook.
 
 ⚙️ **Supported infrastructures**: All infrastructures
@@ -25,6 +28,52 @@ Beyond the [general prerequisites](../../README.md#-getting-started) (Azure subs
 
 An AI platform prefers provisioned capacity tiers across its available regions before using pay-as-you-go capacity: in-region PTU, out-of-region PTU, in-region PAYG, then out-of-region PAYG. This lab exercises that routing shape using only regional `Standard` pay-as-you-go Azure OpenAI deployments. Names containing `PTU` identify the simulated preference tier in the experiment and do not change the Azure OpenAI deployment SKU or billing model.
 
+### Response Handling Rules
+
+The inference policy uses the following response-handling matrix. "Failover" means returning the sample's generic caller-facing `503` after the eligible regional retry chain is exhausted; it is distinct from shifting an individual retry to another region.
+
+| Code | Category | Retry     | Shift Region | Failover           | Severity |
+| ---- | -------- | --------- | ------------ | ------------------ | -------- |
+| 200  | Success  | N/A       | No           | No                 | None     |
+| 400  | Client   | No        | No           | No                 | Low      |
+| 401  | Auth     | No        | No           | No                 | Medium   |
+| 403  | AuthZ    | No        | No           | No                 | Medium   |
+| 404  | Config   | No        | No           | No                 | Medium   |
+| 409  | Conflict | Sometimes | No           | No                 | Medium   |
+| 429  | Capacity | Yes       | Yes (bias)   | No                 | Medium   |
+| 500  | Infra    | Yes       | Yes          | Yes (if sustained) | High     |
+| 502  | Infra    | Yes       | Yes          | Yes                | High     |
+| 503  | Infra    | Yes       | Yes          | Yes                | High     |
+| 504  | Infra    | Yes       | Yes          | Yes                | High     |
+
+The policy interprets "Sometimes" as a `409` carrying `Retry-After`: APIM retries it immediately against the selected backend but does not open that backend's circuit or intentionally shift region. A `429` opens the capacity circuit, and `Retry-After` biases subsequent pool selection away from the constrained backend; if every eligible attempt still returns `429`, APIM preserves that response instead of converting it to failover. A `500` becomes a regional failover signal only after two occurrences within one minute, while `502`, `503`, and `504` open the infrastructure circuit immediately. After the regional chain is exhausted, those infrastructure responses become a generic caller-facing `503`.
+
+### Failure Test Coverage
+
+The notebook runs deterministic gateway contract probes before its capacity scenarios. These probes verify a valid `200`, an Azure OpenAI `400` from malformed JSON, an APIM `401` from a missing subscription key, and an APIM `404` from an unknown operation. The `400` also verifies `X-Backend-Retry: 0`, proving that client errors pass through without retry. The pressure scenarios exercise organic `429` handling against the intentionally small deployments. The remaining backend statuses require a controllable fault origin because Azure OpenAI does not provide a supported "return this status" test switch.
+
+| Condition | Automated here | Recommended controlled test | Expected evidence |
+| --- | --- | --- | --- |
+| `200` | Yes | Send a valid small chat-completions request. | `200` and `X-Backend-Retry: 0`. |
+| `400` | Yes | Send truncated JSON with `Content-Type: application/json`. | Backend `400`, caller `400`, and `X-Backend-Retry: 0`. |
+| `401` | Yes | Omit the APIM subscription key. | Gateway `401`; the inference policy is not entered. |
+| `403` | No | On an isolated deployment, remove **Cognitive Services OpenAI User** from APIM or add a temporary deny policy. Restore access immediately after the probe. | Backend/caller `403` and no retry. |
+| `404` | Yes | Call an unknown APIM operation. For a backend-side variant, temporarily target a nonexistent model deployment in an isolated backend. | `404` and no retry. |
+| `409` without `Retry-After` | No | Use a local fault server, Mockoon, WireMock, or a temporary Container App that returns `409` without the header. | One attempt; caller keeps `409`. |
+| `409` with `Retry-After` | No | Return `409` plus `Retry-After: 1` from the controlled fault origin. | Retry count increases, but the backend circuit does not open. |
+| `429` | Yes, workload-dependent | Run the pressure cells. For deterministic CI, return `429` plus `Retry-After` from a controlled fault origin. | Regional selection is biased; exhausted capacity remains `429`. |
+| `500` | No | Return `500` twice within one minute, then recover. | First response is retryable; sustained failures open the circuit and can exhaust as generic `503`. |
+| `502` | No | Return an explicit `502` from the controlled fault origin. | Immediate infrastructure circuit trip and regional retry. |
+| `503` | Organic but not guaranteed | Return `503`, optionally with `Retry-After`, from the controlled fault origin. | Immediate regional retry; exhausted chain becomes generic `503`. |
+| `504` | No | Return an explicit `504`; separately delay the origin beyond the APIM forwarding timeout to test transport timeout behavior. | HTTP `504` trips the circuit; timeout produces no backend HTTP response but is retried and normalized to `503`. |
+| DNS/connection failure | No | Point one isolated backend at a reserved nonexistent host such as `https://unresolvable.invalid`. | `BackendConnectionFailure`, retries, then generic `503` if all destinations fail. |
+| TLS failure | No | Point an isolated backend at a host with an expired certificate or a certificate-name mismatch while TLS validation remains enabled. | Backend connection failure, retries, and no certificate detail disclosed to the caller. |
+| Caller disconnect | No | Start a streaming or deliberately slow request, then abort the client socket or use `curl --max-time 1`. | Native client-connection/cancellation telemetry; this is not backend failover. |
+
+Use a separate APIM API/backend pool or a disposable deployment for controlled origin tests. Do not add public fault-injection headers to the production-shaped inference APIs, and do not remove role assignments from a shared environment. A nonexistent backend hostname is useful for DNS failure, but it does **not** simulate a client disconnect: DNS happens between APIM and the backend, while a client disconnect happens between the caller and APIM.
+
+For the HTTP fault cases, a minimal local origin can return the requested status and optional `Retry-After` header. Expose it only to the test APIM network path, register one backend per region/priority under test, and apply the same inference policy and breaker configuration. Run each case twice: once with a later healthy pool member to prove recovery, and once with every member faulted to prove the terminal caller contract. Inspect `X-Backend-Retry`, `BackendResponseCode`, `LastErrorReason`, and the `InferenceBackendAttemptComplete`, `InferenceFallbackExhausted`, or `InferenceTransportFailure` trace event.
+
 ### Model Deployments
 
 All deployments below use the regional `Standard` SKU with a capacity of `1` thousand tokens per minute (TPM). This deliberately small capacity makes concentrated `429`-driven failover practical to observe; it is not production sizing advice.
@@ -46,11 +95,11 @@ All deployments below use the regional `Standard` SKU with a capacity of `1` tho
 This lab adds the following to an existing APIM infrastructure:
 
 - Three regional Azure OpenAI resources containing nine `Standard` model deployments at `1` thousand TPM each.
-- Nine concrete APIM backends named using `<model>-<PTU|PAYG>-<region>`, each with TLS validation and a one-minute circuit breaker for `429` and `503` responses that accepts `Retry-After`.
+- Nine concrete APIM backends named using `<model>-<PTU|PAYG>-<region>`, each with TLS validation and separate circuit breakers for capacity, sustained internal errors, and immediate gateway or availability failures.
 - One APIM backend pool per model so a retry never crosses to an incompatible deployment.
 - Two AI Gateway APIs with managed identity authentication to Azure OpenAI: `POST /inference/gpt-5-1/chat/completions` retries four times through A -> D -> B -> E/G (equal terminal weights), while `POST /inference/gpt-4-1-mini/chat/completions` retries three times through C -> F -> D -> H.
 
-- Model-specific retry policies that buffer the POST body while retrying throttled or unavailable backends, emit an information-level trace after every backend attempt, always return the caller-visible `X-Backend-Retry` count, and return a generic `503` when fallback is exhausted.
+- Model-specific retry policies that buffer the POST body while immediately retrying conditional conflicts, throttling, and listed infrastructure failures; emit an information-level trace after every backend attempt; always return the caller-visible `X-Backend-Retry` count; preserve exhausted `409` and `429` responses; and return a generic `503` when infrastructure failover is exhausted.
 - APIM AI Gateway diagnostics using the infrastructure-provided Log Analytics workspace and Application Insights component, plus an AOAI-only workbook for terminal outcomes, retry trails, backend distribution, APIM errors, token coverage, and latency.
 - An optional Standard Event Hubs namespace, telemetry hub, and `external-observability` consumer group in the APIM region for downstream stream processors, SIEM platforms, or external analytics systems.
 

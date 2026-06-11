@@ -1,0 +1,206 @@
+"""Tests for the inference-failover sample-local runtime helpers."""
+
+import json
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock
+
+import pandas as pd
+import pytest
+
+INFERENCE_FAILOVER_DIR = Path(__file__).resolve().parents[2] / 'samples' / 'inference-failover'
+sys.path.insert(0, str(INFERENCE_FAILOVER_DIR))
+
+from inference_failover_helpers import (  # noqa: E402
+    InferenceScenario,
+    InferenceTrafficRunner,
+    format_backend_url_counts,
+    format_gateway_distribution,
+    get_backend_index,
+    parse_backend_retry,
+    summarize_scenario,
+    validate_status,
+    with_backend_identifier,
+)
+
+
+def _response(status_code=200, *, headers=None, text='response'):
+    response = MagicMock()
+    response.status_code = status_code
+    response.headers = headers or {'X-Backend-Retry': '0'}
+    response.text = text
+    return response
+
+
+def _create_runner(*, responses=None, sleep=None, clock=None):
+    session = MagicMock()
+    session.headers = {}
+    if responses is not None:
+        session.post.side_effect = responses
+    runner = InferenceTrafficRunner(
+        'https://gateway.example/',
+        {'X-Infrastructure': 'test'},
+        True,
+        session_factory=lambda: session,
+        sleep=sleep or MagicMock(),
+        clock=clock or MagicMock(side_effect=[1.0, 1.25]),
+    )
+    return runner, session
+
+
+@pytest.mark.unit
+def test_run_scenario_normalizes_success_and_preserves_model_response():
+    response = _response(headers={'X-Backend-Retry': '2', 'X-Backend-URL': 'https://aoai/openai/deployments/a-model'}, text='model output')
+    runner, session = _create_runner(responses=[response])
+    scenario = InferenceScenario('baseline', '/inference', 'key', {'messages': []}, 1, {'/deployments/a-model': 4})
+
+    results = runner.run_scenario(scenario)
+
+    session.post.assert_called_once_with(
+        'https://gateway.example/inference',
+        headers={'api-key': 'key'},
+        json={'messages': []},
+        timeout=120,
+    )
+    assert session.verify is False
+    assert session.headers == {'X-Infrastructure': 'test', 'Content-Type': 'application/json'}
+    assert json.loads(results[0]['response']) == {'index': 4, 'backendUrl': response.headers['X-Backend-URL'], 'backendRetry': 2}
+    assert results[0]['model_response'] == 'model output'
+    assert results[0]['response_time'] == pytest.approx(0.25)
+
+
+@pytest.mark.unit
+def test_run_scenario_keeps_error_body_and_skips_final_sleep():
+    responses = [
+        _response(429, headers={'X-Backend-Retry': '1'}, text='limited'),
+        _response(503, headers={'X-Backend-Retry': '2'}, text='unavailable'),
+    ]
+    sleep = MagicMock()
+    clock = MagicMock(side_effect=[1.0, 1.1, 2.0, 2.2])
+    runner, _ = _create_runner(responses=responses, sleep=sleep, clock=clock)
+    scenario = InferenceScenario('pressure', 'inference', 'key', {}, 2, {}, sleep_ms=1500)
+
+    results = runner.run_scenario(scenario)
+
+    assert [result['response'] for result in results] == ['limited', 'unavailable']
+    sleep.assert_called_once_with(1.5)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(('runs', 'sleep_ms', 'message'), [(0, 0, 'runs'), (1, -1, 'sleep')])
+def test_run_scenario_rejects_invalid_configuration(runs, sleep_ms, message):
+    runner, _ = _create_runner()
+    scenario = InferenceScenario('invalid', '/inference', 'key', {}, runs, {}, sleep_ms)
+
+    with pytest.raises(ValueError, match=message):
+        runner.run_scenario(scenario)
+
+
+@pytest.mark.unit
+def test_retry_and_status_validation_reject_malformed_responses():
+    with pytest.raises(ValueError, match='missing'):
+        parse_backend_retry(_response(headers={'Other': 'value'}))
+    with pytest.raises(ValueError, match='Invalid X-Backend-Retry'):
+        parse_backend_retry(_response(headers={'X-Backend-Retry': 'later'}))
+    with pytest.raises(ValueError, match='negative'):
+        parse_backend_retry(_response(headers={'X-Backend-Retry': '-1'}))
+    with pytest.raises(ValueError, match='Unexpected HTTP 302'):
+        validate_status(_response(302, text='redirect'))
+
+    validate_status(_response(200))
+    validate_status(_response(400))
+    validate_status(_response(599))
+
+
+@pytest.mark.unit
+def test_contract_probes_construct_each_gateway_case():
+    responses = [_response(), _response(400), _response(401), _response(404)]
+    runner, session = _create_runner(responses=responses)
+
+    results = runner.run_contract_probes('https://gateway.example/inference', 'https://gateway.example/unknown', 'key', {'messages': []})
+
+    assert [results.success.status_code, results.malformed.status_code, results.missing_key.status_code, results.unknown_operation.status_code] == [
+        200,
+        400,
+        401,
+        404,
+    ]
+    assert session.post.call_args_list[1].kwargs['data'] == '{"messages":'
+    assert 'headers' not in session.post.call_args_list[2].kwargs
+    assert session.post.call_args_list[3].args[0] == 'https://gateway.example/unknown'
+
+
+@pytest.mark.unit
+def test_context_manager_closes_session_after_exception():
+    runner, session = _create_runner(responses=[RuntimeError('request failed')])
+    scenario = InferenceScenario('failure', '/inference', 'key', {}, 1, {})
+
+    with pytest.raises(RuntimeError, match='request failed'):
+        with runner:
+            runner.run_scenario(scenario)
+
+    session.close.assert_called_once_with()
+
+
+@pytest.mark.unit
+def test_pause_uses_injected_sleep_and_rejects_negative_values():
+    sleep = MagicMock()
+    runner, _ = _create_runner(sleep=sleep)
+
+    runner.pause(2)
+    runner.pause(0)
+
+    sleep.assert_called_once_with(2)
+    with pytest.raises(ValueError, match='must not be negative'):
+        runner.pause(-1)
+
+
+@pytest.mark.unit
+def test_summary_and_backend_formatting_cover_success_errors_and_unknown_urls():
+    results = [
+        {'status_code': 200, 'backend_retry': 0, 'backend_url': 'https://backend-a'},
+        {'status_code': 429, 'backend_retry': 1, 'backend_url': 'unknown'},
+        {'status_code': 503, 'backend_retry': 2, 'backend_url': 'unknown'},
+    ]
+
+    summary = summarize_scenario(results)
+
+    assert summary.successes == 1
+    assert summary.client_errors == 1
+    assert summary.server_errors == 1
+    assert summary.status_code_counts == {200: 1, 429: 1, 503: 1}
+    assert summary.retry_counts == {0: 1, 1: 1, 2: 1}
+    assert summary.served_backend_urls == ['https://backend-a']
+    assert get_backend_index('https://backend-a', {'backend-a': 3}) == 3
+    assert get_backend_index('https://other', {'backend-a': 3}) == 99
+    assert format_backend_url_counts(results) == '- https://backend-a: 1 request\n- unknown: 2 requests'
+
+
+@pytest.mark.unit
+def test_dataframe_helpers_are_non_mutating_and_idempotent():
+    source = pd.DataFrame(
+        [['api', 'https://host/openai/deployments/a-model', 1, '1,234.5', '98.2%']],
+        columns=['API', 'Backend URL', 'Requests', 'AverageBackendMs', 'SuccessRate'],
+    )
+
+    identified = with_backend_identifier(source)
+    formatted = format_gateway_distribution(identified)
+    repeated = with_backend_identifier(identified)
+
+    assert 'Backend' not in source.columns
+    assert identified['Backend'].tolist() == ['a']
+    assert repeated.equals(identified)
+    assert formatted['Backend'].tolist() == ['a) model']
+    assert formatted['AverageBackendMs'].tolist() == ['1,234.5']
+    assert formatted['SuccessRate'].tolist() == ['98.20%']
+    assert 'Backend URL' not in formatted.columns
+
+
+@pytest.mark.unit
+def test_with_backend_identifier_leaves_frames_without_urls_unchanged():
+    source = pd.DataFrame([['api']], columns=['API'])
+
+    result = with_backend_identifier(source)
+
+    assert result.equals(source)
+    assert result is not source
