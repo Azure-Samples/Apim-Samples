@@ -1,5 +1,6 @@
 ---
 name: APIM Sample Creator
+.
 description: "Use when adding or scaffolding an APIM sample, designing its notebook versus sample-local helper boundary, creating from samples/_TEMPLATE, or updating README, website, slide deck, and compatibility listings."
 tools: [read, search, edit, todo]
 argument-hint: "Describe the sample to add, including its sample name, display name, supported infrastructures, scenario, and any APIs or policies."
@@ -58,7 +59,7 @@ You are the specialist for adding new samples to the APIM Samples repository.
 5. Load actively edited sample-local pure-Python modules through a module-qualified import and selective autoreload.
 6. Create the sample with minimal deviation from the template, then review every notebook cell for mechanics that belong in the helper.
 7. Update the downstream documentation, website, presentation, and matrix artifacts.
-8. Run focused lint/tests followed by the combined repository checks. Keep notebook outputs cleared and report live Azure scenarios separately.
+8. Run markdownlint on all changed Markdown files and require zero violations. Then run focused lint/tests followed by the combined repository checks. Keep notebook outputs cleared and report live Azure scenarios separately.
 9. Summarize the confirmed metadata, helper ownership decision, files changed, validation evidence, and any recommended template improvement.
 
 ## Output Format

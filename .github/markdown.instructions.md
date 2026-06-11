@@ -8,6 +8,12 @@ This document provides standards for Markdown files in the APIM Samples reposito
 
 ## Critical Rules
 
+### Markdownlint Must Pass
+
+- Every new or modified Markdown file must pass markdownlint with zero violations before the work is considered complete.
+- Run markdownlint against all changed `.md` files using the available CLI or VS Code diagnostics.
+- Fix violations instead of disabling rules. Add a narrowly scoped suppression only when the Markdown intentionally cannot comply, and explain why next to the suppression.
+
 ### 🚨 No Emoji Variation Selectors in Markdown Links
 
 **This is the most important rule.** Emoji variation selectors cause rendering and Markdown anchor link failures.
@@ -223,6 +229,7 @@ Structured guides for domain-specific tasks (Bicep, Python policies, sample crea
 
 | Issue | Cause | Fix |
 | --- | --- | --- |
+| Markdownlint failure | Markdown does not meet the configured lint rules | Fix every reported violation and rerun markdownlint |
 | Anchor links break | Emoji in heading + encoded in link | Remove emoji from link reference: `[text](#heading-only)` |
 | Tables misaligned | Inconsistent column widths | Pad cells with spaces to align `\|` delimiters |
 | File links broken | Wrong path or encoded characters | Use relative paths, encode spaces: `My%20File.md` |

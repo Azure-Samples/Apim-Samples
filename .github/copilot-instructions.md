@@ -502,6 +502,7 @@ Check `docs/README.md` for local preview instructions and styling notes. The pag
 
 ## Required before each commit
 - Ensure all code is well-documented and follows the guidelines in this file.
+- Ensure markdownlint passes with zero violations for all new or modified Markdown files.
 - Ensure that Jupyter notebooks do not contain any cell output.
 - Ensure that Jupyter notebooks have `index` assigned to `1` in the first cell.
 - If the change touches the infrastructure list, sample list, quick-start steps, or architecture SVGs, ensure `docs/index.html` (and the asset copy step in `.github/workflows/github-pages.yml` where relevant) has been updated to match.

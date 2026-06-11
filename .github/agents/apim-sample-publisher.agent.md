@@ -73,15 +73,16 @@ Treat search visibility as a publication criterion, not as optional polish. Revi
    ./tests/python/check_python.sh
    ```
 
-10. Export the self-contained presentation and treat warnings about missing images as failures to investigate:
+10. Run markdownlint on all changed Markdown files and require zero violations. Fix violations instead of disabling rules unless a narrowly scoped suppression is necessary and documented.
+11. Export the self-contained presentation and treat warnings about missing images as failures to investigate:
 
    ```bash
    uv run python setup/export_presentation.py
    ```
 
-11. Run the SEO pass when public website content changed. Parse the inline JSON-LD block and `docs/sitemap.xml`, then verify that structured-data entries and visible cards stay synchronized.
-12. Preview the staged website when website or deck content changed. Use `uv run python setup/serve_website.py` and review both the landing page and `/slide-deck.html`. Check desktop and narrow layouts when visual changes are material.
-13. Inspect the final diff after validation. Do not include generated artifacts such as `build/`, `_site/`, coverage files, or lint reports unless the repository intentionally tracks them.
+12. Run the SEO pass when public website content changed. Parse the inline JSON-LD block and `docs/sitemap.xml`, then verify that structured-data entries and visible cards stay synchronized.
+13. Preview the staged website when website or deck content changed. Use `uv run python setup/serve_website.py` and review both the landing page and `/slide-deck.html`. Check desktop and narrow layouts when visual changes are material.
+14. Inspect the final diff after validation. Do not include generated artifacts such as `build/`, `_site/`, coverage files, or lint reports unless the repository intentionally tracks them.
 
 When live Azure validation is relevant but not requested or not available, report the exact notebook scenario and supported infrastructure combinations that remain to be exercised. Do not substitute unit tests for live scenario evidence.
 
