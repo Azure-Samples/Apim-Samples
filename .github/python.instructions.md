@@ -68,6 +68,7 @@ This ensures all code changes comply with the project's linting standards from t
   - Good: `from console import print_error, print_val`
   - Bad: `from console import (print_error, print_val)`
   - Good (multi-line):
+
     ```python
     from console import (
         print_error,
@@ -75,6 +76,7 @@ This ensures all code changes comply with the project's linting standards from t
         print_ok
     )
     ```
+
 - Order within APIM Samples imports section:
   1. Module imports with aliases (e.g., `import azure_resources as az`)
   2. Specific type/constant imports (e.g., `from apimtypes import INFRASTRUCTURE`)
@@ -86,8 +88,8 @@ Before completing any Python code changes, verify:
 
 - All ruff warnings and errors are resolved (`ruff check <file>`)
   - Ruff rules cover these, but we don't see `pyproject.toml` being added to context. Therefore, please pay special attention to these common occurrences:
-      - No trailing whitespace
-      - No assertion of empty strings in tests (use `assert not`)
+    - No trailing whitespace
+    - No assertion of empty strings in tests (use `assert not`)
 - Code follows PEP 8 and the style guidelines in this file
 - Import statements for modules within this repo are placed last in the imports and are grouped with the `# APIM Samples imports` header
 - Type hints are present where appropriate

@@ -60,7 +60,7 @@ When a custom backend policy is not needed, keep `<base />` as the only direct c
 ## Policy Categories Quick Reference
 
 | Category | Common Policies | Section |
-|----------|-----------------|---------|
+| --- | --- | --- |
 | **Authentication** | `authentication-managed-identity`, `validate-azure-ad-token`, `validate-jwt` | inbound |
 | **Rate Limiting** | `rate-limit-by-key`, `quota-by-key` | inbound |
 | **Caching** | `cache-lookup`, `cache-store` | inbound/outbound |
@@ -220,7 +220,7 @@ Before using a type or member in a policy expression, verify it appears on the o
 When a member you need is not allowed, refactor to an equivalent that is. Examples:
 
 | Disallowed | Allowed replacement |
-|---|---|
+| --- | --- |
 | `DateTime.TryParse(s, ..., DateTimeStyles.RoundtripKind, out dt)` | Store as Unix epoch via `DateTimeOffset.UtcNow.ToUnixTimeSeconds()`, parse with `long.TryParse` |
 | `DateTime.ParseExact(s, fmt, CultureInfo.InvariantCulture)` | `DateTime.Parse(s)` (allowed) or epoch-based representation |
 | `Enum.GetValues(typeof(T))` | Hard-code the comparison values or store as a string |

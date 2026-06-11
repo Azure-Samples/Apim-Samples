@@ -162,7 +162,7 @@ steps:
       COVERAGE_FILE: tests/.coverage-${{ matrix.python-version }}
 ```
 
-## Checklist Before Committing
+## Final Checklist Before Committing
 
 - [ ] All GitHub Actions use commit hashes (no version tags)
 - [ ] Triggers are explicitly defined (`on:`)
@@ -184,6 +184,7 @@ steps:
 **CRITICAL: Never use untrusted input directly in `run:` commands.**
 
 Untrusted input includes:
+
 - `${{ github.event.pull_request.title }}`
 - `${{ github.event.pull_request.body }}`
 - `${{ github.event.issue.title }}`
@@ -237,17 +238,20 @@ Untrusted input includes:
 **⚠️ EXTREMELY DANGEROUS: `pull_request_target` runs with write permissions to the base repository.**
 
 The `pull_request_target` trigger:
+
 - Runs in the context of the base branch (not the PR branch)
 - Has **write access** to the base repository
 - Has access to repository secrets
 - Can be triggered by anyone who can create a PR (including attackers)
 
 **When NOT to use:**
+
 - ❌ Never checkout code from the PR (`${{ github.event.pull_request.head.ref }}`)
 - ❌ Never execute code from the PR (tests, builds, scripts)
 - ❌ Never install dependencies from the PR's package files
 
 **When it's safe to use (rare cases):**
+
 - ✅ Commenting on PRs using `actions/github-script`
 - ✅ Labeling PRs based on metadata (not content)
 - ✅ Static analysis that doesn't execute PR code
@@ -296,11 +300,13 @@ jobs:
 **⚠️ NEVER use self-hosted runners on public repositories.**
 
 Risks:
+
 - Pull requests from forks can execute arbitrary code on your infrastructure
 - Runners may retain secrets or sensitive data between runs
 - Potential for persistent backdoors or data exfiltration
 
 **Guidelines:**
+
 - ✅ Use GitHub-hosted runners (`ubuntu-latest`, `windows-latest`, `macos-latest`) for public repos
 - ✅ Use self-hosted runners only on private repositories with strict access controls
 - ✅ If you must use self-hosted runners, isolate them completely (ephemeral containers)
@@ -310,6 +316,7 @@ Risks:
 **Best practices for handling secrets:**
 
 1. **Never log secrets:**
+
    ```yaml
    # ❌ WRONG: Secret appears in logs
    - name: Deploy
@@ -323,6 +330,7 @@ Risks:
    ```
 
 2. **Mask dynamic secrets:**
+
    ```yaml
    - name: Generate temporary token
      run: |
@@ -337,6 +345,7 @@ Risks:
    - Never trust fork PR code with write permissions or secrets access
 
 4. **Least privilege:**
+
    ```yaml
    # Only request secrets that are actually needed
    env:
@@ -371,6 +380,7 @@ Risks:
    - Update commit hashes when new versions are released
 
 5. **Example vetting process:**
+
    ```yaml
    # Good: Vetted, pinned, documented
    - name: Setup Python

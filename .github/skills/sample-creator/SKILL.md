@@ -11,7 +11,7 @@ This skill guides creating new APIM samples that follow the repository's establi
 
 Every sample under `samples/` must contain these files:
 
-```
+```text
 samples/<sample-name>/
 ├── README.md              (documentation)
 ├── create.ipynb           (Jupyter notebook for deployment)
@@ -36,7 +36,8 @@ Before creating the sample, collect:
    - `INFRASTRUCTURE.APPGW_APIM` - Application Gateway + APIM
    - `INFRASTRUCTURE.APPGW_APIM_PE` - Application Gateway + APIM with Private Endpoint
    - `INFRASTRUCTURE.SIMPLE_APIM` - Basic APIM setup
-    - If the user has not provided supported infrastructures, ask before scaffolding the sample.
+
+    If the user has not provided supported infrastructures, ask before scaffolding the sample.
 5. **Learning objectives** - What users will learn (3-5 bullet points)
 6. **APIs to create** - List of APIs with operations, paths, and policies
 7. **Policy requirements** - Any custom APIM policies needed
@@ -441,7 +442,7 @@ api = API(
 Available infrastructure types:
 
 | Constant | Description |
-|----------|-------------|
+| --- | --- |
 | `INFRASTRUCTURE.AFD_APIM_PE` | Azure Front Door + APIM with Private Endpoint |
 | `INFRASTRUCTURE.APIM_ACA` | APIM with Azure Container Apps |
 | `INFRASTRUCTURE.APPGW_APIM` | Application Gateway + APIM |

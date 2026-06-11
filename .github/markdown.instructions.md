@@ -19,22 +19,25 @@ This document provides standards for Markdown files in the APIM Samples reposito
 **This is the most important rule.** Emoji variation selectors cause rendering and Markdown anchor link failures.
 
 ❌ **WRONG** — DO NOT DO THIS:
+
 ```markdown
 ## ✅ Prerequisites
 
-[Go to Prerequisites](#%EF%B8%8F-prerequisites)  <!-- Encoded emoji in link -->
+[Go to Prerequisites](#%EF%B8%8F-prerequisites) <!-- Encoded emoji in link -->
 ```
 
 ✅ **CORRECT** — DO THIS:
+
 ```markdown
 ## ✅ Prerequisites
 
-[Go to Prerequisites](#prerequisites)  <!-- Text only, no emoji encoding -->
+[Go to Prerequisites](#prerequisites) <!-- Text only, no emoji encoding -->
 ```
 
 **Why:** When you create an anchor link with an emoji in the heading, Markdown renders the emoji but the anchor reference gets URL-encoded (like `%EF%B8%8F`). The link then breaks because the actual anchor is just the text portion without the encoding.
 
 **The pattern:**
+
 - **Keep emojis in headings** for visual clarity — they're fine there
 - **Never include emojis in anchor link references** — always reference just the text
 - **When linking to a heading**, use only the text: `[Link text](#heading-text-only)`
@@ -44,10 +47,12 @@ This document provides standards for Markdown files in the APIM Samples reposito
 ## Formatting Standards
 
 ### Line Endings
+
 - Use **LF line endings only**, never CRLF
 - This applies to all files, including Windows development environments
 
 ### Quotes and Apostrophes
+
 - Use only straight quotes and apostrophes: `'` (U+0027) and `"` (U+0022)
 - Never use typographic/curly quotes: `'` `'` `"` `"`
 - Improves consistency across editors and platforms
@@ -66,19 +71,21 @@ Use one table style consistently within each table. Always include one space on 
 **Prefer aligned tables** for short values. Pad cell values with spaces so that every `|` delimiter in a column lines up vertically.
 
 ❌ **WRONG** — misaligned columns:
+
 ```markdown
-| Name | Value |
-|---|---|
-| Short | 123 |
-| Very Long Name | 45 |
+| Name           | Value |
+| -------------- | ----- |
+| Short          | 123   |
+| Very Long Name | 45    |
 ```
 
 ✅ **CORRECT** — aligned columns:
+
 ```markdown
-| Name              | Value |
-| --- | --- |
-| Short             | 123   |
-| Very Long Name    | 45    |
+| Name           | Value |
+| -------------- | ----- |
+| Short          | 123   |
+| Very Long Name | 45    |
 ```
 
 Use the separator row (`---`, `:---:`, `---:`, etc.) to establish column widths, then align all subsequent rows to match.
@@ -86,10 +93,10 @@ Use the separator row (`---`, `:---:`, `---:`, etc.) to establish column widths,
 **Use compact tables** for prose-heavy content when alignment would create very long lines. Keep spaces around every pipe delimiter and use the same compact style for the header, separator, and each row.
 
 ```markdown
-| Name | Description |
-| --- | --- |
+| Name                  | Description                                                      |
+| --------------------- | ---------------------------------------------------------------- |
 | Simple API Management | Public API Management instance for learning and experimentation. |
-| Private Link | Private ingress for security-focused scenarios. |
+| Private Link          | Private ingress for security-focused scenarios.                  |
 ```
 
 ### Lists
@@ -113,6 +120,7 @@ When referencing files or line numbers in documentation:
 **Format:** `[display text](path/to/file.md)` or `[display text](path/to/file.md#L10)` for specific lines
 
 **Rules:**
+
 - Display text must match or describe the target
 - Use workspace-relative paths (no `file://` or `vscode://` schemes)
 - Encode spaces in the URL: `My File.md` → `My%20File.md`
@@ -121,6 +129,7 @@ When referencing files or line numbers in documentation:
 - Do NOT wrap file paths in backticks — they're already links
 
 ✅ **CORRECT:**
+
 ```markdown
 See [configuration guide](docs/configuration.md) for details.
 
@@ -130,6 +139,7 @@ Update [my config file](path/to/My%20Config.md) as needed.
 ```
 
 ❌ **WRONG:**
+
 ```markdown
 See `docs/configuration.md` for details.
 
@@ -151,12 +161,14 @@ See the `README.md#L10` file.
 ### README Files
 
 **Location & Naming:**
+
 - Root `README.md` - Main repository overview
 - `infrastructure/[name]/README.md` - Infrastructure architecture guide
 - `samples/[name]/README.md` - Sample documentation
 - `shared/` folders - Optional READMEs for component overview
 
 **Structure** (see `copilot-instructions.md` for detailed layouts):
+
 - Consistent heading hierarchy and emoji usage across similar documents
 - Badges for runtime, supported services, prerequisites
 - Clear sections: Objectives, Scenario, Lab Components, Configuration, Results, Clean Up, Links
@@ -165,11 +177,13 @@ See the `README.md#L10` file.
 ### Instruction Files
 
 **Location & Naming:**
+
 - Language-specific: `.github/[language].instructions.md` (e.g., `python.instructions.md`, `markdown.instructions.md`)
 - Topic-specific: `.github/markdown.instructions.md` (e.g., for Markdown formatting)
 - General: `.github/copilot-instructions.md`
 
 **Metadata Block:**
+
 ```markdown
 ---
 applyTo: "**/*.md"
@@ -190,13 +204,13 @@ Structured guides for domain-specific tasks (Bicep, Python policies, sample crea
 
 ## When to Use Markdown Files
 
-| File Type | When | Example |
-| --- | --- | --- |
-| README | Document a folder/project | `infrastructure/simple-apim/README.md` |
-| CONTRIBUTING | Contribution process | Root `CONTRIBUTING.md` |
-| Instructions | Copilot guidance | `.github/bicep.instructions.md` |
-| Skill Guide | Domain expertise | `.github/skills/sample-creator/SKILL.md` |
-| Index/Navigation | Landing pages, TOCs | `samples/README.md` listing all samples |
+| File Type        | When                      | Example                                  |
+| ---------------- | ------------------------- | ---------------------------------------- |
+| README           | Document a folder/project | `infrastructure/simple-apim/README.md`   |
+| CONTRIBUTING     | Contribution process      | Root `CONTRIBUTING.md`                   |
+| Instructions     | Copilot guidance          | `.github/bicep.instructions.md`          |
+| Skill Guide      | Domain expertise          | `.github/skills/sample-creator/SKILL.md` |
+| Index/Navigation | Landing pages, TOCs       | `samples/README.md` listing all samples  |
 
 ---
 
@@ -227,12 +241,13 @@ Structured guides for domain-specific tasks (Bicep, Python policies, sample crea
 - Use reference-style links at the bottom for multiple references to the same target
 - Remove reference-style link definitions when their final usage is removed. Unused definitions fail `MD053`.
 - Example:
-  ```markdown
-  See the [setup guide][setup] and [troubleshooting][troubleshooting] pages.
 
-  [setup]: docs/setup.md
-  [troubleshooting]: docs/troubleshooting.md
-  ```
+    ```markdown
+    See the [setup guide][setup] and [troubleshooting][troubleshooting] pages.
+
+    [setup]: docs/setup.md
+    [troubleshooting]: docs/troubleshooting.md
+    ```
 
 - Link within README sections using anchor links: `[Jump to section](#section-name)`
 
@@ -264,17 +279,17 @@ Structured guides for domain-specific tasks (Bicep, Python policies, sample crea
 
 ## Common Issues and Fixes
 
-| Issue | Cause | Fix |
-| --- | --- | --- |
-| Markdownlint failure | Markdown does not meet the configured lint rules | Fix every reported violation and rerun markdownlint |
-| Anchor links break | Emoji in heading + encoded in link | Remove emoji from link reference: `[text](#heading-only)` |
-| Tables misaligned | Mixed table styles or missing spaces around pipes | Use one consistent aligned or compact style and write separator rows as `\| --- \| --- \|` |
-| Sections run together | Missing or repeated blank lines | Use exactly one blank line around headings, tables, lists, and fences |
-| Code fence warning | Missing fence language | Add the appropriate language, or use `text` for plain output |
-| List indentation warning | Inconsistent nesting or ordered prefixes | Use two spaces per unordered nesting level and `1.` for ordered items |
-| Inline HTML warning | HTML used where Markdown is sufficient | Prefer native Markdown; add a local `MD033` exception only for required HTML behavior |
-| Unused reference warning | Link definition remains after its final usage was removed | Delete the unused reference definition |
-| File links broken | Wrong path or encoded characters | Use relative paths, encode spaces: `My%20File.md` |
-| Symbols not highlighted | Missing backticks | Wrap in backticks: `symbolName` |
-| Line ending issues | Mixed CRLF/LF | Ensure all `.md` files use LF only |
-| Rendering issues | Curly quotes | Use straight quotes: `'` and `"` only |
+| Issue                    | Cause                                                     | Fix                                                                                        |
+| ------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| Markdownlint failure     | Markdown does not meet the configured lint rules          | Fix every reported violation and rerun markdownlint                                        |
+| Anchor links break       | Emoji in heading + encoded in link                        | Remove emoji from link reference: `[text](#heading-only)`                                  |
+| Tables misaligned        | Mixed table styles or missing spaces around pipes         | Use one consistent aligned or compact style and write separator rows as `\| --- \| --- \|` |
+| Sections run together    | Missing or repeated blank lines                           | Use exactly one blank line around headings, tables, lists, and fences                      |
+| Code fence warning       | Missing fence language                                    | Add the appropriate language, or use `text` for plain output                               |
+| List indentation warning | Inconsistent nesting or ordered prefixes                  | Use two spaces per unordered nesting level and `1.` for ordered items                      |
+| Inline HTML warning      | HTML used where Markdown is sufficient                    | Prefer native Markdown; add a local `MD033` exception only for required HTML behavior      |
+| Unused reference warning | Link definition remains after its final usage was removed | Delete the unused reference definition                                                     |
+| File links broken        | Wrong path or encoded characters                          | Use relative paths, encode spaces: `My%20File.md`                                          |
+| Symbols not highlighted  | Missing backticks                                         | Wrap in backticks: `symbolName`                                                            |
+| Line ending issues       | Mixed CRLF/LF                                             | Ensure all `.md` files use LF only                                                         |
+| Rendering issues         | Curly quotes                                              | Use straight quotes: `'` and `"` only                                                      |
