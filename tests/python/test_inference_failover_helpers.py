@@ -11,13 +11,16 @@ import pytest
 INFERENCE_FAILOVER_DIR = Path(__file__).resolve().parents[2] / 'samples' / 'inference-failover'
 sys.path.insert(0, str(INFERENCE_FAILOVER_DIR))
 
+import inference_failover_helpers as helpers  # noqa: E402
 from htmlreport import HtmlList, HtmlSuccess, HtmlText, HtmlWarning  # noqa: E402
 from inference_failover_helpers import (  # noqa: E402
+    InferenceReportContext,
     InferenceScenario,
     InferenceTrafficRunner,
     build_scenario_report_row,
     format_backend_url_counts,
     format_gateway_distribution,
+    generate_local_html_report,
     get_backend_index,
     get_priority_and_weight,
     parse_backend_retry,
@@ -308,3 +311,119 @@ def test_build_scenario_report_row_reports_unresolved_non_503_failure():
     observations = '\n'.join(row[8].items)
     assert 'caller-visible failures remained' in observations
     assert 'Deepest routed tier' not in observations
+
+
+def _report_context() -> InferenceReportContext:
+    return InferenceReportContext(
+        sample_folder='inference-failover',
+        apim_source_region='East US 2',
+        deployment_name='SIMPLE_APIM',
+        resource_group_name='rg-test',
+        tenant_id='tenant-id',
+        subscription_id='subscription-id',
+        apim_name='apim-test',
+        workbook_id='/subscriptions/subscription-id/resourceGroups/rg-test/providers/microsoft.insights/workbooks/report',
+        log_analytics_id='/subscriptions/subscription-id/resourceGroups/rg-test/providers/Microsoft.OperationalInsights/workspaces/logs',
+    )
+
+
+def _report_results() -> list[list[dict]]:
+    result = {
+        'run': 1,
+        'response': json.dumps({'index': 0}),
+        'status_code': 200,
+        'response_time': 0.1,
+        'backend_retry': 0,
+        'backend_url': 'https://host/openai/deployments/a-model',
+    }
+
+    return [[result.copy()] for _ in range(6)]
+
+
+@pytest.mark.unit
+def test_generate_local_html_report_owns_rendering_links_and_output(monkeypatch, tmp_path):
+    report = MagicMock()
+    close_figure = MagicMock()
+    output_path = tmp_path / 'report.html'
+    report.write.return_value = output_path
+    monkeypatch.setattr(helpers, 'HtmlReport', MagicMock(return_value=report))
+    monkeypatch.setattr(helpers.plt, 'close', close_figure)
+    scenario_figures = [MagicMock() for _ in range(6)]
+    monkeypatch.setattr(helpers.charts, 'BarChart', MagicMock(return_value=MagicMock(render=MagicMock(side_effect=scenario_figures))))
+    tests = MagicMock(total_tests=3, tests_passed=3, tests_failed=0, errors=[])
+    labels = {
+        'gpt-5.1': {0: 'Priority 1 / Weight 100: PTU (East US 2)'},
+        'gpt-4.1-mini': {0: 'Priority 1 / Weight 100: PTU (East US 2)'},
+    }
+    indexes = {
+        'gpt-5.1': {'/deployments/a-model': 0},
+        'gpt-4.1-mini': {'/deployments/a-model': 0},
+    }
+
+    result = generate_local_html_report(_report_context(), tests, _report_results(), indexes, labels, output_path=output_path)
+
+    assert result == output_path
+    assert report.add_table.call_count == 2
+    assert report.add_figure.call_count == 6
+    report.add_success_callout.assert_called_once()
+    report.add_links.assert_called_once()
+    azure_links = report.add_links.call_args.args[1]
+    assert azure_links['Workbook'].endswith('/workbook')
+    assert azure_links['API Management'].endswith('/overview')
+    assert close_figure.call_count == 6
+    report.write.assert_called_once_with(output_path)
+
+
+@pytest.mark.unit
+def test_generate_local_html_report_adds_available_telemetry(monkeypatch, tmp_path):
+    report = MagicMock()
+    close_figure = MagicMock()
+    report.write.return_value = tmp_path / 'report.html'
+    monkeypatch.setattr(helpers, 'HtmlReport', MagicMock(return_value=report))
+    monkeypatch.setattr(helpers.plt, 'close', close_figure)
+    scenario_figure = MagicMock()
+    monkeypatch.setattr(helpers.charts, 'BarChart', MagicMock(return_value=MagicMock(render=MagicMock(return_value=scenario_figure))))
+    tests = MagicMock(total_tests=1, tests_passed=0, tests_failed=1, errors=['failed assertion'])
+    labels = {
+        'gpt-5.1': {0: 'Priority 1 / Weight 100: PTU (East US 2)'},
+        'gpt-4.1-mini': {0: 'Priority 1 / Weight 100: PTU (East US 2)'},
+    }
+    indexes = {
+        'gpt-5.1': {'/deployments/a-model': 0},
+        'gpt-4.1-mini': {'/deployments/a-model': 0},
+    }
+    distribution_frame = pd.DataFrame(
+        [['inference-gpt-5-1', 'https://host/openai/deployments/a-model', 1]],
+        columns=['API', 'Backend URL', 'Requests'],
+    )
+    token_frame = pd.DataFrame([['inference-gpt-5-1', 20]], columns=['API', 'TotalTokens'])
+
+    generate_local_html_report(
+        _report_context(),
+        tests,
+        _report_results(),
+        indexes,
+        labels,
+        distribution_frame,
+        token_frame,
+        tmp_path / 'report.html',
+    )
+
+    assert report.add_table.call_count == 5
+    assert report.add_figure.call_count == 8
+    report.add_success_callout.assert_called_once()
+    assert report.add_table.call_args_list[0].args[0] == 'Assertion Failures'
+    assert close_figure.call_count == 8
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ('scenario_results', 'indexes', 'labels', 'message'),
+    (
+        ([], {'gpt-5.1': {}, 'gpt-4.1-mini': {}}, {'gpt-5.1': {}, 'gpt-4.1-mini': {}}, 'six scenario'),
+        ([[] for _ in range(6)], {'gpt-5.1': {}}, {'gpt-5.1': {}, 'gpt-4.1-mini': {}}, 'gpt-4.1-mini'),
+    ),
+)
+def test_generate_local_html_report_rejects_incomplete_inputs(scenario_results, indexes, labels, message):
+    with pytest.raises(ValueError, match=message):
+        generate_local_html_report(_report_context(), MagicMock(), scenario_results, indexes, labels)

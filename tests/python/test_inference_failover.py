@@ -50,6 +50,20 @@ def _collect_item_names(items: list[dict]) -> set[str]:
     return names
 
 
+def _find_workbook_item(items: list[dict], name: str) -> dict:
+    """Find a workbook item recursively by name."""
+    for item in items:
+        if item.get('name') == name:
+            return item
+        nested_items = item.get('content', {}).get('items', [])
+        if nested_items:
+            try:
+                return _find_workbook_item(nested_items, name)
+            except KeyError:
+                pass
+    raise KeyError(name)
+
+
 def test_inference_failover_workbook_is_aoai_only_and_query_backed() -> None:
     """Keep the workbook focused on inference telemetry rather than cost/showback features."""
     workbook = _load_workbook()
@@ -77,6 +91,26 @@ def test_inference_failover_workbook_is_aoai_only_and_query_backed() -> None:
     assert 'cost export' not in serialized
     assert 'business unit' not in serialized
     assert 'budget' not in serialized
+
+
+def test_inference_failover_workbook_leaves_missing_numeric_aggregates_empty() -> None:
+    """Render absent backend latency values as empty numeric cells rather than NaN text."""
+    serialized = json.dumps(_load_workbook())
+
+    assert 'round(avg(' not in serialized
+    assert 'round(percentile(' not in serialized
+    assert 'AverageBackendMs = avg(BackendTime)' in serialized
+    assert 'P95BackendMs = percentile(BackendTime, 95)' in serialized
+    assert 'AverageBackendMs = iff(isfinite(toreal(AverageBackendMs)), round(AverageBackendMs, 1), real(null))' in serialized
+    assert 'P95BackendMs = iff(isfinite(toreal(P95BackendMs)), round(P95BackendMs, 1), real(null))' in serialized
+
+
+def test_inference_failover_request_explorer_shows_many_rows() -> None:
+    """Keep Request Explorer auto-sized with a high row limit and filtering."""
+    request_explorer = _find_workbook_item(_load_workbook()['items'], 'query - request-explorer')['content']
+
+    assert request_explorer['size'] == 0
+    assert request_explorer['gridSettings'] == {'filter': True, 'rowLimit': 10000}
 
 
 def test_inference_failover_kql_queries_scope_to_ai_gateway_signals() -> None:
@@ -397,28 +431,18 @@ def test_inference_notebook_generates_local_html_report() -> None:
     notebook = json.loads(NOTEBOOK_PATH.read_text(encoding='utf-8'))
     code_source = '\n'.join(''.join(cell['source']) for cell in notebook['cells'] if cell['cell_type'] == 'code')
 
-    assert 'import htmlreport' in code_source
-    assert 'importlib.reload(htmlreport)' in code_source
-    assert "'inference-failover-report.html'" in code_source
-    assert "'', 'Test #', 'Scenario', 'Requests', 'HTTP 200', 'Other', 'APIM retries', 'Priority / weight mix', 'What the data says'" in code_source
-    assert "htmlreport.HtmlText(f'Scenario Outcomes: {model_name}', bold_tokens=(model_name,))" in code_source
-    assert 'inference_failover_helpers.build_scenario_report_row(' in code_source
-    assert "column_widths=['4%', '5%', '10%', '6%', '6%', '5%', '11%', '17%', '36%']" in code_source
-    assert "'A-1',\n                'Baseline Warm Path'" in code_source
-    assert "'B-1',\n                'Baseline Warm Path'" in code_source
-    assert "add_scenario_figure(report, f'{test_id}) {title}', description, api_results, backend_labels)" in code_source
-    assert "'The green checkmark indicates that every request returned HTTP 200'," in code_source
-    assert 'highlight_success=False' in code_source
-    assert 'The amber warning triangle indicates that one or more requests returned a caller-visible non-200 response' in code_source
-    assert "f'APIM source region: {apim_source_region} | Deployment: {nb_helper.deployment.name} | Resource group: {rg_name}'" in code_source
-    assert 'report.add_info_callout(' in code_source
-    assert "'Lab Capacity Is Intentionally Low'" in code_source
-    assert "'Each regional Azure OpenAI deployment is intentionally configured at 1,000 TPM so that" in code_source
-    assert "'Observed X-Backend-URL values'" not in code_source.split('report = htmlreport.HtmlReport(', maxsplit=1)[1]
-    assert 'if all_scenario_requests_succeeded:' in code_source
-    assert 'report.add_success_callout(' in code_source
-    assert "'All scenario requests returned HTTP 200'" in code_source
-    assert "print_val('Local HTML report', report_url)" in code_source
+    assert 'inference_failover_helpers.InferenceReportContext(' in code_source
+    assert 'inference_failover_helpers.generate_local_html_report(' in code_source
+    assert 'scenario_results=scenario_results' in code_source
+    assert "'gpt-5.1': gpt_5_1_backend_url_index" in code_source
+    assert "'gpt-4.1-mini': gpt_4_1_mini_backend_labels" in code_source
+    assert "distribution_frame=distribution_frame if 'distribution_frame' in locals() else None" in code_source
+    assert "token_frame=token_frame if 'token_frame' in locals() else None" in code_source
+    assert 'htmlreport.HtmlReport' not in code_source
+    assert 'def add_scenario_figure(' not in code_source
+    assert 'report.add_table(' not in code_source
+    assert 'report.add_figure(' not in code_source
+    assert "print_ok(f'Local HTML report ready: {report_url}')" in code_source
 
 
 def test_inference_notebook_uses_tuned_gpt_4_1_mini_pressure_window() -> None:

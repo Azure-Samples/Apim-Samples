@@ -625,6 +625,8 @@ Azure Monitor Workbook definitions stored in this repository must follow the **`
 
 Azure Monitor Workbook query items execute independently — there is no native mechanism to share a materialized table across query items. Apply the following patterns to minimise data scanned and improve workbook responsiveness:
 
+- **Leave missing numeric values empty.** Workbook tables must not show `Na`, `NaN`, `Infinity`, or other sentinel text when a numeric value is unavailable. Keep the column numeric and normalize non-finite aggregate results to a typed null, for example `iff(isfinite(toreal(AverageMs)), round(AverageMs, 1), real(null))`. Do not stringify the numeric column or substitute labels such as `N/A`; Azure Workbooks render `real(null)` as an empty cell while preserving numeric sorting and formatting for populated values.
+
 - **`materialize()` for multi-reference `let` bindings.** When a `let` binding is referenced more than once in the same query (e.g. once for a `toscalar(count)` and once for the main `summarize`), wrap it in `materialize()` so Log Analytics computes the base set once per query execution rather than scanning the underlying table twice.
 
   ```kql

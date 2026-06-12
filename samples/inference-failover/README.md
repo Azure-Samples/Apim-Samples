@@ -177,6 +177,7 @@ The sample resources live in the selected infrastructure resource group. Remove 
 
 ## 🔗 Additional Resources
 
+- [Inference Failover and WAF Throttling Guidance](WAF-COMPARISON.md)
 - [Backends in API Management](https://learn.microsoft.com/azure/api-management/backends)
 - [Authenticate and authorize access to LLM APIs by using API Management](https://learn.microsoft.com/azure/api-management/api-management-authenticate-authorize-ai-apis)
 - [Diagnostic settings in Azure Monitor](https://learn.microsoft.com/azure/azure-monitor/platform/diagnostic-settings)

@@ -3,17 +3,22 @@
 import json
 import time
 from collections import Counter
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
+from tempfile import gettempdir
 from typing import Any
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import requests as http_requests
 
 # APIM Samples imports
+import charts
+from apimtesting import ApimTesting
 from apimtypes import SUBSCRIPTION_KEY_PARAMETER_NAME
-from console import print_info, print_message
-from htmlreport import HtmlList, HtmlSuccess, HtmlText, HtmlWarning
+from console import print_info, print_message, print_warning
+from htmlreport import HtmlList, HtmlReport, HtmlSuccess, HtmlText, HtmlWarning
 
 
 @dataclass(frozen=True)
@@ -49,6 +54,21 @@ class InferenceScenarioSummary:
     status_code_counts: dict[int, int]
     served_backend_urls: list[str]
     retry_counts: dict[int, int]
+
+
+@dataclass(frozen=True)
+class InferenceReportContext:
+    """Contain deployment metadata and Azure resources linked from the local report."""
+
+    sample_folder: str
+    apim_source_region: str
+    deployment_name: str
+    resource_group_name: str
+    tenant_id: str
+    subscription_id: str
+    apim_name: str
+    workbook_id: str
+    log_analytics_id: str
 
 
 class InferenceTrafficRunner:
@@ -368,3 +388,244 @@ def build_scenario_report_row(
         HtmlText(priority_mix, bold_tokens=priority_tokens, preserve_line_breaks=True),
         HtmlList(observation_items),
     ]
+
+
+def generate_local_html_report(
+    context: InferenceReportContext,
+    tests: ApimTesting,
+    scenario_results: Sequence[list[dict[str, Any]]],
+    backend_url_indexes: Mapping[str, Mapping[str, int]],
+    backend_labels: Mapping[str, Mapping[int, str]],
+    distribution_frame: pd.DataFrame | None = None,
+    token_frame: pd.DataFrame | None = None,
+    output_path: Path | None = None,
+) -> Path:
+    """Generate the self-contained inference failover run report."""
+    scenario_groups = _build_report_scenario_groups(scenario_results, backend_url_indexes, backend_labels)
+    report = HtmlReport(
+        'Inference Failover Run Report',
+        f'APIM source region: {context.apim_source_region} | Deployment: {context.deployment_name} | '
+        f'Resource group: {context.resource_group_name}',
+    )
+    success_rate = (tests.tests_passed / tests.total_tests * 100) if tests.total_tests else 0
+    report.add_metrics(
+        'Scenario Test Summary',
+        {
+            'Result': 'Passed' if not tests.tests_failed and tests.total_tests else 'Needs review',
+            'Tests': tests.total_tests,
+            'Passed': tests.tests_passed,
+            'Failed': tests.tests_failed,
+            'Success rate': f'{success_rate:.1f}%',
+        },
+        highlight_success=False,
+    )
+    report.add_info_callout(
+        'Lab Capacity Is Intentionally Low',
+        'Each regional Azure OpenAI deployment is intentionally configured at 1,000 TPM so that concentrated requests trigger observable failover. '
+        'This is a learning configuration, not production sizing guidance. With appropriately sized production capacity, '
+        'caller-visible success rates should be substantially higher and, normally, close to perfect.',
+    )
+    if tests.errors:
+        report.add_table('Assertion Failures', ['Failure'], [[error] for error in tests.errors])
+
+    scenario_definitions = [scenario for _, scenarios in scenario_groups for scenario in scenarios]
+    scenario_request_count = sum(len(results) for _, _, _, results, _, _ in scenario_definitions)
+    if scenario_request_count and all(result['status_code'] == 200 for _, _, _, results, _, _ in scenario_definitions for result in results):
+        report.add_success_callout(
+            'All scenario requests returned HTTP 200',
+            f'All {scenario_request_count} controlled inference requests completed successfully. '
+            'APIM served the full run without a caller-visible error.',
+        )
+
+    for model_name, model_scenarios in scenario_groups:
+        report.add_table(
+            HtmlText(f'Scenario Outcomes: {model_name}', bold_tokens=(model_name,)),
+            ['', 'Test #', 'Scenario', 'Requests', 'HTTP 200', 'Other', 'APIM retries', 'Priority / weight mix', 'What the data says'],
+            [
+                build_scenario_report_row(test_id, title, results, url_index, labels)
+                for test_id, title, _, results, url_index, labels in model_scenarios
+            ],
+            HtmlText(
+                'The green checkmark indicates that every request returned HTTP 200 from the caller perspective, '
+                'including successes after APIM retries. '
+                'The amber warning triangle indicates that one or more requests returned a caller-visible non-200 response. '
+                'APIM retries lists only non-zero X-Backend-Retry values absorbed by APIM after the initial backend attempt. '
+                'Priority / weight mix aggregates concrete Azure OpenAI destinations into APIM routing tiers and weights. '
+                'The interpretation highlights failures APIM absorbed, failover depth, and caller-visible outcomes.',
+                bold_tokens=(
+                    'The green checkmark indicates that every request returned HTTP 200',
+                    'The amber warning triangle indicates that one or more requests returned a caller-visible non-200 response',
+                ),
+            ),
+            column_widths=['4%', '5%', '10%', '6%', '6%', '5%', '11%', '17%', '36%'],
+        )
+
+    for test_id, title, description, results, _, labels in scenario_definitions:
+        _add_scenario_figure(report, context.apim_source_region, f'{test_id}) {title}', description, results, labels)
+
+    _add_distribution_telemetry(report, distribution_frame)
+    _add_token_telemetry(report, token_frame)
+    report.add_links('Azure Views', _build_azure_links(context))
+
+    destination = output_path or Path(gettempdir()) / 'apim-samples-reports' / context.sample_folder / 'inference-failover-report.html'
+
+    return report.write(destination)
+
+
+def _build_report_scenario_groups(
+    scenario_results: Sequence[list[dict[str, Any]]],
+    backend_url_indexes: Mapping[str, Mapping[str, int]],
+    backend_labels: Mapping[str, Mapping[int, str]],
+) -> list[tuple[str, list[tuple[str, str, str, list[dict[str, Any]], Mapping[str, int], Mapping[int, str]]]]]:
+    if len(scenario_results) != 6:
+        raise ValueError('The inference report requires exactly six scenario result sets.')
+
+    required_models = ('gpt-5.1', 'gpt-4.1-mini')
+    missing_models = [model for model in required_models if model not in backend_url_indexes or model not in backend_labels]
+    if missing_models:
+        raise ValueError(f'Missing report backend metadata for: {", ".join(missing_models)}')
+
+    return [
+        (
+            'gpt-5.1',
+            [
+                (
+                    'A-1',
+                    'Baseline Warm Path',
+                    'Small control requests against the gpt-5.1 pool before deliberate pressure begins.',
+                    scenario_results[0],
+                    backend_url_indexes['gpt-5.1'],
+                    backend_labels['gpt-5.1'],
+                ),
+                (
+                    'A-2',
+                    'Sustained Pressure',
+                    'Larger requests without spacing exercise gpt-5.1 failover tiers.',
+                    scenario_results[2],
+                    backend_url_indexes['gpt-5.1'],
+                    backend_labels['gpt-5.1'],
+                ),
+                (
+                    'A-3',
+                    'Paced Recovery',
+                    'Spaced requests show recovery behavior after sustained pressure.',
+                    scenario_results[4],
+                    backend_url_indexes['gpt-5.1'],
+                    backend_labels['gpt-5.1'],
+                ),
+                (
+                    'A-4',
+                    'Terminal Exhaustion',
+                    'A hard burst probes deep fallback and terminal responses.',
+                    scenario_results[5],
+                    backend_url_indexes['gpt-5.1'],
+                    backend_labels['gpt-5.1'],
+                ),
+            ],
+        ),
+        (
+            'gpt-4.1-mini',
+            [
+                (
+                    'B-1',
+                    'Baseline Warm Path',
+                    'Small control requests against the independent gpt-4.1-mini pool.',
+                    scenario_results[1],
+                    backend_url_indexes['gpt-4.1-mini'],
+                    backend_labels['gpt-4.1-mini'],
+                ),
+                (
+                    'B-2',
+                    'Sustained Pressure',
+                    'Unpaced load confirms that gpt-4.1-mini fallback remains model-safe.',
+                    scenario_results[3],
+                    backend_url_indexes['gpt-4.1-mini'],
+                    backend_labels['gpt-4.1-mini'],
+                ),
+            ],
+        ),
+    ]
+
+
+def _add_scenario_figure(
+    report: HtmlReport,
+    apim_source_region: str,
+    title: str,
+    description: str,
+    results: list[dict[str, Any]],
+    labels: Mapping[int, str],
+) -> None:
+    figure = charts.BarChart(
+        api_results=results,
+        title=f'{title} - APIM source: {apim_source_region}',
+        x_label='Run #',
+        y_label='Response Time (ms)',
+        fig_text=description,
+        backend_labels=dict(labels),
+    ).render()
+    try:
+        report.add_figure(title, figure, description)
+    finally:
+        plt.close(figure)
+
+
+def _add_distribution_telemetry(report: HtmlReport, distribution_frame: pd.DataFrame | None) -> None:
+    if distribution_frame is None:
+        print_warning('Gateway distribution telemetry is not available for the HTML report yet')
+        return
+
+    report_frame = with_backend_identifier(distribution_frame)
+    report.add_table(
+        'Gateway-Recorded Backend Distribution',
+        report_frame.columns.tolist(),
+        report_frame.values.tolist(),
+        'Log Analytics rows summarize the destination selected for each gateway request.',
+    )
+    figure, axis = plt.subplots(figsize=(12, 5))
+    try:
+        report_frame.pivot(index='API', columns='Backend', values='Requests').fillna(0).plot(kind='bar', ax=axis)
+        axis.set_title('Gateway-recorded request distribution by backend')
+        axis.set_xlabel('API')
+        axis.set_ylabel('Requests')
+        figure.subplots_adjust(bottom=0.4)
+        report.add_figure('Gateway-Recorded Request Distribution', figure)
+    finally:
+        plt.close(figure)
+
+
+def _add_token_telemetry(report: HtmlReport, token_frame: pd.DataFrame | None) -> None:
+    if token_frame is None:
+        print_warning('Token telemetry is not available for the HTML report yet')
+        return
+
+    report.add_table(
+        'LLM Token Volume',
+        token_frame.columns.tolist(),
+        token_frame.values.tolist(),
+        'Token totals confirm that LLM diagnostics captured successful inference traffic.',
+    )
+    figure, axis = plt.subplots(figsize=(8, 4))
+    try:
+        token_frame.groupby('API')['TotalTokens'].sum().plot(kind='bar', ax=axis)
+        axis.set_title('LLM token volume by inference API')
+        axis.set_xlabel('Inference API')
+        axis.set_ylabel('Total tokens')
+        axis.tick_params(axis='x', rotation=0)
+        figure.tight_layout()
+        report.add_figure('LLM Token Volume By Inference API', figure)
+    finally:
+        plt.close(figure)
+
+
+def _build_azure_links(context: InferenceReportContext) -> dict[str, str]:
+    portal_base = f'https://portal.azure.com/#@{context.tenant_id}/resource'
+    apim_id = (
+        f'/subscriptions/{context.subscription_id}/resourceGroups/{context.resource_group_name}'
+        f'/providers/Microsoft.ApiManagement/service/{context.apim_name}'
+    )
+
+    return {
+        'Workbook': f'{portal_base}{context.workbook_id}/workbook',
+        'Log Analytics': f'{portal_base}{context.log_analytics_id}/logs',
+        'API Management': f'{portal_base}{apim_id}/overview',
+    }
