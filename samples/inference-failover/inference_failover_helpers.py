@@ -9,12 +9,11 @@ from pathlib import Path
 from tempfile import gettempdir
 from typing import Any
 
+# APIM Samples imports
+import charts
 import matplotlib.pyplot as plt
 import pandas as pd
 import requests as http_requests
-
-# APIM Samples imports
-import charts
 from apimtesting import ApimTesting
 from apimtypes import SUBSCRIPTION_KEY_PARAMETER_NAME
 from console import print_info, print_message, print_warning
