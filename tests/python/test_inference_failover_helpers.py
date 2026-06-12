@@ -397,11 +397,13 @@ def test_generate_local_html_report_adds_available_telemetry(monkeypatch, tmp_pa
         columns=['API', 'Backend URL', 'Requests'],
     )
     token_frame = pd.DataFrame([['inference-gpt-5-1', 20]], columns=['API', 'TotalTokens'])
+    scenario_results = _report_results()
+    scenario_results[0][0]['status_code'] = 503
 
     generate_local_html_report(
         _report_context(),
         tests,
-        _report_results(),
+        scenario_results,
         indexes,
         labels,
         distribution_frame,
@@ -411,7 +413,7 @@ def test_generate_local_html_report_adds_available_telemetry(monkeypatch, tmp_pa
 
     assert report.add_table.call_count == 5
     assert report.add_figure.call_count == 8
-    report.add_success_callout.assert_called_once()
+    report.add_success_callout.assert_not_called()
     assert report.add_table.call_args_list[0].args[0] == 'Assertion Failures'
     assert close_figure.call_count == 8
 

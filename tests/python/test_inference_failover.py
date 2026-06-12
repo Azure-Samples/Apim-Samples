@@ -419,7 +419,7 @@ def test_inference_notebook_is_clean_and_defaults_to_simple_apim() -> None:
     assert 'def format_gateway_distribution(' not in code_source
     assert 'distribution_frame = inference_failover_helpers.with_backend_identifier(distribution_frame)' in code_source
     assert 'distribution_frame = inference_failover_helpers.format_gateway_distribution(distribution_frame)' in code_source
-    assert code_source.count("distribution_frame.pivot(index='API', columns='Backend', values='Requests')") == 2
+    assert code_source.count("distribution_frame.pivot(index='API', columns='Backend', values='Requests')") == 1
     assert "columns=['API', 'Backend URL', 'Model', 'Requests', 'PromptTokens', 'CompletionTokens', 'TotalTokens']" in code_source
     assert 'token_frame = inference_failover_helpers.with_backend_identifier(token_frame)' in code_source
     assert 'plt.show()' in code_source
@@ -432,6 +432,7 @@ def test_inference_notebook_generates_local_html_report() -> None:
     code_source = '\n'.join(''.join(cell['source']) for cell in notebook['cells'] if cell['cell_type'] == 'code')
 
     assert 'inference_failover_helpers.InferenceReportContext(' in code_source
+    assert 'inference_failover_helpers = importlib.reload(inference_failover_helpers)' in code_source
     assert 'inference_failover_helpers.generate_local_html_report(' in code_source
     assert 'scenario_results=scenario_results' in code_source
     assert "'gpt-5.1': gpt_5_1_backend_url_index" in code_source
