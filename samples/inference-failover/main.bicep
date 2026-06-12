@@ -348,31 +348,31 @@ module gpt51BackendPool '../../shared/bicep/modules/apim/v1/backend-pool.bicep' 
   params: {
     apimName: apimName
     backendPoolName: 'inference-gpt-5-1-pool'
-    backendPoolDescription: 'gpt-5.1 routing preference: in-region PTU, out-of-region PTU, in-region PAYG, then equal-weight out-of-region PAYG.'
+    backendPoolDescription: 'gpt-5.1 routing preference: equal-weight PTUs, in-region PAYG, then equal-weight remaining PAYG.'
     backends: [
       {
         name: 'gpt-5-1-PTU-eastus2'
         priority: 1
-        weight: 100
+        weight: 50
       }
       {
         name: 'gpt-5-1-PTU-westus3'
+        priority: 1
+        weight: 50
+      }
+      {
+        name: 'gpt-5-1-PAYG-eastus2'
         priority: 2
         weight: 100
       }
       {
-        name: 'gpt-5-1-PAYG-eastus2'
-        priority: 3
-        weight: 100
-      }
-      {
         name: 'gpt-5-1-PAYG-westus3'
-        priority: 4
+        priority: 3
         weight: 50
       }
       {
         name: 'gpt-5-1-PAYG-southcentralus'
-        priority: 4
+        priority: 3
         weight: 50
       }
     ]
@@ -387,26 +387,26 @@ module gpt41MiniBackendPool '../../shared/bicep/modules/apim/v1/backend-pool.bic
   params: {
     apimName: apimName
     backendPoolName: 'inference-gpt-4-1-mini-pool'
-    backendPoolDescription: 'gpt-4.1-mini routing preference: in-region PTU, out-of-region PTU, in-region PAYG, then out-of-region PAYG.'
+    backendPoolDescription: 'gpt-4.1-mini routing preference: equal-weight PTUs, in-region PAYG, then remaining PAYG.'
     backends: [
       {
         name: 'gpt-4-1-mini-PTU-eastus2'
         priority: 1
-        weight: 100
+        weight: 50
       }
       {
         name: 'gpt-4-1-mini-PTU-westus3'
+        priority: 1
+        weight: 50
+      }
+      {
+        name: 'gpt-4-1-mini-PAYG-eastus2'
         priority: 2
         weight: 100
       }
       {
-        name: 'gpt-4-1-mini-PAYG-eastus2'
-        priority: 3
-        weight: 100
-      }
-      {
         name: 'gpt-4-1-mini-PAYG-southcentralus'
-        priority: 4
+        priority: 3
         weight: 100
       }
     ]

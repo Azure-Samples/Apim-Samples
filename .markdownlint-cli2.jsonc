@@ -3,6 +3,12 @@
     "MD013": false,
     "MD024": {
       "siblings_only": true
+    },
+    "MD055": {
+      "style": "leading_and_trailing"
+    },
+    "MD060": {
+      "style": "aligned"
     }
   }
 }

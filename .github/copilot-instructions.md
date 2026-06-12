@@ -526,13 +526,13 @@ The public landing page at <https://azure-samples.github.io/Apim-Samples/> is bu
 
 **Treat `docs/index.html` as a downstream consumer of the README.** When you change any of the following, update the landing page in the same PR:
 
-| Change | Update required in `docs/index.html` | Also update |
-| --- | --- | --- |
-| Add / remove / rename an **infrastructure** | Add / remove / rename the matching `.infra-card` **and** the matching `ListItem` in the JSON-LD `ItemList` (in `<head>`). Update the infrastructure count in the first `.value-card` if it still says "Five". | Add / remove the SVG copy line in `.github/workflows/github-pages.yml`. |
-| Add / remove / rename a **sample** | Add / remove / rename the matching `.sample-card` **and** the matching `ListItem` in the JSON-LD `ItemList`. | — |
-| Change a sample's **supported infrastructures** | Update the `.infra-tag` text on that sample's card. | — |
-| Change the **quick-start flow** in the root README | Update the four `.step` items. | — |
-| Rename or replace an **architecture SVG** in `assets/diagrams/` | — | Update the matching `cp` line in `.github/workflows/github-pages.yml`. |
+| Change                                                          | Update required in `docs/index.html`                                                                                                                                                                          | Also update                                                             |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Add / remove / rename an **infrastructure**                     | Add / remove / rename the matching `.infra-card` **and** the matching `ListItem` in the JSON-LD `ItemList` (in `<head>`). Update the infrastructure count in the first `.value-card` if it still says "Five". | Add / remove the SVG copy line in `.github/workflows/github-pages.yml`. |
+| Add / remove / rename a **sample**                              | Add / remove / rename the matching `.sample-card` **and** the matching `ListItem` in the JSON-LD `ItemList`.                                                                                                  | —                                                                       |
+| Change a sample's **supported infrastructures**                 | Update the `.infra-tag` text on that sample's card.                                                                                                                                                           | —                                                                       |
+| Change the **quick-start flow** in the root README              | Update the four `.step` items.                                                                                                                                                                                | —                                                                       |
+| Rename or replace an **architecture SVG** in `assets/diagrams/` | —                                                                                                                                                                                                             | Update the matching `cp` line in `.github/workflows/github-pages.yml`.  |
 
 Check `docs/README.md` for local preview instructions and styling notes. The page is deliberately plain static HTML + an external stylesheet (`docs/styles.css`), with no executable JavaScript and no build tooling, so that it cannot rot due to a transitive npm dependency. The only `<script>` tag is the JSON-LD structured-data block, which must stay inline because search-engine crawlers do not reliably follow external JSON-LD references. Keep it that way unless there is a compelling reason to add a build step.
 
@@ -620,6 +620,56 @@ Azure Monitor Workbook definitions stored in this repository must follow the **`
 - **Bicep loading**: When embedding the workbook in a Bicep template, load it via `loadJsonContent('<name>.workbook.json')` and serialise it to a string for `properties.serializedData`. Match the filename exactly — do not rename to `workbook.json` inside Bicep.
 - **Push script**: A sample that ships a workbook should provide an `update-workbook.ps1` (or equivalent) helper that reads `<name>.workbook.json` and updates the deployed workbook resource via `az rest`. The script should accept a mandatory `-rg` parameter and preserve any user-edited workbook parameter values (e.g. cost rates) from the live resource so that re-pushing source-controlled changes does not clobber portal edits.
 - **Tests**: Workbook JSON files should be parsed and structurally validated by a unit test (see `tests/python/test_costing_workbook.py` for the canonical pattern: schema check, parameter presence, KQL query well-formedness).
+
+### Azure Monitor Workbook Table Presentation
+
+Workbook tables must use readable, consistently formatted column titles and numeric values:
+
+- **Use human-readable column titles.** Do not expose raw camelCase or PascalCase telemetry identifiers as table headers. Add a final KQL `project-rename` presentation layer after filtering, aggregation, ordering, and row limiting so internal query names remain stable. Separate words with spaces and preserve standard initialisms such as `API`, `APIM`, `AOAI`, `ID`, and `LLM`. For example, use `AOAI Instance`, `Correlation ID`, and `Model Deployment`, not `AOAIInstance`, `CorrelationId`, or `DeploymentName`.
+- **Include units in column titles.** Add the unit in parentheses whenever the value's unit is not otherwise obvious. For example, rename `TotalTime` to `Total Time (ms)`, `AverageBackendMs` to `Average Backend (ms)`, and a percentage value to a title ending in `(%)`.
+- **Always use thousands separators for quantitative numeric values.** Configure every count, duration, token, cost, percentage, and other quantitative numeric table column with a `gridSettings.formatters` entry whose `numberFormat.options` uses `"style": "decimal"` and `"useGrouping": true`. Set `minimumFractionDigits` and `maximumFractionDigits` to values appropriate for the metric. Numeric identifiers and categorical status codes do not require numeric formatting.
+- **Keep formatted values numeric.** Do not use KQL `format_*()`, `tostring()`, or string concatenation to add separators, units, currency symbols, or percent signs. Keep the result typed as numeric so workbook sorting, filtering, thresholds, and visualizations continue to work; apply presentation through `numberFormat`.
+
+```kql
+| project-rename
+    ['API'] = ApiId,
+    ['AOAI Instance'] = AOAIInstance,
+    ['Total Time (ms)'] = TotalTime,
+    ['Total Tokens'] = TotalTokens
+```
+
+```json
+"gridSettings": {
+  "formatters": [
+    {
+      "columnMatch": "Total Time \\(ms\\)",
+      "formatter": 0,
+      "numberFormat": {
+        "unit": 0,
+        "options": {
+          "style": "decimal",
+          "useGrouping": true,
+          "minimumFractionDigits": 1,
+          "maximumFractionDigits": 1
+        }
+      }
+    },
+    {
+      "columnMatch": "Total Tokens",
+      "formatter": 0,
+      "numberFormat": {
+        "unit": 0,
+        "options": {
+          "style": "decimal",
+          "useGrouping": true,
+          "minimumFractionDigits": 0,
+          "maximumFractionDigits": 0
+        }
+      }
+    }
+  ]
+}
+```
 
 ### Azure Monitor Workbook Query Optimization
 

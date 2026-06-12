@@ -27,6 +27,7 @@ from inference_failover_helpers import (  # noqa: E402
     summarize_scenario,
     validate_status,
     with_backend_identifier,
+    with_one_based_row_index,
 )
 
 
@@ -122,8 +123,9 @@ def test_retry_and_status_validation_reject_malformed_responses():
 def test_contract_probes_construct_each_gateway_case():
     responses = [_response(), _response(400), _response(401), _response(404)]
     runner, session = _create_runner(responses=responses)
+    payload = {'messages': []}
 
-    results = runner.run_contract_probes('https://gateway.example/inference', 'https://gateway.example/unknown', 'key', {'messages': []})
+    results = runner.run_contract_probes('https://gateway.example/inference', 'https://gateway.example/unknown', 'key', payload)
 
     assert [results.success.status_code, results.malformed.status_code, results.missing_key.status_code, results.unknown_operation.status_code] == [
         200,
@@ -131,9 +133,18 @@ def test_contract_probes_construct_each_gateway_case():
         401,
         404,
     ]
-    assert session.post.call_args_list[1].kwargs['data'] == '{"messages":'
-    assert 'headers' not in session.post.call_args_list[2].kwargs
-    assert session.post.call_args_list[3].args[0] == 'https://gateway.example/unknown'
+    assert session.post.call_args_list[0].args == ('https://gateway.example/inference',)
+    assert session.post.call_args_list[0].kwargs == {'headers': {'api-key': 'key'}, 'json': payload, 'timeout': 120}
+    assert session.post.call_args_list[1].args == ('https://gateway.example/inference',)
+    assert session.post.call_args_list[1].kwargs == {
+        'headers': {'api-key': 'key', 'Content-Type': 'application/json'},
+        'data': '{"messages":',
+        'timeout': 120,
+    }
+    assert session.post.call_args_list[2].args == ('https://gateway.example/inference',)
+    assert session.post.call_args_list[2].kwargs == {'json': payload, 'timeout': 120}
+    assert session.post.call_args_list[3].args == ('https://gateway.example/unknown',)
+    assert session.post.call_args_list[3].kwargs == {'headers': {'api-key': 'key'}, 'json': payload, 'timeout': 120}
 
 
 @pytest.mark.unit
@@ -206,6 +217,8 @@ def test_dataframe_helpers_are_non_mutating_and_idempotent():
     assert 'Backend' not in source.columns
     assert identified['Backend'].tolist() == ['a']
     assert repeated.equals(identified)
+    assert formatted.index.tolist() == [1]
+    assert formatted.index.name == 'Row'
     assert formatted['Backend'].tolist() == ['a) model']
     assert formatted['AverageBackendMs'].tolist() == ['1,234.5']
     assert formatted['SuccessRate'].tolist() == ['98.20%']
@@ -220,6 +233,40 @@ def test_with_backend_identifier_leaves_frames_without_urls_unchanged():
 
     assert result.equals(source)
     assert result is not source
+
+
+@pytest.mark.unit
+def test_format_gateway_distribution_explains_rows_without_backend_identity():
+    source = pd.DataFrame(
+        [
+            ['api-a', '(backend not recorded)', '[503]', 0, 6],
+            ['api-b', '(backend not recorded)', '[401,404]', 2, 0],
+        ],
+        columns=['API', 'Backend URL', 'APIM Statuses', 'Client Errors', 'Server Errors'],
+    )
+    source['AverageBackendMs'] = 'not available'
+    source['SuccessRate'] = '0.0'
+
+    result = format_gateway_distribution(source)
+
+    assert result.index.tolist() == [1, 2]
+    assert result.index.name == 'Row'
+    assert result['Backend'].tolist() == [
+        'APIM failure (no final backend recorded)',
+        'Gateway rejection (no backend call)',
+    ]
+
+
+@pytest.mark.unit
+def test_with_one_based_row_index_is_non_mutating():
+    source = pd.DataFrame([['first'], ['second']], columns=['Value'])
+
+    result = with_one_based_row_index(source)
+
+    assert source.index.tolist() == [0, 1]
+    assert source.index.name is None
+    assert result.index.tolist() == [1, 2]
+    assert result.index.name == 'Row'
 
 
 @pytest.mark.unit

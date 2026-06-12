@@ -12,6 +12,7 @@ This document provides standards for Markdown files in the APIM Samples reposito
 
 - Every new or modified Markdown file must pass markdownlint with zero violations before the work is considered complete.
 - Run markdownlint against all changed `.md` files using the available CLI or VS Code diagnostics.
+- Format every table before running markdownlint. Use the editor's Markdown formatter or Prettier, then review the file-wide diff for unrelated changes.
 - Fix violations instead of disabling rules. Add a narrowly scoped suppression only when the Markdown intentionally cannot comply, and explain why next to the suppression.
 
 ### 🚨 No Emoji Variation Selectors in Markdown Links
@@ -66,9 +67,9 @@ This document provides standards for Markdown files in the APIM Samples reposito
 
 ### Markdown Tables
 
-Use one table style consistently within each table. Always include one space on both sides of each pipe delimiter, including separator rows. Never write compact separators such as `|---|---|`.
+Every Markdown table must use the aligned column style enforced by `MD060`. Pad the header, separator, and data cells so every pipe delimiter in a column lines up vertically. Always include leading and trailing pipes as enforced by `MD055`, with one space on both sides of each interior pipe delimiter. Never use compact or tight table styles, including compact separators such as `|---|---|`.
 
-**Prefer aligned tables** for short values. Pad cell values with spaces so that every `|` delimiter in a column lines up vertically.
+Format tables after adding, removing, or editing any row or cell. Because aligned `MD060` findings may require adjusting the entire table, use the editor's Markdown formatter or Prettier before running markdownlint, then review the resulting diff.
 
 ❌ **WRONG** — misaligned columns:
 
@@ -88,16 +89,7 @@ Use one table style consistently within each table. Always include one space on 
 | Very Long Name | 45    |
 ```
 
-Use the separator row (`---`, `:---:`, `---:`, etc.) to establish column widths, then align all subsequent rows to match.
-
-**Use compact tables** for prose-heavy content when alignment would create very long lines. Keep spaces around every pipe delimiter and use the same compact style for the header, separator, and each row.
-
-```markdown
-| Name                  | Description                                                      |
-| --------------------- | ---------------------------------------------------------------- |
-| Simple API Management | Public API Management instance for learning and experimentation. |
-| Private Link          | Private ingress for security-focused scenarios.                  |
-```
+Use the separator row (`---`, `:---:`, `---:`, etc.) to establish column widths, then align all subsequent rows to match. Wide prose-heavy tables must remain aligned; `MD013` is disabled so table width is not a reason to use compact formatting.
 
 ### Lists
 
@@ -283,7 +275,7 @@ Structured guides for domain-specific tasks (Bicep, Python policies, sample crea
 | ------------------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | Markdownlint failure     | Markdown does not meet the configured lint rules          | Fix every reported violation and rerun markdownlint                                        |
 | Anchor links break       | Emoji in heading + encoded in link                        | Remove emoji from link reference: `[text](#heading-only)`                                  |
-| Tables misaligned        | Mixed table styles or missing spaces around pipes         | Use one consistent aligned or compact style and write separator rows as `\| --- \| --- \|` |
+| Tables misaligned        | Columns or pipe styles do not satisfy `MD055` and `MD060` | Format the entire table with aligned columns and leading/trailing pipes                    |
 | Sections run together    | Missing or repeated blank lines                           | Use exactly one blank line around headings, tables, lists, and fences                      |
 | Code fence warning       | Missing fence language                                    | Add the appropriate language, or use `text` for plain output                               |
 | List indentation warning | Inconsistent nesting or ordered prefixes                  | Use two spaces per unordered nesting level and `1.` for ordered items                      |

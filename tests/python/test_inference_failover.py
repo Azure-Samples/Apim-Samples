@@ -35,6 +35,17 @@ EXPECTED_BACKENDS = {
     'gpt-4-1-mini-PTU-westus3',
     'gpt-4-1-mini-PAYG-southcentralus',
 }
+EXPECTED_POOL_MEMBERS = [
+    ('gpt-5.1', 'A', 'gpt-5-1-PTU-eastus2', 'In-region PTU', 1, 50),
+    ('gpt-5.1', 'D', 'gpt-5-1-PTU-westus3', 'Out-of-region PTU', 1, 50),
+    ('gpt-5.1', 'B', 'gpt-5-1-PAYG-eastus2', 'In-region PAYG', 2, 100),
+    ('gpt-5.1', 'E', 'gpt-5-1-PAYG-westus3', 'Out-of-region PAYG', 3, 50),
+    ('gpt-5.1', 'G', 'gpt-5-1-PAYG-southcentralus', 'Out-of-region PAYG', 3, 50),
+    ('gpt-4.1-mini', 'C', 'gpt-4-1-mini-PTU-eastus2', 'In-region PTU', 1, 50),
+    ('gpt-4.1-mini', 'F', 'gpt-4-1-mini-PTU-westus3', 'Out-of-region PTU', 1, 50),
+    ('gpt-4.1-mini', 'D', 'gpt-4-1-mini-PAYG-eastus2', 'In-region PAYG', 2, 100),
+    ('gpt-4.1-mini', 'H', 'gpt-4-1-mini-PAYG-southcentralus', 'Out-of-region PAYG', 3, 100),
+]
 
 
 def _load_workbook() -> dict:
@@ -105,12 +116,71 @@ def test_inference_failover_workbook_leaves_missing_numeric_aggregates_empty() -
     assert 'P95BackendMs = iff(isfinite(toreal(P95BackendMs)), round(P95BackendMs, 1), real(null))' in serialized
 
 
+def test_backend_distribution_reports_exact_and_exhaustive_outcomes() -> None:
+    """Expose exact statuses and classify every caller response in both distribution views."""
+    standalone_query = (QUERIES_PATH / 'backend-distribution.kql').read_text(encoding='utf-8')
+    workbook_query = _find_workbook_item(_load_workbook()['items'], 'query - backend-distribution')['content']['query']
+
+    for query in (standalone_query, workbook_query):
+        assert 'CallerResponseCodes = make_set(ResponseCode)' in query
+        assert 'FinalBackendResponseCodes = make_set(BackendResponseCode)' in query
+        assert 'ClientErrors = countif(ResponseCode between (400 .. 499) and ResponseCode != 429)' in query
+        assert 'Throttled = countif(ResponseCode == 429)' in query
+        assert 'ServerErrors = countif(ResponseCode >= 500)' in query
+        assert 'OtherResponses = Requests - Successes - ClientErrors - Throttled - ServerErrors' in query
+
+
+def test_inference_queries_report_final_aoai_account_instance() -> None:
+    """Derive the Azure OpenAI account from the final backend URL in every placement view."""
+    instance_expression = "AOAIInstance = iff(isnotempty(BackendUrl), tostring(split(tostring(parse_url(BackendUrl).Host), '.')[0]), '')"
+    standalone_paths = [
+        QUERIES_PATH / 'backend-distribution.kql',
+        QUERIES_PATH / 'failure-analysis.kql',
+        QUERIES_PATH / 'failover-outcomes.kql',
+        QUERIES_PATH / 'request-details.kql',
+        QUERIES_PATH / 'token-throughput.kql',
+    ]
+    workbook = _load_workbook()
+    workbook_item_names = [
+        'query - backend-distribution',
+        'query - failover-request-trails',
+        'query - failure-taxonomy',
+        'query - raw-failure-explorer',
+        'query - token-throughput',
+        'query - request-explorer',
+    ]
+
+    assert all(instance_expression in path.read_text(encoding='utf-8') for path in standalone_paths)
+    assert all(instance_expression in _find_workbook_item(workbook['items'], name)['content']['query'] for name in workbook_item_names)
+
+
 def test_inference_failover_request_explorer_shows_many_rows() -> None:
     """Keep Request Explorer auto-sized with a high row limit and filtering."""
     request_explorer = _find_workbook_item(_load_workbook()['items'], 'query - request-explorer')['content']
 
     assert request_explorer['size'] == 0
     assert request_explorer['gridSettings'] == {'filter': True, 'rowLimit': 10000}
+
+
+def test_inference_failover_workbook_uses_readable_table_column_titles() -> None:
+    """Keep workbook table headers readable without changing internal telemetry names."""
+    workbook = _load_workbook()
+    expected_aliases = {
+        'query - outcome-status-matrix': ("['API'] = ApiId", "['Average Total (ms)'] = AverageTotalMs"),
+        'query - backend-distribution': ("['AOAI Instance'] = AOAIInstance", "['APIM Statuses'] = CallerResponseCodes"),
+        'query - failover-summary': ("['Maximum Attempts'] = MaximumAttempts", "['P95 Total (ms)'] = P95TotalMs"),
+        'query - failover-request-trails': ("['Correlation ID'] = CorrelationId", "['Attempt Trail'] = AttemptTrail"),
+        'query - failure-taxonomy': ("['Failure Type'] = FailureType", "['Last Error Reason'] = LastErrorReason"),
+        'query - raw-failure-explorer': ("['Backend URL'] = BackendUrl", "['Trace Records'] = TraceRecords"),
+        'query - token-throughput': ("['Model Deployment'] = DeploymentName", "['Total Tokens'] = TotalTokens"),
+        'query - llm-telemetry-coverage': ("['LLM Rows'] = LlmRows", "['Response Message Chunks'] = ResponseMessageChunks"),
+        'query - request-explorer': ("['AOAI Instance'] = AOAIInstance", "['LLM Request ID'] = LlmRequestId"),
+    }
+
+    for item_name, aliases in expected_aliases.items():
+        query = _find_workbook_item(workbook['items'], item_name)['content']['query']
+        assert '| project-rename ' in query
+        assert all(alias in query for alias in aliases)
 
 
 def test_inference_failover_kql_queries_scope_to_ai_gateway_signals() -> None:
@@ -268,40 +338,47 @@ def test_inference_policy_decisions_cover_every_documented_status() -> None:
 def test_inference_readme_documents_exact_response_handling_matrix() -> None:
     """Keep the documented status-code contract synchronized with the policy."""
     readme = README_PATH.read_text(encoding='utf-8')
+    normalized_table_rows = {'| ' + ' | '.join(cell.strip() for cell in line.strip().strip('|').split('|')) + ' |' for line in readme.splitlines() if line.startswith('|')}
     expected_rows = [
         '| 200 | - | - | 200 | Success | None | Return the successful response. |',
         '| 400 | No | No | 400 | Client | Low | Return unchanged; may indicate an invalid request or content filtering. |',
         '| 401 | No | No | 401 | Auth | Medium | Return unchanged; correct backend authentication. |',
         '| 403 | No | No | 403 | AuthZ | Medium | Return unchanged; correct backend authorization. |',
         '| 404 | No | No | 404 | Config | Medium | Return unchanged; correct the backend URL or deployment name. |',
-        (
-            '| 408 | Yes | Yes | 200 or 408 | Timeout | Medium | Retry another backend; return the explicit HTTP timeout if the fallback '
-            'chain is exhausted. |'
-        ),
+        ('| 408 | Yes | Yes | 200 or 408 | Timeout | Medium | Retry another backend; return the explicit HTTP timeout if the fallback chain is exhausted. |'),
         '| 409 | No | Sometimes | 200 or 409 | Conflict | Medium | Retry only when `Retry-After` marks the conflict as transient. |',
-        (
-            '| 429 | Yes | Yes | 200 or 429 | Capacity | Medium | Retry another eligible backend; return exhausted '
-            'capacity with the soonest `Retry-After`. |'
-        ),
+        ('| 429 | Yes | Yes | 200 or 429 | Capacity | Medium | Retry another eligible backend; return exhausted capacity with the soonest `Retry-After`. |'),
         ('| 499 | Yes | Yes | 200 or 499 | Custom | Medium | Retry another backend when PTU exhaustion is represented by a transformed `408`. |'),
         '| 500 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |',
         '| 502 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |',
-        (
-            '| 503 | Yes | Yes | 200, 429, or 503 | Infra | High | Retry another backend; return `429` when `Retry-After` '
-            'identifies capacity, otherwise normalize exhaustion to `503`. |'
-        ),
+        ('| 503 | Yes | Yes | 200, 429, or 503 | Infra | High | Retry another backend; return `429` when `Retry-After` identifies capacity, otherwise normalize exhaustion to `503`. |'),
         '| 504 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |',
         ('| null | No | Yes | 200 or 503 | Transport | High | Retry after no backend response; normalize handled transport failures to `503`. |'),
     ]
 
-    assert all(row in readme for row in expected_rows)
-    assert '| Backend Code | Trip Breaker | Retry | Caller Codes | Category | Severity | Handling |' in readme
+    assert all(row in normalized_table_rows for row in expected_rows)
+    assert '| Backend Code | Trip Breaker | Retry | Caller Codes | Category | Severity | Handling |' in normalized_table_rows
     assert '"Trip Breaker" applies to the backend that returned the response' in readme
     assert '`https://unresolvable.invalid`' in readme
     assert 'does **not** simulate a client disconnect' in readme
     assert '`409` without `Retry-After`' in readme
     assert '`409` with `Retry-After`' in readme
     assert '`curl --max-time 1`' in readme
+
+
+def test_inference_readme_defines_load_balancer_source_of_truth() -> None:
+    """Keep the documented priority and weight contract complete and explicit."""
+    readme = README_PATH.read_text(encoding='utf-8')
+
+    assert '### Load Balancer Configuration' in readme
+    assert 'table is the source of truth for both model-safe APIM backend pools' in readme
+    assert '**Priority 1 - all PTUs:**' in readme
+    assert '**Priority 2 - in-region PAYG:**' in readme
+    assert '**Priority 3 - any PAYG:**' in readme
+
+    for model, label, backend_name, capacity_tier, priority, weight in EXPECTED_POOL_MEMBERS:
+        expected_cells = [f'`{model}`', label, f'`{backend_name}`', capacity_tier, str(priority), str(weight)]
+        assert any([cell.strip() for cell in row.strip().strip('|').split('|')] == expected_cells for row in readme.splitlines() if row.startswith('|'))
 
 
 def test_inference_bicep_contains_only_compatible_model_backend_pools() -> None:
@@ -328,19 +405,14 @@ def test_inference_bicep_contains_only_compatible_model_backend_pools() -> None:
     breaker_body = circuit_breaker_block.group('body')
     assert re.search(r'count:\s*1\b', breaker_body)
 
-    status_ranges = {
-        status_code
-        for minimum, maximum in re.findall(r'min:\s*(\d+)\s+max:\s*(\d+)', breaker_body)
-        for status_code in range(int(minimum), int(maximum) + 1)
-    }
+    status_ranges = {status_code for minimum, maximum in re.findall(r'min:\s*(\d+)\s+max:\s*(\d+)', breaker_body) for status_code in range(int(minimum), int(maximum) + 1)}
     assert status_ranges == {408, 429, 499, 500, 502, 503, 504}
     assert 'enableLlmLogs: true' in bicep
     assert f'backendPoolName: {single_quote}inference-gpt-5-1-pool{single_quote}' in bicep
     assert f'backendPoolName: {single_quote}inference-gpt-4-1-mini-pool{single_quote}' in bicep
-    assert "name: 'gpt-5-1-PTU-westus3'\n        priority: 2" in bicep
-    assert "name: 'gpt-5-1-PAYG-eastus2'\n        priority: 3" in bicep
-    assert "name: 'gpt-4-1-mini-PTU-westus3'\n        priority: 2" in bicep
-    assert "name: 'gpt-4-1-mini-PAYG-eastus2'\n        priority: 3" in bicep
+    for _, _, backend_name, _, priority, weight in EXPECTED_POOL_MEMBERS:
+        expected_member = f"name: '{backend_name}'\n        priority: {priority}\n        weight: {weight}"
+        assert expected_member in bicep
     backend_declaration_order = [
         'gpt-5-1-PTU-eastus2',
         'gpt-5-1-PTU-westus3',
@@ -414,16 +486,43 @@ def test_inference_notebook_is_clean_and_defaults_to_simple_apim() -> None:
     assert "queries_path / 'verify-llm-ingestion.kql'" in code_source
     assert "queries_path / 'backend-distribution.kql'" in code_source
     assert "queries_path / 'token-throughput.kql'" in code_source
-    assert "columns=['API', 'Backend URL', 'Requests', 'Successes', 'Throttled', 'Failures', 'AverageBackendMs', 'SuccessRate']" in code_source
+    expected_distribution_columns = (
+        "columns=['API', 'AOAI Instance', 'Backend URL', 'Requests', 'APIM Statuses', 'Final Backend Statuses', 'Successes', "
+        "'Client Errors', 'Throttled', 'Server Errors', 'Other Responses', 'AverageBackendMs', 'SuccessRate']"
+    )
+    assert expected_distribution_columns in code_source
     assert 'def with_backend_identifier(' not in code_source
     assert 'def format_gateway_distribution(' not in code_source
     assert 'distribution_frame = inference_failover_helpers.with_backend_identifier(distribution_frame)' in code_source
     assert 'distribution_frame = inference_failover_helpers.format_gateway_distribution(distribution_frame)' in code_source
     assert code_source.count("distribution_frame.pivot(index='API', columns='Backend', values='Requests')") == 1
-    assert "columns=['API', 'Backend URL', 'Model', 'Requests', 'PromptTokens', 'CompletionTokens', 'TotalTokens']" in code_source
+    assert "columns=['API', 'AOAI Instance', 'Backend URL', 'Model', 'Requests', 'PromptTokens', 'CompletionTokens', 'TotalTokens']" in code_source
     assert 'token_frame = inference_failover_helpers.with_backend_identifier(token_frame)' in code_source
+    assert 'token_frame = inference_failover_helpers.with_one_based_row_index(token_frame)' in code_source
     assert 'plt.show()' in code_source
     assert 'Route Graph' in '\n'.join(''.join(cell['source']) for cell in notebook['cells'])
+
+
+def test_inference_notebook_runs_deterministic_http_contract_probes() -> None:
+    """Keep safe live status probes executable and fault-only paths explained."""
+    notebook = json.loads(NOTEBOOK_PATH.read_text(encoding='utf-8'))
+    code_source = '\n'.join(''.join(cell['source']) for cell in notebook['cells'] if cell['cell_type'] == 'code')
+    markdown_source = '\n'.join(''.join(cell['source']) for cell in notebook['cells'] if cell['cell_type'] == 'markdown')
+
+    expected_status_assertions = [
+        'probe_results.success.status_code, 200',
+        'probe_results.malformed.status_code, 400',
+        'probe_results.missing_key.status_code, 401',
+        'probe_results.unknown_operation.status_code, 404',
+    ]
+    assert all(assertion in code_source for assertion in expected_status_assertions)
+    assert "probe_results.malformed.headers.get('X-Backend-Retry'), '0'" in code_source
+    assert "'X-Backend-Retry' in probe_results.missing_key.headers" in code_source
+    assert "'X-Backend-Retry' in probe_results.unknown_operation.headers" in code_source
+    assert 'contract_tests.print_summary()' in code_source
+    assert 'if contract_tests.tests_failed:' in code_source
+    assert 'controlled `403`, both `409` branches, deterministic `429`' in markdown_source
+    assert 'DNS/TLS failures, timeouts, and true caller disconnects' in markdown_source
 
 
 def test_inference_notebook_generates_local_html_report() -> None:

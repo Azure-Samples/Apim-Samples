@@ -17,10 +17,8 @@ Adjust `timeWindow` when investigating a shorter incident window or a longer tre
 
 ## Signal Sources
 
-| Table | What the queries use |
-| --- | --- |
-| `ApiManagementGatewayLogs` | Caller-visible response codes, final backend response codes, backend placement, timing, APIM errors, and policy trace records. |
-| `ApiManagementGatewayLlmLog` | Correlated model deployment, prompt token, completion token, total token, and message-chunk telemetry. |
+- `ApiManagementGatewayLogs`: Caller-visible response codes, final backend response codes, backend placement, timing, APIM errors, and policy trace records.
+- `ApiManagementGatewayLlmLog`: Correlated model deployment, prompt token, completion token, total token, and message-chunk telemetry.
 
 The retry-aware queries count compact `InferenceAttempt` entries in `TraceRecords`. Exhausted fallback is derived from native `ResponseCode`, `BackendResponseCode`, and `LastErrorReason` fields.
 
@@ -28,7 +26,7 @@ The retry-aware queries count compact `InferenceAttempt` entries in `TraceRecord
 
 ### [backend-distribution.kql](backend-distribution.kql)
 
-Use this query to see where APIM ultimately placed inference requests. It groups gateway rows by API and concrete backend URL or backend ID, then reports request volume, successes, throttled responses, server failures, average backend latency, and success rate.
+Use this query to see where APIM ultimately placed inference requests. It parses the Azure OpenAI account name from the final backend URL, groups gateway rows by API, AOAI instance, and concrete backend URL or backend ID, then reports the exact caller and final-backend status sets, successes, non-throttling client errors, throttled responses, server errors, residual responses, average backend latency, and success rate. The outcome counts are mutually exclusive and add up to the request total.
 
 This is a useful first view when validating weighted distribution or checking whether pressure moved traffic to a regional fallback tier.
 
@@ -36,13 +34,13 @@ This is a useful first view when validating weighted distribution or checking wh
 
 Use this query to compare caller-visible results with the final backend response after APIM retry handling. It classifies requests as successful without failover, recovered after failover, fallback exhausted, caller-visible throttling, caller-visible server error, or another outcome.
 
-The output includes average attempt count and average backend latency for each API, outcome, caller response code, and final backend response code combination.
+The output includes average attempt count and average backend latency for each API, AOAI instance, outcome, caller response code, and final backend response code combination.
 
 ### [failure-analysis.kql](failure-analysis.kql)
 
 Use this query when investigating degraded traffic or a failed pressure scenario. It filters out requests that succeeded without failover and classifies the remaining rows as recovered failovers, exhausted fallback chains, final-backend throttling, final-backend server errors, caller-visible errors, or native APIM pipeline errors.
 
-The output includes request count, average and maximum attempts, average total latency, P95 total latency, and APIM error source and reason where available.
+The output includes the final AOAI instance, request count, average and maximum attempts, average total latency, P95 total latency, and APIM error source and reason where available.
 
 ### [llm-telemetry-coverage.kql](llm-telemetry-coverage.kql)
 
@@ -54,11 +52,11 @@ The output reports requests, token totals, LLM row counts, and request and respo
 
 Use this query for a per-request investigation after a summary query identifies an anomaly. It joins gateway and LLM rows by `CorrelationId` and returns one operator-focused row for each inference request.
 
-The output includes caller and backend status codes, backend placement, latency, retry counts, the extracted attempt trail, fallback exhaustion state, token usage, message-chunk counts, native APIM errors, and raw trace records. Filter by `CorrelationId` when tracing one request end to end.
+The output includes caller and backend status codes, AOAI account and backend placement, latency, retry counts, the extracted attempt trail, fallback exhaustion state, token usage, message-chunk counts, native APIM errors, and raw trace records. Filter by `CorrelationId` when tracing one request end to end.
 
 ### [token-throughput.kql](token-throughput.kql)
 
-Use this query to measure token-bearing model consumption across API routes and concrete backends. It joins token-bearing LLM rows to gateway placement rows by `CorrelationId`, then summarizes request count and prompt, completion, and total tokens by API, backend, and model.
+Use this query to measure token-bearing model consumption across API routes and concrete backends. It joins token-bearing LLM rows to gateway placement rows by `CorrelationId`, then summarizes request count and prompt, completion, and total tokens by API, AOAI instance, backend, and model.
 
 This view helps connect routing behavior to model usage and identify which fallback tiers served token-bearing requests.
 

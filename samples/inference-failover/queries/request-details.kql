@@ -14,6 +14,7 @@ let gatewayRequests = materialize(ApiManagementGatewayLogs
 | extend FailoverOccurred = AttemptCount > 1
 | extend FallbackExhausted = (ResponseCode == 429 and BackendResponseCode in (429, 503))
     or (ResponseCode == 503 and (BackendResponseCode in (500, 502, 503, 504) or LastErrorReason in ('BackendConnectionFailure', 'Timeout')))
+| extend AOAIInstance = iff(isnotempty(BackendUrl), tostring(split(tostring(parse_url(BackendUrl).Host), '.')[0]), '')
 | extend AttemptTrail = strcat_array(
     extract_all(@'(InferenceAttempt\|n=[0-9]+\|code=(?:[0-9]+|none))', TraceText),
     ' -> '));
@@ -41,6 +42,7 @@ gatewayRequests
     ResponseCode,
     BackendResponseCode,
     BackendId,
+    AOAIInstance,
     BackendUrl,
     TotalTime,
     BackendTime,

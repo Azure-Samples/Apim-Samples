@@ -122,10 +122,11 @@ class InferenceTrafficRunner:
         """Run the deterministic success, client, authentication, and routing probes."""
         session = self._get_session()
         probe_headers = {SUBSCRIPTION_KEY_PARAMETER_NAME: subscription_key}
+        malformed_headers = {**probe_headers, 'Content-Type': 'application/json'}
 
         return ContractProbeResults(
             success=session.post(route, headers=probe_headers, json=payload, timeout=120),
-            malformed=session.post(route, headers=probe_headers, data='{"messages":', timeout=120),
+            malformed=session.post(route, headers=malformed_headers, data='{"messages":', timeout=120),
             missing_key=session.post(route, json=payload, timeout=120),
             unknown_operation=session.post(unknown_operation_route, headers=probe_headers, json=payload, timeout=120),
         )
@@ -155,9 +156,7 @@ class InferenceTrafficRunner:
             backend_url = response.headers.get('X-Backend-URL', 'unknown')
             backend_retry = parse_backend_retry(response)
             validate_status(response)
-            print_info(
-                f'Run {run_index}/{scenario.runs}: {response.status_code} via {backend_url}; X-Backend-Retry={backend_retry} ({response_time:.2f}s)'
-            )
+            print_info(f'Run {run_index}/{scenario.runs}: {response.status_code} via {backend_url}; X-Backend-Retry={backend_retry} ({response_time:.2f}s)')
             if 400 <= response.status_code < 600:
                 print_info(f'Captured error response body: {response.text}')
 
@@ -244,9 +243,7 @@ def summarize_scenario(results: list[dict[str, Any]]) -> InferenceScenarioSummar
         client_errors=sum(1 for result in results if 400 <= result['status_code'] < 500),
         server_errors=sum(1 for result in results if 500 <= result['status_code'] < 600),
         status_code_counts=dict(sorted(status_code_counts.items())),
-        served_backend_urls=sorted(
-            {result['backend_url'] for result in results if result['status_code'] == 200 and result['backend_url'] != 'unknown'}
-        ),
+        served_backend_urls=sorted({result['backend_url'] for result in results if result['status_code'] == 200 and result['backend_url'] != 'unknown'}),
         retry_counts=dict(sorted(retry_counts.items())),
     )
 
@@ -282,6 +279,15 @@ def with_backend_identifier(frame: pd.DataFrame) -> pd.DataFrame:
     return result
 
 
+def with_one_based_row_index(frame: pd.DataFrame) -> pd.DataFrame:
+    """Return a frame copy with a display-oriented one-based row index."""
+    result = frame.copy()
+    result.index = range(1, len(result) + 1)
+    result.index.name = 'Row'
+
+    return result
+
+
 def format_gateway_distribution(frame: pd.DataFrame) -> pd.DataFrame:
     """Return gateway distribution values formatted for display."""
     result = frame.copy()
@@ -290,11 +296,16 @@ def format_gateway_distribution(frame: pd.DataFrame) -> pd.DataFrame:
     result['AverageBackendMs'] = average_backend_ms.map(lambda value: '' if pd.isna(value) else f'{value:,.1f}')
     result['SuccessRate'] = success_rate.map(lambda value: '' if pd.isna(value) else f'{value:.2f}%')
     if 'Backend URL' in result.columns:
-        backend_names = result['Backend URL'].str.extract(r'/deployments/([a-z]-[^/]+)', expand=False).fillna('')
+        backend_names = result['Backend URL'].str.extract(r'/deployments/([a-z]-[^/]+)', expand=False)
         result['Backend'] = backend_names.str.replace('-', ') ', n=1, regex=False)
+        missing_backend = backend_names.isna()
+        client_errors = pd.to_numeric(result.get('Client Errors', pd.Series(0, index=result.index)), errors='coerce').fillna(0)
+        server_errors = pd.to_numeric(result.get('Server Errors', pd.Series(0, index=result.index)), errors='coerce').fillna(0)
+        result.loc[missing_backend, 'Backend'] = 'Backend not recorded'
+        result.loc[missing_backend & server_errors.gt(0), 'Backend'] = 'APIM failure (no final backend recorded)'
+        result.loc[missing_backend & server_errors.eq(0) & client_errors.gt(0), 'Backend'] = 'Gateway rejection (no backend call)'
         result = result.drop(columns=['Backend URL'])
-
-    return result
+    return with_one_based_row_index(result)
 
 
 def get_priority_and_weight(backend_index: int, backend_labels: Mapping[int, str]) -> tuple[int, int]:
@@ -337,10 +348,7 @@ def build_scenario_report_row(
     observed_backend_failures = backend_retries_absorbed + caller_visible_failures
     terminal_503_responses = status_counts.get(503, 0)
     priority_mix = '\n'.join(f'P{priority}: {", ".join(weight_mix)}' for priority, weight_mix in sorted(weights_by_priority.items()))
-    retry_mix = (
-        '\n'.join(f'{retry_count}: {count} ({count / total_requests:.1%})' for retry_count, count in sorted(retry_counts.items()) if retry_count > 0)
-        or 'None'
-    )
+    retry_mix = '\n'.join(f'{retry_count}: {count} ({count / total_requests:.1%})' for retry_count, count in sorted(retry_counts.items()) if retry_count > 0) or 'None'
     if unresolved_requests:
         unresolved_mix = f'No resolved backend: {unresolved_requests} ({unresolved_requests / total_requests:.1%})'
         priority_mix = f'{priority_mix}\n{unresolved_mix}' if priority_mix else unresolved_mix
@@ -403,8 +411,7 @@ def generate_local_html_report(
     scenario_groups = _build_report_scenario_groups(scenario_results, backend_url_indexes, backend_labels)
     report = HtmlReport(
         'Inference Failover Run Report',
-        f'APIM source region: {context.apim_source_region} | Deployment: {context.deployment_name} | '
-        f'Resource group: {context.resource_group_name}',
+        f'APIM source region: {context.apim_source_region} | Deployment: {context.deployment_name} | Resource group: {context.resource_group_name}',
     )
     success_rate = (tests.tests_passed / tests.total_tests * 100) if tests.total_tests else 0
     report.add_metrics(
@@ -432,18 +439,14 @@ def generate_local_html_report(
     if scenario_request_count and all(result['status_code'] == 200 for _, _, _, results, _, _ in scenario_definitions for result in results):
         report.add_success_callout(
             'All scenario requests returned HTTP 200',
-            f'All {scenario_request_count} controlled inference requests completed successfully. '
-            'APIM served the full run without a caller-visible error.',
+            f'All {scenario_request_count} controlled inference requests completed successfully. APIM served the full run without a caller-visible error.',
         )
 
     for model_name, model_scenarios in scenario_groups:
         report.add_table(
             HtmlText(f'Scenario Outcomes: {model_name}', bold_tokens=(model_name,)),
             ['', 'Test #', 'Scenario', 'Requests', 'HTTP 200', 'Other', 'APIM retries', 'Priority / weight mix', 'What the data says'],
-            [
-                build_scenario_report_row(test_id, title, results, url_index, labels)
-                for test_id, title, _, results, url_index, labels in model_scenarios
-            ],
+            [build_scenario_report_row(test_id, title, results, url_index, labels) for test_id, title, _, results, url_index, labels in model_scenarios],
             HtmlText(
                 'The green checkmark indicates that every request returned HTTP 200 from the caller perspective, '
                 'including successes after APIM retries. '
@@ -618,10 +621,7 @@ def _add_token_telemetry(report: HtmlReport, token_frame: pd.DataFrame | None) -
 
 def _build_azure_links(context: InferenceReportContext) -> dict[str, str]:
     portal_base = f'https://portal.azure.com/#@{context.tenant_id}/resource'
-    apim_id = (
-        f'/subscriptions/{context.subscription_id}/resourceGroups/{context.resource_group_name}'
-        f'/providers/Microsoft.ApiManagement/service/{context.apim_name}'
-    )
+    apim_id = f'/subscriptions/{context.subscription_id}/resourceGroups/{context.resource_group_name}/providers/Microsoft.ApiManagement/service/{context.apim_name}'
 
     return {
         'Workbook': f'{portal_base}{context.workbook_id}/workbook',
