@@ -159,7 +159,8 @@ def test_inference_failover_request_explorer_shows_many_rows() -> None:
     request_explorer = _find_workbook_item(_load_workbook()['items'], 'query - request-explorer')['content']
 
     assert request_explorer['size'] == 0
-    assert request_explorer['gridSettings'] == {'filter': True, 'rowLimit': 10000}
+    assert request_explorer['gridSettings']['filter'] is True
+    assert request_explorer['gridSettings']['rowLimit'] == 10000
 
 
 def test_inference_failover_workbook_uses_readable_table_column_titles() -> None:
@@ -181,6 +182,36 @@ def test_inference_failover_workbook_uses_readable_table_column_titles() -> None
         query = _find_workbook_item(workbook['items'], item_name)['content']['query']
         assert '| project-rename ' in query
         assert all(alias in query for alias in aliases)
+
+
+def test_inference_failover_workbook_groups_quantitative_table_values() -> None:
+    """Use grouped numeric display with metric-appropriate precision in every table."""
+    workbook = _load_workbook()
+    expected_precision = {
+        'query - outcome-status-matrix': [0, 2, 1],
+        'query - backend-distribution': [0, 1],
+        'query - failover-summary': [0, 2, 1],
+        'query - failover-request-trails': [0],
+        'query - failure-taxonomy': [0, 2, 1],
+        'query - raw-failure-explorer': [1],
+        'query - token-throughput': [0],
+        'query - llm-telemetry-coverage': [0],
+        'query - request-explorer': [0, 1],
+    }
+
+    for item_name, precision in expected_precision.items():
+        grid_settings = _find_workbook_item(workbook['items'], item_name)['content']['gridSettings']
+        formatters = grid_settings['formatters']
+
+        assert len(formatters) == len(precision)
+        for formatter, fraction_digits in zip(formatters, precision, strict=True):
+            options = formatter['numberFormat']['options']
+            assert formatter['formatter'] == 0
+            assert formatter['numberFormat']['unit'] == 0
+            assert options['style'] == 'decimal'
+            assert options['useGrouping'] is True
+            assert options['minimumFractionDigits'] == fraction_digits
+            assert options['maximumFractionDigits'] == fraction_digits
 
 
 def test_inference_failover_kql_queries_scope_to_ai_gateway_signals() -> None:
