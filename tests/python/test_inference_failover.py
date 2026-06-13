@@ -1,5 +1,6 @@
 """Regression tests for the AOAI-only Inference Failover sample assets."""
 
+import ast
 import json
 import re
 from pathlib import Path
@@ -51,6 +52,28 @@ EXPECTED_POOL_MEMBERS = [
 def _load_workbook() -> dict:
     """Read and parse the failover workbook source."""
     return json.loads(WORKBOOK_PATH.read_text(encoding='utf-8'))
+
+
+def _get_dataframe_columns(code_cells: list[dict], frame_name: str) -> list[str]:
+    """Return the literal columns assigned when constructing a notebook DataFrame."""
+    assignment_prefix = f'{frame_name} = pd.DataFrame('
+    source = next(''.join(cell['source']) for cell in code_cells if assignment_prefix in ''.join(cell['source']))
+
+    for node in ast.walk(ast.parse(source)):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(isinstance(target, ast.Name) and target.id == frame_name for target in node.targets):
+            continue
+        if not isinstance(node.value, ast.Call):
+            continue
+        columns_keyword = next((keyword for keyword in node.value.keywords if keyword.arg == 'columns'), None)
+        if columns_keyword is not None:
+            columns = ast.literal_eval(columns_keyword.value)
+            assert isinstance(columns, list)
+            assert all(isinstance(column, str) for column in columns)
+            return columns
+
+    raise AssertionError(f'No literal columns found for {frame_name}')
 
 
 def _collect_item_names(items: list[dict]) -> set[str]:
@@ -517,17 +540,29 @@ def test_inference_notebook_is_clean_and_defaults_to_simple_apim() -> None:
     assert "queries_path / 'verify-llm-ingestion.kql'" in code_source
     assert "queries_path / 'backend-distribution.kql'" in code_source
     assert "queries_path / 'token-throughput.kql'" in code_source
-    expected_distribution_columns = (
-        "columns=['API', 'AOAI Instance', 'Backend URL', 'Requests', 'APIM Statuses', 'Final Backend Statuses', 'Successes', "
-        "'Client Errors', 'Throttled', 'Server Errors', 'Other Responses', 'AverageBackendMs', 'SuccessRate']"
-    )
-    assert expected_distribution_columns in code_source
+    expected_distribution_columns = [
+        'API',
+        'AOAI Instance',
+        'Backend URL',
+        'Requests',
+        'APIM Statuses',
+        'Final Backend Statuses',
+        'Successes',
+        'Client Errors',
+        'Throttled',
+        'Server Errors',
+        'Other Responses',
+        'AverageBackendMs',
+        'SuccessRate',
+    ]
+    assert _get_dataframe_columns(code_cells, 'distribution_frame') == expected_distribution_columns
     assert 'def with_backend_identifier(' not in code_source
     assert 'def format_gateway_distribution(' not in code_source
     assert 'distribution_frame = inference_failover_helpers.with_backend_identifier(distribution_frame)' in code_source
     assert 'distribution_frame = inference_failover_helpers.format_gateway_distribution(distribution_frame)' in code_source
     assert code_source.count("distribution_frame.pivot(index='API', columns='Backend', values='Requests')") == 1
-    assert "columns=['API', 'AOAI Instance', 'Backend URL', 'Model', 'Requests', 'PromptTokens', 'CompletionTokens', 'TotalTokens']" in code_source
+    expected_token_columns = ['API', 'AOAI Instance', 'Backend URL', 'Model', 'Requests', 'PromptTokens', 'CompletionTokens', 'TotalTokens']
+    assert _get_dataframe_columns(code_cells, 'token_frame') == expected_token_columns
     assert 'token_frame = inference_failover_helpers.with_backend_identifier(token_frame)' in code_source
     assert 'token_frame = inference_failover_helpers.with_one_based_row_index(token_frame)' in code_source
     assert 'plt.show()' in code_source
