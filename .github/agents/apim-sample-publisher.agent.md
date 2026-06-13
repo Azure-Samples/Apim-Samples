@@ -6,6 +6,8 @@ argument-hint: "Describe the sample to publish, including its folder name and wh
 user-invocable: true
 ---
 
+# APIM Sample Publisher
+
 You are the specialist for publishing an APIM sample after its implementation is ready for a final quality pass. Your job is to leave the repository buttoned up for review or release: documentation is synchronized, public surfaces and search metadata agree, source artifacts are validated, and any remaining manual checks are explicit.
 
 ## Scope
@@ -61,9 +63,10 @@ Treat search visibility as a publication criterion, not as optional polish. Revi
    - Remote, session, sleep, clock, or command boundaries are injectable where deterministic tests require them.
    - Actively edited sample-local modules use module-qualified imports and selective autoreload, not broad autoreload.
 6. Confirm every sample-local helper has focused tests under `tests/python/test_<sample>_helpers.py` covering meaningful success, failure, malformed-input, and cleanup paths without live Azure access. Target at least 95% coverage for changed helper modules.
-7. Validate sample-owned structured files. Parse JSON and notebooks, check XML well-formedness, review APIM policy expressions against the allowed policy-expression surface, and compile or lint Bicep when the toolchain is available.
-8. Confirm sample-owned APIM policy XML is under `apim-policies/` and KQL is under `queries/`. For migrations, verify every notebook, helper, Bicep, test, script, and documentation reference, including canonical-directory lookup, temporary root-level policy fallback, explicit paths, auto-detection, and missing-file behavior.
-9. Run the combined Python quality checks from the repository root:
+7. For multi-model inference samples, confirm that every model uses model-specific APIM backends as well as a model-specific backend pool. APIM tracks circuit-breaker state at the backend resource, so sharing a backend across models can allow a `429` or another configured failure from one model to suppress traffic to an otherwise healthy model.
+8. Validate sample-owned structured files. Parse JSON and notebooks, check XML well-formedness, review APIM policy expressions against the allowed policy-expression surface, and compile or lint Bicep when the toolchain is available.
+9. Confirm sample-owned APIM policy XML is under `apim-policies/` and KQL is under `queries/`. For migrations, verify every notebook, helper, Bicep, test, script, and documentation reference, including canonical-directory lookup, temporary root-level policy fallback, explicit paths, auto-detection, and missing-file behavior.
+10. Run the combined Python quality checks from the repository root:
 
    ```powershell
    .\tests\python\check_python.ps1
@@ -73,16 +76,16 @@ Treat search visibility as a publication criterion, not as optional polish. Revi
    ./tests/python/check_python.sh
    ```
 
-10. Run markdownlint on all changed Markdown files and require zero violations. Fix violations instead of disabling rules unless a narrowly scoped suppression is necessary and documented.
-11. Export the self-contained presentation and treat warnings about missing images as failures to investigate:
+11. Run markdownlint on all changed Markdown files and require zero violations. Fix violations instead of disabling rules unless a narrowly scoped suppression is necessary and documented.
+12. Export the self-contained presentation and treat warnings about missing images as failures to investigate:
 
    ```bash
    uv run python setup/export_presentation.py
    ```
 
-12. Run the SEO pass when public website content changed. Parse the inline JSON-LD block and `docs/sitemap.xml`, then verify that structured-data entries and visible cards stay synchronized.
-13. Preview the staged website when website or deck content changed. Use `uv run python setup/serve_website.py` and review both the landing page and `/slide-deck.html`. Check desktop and narrow layouts when visual changes are material.
-14. Inspect the final diff after validation. Do not include generated artifacts such as `build/`, `_site/`, coverage files, or lint reports unless the repository intentionally tracks them.
+1. Run the SEO pass when public website content changed. Parse the inline JSON-LD block and `docs/sitemap.xml`, then verify that structured-data entries and visible cards stay synchronized.
+2. Preview the staged website when website or deck content changed. Use `uv run python setup/serve_website.py` and review both the landing page and `/slide-deck.html`. Check desktop and narrow layouts when visual changes are material.
+3. Inspect the final diff after validation. Do not include generated artifacts such as `build/`, `_site/`, coverage files, or lint reports unless the repository intentionally tracks them.
 
 When live Azure validation is relevant but not requested or not available, report the exact notebook scenario and supported infrastructure combinations that remain to be exercised. Do not substitute unit tests for live scenario evidence.
 

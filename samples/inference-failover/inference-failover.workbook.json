@@ -1,0 +1,758 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Microsoft/Application-Insights-Workbooks/refs/heads/master/schema/workbook.json",
+  "fallbackResourceIds": [
+    "Azure Monitor"
+  ],
+  "fromTemplateId": "sentinel-UserWorkbook",
+  "items": [
+    {
+      "content": {
+        "parameters": [
+          {
+            "id": "2dcab739-1e33-4495-b408-980007ee8bd2",
+            "isRequired": true,
+            "label": "Time Range",
+            "name": "TimeRange",
+            "type": 4,
+            "typeSettings": {
+              "allowCustom": true,
+              "selectableValues": [
+                {
+                  "durationMs": 3600000
+                },
+                {
+                  "durationMs": 14400000
+                },
+                {
+                  "durationMs": 86400000
+                }
+              ]
+            },
+            "value": {
+              "durationMs": 3600000
+            },
+            "version": "KqlParameterItem/1.0"
+          },
+          {
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000001",
+            "isHiddenWhenLocked": true,
+            "label": "Selected Tab",
+            "name": "selectedTab",
+            "type": 1,
+            "value": "overview",
+            "version": "KqlParameterItem/1.0"
+          },
+          {
+            "id": "f0a1b2c3-d4e5-6789-abcd-filter00000001",
+            "label": "Correlation ID Filter",
+            "name": "CorrelationFilter",
+            "type": 1,
+            "value": "",
+            "version": "KqlParameterItem/1.0"
+          }
+        ],
+        "queryType": 0,
+        "resourceType": "microsoft.operationalinsights/workspaces",
+        "style": "pills",
+        "version": "KqlParameterItem/1.0"
+      },
+      "name": "parameters - shared",
+      "type": 9
+    },
+    {
+      "content": {
+        "links": [
+          {
+            "cellValue": "selectedTab",
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000010",
+            "linkTarget": "parameter",
+            "linkLabel": "Overview",
+            "preText": "",
+            "style": "link",
+            "subTarget": "overview"
+          },
+          {
+            "cellValue": "selectedTab",
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000011",
+            "linkTarget": "parameter",
+            "linkLabel": "Failover Outcomes",
+            "preText": "",
+            "style": "link",
+            "subTarget": "outcomes"
+          },
+          {
+            "cellValue": "selectedTab",
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000012",
+            "linkTarget": "parameter",
+            "linkLabel": "Backend Distribution",
+            "preText": "",
+            "style": "link",
+            "subTarget": "distribution"
+          },
+          {
+            "cellValue": "selectedTab",
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000014",
+            "linkTarget": "parameter",
+            "linkLabel": "Failover Trails",
+            "preText": "",
+            "style": "link",
+            "subTarget": "trails"
+          },
+          {
+            "cellValue": "selectedTab",
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000015",
+            "linkTarget": "parameter",
+            "linkLabel": "Failures & Errors",
+            "preText": "",
+            "style": "link",
+            "subTarget": "failures"
+          },
+          {
+            "cellValue": "selectedTab",
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000013",
+            "linkTarget": "parameter",
+            "linkLabel": "Tokens & Latency",
+            "preText": "",
+            "style": "link",
+            "subTarget": "tokens"
+          },
+          {
+            "cellValue": "selectedTab",
+            "id": "f0a1b2c3-d4e5-6789-abcd-tab000000016",
+            "linkTarget": "parameter",
+            "linkLabel": "Request Explorer",
+            "preText": "",
+            "style": "link",
+            "subTarget": "requests"
+          }
+        ],
+        "style": "tabs",
+        "version": "LinkItem/1.0"
+      },
+      "name": "links - tabs",
+      "type": 11
+    },
+    {
+      "conditionalVisibility": {
+        "comparison": "isEqualTo",
+        "parameterName": "selectedTab",
+        "value": "overview"
+      },
+      "content": {
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "json": "# Inference Failover Telemetry\n\nThis workbook observes Azure OpenAI inference requests routed through APIM backend pools. All model deployments are regional `Standard` pay-as-you-go deployments with deliberately small capacity. The `PTU` labels describe the preference tiers simulated by the policy; they do not represent provisioned throughput billing or capacity.\n\nEvery APIM call is represented by one `ApiManagementGatewayLogs` row. The workbook separates the status returned to the caller (`ResponseCode`) from the final backend status (`BackendResponseCode`), retains native APIM `Errors` and `LastError*` details, and uses `TraceRecords` emitted by the policy to reconstruct retry counts and exhausted fallback chains. Successful calls are correlated with `ApiManagementGatewayLlmLog` for token and message-chunk telemetry.\n\n**Pick a Time Range** at the top - it applies to every tab. Then open the tab that matches your question."
+            },
+            "name": "text - overview-intro",
+            "type": 1
+          },
+          {
+            "content": {
+              "expandable": true,
+              "expanded": true,
+              "groupType": "editable",
+              "items": [
+                {
+                  "content": {
+                    "json": "| Tab | Question it answers |\n|---|---|\n| **Failover Outcomes** | What did APIM return to callers, and what did the final selected backend return? |\n| **Backend Distribution** | Which concrete backend URLs handled the final attempts? |\n| **Failover Trails** | Which calls retried, recovered after failover, or exhausted the chain? |\n| **Failures & Errors** | What backend and APIM pipeline failures occurred, with native diagnostics? |\n| **Tokens & Latency** | Are token/message logs complete, and how did latency trend? |\n| **Request Explorer** | What happened on one correlation ID from gateway ingress through LLM telemetry? |"
+                  },
+                  "name": "text - overview-tabmap",
+                  "type": 1
+                }
+              ],
+              "loadType": "always",
+              "title": "What each tab shows",
+              "version": "NotebookGroup/1.0"
+            },
+            "name": "group - overview-tabmap",
+            "type": 12
+          },
+          {
+            "content": {
+              "expandable": true,
+              "expanded": false,
+              "groupType": "editable",
+              "items": [
+                {
+                  "content": {
+                    "json": "- `ResponseCode` is the APIM status seen by the caller; `BackendResponseCode` is the status from the final backend attempt.\n- Compact `InferenceAttempt` records capture each forwarded attempt; retry counts are derived from their sequence.\n- Backend `408`, `429`, `499`, `500`, `502`, `503`, or `504` responses can open a circuit for one minute and move later attempts through the preference chain.\n- Exhausted fallback is derived from caller and backend response codes plus native `LastErrorReason` values.\n- Successful token-bearing calls appear in both gateway logs and `ApiManagementGatewayLlmLog`; missing token rows are surfaced as a coverage gap.\n- Prompt and completion messages are logged for this learning sample. Treat the workspace as sensitive and adjust message logging before production use."
+                  },
+                  "name": "text - overview-signal-notes",
+                  "type": 1
+                }
+              ],
+              "loadType": "always",
+              "title": "Reading the signals",
+              "version": "NotebookGroup/1.0"
+            },
+            "name": "group - overview-signals",
+            "type": 12
+          }
+        ],
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - tab-1-overview",
+      "type": 12
+    },
+    {
+      "conditionalVisibility": {
+        "comparison": "isEqualTo",
+        "parameterName": "selectedTab",
+        "value": "outcomes"
+      },
+      "content": {
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "json": "## Failover Outcomes\n\nCaller-visible APIM outcomes and final backend outcomes are shown separately. Recovered failovers are successful calls with more than one policy-recorded backend attempt. Exhausted fallback is derived from the terminal caller response, final backend response, and native APIM error reason."
+            },
+            "name": "text - outcomes",
+            "type": 1
+          },
+          {
+            "content": {
+              "noDataMessage": "No inference requests found for the selected time range.",
+              "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| extend TraceText = tostring(TraceRecords)\n| extend AttemptCount = countof(TraceText, 'InferenceAttempt')\n| extend FallbackExhausted = (ResponseCode == 429 and BackendResponseCode in (429, 503)) or (ResponseCode == 503 and (BackendResponseCode in (500, 502, 503, 504) or LastErrorReason in ('BackendConnectionFailure', 'Timeout')))\n| extend Outcome = case(\n    FallbackExhausted, 'Fallback exhausted',\n    ResponseCode between (200 .. 299) and AttemptCount > 1, 'Recovered after failover',\n    ResponseCode between (200 .. 299), 'Successful without failover',\n    ResponseCode == 429, 'Caller received throttling',\n    ResponseCode >= 500, 'Caller received server error',\n    'Other')\n| summarize Requests = count() by Outcome\n| order by Requests desc",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "timeContext": {
+                "durationMs": 3600000
+              },
+              "version": "KqlItem/1.0",
+              "visualization": "tiles"
+            },
+            "name": "query - outcome-summary",
+            "type": 3
+          },
+          {
+            "content": {
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "^(Requests|Failovers|Fallback Exhausted)$",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 0,
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Average Attempts",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "^(Average Total \\(ms\\)|P95 Total \\(ms\\))$",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 1,
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "noDataMessage": "No inference outcomes found for the selected time range.",
+              "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| extend TraceText = tostring(TraceRecords)\n| extend Attempts = countof(TraceText, 'InferenceAttempt')\n| extend FailoverOccurred = Attempts > 1\n| extend FallbackExhausted = (ResponseCode == 429 and BackendResponseCode in (429, 503)) or (ResponseCode == 503 and (BackendResponseCode in (500, 502, 503, 504) or LastErrorReason in ('BackendConnectionFailure', 'Timeout')))\n| summarize Requests = count(), Failovers = countif(FailoverOccurred), FallbackExhausted = countif(FallbackExhausted), AverageAttempts = avg(Attempts), AverageTotalMs = avg(TotalTime), P95TotalMs = percentile(TotalTime, 95) by ApiId, ['APIM Response'] = ResponseCode, ['Final Backend Response'] = BackendResponseCode\n| extend AverageAttempts = iff(isfinite(toreal(AverageAttempts)), round(AverageAttempts, 2), real(null)), AverageTotalMs = iff(isfinite(toreal(AverageTotalMs)), round(AverageTotalMs, 1), real(null)), P95TotalMs = iff(isfinite(toreal(P95TotalMs)), round(P95TotalMs, 1), real(null))\n| order by ApiId asc, Requests desc\n| project-rename ['API'] = ApiId, ['Fallback Exhausted'] = FallbackExhausted, ['Average Attempts'] = AverageAttempts, ['Average Total (ms)'] = AverageTotalMs, ['P95 Total (ms)'] = P95TotalMs",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "timeContext": {
+                "durationMs": 3600000
+              },
+              "version": "KqlItem/1.0",
+              "visualization": "table"
+            },
+            "name": "query - outcome-status-matrix",
+            "type": 3
+          }
+        ],
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - tab-2-outcomes",
+      "type": 12
+    },
+    {
+      "conditionalVisibility": {
+        "comparison": "isEqualTo",
+        "parameterName": "selectedTab",
+        "value": "distribution"
+      },
+      "content": {
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "json": "## Backend Distribution\n\nFinal backend placement for each APIM request, including the Azure OpenAI account name parsed from the final `BackendUrl`, exact caller and final-backend status sets, exhaustive caller outcome counts, and latency. **AOAI Instance** identifies the account resource; **Model Deployment** elsewhere identifies the model deployment. A recovered failover appears here under the backend that ultimately served the request; use **Failover Trails** to inspect every intermediate attempt."
+            },
+            "name": "text - distribution",
+            "type": 1
+          },
+          {
+            "content": {
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "^(Requests|Successes|Client Errors|Throttled|Server Errors|Other Responses|Backend Throttled|Backend Unavailable)$",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 0,
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "^(Average Backend \\(ms\\)|P95 Backend \\(ms\\))$",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 1,
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "noDataMessage": "No backend distribution data found for the selected time range.",
+              "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| extend AOAIInstance = iff(isnotempty(BackendUrl), tostring(split(tostring(parse_url(BackendUrl).Host), '.')[0]), '')\n| extend Backend = case(isnotempty(BackendUrl), BackendUrl, isnotempty(BackendId), BackendId, '(backend not recorded)')\n| summarize Requests = count(), CallerResponseCodes = make_set(ResponseCode), FinalBackendResponseCodes = make_set(BackendResponseCode), Successes = countif(ResponseCode between (200 .. 299)), ClientErrors = countif(ResponseCode between (400 .. 499) and ResponseCode != 429), Throttled = countif(ResponseCode == 429), ServerErrors = countif(ResponseCode >= 500), BackendThrottled = countif(BackendResponseCode == 429), BackendUnavailable = countif(BackendResponseCode == 503), AverageBackendMs = avg(BackendTime), P95BackendMs = percentile(BackendTime, 95) by ApiId, AOAIInstance, Backend\n| extend CallerResponseCodes = tostring(array_sort_asc(CallerResponseCodes)), FinalBackendResponseCodes = tostring(array_sort_asc(FinalBackendResponseCodes)), OtherResponses = Requests - Successes - ClientErrors - Throttled - ServerErrors, AverageBackendMs = iff(isfinite(toreal(AverageBackendMs)), round(AverageBackendMs, 1), real(null)), P95BackendMs = iff(isfinite(toreal(P95BackendMs)), round(P95BackendMs, 1), real(null))\n| project ApiId, AOAIInstance, Backend, Requests, CallerResponseCodes, FinalBackendResponseCodes, Successes, ClientErrors, Throttled, ServerErrors, OtherResponses, BackendThrottled, BackendUnavailable, AverageBackendMs, P95BackendMs\n| order by ApiId asc, Requests desc\n| project-rename ['API'] = ApiId, ['AOAI Instance'] = AOAIInstance, ['APIM Statuses'] = CallerResponseCodes, ['Final Backend Statuses'] = FinalBackendResponseCodes, ['Client Errors'] = ClientErrors, ['Server Errors'] = ServerErrors, ['Other Responses'] = OtherResponses, ['Backend Throttled'] = BackendThrottled, ['Backend Unavailable'] = BackendUnavailable, ['Average Backend (ms)'] = AverageBackendMs, ['P95 Backend (ms)'] = P95BackendMs",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "timeContext": {
+                "durationMs": 3600000
+              },
+              "version": "KqlItem/1.0",
+              "visualization": "table"
+            },
+            "name": "query - backend-distribution",
+            "type": 3
+          }
+        ],
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - tab-3-distribution",
+      "type": 12
+    },
+    {
+      "conditionalVisibility": {
+        "comparison": "isEqualTo",
+        "parameterName": "selectedTab",
+        "value": "trails"
+      },
+      "content": {
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "json": "## Failover Trails\n\nThe policy writes a compact `InferenceAttempt` record after every forwarded backend attempt. These views count the records, derive retries as attempts minus one, and retain an ordered trail such as `n=1|code=429 -> n=2|code=200`."
+            },
+            "name": "text - trails",
+            "type": 1
+          },
+          {
+            "content": {
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "^(Requests|Recovered|Fallback Exhausted|Maximum Attempts)$",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 0,
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Average Attempts",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "^(Average Total \\(ms\\)|P95 Total \\(ms\\))$",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 1,
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "noDataMessage": "No policy-recorded failover trails found. Redeploy the sample after the trace policy update, generate traffic, and allow Log Analytics ingestion to complete.",
+              "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| extend TraceText = tostring(TraceRecords)\n| extend Attempts = countof(TraceText, 'InferenceAttempt')\n| extend FallbackExhausted = (ResponseCode == 429 and BackendResponseCode in (429, 503)) or (ResponseCode == 503 and (BackendResponseCode in (500, 502, 503, 504) or LastErrorReason in ('BackendConnectionFailure', 'Timeout')))\n| where Attempts > 1 or FallbackExhausted\n| summarize Requests = count(), Recovered = countif(ResponseCode between (200 .. 299)), FallbackExhausted = countif(FallbackExhausted), AverageAttempts = avg(Attempts), MaximumAttempts = max(Attempts), AverageTotalMs = avg(TotalTime), P95TotalMs = percentile(TotalTime, 95) by ApiId\n| extend AverageAttempts = iff(isfinite(toreal(AverageAttempts)), round(AverageAttempts, 2), real(null)), AverageTotalMs = iff(isfinite(toreal(AverageTotalMs)), round(AverageTotalMs, 1), real(null)), P95TotalMs = iff(isfinite(toreal(P95TotalMs)), round(P95TotalMs, 1), real(null))\n| order by ApiId asc\n| project-rename ['API'] = ApiId, ['Fallback Exhausted'] = FallbackExhausted, ['Average Attempts'] = AverageAttempts, ['Maximum Attempts'] = MaximumAttempts, ['Average Total (ms)'] = AverageTotalMs, ['P95 Total (ms)'] = P95TotalMs",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "timeContext": {
+                "durationMs": 3600000
+              },
+              "version": "KqlItem/1.0",
+              "visualization": "table"
+            },
+            "name": "query - failover-summary",
+            "type": 3
+          },
+          {
+            "content": {
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "^(Attempts|Retried Failures)$",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 0,
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              "noDataMessage": "No policy-recorded failover trails found for the selected time range.",
+              "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| extend TraceText = tostring(TraceRecords)\n| extend Attempts = countof(TraceText, 'InferenceAttempt')\n| extend RetriedFailures = max_of(Attempts - 1, 0)\n| extend FallbackExhausted = (ResponseCode == 429 and BackendResponseCode in (429, 503)) or (ResponseCode == 503 and (BackendResponseCode in (500, 502, 503, 504) or LastErrorReason in ('BackendConnectionFailure', 'Timeout')))\n| extend AOAIInstance = iff(isnotempty(BackendUrl), tostring(split(tostring(parse_url(BackendUrl).Host), '.')[0]), '')\n| extend AttemptTrail = strcat_array(extract_all(@'(InferenceAttempt\\|n=[0-9]+\\|code=(?:[0-9]+|none))', TraceText), ' -> ')\n| where Attempts > 1 or FallbackExhausted\n| project TimeGenerated, CorrelationId, ApiId, ['APIM Response'] = ResponseCode, ['Final Backend Response'] = BackendResponseCode, Attempts, RetriedFailures, FallbackExhausted, AOAIInstance, BackendUrl, AttemptTrail\n| order by TimeGenerated desc\n| project-rename ['Time'] = TimeGenerated, ['Correlation ID'] = CorrelationId, ['API'] = ApiId, ['Retried Failures'] = RetriedFailures, ['Fallback Exhausted'] = FallbackExhausted, ['AOAI Instance'] = AOAIInstance, ['Backend URL'] = BackendUrl, ['Attempt Trail'] = AttemptTrail",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "timeContext": {
+                "durationMs": 3600000
+              },
+              "version": "KqlItem/1.0",
+              "visualization": "table"
+            },
+            "name": "query - failover-request-trails",
+            "type": 3
+          }
+        ],
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - tab-4-trails",
+      "type": 12
+    },
+    {
+      "conditionalVisibility": {
+        "comparison": "isEqualTo",
+        "parameterName": "selectedTab",
+        "value": "failures"
+      },
+      "content": {
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "json": "## Failures & Errors\n\nInvestigate failures without conflating backend behavior and caller-visible behavior. `BackendResponseCode` is the final backend attempt; `ResponseCode` is what APIM returned. Native `Errors` and `LastError*` fields preserve APIM pipeline failures that are not ordinary backend HTTP responses."
+            },
+            "name": "text - failures",
+            "type": 1
+          },
+          {
+            "content": {
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "^(Requests|Maximum Attempts)$",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 0,
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "Average Attempts",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 2,
+                        "maximumFractionDigits": 2
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "^(Average Total \\(ms\\)|P95 Total \\(ms\\))$",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 1,
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "noDataMessage": "No recovered failovers or failures found for the selected time range.",
+              "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| extend TraceText = tostring(TraceRecords)\n| extend Attempts = countof(TraceText, 'InferenceAttempt')\n| extend FailoverOccurred = Attempts > 1\n| extend FallbackExhausted = (ResponseCode == 429 and BackendResponseCode in (429, 503)) or (ResponseCode == 503 and (BackendResponseCode in (500, 502, 503, 504) or LastErrorReason in ('BackendConnectionFailure', 'Timeout')))\n| extend AOAIInstance = iff(isnotempty(BackendUrl), tostring(split(tostring(parse_url(BackendUrl).Host), '.')[0]), '')\n| extend FailureType = case(\n    FallbackExhausted, 'Fallback exhausted at APIM',\n    ResponseCode between (200 .. 299) and FailoverOccurred, 'Recovered after backend failover',\n    BackendResponseCode == 429, 'Final backend throttled',\n    BackendResponseCode >= 500, 'Final backend server error',\n    ResponseCode between (400 .. 499), 'Caller-visible client error',\n    ResponseCode >= 500, 'Caller-visible server error',\n    isnotempty(LastErrorReason), 'APIM pipeline error',\n    'Successful without failover')\n| where FailureType != 'Successful without failover'\n| summarize Requests = count(), AverageAttempts = avg(Attempts), MaximumAttempts = max(Attempts), AverageTotalMs = avg(TotalTime), P95TotalMs = percentile(TotalTime, 95) by ApiId, AOAIInstance, FailureType, ['APIM Response'] = ResponseCode, ['Final Backend Response'] = BackendResponseCode, LastErrorSource, LastErrorReason\n| extend AverageAttempts = iff(isfinite(toreal(AverageAttempts)), round(AverageAttempts, 2), real(null)), AverageTotalMs = iff(isfinite(toreal(AverageTotalMs)), round(AverageTotalMs, 1), real(null)), P95TotalMs = iff(isfinite(toreal(P95TotalMs)), round(P95TotalMs, 1), real(null))\n| order by Requests desc, ApiId asc\n| project-rename ['API'] = ApiId, ['AOAI Instance'] = AOAIInstance, ['Failure Type'] = FailureType, ['Average Attempts'] = AverageAttempts, ['Maximum Attempts'] = MaximumAttempts, ['Average Total (ms)'] = AverageTotalMs, ['P95 Total (ms)'] = P95TotalMs, ['Last Error Source'] = LastErrorSource, ['Last Error Reason'] = LastErrorReason",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "timeContext": {
+                "durationMs": 3600000
+              },
+              "version": "KqlItem/1.0",
+              "visualization": "table"
+            },
+            "name": "query - failure-taxonomy",
+            "type": 3
+          },
+          {
+            "content": {
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "^(Total Time \\(ms\\)|Backend Time \\(ms\\))$",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 1,
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  }
+                ]
+              },
+              "noDataMessage": "No raw failure rows found for the selected time range.",
+              "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| where ResponseCode >= 400 or BackendResponseCode >= 400 or isnotempty(LastErrorReason)\n| extend AOAIInstance = iff(isnotempty(BackendUrl), tostring(split(tostring(parse_url(BackendUrl).Host), '.')[0]), '')\n| project TimeGenerated, CorrelationId, ApiId, ['APIM Response'] = ResponseCode, ['Final Backend Response'] = BackendResponseCode, AOAIInstance, BackendUrl, TotalTime, BackendTime, LastErrorSource, LastErrorReason, LastErrorSection, LastErrorMessage, Errors, TraceRecords\n| order by TimeGenerated desc\n| project-rename ['Time'] = TimeGenerated, ['Correlation ID'] = CorrelationId, ['API'] = ApiId, ['AOAI Instance'] = AOAIInstance, ['Backend URL'] = BackendUrl, ['Total Time (ms)'] = TotalTime, ['Backend Time (ms)'] = BackendTime, ['Last Error Source'] = LastErrorSource, ['Last Error Reason'] = LastErrorReason, ['Last Error Section'] = LastErrorSection, ['Last Error Message'] = LastErrorMessage, ['Trace Records'] = TraceRecords",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "timeContext": {
+                "durationMs": 3600000
+              },
+              "version": "KqlItem/1.0",
+              "visualization": "table"
+            },
+            "name": "query - raw-failure-explorer",
+            "type": 3
+          }
+        ],
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - tab-5-failures",
+      "type": 12
+    },
+    {
+      "conditionalVisibility": {
+        "comparison": "isEqualTo",
+        "parameterName": "selectedTab",
+        "value": "tokens"
+      },
+      "content": {
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "json": "## Tokens & Latency\n\nLLM token consumption per model and backend from `ApiManagementGatewayLlmLog`, plus the backend latency trend over time. Only successful, token-bearing responses contribute token totals."
+            },
+            "name": "text - tokens",
+            "type": 1
+          },
+          {
+            "content": {
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "^(Requests|Prompt Tokens|Completion Tokens|Total Tokens)$",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 0,
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              "noDataMessage": "No successful token-bearing inference rows found for the selected time range.",
+              "query": "let routes = materialize(ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| project CorrelationId, ApiId, BackendId, BackendUrl);\nApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| where TotalTokens > 0 and isnotempty(ModelName)\n| project CorrelationId, ModelName, DeploymentName, PromptTokens, CompletionTokens, TotalTokens\n| summarize DeploymentName = take_any(DeploymentName), PromptTokens = sum(PromptTokens), CompletionTokens = sum(CompletionTokens), TotalTokens = sum(TotalTokens) by CorrelationId, ModelName\n| join kind=inner routes on CorrelationId\n| extend AOAIInstance = iff(isnotempty(BackendUrl), tostring(split(tostring(parse_url(BackendUrl).Host), '.')[0]), '')\n| extend Backend = case(isnotempty(BackendUrl), BackendUrl, isnotempty(BackendId), BackendId, '(backend not recorded)')\n| summarize Requests = count(), PromptTokens = sum(PromptTokens), CompletionTokens = sum(CompletionTokens), TotalTokens = sum(TotalTokens) by ApiId, AOAIInstance, Backend, ModelName, DeploymentName\n| order by TotalTokens desc\n| project-rename ['API'] = ApiId, ['AOAI Instance'] = AOAIInstance, ['Model'] = ModelName, ['Model Deployment'] = DeploymentName, ['Prompt Tokens'] = PromptTokens, ['Completion Tokens'] = CompletionTokens, ['Total Tokens'] = TotalTokens",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "timeContext": {
+                "durationMs": 3600000
+              },
+              "version": "KqlItem/1.0",
+              "visualization": "table"
+            },
+            "name": "query - token-throughput",
+            "type": 3
+          },
+          {
+            "content": {
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "^(Requests|Total Tokens|LLM Rows|Request Message Chunks|Response Message Chunks)$",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 0,
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  }
+                ]
+              },
+              "noDataMessage": "No APIM inference requests found for the selected time range.",
+              "query": "let gatewayRequests = materialize(ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| project CorrelationId, ApiId, ResponseCode);\nlet llmPerRequest = ApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| summarize TotalTokens = sum(TotalTokens), LlmRows = count(), RequestMessageChunks = countif(isnotempty(tostring(RequestMessages))), ResponseMessageChunks = countif(isnotempty(tostring(ResponseMessages))) by CorrelationId;\ngatewayRequests\n| join kind=leftouter llmPerRequest on CorrelationId\n| extend Coverage = case(ResponseCode !between (200 .. 299), 'Not expected for non-2xx response', coalesce(TotalTokens, 0) > 0, 'Token telemetry recorded', 'Successful request without token telemetry')\n| summarize Requests = count(), TotalTokens = sum(coalesce(TotalTokens, 0)), LlmRows = sum(coalesce(LlmRows, 0)), RequestMessageChunks = sum(coalesce(RequestMessageChunks, 0)), ResponseMessageChunks = sum(coalesce(ResponseMessageChunks, 0)) by ApiId, Coverage\n| order by ApiId asc, Coverage asc\n| project-rename ['API'] = ApiId, ['Total Tokens'] = TotalTokens, ['LLM Rows'] = LlmRows, ['Request Message Chunks'] = RequestMessageChunks, ['Response Message Chunks'] = ResponseMessageChunks",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "timeContext": {
+                "durationMs": 3600000
+              },
+              "version": "KqlItem/1.0",
+              "visualization": "table"
+            },
+            "name": "query - llm-telemetry-coverage",
+            "type": 3
+          },
+          {
+            "content": {
+              "noDataMessage": "No latency data found for the selected time range.",
+              "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| summarize AverageTotalMs = avg(TotalTime), P95TotalMs = percentile(TotalTime, 95), AverageBackendMs = avg(BackendTime), P95BackendMs = percentile(BackendTime, 95), Requests = count() by bin(TimeGenerated, 5m), ApiId\n| extend AverageTotalMs = iff(isfinite(toreal(AverageTotalMs)), round(AverageTotalMs, 1), real(null)), P95TotalMs = iff(isfinite(toreal(P95TotalMs)), round(P95TotalMs, 1), real(null)), AverageBackendMs = iff(isfinite(toreal(AverageBackendMs)), round(AverageBackendMs, 1), real(null)), P95BackendMs = iff(isfinite(toreal(P95BackendMs)), round(P95BackendMs, 1), real(null))\n| order by TimeGenerated asc",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "timeContext": {
+                "durationMs": 3600000
+              },
+              "version": "KqlItem/1.0",
+              "visualization": "timechart"
+            },
+            "name": "query - backend-latency-trend",
+            "type": 3
+          }
+        ],
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - tab-4-tokens",
+      "type": 12
+    },
+    {
+      "conditionalVisibility": {
+        "comparison": "isEqualTo",
+        "parameterName": "selectedTab",
+        "value": "requests"
+      },
+      "content": {
+        "groupType": "editable",
+        "items": [
+          {
+            "content": {
+              "json": "## Request Explorer\n\nOne row per APIM inference call, joined by `CorrelationId` to aggregated LLM telemetry. **AOAI Instance** is the Azure OpenAI account parsed from the final `BackendUrl`; **Model Deployment** is the model deployment reported by LLM diagnostics. Paste a correlation ID into **Correlation ID Filter** to isolate one request. Prompt and completion bodies remain in `ApiManagementGatewayLlmLog`; this table reports message chunk counts without rendering sensitive body content."
+            },
+            "name": "text - requests",
+            "type": 1
+          },
+          {
+            "content": {
+              "gridSettings": {
+                "formatters": [
+                  {
+                    "columnMatch": "^(Attempts|Retried Failures|Prompt Tokens|Completion Tokens|Total Tokens|LLM Rows|Request Message Chunks|Response Message Chunks)$",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 0,
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "^(Total Time \\(ms\\)|Backend Time \\(ms\\))$",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 1,
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  }
+                ],
+                "filter": true,
+                "rowLimit": 10000
+              },
+              "noDataMessage": "No matching inference requests found for the selected time range and correlation filter.",
+              "query": "let llmPerRequest = ApiManagementGatewayLlmLog\n| where TimeGenerated {TimeRange}\n| summarize ModelName = take_any(ModelName), DeploymentName = take_any(DeploymentName), LlmRequestId = take_any(RequestId), PromptTokens = sum(PromptTokens), CompletionTokens = sum(CompletionTokens), TotalTokens = sum(TotalTokens), LlmRows = count(), RequestMessageChunks = countif(isnotempty(tostring(RequestMessages))), ResponseMessageChunks = countif(isnotempty(tostring(ResponseMessages))) by CorrelationId;\nApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| where isempty('{CorrelationFilter}') or CorrelationId contains '{CorrelationFilter}'\n| extend TraceText = tostring(TraceRecords)\n| extend Attempts = countof(TraceText, 'InferenceAttempt')\n| extend RetriedFailures = max_of(Attempts - 1, 0)\n| extend FallbackExhausted = (ResponseCode == 429 and BackendResponseCode in (429, 503)) or (ResponseCode == 503 and (BackendResponseCode in (500, 502, 503, 504) or LastErrorReason in ('BackendConnectionFailure', 'Timeout')))\n| extend AOAIInstance = iff(isnotempty(BackendUrl), tostring(split(tostring(parse_url(BackendUrl).Host), '.')[0]), '')\n| extend AttemptTrail = strcat_array(extract_all(@'(InferenceAttempt\\|n=[0-9]+\\|code=(?:[0-9]+|none))', TraceText), ' -> ')\n| join kind=leftouter llmPerRequest on CorrelationId\n| project TimeGenerated, CorrelationId, ApiId, OperationId, ApimSubscriptionId, ['APIM Response'] = ResponseCode, ['Final Backend Response'] = BackendResponseCode, BackendId, AOAIInstance, BackendUrl, TotalTime, BackendTime, Attempts, RetriedFailures, FallbackExhausted, AttemptTrail, ModelName, DeploymentName, LlmRequestId, PromptTokens = coalesce(PromptTokens, 0), CompletionTokens = coalesce(CompletionTokens, 0), TotalTokens = coalesce(TotalTokens, 0), LlmRows = coalesce(LlmRows, 0), RequestMessageChunks = coalesce(RequestMessageChunks, 0), ResponseMessageChunks = coalesce(ResponseMessageChunks, 0), LastErrorSource, LastErrorReason, LastErrorSection, LastErrorMessage, Errors, TraceRecords\n| order by TimeGenerated desc\n| take 200\n| project-rename ['Time'] = TimeGenerated, ['Correlation ID'] = CorrelationId, ['API'] = ApiId, ['Operation ID'] = OperationId, ['APIM Subscription ID'] = ApimSubscriptionId, ['Backend ID'] = BackendId, ['AOAI Instance'] = AOAIInstance, ['Backend URL'] = BackendUrl, ['Total Time (ms)'] = TotalTime, ['Backend Time (ms)'] = BackendTime, ['Retried Failures'] = RetriedFailures, ['Fallback Exhausted'] = FallbackExhausted, ['Attempt Trail'] = AttemptTrail, ['Model'] = ModelName, ['Model Deployment'] = DeploymentName, ['LLM Request ID'] = LlmRequestId, ['Prompt Tokens'] = PromptTokens, ['Completion Tokens'] = CompletionTokens, ['Total Tokens'] = TotalTokens, ['LLM Rows'] = LlmRows, ['Request Message Chunks'] = RequestMessageChunks, ['Response Message Chunks'] = ResponseMessageChunks, ['Last Error Source'] = LastErrorSource, ['Last Error Reason'] = LastErrorReason, ['Last Error Section'] = LastErrorSection, ['Last Error Message'] = LastErrorMessage, ['Trace Records'] = TraceRecords",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "size": 0,
+              "timeContext": {
+                "durationMs": 3600000
+              },
+              "version": "KqlItem/1.0",
+              "visualization": "table"
+            },
+            "name": "query - request-explorer",
+            "type": 3
+          }
+        ],
+        "version": "NotebookGroup/1.0"
+      },
+      "name": "group - tab-7-requests",
+      "type": 12
+    }
+  ],
+  "version": "Notebook/1.0"
+}

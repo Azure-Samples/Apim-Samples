@@ -7,6 +7,8 @@ argument-hint: "Describe the sample to add, including its sample name, display n
 user-invocable: true
 ---
 
+# APIM Sample Creator
+
 You are the specialist for adding new samples to the APIM Samples repository.
 
 ## Required Inputs

@@ -34,10 +34,43 @@ Every APIM policy document follows this structure:
 
 The `<base />` element inherits policies from parent scopes (Global → Product → API → Operation).
 
+### Readability and Semantic Layout
+
+Keep policy XML readable as its control flow grows:
+
+- Add concise XML comments before non-obvious policy blocks to explain their intent, especially retry classification, fallback handling, cache behavior, and error normalization. Do not narrate self-explanatory individual statements.
+- Separate semantic phases with a blank line, such as initialization, routing and authentication, retry tracking, telemetry, response classification, and response rendering.
+- Break long policy elements across lines and place one attribute per line when that makes conditions or configuration easier to scan. Preserve the established indentation and policy execution order.
+- Keep related policies together under a clear comment instead of allowing one uninterrupted block of XML. Use comments and whitespace for structure; do not add wrapper policies that change APIM behavior solely for visual grouping.
+- Format multi-statement `@{}` expressions like ordinary C# blocks, with blank lines between distinct calculations or validation phases. Keep short `@()` expressions inline when they remain easy to read.
+
+### Backend Section Cardinality (CRITICAL)
+
+The `<backend>` section may contain only one direct child policy. APIM rejects a policy during deployment when `<backend>` contains sibling policies such as `<retry>` followed by `<choose>`, or `<base />` followed by `<retry>`.
+
+When retrying a backend request, make `<retry>` the sole direct child of `<backend>` and place `<forward-request>` plus any policies that must execute on every attempt inside `<retry>`. Move terminal fallback handling to `<on-error>` or `<outbound>` as appropriate.
+
+```xml
+<backend>
+    <retry count="3" interval="1" first-fast-retry="true"
+        condition='@(context.Response.StatusCode == 429 || context.Response.StatusCode &gt;= 500)'>
+        <forward-request buffer-request-body="true" />
+    </retry>
+</backend>
+```
+
+When a custom backend policy is not needed, keep `<base />` as the only direct child:
+
+```xml
+<backend>
+    <base />
+</backend>
+```
+
 ## Policy Categories Quick Reference
 
 | Category | Common Policies | Section |
-|----------|-----------------|---------|
+| --- | --- | --- |
 | **Authentication** | `authentication-managed-identity`, `validate-azure-ad-token`, `validate-jwt` | inbound |
 | **Rate Limiting** | `rate-limit-by-key`, `quota-by-key` | inbound |
 | **Caching** | `cache-lookup`, `cache-store` | inbound/outbound |
@@ -85,7 +118,7 @@ Apply policies based on conditions:
 
 ```xml
 <choose>
-    <when condition="@(context.Request.Headers.GetValueOrDefault(&quot;X-Custom&quot;, &quot;&quot;) == &quot;value&quot;)">
+    <when condition='@(context.Request.Headers.GetValueOrDefault("X-Custom", "") == "value")'>
         <!-- policies when condition is true -->
     </when>
     <otherwise>
@@ -114,7 +147,7 @@ Retry failed requests with conditions:
 
 ```xml
 <retry count="3" interval="1" first-fast-retry="true"
-    condition="@(context.Response.StatusCode == 429 || context.Response.StatusCode >= 500)">
+    condition='@(context.Response.StatusCode == 429 || context.Response.StatusCode &gt;= 500)'>
     <forward-request buffer-request-body="true" />
 </retry>
 ```
@@ -125,17 +158,36 @@ Policy expressions use C# syntax within `@()` for single statements or `@{}` for
 
 ### Quotes in XML Attributes
 
-When a policy expression is inside a double-quoted XML attribute, encode every double quote within the expression as `&quot;`. Raw inner double quotes terminate the attribute and make the policy XML malformed.
+Use single quotes around XML attribute values that contain policy expressions. This allows C# string literals and dictionary keys inside the expression to use normal double quotes without XML entity encoding.
 
 ```xml
-<set-variable name="callerId" value="@((string)context.Variables[&quot;callerId&quot;])" />
+<set-variable name="callerId" value='@((string)context.Variables["callerId"])' />
 ```
 
-Double quotes do not need entity encoding when the expression is element text:
+Keep ordinary non-expression XML attributes double-quoted. If an expression itself requires a single-quoted character or string literal, encode that apostrophe as `&apos;` or use a double-quoted XML attribute and encode its inner double quotes as `&quot;`.
+
+Expressions in element text also use normal double quotes:
 
 ```xml
 <value>@((string)context.Variables["callerId"])</value>
 ```
+
+### XML Entity Encoding
+
+Policy expressions are C# embedded in XML, so XML parsing occurs before APIM evaluates the expression. In XML attribute values and element text:
+
+- Encode `&` as `&amp;`. Logical AND must therefore be written as `&amp;&amp;`.
+- Encode `<` as `&lt;`. This is required for less-than comparisons and the opening angle bracket of generic type arguments.
+- Encode `>` as `&gt;` for paired angle brackets and comparisons. A literal `>` is generally valid XML, but encoding it keeps expressions consistent and avoids ambiguity.
+
+```xml
+<set-variable name="attempt" value='@(context.Variables.GetValueOrDefault&lt;int&gt;("attempt", 0))' />
+<when condition='@(attempt &lt;= retryLimit &amp;&amp; statusCode &gt;= 500)'>
+    <!-- policies -->
+</when>
+```
+
+These entities are decoded before C# evaluation, so APIM receives `GetValueOrDefault<int>`, `<=`, `&&`, and `>=`. Code shown outside an XML context, such as a `csharp` fenced block, should use ordinary C# characters without XML entity encoding.
 
 ### Common Expressions
 
@@ -168,17 +220,17 @@ Double quotes do not need entity encoding when the expression is element text:
 ### Multi-Statement Expression
 
 ```xml
-<set-variable name="result" value="@{
+<set-variable name="result" value='@{
     string[] value;
-    if (context.Request.Headers.TryGetValue(&quot;Authorization&quot;, out value))
+    if (context.Request.Headers.TryGetValue("Authorization", out value))
     {
-        if(value != null && value.Length > 0)
+        if(value != null &amp;&amp; value.Length &gt; 0)
         {
             return Encoding.UTF8.GetString(Convert.FromBase64String(value[0]));
         }
     }
     return null;
-}" />
+}' />
 ```
 
 ### Allowed .NET Types and Members (CRITICAL)
@@ -197,7 +249,7 @@ Before using a type or member in a policy expression, verify it appears on the o
 When a member you need is not allowed, refactor to an equivalent that is. Examples:
 
 | Disallowed | Allowed replacement |
-|---|---|
+| --- | --- |
 | `DateTime.TryParse(s, ..., DateTimeStyles.RoundtripKind, out dt)` | Store as Unix epoch via `DateTimeOffset.UtcNow.ToUnixTimeSeconds()`, parse with `long.TryParse` |
 | `DateTime.ParseExact(s, fmt, CultureInfo.InvariantCulture)` | `DateTime.Parse(s)` (allowed) or epoch-based representation |
 | `Enum.GetValues(typeof(T))` | Hard-code the comparison values or store as a string |

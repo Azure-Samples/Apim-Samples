@@ -4,6 +4,7 @@ This directory contains the optimized dev container configuration for the Azure 
 
 ## 📋 Table of Contents
 
+<!-- markdownlint-disable MD051 -->
 - [Overview](#overview)
 - [Files in this Directory](#files-in-this-directory)
 - [Setup Stages](#setup-stages)
@@ -12,6 +13,7 @@ This directory contains the optimized dev container configuration for the Azure 
 - [Jupyter Kernel Configuration](#jupyter-kernel-configuration)
 - [Troubleshooting](#troubleshooting)
 - [Performance Notes](#performance-notes)
+<!-- markdownlint-enable MD051 -->
 
 ## 🎯 Overview
 
@@ -30,7 +32,7 @@ This approach ensures that time-consuming operations happen during container pre
 ### Core Configuration Files
 
 | File | Purpose | Stage |
-|------|---------|-------|
+| --- | --- | --- |
 | `python312/devcontainer.json` | Dev container configuration (Python 3.12) | All |
 | `python312/Dockerfile` | Container image definition (Python 3.12) | Build |
 | `python313/devcontainer.json` | Dev container configuration (Python 3.13) | All |
@@ -43,18 +45,21 @@ This approach ensures that time-consuming operations happen during container pre
 ### Configuration Details
 
 #### `devcontainer.json` (per Python version folder)
+
 - **Features**: Azure CLI, common utilities, Git, Docker-in-Docker
 - **Extensions**: Python, Jupyter, Bicep, GitHub Copilot, and more
 - **Lifecycle Commands**: Optimized three-stage setup
 - **Port Forwarding**: Common development ports (3000, 5000, 8000, 8080)
 
 #### `Dockerfile` (per Python version folder)
+
 - **Base Image**: Microsoft's Python 3.12/3.13/3.14 dev container (depending on folder)
 - **System Dependencies**: Essential packages and tools
 - **Azure CLI Setup**: Extensions and configuration for Codespaces
 - **Virtual Environment**: Auto-activation configuration
 
 #### `post-start-setup.sh` (shared behavior)
+
 - **Location**: `.devcontainer/post-start-setup.sh` is invoked by each Python variant's `post-start-setup.sh` wrapper
 - **Environment Verification**: Quick checks and status reporting
 - **Fallback Installation**: Safety net for missing components
@@ -73,6 +78,7 @@ All three are supported and prebuilt; choose the Python runtime that best matche
 ### ⚠️ About the "Default" Option
 
 GitHub Codespaces will also display a generic **"Default"** dev container option. **Do not use this option** — it will result in:
+
 - Significantly slower startup times (5-10 minutes vs. ~30 seconds)
 - Missing tools, extensions, and optimizations
 - Suboptimal development experience
@@ -82,16 +88,20 @@ GitHub Codespaces will also display a generic **"Default"** dev container option
 ## 🚀 Setup Stages
 
 ### Stage 1: Container Build (Dockerfile)
+
 **When it runs**: During initial container build
 **What it does**:
+
 - Installs the selected Python version (3.12, 3.13, or 3.14) and system dependencies
 - Configures Azure CLI for Codespaces (device code authentication)
 - Installs Azure CLI extensions (`containerapp`, `front-door`)
 - Sets up shell auto-activation for virtual environment
 
 ### Stage 2: Content Update (devcontainer.json)
+
 **When it runs**: During prebuild when content changes
 **What it does**:
+
 - Creates Python virtual environment with uv
 - Installs all Python packages via `uv sync` (pyproject.toml)
 - Generates environment configuration (`.env` file)
@@ -99,8 +109,10 @@ GitHub Codespaces will also display a generic **"Default"** dev container option
 - Configures Azure CLI settings
 
 ### Stage 3: Runtime Verification (post-start-setup.sh)
+
 **When it runs**: Every time the container starts
 **What it does**:
+
 - Verifies environment setup (< 10 seconds)
 - Provides status reporting and user guidance
 - Performs fallback installation if needed
@@ -109,6 +121,7 @@ GitHub Codespaces will also display a generic **"Default"** dev container option
 ## ⚡ Optimization Strategy
 
 ### What Moved to Prebuild
+
 - ✅ Python package installation
 - ✅ Virtual environment creation
 - ✅ Azure CLI extension installation
@@ -117,12 +130,14 @@ GitHub Codespaces will also display a generic **"Default"** dev container option
 - ✅ VS Code extension installation
 
 ### What Stays in Runtime
+
 - ✅ Environment verification
 - ✅ Status reporting and user guidance
 - ✅ Fallback installation (safety net)
 - ✅ Performance timing and completion messages
 
 ### Performance Benefits
+
 - **Faster Startup**: Most heavy operations happen during prebuild
 - **Better UX**: Users see verification instead of installation progress
 - **Reliability**: Fallback mechanisms ensure robustness
@@ -133,7 +148,7 @@ GitHub Codespaces will also display a generic **"Default"** dev container option
 To further optimize the startup experience, several VS Code extensions are pre-installed in the container image rather than being installed at container startup:
 
 | Extension ID | Description |
-|-------------|-------------|
+| --- | --- |
 | ms-python.python | Python language support |
 | ms-python.debugpy | Python debugging |
 | ms-toolsai.jupyter | Jupyter notebook support |
@@ -172,7 +187,7 @@ This pre-installation happens in the Dockerfile and significantly reduces contai
 ### Prebuild Benefits
 
 | Aspect | Without Prebuild | With Prebuild |
-|--------|------------------|---------------|
+| --- | --- | --- |
 | **Startup Time** | 5-10 minutes | 10-30 seconds |
 | **User Experience** | Watch installation progress | See verification only |
 | **Resource Usage** | Build every time | Build once, use many times |
@@ -184,6 +199,7 @@ This pre-installation happens in the Dockerfile and significantly reduces contai
 Our devcontainer uses two key lifecycle commands optimized for prebuild:
 
 #### `onCreateCommand` (Container Creation)
+
 ```bash
 # Creates Python virtual environment with uv and registers Jupyter kernel
 # Note: The Python path varies by selected variant (3.12/3.13/3.14)
@@ -194,6 +210,7 @@ python -m ipykernel install --user --name=python-venv --display-name='Python (.v
 ```
 
 #### `updateContentCommand` (Content Updates)
+
 ```bash
 # Installs Python packages via uv and configures environment
 source /workspaces/Apim-Samples/.venv/bin/activate &&
@@ -207,6 +224,7 @@ az extension add --name front-door --only-show-errors
 ### When Prebuild is Triggered
 
 Prebuild automatically occurs when you push changes to:
+
 - `.devcontainer/devcontainer.json`
 - `.devcontainer/Dockerfile`
 - `pyproject.toml` (when referenced in `updateContentCommand`)
@@ -246,16 +264,19 @@ You can monitor prebuild status in several ways:
 To refresh the prebuilt container (recommended periodically):
 
 #### Method 1: Trigger via Configuration Change
+
 1. Make a small change to `.devcontainer/devcontainer.json` (e.g., add a comment)
 2. Commit and push the change
 3. GitHub will automatically trigger a new prebuild
 
 #### Method 2: Manual Trigger (if available)
+
 1. Go to your repository's Codespaces settings
 2. Find the prebuild configuration
 3. Click "Trigger prebuild" if the option is available
 
 #### Method 3: Update Dependencies
+
 1. Update `pyproject.toml` with newer package versions or add new dependencies
 2. Commit and push the changes
 3. Prebuild will automatically run with updated dependencies
@@ -272,7 +293,7 @@ To refresh the prebuilt container (recommended periodically):
 ### Prebuild vs Runtime Separation
 
 | Operation | Prebuild Stage | Runtime Stage |
-|-----------|----------------|---------------|
+| --- | --- | --- |
 | Python packages | ✅ Install all | ❌ Verify only |
 | Virtual environment | ✅ Create and configure | ❌ Activate only |
 | Azure CLI extensions | ✅ Install | ❌ Verify only |
@@ -289,12 +310,15 @@ The dev container is configured with a standardized Jupyter kernel for optimal P
 - **Python Path**: `/workspaces/Apim-Samples/.venv/bin/python`
 
 ### Kernel Registration Details
+
 The kernel is automatically registered during the prebuild stage using:
+
 ```bash
 python -m ipykernel install --user --name=python-venv --display-name="Python (.venv)"
 ```
 
 ### VS Code Kernel Configuration
+
 The `devcontainer.json` includes specific Jupyter settings to ensure proper kernel selection:
 
 ```jsonc
@@ -313,8 +337,10 @@ For more details on kernel configuration in VS Code, see: [VS Code Issue #130946
 ### Common Issues and Solutions
 
 #### Virtual Environment Not Found
+
 **Symptom**: Error about missing virtual environment
 **Solution**: The virtual environment should be created during prebuild. If missing:
+
 ```bash
 python3.12 -m venv /workspaces/Apim-Samples/.venv
 source /workspaces/Apim-Samples/.venv/bin/activate
@@ -322,28 +348,35 @@ uv sync
 ```
 
 #### Azure CLI Extensions Missing
+
 **Symptom**: Commands fail with extension not found
 **Solution**: Extensions should install during prebuild. If missing:
+
 ```bash
 az extension add --name containerapp
 az extension add --name front-door
 ```
 
 #### Jupyter Kernel Not Available
+
 **Symptom**: Kernel not visible in VS Code
 **Solution**: Re-register the kernel:
+
 ```bash
 python -m ipykernel install --user --name=python-venv --display-name="Python (.venv)"
 ```
 
 #### Environment Variables Not Set
+
 **Symptom**: Import errors or path issues
 **Solution**: Regenerate the `.env` file:
+
 ```bash
 python setup/local_setup.py --generate-env
 ```
 
 ### Debug Commands
+
 Useful commands for troubleshooting:
 
 ```bash
@@ -370,17 +403,21 @@ cat .env
 ## 📊 Performance Notes
 
 ### Typical Timing
+
 - **First Build**: ~5-10 minutes (includes all prebuild operations)
 - **Subsequent Startups**: ~10-30 seconds (verification only)
 - **Content Updates**: ~2-5 minutes (package updates during prebuild)
 
 ### Monitoring Setup Progress
+
 The post-start script provides real-time feedback:
+
 - **Terminal Output**: Keep the initial terminal open to see progress
 - **Status Messages**: Clear indicators for each verification step
 - **Error Handling**: Detailed messages for any issues encountered
 
 ### Best Practices
+
 1. **Keep Initial Terminal Open**: Shows verification progress and status
 2. **Wait for Completion**: Let the verification finish before starting work
 3. **Check Status Messages**: Review any warnings or errors reported
@@ -390,6 +427,7 @@ The post-start script provides real-time feedback:
 ### Prebuild Refresh Recommendations
 
 **When to refresh prebuilds**:
+
 - Monthly maintenance (keep dependencies current)
 - After major Python package updates
 - When Azure CLI or extensions have significant updates
@@ -397,6 +435,7 @@ The post-start script provides real-time feedback:
 - Before important development cycles or team onboarding
 
 **Quick refresh method**:
+
 ```bash
 # Add a comment to trigger prebuild
 # Edit .devcontainer/devcontainer.json and add/update a comment, then:
@@ -419,8 +458,6 @@ When modifying the dev container setup:
 ---
 
 *This dev container configuration is optimized for Azure API Management samples development with fast startup times and comprehensive tooling support.*
-
-
 
 [github-codespaces]: https://github.com/codespaces
 [vscode-issue-130946]: https://github.com/microsoft/vscode/issues/130946#issuecomment-1899389049

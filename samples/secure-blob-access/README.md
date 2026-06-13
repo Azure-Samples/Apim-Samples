@@ -15,21 +15,20 @@ This sample demonstrates implementing the **valet key pattern** with Azure API M
 
 ## 📝 Scenario
 
-This sample demonstrates how a Human Resources (HR) application or user can securely gain access to an HR file. The authentication and authorization between the application or the user is with APIM. Once verified, APIM then uses its own managed identity to verify the blob exists, obtains a user delegation key from Azure Storage, and creates a User Delegation SAS token for direct, secure, time-limited access to the blob. This token is then combined with the URL to the blob before it is returned to the API caller. Once received, the caller can then _directly_ access the blob on storage. 
+This sample demonstrates how a Human Resources (HR) application or user can securely gain access to an HR file. The authentication and authorization between the application or the user is with APIM. Once verified, APIM then uses its own managed identity to verify the blob exists, obtains a user delegation key from Azure Storage, and creates a User Delegation SAS token for direct, secure, time-limited access to the blob. This token is then combined with the URL to the blob before it is returned to the API caller. Once received, the caller can then *directly* access the blob on storage.
 
-This is an implementation of the valet key pattern, which ensures that APIM is not used as the download (or upload) conduit of the blob, which could potentially be quite large. Instead, APIM is used very appropriately for facilitating means of secure access to the resource only. 
+This is an implementation of the valet key pattern, which ensures that APIM is not used as the download (or upload) conduit of the blob, which could potentially be quite large. Instead, APIM is used very appropriately for facilitating means of secure access to the resource only.
 
-This sample builds upon knowledge gained from the _AuthX_ and _AuthX-Pro_ samples. 
+This sample builds upon knowledge gained from the *AuthX* and *AuthX-Pro* samples.
 
 ## 🛩️ Lab Components
 
 This lab sets up:
+
 - A simple Azure Storage account with LRS redundancy and shared key access disabled
 - A blob container with a sample text file
 - APIM managed identity with Storage Blob Data Reader and Storage Blob Delegator permissions
 - An API that generates User Delegation SAS tokens for secure blob access URLs using the valet key pattern
 - Sample files: a text file for testing
-
-
 
 [valet-key-pattern]: https://learn.microsoft.com/azure/architecture/patterns/valet-key
