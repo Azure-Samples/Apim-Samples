@@ -1195,6 +1195,11 @@ class AppGwApimInfrastructure(AppGatewayInfrastructure):
 # ------------------------------
 
 
+def _is_apim_service_not_found(output_text: str) -> bool:
+    """Return whether Azure reports that an APIM service does not exist."""
+    return 'servicenotfound' in output_text.casefold()
+
+
 def _cleanup_single_resource(resource: dict) -> tuple[bool, str]:
     """
     Delete and purge a single Azure resource (worker function for parallel cleanup).
@@ -1229,15 +1234,24 @@ def _cleanup_single_resource(resource: dict) -> tuple[bool, str]:
         else:
             return False, f'Unknown resource type: {resource_type}'
 
-        # Execute delete
-        output = az.run(delete_cmd, f"{resource_type} '{resource_name}' deleted", f"Failed to delete {resource_type} '{resource_name}'")
-        if not output.success:
+        # APIM cleanup is idempotent: a missing live service may still have a soft-deleted service to purge.
+        delete_error_message = '' if resource_type == 'apim' else f"Failed to delete {resource_type} '{resource_name}'"
+        delete_retries = 0 if resource_type == 'apim' else 1
+        output = az.run(delete_cmd, f"{resource_type} '{resource_name}' deleted", delete_error_message, retries=delete_retries)
+        apim_service_missing = resource_type == 'apim' and _is_apim_service_not_found(output.text)
+        if not output.success and not apim_service_missing:
             return False, f'Delete failed for {resource_name}'
+        if apim_service_missing:
+            print_info(f"APIM service '{resource_name}' does not exist; checking for a soft-deleted service to purge.")
 
-        # Execute purge
-        output = az.run(purge_cmd, f"{resource_type} '{resource_name}' purged", f"Failed to purge {resource_type} '{resource_name}'")
-        if not output.success:
+        purge_error_message = '' if resource_type == 'apim' else f"Failed to purge {resource_type} '{resource_name}'"
+        purge_retries = 0 if resource_type == 'apim' else 1
+        output = az.run(purge_cmd, f"{resource_type} '{resource_name}' purged", purge_error_message, retries=purge_retries)
+        apim_deleted_service_missing = resource_type == 'apim' and _is_apim_service_not_found(output.text)
+        if not output.success and not apim_deleted_service_missing:
             return False, f'Purge failed for {resource_name}'
+        if apim_deleted_service_missing:
+            print_info(f"Soft-deleted APIM service '{resource_name}' does not exist; nothing to purge.")
 
         return True, ''
 

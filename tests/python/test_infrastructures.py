@@ -2016,7 +2016,7 @@ def test_infrastructure_concrete_class_sku_inheritance():
 def test_cleanup_single_resource_exception_handling(monkeypatch):
     """Test _cleanup_single_resource exception handling."""
 
-    def mock_run(command, ok_message=None, error_message=None):
+    def mock_run(command, ok_message=None, error_message=None, **kwargs):
         raise RuntimeError('Test exception')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
@@ -4486,6 +4486,52 @@ def test_cleanup_single_resource_purge_failure(mock_utils, mock_az):
     ]
 
     success, error_msg = infrastructures._cleanup_single_resource({'type': 'keyvault', 'name': 'test-kv', 'location': 'eastus', 'rg_name': 'test-rg'})
+
+    assert success is False
+    assert 'Purge failed' in error_msg
+
+
+@pytest.mark.unit
+def test_cleanup_single_resource_apim_missing_live_service_still_purges(mock_utils, mock_az):
+    """Test APIM cleanup checks for a soft-deleted service when the live service is absent."""
+    mock_az.run.side_effect = [
+        Output(False, '(ServiceNotFound) Api service does not exist: test-apim'),
+        Output(True, ''),
+    ]
+
+    success, error_msg = infrastructures._cleanup_single_resource(
+        {'type': 'apim', 'name': 'test-apim', 'location': 'eastus', 'rg_name': 'test-rg'}
+    )
+
+    assert success is True
+    assert not error_msg
+    assert mock_az.run.call_count == 2
+    assert 'az apim deletedservice purge' in mock_az.run.call_args_list[1].args[0]
+
+
+@pytest.mark.unit
+def test_cleanup_single_resource_apim_missing_live_and_deleted_services_succeeds(mock_utils, mock_az):
+    """Test APIM cleanup succeeds when neither the live nor soft-deleted service exists."""
+    service_not_found = '(ServiceNotFound) Api service does not exist: test-apim'
+    mock_az.run.side_effect = [Output(False, service_not_found), Output(False, service_not_found)]
+
+    success, error_msg = infrastructures._cleanup_single_resource(
+        {'type': 'apim', 'name': 'test-apim', 'location': 'eastus', 'rg_name': 'test-rg'}
+    )
+
+    assert success is True
+    assert not error_msg
+    assert mock_az.run.call_count == 2
+
+
+@pytest.mark.unit
+def test_cleanup_single_resource_apim_other_purge_failure_fails(mock_utils, mock_az):
+    """Test APIM cleanup preserves purge failures unrelated to a missing service."""
+    mock_az.run.side_effect = [Output(True, ''), Output(False, '(AuthorizationFailed) Access denied')]
+
+    success, error_msg = infrastructures._cleanup_single_resource(
+        {'type': 'apim', 'name': 'test-apim', 'location': 'eastus', 'rg_name': 'test-rg'}
+    )
 
     assert success is False
     assert 'Purge failed' in error_msg
