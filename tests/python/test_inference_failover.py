@@ -12,6 +12,7 @@ BICEP_PATH = SAMPLE_PATH / 'main.bicep'
 DIAGNOSTICS_BICEP_PATH = Path(__file__).resolve().parents[2] / 'shared' / 'bicep' / 'modules' / 'apim' / 'v1' / 'diagnostics.bicep'
 NOTEBOOK_PATH = SAMPLE_PATH / 'create.ipynb'
 POLICY_PATH = SAMPLE_PATH / 'apim-policies' / 'inference-api-policy.xml'
+RETRY_TRACKED_POLICY_PATH = SAMPLE_PATH / 'apim-policies' / 'inference-api-policy-with-retry-tracked.xml'
 README_PATH = SAMPLE_PATH / 'README.md'
 WORKBOOK_PATH = SAMPLE_PATH / 'inference-failover.workbook.json'
 WORKBOOK_UPDATE_PATH = SAMPLE_PATH / 'update-workbook.ps1'
@@ -267,11 +268,15 @@ def test_inference_policies_use_managed_identity_retries_and_generic_terminal_er
     assert [policy.tag for policy in backend] == ['retry']
     retry = backend.find('retry')
     assert retry is not None
+    outbound_retry_header = policy_root.find("outbound/set-header[@name='X-Backend-Retry']")
+    terminal_response = policy_root.find('outbound/choose/when/return-response')
+    transport_response = policy_root.find('on-error/choose/when/return-response')
     retry_condition = retry.attrib['condition']
     terminal_condition = policy_root.find('outbound/choose/when').attrib['condition']
-    on_error_conditions = [branch.attrib['condition'] for branch in policy_root.findall('on-error/choose/when')]
-    capacity_condition = next(condition for condition in on_error_conditions if 'updatedRetryEpoch' in condition)
-    generic_failure_condition = next(condition for condition in on_error_conditions if 'BackendConnectionFailure' in condition)
+    generic_failure_condition = policy_root.find('on-error/choose/when').attrib['condition']
+    assert outbound_retry_header is not None
+    assert terminal_response is not None
+    assert transport_response is not None
     assert 'count="RETRY_COUNT"' in api_policy
     assert 'api-key' not in api_policy
     assert all(f'StatusCode == {status_code}' in retry_condition for status_code in (408, 409, 429, 499, 500, 502, 503, 504))
@@ -279,11 +284,9 @@ def test_inference_policies_use_managed_identity_retries_and_generic_terminal_er
     assert all(f'StatusCode == {status_code}' in terminal_condition for status_code in (500, 502, 503, 504))
     assert all(f'StatusCode == {status_code}' not in terminal_condition for status_code in (408, 409, 429, 499))
     assert 'context.Response == null' in retry_condition
-    assert all(f'StatusCode == {status_code}' in generic_failure_condition for status_code in (500, 502, 503, 504))
     assert 'BackendConnectionFailure' in generic_failure_condition
     assert 'Timeout' in generic_failure_condition
     assert 'ClientConnectionFailure' not in generic_failure_condition
-    assert all(f'StatusCode == {status_code}' in capacity_condition for status_code in (429, 503))
     assert retry.attrib['interval'] == '0'
     assert 'interval="1"' not in api_policy
     assert 'buffer-request-body="true"' in api_policy
@@ -298,64 +301,78 @@ def test_inference_policies_use_managed_identity_retries_and_generic_terminal_er
     assert 'InferenceGatewayResponse' not in api_policy
     assert api_policy.count('<trace source="InferenceFailover"') == 1
     assert '<metadata ' not in api_policy
-    assert api_policy.count('<set-header name="X-Backend-Retry" exists-action="override">') == 2
     assert api_policy.count('<set-variable name="backendRetry"') == 2
-    assert api_policy.count('@((string)context.Variables["backendRetry"])') == 2
+    assert terminal_response.find("set-header[@name='X-Backend-Retry']") is None
+    transport_retry_header = transport_response.find("set-header[@name='X-Backend-Retry']")
+    assert transport_retry_header is not None
+    assert transport_retry_header.findtext('value') == '@((string)context.Variables["backendRetry"])'
     assert '<set-variable name="willRetry"' not in api_policy
+    assert 'cache-lookup-value' not in api_policy
+    assert 'cache-store-value' not in api_policy
+    assert 'updatedRetryEpoch' not in api_policy
+    assert 'retryAfterSeconds' not in api_policy
+    assert 'Inference capacity is temporarily unavailable.' not in api_policy
     assert api_policy.index('name="backendAttempt"') < api_policy.index('<authentication-managed-identity')
     assert not (SAMPLE_PATH / 'inference-api-policy.xml').exists()
 
 
-def test_inference_policy_tracks_soonest_retry_after_and_returns_capacity_from_on_error() -> None:
-    """Keep exhausted capacity responses aligned with the earliest backend recovery time."""
-    api_policy = POLICY_PATH.read_text(encoding='utf-8')
+def test_inference_retry_tracked_policy_requires_all_backends_and_finalizes_in_outbound() -> None:
+    """Keep the optional tracked route strict and outside the APIM on-error path."""
+    api_policy = RETRY_TRACKED_POLICY_PATH.read_text(encoding='utf-8')
     policy_root = ElementTree.fromstring(api_policy)
     retry = policy_root.find('backend/retry')
+    outbound = policy_root.find('outbound')
     on_error = policy_root.find('on-error')
 
     assert retry is not None
+    assert outbound is not None
     assert on_error is not None
     retry_tracking_condition = retry.find('choose/when').attrib['condition']
-    capacity_branch = next(branch for branch in on_error.findall('choose/when') if 'updatedRetryEpoch' in branch.attrib['condition'])
-    response_branch = next(branch for branch in on_error.findall('choose/when') if 'terminalStatus' in branch.attrib['condition'])
+    capacity_branch, infrastructure_branch = outbound.findall('choose/when')
 
-    assert all(f'StatusCode == {status_code}' in retry_tracking_condition for status_code in (429, 503))
-    assert 'Headers.ContainsKey("Retry-After")' in retry_tracking_condition
+    assert 'StatusCode == 429' in retry_tracking_condition
+    assert 'StatusCode == 503' not in retry_tracking_condition
+    assert 'Headers.ContainsKey("Retry-After")' in api_policy
     assert api_policy.count('key="inference-retry-min-BACKEND_POOL_ID"') == 2
+    assert 'currentEpoch &gt; nowEpoch &amp;&amp; currentEpoch &lt; candidateEpoch' in api_policy
     assert 'cachedEpoch &gt; nowEpoch &amp;&amp; cachedEpoch &lt; candidateEpoch' in api_policy
     assert 'parsedEpoch &lt;= nowEpoch' in api_policy
     assert 'Math.Max(0L, parsedEpoch - nowEpoch) + 1L' in api_policy
-    assert capacity_branch.find("set-variable[@name='terminalStatus']").attrib['value'] == '@(429)'
-    assert response_branch.find('set-status').attrib == {
-        'code': '@((int)context.Variables["terminalStatus"])',
-        'reason': '@((int)context.Variables["terminalStatus"] == 429 ? "Too Many Requests" : "Inference Service Unavailable")',
-    }
-    assert on_error.findall('.//return-response') == []
+    assert 'context.Response.StatusCode == 429' in capacity_branch.attrib['condition']
+    assert 'backendAttempt", 0) == BACKEND_COUNT' in capacity_branch.attrib['condition']
+    assert 'backend429Attempt", 0) == BACKEND_COUNT' in capacity_branch.attrib['condition']
+    assert capacity_branch.find('return-response/set-status').attrib == {'code': '429', 'reason': 'Too Many Requests'}
+    assert all(f'StatusCode == {status_code}' in infrastructure_branch.attrib['condition'] for status_code in (500, 502, 503, 504))
+    assert infrastructure_branch.find('return-response/set-status').attrib == {'code': '503', 'reason': 'Inference Service Unavailable'}
+    for branch in (capacity_branch, infrastructure_branch):
+        retry_header = branch.find("return-response/set-header[@name='X-Backend-Retry']")
+        assert retry_header is not None
+        assert retry_header.findtext('value') == '@((string)context.Variables["backendRetry"])'
     assert on_error.findall('.//trace') == []
     assert len(on_error.findall('.//set-status')) == 1
     assert len(on_error.findall(".//set-header[@name='X-Backend-Retry']")) == 1
     assert len(on_error.findall(".//set-header[@name='Content-Type']")) == 1
     assert len(on_error.findall('.//set-body')) == 1
-    retry_after_header = response_branch.find("choose/when/set-header[@name='Retry-After']")
+    retry_after_header = capacity_branch.find("return-response/set-header[@name='Retry-After']")
     assert retry_after_header is not None
     assert retry_after_header.find('value') is not None
     assert 'Inference capacity is temporarily unavailable.' in api_policy
     assert 'GetValueOrDefault&lt;int&gt;("backendAttempt", 0)' in api_policy
-    assert 'capacityRetryAfterObserved' not in api_policy
-    assert 'context.Variables.ContainsKey("updatedRetryEpoch")' in api_policy
-    assert 'terminalReason' not in api_policy
-    assert 'terminalBody' not in api_policy
-    assert 'terminalEvent' not in api_policy
+    assert 'GetValueOrDefault&lt;int&gt;("backend429Attempt", 0)' in api_policy
+    assert 'context.LastError.Reason == "BackendConnectionFailure"' in api_policy
+    assert 'context.LastError.Reason == "Timeout"' in api_policy
+    assert 'context.Response.StatusCode == 429' not in on_error.find('choose/when').attrib['condition']
     assert '&quot;' not in api_policy
 
 
 def test_inference_policy_uses_exact_managed_identity_resource() -> None:
     """Require the exact Cognitive Services resource in the parsed policy structure."""
-    policy_root = ElementTree.fromstring(POLICY_PATH.read_text(encoding='utf-8'))
-    managed_identity = policy_root.find('inbound/authentication-managed-identity')
+    for policy_path in (POLICY_PATH, RETRY_TRACKED_POLICY_PATH):
+        policy_root = ElementTree.fromstring(policy_path.read_text(encoding='utf-8'))
+        managed_identity = policy_root.find('inbound/authentication-managed-identity')
 
-    assert managed_identity is not None
-    assert managed_identity.attrib['resource'] == 'https://cognitiveservices.azure.com'
+        assert managed_identity is not None
+        assert managed_identity.attrib['resource'] == 'https://cognitiveservices.azure.com'
 
 
 def test_inference_policy_decisions_cover_every_documented_status() -> None:
@@ -401,11 +418,11 @@ def test_inference_readme_documents_exact_response_handling_matrix() -> None:
         '| 404 | No | No | 404 | Config | Medium | Return unchanged; correct the backend URL or deployment name. |',
         ('| 408 | Yes | Yes | 200 or 408 | Timeout | Medium | Retry another backend; return the explicit HTTP timeout if the fallback chain is exhausted. |'),
         '| 409 | No | Sometimes | 200 or 409 | Conflict | Medium | Retry only when `Retry-After` marks the conflict as transient. |',
-        ('| 429 | Yes | Yes | 200 or 429 | Capacity | Medium | Retry another eligible backend; return exhausted capacity with the soonest `Retry-After`. |'),
+        ('| 429 | Yes | Yes | 200 or 429 | Capacity | Medium | Retry another eligible backend; return the final `429` unchanged if all fallbacks are exhausted. |'),
         ('| 499 | Yes | Yes | 200 or 499 | Custom | Medium | Retry another backend when PTU exhaustion is represented by a transformed `408`. |'),
         '| 500 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |',
         '| 502 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |',
-        ('| 503 | Yes | Yes | 200, 429, or 503 | Infra | High | Retry another backend; return `429` when `Retry-After` identifies capacity, otherwise normalize exhaustion to `503`. |'),
+        '| 503 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |',
         '| 504 | Yes | Yes | 200 or 503 | Infra | High | Retry another eligible backend; normalize an exhausted chain to `503`. |',
         ('| null | No | Yes | 200 or 503 | Transport | High | Retry after no backend response; normalize handled transport failures to `503`. |'),
     ]
@@ -418,6 +435,8 @@ def test_inference_readme_documents_exact_response_handling_matrix() -> None:
     assert '`409` without `Retry-After`' in readme
     assert '`409` with `Retry-After`' in readme
     assert '`curl --max-time 1`' in readme
+    assert '`POST /inference/gpt-5-1-retry-tracked/chat/completions`' in readme
+    assert 'returns a rewritten `429` only when all five gpt-5.1 backends return `429`' in readme
 
 
 def test_inference_readme_defines_load_balancer_source_of_truth() -> None:
@@ -526,6 +545,15 @@ def test_inference_notebook_is_clean_and_defaults_to_simple_apim() -> None:
     assert 'enable_event_hub_export = False' in code_source
     assert "'enableEventHubExport': {'value': enable_event_hub_export}" in code_source
     assert "output.get('eventHubNamespaceId', 'Event Hubs namespace ID')" in code_source
+    retry_tracked_cells = [''.join(cell['source']) for cell in code_cells if 'inference-gpt-5-1-retry-tracked' in ''.join(cell['source'])]
+    assert len(retry_tracked_cells) == 1
+    assert "utils.read_policy_xml(\n    'inference-api-policy-with-retry-tracked.xml'" in retry_tracked_cells[0]
+    assert "'inference-gpt-5-1-pool',\n        4,\n        backend_count=5" in retry_tracked_cells[0]
+    assert 'gpt_5_1_retry_tracked_api' in retry_tracked_cells[0]
+    non_deployment_source = code_source.replace(retry_tracked_cells[0], '')
+    assert 'inference-gpt-5-1-retry-tracked' not in non_deployment_source
+    assert "required_api_names = ['inference-gpt-5-1', 'inference-gpt-4-1-mini']" in non_deployment_source
+    assert "let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-4-1-mini'])" in non_deployment_source
     assert "importlib.import_module('inference_failover_helpers')" in code_source
     assert "utils.enable_module_autoreload('inference_failover_helpers')" in code_source
     assert 'inference_failover_helpers.InferenceTrafficRunner(' in code_source

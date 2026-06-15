@@ -80,7 +80,7 @@ def test_run_scenario_normalizes_success_and_preserves_model_response():
 def test_run_scenario_keeps_error_body_and_skips_final_sleep():
     responses = [
         _response(429, headers={'X-Backend-Retry': '1'}, text='limited'),
-        _response(503, headers={'X-Backend-Retry': '2'}, text='unavailable'),
+        _response(503, headers={'Content-Type': 'application/json'}, text='unavailable'),
     ]
     sleep = MagicMock()
     clock = MagicMock(side_effect=[1.0, 1.1, 2.0, 2.2])
@@ -90,6 +90,7 @@ def test_run_scenario_keeps_error_body_and_skips_final_sleep():
     results = runner.run_scenario(scenario)
 
     assert [result['response'] for result in results] == ['limited', 'unavailable']
+    assert [result['backend_retry'] for result in results] == [1, None]
     sleep.assert_called_once_with(1.5)
 
 
@@ -107,6 +108,7 @@ def test_run_scenario_rejects_invalid_configuration(runs, sleep_ms, message):
 def test_retry_and_status_validation_reject_malformed_responses():
     with pytest.raises(ValueError, match='missing'):
         parse_backend_retry(_response(headers={'Other': 'value'}))
+    assert parse_backend_retry(_response(503, headers={'Other': 'value'}), required=False) is None
     with pytest.raises(ValueError, match='Invalid X-Backend-Retry'):
         parse_backend_retry(_response(headers={'X-Backend-Retry': 'later'}))
     with pytest.raises(ValueError, match='negative'):
@@ -187,7 +189,7 @@ def test_summary_and_backend_formatting_cover_success_errors_and_unknown_urls():
     results = [
         {'status_code': 200, 'backend_retry': 0, 'backend_url': 'https://backend-a'},
         {'status_code': 429, 'backend_retry': 1, 'backend_url': 'unknown'},
-        {'status_code': 503, 'backend_retry': 2, 'backend_url': 'unknown'},
+        {'status_code': 503, 'backend_retry': None, 'backend_url': 'unknown'},
     ]
 
     summary = summarize_scenario(results)
@@ -196,7 +198,7 @@ def test_summary_and_backend_formatting_cover_success_errors_and_unknown_urls():
     assert summary.client_errors == 1
     assert summary.server_errors == 1
     assert summary.status_code_counts == {200: 1, 429: 1, 503: 1}
-    assert summary.retry_counts == {0: 1, 1: 1, 2: 1}
+    assert summary.retry_counts == {0: 1, 1: 1, None: 1}
     assert summary.served_backend_urls == ['https://backend-a']
     assert get_backend_index('https://backend-a', {'backend-a': 3}) == 3
     assert get_backend_index('https://other', {'backend-a': 3}) == 99
@@ -345,6 +347,19 @@ def test_build_scenario_report_row_reports_failover_retries_and_terminal_503():
     assert 'no resolved backend' in observations
     assert 'HTTP 503 responses' in observations
     assert 'APIM prevented 80.0%' in observations
+
+
+@pytest.mark.unit
+def test_build_scenario_report_row_marks_missing_5xx_retry_metadata_unknown():
+    results = [{'status_code': 503, 'backend_retry': None, 'backend_url': 'unknown'}]
+
+    row = build_scenario_report_row('A-3', 'Infrastructure Exhausted', results, {}, {})
+
+    assert row[6] == HtmlText('Unknown: 1 (100.0%)', preserve_line_breaks=True)
+    observations = '\n'.join(row[8].items)
+    assert 'retry metadata was unavailable' in observations
+    assert 'did not expose X-Backend-Retry' in observations
+    assert 'APIM prevented' not in observations
 
 
 @pytest.mark.unit

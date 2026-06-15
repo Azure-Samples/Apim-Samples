@@ -52,7 +52,7 @@ class InferenceScenarioSummary:
     server_errors: int
     status_code_counts: dict[int, int]
     served_backend_urls: list[str]
-    retry_counts: dict[int, int]
+    retry_counts: dict[int | None, int]
 
 
 @dataclass(frozen=True)
@@ -154,9 +154,10 @@ class InferenceTrafficRunner:
             )
             response_time = self._clock() - started_at
             backend_url = response.headers.get('X-Backend-URL', 'unknown')
-            backend_retry = parse_backend_retry(response)
+            backend_retry = parse_backend_retry(response, required=response.status_code < 500)
             validate_status(response)
-            print_info(f'Run {run_index}/{scenario.runs}: {response.status_code} via {backend_url}; X-Backend-Retry={backend_retry} ({response_time:.2f}s)')
+            backend_retry_label = backend_retry if backend_retry is not None else 'unknown'
+            print_info(f'Run {run_index}/{scenario.runs}: {response.status_code} via {backend_url}; X-Backend-Retry={backend_retry_label} ({response_time:.2f}s)')
             if 400 <= response.status_code < 600:
                 print_info(f'Captured error response body: {response.text}')
 
@@ -203,11 +204,14 @@ def get_backend_index(backend_url: str, backend_url_index: Mapping[str, int]) ->
     return next((backend_index for marker, backend_index in backend_url_index.items() if marker in backend_url), 99)
 
 
-def parse_backend_retry(response: http_requests.Response) -> int:
-    """Parse and validate the required caller-visible retry count."""
+def parse_backend_retry(response: http_requests.Response, *, required: bool = True) -> int | None:
+    """Parse a caller-visible retry count, optionally allowing missing metadata."""
     retry_header = response.headers.get('X-Backend-Retry')
     if retry_header is None:
-        raise ValueError('Required X-Backend-Retry response header is missing.')
+        if required:
+            raise ValueError('Required X-Backend-Retry response header is missing.')
+
+        return None
 
     try:
         backend_retry = int(retry_header)
@@ -231,7 +235,7 @@ def validate_status(response: http_requests.Response) -> None:
 def summarize_scenario(results: list[dict[str, Any]]) -> InferenceScenarioSummary:
     """Summarize status, retry, and successful backend outcomes."""
     status_code_counts: dict[int, int] = {}
-    retry_counts: dict[int, int] = {}
+    retry_counts: dict[int | None, int] = {}
     for result in results:
         status_code = result['status_code']
         backend_retry = result['backend_retry']
@@ -244,7 +248,7 @@ def summarize_scenario(results: list[dict[str, Any]]) -> InferenceScenarioSummar
         server_errors=sum(1 for result in results if 500 <= result['status_code'] < 600),
         status_code_counts=dict(sorted(status_code_counts.items())),
         served_backend_urls=sorted({result['backend_url'] for result in results if result['status_code'] == 200 and result['backend_url'] != 'unknown'}),
-        retry_counts=dict(sorted(retry_counts.items())),
+        retry_counts=dict(sorted(retry_counts.items(), key=lambda item: (item[0] is None, item[0] if item[0] is not None else 0))),
     )
 
 
@@ -330,6 +334,8 @@ def build_scenario_report_row(
 
     status_counts = Counter(result['status_code'] for result in api_results)
     retry_counts = Counter(result['backend_retry'] for result in api_results)
+    unknown_retry_count = retry_counts.get(None, 0)
+    known_retry_counts = {retry_count: count for retry_count, count in retry_counts.items() if retry_count is not None}
     backend_indexes = [get_backend_index(result['backend_url'], backend_url_index) for result in api_results]
     priority_weight_counts = Counter(get_priority_and_weight(index, backend_labels) for index in backend_indexes if index in backend_labels)
     priority_counts: Counter = Counter()
@@ -342,13 +348,16 @@ def build_scenario_report_row(
     routed_beyond_primary = sum(count for priority, count in priority_counts.items() if priority > 1)
     non_200_responses = total_requests - status_counts.get(200, 0)
     caller_succeeded = not non_200_responses
-    retried_requests = sum(count for retry_count, count in retry_counts.items() if retry_count > 0)
-    backend_retries_absorbed = sum(retry_count * count for retry_count, count in retry_counts.items())
+    retried_requests = sum(count for retry_count, count in known_retry_counts.items() if retry_count > 0)
+    backend_retries_absorbed = sum(retry_count * count for retry_count, count in known_retry_counts.items())
     caller_visible_failures = non_200_responses
     observed_backend_failures = backend_retries_absorbed + caller_visible_failures
     terminal_503_responses = status_counts.get(503, 0)
     priority_mix = '\n'.join(f'P{priority}: {", ".join(weight_mix)}' for priority, weight_mix in sorted(weights_by_priority.items()))
-    retry_mix = '\n'.join(f'{retry_count}: {count} ({count / total_requests:.1%})' for retry_count, count in sorted(retry_counts.items()) if retry_count > 0) or 'None'
+    retry_mix_lines = [f'{retry_count}: {count} ({count / total_requests:.1%})' for retry_count, count in sorted(known_retry_counts.items()) if retry_count > 0]
+    if unknown_retry_count:
+        retry_mix_lines.append(f'Unknown: {unknown_retry_count} ({unknown_retry_count / total_requests:.1%})')
+    retry_mix = '\n'.join(retry_mix_lines) or 'None'
     if unresolved_requests:
         unresolved_mix = f'No resolved backend: {unresolved_requests} ({unresolved_requests / total_requests:.1%})'
         priority_mix = f'{priority_mix}\n{unresolved_mix}' if priority_mix else unresolved_mix
@@ -358,8 +367,10 @@ def build_scenario_report_row(
         observations.append(f'{non_200_responses}/{total_requests} ({non_200_responses / total_requests:.1%}) caller-visible non-200 responses')
     else:
         observations.append('All requests returned HTTP 200')
-    if backend_retries_absorbed:
+    if retried_requests:
         observations.append(f'{retried_requests}/{total_requests} returned after a retry')
+    elif unknown_retry_count:
+        observations.append('retry metadata was unavailable for one or more 5xx responses')
     else:
         observations.append('all responses returned without a backend retry')
     if routed_beyond_primary:
@@ -370,11 +381,14 @@ def build_scenario_report_row(
         observations.append(f'Deepest routed tier: P{max(priority_counts)}')
     if unresolved_requests:
         observations.append(f'{unresolved_requests} calls returned no resolved backend, consistent with exhausted or rejected routing')
-    observations.append(f'APIM absorbed {backend_retries_absorbed} backend failures and sent {caller_visible_failures} failures to callers')
-    if observed_backend_failures:
+    if unknown_retry_count:
+        observations.append(f'APIM reported {backend_retries_absorbed} confirmed backend retries; {unknown_retry_count} responses did not expose X-Backend-Retry')
+    else:
+        observations.append(f'APIM absorbed {backend_retries_absorbed} backend failures and sent {caller_visible_failures} failures to callers')
+    if observed_backend_failures and not unknown_retry_count:
         shielded_percentage = backend_retries_absorbed / observed_backend_failures * 100
         observations.append(f'APIM prevented {shielded_percentage:.1f}% of observed failed backend attempts from reaching callers')
-    else:
+    elif not unknown_retry_count:
         observations.append('APIM shielding percentage is not applicable because no backend failures occurred')
     if terminal_503_responses:
         observations.append(f'{terminal_503_responses} caller-visible HTTP 503 responses followed eligible-capacity exhaustion in the low-TPM pool')

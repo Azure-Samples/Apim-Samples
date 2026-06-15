@@ -1,0 +1,155 @@
+<!--
+    Inference API policy template with absolute-time Retry-After tracking.
+
+    The notebook replaces BACKEND_POOL_ID, BACKEND_COUNT, and RETRY_COUNT. This optional policy
+    demonstrates the same tracked-recovery pattern as the load-balancing sample without adding it
+    to the inference traffic or verification scenarios.
+
+    Every backend response is counted. The policy returns a terminal 429 only when all configured
+    backends returned 429 during the current retry chain. Mixed capacity and infrastructure failures
+    are normalized to 503. The earliest future Retry-After instant is retained in the APIM cache so
+    repeated calls receive a decreasing relative delay.
+-->
+<policies>
+    <inbound>
+        <base />
+
+        <set-variable name="backendAttempt" value='@(0)' />
+        <set-variable name="backend429Attempt" value='@(0)' />
+        <set-backend-service backend-id="BACKEND_POOL_ID" />
+
+        <authentication-managed-identity resource="https://cognitiveservices.azure.com" output-token-variable-name="managed-id-access-token" ignore-error="false" />
+        <set-header name="Authorization" exists-action="override">
+            <value>@("Bearer " + (string)context.Variables["managed-id-access-token"])</value>
+        </set-header>
+
+        <set-header name="x-ms-client-request-id" exists-action="override">
+            <value>@(context.RequestId.ToString())</value>
+        </set-header>
+        <set-query-parameter name="api-version" exists-action="skip">
+            <value>2024-10-21</value>
+        </set-query-parameter>
+    </inbound>
+    <backend>
+        <!-- Retry immediately and let the backend pool's circuit breakers control backend selection. -->
+        <retry count="RETRY_COUNT" interval="0" first-fast-retry="true" condition='@(context.Response == null || context.Response.StatusCode == 408 || (context.Response.StatusCode == 409 &amp;&amp; context.Response.Headers.ContainsKey("Retry-After")) || context.Response.StatusCode == 429 || context.Response.StatusCode == 499 || context.Response.StatusCode == 500 || context.Response.StatusCode == 502 || context.Response.StatusCode == 503 || context.Response.StatusCode == 504)'>
+            <set-variable name="backendAttempt" value='@(((int)context.Variables["backendAttempt"]) + 1)' />
+
+            <forward-request buffer-request-body="true" />
+
+            <!-- Count exact 429 responses and retain the earliest parseable recovery instant. -->
+            <choose>
+                <when condition='@(context.Response != null &amp;&amp; context.Response.StatusCode == 429)'>
+                    <set-variable name="backend429Attempt" value='@(((int)context.Variables["backend429Attempt"]) + 1)' />
+
+                    <choose>
+                        <when condition='@(context.Response.Headers.ContainsKey("Retry-After"))'>
+                            <cache-lookup-value key="inference-retry-min-BACKEND_POOL_ID" variable-name="cachedRetryEpoch" />
+
+                            <set-variable name="updatedRetryEpoch" value='@{
+                                int seconds;
+                                var retryAfter = context.Response.Headers.GetValueOrDefault("Retry-After", "0");
+                                if (!int.TryParse(retryAfter, out seconds) || seconds &lt;= 0) {
+                                    return context.Variables.GetValueOrDefault&lt;string&gt;("updatedRetryEpoch", "0");
+                                }
+
+                                var nowEpoch = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                                var candidateEpoch = nowEpoch + seconds;
+                                long currentEpoch;
+                                long cachedEpoch;
+                                var current = context.Variables.GetValueOrDefault&lt;string&gt;("updatedRetryEpoch", "0");
+                                var cached = context.Variables.GetValueOrDefault&lt;string&gt;("cachedRetryEpoch", "0");
+
+                                if (long.TryParse(current, out currentEpoch) &amp;&amp; currentEpoch &gt; nowEpoch &amp;&amp; currentEpoch &lt; candidateEpoch) {
+                                    candidateEpoch = currentEpoch;
+                                }
+                                if (long.TryParse(cached, out cachedEpoch) &amp;&amp; cachedEpoch &gt; nowEpoch &amp;&amp; cachedEpoch &lt; candidateEpoch) {
+                                    candidateEpoch = cachedEpoch;
+                                }
+
+                                return candidateEpoch.ToString();
+                            }' />
+
+                            <cache-store-value key="inference-retry-min-BACKEND_POOL_ID" value='@((string)context.Variables["updatedRetryEpoch"])' duration="300" />
+                        </when>
+                    </choose>
+                </when>
+            </choose>
+
+            <trace source="InferenceFailover" severity="information">
+                <message>@("InferenceAttempt|n=" + ((int)context.Variables["backendAttempt"]).ToString() + "|code=" + (context.Response == null ? "none" : context.Response.StatusCode.ToString()))</message>
+            </trace>
+        </retry>
+    </backend>
+    <outbound>
+        <set-variable name="backendRetry" value='@(Math.Max(0, ((int)context.Variables["backendAttempt"]) - 1).ToString())' />
+        <set-header name="X-Backend-Retry" exists-action="override">
+            <value>@((string)context.Variables["backendRetry"])</value>
+        </set-header>
+
+        <!-- Ordinary final HTTP responses continue through outbound after retry exhaustion. -->
+        <choose>
+            <when condition='@(context.Response != null &amp;&amp; context.Response.StatusCode == 429 &amp;&amp; context.Variables.GetValueOrDefault&lt;int&gt;("backendAttempt", 0) == BACKEND_COUNT &amp;&amp; context.Variables.GetValueOrDefault&lt;int&gt;("backend429Attempt", 0) == BACKEND_COUNT)'>
+                <set-variable name="retryAfterSeconds" value='@{
+                    var retryEpoch = context.Variables.GetValueOrDefault&lt;string&gt;("updatedRetryEpoch", "0");
+                    long parsedEpoch;
+                    var nowEpoch = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                    if (!long.TryParse(retryEpoch, out parsedEpoch) || parsedEpoch &lt;= nowEpoch) {
+                        return 1L;
+                    }
+
+                    return Math.Max(0L, parsedEpoch - nowEpoch) + 1L;
+                }' />
+
+                <return-response>
+                    <set-status code="429" reason="Too Many Requests" />
+                    <set-header name="Retry-After" exists-action="override">
+                        <value>@(((long)context.Variables["retryAfterSeconds"]).ToString())</value>
+                    </set-header>
+                    <set-header name="X-Backend-Retry" exists-action="override">
+                        <value>@((string)context.Variables["backendRetry"])</value>
+                    </set-header>
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"error":"Inference capacity is temporarily unavailable."}</set-body>
+                </return-response>
+            </when>
+            <when condition='@(context.Response != null &amp;&amp; (context.Response.StatusCode == 500 || context.Response.StatusCode == 502 || context.Response.StatusCode == 503 || context.Response.StatusCode == 504))'>
+                <return-response>
+                    <set-status code="503" reason="Inference Service Unavailable" />
+                    <set-header name="X-Backend-Retry" exists-action="override">
+                        <value>@((string)context.Variables["backendRetry"])</value>
+                    </set-header>
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"error":"Inference service is temporarily unavailable."}</set-body>
+                </return-response>
+            </when>
+        </choose>
+
+        <base />
+    </outbound>
+    <on-error>
+        <set-variable name="backendRetry" value='@(Math.Max(0, context.Variables.GetValueOrDefault&lt;int&gt;("backendAttempt", 0) - 1).ToString())' />
+
+        <!-- Only true APIM processing failures enter on-error; ordinary final HTTP responses are handled in outbound. -->
+        <choose>
+            <when condition='@(context.LastError != null &amp;&amp; (context.LastError.Reason == "BackendConnectionFailure" || context.LastError.Reason == "Timeout"))'>
+                <return-response>
+                    <set-status code="503" reason="Inference Service Unavailable" />
+                    <set-header name="X-Backend-Retry" exists-action="override">
+                        <value>@((string)context.Variables["backendRetry"])</value>
+                    </set-header>
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"error":"Inference service is temporarily unavailable."}</set-body>
+                </return-response>
+            </when>
+        </choose>
+
+        <base />
+    </on-error>
+</policies>
