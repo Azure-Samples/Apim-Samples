@@ -420,7 +420,7 @@ wheels = [
 
 [[package]]
 name = "cyclonedx-python-lib"
-version = "11.9.0"
+version = "11.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "license-expression" },
@@ -429,9 +429,9 @@ dependencies = [
     { name = "sortedcontainers" },
     { name = "typing-extensions", marker = "python_full_version < '3.13'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/33/86/3508db3dade17e1f8cfa289b7dd3df7c2f0401d8cf7ee186042bdb3ab003/cyclonedx_python_lib-11.9.0.tar.gz", hash = "sha256:5d3b54834bbdfa2538b0e7eeda243f43c136d0a324d175fd8d6ec8685ee81f3c", size = 1424867, upload-time = "2026-06-08T07:32:26.945Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a7/54/40d741cb605229cddcf9ec689b0fd401e39e2e70c2fe9cc728923b983b8e/cyclonedx_python_lib-11.10.0.tar.gz", hash = "sha256:d03d6ea271e26feaf123b8b1b34468a305f33a338c5763f56e397a8408f9b290", size = 1429036, upload-time = "2026-06-11T10:36:27.633Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/13/cd/8e671a62b18a946ea4923914030a68297cf3a50ac3bb169facc7b6c0d995/cyclonedx_python_lib-11.9.0-py3-none-any.whl", hash = "sha256:80620df4d11628458b7a17523b3f62be4663779babf51c82fe0ca7a32e3d0633", size = 524883, upload-time = "2026-06-08T07:32:25.094Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/21/01c9b957ec3a778de86e010c1b54ea433ebf2fc50b810a3ca0ce8000782f/cyclonedx_python_lib-11.10.0-py3-none-any.whl", hash = "sha256:ffb9510b8d00a0896cfbe0a78b97c545d28f7d2a54e9d9dd5e5dc6e91ca9b375", size = 527798, upload-time = "2026-06-11T10:36:25.985Z" },
 ]
 
 [[package]]
@@ -484,11 +484,11 @@ wheels = [
 
 [[package]]
 name = "filelock"
-version = "3.29.3"
+version = "3.29.4"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/91/f5/3557bf28e0f1943e4849154c821533706e6dea010f96fb6aa0b6949037d1/filelock-3.29.3.tar.gz", hash = "sha256:7fc1b3f39cf172fd8203812043c57b8a65aef9969f38b6704f628b881f761a84", size = 61956, upload-time = "2026-06-10T17:37:11.832Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e6/dc/be6cbe99670cd6e4ad387123647cb08e0c32975e223f82551e914c5568a6/filelock-3.29.4.tar.gz", hash = "sha256:10cdb3656fc44541cdf30652a93fb10ec6b05325620eb316bd26893e4201538a", size = 63028, upload-time = "2026-06-13T16:12:00.744Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/8f/b61d427c4f49a8bdadc93f4e7e74df8a6df6f77ee6e26bf0df53d3925363/filelock-3.29.3-py3-none-any.whl", hash = "sha256:e58333029cc9b925f39aad59b1d8f0a1ad836af4e60d7217f4a4dba87461261d", size = 42324, upload-time = "2026-06-10T17:37:10.37Z" },
+    { url = "https://files.pythonhosted.org/packages/13/37/a065dc3bd6e49423a6532c642ca7378d3f467b1ef44c2800c937af7f9739/filelock-3.29.4-py3-none-any.whl", hash = "sha256:dac1648087d5115554850d113e7dd8c83ab2d38e3435dde2d4f163847e57b767", size = 42757, upload-time = "2026-06-13T16:11:59.582Z" },
 ]
 
 [[package]]
