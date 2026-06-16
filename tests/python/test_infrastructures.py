@@ -1224,9 +1224,8 @@ def test_cleanup_resources_with_resources(monkeypatch):
     def mock_run(command, ok_message=None, error_message=None, **kwargs):
         run_commands.append(command)
 
-        # Mock deployment show response
-        if 'deployment group show' in command:
-            return Output(success=True, text='{"properties": {"provisioningState": "Succeeded"}}')
+        if 'group exists' in command:
+            return Output(success=True, text='true')
 
         # Mock cognitive services list response
         if 'cognitiveservices account list' in command:
@@ -1251,7 +1250,7 @@ def test_cleanup_resources_with_resources(monkeypatch):
 
     # Verify all expected commands were called
     command_patterns = [
-        'az deployment group show --name test-deployment -g test-rg',
+        'az group exists --name test-rg',
         'az cognitiveservices account list -g test-rg',
         'az cognitiveservices account delete -g test-rg -n cog-service-1',
         'az cognitiveservices account purge -g test-rg -n cog-service-1 --location "eastus"',
@@ -1281,9 +1280,8 @@ def test_cleanup_resources_no_resources(monkeypatch):
     def mock_run(command, ok_message=None, error_message=None, **kwargs):
         run_commands.append(command)
 
-        # Mock deployment show response
-        if 'deployment group show' in command:
-            return Output(success=True, text='{"properties": {"provisioningState": "Succeeded"}}')
+        if 'group exists' in command:
+            return Output(success=True, text='true')
 
         # Mock empty resource lists
         if any(x in command for x in ['cognitiveservices account list', 'apim list', 'keyvault list']):
@@ -1300,7 +1298,7 @@ def test_cleanup_resources_no_resources(monkeypatch):
 
     # Verify only listing and resource group deletion commands were called
     expected_commands = [
-        'az deployment group show --name test-deployment -g test-rg',
+        'az group exists --name test-rg',
         'az cognitiveservices account list -g test-rg',
         'az apim list -g test-rg',
         'az keyvault list -g test-rg',
@@ -1316,22 +1314,23 @@ def test_cleanup_resources_no_resources(monkeypatch):
         assert not any(pattern in cmd for cmd in run_commands), f'Unexpected delete/purge command found: {pattern}'
 
 
-def test_cleanup_resources_command_failures(monkeypatch):
-    """Test _cleanup_resources when commands fail."""
+def test_cleanup_resources_missing_resource_group_is_already_clean(monkeypatch):
+    """Treat a missing resource group as an informational no-op."""
+    run_calls = []
+    info_messages = []
 
     def mock_run(command, ok_message=None, error_message=None, **kwargs):
-        # Mock deployment show failure
-        if 'deployment group show' in command:
-            return Output(success=False, text='Deployment not found')
-
-        # All other commands succeed
-        return Output(success=True, text='[]')
+        run_calls.append((command, kwargs))
+        return Output(success=True, text='false')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_message'])
+    monkeypatch.setattr(infrastructures, 'print_info', info_messages.append)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_message'])
 
-    # Should not raise exception even when deployment show fails
     infrastructures._cleanup_resources('test-deployment', 'test-rg')
+
+    assert run_calls == [('az group exists --name test-rg', {'retries': 0})]
+    assert any('was not found. Nothing to clean up.' in message for message in info_messages)
 
 
 def test_cleanup_resources_exception_handling(monkeypatch):
@@ -1769,9 +1768,8 @@ def test_cleanup_resources_partial_failures(monkeypatch):
     def mock_run(command, ok_message=None, error_message=None, **kwargs):
         run_commands.append(command)
 
-        # Mock deployment show response
-        if 'deployment group show' in command:
-            return Output(success=True, text='{"properties": {"provisioningState": "Failed"}}')
+        if 'group exists' in command:
+            return Output(success=True, text='true')
 
         # Mock resources exist
         if 'cognitiveservices account list' in command:
@@ -1807,7 +1805,7 @@ def test_cleanup_resources_partial_failures(monkeypatch):
 
     # Verify all listing and group operations were attempted
     # Note: With parallel cleanup, if delete fails, purge is not attempted (expected behavior)
-    expected_patterns = ['deployment group show', 'cognitiveservices account list', 'apim list', 'keyvault list', 'group delete']
+    expected_patterns = ['group exists', 'cognitiveservices account list', 'apim list', 'keyvault list', 'group delete']
 
     for pattern in expected_patterns:
         assert any(pattern in cmd for cmd in run_commands), f'Expected command pattern not found: {pattern}'
@@ -3759,26 +3757,21 @@ def test_cleanup_resources_with_thread_safe_printing_with_mixed_resources(monkey
 
 
 @pytest.mark.unit
-def test_cleanup_resources_with_thread_safe_printing_deployment_show_fails(monkeypatch):
-    """Test cleanup when deployment group show fails."""
+def test_cleanup_resources_with_thread_safe_printing_missing_resource_group_is_already_clean(monkeypatch):
+    """Treat a missing resource group as an informational no-op in parallel cleanup."""
+    run_calls = []
 
-    def mock_run(command, ok_msg=None, error_msg=None):
-        if 'deployment group show' in command:
-            return Output(False, 'Deployment not found')
-        if 'cognitiveservices account list' in command or 'apim list' in command or 'keyvault list' in command:
-            return Output(True, json.dumps([]))
-        return Output(True, '{}')
+    def mock_run(command, ok_message=None, error_message=None, **kwargs):
+        run_calls.append((command, kwargs))
+        return Output(True, 'false')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    patch_module_thread_safe_printing(monkeypatch, infrastructures)
-    suppress_module_functions(
-        monkeypatch,
-        infrastructures,
-        ['_cleanup_resources_parallel_thread_safe', '_delete_resource_group_best_effort'],
-    )
+    log_calls = capture_module_print_log(monkeypatch, infrastructures)
 
-    # Should not raise exception
     infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
+
+    assert run_calls == [('az group exists --name test-rg', {'retries': 0})]
+    assert any(call['icon'] == 'ℹ️ ' and 'was not found. Nothing to clean up.' in call['msg'] for call in log_calls)
 
 
 @pytest.mark.unit
@@ -3936,6 +3929,25 @@ def test_delete_resource_group_best_effort_no_rg_name(monkeypatch):
 
     # No calls should have been captured for thread-safe logging
     assert not print_calls
+
+
+@pytest.mark.unit
+def test_delete_resource_group_best_effort_already_absent(monkeypatch):
+    """Skip deletion when the resource group has already disappeared."""
+    run_calls = []
+    info_messages = []
+
+    def mock_run(command, *args, **kwargs):
+        run_calls.append((command, kwargs))
+        return Output(True, 'false')
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, 'print_info', info_messages.append)
+
+    infrastructures._delete_resource_group_best_effort('rg-absent')
+
+    assert run_calls == [('az group exists --name rg-absent', {'retries': 0})]
+    assert any('already absent. No deletion is needed.' in message for message in info_messages)
 
 
 @pytest.mark.unit

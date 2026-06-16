@@ -1345,8 +1345,37 @@ def _cleanup_resources_parallel_thread_safe(resources: list[dict], thread_prefix
     _cleanup_resources_parallel(resources, thread_prefix, thread_color)
 
 
+def _get_resource_group_existence(rg_name: str) -> bool | None:
+    """Return whether a resource group exists, or None when the check fails."""
+    try:
+        output = az.run(f'az group exists --name {rg_name}', retries=0)
+    except Exception:  # pragma: no cover
+        return None
+
+    if not output.success:
+        return None
+
+    normalized_output = output.text.strip().lower()
+    if normalized_output == 'true':
+        return True
+    if normalized_output == 'false':
+        return False
+
+    return None
+
+
 def _delete_resource_group_best_effort(rg_name: str, *, thread_prefix: str = '', thread_color: str = '') -> None:
     if not rg_name:
+        return
+
+    rg_exists = _get_resource_group_existence(rg_name)
+    if rg_exists is False:
+        message = f"Resource group '{rg_name}' is already absent. No deletion is needed."
+        if thread_prefix:
+            with _print_lock:
+                _print_log(f'{thread_prefix}{message}', 'ℹ️ ', thread_color, show_time=True)
+        else:
+            print_info(message)
         return
 
     delete_cmd = f'az group delete --name {rg_name} -y --no-wait'
@@ -1402,12 +1431,14 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
     try:
         print_info(f'Resource group : {rg_name}')
 
-        # Show the deployment details (if it exists)
-        output = az.run(
-            f'az deployment group show --name {deployment_name} -g {rg_name} -o json',
-            'Deployment retrieved',
-            'Deployment not found (may be empty resource group)',
-        )
+        rg_exists = _get_resource_group_existence(rg_name)
+        if rg_exists is False:
+            rg_delete_attempted = True
+            print_info(f"Resource group '{rg_name}' was not found. Nothing to clean up.")
+            print_message('Cleanup completed.')
+            return
+        if rg_exists is None:
+            print_warning(f"Could not verify whether resource group '{rg_name}' exists. Continuing with best-effort cleanup.")
 
         # Collect all resources that need to be deleted and purged
         resources_to_cleanup = []
@@ -1513,8 +1544,20 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
         with _print_lock:
             _print_log(f'{thread_prefix}Resource group : {rg_name}', '👉 ', thread_color)
 
-        # Show the deployment details
-        output = az.run(f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment')
+        rg_exists = _get_resource_group_existence(rg_name)
+        if rg_exists is False:
+            rg_delete_attempted = True
+            with _print_lock:
+                _print_log(f"{thread_prefix}Resource group '{rg_name}' was not found. Nothing to clean up.", 'ℹ️ ', thread_color, show_time=True)
+            return
+        if rg_exists is None:
+            with _print_lock:
+                _print_log(
+                    f"{thread_prefix}Could not verify whether resource group '{rg_name}' exists. Continuing with best-effort cleanup.",
+                    '⚠️ ',
+                    BOLD_Y,
+                    show_time=True,
+                )
 
         # Collect all resources that need to be deleted and purged
         resources_to_cleanup = []
