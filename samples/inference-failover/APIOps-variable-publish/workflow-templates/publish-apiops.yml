@@ -34,21 +34,21 @@ jobs:
           - target-name: dev-eastus2-01
             logical-environment: dev
             github-environment: apiops-dev
-            configuration-path: samples/inference-failover/POC/configurations/configuration.dev.yaml
+            configuration-path: samples/inference-failover/APIOps-variable-publish/configurations/configuration.dev.yaml
             resource-group-name: rg-apim-dev-eastus2-01
             apim-service-name: apim-dev-eastus2-01
 
           - target-name: qa-eastus2-01
             logical-environment: qa
             github-environment: apiops-qa
-            configuration-path: samples/inference-failover/POC/configurations/configuration.qa.yaml
+            configuration-path: samples/inference-failover/APIOps-variable-publish/configurations/configuration.qa.yaml
             resource-group-name: rg-apim-qa-eastus2-01
             apim-service-name: apim-qa-eastus2-01
 
           - target-name: prod-eastus2-01
             logical-environment: prod
             github-environment: apiops-prod
-            configuration-path: samples/inference-failover/POC/configurations/configuration.prod-eastus2.yaml
+            configuration-path: samples/inference-failover/APIOps-variable-publish/configurations/configuration.prod-eastus2.yaml
             resource-group-name: rg-apim-prod-eastus2-01
             apim-service-name: apim-prod-eastus2-01
 
@@ -56,7 +56,7 @@ jobs:
           - target-name: prod-westus3-01
             logical-environment: prod
             github-environment: apiops-prod
-            configuration-path: samples/inference-failover/POC/configurations/configuration.prod-westus3.yaml
+            configuration-path: samples/inference-failover/APIOps-variable-publish/configurations/configuration.prod-westus3.yaml
             resource-group-name: rg-apim-prod-westus3-01
             apim-service-name: apim-prod-westus3-01
 
@@ -69,7 +69,7 @@ jobs:
       github-environment: ${{ matrix.github-environment }}
       target-name: ${{ matrix.target-name }}
 
-      source-artifacts-path: samples/inference-failover/POC/artifacts
+      source-artifacts-path: samples/inference-failover/APIOps-variable-publish/artifacts
       configuration-path: ${{ matrix.configuration-path }}
 
       resource-group-name: ${{ matrix.resource-group-name }}

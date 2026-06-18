@@ -213,6 +213,7 @@ function Get-ConfiguredBackendSelection {
     $foundBackendsSection = $false
     $names = [System.Collections.Generic.List[string]]::new()
     $nameSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    $nameLineNumbers = [ordered]@{}
     $poolMembers = [System.Collections.Generic.Dictionary[string, System.Collections.Generic.List[string]]]::new([System.StringComparer]::Ordinal)
     $configuredPools = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     $currentBackendName = $null
@@ -244,6 +245,7 @@ function Get-ConfiguredBackendSelection {
                     -Resolution 'Keep one direct backends entry for each backend ID.'
             }
             $names.Add($backendName)
+            $nameLineNumbers[$backendName] = $lineNumber
             $poolMembers.Add($backendName, [System.Collections.Generic.List[string]]::new())
             $currentBackendName = $backendName
             continue
@@ -310,6 +312,7 @@ function Get-ConfiguredBackendSelection {
     return [pscustomobject]@{
         Names = $names.ToArray()
         NameSet = $nameSet
+        NameLineNumbers = $nameLineNumbers
         PoolMembers = $poolMembers
         ConfiguredPools = $configuredPools
     }
@@ -319,6 +322,7 @@ function Get-CanonicalBackendInventory {
     param(
         [string] $SourcePath,
         [string[]] $SelectedNames,
+        [System.Collections.IDictionary] $SelectedNameLineNumbers,
         [string] $ConfigurationFullPath
     )
 
@@ -341,20 +345,33 @@ function Get-CanonicalBackendInventory {
     $missingNames = @($SelectedNames | Where-Object { -not $availableSet.Contains($_) } | Sort-Object)
     if ($missingNames.Count -gt 0) {
         $expectedPaths = @($missingNames | ForEach-Object { Join-Path (Join-Path $backendsPath $_) 'backendInformation.json' })
+        $resolvedCount = $SelectedNames.Count - $missingNames.Count
+        $mismatchSummary = "Mismatch: configuration selects $($SelectedNames.Count) backend IDs; canonical artifacts resolve $resolvedCount " +
+            "and cannot resolve $($missingNames.Count)."
+        $missingDetails = @(
+            "Configuration: $ConfigurationFullPath"
+            "Canonical backend root: $backendsPath"
+            $mismatchSummary
+            'Unresolved configured backend IDs:'
+        )
+        $missingDetails += @($missingNames | ForEach-Object { "  - $_ (configuration line $($SelectedNameLineNumbers[$_]))" })
+        $missingDetails += 'Required artifact path(s) that do not exist:'
+        $missingDetails += @($expectedPaths | ForEach-Object { "  - $_" })
+        $missingDetails += "Available backend IDs ($($availableNames.Count)):"
+        $missingDetails += @($availableNames | ForEach-Object { "  - $_" })
+        $missingDetails += ('Why this fails: APIOps configuration can override an artifact-backed resource, but it cannot create a backend ' +
+            'whose artifact is absent.')
+        $missingDetails += 'Impact: preflight validation stopped before staging, Azure authentication, or APIOps publisher execution.'
+        $missingDetails += 'Correction options:'
+        $missingDetails += '  1. Intended backend: add backendInformation.json at each required path shown above.'
+        $missingDetails += '  2. Typo or stale entry: correct or remove the exact name at the reported configuration line.'
+        $missingDetails += 'Matching rule: configured names must match canonical backend directory names exactly, including case.'
         Stop-PocOperation `
             -ExitCode $script:ExitCodes.InvalidSourceArtifacts `
             -ErrorId 'POC004' `
-            -Title 'CONFIGURED BACKEND ARTIFACTS ARE MISSING' `
-            -Details @(
-                "Configuration: $ConfigurationFullPath",
-                "Canonical backend root: $backendsPath",
-                "Configured backend IDs not found ($($missingNames.Count)): $($missingNames -join ', ')",
-                "Expected artifact path(s): $($expectedPaths -join '; ')",
-                "Available backend IDs ($($availableNames.Count)): $($availableNames -join ', ')",
-                'The APIOps publisher was not started and no staging directory was created.'
-            ) `
-            -Resolution ('Restore or extract each missing backend artifact, or remove the incorrect ID from the target ' +
-                'configuration, then rerun the preparation step.')
+            -Title 'CONFIGURATION REFERENCES BACKENDS THAT DO NOT EXIST IN THE CANONICAL ARTIFACTS' `
+            -Details $missingDetails `
+            -Resolution 'Apply the appropriate correction above, then rerun the preparation step.'
     }
 
     $invalidArtifacts = [System.Collections.Generic.List[string]]::new()
@@ -547,6 +564,7 @@ function Invoke-ArtifactPreparation {
     $inventory = Get-CanonicalBackendInventory `
         -SourcePath $sourcePath `
         -SelectedNames $selectedNames `
+        -SelectedNameLineNumbers $selection.NameLineNumbers `
         -ConfigurationFullPath $configurationFullPath
     Assert-BackendPoolSelection -Selection $selection -Inventory $inventory -ConfigurationFullPath $configurationFullPath
     Write-Host "      Canonical resources: $($inventory.ConcreteNames.Count) concrete backends, $($inventory.PoolNames.Count) pool."

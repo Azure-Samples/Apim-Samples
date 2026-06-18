@@ -102,7 +102,7 @@ jobs:
           AUDIT_MANIFEST_PATH: ${{ runner.temp }}/apiops-${{ inputs.target-name }}.selection.json
 
         run: |
-          & ./samples/inference-failover/POC/scripts/prepare-apiops-artifacts.ps1 `
+          & ./samples/inference-failover/APIOps-variable-publish/scripts/prepare-apiops-artifacts.ps1 `
             -SourceArtifactsPath $env:SOURCE_ARTIFACTS_PATH `
             -DestinationArtifactsPath $env:STAGED_ARTIFACTS_PATH `
             -ConfigurationPath $env:CONFIGURATION_PATH `

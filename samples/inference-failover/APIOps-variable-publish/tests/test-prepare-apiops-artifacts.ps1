@@ -5,18 +5,14 @@
 Runs offline end-to-end tests for the APIOps backend filtering POC.
 
 .DESCRIPTION
-The harness copies the fictitious canonical artifacts to a temporary directory
-and invokes the preparation script in child PowerShell processes. It requires
+The harness copies the fictitious canonical artifacts to a temporary directory and invokes the preparation script in child PowerShell processes. It requires
 PowerShell 7 but no Azure access, APIOps binary, Pester module, or YAML module.
 
-The success cases verify one stable pool with DEV=10, QA=2, and two regional
-PROD targets with the same seven concrete members. Capacity checks verify that
-all simulated PTU tiers precede PAYG. The PROD checks also verify local PTU,
-peer-region PTU, local PAYG, peer-region PAYG, and tertiary PAYG priorities.
-Negative cases verify that an absent configured backend and a pool member
-omitted from the environment selection both fail before staging. The harness
-also checks that non-backend artifacts are preserved and the source copy is
-not modified by any test.
+The success cases verify one stable pool with DEV=10, QA=2, and two regional PROD targets with the same seven concrete members. For each target, the harness
+reports the artifacts selected for staging and the canonical-to-target property transformations configured for the APIOps publisher. Capacity checks verify
+that all simulated PTU tiers precede PAYG. The PROD checks also verify local PTU, peer-region PTU, local PAYG, peer-region PAYG, and tertiary PAYG priorities.
+Negative cases verify that an absent configured backend and a pool member omitted from the environment selection both fail before staging.
+The harness checks that non-backend artifacts are preserved and the source copy is not modified by any test.
 
 .PARAMETER KeepTemporaryFiles
 Retains the generated temporary directory for manual inspection.
@@ -66,20 +62,28 @@ function Get-TreeFingerprint {
     )
 }
 
-function Get-ConfiguredPoolPriorities {
+function Get-ConfiguredBackendTransformations {
     param(
         [string] $Path,
         [string] $PoolName
     )
 
-    $priorities = [ordered]@{}
+    $backendUrls = [ordered]@{}
+    $poolServices = [System.Collections.Generic.List[object]]::new()
+    $currentBackend = $null
     $insidePool = $false
-    $currentMember = $null
+    $currentPoolMember = $null
 
     foreach ($line in Get-Content -LiteralPath $Path) {
         if ($line -match '^  - name:\s*(?<name>[A-Za-z0-9._-]+)\s*$') {
-            $insidePool = $Matches.name -eq $PoolName
-            $currentMember = $null
+            $currentBackend = $Matches.name
+            $insidePool = $currentBackend -eq $PoolName
+            $currentPoolMember = $null
+            continue
+        }
+
+        if ($null -ne $currentBackend -and -not $insidePool -and $line -match '^      url:\s*(?<url>\S+)\s*$') {
+            $backendUrls[$currentBackend] = $Matches.url
             continue
         }
 
@@ -88,17 +92,101 @@ function Get-ConfiguredPoolPriorities {
         }
 
         if ($line -match '^          - id: /backends/(?<name>[A-Za-z0-9._-]+)\s*$') {
-            $currentMember = $Matches.name
+            $currentPoolMember = [pscustomobject]@{
+                Name = $Matches.name
+                Id = "/backends/$($Matches.name)"
+                Priority = $null
+                Weight = $null
+            }
             continue
         }
 
-        if ($null -ne $currentMember -and $line -match '^            priority:\s*(?<priority>\d+)\s*$') {
-            $priorities[$currentMember] = [int] $Matches.priority
-            $currentMember = $null
+        if ($null -ne $currentPoolMember -and $line -match '^            priority:\s*(?<priority>\d+)\s*$') {
+            $currentPoolMember.Priority = [int] $Matches.priority
+            continue
+        }
+
+        if ($null -ne $currentPoolMember -and $line -match '^            weight:\s*(?<weight>\d+)\s*$') {
+            $currentPoolMember.Weight = [int] $Matches.weight
+            $poolServices.Add($currentPoolMember)
+            $currentPoolMember = $null
         }
     }
 
-    return $priorities
+    return [pscustomobject]@{
+        BackendUrls = $backendUrls
+        PoolServices = $poolServices.ToArray()
+    }
+}
+
+function Write-SelectionAndTransformationReport {
+    param(
+        [string] $TargetName,
+        [pscustomobject] $Audit,
+        [pscustomobject] $Transformations,
+        [string] $CanonicalPath,
+        [string] $PoolName,
+        [object[]] $CanonicalServices
+    )
+
+    Write-Host "`n=== $TargetName Selection and Transformation Report ===" -ForegroundColor Magenta
+    Write-Host "Selected staged backend artifacts ($($Audit.selectedBackendResourceCount)):" -ForegroundColor White
+    foreach ($backendName in $Audit.selectedBackendResources) {
+        Write-Host "  + $backendName"
+    }
+
+    Write-Host "Removed canonical backend artifacts ($($Audit.removedBackendResourceCount)):" -ForegroundColor White
+    if ($Audit.removedBackendResourceCount -eq 0) {
+        Write-Host '  (none)'
+    }
+    else {
+        foreach ($backendName in $Audit.removedBackendResources) {
+            Write-Host "  - $backendName"
+        }
+    }
+
+    Write-Host 'Configured APIOps property transformations (applied by the publisher, not written into the staged JSON):' -ForegroundColor White
+    Write-Host "  Backend URL overrides ($($Transformations.BackendUrls.Count)):"
+    foreach ($urlOverride in $Transformations.BackendUrls.GetEnumerator()) {
+        $canonicalBackendPath = Join-Path $CanonicalPath "backends/$($urlOverride.Key)/backendInformation.json"
+        $canonicalUrl = (Get-Content -LiteralPath $canonicalBackendPath -Raw | ConvertFrom-Json).properties.url
+        Write-Host "    * $($urlOverride.Key): $canonicalUrl -> $($urlOverride.Value)"
+    }
+
+    $poolCountChange = "$($CanonicalServices.Count) -> $($Transformations.PoolServices.Count) members"
+    Write-Host "  Pool services override: $PoolName replaces the complete canonical array ($poolCountChange)"
+    foreach ($targetService in $Transformations.PoolServices) {
+        $canonicalService = $CanonicalServices | Where-Object { $_.id -eq $targetService.Id } | Select-Object -First 1
+        $priorityChange = "$($canonicalService.priority) -> $($targetService.Priority)"
+        $weightChange = "$($canonicalService.weight) -> $($targetService.Weight)"
+        Write-Host "    * $($targetService.Name): priority $priorityChange; weight $weightChange"
+    }
+
+    $targetMemberIds = @($Transformations.PoolServices | ForEach-Object Id)
+    $removedPoolMemberIds = @($CanonicalServices | Where-Object { $_.id -notin $targetMemberIds } | ForEach-Object id)
+    if ($removedPoolMemberIds.Count -gt 0) {
+        Write-Host "  Pool members omitted by the target configuration ($($removedPoolMemberIds.Count)):"
+        foreach ($memberId in $removedPoolMemberIds) {
+            Write-Host "    - $memberId"
+        }
+    }
+    else {
+        Write-Host '  Pool members omitted by the target configuration: (none)'
+    }
+}
+
+function Write-ExpectedFailureReport {
+    param(
+        [string] $ScenarioName,
+        [pscustomobject] $Result,
+        [string] $DestinationPath
+    )
+
+    Write-Host "`n=== $ScenarioName Expected Failure Report ===" -ForegroundColor Magenta
+    Write-Host 'Caller-visible process output (stdout and stderr merged by the harness):' -ForegroundColor White
+    Write-Host ($Result.Output.TrimEnd())
+    Write-Host "Exit code: $($Result.ExitCode)"
+    Write-Host "Staging directory exists after failure: $(Test-Path -LiteralPath $DestinationPath)"
 }
 
 function Invoke-PreparationProcess {
@@ -271,6 +359,7 @@ try {
 
     foreach ($case in $cases) {
         Write-Host "`n--- $($case.Name) selection test ---" -ForegroundColor Cyan
+        $transformations = Get-ConfiguredBackendTransformations -Path $case.Configuration -PoolName $poolName
         $destinationPath = Join-Path $temporaryRoot "staged-$($case.Name.ToLowerInvariant())"
         $auditPath = "$destinationPath.selection.json"
         $result = Invoke-PreparationProcess `
@@ -314,10 +403,20 @@ try {
             Assert-PocTest -Condition ($audit.availableConcreteBackendCount -eq 10) -Message "$($case.Name) audit records 10 canonical concrete backends."
             Assert-PocTest -Condition ($audit.availableBackendPoolCount -eq 1) -Message "$($case.Name) audit records one canonical backend pool."
             Assert-PocTest -Condition ($memberDifference.Count -eq 0) -Message "$($case.Name) audit records the exact target-specific pool composition."
+            Write-SelectionAndTransformationReport `
+                -TargetName $case.Name `
+                -Audit $audit `
+                -Transformations $transformations `
+                -CanonicalPath $canonicalPath `
+                -PoolName $poolName `
+                -CanonicalServices $canonicalServices
         }
 
         if ($null -ne $case.PSObject.Properties['ExpectedLocalPtuBackends']) {
-            $priorities = Get-ConfiguredPoolPriorities -Path $case.Configuration -PoolName $poolName
+            $priorities = [ordered]@{}
+            foreach ($service in $transformations.PoolServices) {
+                $priorities[$service.Name] = $service.Priority
+            }
             $localPtuPriorities = @($case.ExpectedLocalPtuBackends | ForEach-Object { $priorities[$_] })
             $localPaygPriorities = @($case.ExpectedLocalPaygBackends | ForEach-Object { $priorities[$_] })
             $remotePtuPriorities = @($case.ExpectedRemotePtuBackends | ForEach-Object { $priorities[$_] })
@@ -342,7 +441,10 @@ try {
         }
 
         if ($null -ne $case.PSObject.Properties['ExpectedPtuBackends']) {
-            $priorities = Get-ConfiguredPoolPriorities -Path $case.Configuration -PoolName $poolName
+            $priorities = [ordered]@{}
+            foreach ($service in $transformations.PoolServices) {
+                $priorities[$service.Name] = $service.Priority
+            }
             $ptuPriorities = @($case.ExpectedPtuBackends | ForEach-Object { $priorities[$_] })
             $paygPriorities = @($case.ExpectedPaygBackends | ForEach-Object { $priorities[$_] })
             Assert-PocTest `
@@ -365,11 +467,23 @@ try {
         -ConfigurationPath $missingBackendConfiguration `
         -AuditPath $failedAuditPath
 
+    Write-ExpectedFailureReport -ScenarioName 'Missing Configured Backend' -Result $failureResult -DestinationPath $failedDestinationPath
+
     Assert-PocTest -Condition ($failureResult.ExitCode -eq 4) -Message 'A missing configured backend exits with code 4.'
     Assert-PocTest -Condition ($failureResult.Output -match 'POC004') -Message 'The failure identifies the source-artifact error category.'
+    Assert-PocTest `
+        -Condition ($failureResult.Output -match 'selects 2 backend IDs; canonical artifacts resolve 1 and cannot resolve 1') `
+        -Message 'The failure quantifies the configuration-to-artifact mismatch.'
     Assert-PocTest -Condition ($failureResult.Output -match 'gpt-5-1-PTU-japaneast') -Message 'The failure names the missing configured backend ID.'
-    Assert-PocTest -Condition ($failureResult.Output -match 'Expected artifact path') -Message 'The failure reports the expected canonical artifact path.'
-    Assert-PocTest -Condition ($failureResult.Output -match 'publisher was not started') -Message 'The failure confirms that APIOps was not started.'
+    Assert-PocTest -Condition ($failureResult.Output -match 'configuration line 8') -Message 'The failure identifies the exact configuration line.'
+    Assert-PocTest -Condition ($failureResult.Output -match 'Required artifact path') -Message 'The failure reports the absent canonical artifact path.'
+    Assert-PocTest `
+        -Condition ($failureResult.Output -match 'cannot create a backend') `
+        -Message 'The failure explains the relevant APIOps configuration limitation.'
+    Assert-PocTest -Condition ($failureResult.Output -match 'typo or stale entry') -Message 'The failure distinguishes the two likely correction paths.'
+    Assert-PocTest `
+        -Condition ($failureResult.Output -match 'before staging.*publisher execution') `
+        -Message 'The failure states exactly where processing stopped.'
     Assert-PocTest -Condition (-not (Test-Path -LiteralPath $failedDestinationPath)) -Message 'No staging directory remains after preflight validation fails.'
 
     Write-Host "`n--- Unselected backend-pool member test ---" -ForegroundColor Cyan

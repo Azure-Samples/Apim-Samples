@@ -11,7 +11,25 @@ The design follows the selective-publishing discussion in [Azure/apiops issue #7
 [Terraform and APIOps Environment Operations Plan](../TERRAFORM-APIOPS-BACKEND-ENVIRONMENT-PLAN.md). See
 [Related APIOps Discussions](#related-apiops-discussions) for the upstream behavior that shapes this POC.
 
+## Scope and Data Scrubbing
+
+This package is a publication-mechanics POC, not a deployable inference environment. It contains no tenant IDs, subscription IDs, client IDs, credentials,
+keys, real APIM names, real resource group names, or customer endpoints.
+
+- Every backend URL uses the IANA-reserved `.example.net` domain and cannot represent a production endpoint.
+- Workflow target names, APIM service names, and resource group names are fictitious examples that must be replaced.
+- `PTU`, `PAYG`, region, model, priority, and weight values demonstrate naming and configuration shape only. They do not describe purchased capacity.
+- GitHub workflow references such as `AZURE_CLIENT_ID` are secret names, not embedded values.
+- The artifacts do not include backend credentials, managed-identity configuration, circuit-breaker rules, APIs, or policies.
+
+Do not publish the included artifacts to a real APIM instance unchanged. The `.example.net` backends cannot serve traffic, and the workflow template has not
+been exercised against the reader's Azure environment.
+
 ## What the POC Proves
+
+The offline harness proves deterministic target selection, dependency checks for backend-pool members, source-tree immutability, and audit-manifest creation.
+The workflow template shows how the staged tree can be passed to APIOps. The harness does **not** execute APIOps, authenticate to Azure, publish to APIM, or
+verify runtime traffic and failover.
 
 | Environment | Canonical concrete backends | Selected concrete backends | Pool ID                  |
 | ----------- | --------------------------- | -------------------------- | ------------------------ |
@@ -63,10 +81,14 @@ replace the complete pool services array with a region-specific priority order:
 | West US 3 PAYG        | `gpt-5-1-PAYG-westus3`, `gpt-5-1-PAYG-westus3-02` | Priority 4     | Priority 3     |
 | Tertiary PAYG         | `gpt-5-1-PAYG-southcentralus`                     | Priority 5     | Priority 5     |
 
-APIM tries the lowest available priority first. Each APIM therefore exhausts simulated local PTU and then simulated peer-region PTU before using any PAYG
-capacity. PAYG follows the same locality order: local, peer-region, then tertiary fallback. The weights distribute traffic within each PAYG priority group. This
-capacity-first behavior is independent of global traffic routing between the two APIM instances; use Azure Front Door or another global entry point when clients
-need automatic regional APIM failover.
+The arrays express the intended order as lower numeric priorities: local PTU, peer-region PTU, local PAYG, peer-region PAYG, and tertiary PAYG. Weights
+distribute traffic only among available members of the same priority group. APIM uses a lower-priority group only when all members of every higher-priority
+group are unavailable because their circuit breakers are tripped.
+
+This POC intentionally omits circuit-breaker rules, so its priority arrays alone do **not** implement capacity exhaustion or runtime failover. A production
+adoption must add reviewed circuit breakers to the concrete backends and test `429`, `Retry-After`, trip, recovery, and lower-priority routing behavior. Global
+traffic routing between the two APIM instances is also outside this POC; use Azure Front Door or another global entry point when clients need regional APIM
+failover.
 
 ## Processing Flow
 
@@ -87,7 +109,8 @@ so the publisher must process the complete staged snapshot.
 ## Package Contents
 
 ```text
-POC/
+APIOps-variable-publish/
+|-- .editorconfig
 |-- README.md
 |-- artifacts/
 |   |-- backends/
@@ -119,11 +142,14 @@ The harness requires PowerShell 7. It does not require Azure credentials, an API
 From this directory:
 
 ```powershell
-./APIOps-variable-publish/tests/test-prepare-apiops-artifacts.ps1
+./tests/test-prepare-apiops-artifacts.ps1
 ```
 
 The harness creates disposable copies under the operating system's temporary directory. It injects a temporary `poc-marker` Named Value into those copies to
-prove that filtering preserves non-backend artifact collections without shipping a synthetic resource to APIM. It verifies:
+prove that filtering preserves non-backend artifact collections without shipping a synthetic resource to APIM. Each successful target test prints a selection and
+transformation report. The report distinguishes the backend artifacts selected or removed during staging from the URL and complete pool-array overrides that the
+APIOps publisher subsequently applies from the target configuration. The missing-backend test also prints the complete caller-visible process output, exit code,
+and staging outcome so the preflight failure can be reviewed directly. It verifies:
 
 - [ ] DEV stages 10 concrete backends and `inference-gpt-5-1-pool` with 10 members.
 - [ ] QA stages 2 concrete backends and `inference-gpt-5-1-pool` with 2 members.
@@ -132,16 +158,19 @@ prove that filtering preserves non-backend artifact collections without shipping
 - [ ] Every successful run records concrete backend counts, pool counts, and effective membership in an audit manifest.
 - [ ] Non-backend artifact collections remain present.
 - [ ] A configuration containing absent `gpt-5-1-PTU-japaneast` exits with code `4`.
-- [ ] The missing-backend error names the ID, expected artifact path, and available IDs.
+- [ ] The missing-backend error quantifies the mismatch, names the unresolved ID and absent artifact path, explains the APIOps limitation, and provides exact fixes.
 - [ ] No staging directory is created after missing-ID preflight validation fails.
 - [ ] A pool member omitted from direct selection exits with code `3` before staging.
 - [ ] Invalid source and overlapping audit paths exit with code `2` before staging.
 - [ ] The canonical source tree remains byte-for-byte unchanged.
 
+The transformation report describes what the configuration asks APIOps to override. Because the harness does not run the publisher, it does not prove that an
+APIOps release accepted those overrides or that APIM reached the requested state. Validate those outcomes in a non-production APIM instance before promotion.
+
 Pass `-KeepTemporaryFiles` to retain generated trees for manual inspection:
 
 ```powershell
-pwsh ./samples/inference-failover/POC/tests/test-prepare-apiops-artifacts.ps1 -KeepTemporaryFiles
+pwsh ./samples/inference-failover/APIOps-variable-publish/tests/test-prepare-apiops-artifacts.ps1 -KeepTemporaryFiles
 ```
 
 ## Run One Selection Manually
@@ -150,28 +179,36 @@ The following command produces a QA tree with `gpt-5-1-PTU-eastus2`, `gpt-5-1-PT
 configuration overrides the pool with those two concrete members:
 
 ```powershell
-pwsh ./samples/inference-failover/POC/scripts/prepare-apiops-artifacts.ps1 `
-  -SourceArtifactsPath ./samples/inference-failover/POC/artifacts `
-  -DestinationArtifactsPath ./samples/inference-failover/POC/out/qa `
-  -ConfigurationPath ./samples/inference-failover/POC/configurations/configuration.qa.yaml
+pwsh ./samples/inference-failover/APIOps-variable-publish/scripts/prepare-apiops-artifacts.ps1 `
+  -SourceArtifactsPath ./samples/inference-failover/APIOps-variable-publish/artifacts `
+  -DestinationArtifactsPath ./samples/inference-failover/APIOps-variable-publish/out/qa `
+  -ConfigurationPath ./samples/inference-failover/APIOps-variable-publish/configurations/configuration.qa.yaml
 ```
 
 Generated `out` directories are demonstrations only and should not be committed. The GitHub workflow uses `${{ runner.temp }}` instead.
 
 ## Missing Backend Failure
 
-The negative fixture selects `gpt-5-1-PTU-japaneast`, which is not part of the canonical inventory. The script aggregates every missing configured ID and
-reports:
+The negative fixture selects `gpt-5-1-PTU-japaneast`, which is not part of the canonical inventory. The script aggregates every missing configured ID. The
+following output is abridged only where the available backend inventory is shown:
 
 ```text
-[POC004] CONFIGURED BACKEND ARTIFACTS ARE MISSING
+[POC004] CONFIGURATION REFERENCES BACKENDS THAT DO NOT EXIST IN THE CANONICAL ARTIFACTS
 Configuration: .../configuration.missing-backend.yaml
 Canonical backend root: .../artifacts/backends
-Configured backend IDs not found (1): gpt-5-1-PTU-japaneast
-Expected artifact path(s): .../artifacts/backends/gpt-5-1-PTU-japaneast/backendInformation.json
+Mismatch: configuration selects 2 backend IDs; canonical artifacts resolve 1 and cannot resolve 1.
+Unresolved configured backend IDs:
+  - gpt-5-1-PTU-japaneast (configuration line 8)
+Required artifact path(s) that do not exist:
+  - .../artifacts/backends/gpt-5-1-PTU-japaneast/backendInformation.json
 Available backend IDs (11): gpt-5-1-PAYG-centralus, ..., inference-gpt-5-1-pool
-The APIOps publisher was not started and no staging directory was created.
-Resolution: Restore or extract each missing backend artifact, or remove the incorrect ID from the target configuration, then rerun the preparation step.
+Why this fails: APIOps configuration can override an artifact-backed resource, but it cannot create a backend whose artifact is absent.
+Impact: preflight validation stopped before staging, Azure authentication, or APIOps publisher execution.
+Correction options:
+  1. Intended backend: add backendInformation.json at each required path shown above.
+  2. Typo or stale entry: correct or remove the exact name at the reported configuration line.
+Matching rule: configured names must match canonical backend directory names exactly, including case.
+Resolution: Apply the appropriate correction above, then rerun the preparation step.
 ```
 
 This validation happens before the destination is created. A typo or stale configuration therefore cannot silently produce an incomplete publication set.
@@ -214,8 +251,9 @@ The stable pool is another direct backend resource. Every environment supplies i
                 weight: 100
 ```
 
-APIOps replaces `properties.pool.services` as a complete array. It does not merge individual members with the canonical pool artifact. Every pool member must
-therefore also appear as a direct top-level backend entry in the same environment configuration.
+With the pinned APIOps `v7.0.3` publisher, `properties.pool.services` is replaced as a complete array. Individual members are not merged with the canonical
+pool artifact. Every pool member must therefore also appear as a direct top-level backend entry in the same environment configuration. Revalidate array
+replacement behavior before upgrading APIOps.
 
 The dependency-free parser intentionally supports this narrow APIOps shape:
 
@@ -233,11 +271,13 @@ Use a full YAML parser if a production configuration requires anchors, aliases, 
 
 ## Adopt the Workflow Templates
 
-The files under `workflow-templates` are inert while they remain inside the POC. To use them in another repository:
+The files under `workflow-templates` are inert while they remain inside the POC. They are illustrative templates, not production-ready workflows. To use them
+in another repository:
 
 1. Place both workflow files in that repository's `.github/workflows/` directory without renaming them.
-1. Update the matrix values in `publish-apiops.yml` with real APIM service and resource group names.
-1. Update `source-artifacts-path`, configuration paths, and the preprocessing script path if the POC layout changes.
+1. Update every `resource-group-name` and `apim-service-name` matrix value in `publish-apiops.yml`; the checked-in names are fictitious.
+1. Update every `configuration-path`, `source-artifacts-path`, and the script path in `run-publisher-with-backend-selection.yml` if the package is not retained
+  at `samples/inference-failover/APIOps-variable-publish/`.
 1. Create protected GitHub environments named `apiops-dev`, `apiops-qa`, and `apiops-prod`, or update the matrix names.
 1. Add the following secrets to each protected environment:
     - `AZURE_CLIENT_ID`
@@ -246,10 +286,24 @@ The files under `workflow-templates` are inert while they remain inside the POC.
 1. Configure the federated credential for each client ID to trust the repository and matching GitHub environment.
 1. Grant the workload identity only the Azure permissions required to publish to its target APIM instance.
 1. Add required reviewers and deployment protections, especially for `apiops-prod`.
+1. Review the checked-out preprocessing script and both workflow files as executable release code.
+1. Run the offline harness, then validate publication, readback, API traffic, and rollback in a non-production APIM instance.
 1. Run the workflow manually and choose `dev`, `qa`, `prod`, or `all`.
 
-The reusable workflow uses OIDC through the SHA-pinned `azure/login` action. It downloads the APIOps `v7.0.3` Linux publisher, verifies the published SHA-256
-digest, and then executes it. Review and update both the release version and checksum together when adopting a newer APIOps release.
+The reusable workflow uses OIDC through the SHA-pinned `azure/login` action. It downloads the official APIOps `v7.0.3` Linux x64 publisher and verifies it
+against the SHA-256 digest pinned in the workflow before execution. The checked-in digest was independently verified against that release asset. The APIOps
+release page does not currently publish a checksum file, so recompute and review the digest whenever changing the publisher version or platform asset:
+
+```powershell
+$version = 'v7.0.3'
+$archive = 'publisher-linux-x64.zip'
+Invoke-WebRequest "https://github.com/Azure/apiops/releases/download/$version/$archive" -OutFile $archive
+(Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+Remove-Item -LiteralPath $archive
+```
+
+Update `APIOPS_RELEASE_VERSION` and `PUBLISHER_ARCHIVE_SHA256` together, then review the target release notes. The current pinned digest is
+`f9808d211c672841b951378562c08fe2acfddeef8a524a80963d771fed4bfee7`.
 
 Selecting `all` starts all matching targets as independent matrix jobs. GitHub environment approvals still apply, but this POC does not impose DEV-to-QA-to-PROD
 sequencing. Add explicit promotion dependencies or separate workflows when successful lower-environment deployment must gate the next environment.
@@ -267,6 +321,12 @@ sequencing. Add explicit promotion dependencies or separate workflows when succe
 - The workflow does not pass secrets through command text.
 - GitHub Actions are pinned to immutable commit SHAs.
 - The publisher archive is pinned to a release and verified by SHA-256.
+- Selection validation runs before Azure login, but it does not validate endpoint reachability, backend credentials, APIM existence, RBAC, policy references,
+  circuit-breaker behavior, or the publisher's Azure-side result.
+- The uploaded audit manifest contains absolute runner paths and a configuration hash. Review that evidence and its retention policy before using a
+  self-hosted runner or a sensitive repository layout.
+- The workflow executes the checked-out PowerShell script. Protect the release branch and require review for changes to scripts, workflows, configurations,
+  and canonical artifacts.
 
 This POC does not delete backend resources that already exist in APIM. A full APIOps publication processes artifacts visible in the staged tree; absence from
 that tree is not a deletion declaration. Treat backend retirement as a separate, reviewed cleanup operation.
@@ -277,6 +337,8 @@ Before using this pattern with real inference backends:
 
 - [ ] Replace all `.example.net` URLs with validated target endpoints.
 - [ ] Replace fictitious APIM service and resource group names.
+- [ ] Add backend authentication through managed identity or another reviewed mechanism; do not commit credentials.
+- [ ] Add and test circuit-breaker rules before relying on pool priorities for failover.
 - [ ] Create one configuration per independently routed APIM instance and map it to the correct workflow target.
 - [ ] Classify every production backend by region and assign local, peer-region, and tertiary priorities.
 - [ ] Preserve stable pool IDs across environments and provide complete target-specific service arrays.
@@ -284,6 +346,8 @@ Before using this pattern with real inference backends:
 - [ ] Validate literal policy backend references for dependency closure.
 - [ ] Review the generated selection manifest before publisher execution.
 - [ ] Define a separate process for deliberate backend deletion from APIM.
+- [ ] Read back the published backends and complete pool arrays from APIM and compare them with the intended configuration.
+- [ ] Exercise endpoint authentication, `429`, `Retry-After`, circuit trip, recovery, and regional routing in a non-production environment.
 - [ ] Test the adopted workflow in a non-production APIM instance.
 
 This POC validates selected backend-pool members directly. The more complete parent implementation in
@@ -291,6 +355,9 @@ This POC validates selected backend-pool members directly. The more complete par
 adopting the POC with real API policy artifacts.
 
 ## Related APIOps Discussions
+
+- [APIOps v7.0.3 release](https://github.com/Azure/apiops/releases/tag/v7.0.3) is the publisher version pinned by the workflow template.
+- [Azure API Management backends](https://learn.microsoft.com/azure/api-management/backends) defines priority, weight, pool, and circuit-breaker behavior.
 
 - [Issue #789: selectively publish APIs across different APIM environments](https://github.com/Azure/apiops/issues/789) closely matches the canonical-superset
   and temporary-filtered-copy pattern demonstrated here.
