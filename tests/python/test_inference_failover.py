@@ -11,6 +11,7 @@ SIMPLE_APIM_BICEP_PATH = Path(__file__).resolve().parents[2] / 'infrastructure' 
 BICEP_PATH = SAMPLE_PATH / 'main.bicep'
 DIAGNOSTICS_BICEP_PATH = Path(__file__).resolve().parents[2] / 'shared' / 'bicep' / 'modules' / 'apim' / 'v1' / 'diagnostics.bicep'
 NOTEBOOK_PATH = SAMPLE_PATH / 'create.ipynb'
+PARAMS_PATH = SAMPLE_PATH / 'params.json'
 POLICY_PATH = SAMPLE_PATH / 'apim-policies' / 'inference-api-policy.xml'
 RETRY_TRACKED_POLICY_PATH = SAMPLE_PATH / 'apim-policies' / 'inference-api-policy-with-retry-tracked.xml'
 README_PATH = SAMPLE_PATH / 'README.md'
@@ -316,8 +317,8 @@ def test_inference_policies_use_managed_identity_retries_and_generic_terminal_er
     assert not (SAMPLE_PATH / 'inference-api-policy.xml').exists()
 
 
-def test_inference_retry_tracked_policy_requires_all_backends_and_finalizes_in_outbound() -> None:
-    """Keep the optional tracked route strict and outside the APIM on-error path."""
+def test_inference_retry_tracked_policy_requires_all_attempts_and_finalizes_in_outbound() -> None:
+    """Keep the optional tracked route bounded and outside the APIM on-error path."""
     api_policy = RETRY_TRACKED_POLICY_PATH.read_text(encoding='utf-8')
     policy_root = ElementTree.fromstring(api_policy)
     retry = policy_root.find('backend/retry')
@@ -339,8 +340,9 @@ def test_inference_retry_tracked_policy_requires_all_backends_and_finalizes_in_o
     assert 'parsedEpoch &lt;= nowEpoch' in api_policy
     assert 'Math.Max(0L, parsedEpoch - nowEpoch) + 1L' in api_policy
     assert 'context.Response.StatusCode == 429' in capacity_branch.attrib['condition']
-    assert 'backendAttempt", 0) == BACKEND_COUNT' in capacity_branch.attrib['condition']
-    assert 'backend429Attempt", 0) == BACKEND_COUNT' in capacity_branch.attrib['condition']
+    assert 'backendAttempt", 0) > 1' in capacity_branch.attrib['condition']
+    assert 'backend429Attempt", 0) == context.Variables.GetValueOrDefault<int>("backendAttempt", 0)' in capacity_branch.attrib['condition']
+    assert 'BACKEND_COUNT' not in api_policy
     assert capacity_branch.find('return-response/set-status').attrib == {'code': '429', 'reason': 'Too Many Requests'}
     assert all(f'StatusCode == {status_code}' in infrastructure_branch.attrib['condition'] for status_code in (500, 502, 503, 504))
     assert infrastructure_branch.find('return-response/set-status').attrib == {'code': '503', 'reason': 'Inference Service Unavailable'}
@@ -363,6 +365,18 @@ def test_inference_retry_tracked_policy_requires_all_backends_and_finalizes_in_o
     assert 'context.LastError.Reason == "Timeout"' in api_policy
     assert 'context.Response.StatusCode == 429' not in on_error.find('choose/when').attrib['condition']
     assert '&quot;' not in api_policy
+
+
+def test_inference_generated_params_match_bounded_policy_templates() -> None:
+    """Keep checked-in deployment parameters synchronized with the policy templates."""
+    params = json.loads(PARAMS_PATH.read_text(encoding='utf-8'))
+    policies = {api['name']: api['policyXml'] for api in params['parameters']['apis']['value']}
+    primary_template = POLICY_PATH.read_text(encoding='utf-8')
+    tracked_template = RETRY_TRACKED_POLICY_PATH.read_text(encoding='utf-8')
+
+    assert policies['inference-gpt-5-1'] == primary_template.replace('BACKEND_POOL_ID', 'inference-gpt-5-1-pool').replace('RETRY_COUNT', '2')
+    assert policies['inference-gpt-4-1-mini'] == primary_template.replace('BACKEND_POOL_ID', 'inference-gpt-4-1-mini-pool').replace('RETRY_COUNT', '2')
+    assert policies['inference-gpt-5-1-retry-tracked'] == tracked_template.replace('BACKEND_POOL_ID', 'inference-gpt-5-1-pool').replace('RETRY_COUNT', '2')
 
 
 def test_inference_policy_uses_exact_managed_identity_resource() -> None:
@@ -436,7 +450,7 @@ def test_inference_readme_documents_exact_response_handling_matrix() -> None:
     assert '`409` with `Retry-After`' in readme
     assert '`curl --max-time 1`' in readme
     assert '`POST /inference/gpt-5-1-retry-tracked/chat/completions`' in readme
-    assert 'returns a rewritten `429` only when all five gpt-5.1 backends return `429`' in readme
+    assert 'returns a rewritten `429` only when every attempt in the bounded retry chain returns `429`' in readme
 
 
 def test_inference_readme_defines_load_balancer_source_of_truth() -> None:
@@ -548,7 +562,9 @@ def test_inference_notebook_is_clean_and_defaults_to_simple_apim() -> None:
     retry_tracked_cells = [''.join(cell['source']) for cell in code_cells if 'inference-gpt-5-1-retry-tracked' in ''.join(cell['source'])]
     assert len(retry_tracked_cells) == 1
     assert "utils.read_policy_xml(\n    'inference-api-policy-with-retry-tracked.xml'" in retry_tracked_cells[0]
-    assert "'inference-gpt-5-1-pool',\n        4,\n        backend_count=5" in retry_tracked_cells[0]
+    assert 'backend_retry_count = 2' in retry_tracked_cells[0]
+    assert "'inference-gpt-5-1-pool',\n        backend_retry_count," in retry_tracked_cells[0]
+    assert 'backend_count' not in retry_tracked_cells[0]
     assert 'gpt_5_1_retry_tracked_api' in retry_tracked_cells[0]
     non_deployment_source = code_source.replace(retry_tracked_cells[0], '')
     assert 'inference-gpt-5-1-retry-tracked' not in non_deployment_source

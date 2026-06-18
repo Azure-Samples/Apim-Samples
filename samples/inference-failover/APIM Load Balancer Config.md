@@ -12,27 +12,27 @@ This load balancing design provides inference-backend failover. A single-region 
 
 | Index | Subscription | AI Resource region | APIM backend                    | Deployment type      | Billing/capacity | Priority | Weight |
 | :---: | :----------: | ------------------ | ------------------------------- | -------------------- | :--------------: | :------: | -----: |
-| 1     |  1           | East US 2          | `gpt-5-mini-ptu-eastus2`        | `ProvisionedManaged` | 300 PTUs         |    1     |    100 |
-| 2     |  1           | East US 2          | `gpt-5-mini-datazone-eastus2`   | `DataZoneStandard`   | PAYG             |    2     |     25 |
-| 3     |  2           | East US            | `gpt-5-mini-datazone-eastus`    | `DataZoneStandard`   | PAYG             |    2     |     25 |
-| 4     |  3           | Central US         | `gpt-5-mini-datazone-centralus` | `DataZoneStandard`   | PAYG             |    2     |     25 |
-| 5     |  4           | West US 3          | `gpt-5-mini-datazone-westus3`   | `DataZoneStandard`   | PAYG             |    2     |     25 |
-| 6     |  1           | East US 2          | `gpt-5-mini-global-eastus2`     | `GlobalStandard`     | PAYG             |    3     |     25 |
-| 7     |  2           | East US            | `gpt-5-mini-global-eastus`      | `GlobalStandard`     | PAYG             |    3     |     25 |
-| 8     |  3           | Central US         | `gpt-5-mini-global-centralus`   | `GlobalStandard`     | PAYG             |    3     |     25 |
-| 9     |  4           | West US 3          | `gpt-5-mini-global-westus3`     | `GlobalStandard`     | PAYG             |    3     |     25 |
+|   1   |      1       | East US 2          | `gpt-5-mini-ptu-eastus2`        | `ProvisionedManaged` |     300 PTUs     |    1     |    100 |
+|   2   |      1       | East US 2          | `gpt-5-mini-datazone-eastus2`   | `DataZoneStandard`   |       PAYG       |    2     |     25 |
+|   3   |      2       | East US            | `gpt-5-mini-datazone-eastus`    | `DataZoneStandard`   |       PAYG       |    2     |     25 |
+|   4   |      3       | Central US         | `gpt-5-mini-datazone-centralus` | `DataZoneStandard`   |       PAYG       |    2     |     25 |
+|   5   |      4       | West US 3          | `gpt-5-mini-datazone-westus3`   | `DataZoneStandard`   |       PAYG       |    2     |     25 |
+|   6   |      1       | East US 2          | `gpt-5-mini-global-eastus2`     | `GlobalStandard`     |       PAYG       |    3     |     25 |
+|   7   |      2       | East US            | `gpt-5-mini-global-eastus`      | `GlobalStandard`     |       PAYG       |    3     |     25 |
+|   8   |      3       | Central US         | `gpt-5-mini-global-centralus`   | `GlobalStandard`     |       PAYG       |    3     |     25 |
+|   9   |      4       | West US 3          | `gpt-5-mini-global-westus3`     | `GlobalStandard`     |       PAYG       |    3     |     25 |
 
-*Equal weights divide traffic approximately evenly among healthy backends in the same priority tier.*
+_Equal weights divide traffic approximately evenly among healthy backends in the same priority tier._
 
 ## Routing Strategy
 
 The backend pool uses three priority tiers:
 
-  1. **Priority 1 - regional provisioned capacity:** Route to the 300-PTU `ProvisionedManaged` deployment in East US 2.
+1. **Priority 1 - regional provisioned capacity:** Route to the 300-PTU `ProvisionedManaged` deployment in East US 2.
 
-  1. **Priority 2 - US data zone fallback:** Distribute traffic equally across the four `DataZoneStandard` deployments.
+1. **Priority 2 - US data zone fallback:** Distribute traffic equally across the four `DataZoneStandard` deployments.
 
-  1. **Priority 3 - global fallback:** Distribute traffic equally across the four `GlobalStandard` deployments.
+1. **Priority 3 - global fallback:** Distribute traffic equally across the four `GlobalStandard` deployments.
 
 ### Design Decisions
 
@@ -54,12 +54,12 @@ The priorities reflect capacity commitment and permitted processing scope, not p
 >
 > The global backend can be omitted when US-only processing is mandatory, leaving a two-backend pool. Retain multiple backends in a tier when independent subscription quota, endpoint failure isolation, or operational ownership justifies the added complexity. A single `DataZoneStandard` or `GlobalStandard` deployment already uses the service's internal routing scope; multiple deployments are not required merely to reach multiple inference regions.
 
-- **Set max number of retries.** Set the max to the total number of backends - 1. 1 represents the initial request. Here, this yields `10 backends - 1 = 9 retries`. This recommendation depends on the current circuit breaker setting, which trips a backend after one qualifying `408`, `429`, `499`, `500`, `502`, `503`, or `504` response. Once its circuit opens, later requests handled by that APIM gateway avoid the unavailable backend, so every request does not need to probe the full pool. The pool-specific cache in this policy stores the soonest `Retry-After` recovery time for an exhausted response; it does not select backends or replace circuit-breaker state.
+- **Keep the retry budget independent of pool size.** Use `2` retries as the bounded default, which permits three total attempts including the initial request. This may already be more than sufficient for interactive traffic. Do not use the number of backends minus one. The current circuit breaker trips a backend after one qualifying `408`, `429`, `499`, `500`, `502`, `503`, or `504` response, and later attempts handled by that APIM gateway avoid the unavailable backend. If the initial selection and two additional backends all fail while eligible, the request has enough evidence to stop rather than probe the full pool. The pool-specific cache in this policy stores the soonest `Retry-After` recovery time for an exhausted response; it does not select backends or replace circuit-breaker state.
 
 > **Note: About potential retries:**
 >
-> Because we retry in the context of a load balancer with a backend pool (as opposed to a single backend), any failing request may trip that backend's configred circuit breaker. That backend is then immediately removed from the pool for the duration of the circuit breaker trip. APIM then immediately retries against another *healthy* backend, if available, from the pool. **ONE retry represents the vast majority of retry occurrences.**
-> It is technically possible for more retries to occur, but that would necessitate backends failing often with a very dynamic backend health pool. This is very unlikely to happen, but even if it did, it would not result in many retries (odds are high that a healthy backend will be selectable and we also limit the max retry count).
+> Because we retry in the context of a load balancer with a backend pool (as opposed to a single backend), any failing request may trip that backend's configured circuit breaker. That backend is then immediately removed from the pool for the duration of the circuit breaker trip. APIM then immediately retries against another _healthy_ backend, if available, from the pool. **One retry represents the vast majority of retry occurrences.**
+> More retries require several backends that were eligible moments earlier to fail during the same request. That condition should be uncommon and is sufficiently represented by the fixed maximum of two retries. Use observed conditional recovery by attempt and end-to-end latency to determine whether even one retry is enough.
 
 ## Availability Validation
 

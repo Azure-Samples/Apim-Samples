@@ -1,0 +1,60 @@
+{
+    "properties": {
+        "description": "Stable gpt-5.1 inference pool from the canonical POC artifact superset.",
+        "pool": {
+            "services": [
+                {
+                    "id": "/backends/gpt-5-1-PTU-eastus2",
+                    "priority": 1,
+                    "weight": 10
+                },
+                {
+                    "id": "/backends/gpt-5-1-PTU-westus3",
+                    "priority": 1,
+                    "weight": 10
+                },
+                {
+                    "id": "/backends/gpt-5-1-PTU-southcentralus",
+                    "priority": 1,
+                    "weight": 10
+                },
+                {
+                    "id": "/backends/gpt-5-1-PAYG-centralus",
+                    "priority": 2,
+                    "weight": 10
+                },
+                {
+                    "id": "/backends/gpt-5-1-PAYG-eastus2",
+                    "priority": 2,
+                    "weight": 10
+                },
+                {
+                    "id": "/backends/gpt-5-1-PAYG-northcentralus",
+                    "priority": 2,
+                    "weight": 10
+                },
+                {
+                    "id": "/backends/gpt-5-1-PAYG-westus3",
+                    "priority": 2,
+                    "weight": 10
+                },
+                {
+                    "id": "/backends/gpt-5-1-PAYG-eastus2-02",
+                    "priority": 2,
+                    "weight": 10
+                },
+                {
+                    "id": "/backends/gpt-5-1-PAYG-westus3-02",
+                    "priority": 2,
+                    "weight": 10
+                },
+                {
+                    "id": "/backends/gpt-5-1-PAYG-southcentralus",
+                    "priority": 2,
+                    "weight": 10
+                }
+            ]
+        },
+        "type": "Pool"
+    }
+}

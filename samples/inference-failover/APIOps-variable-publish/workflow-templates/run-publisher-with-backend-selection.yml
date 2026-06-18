@@ -1,0 +1,189 @@
+name: Run APIOps Publisher with Backend Selection
+
+# This file is an inert template in the POC. Copy it to .github/workflows so publish-apiops.yml can call it as a reusable workflow.
+on:
+  workflow_call:
+    inputs:
+      selected-environment:
+        description: Logical environment requested by the caller, or all
+        required: true
+        type: string
+
+      logical-environment:
+        description: Logical environment represented by this target
+        required: true
+        type: string
+
+      github-environment:
+        description: Protected GitHub environment containing Azure OIDC secrets
+        required: true
+        type: string
+
+      target-name:
+        description: Stable target identifier used in logs and evidence names
+        required: true
+        type: string
+
+      source-artifacts-path:
+        description: Repository-relative canonical APIOps artifact root
+        required: true
+        type: string
+
+      configuration-path:
+        description: Repository-relative APIOps configuration YAML
+        required: true
+        type: string
+
+      resource-group-name:
+        description: Resource group containing the target APIM service
+        required: true
+        type: string
+
+      apim-service-name:
+        description: Target API Management service name
+        required: true
+        type: string
+
+permissions:
+  # Checkout needs repository read access; Azure login uses GitHub OIDC.
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    # The caller expands every matrix row. Skip targets outside the logical environment selected by the operator, while "all" publishes every row.
+    if: inputs.selected-environment == 'all' || inputs.selected-environment == inputs.logical-environment
+    name: Prepare and publish ${{ inputs.target-name }}
+    runs-on: ubuntu-latest
+    # Environment protection rules can require approval before Azure access.
+    environment: ${{ inputs.github-environment }}
+
+    env:
+      # Pin the publisher release and its archive digest independently. A modified or unexpectedly replaced release asset fails before execution.
+      APIOPS_RELEASE_VERSION: v7.0.3
+      PUBLISHER_ARCHIVE_SHA256: f9808d211c672841b951378562c08fe2acfddeef8a524a80963d771fed4bfee7
+
+    steps:
+      - name: Check out canonical artifacts
+        # CONVENTIONAL PIPELINE SETUP - NOT AN APIOPS FEATURE:
+        # The publisher needs local artifact files, so the workflow checks out the repository. APIOps itself does not perform source control checkout.
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - name: Prepare target-specific artifact tree
+        # POC-SPECIFIC EXTENSION - NOT OUT-OF-THE-BOX APIOPS:
+        #
+        # WHY: Native APIOps configuration overrides properties but does not select which artifact folders the publisher discovers. Without this step,
+        # every target would publish all 10 canonical backends.
+        #
+        # WALKTHROUGH:
+        # 1. Treat the configuration's top-level backends[].name values as this target's allowlist, including the stable backend pool resource.
+        #    For example:
+        #       backends[0].name = gpt-5-1-PTU-eastus2, ... backends[10].name = inference-gpt-5-1-pool
+        #
+        # 2. Validate every selected ID and pool member against the canonical artifact superset before creating any staged output. Every backend defined in
+        #    the configuration YAML must have a matching canonical artifact; the configured set may contain any intentional number of those artifacts.
+        #    Every configured pool member must also resolve to a selected canonical concrete backend. If an ID is missing because of a typo, stale
+        #    configuration, or absent extraction output, APIOps cannot publish it because property overrides do not create a missing artifact. If a pool
+        #    member is not selected, the staged pool would reference a backend that is not being published. The script fails before staging in either case.
+        #
+        # 3. Copy the canonical tree to runner.temp, include only selected backend directories, and preserve all non-backend collections.
+        #
+        # 4. Leave the checked-out source unchanged - we do not modify source - and write a JSON audit manifest containing the effective selection and pool membership.
+        #
+        # EFFECT: APIOps discovers and creates or updates only the selected subset: DEV=10, QA=2, and each regional PROD target=7. The target configuration
+        # also replaces the pool's complete services array with its PTU-first routing order. Validation failure stops before Azure authentication. This does
+        # not delete unselected backends already in APIM; retirement remains a separate reviewed operation.
+        shell: pwsh
+
+        env:
+          SOURCE_ARTIFACTS_PATH: ${{ github.workspace }}/${{ inputs.source-artifacts-path }}
+          CONFIGURATION_PATH: ${{ github.workspace }}/${{ inputs.configuration-path }}
+          STAGED_ARTIFACTS_PATH: ${{ runner.temp }}/apiops-${{ inputs.target-name }}
+          AUDIT_MANIFEST_PATH: ${{ runner.temp }}/apiops-${{ inputs.target-name }}.selection.json
+
+        run: |
+          & ./samples/inference-failover/POC/scripts/prepare-apiops-artifacts.ps1 `
+            -SourceArtifactsPath $env:SOURCE_ARTIFACTS_PATH `
+            -DestinationArtifactsPath $env:STAGED_ARTIFACTS_PATH `
+            -ConfigurationPath $env:CONFIGURATION_PATH `
+            -AuditManifestPath $env:AUDIT_MANIFEST_PATH
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Artifact preparation failed with exit code $LASTEXITCODE. The APIOps publisher will not run."
+          }
+
+      - name: Sign in to Azure with workload identity
+        # CONVENTIONAL APIOPS PIPELINE PREREQUISITE - NOT A PUBLISHER FEATURE:
+        # The publisher requires an authenticated Azure context. OIDC through azure/login is the standard secretless GitHub Actions setup used here; APIOps
+        # consumes the resulting credentials but does not perform login. Authenticate only after custom selection validation succeeds.
+        uses: azure/login@532459ea530d8321f2fb9bb10d1e0bcf23869a43 # v3.0.0
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Download and verify APIOps publisher
+        # CONVENTIONAL APIOPS TOOL ACQUISITION WITH POC HARDENING:
+        # Downloading the official standalone publisher for the runner platform is normal APIOps setup. Pinning v7.0.3 and verifying its SHA-256 digest are
+        # pipeline supply-chain controls added by this POC.
+        id: publisher
+        shell: pwsh
+
+        env:
+          DOWNLOAD_DIRECTORY: ${{ runner.temp }}/apiops-publisher
+
+        run: |
+          $archiveName = 'publisher-linux-x64.zip'
+          $archivePath = Join-Path $env:RUNNER_TEMP $archiveName
+          $downloadUri = "https://github.com/Azure/apiops/releases/download/$env:APIOPS_RELEASE_VERSION/$archiveName"
+
+          Invoke-WebRequest -Uri $downloadUri -OutFile $archivePath
+          $actualHash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $env:PUBLISHER_ARCHIVE_SHA256) {
+            throw "Publisher checksum mismatch. Expected '$env:PUBLISHER_ARCHIVE_SHA256'; received '$actualHash'."
+          }
+
+          Expand-Archive -LiteralPath $archivePath -DestinationPath $env:DOWNLOAD_DIRECTORY -Force
+          $publisherPath = Join-Path $env:DOWNLOAD_DIRECTORY 'publisher'
+          & chmod +x $publisherPath
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Could not mark the APIOps publisher executable.'
+          }
+
+          "publisher-path=$publisherPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Publish staged artifacts to API Management
+        # OUT-OF-THE-BOX APIOPS PUBLISHING:
+        # These AZURE_*, API_MANAGEMENT_*, CONFIGURATION_YAML_PATH, and logging environment variables are conventional APIOps publisher inputs. The executable
+        # discovers artifacts under the supplied output-folder path, applies configuration property overrides, and publishes them to APIM. COMMIT_ID is
+        # intentionally absent: the staged tree is generated during this run and has no meaningful Git history, so the publisher must process it as a
+        # complete target-specific snapshot.
+        shell: pwsh
+
+        env:
+          AZURE_RESOURCE_GROUP_NAME: ${{ inputs.resource-group-name }}
+          API_MANAGEMENT_SERVICE_NAME: ${{ inputs.apim-service-name }}
+          API_MANAGEMENT_SERVICE_OUTPUT_FOLDER_PATH: ${{ runner.temp }}/apiops-${{ inputs.target-name }}
+          CONFIGURATION_YAML_PATH: ${{ github.workspace }}/${{ inputs.configuration-path }}
+          PUBLISHER_PATH: ${{ steps.publisher.outputs.publisher-path }}
+          Logging__LogLevel__Default: Information
+
+        run: |
+          & $env:PUBLISHER_PATH
+          if ($LASTEXITCODE -ne 0) {
+            throw "APIOps publisher failed with exit code $LASTEXITCODE."
+          }
+
+      - name: Upload backend selection evidence
+        # POC-SPECIFIC EVIDENCE - NOT OUT-OF-THE-BOX APIOPS:
+        # APIOps does not create or upload this backend-selection manifest. The custom preparation script creates it, and GitHub Actions retains it for review
+        # of the exact target subset and effective pool membership. Preserve the manifest on success and failure; missing evidence warns instead of masking
+        # the original preparation or publisher error.
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+
+        with:
+          name: apiops-selection-${{ inputs.target-name }}
+          path: ${{ runner.temp }}/apiops-${{ inputs.target-name }}.selection.json
+          if-no-files-found: warn
+          retention-days: 30

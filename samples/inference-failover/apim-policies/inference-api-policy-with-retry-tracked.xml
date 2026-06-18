@@ -1,14 +1,14 @@
 <!--
     Inference API policy template with absolute-time Retry-After tracking.
 
-    The notebook replaces BACKEND_POOL_ID, BACKEND_COUNT, and RETRY_COUNT. This optional policy
+    The notebook replaces BACKEND_POOL_ID and RETRY_COUNT. This optional policy
     demonstrates the same tracked-recovery pattern as the load-balancing sample without adding it
     to the inference traffic or verification scenarios.
 
-    Every backend response is counted. The policy returns a terminal 429 only when all configured
-    backends returned 429 during the current retry chain. Mixed capacity and infrastructure failures
-    are normalized to 503. The earliest future Retry-After instant is retained in the APIM cache so
-    repeated calls receive a decreasing relative delay.
+    Every backend response is counted. The policy returns a terminal 429 only when every attempt in
+    the bounded retry chain returned 429. Mixed capacity and infrastructure failures are normalized
+    to 503. The earliest future Retry-After instant is retained in the APIM cache so repeated calls
+    receive a decreasing relative delay.
 -->
 <policies>
     <inbound>
@@ -89,7 +89,7 @@
 
         <!-- Ordinary final HTTP responses continue through outbound after retry exhaustion. -->
         <choose>
-            <when condition='@(context.Response != null &amp;&amp; context.Response.StatusCode == 429 &amp;&amp; context.Variables.GetValueOrDefault&lt;int&gt;("backendAttempt", 0) == BACKEND_COUNT &amp;&amp; context.Variables.GetValueOrDefault&lt;int&gt;("backend429Attempt", 0) == BACKEND_COUNT)'>
+            <when condition='@(context.Response != null &amp;&amp; context.Response.StatusCode == 429 &amp;&amp; context.Variables.GetValueOrDefault&lt;int&gt;("backendAttempt", 0) &gt; 1 &amp;&amp; context.Variables.GetValueOrDefault&lt;int&gt;("backend429Attempt", 0) == context.Variables.GetValueOrDefault&lt;int&gt;("backendAttempt", 0))'>
                 <set-variable name="retryAfterSeconds" value='@{
                     var retryEpoch = context.Variables.GetValueOrDefault&lt;string&gt;("updatedRetryEpoch", "0");
                     long parsedEpoch;

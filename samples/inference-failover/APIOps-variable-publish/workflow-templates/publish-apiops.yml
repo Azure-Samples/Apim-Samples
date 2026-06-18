@@ -1,0 +1,79 @@
+name: Publish APIOps Backend Selection POC
+
+# This file is an inert template in the POC. Copy it to .github/workflows together with the reusable workflow before enabling it in a repository.
+on:
+  workflow_dispatch:
+    inputs:
+      target-environment:
+        description: Logical environment to publish
+        required: true
+        type: choice
+        default: all
+
+        options:
+          - all
+          - dev
+          - qa
+          - prod
+
+permissions:
+  # Checkout needs repository read access; Azure login exchanges the GitHub OIDC token for an Azure access token without storing a client secret.
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Publish ${{ matrix.target-name }}
+    strategy:
+      # Let independent APIM targets finish even when another target fails.
+      fail-fast: false
+
+      # Each row is one independently managed APIM target. The reusable workflow skips rows outside the environment selected at dispatch time.
+      matrix:
+        include:
+          - target-name: dev-eastus2-01
+            logical-environment: dev
+            github-environment: apiops-dev
+            configuration-path: samples/inference-failover/POC/configurations/configuration.dev.yaml
+            resource-group-name: rg-apim-dev-eastus2-01
+            apim-service-name: apim-dev-eastus2-01
+
+          - target-name: qa-eastus2-01
+            logical-environment: qa
+            github-environment: apiops-qa
+            configuration-path: samples/inference-failover/POC/configurations/configuration.qa.yaml
+            resource-group-name: rg-apim-qa-eastus2-01
+            apim-service-name: apim-qa-eastus2-01
+
+          - target-name: prod-eastus2-01
+            logical-environment: prod
+            github-environment: apiops-prod
+            configuration-path: samples/inference-failover/POC/configurations/configuration.prod-eastus2.yaml
+            resource-group-name: rg-apim-prod-eastus2-01
+            apim-service-name: apim-prod-eastus2-01
+
+          # PROD targets select the same backend IDs but publish different PTU-first regional pool priority arrays.
+          - target-name: prod-westus3-01
+            logical-environment: prod
+            github-environment: apiops-prod
+            configuration-path: samples/inference-failover/POC/configurations/configuration.prod-westus3.yaml
+            resource-group-name: rg-apim-prod-westus3-01
+            apim-service-name: apim-prod-westus3-01
+
+    # Reusable workflows must live directly under .github/workflows.
+    uses: ./.github/workflows/run-publisher-with-backend-selection.yml
+
+    with:
+      selected-environment: ${{ inputs.target-environment }}
+      logical-environment: ${{ matrix.logical-environment }}
+      github-environment: ${{ matrix.github-environment }}
+      target-name: ${{ matrix.target-name }}
+
+      source-artifacts-path: samples/inference-failover/POC/artifacts
+      configuration-path: ${{ matrix.configuration-path }}
+
+      resource-group-name: ${{ matrix.resource-group-name }}
+      apim-service-name: ${{ matrix.apim-service-name }}
+
+    # The protected GitHub environment selected by each matrix row governs access to the Azure workload identity values consumed by the callee.
+    secrets: inherit

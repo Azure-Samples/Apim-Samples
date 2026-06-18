@@ -1,0 +1,11 @@
+{
+    "properties": {
+        "description": "Second canonical gpt-5.1 PAYG backend in West US 3.",
+        "protocol": "http",
+        "tls": {
+            "validateCertificateChain": true,
+            "validateCertificateName": true
+        },
+        "url": "https://canonical-gpt-5-1-payg-westus3-02.example.net/inference"
+    }
+}

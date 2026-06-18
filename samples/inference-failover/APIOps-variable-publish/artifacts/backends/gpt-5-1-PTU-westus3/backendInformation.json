@@ -1,0 +1,11 @@
+{
+    "properties": {
+        "description": "Canonical gpt-5.1 simulated PTU backend in West US 3.",
+        "protocol": "http",
+        "tls": {
+            "validateCertificateChain": true,
+            "validateCertificateName": true
+        },
+        "url": "https://canonical-gpt-5-1-ptu-westus3.example.net/inference"
+    }
+}

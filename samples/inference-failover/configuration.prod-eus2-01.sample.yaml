@@ -1,0 +1,310 @@
+# Illustrative APIOps v7.0.3 publisher configuration for the
+# inference-failover sample in prod-eus2-01.
+#
+# Replace the Azure OpenAI account hostnames with endpoints from the validated
+# Terraform manifest before publication. Matching backendInformation.json
+# artifacts must exist under artifacts/backends for every entry below; APIOps
+# uses this file to override those canonical artifacts, not to replace them.
+#
+# Canonical API policy artifacts should be derived from
+# apim-policies/inference-api-policy.xml. Replace BACKEND_POOL_ID with the
+# matching model-safe pool ID and RETRY_COUNT with the matching Named Value
+# expression, such as {{inference-gpt-5-1-retry-count}}. The policy supplies
+# managed identity authentication after pool selection, so these backend
+# definitions intentionally contain no credentials.
+
+ARM_API_VERSION: 2024-06-01-preview
+apimServiceName: apim-prod-eus2-01
+
+namedValues:
+  - name: inference-gpt-5-1-retry-count
+    properties:
+      displayName: inference-gpt-5-1-retry-count
+      secret: false
+      value: "2"
+  - name: inference-gpt-4-1-mini-retry-count
+    properties:
+      displayName: inference-gpt-4-1-mini-retry-count
+      secret: false
+      value: "2"
+
+backends:
+  # Concrete gpt-5.1 backends.
+  - name: gpt-5-1-PTU-eastus2
+    properties:
+      description: "In-region PTU: a-gpt-5-1 (gpt-5.1)"
+      type: Single
+      protocol: http
+      url: https://oai-prod-eastus2-01.openai.azure.com/openai/deployments/a-gpt-5-1
+      tls:
+        validateCertificateChain: true
+        validateCertificateName: true
+      circuitBreaker:
+        rules:
+          - name: failover-on-capacity-or-infrastructure-failure
+            acceptRetryAfter: true
+            failureCondition:
+              count: 1
+              interval: PT1M
+              statusCodeRanges:
+                - min: 408
+                  max: 408
+                - min: 429
+                  max: 429
+                - min: 499
+                  max: 500
+                - min: 502
+                  max: 504
+            tripDuration: PT1M
+  - name: gpt-5-1-PTU-westus3
+    properties:
+      description: "Out-of-region PTU: d-gpt-5-1 (gpt-5.1)"
+      type: Single
+      protocol: http
+      url: https://oai-prod-westus3-01.openai.azure.com/openai/deployments/d-gpt-5-1
+      tls:
+        validateCertificateChain: true
+        validateCertificateName: true
+      circuitBreaker:
+        rules:
+          - name: failover-on-capacity-or-infrastructure-failure
+            acceptRetryAfter: true
+            failureCondition:
+              count: 1
+              interval: PT1M
+              statusCodeRanges:
+                - min: 408
+                  max: 408
+                - min: 429
+                  max: 429
+                - min: 499
+                  max: 500
+                - min: 502
+                  max: 504
+            tripDuration: PT1M
+  - name: gpt-5-1-PAYG-eastus2
+    properties:
+      description: "In-region PAYG: b-gpt-5-1 (gpt-5.1)"
+      type: Single
+      protocol: http
+      url: https://oai-prod-eastus2-01.openai.azure.com/openai/deployments/b-gpt-5-1
+      tls:
+        validateCertificateChain: true
+        validateCertificateName: true
+      circuitBreaker:
+        rules:
+          - name: failover-on-capacity-or-infrastructure-failure
+            acceptRetryAfter: true
+            failureCondition:
+              count: 1
+              interval: PT1M
+              statusCodeRanges:
+                - min: 408
+                  max: 408
+                - min: 429
+                  max: 429
+                - min: 499
+                  max: 500
+                - min: 502
+                  max: 504
+            tripDuration: PT1M
+  - name: gpt-5-1-PAYG-westus3
+    properties:
+      description: "Out-of-region PAYG: e-gpt-5-1 (gpt-5.1)"
+      type: Single
+      protocol: http
+      url: https://oai-prod-westus3-01.openai.azure.com/openai/deployments/e-gpt-5-1
+      tls:
+        validateCertificateChain: true
+        validateCertificateName: true
+      circuitBreaker:
+        rules:
+          - name: failover-on-capacity-or-infrastructure-failure
+            acceptRetryAfter: true
+            failureCondition:
+              count: 1
+              interval: PT1M
+              statusCodeRanges:
+                - min: 408
+                  max: 408
+                - min: 429
+                  max: 429
+                - min: 499
+                  max: 500
+                - min: 502
+                  max: 504
+            tripDuration: PT1M
+  - name: gpt-5-1-PAYG-southcentralus
+    properties:
+      description: "Out-of-region PAYG: g-gpt-5-1 (gpt-5.1)"
+      type: Single
+      protocol: http
+      url: https://oai-prod-southcentralus-01.openai.azure.com/openai/deployments/g-gpt-5-1
+      tls:
+        validateCertificateChain: true
+        validateCertificateName: true
+      circuitBreaker:
+        rules:
+          - name: failover-on-capacity-or-infrastructure-failure
+            acceptRetryAfter: true
+            failureCondition:
+              count: 1
+              interval: PT1M
+              statusCodeRanges:
+                - min: 408
+                  max: 408
+                - min: 429
+                  max: 429
+                - min: 499
+                  max: 500
+                - min: 502
+                  max: 504
+            tripDuration: PT1M
+
+  # Concrete gpt-4.1-mini backends use a separate model-safe pool.
+  - name: gpt-4-1-mini-PTU-eastus2
+    properties:
+      description: "In-region PTU: c-gpt-4-1-mini (gpt-4.1-mini)"
+      type: Single
+      protocol: http
+      url: https://oai-prod-eastus2-01.openai.azure.com/openai/deployments/c-gpt-4-1-mini
+      tls:
+        validateCertificateChain: true
+        validateCertificateName: true
+      circuitBreaker:
+        rules:
+          - name: failover-on-capacity-or-infrastructure-failure
+            acceptRetryAfter: true
+            failureCondition:
+              count: 1
+              interval: PT1M
+              statusCodeRanges:
+                - min: 408
+                  max: 408
+                - min: 429
+                  max: 429
+                - min: 499
+                  max: 500
+                - min: 502
+                  max: 504
+            tripDuration: PT1M
+  - name: gpt-4-1-mini-PTU-westus3
+    properties:
+      description: "Out-of-region PTU: f-gpt-4-1-mini (gpt-4.1-mini)"
+      type: Single
+      protocol: http
+      url: https://oai-prod-westus3-01.openai.azure.com/openai/deployments/f-gpt-4-1-mini
+      tls:
+        validateCertificateChain: true
+        validateCertificateName: true
+      circuitBreaker:
+        rules:
+          - name: failover-on-capacity-or-infrastructure-failure
+            acceptRetryAfter: true
+            failureCondition:
+              count: 1
+              interval: PT1M
+              statusCodeRanges:
+                - min: 408
+                  max: 408
+                - min: 429
+                  max: 429
+                - min: 499
+                  max: 500
+                - min: 502
+                  max: 504
+            tripDuration: PT1M
+  - name: gpt-4-1-mini-PAYG-eastus2
+    properties:
+      description: "In-region PAYG: d-gpt-4-1-mini (gpt-4.1-mini)"
+      type: Single
+      protocol: http
+      url: https://oai-prod-eastus2-01.openai.azure.com/openai/deployments/d-gpt-4-1-mini
+      tls:
+        validateCertificateChain: true
+        validateCertificateName: true
+      circuitBreaker:
+        rules:
+          - name: failover-on-capacity-or-infrastructure-failure
+            acceptRetryAfter: true
+            failureCondition:
+              count: 1
+              interval: PT1M
+              statusCodeRanges:
+                - min: 408
+                  max: 408
+                - min: 429
+                  max: 429
+                - min: 499
+                  max: 500
+                - min: 502
+                  max: 504
+            tripDuration: PT1M
+  - name: gpt-4-1-mini-PAYG-southcentralus
+    properties:
+      description: "Out-of-region PAYG: h-gpt-4-1-mini (gpt-4.1-mini)"
+      type: Single
+      protocol: http
+      url: https://oai-prod-southcentralus-01.openai.azure.com/openai/deployments/h-gpt-4-1-mini
+      tls:
+        validateCertificateChain: true
+        validateCertificateName: true
+      circuitBreaker:
+        rules:
+          - name: failover-on-capacity-or-infrastructure-failure
+            acceptRetryAfter: true
+            failureCondition:
+              count: 1
+              interval: PT1M
+              statusCodeRanges:
+                - min: 408
+                  max: 408
+                - min: 429
+                  max: 429
+                - min: 499
+                  max: 500
+                - min: 502
+                  max: 504
+            tripDuration: PT1M
+
+  # Pool service arrays are complete replacements. List every backend that
+  # should remain in each target pool.
+  - name: inference-gpt-5-1-pool
+    properties:
+      description: gpt-5.1 routing preference for the inference-failover sample
+      type: Pool
+      pool:
+        services:
+          - id: /backends/gpt-5-1-PTU-eastus2
+            priority: 1
+            weight: 50
+          - id: /backends/gpt-5-1-PTU-westus3
+            priority: 1
+            weight: 50
+          - id: /backends/gpt-5-1-PAYG-eastus2
+            priority: 2
+            weight: 100
+          - id: /backends/gpt-5-1-PAYG-westus3
+            priority: 3
+            weight: 50
+          - id: /backends/gpt-5-1-PAYG-southcentralus
+            priority: 3
+            weight: 50
+  - name: inference-gpt-4-1-mini-pool
+    properties:
+      description: gpt-4.1-mini routing preference for the inference-failover sample
+      type: Pool
+      pool:
+        services:
+          - id: /backends/gpt-4-1-mini-PTU-eastus2
+            priority: 1
+            weight: 50
+          - id: /backends/gpt-4-1-mini-PTU-westus3
+            priority: 1
+            weight: 50
+          - id: /backends/gpt-4-1-mini-PAYG-eastus2
+            priority: 2
+            weight: 100
+          - id: /backends/gpt-4-1-mini-PAYG-southcentralus
+            priority: 3
+            weight: 100

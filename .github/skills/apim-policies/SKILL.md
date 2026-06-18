@@ -52,7 +52,7 @@ When retrying a backend request, make `<retry>` the sole direct child of `<backe
 
 ```xml
 <backend>
-    <retry count="3" interval="1" first-fast-retry="true"
+    <retry count="2" interval="1" first-fast-retry="true"
         condition='@(context.Response.StatusCode == 429 || context.Response.StatusCode &gt;= 500)'>
         <forward-request buffer-request-body="true" />
     </retry>
@@ -69,14 +69,14 @@ When a custom backend policy is not needed, keep `<base />` as the only direct c
 
 ## Policy Categories Quick Reference
 
-| Category | Common Policies | Section |
-| --- | --- | --- |
-| **Authentication** | `authentication-managed-identity`, `validate-azure-ad-token`, `validate-jwt` | inbound |
-| **Rate Limiting** | `rate-limit-by-key`, `quota-by-key` | inbound |
-| **Caching** | `cache-lookup`, `cache-store` | inbound/outbound |
-| **Routing** | `set-backend-service`, `forward-request`, `retry` | inbound/backend |
-| **Transformation** | `set-header`, `set-body`, `set-variable`, `rewrite-uri` | any |
-| **Control Flow** | `choose`, `return-response`, `retry`, `wait` | any |
+| Category           | Common Policies                                                              | Section          |
+| ------------------ | ---------------------------------------------------------------------------- | ---------------- |
+| **Authentication** | `authentication-managed-identity`, `validate-azure-ad-token`, `validate-jwt` | inbound          |
+| **Rate Limiting**  | `rate-limit-by-key`, `quota-by-key`                                          | inbound          |
+| **Caching**        | `cache-lookup`, `cache-store`                                                | inbound/outbound |
+| **Routing**        | `set-backend-service`, `forward-request`, `retry`                            | inbound/backend  |
+| **Transformation** | `set-header`, `set-body`, `set-variable`, `rewrite-uri`                      | any              |
+| **Control Flow**   | `choose`, `return-response`, `retry`, `wait`                                 | any              |
 
 ## Essential Policies
 
@@ -146,11 +146,15 @@ Return an immediate response without calling the backend:
 Retry failed requests with conditions:
 
 ```xml
-<retry count="3" interval="1" first-fast-retry="true"
+<retry count="2" interval="1" first-fast-retry="true"
     condition='@(context.Response.StatusCode == 429 || context.Response.StatusCode &gt;= 500)'>
     <forward-request buffer-request-body="true" />
 </retry>
 ```
+
+For backend-pool failover, bound the retry budget independently of pool size. Use `count="2"` as the default unless workload testing justifies another value. This permits two retries after the initial attempt, for three total attempts. Two retries may already be more than sufficient for interactive traffic: a circuit-breaking pool removes a failed member from selection, and three consecutive failures against backends that were eligible moments earlier are a strong signal to stop and return control to the caller. Use retry-attempt and latency telemetry to justify reducing the count to `1` or increasing it above `2`.
+
+When the value must be managed outside the policy, use a plain numeric Named Value as the complete attribute value, for example `count="{{backend-retry-count}}"`, and set that Named Value to `2`. Keep pool cardinality as a separate concern only when policy behavior genuinely needs to count pool members.
 
 ## Policy Expressions
 
@@ -244,16 +248,16 @@ Before using a type or member in a policy expression, verify it appears on the o
 - **`System.Enum` is restricted to** `Parse`, `TryParse`, `ToString`. No `GetValues`, `GetNames`, `IsDefined`.
 - **`System.Text.RegularExpressions.Regex` is restricted to** the constructor plus `IsMatch`, `Match`, `Matches`, `Replace`, `Unescape`, `Split`. No `CompileToAssembly`, `CacheSize`.
 - **Numeric primitives are fully allowed**, so `int.TryParse`, `long.TryParse`, `double.TryParse` are safe.
-- **JSON via `Newtonsoft.Json`** is the only supported JSON library — do not use `System.Text.Json`.
+- **JSON via `Newtonsoft.Json`** is the only supported JSON library; do not use `System.Text.Json`.
 
 When a member you need is not allowed, refactor to an equivalent that is. Examples:
 
-| Disallowed | Allowed replacement |
-| --- | --- |
+| Disallowed                                                        | Allowed replacement                                                                             |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `DateTime.TryParse(s, ..., DateTimeStyles.RoundtripKind, out dt)` | Store as Unix epoch via `DateTimeOffset.UtcNow.ToUnixTimeSeconds()`, parse with `long.TryParse` |
-| `DateTime.ParseExact(s, fmt, CultureInfo.InvariantCulture)` | `DateTime.Parse(s)` (allowed) or epoch-based representation |
-| `Enum.GetValues(typeof(T))` | Hard-code the comparison values or store as a string |
-| `System.Text.Json.JsonSerializer.Deserialize<T>(s)` | `JsonConvert.DeserializeObject<T>(s)` |
+| `DateTime.ParseExact(s, fmt, CultureInfo.InvariantCulture)`       | `DateTime.Parse(s)` (allowed) or epoch-based representation                                     |
+| `Enum.GetValues(typeof(T))`                                       | Hard-code the comparison values or store as a string                                            |
+| `System.Text.Json.JsonSerializer.Deserialize<T>(s)`               | `JsonConvert.DeserializeObject<T>(s)`                                                           |
 
 If you are unsure whether a member is allowed, fetch the [allowed types table](https://learn.microsoft.com/azure/api-management/api-management-policy-expressions#CLRTypes) and confirm before writing the expression.
 
