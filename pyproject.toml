@@ -23,7 +23,7 @@ dependencies = [
 [dependency-groups]
 # Developer tooling (installed automatically by default with `uv sync`)
 dev = [
-  "ruff>=0.15.18",
+  "ruff>=0.15.19",
   "pytest>=9.1.1",
   "pytest-cov>=7.1.0",
   "coverage>=7.14.3",
