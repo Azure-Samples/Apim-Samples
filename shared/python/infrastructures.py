@@ -104,10 +104,7 @@ class Infrastructure:
 
         try:
             # Get all pending private endpoint connections
-            output = az.run(
-                f'az network private-endpoint-connection list --id {apim_service_id}'
-                f' --query "[?contains(properties.privateLinkServiceConnectionState.status, \'Pending\')]" -o json'
-            )
+            output = az.run(f'az network private-endpoint-connection list --id {apim_service_id} --query "[?contains(properties.privateLinkServiceConnectionState.status, \'Pending\')]" -o json')
 
             if not output.success:
                 print_error('Failed to retrieve private endpoint connections')
@@ -155,10 +152,7 @@ class Infrastructure:
         if not check_kv.success:
             # Create Key Vault via Azure CLI with RBAC authorization (consistent with Bicep module)
             print_plain(f'Creating Key Vault: {key_vault_name}')
-            create_kv = az.run(
-                f'az keyvault create --name {key_vault_name} --resource-group {self.rg_name}'
-                f' --location {self.rg_location} --enable-rbac-authorization true'
-            )
+            create_kv = az.run(f'az keyvault create --name {key_vault_name} --resource-group {self.rg_name} --location {self.rg_location} --enable-rbac-authorization true')
 
             if not create_kv.success:
                 print_error(f'Failed to create Key Vault: {key_vault_name}')
@@ -178,10 +172,7 @@ class Infrastructure:
                 f'/providers/Microsoft.KeyVault/vaults/{key_vault_name}'
             )
             if not assign_kv_role.success:
-                print_error(
-                    'Failed to assign Key Vault Certificates Officer role to current user.\n'
-                    'This is an RBAC permission issue - verify your account has sufficient permissions.'
-                )
+                print_error('Failed to assign Key Vault Certificates Officer role to current user.\nThis is an RBAC permission issue - verify your account has sufficient permissions.')
                 return False
 
             print_ok('Assigned Key Vault Certificates Officer role to current user')
@@ -306,8 +297,7 @@ class Infrastructure:
                 # Run the second deployment
                 main_bicep_path = infra_dir / 'main.bicep'
                 output = az.run(
-                    f'az deployment group create --name {self.infra.value}-lockdown --resource-group {self.rg_name}'
-                    f' --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
+                    f'az deployment group create --name {self.infra.value}-lockdown --resource-group {self.rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
                     'Public access disabled successfully',
                     'Failed to disable public access',
                     timeout=1800,
@@ -502,8 +492,7 @@ class Infrastructure:
             # Run the deployment directly
             main_bicep_path = infra_dir / 'main.bicep'
             output = az.run(
-                f'az deployment group create --name {self.infra.value} --resource-group {self.rg_name}'
-                f' --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
+                f'az deployment group create --name {self.infra.value} --resource-group {self.rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
                 f"Deployment '{self.infra.value}' succeeded",
                 utils.get_deployment_failure_message(self.infra.value),
                 timeout=1800,
@@ -819,10 +808,7 @@ class AppGatewayInfrastructure(Infrastructure):
             print_ok('Key Vault certificate endpoint is reachable')
             return True
 
-        print_warning(
-            'Unable to reach the Key Vault certificate endpoint from the current environment. '
-            'This can be expected when the Key Vault only allows private access.'
-        )
+        print_warning('Unable to reach the Key Vault certificate endpoint from the current environment. This can be expected when the Key Vault only allows private access.')
         return False
 
     def _has_existing_infrastructure_deployment(self) -> bool:
@@ -893,8 +879,7 @@ class AppGatewayInfrastructure(Infrastructure):
                 return True
 
             print_error(
-                'The Key Vault already exists but its certificate endpoint is not reachable from the current environment. '
-                'No previous infrastructure deployment was found, so certificate creation cannot continue.'
+                'The Key Vault already exists but its certificate endpoint is not reachable from the current environment. No previous infrastructure deployment was found, so certificate creation cannot continue.'
             )
             self._last_keyvault_preparation_error = 'Failed to access Key Vault certificate endpoint'
             return False
@@ -1181,10 +1166,7 @@ class AppGwApimInfrastructure(AppGatewayInfrastructure):
         print_info('Traffic flow: Internet → Application Gateway → APIM (VNet Internal)')
 
         print_plain('\n\n🧪 TESTING\n')
-        print_plain(
-            'Using a self-signed certificate; test using curl with Host header against the'
-            ' App Gateway public IP. A 200 from the APIM health endpoint indicates success.'
-        )
+        print_plain('Using a self-signed certificate; test using curl with Host header against the App Gateway public IP. A 200 from the APIM health endpoint indicates success.')
         print_command(f'curl -v -k -H "Host: {self.appgw_domain_name}" https://{self.appgw_public_ip}/status-0123456789abcdef')
 
         return output
@@ -1193,6 +1175,11 @@ class AppGwApimInfrastructure(AppGatewayInfrastructure):
 # ------------------------------
 #    INFRASTRUCTURE CLEANUP FUNCTIONS
 # ------------------------------
+
+
+def _is_apim_service_not_found(output_text: str) -> bool:
+    """Return whether Azure reports that an APIM service does not exist."""
+    return 'servicenotfound' in output_text.casefold()
 
 
 def _cleanup_single_resource(resource: dict) -> tuple[bool, str]:
@@ -1229,15 +1216,24 @@ def _cleanup_single_resource(resource: dict) -> tuple[bool, str]:
         else:
             return False, f'Unknown resource type: {resource_type}'
 
-        # Execute delete
-        output = az.run(delete_cmd, f"{resource_type} '{resource_name}' deleted", f"Failed to delete {resource_type} '{resource_name}'")
-        if not output.success:
+        # APIM cleanup is idempotent: a missing live service may still have a soft-deleted service to purge.
+        delete_error_message = '' if resource_type == 'apim' else f"Failed to delete {resource_type} '{resource_name}'"
+        delete_retries = 0 if resource_type == 'apim' else 1
+        output = az.run(delete_cmd, f"{resource_type} '{resource_name}' deleted", delete_error_message, retries=delete_retries)
+        apim_service_missing = resource_type == 'apim' and _is_apim_service_not_found(output.text)
+        if not output.success and not apim_service_missing:
             return False, f'Delete failed for {resource_name}'
+        if apim_service_missing:
+            print_info(f"APIM service '{resource_name}' does not exist; checking for a soft-deleted service to purge.")
 
-        # Execute purge
-        output = az.run(purge_cmd, f"{resource_type} '{resource_name}' purged", f"Failed to purge {resource_type} '{resource_name}'")
-        if not output.success:
+        purge_error_message = '' if resource_type == 'apim' else f"Failed to purge {resource_type} '{resource_name}'"
+        purge_retries = 0 if resource_type == 'apim' else 1
+        output = az.run(purge_cmd, f"{resource_type} '{resource_name}' purged", purge_error_message, retries=purge_retries)
+        apim_deleted_service_missing = resource_type == 'apim' and _is_apim_service_not_found(output.text)
+        if not output.success and not apim_deleted_service_missing:
             return False, f'Purge failed for {resource_name}'
+        if apim_deleted_service_missing:
+            print_info(f"Soft-deleted APIM service '{resource_name}' does not exist; nothing to purge.")
 
         return True, ''
 
@@ -1349,8 +1345,37 @@ def _cleanup_resources_parallel_thread_safe(resources: list[dict], thread_prefix
     _cleanup_resources_parallel(resources, thread_prefix, thread_color)
 
 
+def _get_resource_group_existence(rg_name: str) -> bool | None:
+    """Return whether a resource group exists, or None when the check fails."""
+    try:
+        output = az.run(f'az group exists --name {rg_name}', retries=0)
+    except Exception:  # pragma: no cover
+        return None
+
+    if not output.success:
+        return None
+
+    normalized_output = output.text.strip().lower()
+    if normalized_output == 'true':
+        return True
+    if normalized_output == 'false':
+        return False
+
+    return None
+
+
 def _delete_resource_group_best_effort(rg_name: str, *, thread_prefix: str = '', thread_color: str = '') -> None:
     if not rg_name:
+        return
+
+    rg_exists = _get_resource_group_existence(rg_name)
+    if rg_exists is False:
+        message = f"Resource group '{rg_name}' is already absent. No deletion is needed."
+        if thread_prefix:
+            with _print_lock:
+                _print_log(f'{thread_prefix}{message}', 'ℹ️ ', thread_color, show_time=True)
+        else:
+            print_info(message)
         return
 
     delete_cmd = f'az group delete --name {rg_name} -y --no-wait'
@@ -1406,26 +1431,24 @@ def _cleanup_resources(deployment_name: str, rg_name: str) -> None:
     try:
         print_info(f'Resource group : {rg_name}')
 
-        # Show the deployment details (if it exists)
-        output = az.run(
-            f'az deployment group show --name {deployment_name} -g {rg_name} -o json',
-            'Deployment retrieved',
-            'Deployment not found (may be empty resource group)',
-        )
+        rg_exists = _get_resource_group_existence(rg_name)
+        if rg_exists is False:
+            rg_delete_attempted = True
+            print_info(f"Resource group '{rg_name}' was not found. Nothing to clean up.")
+            print_message('Cleanup completed.')
+            return
+        if rg_exists is None:
+            print_warning(f"Could not verify whether resource group '{rg_name}' exists. Continuing with best-effort cleanup.")
 
         # Collect all resources that need to be deleted and purged
         resources_to_cleanup = []
 
         # List CognitiveService accounts
-        output = az.run(
-            f'az cognitiveservices account list -g {rg_name}', 'Listed CognitiveService accounts', 'Failed to list CognitiveService accounts'
-        )
+        output = az.run(f'az cognitiveservices account list -g {rg_name}', 'Listed CognitiveService accounts', 'Failed to list CognitiveService accounts')
 
         if output.success and output.json_data:
             for resource in output.json_data:
-                resources_to_cleanup.append(
-                    {'type': 'cognitiveservices', 'name': resource['name'], 'location': resource['location'], 'rg_name': rg_name}
-                )
+                resources_to_cleanup.append({'type': 'cognitiveservices', 'name': resource['name'], 'location': resource['location'], 'rg_name': rg_name})
 
         # List APIM resources
         output = az.run(f'az apim list -g {rg_name}', 'Listed APIM resources', 'Failed to list APIM resources')
@@ -1521,24 +1544,30 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
         with _print_lock:
             _print_log(f'{thread_prefix}Resource group : {rg_name}', '👉 ', thread_color)
 
-        # Show the deployment details
-        output = az.run(
-            f'az deployment group show --name {deployment_name} -g {rg_name} -o json', 'Deployment retrieved', 'Failed to retrieve the deployment'
-        )
+        rg_exists = _get_resource_group_existence(rg_name)
+        if rg_exists is False:
+            rg_delete_attempted = True
+            with _print_lock:
+                _print_log(f"{thread_prefix}Resource group '{rg_name}' was not found. Nothing to clean up.", 'ℹ️ ', thread_color, show_time=True)
+            return
+        if rg_exists is None:
+            with _print_lock:
+                _print_log(
+                    f"{thread_prefix}Could not verify whether resource group '{rg_name}' exists. Continuing with best-effort cleanup.",
+                    '⚠️ ',
+                    BOLD_Y,
+                    show_time=True,
+                )
 
         # Collect all resources that need to be deleted and purged
         resources_to_cleanup = []
 
         # List CognitiveService accounts
-        output = az.run(
-            f'az cognitiveservices account list -g {rg_name}', 'Listed CognitiveService accounts', 'Failed to list CognitiveService accounts'
-        )
+        output = az.run(f'az cognitiveservices account list -g {rg_name}', 'Listed CognitiveService accounts', 'Failed to list CognitiveService accounts')
 
         if output.success and output.json_data:
             for resource in output.json_data:
-                resources_to_cleanup.append(
-                    {'type': 'cognitiveservices', 'name': resource['name'], 'location': resource['location'], 'rg_name': rg_name}
-                )
+                resources_to_cleanup.append({'type': 'cognitiveservices', 'name': resource['name'], 'location': resource['location'], 'rg_name': rg_name})
 
         # List APIM resources
         output = az.run(f'az apim list -g {rg_name}', 'Listed APIM resources', 'Failed to list APIM resources')
@@ -1557,9 +1586,7 @@ def _cleanup_resources_with_thread_safe_printing(deployment_name: str, rg_name: 
         # Delete and purge resources in parallel if there are any
         if resources_to_cleanup:
             with _print_lock:
-                _print_log(
-                    f'{thread_prefix}Found {len(resources_to_cleanup)} resource(s) to clean up. Processing in parallel...', '👉 ', thread_color
-                )
+                _print_log(f'{thread_prefix}Found {len(resources_to_cleanup)} resource(s) to clean up. Processing in parallel...', '👉 ', thread_color)
             _cleanup_resources_parallel_thread_safe(resources_to_cleanup, thread_prefix, thread_color)
         else:
             with _print_lock:
@@ -1625,19 +1652,12 @@ def cleanup_infra_deployments(deployment: INFRASTRUCTURE, indexes: int | list[in
         thread_color = THREAD_COLORS[i % len(THREAD_COLORS)]
         thread_prefix = f'{thread_color}[{deployment.value}-{idx}]{RESET}: '
 
-        cleanup_tasks.append(
-            {'deployment_name': deployment.value, 'rg_name': rg_name, 'thread_prefix': thread_prefix, 'thread_color': thread_color, 'index': idx}
-        )
+        cleanup_tasks.append({'deployment_name': deployment.value, 'rg_name': rg_name, 'thread_prefix': thread_prefix, 'thread_color': thread_color, 'index': idx})
 
     # Execute cleanup tasks in parallel
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Submit all tasks
-        future_to_task = {
-            executor.submit(
-                _cleanup_resources_thread_safe, task['deployment_name'], task['rg_name'], task['thread_prefix'], task['thread_color']
-            ): task
-            for task in cleanup_tasks
-        }
+        future_to_task = {executor.submit(_cleanup_resources_thread_safe, task['deployment_name'], task['rg_name'], task['thread_prefix'], task['thread_color']): task for task in cleanup_tasks}
 
         # Track results
         completed_count = 0

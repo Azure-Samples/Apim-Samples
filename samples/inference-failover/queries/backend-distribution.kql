@@ -1,0 +1,29 @@
+// Shows the final concrete backend destinations exercised by AI inference traffic.
+//
+// Parameters (prepend as KQL 'let' bindings before running):
+//   let timeWindow = 1h;
+//   let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-4-1-mini']);
+//
+ApiManagementGatewayLogs
+| where TimeGenerated > ago(timeWindow)
+| where ApiId in~ (apiIds)
+| project TimeGenerated, ApiId, BackendId, BackendUrl, ResponseCode, BackendResponseCode, BackendTime
+| extend AOAIInstance = iff(isnotempty(BackendUrl), tostring(split(tostring(parse_url(BackendUrl).Host), '.')[0]), '')
+| extend Backend = case(isnotempty(BackendUrl), BackendUrl, isnotempty(BackendId), BackendId, '(backend not recorded)')
+| summarize
+	Requests = count(),
+	CallerResponseCodes = make_set(ResponseCode),
+	FinalBackendResponseCodes = make_set(BackendResponseCode),
+	Successes = countif(ResponseCode between (200 .. 299)),
+	ClientErrors = countif(ResponseCode between (400 .. 499) and ResponseCode != 429),
+	Throttled = countif(ResponseCode == 429),
+	ServerErrors = countif(ResponseCode >= 500),
+	AverageBackendMs = round(avg(BackendTime), 1)
+	by ApiId, AOAIInstance, Backend
+| extend
+	CallerResponseCodes = tostring(array_sort_asc(CallerResponseCodes)),
+	FinalBackendResponseCodes = tostring(array_sort_asc(FinalBackendResponseCodes)),
+	OtherResponses = Requests - Successes - ClientErrors - Throttled - ServerErrors,
+	SuccessRate = round(100.0 * Successes / Requests, 1)
+| project ApiId, AOAIInstance, Backend, Requests, CallerResponseCodes, FinalBackendResponseCodes, Successes, ClientErrors, Throttled, ServerErrors, OtherResponses, AverageBackendMs, SuccessRate
+| order by ApiId asc, Requests desc

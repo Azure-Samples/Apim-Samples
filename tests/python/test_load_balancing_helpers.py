@@ -1,5 +1,6 @@
 """Tests for the load-balancing sample-local runtime helpers."""
 
+import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -13,6 +14,33 @@ LOAD_BALANCING_DIR = Path(__file__).resolve().parents[2] / 'samples' / 'load-bal
 sys.path.insert(0, str(LOAD_BALANCING_DIR))
 
 from load_balancing_helpers import LoadBalancingScenario, LoadBalancingTrafficRunner, RetryTrackingResult  # noqa: E402
+
+
+@pytest.mark.unit
+def test_load_balancing_policies_use_bounded_retry_count() -> None:
+    """Keep every load-balancing route on two retries independent of pool size."""
+    notebook = json.loads((LOAD_BALANCING_DIR / 'create.ipynb').read_text(encoding='utf-8'))
+    code_source = '\n'.join(''.join(cell['source']) for cell in notebook['cells'] if cell['cell_type'] == 'code')
+    policy_paths = sorted((LOAD_BALANCING_DIR / 'apim-policies').glob('*.xml'))
+    params = json.loads((LOAD_BALANCING_DIR / 'params.json').read_text(encoding='utf-8'))
+    embedded_policies = {api['name']: api['operations'][0]['policyXml'] for api in params['parameters']['apis']['value']}
+    standard_template = (LOAD_BALANCING_DIR / 'apim-policies' / 'aca-backend-pool-load-balancing.xml').read_text(encoding='utf-8')
+    error_template = (LOAD_BALANCING_DIR / 'apim-policies' / 'aca-backend-pool-load-balancing-with-429.xml').read_text(encoding='utf-8')
+    tracked_template = (LOAD_BALANCING_DIR / 'apim-policies' / 'aca-backend-pool-load-balancing-with-retry-tracked.xml').read_text(encoding='utf-8')
+    expected_policies = {
+        'lb-prioritized': standard_template.format(backend_id='aca-backend-pool-web-api-429-prioritized', retry_count=2),
+        'lb-prioritized-weighted': standard_template.format(backend_id='aca-backend-pool-web-api-429-prioritized-and-weighted', retry_count=2),
+        'lb-weighted-equal': standard_template.format(backend_id='aca-backend-pool-web-api-429-weighted-50-50', retry_count=2),
+        'lb-weighted-unequal': standard_template.format(backend_id='aca-backend-pool-web-api-429-weighted-80-20', retry_count=2),
+        'lb-429-prioritized': error_template.format(backend_id='aca-backend-pool-web-api-429-prioritized', retry_count=2),
+        'lb-retry-tracked': tracked_template.format(backend_id='aca-backend-pool-web-api-429-prioritized', retry_count=2, cache_key='retry-tracked'),
+    }
+
+    assert 'backend_retry_count = 2' in code_source
+    assert code_source.count('retry_count=backend_retry_count') == 6
+    assert len(policy_paths) == 3
+    assert all('number of backends' not in policy_path.read_text(encoding='utf-8') for policy_path in policy_paths)
+    assert embedded_policies == expected_policies
 
 
 def _create_runner(*, responses=None, sleep=None, clock=None):

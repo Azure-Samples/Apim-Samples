@@ -6,7 +6,7 @@ This folder contains the source for the public landing page at
 ## How it works
 
 | Piece | Role |
-|---|---|
+| --- | --- |
 | `docs/index.html` | The page markup, structured data, and meta tags. CSS is externalised to `styles.css`; there is no executable JavaScript. |
 | `docs/styles.css` | All visual rules for the landing page. Referenced by `index.html` via `<link rel="stylesheet">`. |
 | `docs/robots.txt` | Permissive crawler policy plus a pointer to the sitemap. |
@@ -21,7 +21,7 @@ There is **no JavaScript framework, no bundler, and no npm install**. That is de
 
 From the Developer CLI (`./start.ps1` on Windows, `./start.sh` on macOS/Linux), choose:
 
-```
+```text
 w) Serve & view GitHub Pages website (auto-opens browser)
 ```
 

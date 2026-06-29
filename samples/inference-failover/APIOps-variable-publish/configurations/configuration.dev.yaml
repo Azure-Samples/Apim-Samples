@@ -1,0 +1,71 @@
+# APIOps property overrides and the POC backend allowlist for DEV.
+# The preprocessing script retains all 10 concrete backends and the stable pool.
+# Simulated PTU capacity is exhausted before PAYG capacity.
+ARM_API_VERSION: 2024-06-01-preview
+
+backends:
+  - name: gpt-5-1-PTU-eastus2
+    properties:
+      url: https://dev-gpt-5-1-ptu-eastus2.example.net/inference
+  - name: gpt-5-1-PAYG-centralus
+    properties:
+      url: https://dev-gpt-5-1-payg-centralus.example.net/inference
+  - name: gpt-5-1-PTU-westus3
+    properties:
+      url: https://dev-gpt-5-1-ptu-westus3.example.net/inference
+  - name: gpt-5-1-PAYG-eastus2
+    properties:
+      url: https://dev-gpt-5-1-payg-eastus2.example.net/inference
+  - name: gpt-5-1-PAYG-northcentralus
+    properties:
+      url: https://dev-gpt-5-1-payg-northcentralus.example.net/inference
+  - name: gpt-5-1-PAYG-westus3
+    properties:
+      url: https://dev-gpt-5-1-payg-westus3.example.net/inference
+  - name: gpt-5-1-PAYG-eastus2-02
+    properties:
+      url: https://dev-gpt-5-1-payg-eastus2-02.example.net/inference
+  - name: gpt-5-1-PTU-southcentralus
+    properties:
+      url: https://dev-gpt-5-1-ptu-southcentralus.example.net/inference
+  - name: gpt-5-1-PAYG-westus3-02
+    properties:
+      url: https://dev-gpt-5-1-payg-westus3-02.example.net/inference
+  - name: gpt-5-1-PAYG-southcentralus
+    properties:
+      url: https://dev-gpt-5-1-payg-southcentralus.example.net/inference
+  - name: inference-gpt-5-1-pool
+    properties:
+      type: Pool
+      pool:
+        services:
+          - id: /backends/gpt-5-1-PTU-eastus2
+            priority: 1
+            weight: 10
+          - id: /backends/gpt-5-1-PTU-westus3
+            priority: 1
+            weight: 10
+          - id: /backends/gpt-5-1-PTU-southcentralus
+            priority: 1
+            weight: 10
+          - id: /backends/gpt-5-1-PAYG-centralus
+            priority: 2
+            weight: 10
+          - id: /backends/gpt-5-1-PAYG-eastus2
+            priority: 2
+            weight: 10
+          - id: /backends/gpt-5-1-PAYG-northcentralus
+            priority: 2
+            weight: 10
+          - id: /backends/gpt-5-1-PAYG-westus3
+            priority: 2
+            weight: 10
+          - id: /backends/gpt-5-1-PAYG-eastus2-02
+            priority: 2
+            weight: 10
+          - id: /backends/gpt-5-1-PAYG-westus3-02
+            priority: 2
+            weight: 10
+          - id: /backends/gpt-5-1-PAYG-southcentralus
+            priority: 2
+            weight: 10

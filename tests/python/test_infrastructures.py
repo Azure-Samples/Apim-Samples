@@ -64,9 +64,7 @@ def test_infrastructure_creation_basic(mock_utils):
 @pytest.mark.unit
 def test_infrastructure_creation_with_custom_values(mock_utils):
     """Test Infrastructure creation with custom values."""
-    infra = infrastructures.Infrastructure(
-        infra=INFRASTRUCTURE.APIM_ACA, index=2, rg_location=Region.WEST_US_2, apim_sku=APIM_SKU.PREMIUM, networkMode=APIMNetworkMode.EXTERNAL_VNET
-    )
+    infra = infrastructures.Infrastructure(infra=INFRASTRUCTURE.APIM_ACA, index=2, rg_location=Region.WEST_US_2, apim_sku=APIM_SKU.PREMIUM, networkMode=APIMNetworkMode.EXTERNAL_VNET)
 
     assert infra.infra == INFRASTRUCTURE.APIM_ACA
     assert infra.index == 2
@@ -78,9 +76,7 @@ def test_infrastructure_creation_with_custom_values(mock_utils):
 @pytest.mark.unit
 def test_infrastructure_creation_with_custom_policy_fragments(mock_utils, mock_policy_fragments):
     """Test Infrastructure creation with custom policy fragments."""
-    infra = infrastructures.Infrastructure(
-        infra=INFRASTRUCTURE.SIMPLE_APIM, index=TEST_INDEX, rg_location=TEST_LOCATION, infra_pfs=mock_policy_fragments
-    )
+    infra = infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=TEST_INDEX, rg_location=TEST_LOCATION, infra_pfs=mock_policy_fragments)
 
     # Initialize policy fragments
     pfs = infra._define_policy_fragments()
@@ -244,9 +240,7 @@ def test_appgw_has_existing_infrastructure_deployment_returns_cli_result(mock_ut
         (infrastructures.AppGwApimInfrastructure, APIM_SKU.DEVELOPER),
     ],
 )
-def test_appgw_prepare_keyvault_certificate_skips_creation_for_unreachable_existing_keyvault_with_prior_deployment(
-    mock_utils, infra_class, default_sku
-):
+def test_appgw_prepare_keyvault_certificate_skips_creation_for_unreachable_existing_keyvault_with_prior_deployment(mock_utils, infra_class, default_sku):
     """Skip certificate creation when an existing private Key Vault is unreachable but the infra already exists."""
     infra = infra_class(rg_location='eastus', index=1, apim_sku=default_sku)
     infra._keyvault_exists = Mock(return_value=True)
@@ -343,9 +337,7 @@ def test_define_policy_fragments_with_none_input(mock_utils):
 @pytest.mark.unit
 def test_define_policy_fragments_with_custom_input(mock_utils, mock_policy_fragments):
     """Test _define_policy_fragments with custom input."""
-    infra = infrastructures.Infrastructure(
-        infra=INFRASTRUCTURE.SIMPLE_APIM, index=TEST_INDEX, rg_location=TEST_LOCATION, infra_pfs=mock_policy_fragments
-    )
+    infra = infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=TEST_INDEX, rg_location=TEST_LOCATION, infra_pfs=mock_policy_fragments)
 
     # Initialize policy fragments
     pfs = infra._define_policy_fragments()
@@ -767,9 +759,7 @@ def test_afd_apim_infrastructure_bicep_parameters(mock_utils):
     # Test with custom APIs (should enable ACA)
     custom_apis = [API('test-api', 'Test API', '/test', 'Test API description')]
 
-    infra = infrastructures.AfdApimAcaInfrastructure(
-        rg_location=TEST_LOCATION, index=TEST_INDEX, apim_sku=APIM_SKU.STANDARDV2, infra_apis=custom_apis
-    )
+    infra = infrastructures.AfdApimAcaInfrastructure(rg_location=TEST_LOCATION, index=TEST_INDEX, apim_sku=APIM_SKU.STANDARDV2, infra_apis=custom_apis)
 
     # Initialize components
     infra._define_policy_fragments()
@@ -1087,9 +1077,7 @@ def test_infrastructure_empty_custom_lists(mock_utils):
     empty_pfs = []
     empty_apis = []
 
-    infra = infrastructures.Infrastructure(
-        infra=INFRASTRUCTURE.SIMPLE_APIM, index=TEST_INDEX, rg_location=TEST_LOCATION, infra_pfs=empty_pfs, infra_apis=empty_apis
-    )
+    infra = infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=TEST_INDEX, rg_location=TEST_LOCATION, infra_pfs=empty_pfs, infra_apis=empty_apis)
 
     # Initialize components
     infra._define_policy_fragments()
@@ -1236,9 +1224,8 @@ def test_cleanup_resources_with_resources(monkeypatch):
     def mock_run(command, ok_message=None, error_message=None, **kwargs):
         run_commands.append(command)
 
-        # Mock deployment show response
-        if 'deployment group show' in command:
-            return Output(success=True, text='{"properties": {"provisioningState": "Succeeded"}}')
+        if 'group exists' in command:
+            return Output(success=True, text='true')
 
         # Mock cognitive services list response
         if 'cognitiveservices account list' in command:
@@ -1263,7 +1250,7 @@ def test_cleanup_resources_with_resources(monkeypatch):
 
     # Verify all expected commands were called
     command_patterns = [
-        'az deployment group show --name test-deployment -g test-rg',
+        'az group exists --name test-rg',
         'az cognitiveservices account list -g test-rg',
         'az cognitiveservices account delete -g test-rg -n cog-service-1',
         'az cognitiveservices account purge -g test-rg -n cog-service-1 --location "eastus"',
@@ -1293,9 +1280,8 @@ def test_cleanup_resources_no_resources(monkeypatch):
     def mock_run(command, ok_message=None, error_message=None, **kwargs):
         run_commands.append(command)
 
-        # Mock deployment show response
-        if 'deployment group show' in command:
-            return Output(success=True, text='{"properties": {"provisioningState": "Succeeded"}}')
+        if 'group exists' in command:
+            return Output(success=True, text='true')
 
         # Mock empty resource lists
         if any(x in command for x in ['cognitiveservices account list', 'apim list', 'keyvault list']):
@@ -1312,7 +1298,7 @@ def test_cleanup_resources_no_resources(monkeypatch):
 
     # Verify only listing and resource group deletion commands were called
     expected_commands = [
-        'az deployment group show --name test-deployment -g test-rg',
+        'az group exists --name test-rg',
         'az cognitiveservices account list -g test-rg',
         'az apim list -g test-rg',
         'az keyvault list -g test-rg',
@@ -1328,22 +1314,23 @@ def test_cleanup_resources_no_resources(monkeypatch):
         assert not any(pattern in cmd for cmd in run_commands), f'Unexpected delete/purge command found: {pattern}'
 
 
-def test_cleanup_resources_command_failures(monkeypatch):
-    """Test _cleanup_resources when commands fail."""
+def test_cleanup_resources_missing_resource_group_is_already_clean(monkeypatch):
+    """Treat a missing resource group as an informational no-op."""
+    run_calls = []
+    info_messages = []
 
     def mock_run(command, ok_message=None, error_message=None, **kwargs):
-        # Mock deployment show failure
-        if 'deployment group show' in command:
-            return Output(success=False, text='Deployment not found')
-
-        # All other commands succeed
-        return Output(success=True, text='[]')
+        run_calls.append((command, kwargs))
+        return Output(success=True, text='false')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    suppress_module_functions(monkeypatch, infrastructures, ['print_info', 'print_message'])
+    monkeypatch.setattr(infrastructures, 'print_info', info_messages.append)
+    suppress_module_functions(monkeypatch, infrastructures, ['print_message'])
 
-    # Should not raise exception even when deployment show fails
     infrastructures._cleanup_resources('test-deployment', 'test-rg')
+
+    assert run_calls == [('az group exists --name test-rg', {'retries': 0})]
+    assert any('was not found. Nothing to clean up.' in message for message in info_messages)
 
 
 def test_cleanup_resources_exception_handling(monkeypatch):
@@ -1781,9 +1768,8 @@ def test_cleanup_resources_partial_failures(monkeypatch):
     def mock_run(command, ok_message=None, error_message=None, **kwargs):
         run_commands.append(command)
 
-        # Mock deployment show response
-        if 'deployment group show' in command:
-            return Output(success=True, text='{"properties": {"provisioningState": "Failed"}}')
+        if 'group exists' in command:
+            return Output(success=True, text='true')
 
         # Mock resources exist
         if 'cognitiveservices account list' in command:
@@ -1819,7 +1805,7 @@ def test_cleanup_resources_partial_failures(monkeypatch):
 
     # Verify all listing and group operations were attempted
     # Note: With parallel cleanup, if delete fails, purge is not attempted (expected behavior)
-    expected_patterns = ['deployment group show', 'cognitiveservices account list', 'apim list', 'keyvault list', 'group delete']
+    expected_patterns = ['group exists', 'cognitiveservices account list', 'apim list', 'keyvault list', 'group delete']
 
     for pattern in expected_patterns:
         assert any(pattern in cmd for cmd in run_commands), f'Expected command pattern not found: {pattern}'
@@ -2016,7 +2002,7 @@ def test_infrastructure_concrete_class_sku_inheritance():
 def test_cleanup_single_resource_exception_handling(monkeypatch):
     """Test _cleanup_single_resource exception handling."""
 
-    def mock_run(command, ok_message=None, error_message=None):
+    def mock_run(command, ok_message=None, error_message=None, **kwargs):
         raise RuntimeError('Test exception')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
@@ -2138,9 +2124,7 @@ def test_infrastructure_multiple_custom_pfs(mock_utils):
 
 def test_infrastructure_large_custom_api_list(mock_utils):
     """Test infrastructure with many custom APIs."""
-    apis = [
-        API(name=f'api-{i}', displayName=f'API {i}', path=f'/api-{i}', description=f'API {i}', policyXml='<policy></policy>') for i in range(1, 11)
-    ]
+    apis = [API(name=f'api-{i}', displayName=f'API {i}', path=f'/api-{i}', description=f'API {i}', policyXml='<policy></policy>') for i in range(1, 11)]
 
     infra = infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='eastus', infra_apis=apis)
 
@@ -2525,15 +2509,11 @@ def test_infrastructure_constructor_with_all_network_modes(mock_utils):
     assert infra_public.networkMode == APIMNetworkMode.PUBLIC
 
     # Test EXTERNAL_VNET mode
-    infra_external = infrastructures.Infrastructure(
-        infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='eastus', networkMode=APIMNetworkMode.EXTERNAL_VNET
-    )
+    infra_external = infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='eastus', networkMode=APIMNetworkMode.EXTERNAL_VNET)
     assert infra_external.networkMode == APIMNetworkMode.EXTERNAL_VNET
 
     # Test INTERNAL_VNET mode
-    infra_internal = infrastructures.Infrastructure(
-        infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='eastus', networkMode=APIMNetworkMode.INTERNAL_VNET
-    )
+    infra_internal = infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='eastus', networkMode=APIMNetworkMode.INTERNAL_VNET)
     assert infra_internal.networkMode == APIMNetworkMode.INTERNAL_VNET
 
 
@@ -2551,18 +2531,14 @@ def test_infrastructure_constructor_with_all_sku_types(mock_utils):
 def test_infrastructure_constructor_with_mixed_custom_components(mock_utils):
     """Test Infrastructure with combinations of custom APIs and policy fragments."""
     # Only custom APIs, no PFs
-    api_only = infrastructures.Infrastructure(
-        infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='eastus', infra_apis=[API('api1', 'API 1', '/api1', 'API 1')], infra_pfs=None
-    )
+    api_only = infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='eastus', infra_apis=[API('api1', 'API 1', '/api1', 'API 1')], infra_pfs=None)
     api_only._define_policy_fragments()
     api_only._define_apis()
     assert len(api_only.apis) == 2  # hello-world + api1
     assert len(api_only.pfs) == 6  # only base fragments
 
     # Only custom PFs, no APIs
-    pf_only = infrastructures.Infrastructure(
-        infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='eastus', infra_apis=None, infra_pfs=[PolicyFragment('pf1', '<policy/>', 'PF 1')]
-    )
+    pf_only = infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='eastus', infra_apis=None, infra_pfs=[PolicyFragment('pf1', '<policy/>', 'PF 1')])
     pf_only._define_policy_fragments()
     pf_only._define_apis()
     assert len(pf_only.apis) == 1  # only hello-world
@@ -2833,9 +2809,7 @@ def test_afd_apim_aca_deploy_infrastructure_success_calls_steps(mock_utils, mock
 
     assert result is base_output
     mock_base_deploy.assert_called_once()
-    infra._approve_private_link_connections.assert_called_once_with(
-        '/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test'
-    )
+    infra._approve_private_link_connections.assert_called_once_with('/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test')
     infra._verify_apim_connectivity.assert_called_once_with('https://test-apim.azure-api.net')
     infra._disable_apim_public_access.assert_called_once()
 
@@ -2919,9 +2893,7 @@ def test_appgw_apim_pe_deploy_infrastructure_success_calls_steps_and_sets_appgw_
     infra._create_keyvault.assert_called_once()
     infra._create_keyvault_certificate.assert_called_once()
     mock_base_deploy.assert_called_once()
-    infra._approve_private_link_connections.assert_called_once_with(
-        '/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test'
-    )
+    infra._approve_private_link_connections.assert_called_once_with('/subscriptions/test/resourceGroups/test/providers/Microsoft.ApiManagement/service/test')
     infra._verify_apim_connectivity.assert_called_once_with('https://test-apim.azure-api.net')
     infra._disable_apim_public_access.assert_called_once()
     assert infra.appgw_domain_name == 'api.example.com'
@@ -3220,9 +3192,7 @@ def test_infrastructure_network_mode_with_custom_components(mock_utils):
     api = API('test-api', 'Test API', '/test', 'Test', '<policy></policy>')
 
     for network_mode in [APIMNetworkMode.PUBLIC, APIMNetworkMode.INTERNAL_VNET, APIMNetworkMode.EXTERNAL_VNET]:
-        infra = infrastructures.Infrastructure(
-            infra=INFRASTRUCTURE.APPGW_APIM, index=1, rg_location='eastus', networkMode=network_mode, infra_pfs=[pf], infra_apis=[api]
-        )
+        infra = infrastructures.Infrastructure(infra=INFRASTRUCTURE.APPGW_APIM, index=1, rg_location='eastus', networkMode=network_mode, infra_pfs=[pf], infra_apis=[api])
         assert infra.networkMode == network_mode
         infra._define_policy_fragments()
         infra._define_apis()
@@ -3787,26 +3757,21 @@ def test_cleanup_resources_with_thread_safe_printing_with_mixed_resources(monkey
 
 
 @pytest.mark.unit
-def test_cleanup_resources_with_thread_safe_printing_deployment_show_fails(monkeypatch):
-    """Test cleanup when deployment group show fails."""
+def test_cleanup_resources_with_thread_safe_printing_missing_resource_group_is_already_clean(monkeypatch):
+    """Treat a missing resource group as an informational no-op in parallel cleanup."""
+    run_calls = []
 
-    def mock_run(command, ok_msg=None, error_msg=None):
-        if 'deployment group show' in command:
-            return Output(False, 'Deployment not found')
-        if 'cognitiveservices account list' in command or 'apim list' in command or 'keyvault list' in command:
-            return Output(True, json.dumps([]))
-        return Output(True, '{}')
+    def mock_run(command, ok_message=None, error_message=None, **kwargs):
+        run_calls.append((command, kwargs))
+        return Output(True, 'false')
 
     monkeypatch.setattr(infrastructures.az, 'run', mock_run)
-    patch_module_thread_safe_printing(monkeypatch, infrastructures)
-    suppress_module_functions(
-        monkeypatch,
-        infrastructures,
-        ['_cleanup_resources_parallel_thread_safe', '_delete_resource_group_best_effort'],
-    )
+    log_calls = capture_module_print_log(monkeypatch, infrastructures)
 
-    # Should not raise exception
     infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
+
+    assert run_calls == [('az group exists --name test-rg', {'retries': 0})]
+    assert any(call['icon'] == 'ℹ️ ' and 'was not found. Nothing to clean up.' in call['msg'] for call in log_calls)
 
 
 @pytest.mark.unit
@@ -3964,6 +3929,25 @@ def test_delete_resource_group_best_effort_no_rg_name(monkeypatch):
 
     # No calls should have been captured for thread-safe logging
     assert not print_calls
+
+
+@pytest.mark.unit
+def test_delete_resource_group_best_effort_already_absent(monkeypatch):
+    """Skip deletion when the resource group has already disappeared."""
+    run_calls = []
+    info_messages = []
+
+    def mock_run(command, *args, **kwargs):
+        run_calls.append((command, kwargs))
+        return Output(True, 'false')
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    monkeypatch.setattr(infrastructures, 'print_info', info_messages.append)
+
+    infrastructures._delete_resource_group_best_effort('rg-absent')
+
+    assert run_calls == [('az group exists --name rg-absent', {'retries': 0})]
+    assert any('already absent. No deletion is needed.' in message for message in info_messages)
 
 
 @pytest.mark.unit
@@ -4469,9 +4453,7 @@ def test_appgw_apim_deploy_no_output_data(mock_utils, mock_az):
 @pytest.mark.unit
 def test_cleanup_single_resource_unknown_type(mock_utils, mock_az):
     """Test _cleanup_single_resource with unknown resource type."""
-    success, error_msg = infrastructures._cleanup_single_resource(
-        {'type': 'unknown-type', 'name': 'test-resource', 'location': 'eastus', 'rg_name': 'test-rg'}
-    )
+    success, error_msg = infrastructures._cleanup_single_resource({'type': 'unknown-type', 'name': 'test-resource', 'location': 'eastus', 'rg_name': 'test-rg'})
 
     assert success is False
     assert 'Unknown resource type' in error_msg
@@ -4486,6 +4468,46 @@ def test_cleanup_single_resource_purge_failure(mock_utils, mock_az):
     ]
 
     success, error_msg = infrastructures._cleanup_single_resource({'type': 'keyvault', 'name': 'test-kv', 'location': 'eastus', 'rg_name': 'test-rg'})
+
+    assert success is False
+    assert 'Purge failed' in error_msg
+
+
+@pytest.mark.unit
+def test_cleanup_single_resource_apim_missing_live_service_still_purges(mock_utils, mock_az):
+    """Test APIM cleanup checks for a soft-deleted service when the live service is absent."""
+    mock_az.run.side_effect = [
+        Output(False, '(ServiceNotFound) Api service does not exist: test-apim'),
+        Output(True, ''),
+    ]
+
+    success, error_msg = infrastructures._cleanup_single_resource({'type': 'apim', 'name': 'test-apim', 'location': 'eastus', 'rg_name': 'test-rg'})
+
+    assert success is True
+    assert not error_msg
+    assert mock_az.run.call_count == 2
+    assert 'az apim deletedservice purge' in mock_az.run.call_args_list[1].args[0]
+
+
+@pytest.mark.unit
+def test_cleanup_single_resource_apim_missing_live_and_deleted_services_succeeds(mock_utils, mock_az):
+    """Test APIM cleanup succeeds when neither the live nor soft-deleted service exists."""
+    service_not_found = '(ServiceNotFound) Api service does not exist: test-apim'
+    mock_az.run.side_effect = [Output(False, service_not_found), Output(False, service_not_found)]
+
+    success, error_msg = infrastructures._cleanup_single_resource({'type': 'apim', 'name': 'test-apim', 'location': 'eastus', 'rg_name': 'test-rg'})
+
+    assert success is True
+    assert not error_msg
+    assert mock_az.run.call_count == 2
+
+
+@pytest.mark.unit
+def test_cleanup_single_resource_apim_other_purge_failure_fails(mock_utils, mock_az):
+    """Test APIM cleanup preserves purge failures unrelated to a missing service."""
+    mock_az.run.side_effect = [Output(True, ''), Output(False, '(AuthorizationFailed) Access denied')]
+
+    success, error_msg = infrastructures._cleanup_single_resource({'type': 'apim', 'name': 'test-apim', 'location': 'eastus', 'rg_name': 'test-rg'})
 
     assert success is False
     assert 'Purge failed' in error_msg

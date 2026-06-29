@@ -1,0 +1,10 @@
+# Negative-test fixture: gpt-5-1-PTU-japaneast is deliberately absent.
+ARM_API_VERSION: 2024-06-01-preview
+
+backends:
+  - name: gpt-5-1-PTU-eastus2
+    properties:
+      url: https://test-gpt-5-1-ptu-eastus2.example.net/inference
+  - name: gpt-5-1-PTU-japaneast
+    properties:
+      url: https://test-gpt-5-1-ptu-japaneast.example.net/inference

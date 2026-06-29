@@ -51,7 +51,7 @@ output principalId string = apimService.identity.principalId
 ## Resource Types Reference
 
 | Resource Type | API Version | Purpose |
-|---------------|-------------|---------|
+| --- | --- | --- |
 | `Microsoft.ApiManagement/service` | `2024-06-01-preview` | APIM service instance |
 | `Microsoft.ApiManagement/service/apis` | `2024-06-01-preview` | API definitions |
 | `Microsoft.ApiManagement/service/apis/operations` | `2024-06-01-preview` | API operations |

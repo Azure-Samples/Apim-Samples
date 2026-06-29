@@ -37,6 +37,7 @@ All repository contributions should treat accessibility as a first-class quality
 │   ├── costing/             # APIM costing and showback
 │   ├── egress-control/      # Egress control via NVA routing
 │   ├── general/             # Basic policy demonstrations
+│   ├── inference-failover/  # AOAI model failover with LLM telemetry
 │   ├── load-balancing/      # Backend pool load balancing
 │   ├── oauth-3rd-party/     # OAuth 3rd-party (Spotify example)
 │   └── secure-blob-access/  # Valet key pattern for blob storage
@@ -82,9 +83,10 @@ Use these skills for specialized tasks. Skills are located in `.github/skills/`.
 
 Use these custom agents for focused repository workflows. Agents are located in `.github/agents/`.
 
-| Agent                   | When to Use                                                                                                                                                 |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **APIM Sample Creator** | Adding a new sample, gathering missing sample metadata, scaffolding from `_TEMPLATE`, and updating README, website, slide deck, and compatibility artifacts |
+| Agent                       | When to Use                                                                                                                                                        |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **APIM Sample Creator**     | Adding a new sample, gathering missing sample metadata, scaffolding from `_TEMPLATE`, and updating README, website, slide deck, and compatibility artifacts        |
+| **APIM Sample Publisher**   | Finalizing an implemented sample for review or release by synchronizing READMEs, website, SEO, slide deck, compatibility artifacts, and quality checks             |
 
 ### How to Use Skills
 
@@ -122,6 +124,10 @@ Skills provide templates, patterns, and step-by-step workflows.
 - Ask the user for supported infrastructures if they are not provided.
 - Keep sample display names consistent across README tables, the website, the slide deck, and compatibility artifacts.
 - If a broadly useful improvement is discovered while creating a sample, suggest updating `samples/_TEMPLATE` so future samples inherit it.
+
+## Publishing a Sample
+
+Use `.github/agents/apim-sample-publisher.agent.md` after sample implementation is ready for a final quality pass. The publisher agent checks the working-tree diff, synchronizes README, website, SEO metadata and structured data, slideshow, matrix, and compatibility-diagram surfaces, runs the applicable linting and unit tests, exports the presentation, and reports any manual or live-Azure verification that remains.
 
 ### Sample Naming Conventions
 

@@ -1,0 +1,22 @@
+# APIOps property overrides and the POC backend allowlist for QA.
+# The preprocessing script retains 2 concrete backends and the stable pool.
+ARM_API_VERSION: 2024-06-01-preview
+
+backends:
+  - name: gpt-5-1-PTU-eastus2
+    properties:
+      url: https://qa-gpt-5-1-ptu-eastus2.example.net/inference
+  - name: gpt-5-1-PTU-westus3
+    properties:
+      url: https://qa-gpt-5-1-ptu-westus3.example.net/inference
+  - name: inference-gpt-5-1-pool
+    properties:
+      type: Pool
+      pool:
+        services:
+          - id: /backends/gpt-5-1-PTU-eastus2
+            priority: 1
+            weight: 100
+          - id: /backends/gpt-5-1-PTU-westus3
+            priority: 2
+            weight: 100

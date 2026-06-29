@@ -1,0 +1,11 @@
+{
+    "properties": {
+        "description": "Canonical gpt-5.1 PAYG backend in South Central US.",
+        "protocol": "http",
+        "tls": {
+            "validateCertificateChain": true,
+            "validateCertificateName": true
+        },
+        "url": "https://canonical-gpt-5-1-payg-southcentralus.example.net/inference"
+    }
+}

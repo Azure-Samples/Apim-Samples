@@ -1,0 +1,58 @@
+# APIOps property overrides and backend selection for the West US 3 PROD APIM.
+# All PTU capacity precedes PAYG, with local capacity first in each class.
+ARM_API_VERSION: 2024-06-01-preview
+
+backends:
+  # East US 2 simulated PTU and PAYG backends.
+  - name: gpt-5-1-PTU-eastus2
+    properties:
+      url: https://prod-gpt-5-1-ptu-eastus2.example.net/inference
+  - name: gpt-5-1-PAYG-eastus2
+    properties:
+      url: https://prod-gpt-5-1-payg-eastus2.example.net/inference
+  - name: gpt-5-1-PAYG-eastus2-02
+    properties:
+      url: https://prod-gpt-5-1-payg-eastus2-02.example.net/inference
+
+  # West US 3 simulated PTU and PAYG backends.
+  - name: gpt-5-1-PTU-westus3
+    properties:
+      url: https://prod-gpt-5-1-ptu-westus3.example.net/inference
+  - name: gpt-5-1-PAYG-westus3
+    properties:
+      url: https://prod-gpt-5-1-payg-westus3.example.net/inference
+  - name: gpt-5-1-PAYG-westus3-02
+    properties:
+      url: https://prod-gpt-5-1-payg-westus3-02.example.net/inference
+
+  # Region-neutral tertiary fallback.
+  - name: gpt-5-1-PAYG-southcentralus
+    properties:
+      url: https://prod-gpt-5-1-payg-southcentralus.example.net/inference
+
+  - name: inference-gpt-5-1-pool
+    properties:
+      type: Pool
+      pool:
+        services:
+          - id: /backends/gpt-5-1-PTU-westus3
+            priority: 1
+            weight: 100
+          - id: /backends/gpt-5-1-PTU-eastus2
+            priority: 2
+            weight: 100
+          - id: /backends/gpt-5-1-PAYG-westus3
+            priority: 3
+            weight: 50
+          - id: /backends/gpt-5-1-PAYG-westus3-02
+            priority: 3
+            weight: 50
+          - id: /backends/gpt-5-1-PAYG-eastus2
+            priority: 4
+            weight: 50
+          - id: /backends/gpt-5-1-PAYG-eastus2-02
+            priority: 4
+            weight: 50
+          - id: /backends/gpt-5-1-PAYG-southcentralus
+            priority: 5
+            weight: 100

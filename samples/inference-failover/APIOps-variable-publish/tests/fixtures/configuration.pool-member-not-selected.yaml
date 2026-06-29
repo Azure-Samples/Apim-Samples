@@ -1,0 +1,18 @@
+# Negative-test fixture: the West US 3 PTU backend is not selected directly.
+ARM_API_VERSION: 2024-06-01-preview
+
+backends:
+  - name: gpt-5-1-PTU-eastus2
+    properties:
+      url: https://test-gpt-5-1-ptu-eastus2.example.net/inference
+  - name: inference-gpt-5-1-pool
+    properties:
+      type: Pool
+      pool:
+        services:
+          - id: /backends/gpt-5-1-PTU-eastus2
+            priority: 1
+            weight: 50
+          - id: /backends/gpt-5-1-PTU-westus3
+            priority: 2
+            weight: 50

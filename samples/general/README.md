@@ -24,6 +24,4 @@ Sets up a simple APIM instance with a variety of policies to experiment.
 1. Decide which of the [Infrastructure Architectures](../../README.md#infrastructure-architectures) you wish to use.
 1. Press `Run All` in this sample's `create.ipynb` notebook.
 
-
-
 [apim-policy-snippets]: https://github.com/Azure/api-management-policy-snippets

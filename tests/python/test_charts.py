@@ -13,6 +13,14 @@ import pytest
 from apimtypes import HttpStatusCode
 from charts import BarChart
 
+
+def test_request_summary_formatters_handle_singular_plural_and_empty_totals():
+    """Format request counts grammatically and avoid division by zero."""
+    assert charts._format_request_count(1) == '1 request'
+    assert charts._format_request_count(2) == '2 requests'
+    assert charts._format_percentage(1, 2) == '50.0%'
+    assert charts._format_percentage(0, 0) == '0.0%'
+
 # Add the shared/python directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'shared', 'python'))
 
@@ -60,6 +68,17 @@ def empty_api_results():
     return []
 
 
+@pytest.fixture
+def mock_chart_plotting(monkeypatch):
+    """Replace chart plotting boundaries while retaining real pandas data processing."""
+    mock_plt = MagicMock()
+    mock_ax = MagicMock()
+    monkeypatch.setattr(charts, 'plt', mock_plt)
+    monkeypatch.setattr(charts.pd.DataFrame, 'plot', lambda self, *args, **kwargs: mock_ax)
+
+    return mock_plt, mock_ax
+
+
 # ------------------------------
 #    TEST BARCHART INITIALIZATION
 # ------------------------------
@@ -95,6 +114,15 @@ def test_barchart_init_empty_results():
     assert chart.api_results == []
 
 
+def test_barchart_init_with_backend_labels():
+    """Test BarChart initialization with human-readable backend labels."""
+    backend_labels = {0: 'Priority 1: PTU (East US 2)'}
+
+    chart = BarChart(title='Test Chart', x_label='X Axis', y_label='Y Axis', api_results=[], backend_labels=backend_labels)
+
+    assert chart.backend_labels == backend_labels
+
+
 # ------------------------------
 #    TEST PLOT METHOD
 # ------------------------------
@@ -109,6 +137,19 @@ def test_plot_calls_internal_method(mock_dataframe, mock_plt, sample_api_results
     with patch.object(chart, '_plot_barchart') as mock_plot_barchart:
         chart.plot()
         mock_plot_barchart.assert_called_once_with(sample_api_results)
+
+
+@patch('charts.plt')
+@patch('charts.pd.DataFrame')
+def test_render_returns_figure_without_displaying(mock_dataframe, mock_plt, sample_api_results):
+    """Test that render() returns an exportable figure without inline display."""
+    chart = BarChart('Test', 'X', 'Y', sample_api_results)
+    figure = MagicMock()
+
+    with patch.object(chart, '_plot_barchart', return_value=figure) as mock_plot_barchart:
+        assert chart.render() is figure
+        mock_plot_barchart.assert_called_once_with(sample_api_results, show=False)
+        mock_plt.show.assert_not_called()
 
 
 # ------------------------------
@@ -203,6 +244,74 @@ def test_plot_barchart_error_status_codes(mock_dataframe, mock_plt):
     for row in call_args:
         assert row['Backend Index'] == 99
         assert row['Status Code'] in [404, 500]
+
+
+@patch('charts.plt')
+@patch('charts.pd.DataFrame')
+def test_plot_barchart_shows_harness_error_counts(mock_dataframe, mock_plt):
+    """Test that the side panel reports 4xx and 5xx responses received by the harness."""
+    api_results = [
+        {'run': 1, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 1}'},
+        {'run': 2, 'response_time': 0.2, 'status_code': 429, 'response': 'Too Many Requests'},
+        {'run': 3, 'response_time': 0.3, 'status_code': 503, 'response': 'Service Unavailable'},
+    ]
+
+    mock_df = MagicMock()
+    mock_dataframe.return_value = mock_df
+    mock_df.__getitem__.return_value = mock_df
+    mock_df.__iter__.return_value = iter([])
+    mock_df.iterrows.return_value = iter(
+        [
+            (0, {'Status Code': 200, 'Backend Index': 1}),
+            (1, {'Status Code': 429, 'Backend Index': 99}),
+            (2, {'Status Code': 503, 'Backend Index': 99}),
+        ]
+    )
+    mock_ax = MagicMock()
+    mock_df.plot.return_value = mock_ax
+    mock_df.empty = False
+
+    chart = BarChart('Test', 'X', 'Y', api_results)
+    chart._plot_barchart(api_results)
+
+    mock_ax.legend.assert_called_once()
+    assert mock_ax.legend.call_args.kwargs['bbox_to_anchor'] == (1.01, 1)
+    mock_ax.text.assert_called_once()
+    assert mock_ax.legend.call_args.args[1] == [
+        '!!! 4xx CLIENT ERRORS - 1 request !!!',
+        '!!! 5xx SERVER ERRORS - 1 request !!!',
+    ]
+    assert mock_df.plot.call_args.kwargs['color'] == ['gray', '#d83b01', '#a4262c']
+    assert mock_ax.text.call_args.args[2] == 'Requests: 3\nResponses: 3 (100.0%)\n\n2xx: 1 (33.3%)\n4xx: 1 (33.3%)\n5xx: 1 (33.3%)'
+    assert mock_ax.text.call_args.kwargs['fontweight'] == 'bold'
+    assert mock_ax.text.call_args.kwargs['bbox']['edgecolor'] == '#a4262c'
+    mock_plt.subplots_adjust.assert_called_once_with(right=0.76, bottom=0.3)
+
+
+@patch('charts.plt')
+@patch('charts.pd.DataFrame')
+def test_plot_barchart_uses_human_readable_backend_labels(mock_dataframe, mock_plt):
+    """Test that custom backend labels replace numeric legend labels when provided."""
+    api_results = [
+        {'run': 1, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 0}'},
+        {'run': 2, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 0}'},
+    ]
+
+    mock_df = MagicMock()
+    mock_dataframe.return_value = mock_df
+    mock_df.__getitem__.return_value = mock_df
+    mock_df.__iter__.return_value = iter([])
+    mock_df.iterrows.return_value = iter([])
+    mock_df.unique.return_value = [0]
+    mock_ax = MagicMock()
+    mock_df.plot.return_value = mock_ax
+    mock_df.empty = False
+
+    chart = BarChart('Test', 'X', 'Y', api_results, backend_labels={0: 'Priority 1 / Weight 100: PTU (East US 2)'})
+    chart._plot_barchart(api_results)
+
+    legend_names = mock_ax.legend.call_args.args[1]
+    assert legend_names == ['Priority 1 / Weight 100: PTU (East US 2) - 2 requests']
 
 
 @patch('charts.plt')
@@ -515,7 +624,7 @@ def test_average_line_all_data_outliers(mock_pd, mock_plt):
     mock_plt.text.assert_called()
 
 
-def test_plot_barchart_skips_average_line_without_success(monkeypatch):
+def test_plot_barchart_skips_average_line_without_success(mock_chart_plotting):
     """Ensure average line is skipped when there are no 200 responses."""
 
     no_success_results = [
@@ -525,23 +634,15 @@ def test_plot_barchart_skips_average_line_without_success(monkeypatch):
 
     chart = BarChart('Test', 'X', 'Y', no_success_results)
 
-    # Prevent real plotting
-    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: MagicMock(), raising=False)
-    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext']:
-        monkeypatch.setattr(charts.plt, attr, MagicMock())
-
-    axhline_mock = MagicMock()
-    text_mock = MagicMock()
-    monkeypatch.setattr(charts.plt, 'axhline', axhline_mock)
-    monkeypatch.setattr(charts.plt, 'text', text_mock)
+    mock_plt, _ = mock_chart_plotting
 
     chart._plot_barchart(no_success_results)
 
-    axhline_mock.assert_not_called()
-    text_mock.assert_not_called()
+    mock_plt.axhline.assert_not_called()
+    mock_plt.text.assert_not_called()
 
 
-def test_plot_barchart_skips_average_when_filtered_empty(monkeypatch):
+def test_plot_barchart_skips_average_when_filtered_empty(monkeypatch, mock_chart_plotting):
     """Ensure average line is skipped when all successful rows are filtered out."""
 
     success_results = [
@@ -551,25 +652,17 @@ def test_plot_barchart_skips_average_when_filtered_empty(monkeypatch):
 
     chart = BarChart('Test', 'X', 'Y', success_results)
 
-    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: MagicMock(), raising=False)
+    mock_plt, _ = mock_chart_plotting
 
     def fake_quantile(self, q, *args, **kwargs):
         return 0  # Force all rows to be excluded
 
-    monkeypatch.setattr(pd.Series, 'quantile', fake_quantile, raising=False)
-
-    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext']:
-        monkeypatch.setattr(charts.plt, attr, MagicMock())
-
-    axhline_mock = MagicMock()
-    text_mock = MagicMock()
-    monkeypatch.setattr(charts.plt, 'axhline', axhline_mock)
-    monkeypatch.setattr(charts.plt, 'text', text_mock)
+    monkeypatch.setattr(charts.pd.Series, 'quantile', fake_quantile)
 
     chart._plot_barchart(success_results)
 
-    axhline_mock.assert_not_called()
-    text_mock.assert_not_called()
+    mock_plt.axhline.assert_not_called()
+    mock_plt.text.assert_not_called()
 
 
 # ------------------------------
@@ -590,7 +683,7 @@ def test_barchart_init_with_vertical_separator():
     assert chart.vertical_separator == separator
 
 
-def test_plot_barchart_draws_vertical_separator(monkeypatch):
+def test_plot_barchart_draws_vertical_separator(mock_chart_plotting):
     """Plot draws an axvline and annotation when vertical_separator is provided."""
 
     results = [
@@ -598,51 +691,35 @@ def test_plot_barchart_draws_vertical_separator(monkeypatch):
         {'run': 2, 'response_time': 0.2, 'status_code': 200, 'response': '{"index": 1}'},
     ]
 
-    mock_ax = MagicMock()
+    mock_plt, mock_ax = mock_chart_plotting
     mock_ax.get_ylim.return_value = (0, 500)
-    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: mock_ax, raising=False)
-    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext', 'axhline']:
-        monkeypatch.setattr(charts.plt, attr, MagicMock())
-
-    axvline_mock = MagicMock()
-    text_mock = MagicMock()
-    monkeypatch.setattr(charts.plt, 'axvline', axvline_mock)
-    monkeypatch.setattr(charts.plt, 'text', text_mock)
 
     separator = (1.5, 'Waited 20s for Retry-After to elapse')
     chart = BarChart('Test', 'X', 'Y', results, vertical_separator=separator)
     chart._plot_barchart(results)
 
-    axvline_mock.assert_called_once()
-    axvline_kwargs = axvline_mock.call_args.kwargs
+    mock_plt.axvline.assert_called_once()
+    axvline_kwargs = mock_plt.axvline.call_args.kwargs
     assert axvline_kwargs['x'] == 1.5
     assert axvline_kwargs['linestyle'] == '--'
 
     # The annotation text call should include the separator label as a positional arg. The
     # label is nudged 0.25 bar-positions to the left of the separator line so the text does
     # not visually touch it.
-    annotation_calls = [c for c in text_mock.call_args_list if separator[1] in c.args]
+    annotation_calls = [c for c in mock_plt.text.call_args_list if separator[1] in c.args]
     assert len(annotation_calls) == 1
     annotation_args = annotation_calls[0].args
     assert annotation_args[0] == 1.5 - 0.25  # x position (nudged left)
     assert annotation_args[2] == separator[1]
 
 
-def test_plot_barchart_draws_multiple_vertical_separators(monkeypatch):
+def test_plot_barchart_draws_multiple_vertical_separators(mock_chart_plotting):
     """Plot draws one axvline + annotation per entry when given a list of separators."""
 
     results = [{'run': i, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 1}'} for i in range(1, 6)]
 
-    mock_ax = MagicMock()
+    mock_plt, mock_ax = mock_chart_plotting
     mock_ax.get_ylim.return_value = (0, 500)
-    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: mock_ax, raising=False)
-    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext', 'axhline']:
-        monkeypatch.setattr(charts.plt, attr, MagicMock())
-
-    axvline_mock = MagicMock()
-    text_mock = MagicMock()
-    monkeypatch.setattr(charts.plt, 'axvline', axvline_mock)
-    monkeypatch.setattr(charts.plt, 'text', text_mock)
 
     separators = [
         (1.5, 'Waited 10s after 429'),
@@ -651,35 +728,49 @@ def test_plot_barchart_draws_multiple_vertical_separators(monkeypatch):
     chart = BarChart('Test', 'X', 'Y', results, vertical_separator=separators)
     chart._plot_barchart(results)
 
-    assert axvline_mock.call_count == len(separators)
-    xs = [c.kwargs['x'] for c in axvline_mock.call_args_list]
+    assert mock_plt.axvline.call_count == len(separators)
+    xs = [c.kwargs['x'] for c in mock_plt.axvline.call_args_list]
     assert xs == [s[0] for s in separators]
 
     for sep_x, sep_label in separators:
-        annotation_calls = [c for c in text_mock.call_args_list if sep_label in c.args]
+        annotation_calls = [c for c in mock_plt.text.call_args_list if sep_label in c.args]
         assert len(annotation_calls) == 1
         annotation_args = annotation_calls[0].args
         assert annotation_args[0] == sep_x - 0.25
         assert annotation_args[2] == sep_label
 
 
-def test_plot_barchart_omits_vertical_separator_when_none(monkeypatch):
+def test_plot_barchart_omits_vertical_separator_when_none(mock_chart_plotting):
     """Plot does not draw an axvline when vertical_separator is None."""
 
     results = [
         {'run': 1, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 1}'},
     ]
 
-    mock_ax = MagicMock()
+    mock_plt, mock_ax = mock_chart_plotting
     mock_ax.get_ylim.return_value = (0, 500)
-    monkeypatch.setattr(pd.DataFrame, 'plot', lambda self, *args, **kwargs: mock_ax, raising=False)
-    for attr in ['title', 'xlabel', 'ylabel', 'xticks', 'show', 'figtext', 'axhline', 'text']:
-        monkeypatch.setattr(charts.plt, attr, MagicMock())
-
-    axvline_mock = MagicMock()
-    monkeypatch.setattr(charts.plt, 'axvline', axvline_mock)
 
     chart = BarChart('Test', 'X', 'Y', results)
     chart._plot_barchart(results)
 
-    axvline_mock.assert_not_called()
+    mock_plt.axvline.assert_not_called()
+
+
+def test_render_executes_plotting_without_displaying(mock_chart_plotting):
+    """Render returns the generated figure without calling pyplot.show."""
+    results = [{'run': 1, 'response_time': 0.1, 'status_code': 200, 'response': '{"index": 1}'}]
+    mock_plt, mock_ax = mock_chart_plotting
+
+    assert BarChart('Test', 'X', 'Y', results).render() is mock_ax.figure
+    mock_plt.show.assert_not_called()
+
+
+def test_plot_barchart_shows_other_non_200_responses(mock_chart_plotting):
+    """Give non-4xx and non-5xx responses a distinct accessible legend entry."""
+    results = [{'run': 1, 'response_time': 0.1, 'status_code': 302, 'response': ''}]
+    _, mock_ax = mock_chart_plotting
+
+    BarChart('Test', 'X', 'Y', results)._plot_barchart(results)
+
+    legend_names = mock_ax.legend.call_args.args[1]
+    assert legend_names == ['!!! OTHER NON-200 RESPONSES - 1 request !!!']
