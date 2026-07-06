@@ -42,7 +42,8 @@ jobs:
       - name: Install dependencies
         run: |
           uv venv
-          uv sync
+          python setup/verify_dependency_age.py --scope python
+          uv sync --locked
           # Verify coverage HTML templates are present
           uv run python -c "import coverage.html; print(coverage.html.__file__)"
 

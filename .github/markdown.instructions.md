@@ -8,17 +8,26 @@ This document provides standards for Markdown files in the APIM Samples reposito
 
 ## Critical Rules
 
+### Dependency Command Safety
+
+- Documentation must use the repository's guarded install sequence: `python setup/verify_dependency_age.py --scope python` followed by `uv sync --locked`.
+- Do not document direct installs, floating versions, or upgrade commands that can select a release less than seven days old.
+
 ### Markdownlint Must Pass
 
 - Every new or modified Markdown file must pass markdownlint with zero violations before the work is considered complete.
-- Run markdownlint against all changed `.md` files using the available CLI or VS Code diagnostics.
+- Generate Markdown against the repository rules in `.markdownlint.json`; do not wait for lint output before applying its spacing, list, fence, heading, link, and table conventions.
+- After generating or editing Markdown, run `npx --no-install markdownlint-cli2 "**/*.md" "#**/.venv/**" "#**/node_modules/**"` when the cached CLI is available. Otherwise, use the VS Code markdownlint diagnostics for every Markdown file changed.
+- Require zero errors before completing the task.
 - Fix violations instead of disabling rules. Add a narrowly scoped suppression only when the Markdown intentionally cannot comply, and explain why next to the suppression.
+- Preserve semantic list hierarchy while fixing indentation. Do not flatten nested lists or collapse them into prose solely to satisfy lint rules.
 
 ### 🚨 No Emoji Variation Selectors in Markdown Links
 
 **This is the most important rule.** Emoji variation selectors cause rendering and Markdown anchor link failures.
 
 ❌ **WRONG** — DO NOT DO THIS:
+
 ```markdown
 ## ✅ Prerequisites
 
@@ -26,6 +35,7 @@ This document provides standards for Markdown files in the APIM Samples reposito
 ```
 
 ✅ **CORRECT** — DO THIS:
+
 ```markdown
 ## ✅ Prerequisites
 
@@ -35,6 +45,7 @@ This document provides standards for Markdown files in the APIM Samples reposito
 **Why:** When you create an anchor link with an emoji in the heading, Markdown renders the emoji but the anchor reference gets URL-encoded (like `%EF%B8%8F`). The link then breaks because the actual anchor is just the text portion without the encoding.
 
 **The pattern:**
+
 - **Keep emojis in headings** for visual clarity — they're fine there
 - **Never include emojis in anchor link references** — always reference just the text
 - **When linking to a heading**, use only the text: `[Link text](#heading-text-only)`
@@ -44,18 +55,22 @@ This document provides standards for Markdown files in the APIM Samples reposito
 ## Formatting Standards
 
 ### Line Endings
+
 - Use **LF line endings only**, never CRLF
 - This applies to all files, including Windows development environments
 
 ### Quotes and Apostrophes
+
 - Use only straight quotes and apostrophes: `'` (U+0027) and `"` (U+0022)
 - Never use typographic/curly quotes: `'` `'` `"` `"`
 - Improves consistency across editors and platforms
 
 ### Markdown Tables
+
 **Markdown tables must be column-aligned.** Pad cell values with spaces so that every `|` delimiter in a column lines up vertically.
 
 ❌ **WRONG** — misaligned columns:
+
 ```markdown
 | Name | Value |
 |---|---|
@@ -64,6 +79,7 @@ This document provides standards for Markdown files in the APIM Samples reposito
 ```
 
 ✅ **CORRECT** — aligned columns:
+
 ```markdown
 | Name              | Value |
 | --- | --- |
@@ -80,6 +96,7 @@ When referencing files or line numbers in documentation:
 **Format:** `[display text](path/to/file.md)` or `[display text](path/to/file.md#L10)` for specific lines
 
 **Rules:**
+
 - Display text must match or describe the target
 - Use workspace-relative paths (no `file://` or `vscode://` schemes)
 - Encode spaces in the URL: `My File.md` → `My%20File.md`
@@ -88,6 +105,7 @@ When referencing files or line numbers in documentation:
 - Do NOT wrap file paths in backticks — they're already links
 
 ✅ **CORRECT:**
+
 ```markdown
 See [configuration guide](docs/configuration.md) for details.
 
@@ -97,6 +115,7 @@ Update [my config file](path/to/My%20Config.md) as needed.
 ```
 
 ❌ **WRONG:**
+
 ```markdown
 See `docs/configuration.md` for details.
 
@@ -118,12 +137,14 @@ See the `README.md#L10` file.
 ### README Files
 
 **Location & Naming:**
+
 - Root `README.md` - Main repository overview
 - `infrastructure/[name]/README.md` - Infrastructure architecture guide
 - `samples/[name]/README.md` - Sample documentation
 - `shared/` folders - Optional READMEs for component overview
 
 **Structure** (see `copilot-instructions.md` for detailed layouts):
+
 - Consistent heading hierarchy and emoji usage across similar documents
 - Badges for runtime, supported services, prerequisites
 - Clear sections: Objectives, Scenario, Lab Components, Configuration, Results, Clean Up, Links
@@ -132,11 +153,13 @@ See the `README.md#L10` file.
 ### Instruction Files
 
 **Location & Naming:**
+
 - Language-specific: `.github/[language].instructions.md` (e.g., `python.instructions.md`, `markdown.instructions.md`)
 - Topic-specific: `.github/markdown.instructions.md` (e.g., for Markdown formatting)
 - General: `.github/copilot-instructions.md`
 
 **Metadata Block:**
+
 ```markdown
 ---
 applyTo: "**/*.md"
@@ -193,6 +216,7 @@ Structured guides for domain-specific tasks (Bicep, Python policies, sample crea
 
 - Use reference-style links at the bottom for multiple references to the same target
 - Example:
+
   ```markdown
   See the [setup guide][setup] and [troubleshooting][troubleshooting] pages.
 

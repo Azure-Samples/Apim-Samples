@@ -14,13 +14,11 @@ Historically, there were two general paths to experimenting with APIM: Standing 
 
 💡 **_APIM Samples_ is _neither too much nor too little_. It is _just right_!**
 
-
 ## 🎯 Objectives
 
 1. Educate on common APIM architectures we see across industries and customers.
 1. Empower to safely experiment with APIM policies.
 1. Provide high-fidelity building blocks to further your APIM integration efforts.
-
 
 ## 🚀 Getting Started
 
@@ -44,36 +42,37 @@ It's quick and easy to get started!
 
 > 💡 **First time?** Start with the [Simple API Management][infra-simple-apim] infrastructure and the [General][sample-general] sample. It takes ~5 minutes to deploy and costs ~$1-2/hour to run.
 
-
 ## 📁 List of Infrastructures
 
 <details open>
 
-| Infrastructure Name                                                | Description                                                                                                                                                           |
-|:-------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [API Management & Container Apps][infra-apim-aca]                  | APIs are often implemented in containers running in **Azure Container Apps**. This architecture accesses the container apps publicly. It's beneficial to test both APIM and container app URLs to contrast and compare experiences of API calls through and bypassing APIM. It is not intended to be a security baseline.    |
-| [Application Gateway (Private Link) & API Management & Container Apps][infra-appgw-apim-pe]  | **A secure implementation of Azure Application Gateway connecting to APIM via Private Link integration!** Once traffic traverses App Gateway, it reaches APIM through a private endpoint in the VNet's private endpoint subnet. The connection from APIM to Container Apps is secured through VNet integration (and could also use Private Link). APIM Standard V2 is used here to accept the private link connection from App Gateway. |
-| [Application Gateway (VNet) & API Management & Container Apps][infra-appgw-apim] | Full VNet injection of APIM and ACA! APIM is shielded from any type of traffic unless it comes through App Gateway. This offers maximum isolation for instances in which customers seek VNet injection. |
-| [Front Door & API Management & Container Apps][infra-afd-apim-pe]  | **A secure implementation of Azure Front Door connecting to APIM via Private Link integration!** This traffic, once it traverses through Front Door, rides entirely on Microsoft-owned and operated networks. The connection from APIM to Container Apps is secured through VNet integration (and could also use Private Link). **APIM Standard V2** is used here to accept the private link connection from Front Door. |
-| [Simple API Management][infra-simple-apim]                         | **Just the basics with a publicly accessible API Management instance** fronting your APIs. This is the innermost way to experience and experiment with the APIM policies. |
+| Infrastructure Name                                                                         | Description                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| :------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [API Management & Container Apps][infra-apim-aca]                                           | APIs are often implemented in containers running in **Azure Container Apps**. This architecture accesses the container apps publicly. It's beneficial to test both APIM and container app URLs to contrast and compare experiences of API calls through and bypassing APIM. It is not intended to be a security baseline.                                                                                                                   |
+| [Application Gateway (Private Link) & API Management & Container Apps][infra-appgw-apim-pe] | **A secure implementation of Azure Application Gateway connecting to APIM via Private Link integration!** Once traffic traverses App Gateway, it reaches APIM through a private endpoint in the VNet's private endpoint subnet. The connection from APIM to Container Apps is secured through VNet integration (and could also use Private Link). APIM Standard V2 is used here to accept the private link connection from App Gateway.     |
+| [Application Gateway (VNet) & API Management & Container Apps][infra-appgw-apim]            | Full VNet injection of APIM and ACA! APIM is shielded from any type of traffic unless it comes through App Gateway. This offers maximum isolation for instances in which customers seek VNet injection.                                                                                                                                                                                                                                     |
+| [Front Door & API Management & Container Apps][infra-afd-apim-pe]                           | **A secure implementation of Azure Front Door connecting to APIM via Private Link integration!** This traffic, once it traverses through Front Door, rides entirely on Microsoft-owned and operated networks. The connection from APIM to Container Apps is secured through VNet integration (and could also use Private Link). **APIM Standard V2** is used here to accept the private link connection from Front Door.                    |
+| [Simple API Management][infra-simple-apim]                                                  | **Just the basics with a publicly accessible API Management instance** fronting your APIs. This is the innermost way to experience and experiment with the APIM policies.                                                                                                                                                                                                                                                                   |
+
 </details>
 
 ## 📁 List of Samples
 
 <details open>
 
-| Sample Name                                                 | Description                                                                                                         | Supported Infrastructure(s)   |
-|:------------------------------------------------------------|:--------------------------------------------------------------------------------------------------------------------|:------------------------------|
-| [AuthX][sample-authx]                                       | Authentication and role-based authorization in a mock HR API.                                                       | All infrastructures           |
-| [AuthX Pro][sample-authx-pro]                               | Authentication and role-based authorization in a mock product with multiple APIs and policy fragments.              | All infrastructures           |
-| [Azure Maps][sample-azure-maps]                             | Proxying calls to Azure Maps with APIM policies.                                                                    | All infrastructures           |
-| [Costing][sample-costing]                                   | Track and allocate API costs per business unit using APIM subscriptions, Entra ID application tracking, and AI Gateway token/PTU tracking across **both** Azure OpenAI Chat Completions and Responses APIs, including streaming (SSE) token usage which is not simple to capture correctly in APIM. | All infrastructures           |
-| [Dynamic CORS][sample-dynamic-cors]                         | Dynamic per-API CORS origin validation using custom policy fragments and a maintainable origin mapping. | All infrastructures           |
-| [Egress Control][sample-egress-control]                     | Control APIM outbound internet traffic by routing it through a Network Virtual Appliance (NVA) in a hub/spoke topology. | appgw-apim, appgw-apim-pe     |
-| [General][sample-general]                                   | Basic demo of APIM sample setup and policy usage.                                                                   | All infrastructures           |
-| [Load Balancing][sample-load-balancing]                     | Priority and weighted load balancing across backends.                                                               | apim-aca, afd-apim-pe         |
-| [OAuth 3rd-Party][sample-oauth-3rd-party]                   | Authenticate with APIM which then uses its Credential Manager with Spotify's REST API.                              | All infrastructures           |
-| [Secure Blob Access][sample-secure-blob-access]             | Secure blob access via the [valet key pattern][valet-key-pattern].                                                  | All infrastructures           |
+| Sample Name                                     | Description                                                                                                                                                                                                                                                                                          | Supported Infrastructure(s) |
+| :---------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------- |
+| [AuthX][sample-authx]                           | Authentication and role-based authorization in a mock HR API.                                                                                                                                                                                                                                        | All infrastructures         |
+| [AuthX Pro][sample-authx-pro]                   | Authentication and role-based authorization in a mock product with multiple APIs and policy fragments.                                                                                                                                                                                               | All infrastructures         |
+| [Azure Maps][sample-azure-maps]                 | Proxying calls to Azure Maps with APIM policies.                                                                                                                                                                                                                                                     | All infrastructures         |
+| [Costing][sample-costing]                       | Track and allocate API costs per business unit using APIM subscriptions, Entra ID application tracking, and AI Gateway token/PTU tracking across **both** Azure OpenAI Chat Completions and Responses APIs, including streaming (SSE) token usage which is not simple to capture correctly in APIM.  | All infrastructures         |
+| [Dynamic CORS][sample-dynamic-cors]             | Dynamic per-API CORS origin validation using custom policy fragments and a maintainable origin mapping.                                                                                                                                                                                              | All infrastructures         |
+| [Egress Control][sample-egress-control]         | Control APIM outbound internet traffic by routing it through a Network Virtual Appliance (NVA) in a hub/spoke topology.                                                                                                                                                                              | appgw-apim, appgw-apim-pe   |
+| [General][sample-general]                       | Basic demo of APIM sample setup and policy usage.                                                                                                                                                                                                                                                    | All infrastructures         |
+| [Load Balancing][sample-load-balancing]         | Priority and weighted load balancing across backends.                                                                                                                                                                                                                                                | apim-aca, afd-apim-pe       |
+| [OAuth 3rd-Party][sample-oauth-3rd-party]       | Authenticate with APIM which then uses its Credential Manager with Spotify's REST API.                                                                                                                                                                                                               | All infrastructures         |
+| [Secure Blob Access][sample-secure-blob-access] | Secure blob access via the [valet key pattern][valet-key-pattern].                                                                                                                                                                                                                                   | All infrastructures         |
+
 </details>
 
 ### Compatibility Matrices
@@ -84,22 +83,24 @@ Most samples work with all infrastructures, making this a truly _à la carte_ ex
 
 <img src="./assets/diagrams/Infrastructure-SKU-Compatibility.svg" alt="Infrastructure and SKU Compatibility Matrix" title="Infrastructure and SKU Compatibility Matrix" />
 
-
 ## 🧰 APIM Samples Developer CLI
 
 Use the interactive APIM Samples Developer CLI to verify setup, run tests, and manage your development workflow:
 
 **Windows:**
+
 ```powershell
 .\start.ps1
 ```
 
 **macOS / Linux:**
+
 ```bash
 ./start.sh
 ```
 
 This menu-driven interface provides quick access to:
+
 - **Setup**: Complete environment setup, Azure CLI login, and update & sync `uv` dependencies (refresh `uv.lock`)
 - **Verify**: Show Azure account info, list soft-deleted resources, and list deployed infrastructures
 - **Tests**: Run ruff, pytest, and full Python checks
@@ -155,6 +156,7 @@ This writes the output to `build/APIM-Samples-Slide-Deck.html`.
 APIM Samples supports two setup options:
 
 ### Option 1: GitHub Codespaces / Dev Container (Recommended for First-Time Users)
+
 <details>
 <br/>
 
@@ -189,6 +191,7 @@ All prerequisites are automatically installed and configured.
 </details>
 
 ### Option 2: Full Local Setup
+
 <details>
 
 #### 📋 Prerequisites
@@ -196,11 +199,10 @@ All prerequisites are automatically installed and configured.
 These prerequisites apply broadly across all infrastructure and samples. If there are specific deviations, expect them to be noted there.
 
 - [Python][python] **3.12, 3.13, and 3.14 are all supported**
-- **uv** (https://docs.astral.sh/uv/) - Fast Python package manager
-   - Install uv:
-      - **Windows**: `winget install --id=astral-sh.uv -e` or `scoop install uv`
-      - **macOS**: `brew install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`
-      - **Linux**: `curl -LsSf https://astral.sh/uv/install.sh | sh`
+- **uv** (<https://docs.astral.sh/uv/>) - Fast Python package manager
+   - Install the eligible pinned version:
+      - **Windows**: `winget install --id=astral-sh.uv --version 0.9.24 -e`
+      - **macOS/Linux**: download `https://astral.sh/uv/0.9.24/install.sh`, verify SHA-256 `f6e468855afb4e653fa96ed68a7cad0b2534794ece25ec202f6543c589eb04dc`, then execute it.
    - If needed, restart VS Code for path to become effective.
    - Verify: `uv --version`
 - [VS Code][vscode] installed with the [Jupyter notebook extension][vscode-jupyter] enabled
@@ -208,9 +210,9 @@ These prerequisites apply broadly across all infrastructure and samples. If ther
 - [Azure Bicep][azure-bicep-install] installed
 - [An Azure Subscription][azure-free] with Owner or Contributor+UserAccessAdministrator permissions. Execute [Verify Azure Account][verify-az-account-notebook] to verify.
 - **Azure Authentication**: Sign in to Azure with Azure CLI using the specific tenant and subscription you want to work with:
-  - To log in to a specific tenant: `az login --tenant <your-tenant-id-or-domain>`
-  - To set a specific subscription: `az account set --subscription <your-subscription-id-or-name>`
-  - To verify your current context: `az account show`
+   - To log in to a specific tenant: `az login --tenant <your-tenant-id-or-domain>`
+   - To set a specific subscription: `az account set --subscription <your-subscription-id-or-name>`
+   - To verify your current context: `az account show`
    - See the [Azure CLI authentication guide][azure-cli-auth] for more options
 
 #### Manual Local Setup
@@ -219,16 +221,17 @@ These prerequisites apply broadly across all infrastructure and samples. If ther
 
    ```bash
    uv venv
-   uv sync
+   python setup/verify_dependency_age.py --scope python
+   uv sync --locked
    ```
 
    Be sure to activate the terminal as per the instruction after `uv venv` runs.
 
-   Alternatively, you can use VS Code: Ctrl+Shift+P → "Python: Create Environment" → "Venv" → Select Python version → name: .venv. Then run `uv sync` to install dependencies.
+   Alternatively, you can use VS Code: Ctrl+Shift+P → "Python: Create Environment" → "Venv" → Select Python version → name: .venv. Then run the `Install Dependencies (uv)` task.
 1. **Complete Environment Setup**: Open a terminal and start the [APIM Samples Developer CLI](#-apim-samples-developer-cli), then select `Complete environment setup`.
-3. **Restart VS Code** to apply all settings
-4. **Sign in to Azure**: `az login --tenant <your-tenant-id>` and `az account set --subscription <your-subscription>`
-5. **Verify local setup**: Start the APIM Samples Developer CLI, then select `Verify local setup`.
+1. **Restart VS Code** to apply all settings
+1. **Sign in to Azure**: `az login --tenant <your-tenant-id>` and `az account set --subscription <your-subscription>`
+1. **Verify local setup**: Start the APIM Samples Developer CLI, then select `Verify local setup`.
 
 The first time you run a Jupyter notebook, you may be asked to install the Jupyter kernel package (ipykernel) if not already available.
 When you open any `.ipynb` notebook, it will automatically use the correct kernel and all imports will work seamlessly.
@@ -244,7 +247,6 @@ When you open any `.ipynb` notebook, it will automatically use the correct kerne
 
 Now that infrastructure and sample have been stood up, you can experiment with the policies, make requests against APIM, etc.
 
-
 ## 🔎 Logging and Output
 
 The Python helpers in this repo use standard-library `logging`, empowering you to control verbosity via environment variables in the root `.env` file. This file is created via the APIM Samples Developer CLI.
@@ -252,7 +254,6 @@ The Python helpers in this repo use standard-library `logging`, empowering you t
 - `APIM_SAMPLES_LOG_LEVEL`: Controls the overall verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`). Default: `INFO`.
    - When set to `DEBUG`, the Azure CLI runner in [shared/python/azure_resources.py](shared/python/azure_resources.py) will also add `--debug` to simple `az ...` commands.
 - `APIM_SAMPLES_CONSOLE_WIDTH`: Optional wrap width for long lines (defaults to `120`).
-
 
 ## Troubleshooting
 
@@ -266,7 +267,6 @@ Encountering issues? Check our comprehensive **[Troubleshooting Guide][troublesh
 
 For immediate help with common errors, diagnostic commands, and step-by-step solutions, see **[TROUBLESHOOTING.md][troubleshooting]**.
 
-
 ## 📂 Repo Structure
 
 ### 🦅 High-level
@@ -274,10 +274,10 @@ For immediate help with common errors, diagnostic commands, and step-by-step sol
 - All _samples_ can be found in the `samples` folder. Samples showcase functionality and provide a baseline for your experimentation.
 - All _infrastructures_ can be found in the `infrastructure` folder. They provide the architectural underpinnings.
 - All shared code, modules, functionality, policies, etc. can be found in the `shared` folder.
-  - Bicep _modules_ are versioned in the `bicep/modules` folder. Major changes require versioning.
-  - Python _modules_ are found in the `python` folder. _They are not versioned yet but may be in the future._
-  - Reusable _APIM policies_ are found in the `apim-policies` folder.
-  - Reusable Jupyter notebooks are found in the `jupyter` folder.
+   - Bicep _modules_ are versioned in the `bicep/modules` folder. Major changes require versioning.
+   - Python _modules_ are found in the `python` folder. _They are not versioned yet but may be in the future._
+   - Reusable _APIM policies_ are found in the `apim-policies` folder.
+   - Reusable Jupyter notebooks are found in the `jupyter` folder.
 
 ### 🔧 Sample Setup
 
@@ -318,7 +318,6 @@ Adding a new sample is relatively straight-forward.
 1. Test the sample with all supported infrastructures.
 1. Create a pull request for merge.
 
-
 ## 🙏 Acknowledgements
 
 This project has its roots in work done by [Alex Vieira][alex-vieira] on the excellent Azure API Management [AI Gateway][ai-gateway] GitHub repository. Much of the structure is similar and its reuse resulted in significant time savings. Thank you, Alex!
@@ -331,7 +330,6 @@ Furthermore, [Houssem Dellai][houssem-dellai] was instrumental in setting up a w
 
 The original author of this project is [Simon Kurtz][simon-kurtz].
 
-
 ## 🥇 Other resources
 
 - [AI Gateway][ai-gateway]
@@ -343,18 +341,15 @@ The original author of this project is [Simon Kurtz][simon-kurtz].
 
 _For much more API Management content, please also check out [APIM Love](https://aka.ms/apimlove)._
 
-
 ## 📜 Disclaimer
 
 > [!IMPORTANT]
 > This software is provided for demonstration purposes only. It is not intended to be relied upon for any purpose. The creators of this software make no representations or warranties of any kind, express or implied, about the completeness, accuracy, reliability, suitability or availability with respect to the software or the information, products, services, or related graphics contained in the software for any purpose. Any reliance you place on such information is therefore strictly at your own risk.
 
-
 [ai-gateway]: https://github.com/Azure-Samples/AI-Gateway
 [ai-gateway-private-connectivity]: https://github.com/Azure-Samples/AI-Gateway/tree/main/labs/private-connectivity
 [alex-vieira]: https://github.com/vieiraae
 [andrew-redman]: https://github.com/anotherRedbeard
-[apim-love]: https://aka.ms/apimlove
 [apim-lza]: https://learn.microsoft.com/azure/cloud-adoption-framework/scenarios/app-platform/api-management/landing-zone-accelerator
 [apim-snippets]: https://github.com/Azure/api-management-policy-snippets
 [azure-bicep-install]: https://learn.microsoft.com/azure/azure-resource-manager/bicep/install#azure-cli
@@ -364,7 +359,6 @@ _For much more API Management content, please also check out [APIM Love](https:/
 [badge-python-tests]: https://github.com/Azure-Samples/Apim-Samples/actions/workflows/python-tests.yml/badge.svg?branch=main
 [bicep-linter-docs]: https://learn.microsoft.com/azure/azure-resource-manager/bicep/bicep-config-linter
 [houssem-dellai]: https://github.com/HoussemDellai
-[import-troubleshooting]: .devcontainer/IMPORT-TROUBLESHOOTING.md
 [naga-cheruvu]: https://github.com/ncheruvu-MSFT
 [infra-afd-apim-pe]: ./infrastructure/afd-apim-pe
 [infra-apim-aca]: ./infrastructure/apim-aca
@@ -374,7 +368,6 @@ _For much more API Management content, please also check out [APIM Love](https:/
 [openssf]: https://www.bestpractices.dev/projects/11057
 [openssf-scorecard]: https://scorecard.dev/viewer/?uri=github.com/Azure-Samples/Apim-Samples
 [pytest-docs]: https://docs.pytest.org/
-[pytest-docs-versioned]: https://docs.pytest.org/en/8.2.x/
 [ruff-docs]: https://docs.astral.sh/ruff/
 [python]: https://www.python.org/
 [sample-authx]: ./samples/authX/README.md

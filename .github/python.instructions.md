@@ -25,6 +25,7 @@ This ensures all code changes comply with the project's linting standards from t
 
 ## Goals
 
+- Before installing, syncing, or upgrading Python packages, preserve the seven-day release exclusion in `pyproject.toml`, run `python setup/verify_dependency_age.py --scope python`, and install only with `uv sync --locked`. Never introduce a direct package-manager command that bypasses the lockfile or waiting period.
 - Make changes that are easy to review, test, and maintain.
 - Keep scripts cross-platform (Windows, Linux, macOS).
 - Prefer minimal, working implementations (MVP), then iterate.
@@ -64,28 +65,31 @@ This ensures all code changes comply with the project's linting standards from t
 - Imports from this repo should be grouped, be imported last, and have a group header called `# APIM Samples imports`
 - Only use multi-line imports when a single-line is too long
 - Avoid mixing patterns: Don't use both `import module` and `from module import ...` for the same module
-- Parentheses in imports: Only use parentheses for multi-line imports, not for single-line imports:
-  - Good: `from console import print_error, print_val`
-  - Bad: `from console import (print_error, print_val)`
-  - Good (multi-line):
-    ```python
-    from console import (
-        print_error,
-        print_info,
-        print_ok
-    )
-    ```
+- Parentheses in imports: Only use parentheses for multi-line imports, not for single-line imports.
+   - Good: `from console import print_error, print_val`
+   - Bad: `from console import (print_error, print_val)`
+
+Good multi-line example:
+
+```python
+from console import (
+    print_error,
+    print_info,
+    print_ok,
+)
+```
+
 - Order within APIM Samples imports section:
-  1. Module imports with aliases (e.g., `import azure_resources as az`)
-  2. Specific type/constant imports (e.g., `from apimtypes import INFRASTRUCTURE`)
-  3. Specific function imports (e.g., `from console import print_error`)
+   1. Module imports with aliases (e.g., `import azure_resources as az`)
+   2. Specific type/constant imports (e.g., `from apimtypes import INFRASTRUCTURE`)
+   3. Specific function imports (e.g., `from console import print_error`)
 
 ## Code Quality Checklist
 
 Before completing any Python code changes, verify:
 
 - All ruff warnings and errors are resolved (`ruff check <file>`)
-  - Ruff rules cover these, but we don't see `pyproject.toml` being added to context. Therefore, please pay special attention to these common occurrences:
+   - Ruff rules cover these, but we don't see `pyproject.toml` being added to context. Therefore, please pay special attention to these common occurrences:
       - No trailing whitespace
       - No assertion of empty strings in tests (use `assert not`)
 - Code follows PEP 8 and the style guidelines in this file

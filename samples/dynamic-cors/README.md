@@ -27,26 +27,29 @@ You need a single, reusable CORS mechanism that can be applied to any API while 
 
 ## 🛩️ Lab Components
 
-This lab deploys all options **side-by-side** so you can inspect and compare them without redeployment:
+This lab deploys all options **side-by-side** so you can inspect and compare them without redeployment. It includes **thirteen APIs** (two per option plus an admin API) with no backends. Each CORS demo API includes a GET operation returning a JSON response indicating whether CORS was allowed and an OPTIONS operation for preflight handling:
 
-- **Thirteen APIs** (two per option plus an admin API) with no backends. Each CORS demo API includes a GET operation returning a JSON response indicating whether CORS was allowed and an OPTIONS operation for preflight handling.
-  - **Baseline** (`cors-bl-products`, `cors-bl-analytics`) - native APIM `<cors>` policy with static origins.
-  - **Option 1** (`cors-opt1-products`, `cors-opt1-analytics`) - `DynamicCorsHardcoded` policy fragment.
-  - **Option 2** (`cors-opt2-products`, `cors-opt2-analytics`) - `DynamicCorsNamedValues` policy fragment.
-  - **Option 3** (`cors-opt3-products`, `cors-opt3-analytics`) - `DynamicCorsCached` policy fragment (single cache entry for all APIs).
-  - **Option 4** (`cors-opt4-products`, `cors-opt4-analytics`) - `DynamicCorsCachedPerApi` policy fragment (per-API cache entries).
-  - **Option 5** (`cors-opt5-products`, `cors-opt5-analytics`) - `DynamicCorsNvPerApi` policy fragment (per-API Named Values passed via context variable).
-  - **Admin** (`cors-admin`) - `POST /load-cache/{cacheKey}` stores a value in the APIM internal cache and `POST /clear-cache/{cacheKey}` removes it (subscription required).
+- **Baseline** (`cors-bl-products`, `cors-bl-analytics`) - native APIM `<cors>` policy with static origins.
+- **Option 1** (`cors-opt1-products`, `cors-opt1-analytics`) - `DynamicCorsHardcoded` policy fragment.
+- **Option 2** (`cors-opt2-products`, `cors-opt2-analytics`) - `DynamicCorsNamedValues` policy fragment.
+- **Option 3** (`cors-opt3-products`, `cors-opt3-analytics`) - `DynamicCorsCached` policy fragment (single cache entry for all APIs).
+- **Option 4** (`cors-opt4-products`, `cors-opt4-analytics`) - `DynamicCorsCachedPerApi` policy fragment (per-API cache entries).
+- **Option 5** (`cors-opt5-products`, `cors-opt5-analytics`) - `DynamicCorsNvPerApi` policy fragment (per-API Named Values passed via context variable).
+- **Admin** (`cors-admin`) - `POST /load-cache/{cacheKey}` stores a value in the APIM internal cache and `POST /clear-cache/{cacheKey}` removes it (subscription required).
 
 > [!IMPORTANT]
 > **Production security:** The admin API in this sample is protected by a subscription key only. Subscription keys are shared secrets and are not a substitute for identity-based authentication. In production, you should add `validate-azure-ad-token` or `validate-jwt` to the admin API's inbound policy. See the [authX](../authX/) and [authX-pro](../authX-pro/) samples for implementation patterns. The policy XML includes a commented example of where to place the validation.
 
-- **Five APIM policy fragments** (one per dynamic option) demonstrating different origin-mapping strategies:
-  - `DynamicCorsHardcoded` - origins embedded in a C# `switch` expression.
-  - `DynamicCorsNamedValues` - origins read from an APIM Named Value as JSON.
-  - `DynamicCorsCached` - origins read from the APIM internal cache as a single JSON mapping. Returns `503` if the cache is not initialized (fail-closed).
-  - `DynamicCorsCachedPerApi` - origins read from per-API cache entries (`corsOriginMapping-{apiId}`). Returns `503` if the current API's cache entry is missing (fail-closed).
-  - `DynamicCorsNvPerApi` - origins passed via a context variable set by the API-level policy from a per-API Named Value. The fragment itself is environment-agnostic.
+The lab also deploys **five APIM policy fragments** (one per dynamic option) demonstrating different origin-mapping strategies:
+
+- `DynamicCorsHardcoded` - origins embedded in a C# `switch` expression.
+- `DynamicCorsNamedValues` - origins read from an APIM Named Value as JSON.
+- `DynamicCorsCached` - origins read from the APIM internal cache as a single JSON mapping. Returns `503` if the cache is not initialized (fail-closed).
+- `DynamicCorsCachedPerApi` - origins read from per-API cache entries (`corsOriginMapping-{apiId}`). Returns `503` if the current API's cache entry is missing (fail-closed).
+- `DynamicCorsNvPerApi` - origins passed via a context variable set by the API-level policy from a per-API Named Value. The fragment itself is environment-agnostic.
+
+Additional components include:
+
 - **Three Named Values**: `CorsOriginMapping` (Option 2 JSON mapping), `CorsOrigins-cors-opt5-products` and `CorsOrigins-cors-opt5-analytics` (Option 5 per-API origin arrays).
 - An **API-level policy** (`cors-api-policy.xml`) that includes the active CORS fragment in `<inbound>` and documents the outbound pattern for APIs with real backends.
 - A **context-variable API-level policy** (`cors-api-policy-named-values.xml`) that sets an `allowedOriginsJson` context variable from a Named Value reference before including the Option 5 fragment.

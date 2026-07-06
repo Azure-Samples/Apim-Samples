@@ -85,9 +85,9 @@ Both scripts:
 - Measure branch coverage for `shared/python`, `setup`, and sample-local Python helpers under `samples`
 - Require 100% aggregate coverage
 - Generate code coverage reports:
-  - HTML: `htmlcov/index.html` (at repository root)
-  - XML: `coverage.xml` (for VS Code integration)
-  - JSON: `coverage.json`
+   - HTML: `htmlcov/index.html` (at repository root)
+   - XML: `coverage.xml` (for VS Code integration)
+   - JSON: `coverage.json`
 - Store the raw coverage data in `.coverage` (at repository root)
 
 #### Viewing Coverage Reports
@@ -101,7 +101,8 @@ Both scripts:
 - Make sure the Python extension is enabled and `coverage`/`pytest-cov` are available in your venv. If needed:
 
    ```powershell
-   pip install coverage pytest-cov
+   python setup/verify_dependency_age.py --scope python
+   uv sync --locked
    ```
 
 - Note: Running pytest only from the terminal won't decorate the Explorer. Use the Testing UI to see coverage overlays.

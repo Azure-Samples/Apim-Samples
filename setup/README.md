@@ -4,33 +4,35 @@ Configures cross-platform PYTHONPATH for APIM Samples and provides streamlined l
 
 ## Prerequisites
 
-Install uv (fast Python package manager) before proceeding:
+Install the eligible uv 0.9.24 release before proceeding:
 
 **Windows:**
-```powershell
-# Using winget (recommended)
-winget install --id=astral-sh.uv -e
 
-# Or using scoop
-scoop install uv
+```powershell
+# Using winget
+winget install --id=astral-sh.uv --version 0.9.24 -e
 ```
 
 **macOS:**
-```bash
-# Using Homebrew
-brew install uv
 
-# Or using the official installer
-curl -LsSf https://astral.sh/uv/install.sh | sh
+```bash
+curl -LsSf -o uv-install.sh https://astral.sh/uv/0.9.24/install.sh
+echo "f6e468855afb4e653fa96ed68a7cad0b2534794ece25ec202f6543c589eb04dc  uv-install.sh" | shasum -a 256 -c -
+sh uv-install.sh
+rm uv-install.sh
 ```
 
 **Linux:**
+
 ```bash
-# Using the official installer
-curl -LsSf https://astral.sh/uv/install.sh | sh
+curl -LsSf -o uv-install.sh https://astral.sh/uv/0.9.24/install.sh
+echo "f6e468855afb4e653fa96ed68a7cad0b2534794ece25ec202f6543c589eb04dc  uv-install.sh" | sha256sum -c -
+sh uv-install.sh
+rm uv-install.sh
 ```
 
 Verify installation:
+
 ```bash
 uv --version
 ```
@@ -41,11 +43,15 @@ For complete local environment setup that matches the dev container experience:
 
 ```shell
 uv venv
-uv sync
+python setup/verify_dependency_age.py --scope python
+uv sync --locked
 python setup/local_setup.py --complete-setup
 ```
 
+The repository excludes packages published within the last seven days. Use `uv lock --upgrade` to refresh the lockfile; the `exclude-newer = "7 days"` project setting applies the same policy automatically. The age verifier checks every locked artifact before installation.
+
 This will:
+
 - Generate `.env` file for Python path configuration
 - Register the standardized "APIM Samples Python 3.12" Jupyter kernel
 - Configure VS Code settings for automatic kernel selection
@@ -85,6 +91,7 @@ python setup/verify_setup.py
 ```
 
 This checks:
+
 - Virtual environment activation
 - Required package installation
 - Shared module imports
@@ -102,6 +109,7 @@ To ensure notebooks always use the correct kernel ("APIM Samples Python 3.12" in
 3. **Verify with**: `python setup/verify_setup.py`
 
 If you still see incorrect kernel names, run:
+
 ```shell
 python setup/local_setup.py --force-kernel
 ```
@@ -109,6 +117,7 @@ python setup/local_setup.py --force-kernel
 ## Troubleshooting
 
 ### Kernel Issues
+
 - **Problem**: Notebooks show ".venv" or "python3" instead of "APIM Samples Python 3.12"
 - **Solution**: Run `--force-kernel` and restart VS Code
 
@@ -146,11 +155,11 @@ bash setup/clean-local-artifacts.sh
 
 The following are removed:
 
-| Type | Items |
-|---|---|
-| Cache directories | `.pytest_cache`, `.ruff_cache`, `__pycache__` |
-| Test/coverage artifacts | `htmlcov`, `.coverage`, `.coverage.*` |
-| Build/package artifacts | `build`, `dist`, `.eggs`, `*.egg-info` |
-| Temporary files | `*.pyc`, `*.pyo`, `*.tmp`, `*.temp` |
+| Type                    | Items                                               |
+| ----------------------- | --------------------------------------------------- |
+| Cache directories       | `.pytest_cache`, `.ruff_cache`, `__pycache__`       |
+| Test/coverage artifacts | `htmlcov`, `.coverage`, `.coverage.*`               |
+| Build/package artifacts | `build`, `dist`, `.eggs`, `*.egg-info`              |
+| Temporary files         | `*.pyc`, `*.pyo`, `*.tmp`, `*.temp`                 |
 
 > **Note:** `.env` is intentionally left in place.

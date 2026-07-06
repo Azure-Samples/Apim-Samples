@@ -7,6 +7,7 @@ applyTo: '**/*.bicep'
 
 ## Goals
 
+- Do not add package, module, CLI extension, or tool installation steps that bypass the repository's seven-day dependency waiting period and locked install commands.
 - Prefer modern Bicep syntax and patterns.
 - Keep templates readable and easy to extend.
 - Keep deployments cross-platform (Windows, Linux, macOS).
@@ -15,9 +16,7 @@ applyTo: '**/*.bicep'
 ## Conventions
 
 - Use `@description` for all parameters and variables.
-- Prefer consistent naming:
-  - Enums: `SNAKE_CASE` + uppercase.
-  - Resources/variables: `camelCase`.
+- Prefer consistent naming: enums use uppercase `SNAKE_CASE`; resources and variables use `camelCase`.
 - Use the repo's standard top parameters when authoring standalone Bicep files:
 
 ```bicep

@@ -276,7 +276,7 @@ In one case, `%USERPROFILE%\.azure\bin` contained a `bicep.exe` file but with a 
 
 1. Verify that bicep is indeed failing: `az bicep version`
 2. Delete `%USERPROFILE%\.azure\bin\bicep.exe`.
-3. (Re)install bicep: `az bicep install`.
+3. (Re)install the eligible pinned Bicep release: `az bicep install --version v0.44.1`.
 4. Verify bicep: `az bicep version`
 
 ## Resource Management Issues

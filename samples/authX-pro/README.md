@@ -1,6 +1,6 @@
 # Samples: AuthX Pro - Authentication & Authorization
 
-Sets up a more sophisticate authentication (authN) and authorization (authZ) combination for role-based access control (RBAC) to a mock API and its operations.  
+Sets up a more sophisticate authentication (authN) and authorization (authZ) combination for role-based access control (RBAC) to a mock API and its operations.
 
 ⚙️ **Supported infrastructures**: All infrastructures
 
@@ -15,6 +15,7 @@ Sets up a more sophisticate authentication (authN) and authorization (authZ) com
 1. Experience how API Management policy fragments simplify shared logic.
 
 ## 📝 Scenario
+
 This sample, compared to the simpler _AuthX_, introduces use of API Management Product and policy fragments to simplify and consolidate shared logic. When considering scaling, consider this as your starting point.
 
 The same two personas from _AuthX_ are at play:
@@ -25,7 +26,7 @@ The same two personas from _AuthX_ are at play:
 The API hierarchy is as follows:
 
 1. All APIs / global
-    This is a great place to do authentication, but we refrain from doing it in the sample as to not affect other samples. 
+    This is a great place to do authentication, but we refrain from doing it in the sample as to not affect other samples.
 1. HR Product
     Perform authentication and authorization for HR_Member in the JWT claims. Continue on success; otherwise, return 401.
 1. HR Employee & Benefits APIs

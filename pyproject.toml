@@ -9,7 +9,7 @@ license = { file = "LICENSE" }
 
 # Core runtime dependencies
 dependencies = [
-  "pillow>=12.3.0",   # Resolves GHSA-whj4-6x5x-4v2j (CVE-2026-40192): https://pillow.readthedocs.io/en/stable/releasenotes/12.2.0.html#prevent-fits-decompression-bomb
+  "pillow>=12.2.0",   # Resolves GHSA-whj4-6x5x-4v2j (CVE-2026-40192): https://pillow.readthedocs.io/en/stable/releasenotes/12.2.0.html#prevent-fits-decompression-bomb
   "ipykernel",
   "jinja2",
   "matplotlib",
@@ -29,6 +29,10 @@ dev = [
   "coverage>=7.14.3",
   "pip-audit>=2.10.1",
 ]
+
+[tool.uv]
+# Exclude every artifact published during the repository's supply-chain waiting period.
+exclude-newer = "7 days"
 
 [tool.ruff]
 line-length = 150

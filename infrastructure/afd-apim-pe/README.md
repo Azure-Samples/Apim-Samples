@@ -22,6 +22,7 @@ The notebook also includes a `SYSTEM CONFIGURATION` flag named `use_strict_nsg`.
 We provide NSG deployment as an option for teams that want to experiment with subnet-level controls, but we intentionally keep it disabled by default. The goal of these samples is to stay approachable and focused on APIM scenarios rather than drifting into full Azure Landing Zone-style network governance complexity.
 
 NSG behavior:
+
 - `nsg-default`: Generic fallback NSG for subnets that do not have a service-specific NSG. It stays intentionally generic.
 - `use_strict_nsg = False`: Service subnets get permissive service-aware NSGs: `nsg-apim` and `nsg-aca`. These preserve Azure platform requirements and avoid unnecessary ingress restrictions.
 - `use_strict_nsg = True`: Service subnets get strict NSGs: `nsg-apim-strict` and `nsg-aca-strict`. These keep required platform rules but restrict ingress so traffic follows Front Door -> APIM -> ACA.
@@ -31,8 +32,6 @@ NSG behavior:
 👟 **Expected *Run All* runtime: ~13 minutes**
 
 1. Execute this lab's [Jupyter Notebook][infra-notebook] step-by-step or via _Run All_.
-
-
 
 [init-notebook-variables]: ./create.ipynb#initialize-notebook-variables
 [infra-notebook]: ./create.ipynb
