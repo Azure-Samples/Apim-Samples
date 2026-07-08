@@ -112,7 +112,7 @@ function PyRun {
         [string[]] $Args
     )
     if (Test-Uv) {
-        Invoke-Cmd "uv" (@("run", "python") + $Args)
+        Invoke-Cmd "uv" (@("run", "--no-sync", "python") + $Args)
     } else {
         Invoke-Cmd (Get-Python) $Args
     }
@@ -126,8 +126,8 @@ while ($true) {
     Write-Host "Setup" -ForegroundColor Yellow
     Write-Host "  1) Complete environment setup"
     Write-Host "  2) Azure CLI login"
-    Write-Host "  u) Install uv dependencies from uv.lock (uv sync)"
-    Write-Host "  l) Upgrade uv dependencies & sync (refresh uv.lock)"
+    Write-Host "  u) Install eligible uv dependencies from uv.lock"
+    Write-Host "  l) Upgrade to eligible uv dependencies & sync"
     Write-Host ""
     Write-Host "Verify" -ForegroundColor Yellow
     Write-Host "  3) Verify local setup"
@@ -214,7 +214,10 @@ while ($true) {
         }
         'u' {
             if (Test-Uv) {
-                $null = Invoke-Cmd "uv" @("sync")
+                $ageOk = Invoke-Cmd (Get-Python) @("$RepoRoot/setup/verify_dependency_age.py", "--scope", "python")
+                if ($ageOk) {
+                    $null = Invoke-Cmd "uv" @("sync", "--locked")
+                }
             } else {
                 Write-Host ""
                 Write-Host "uv is not installed or not on PATH. Install uv first (see setup/README.md)." -ForegroundColor Red
@@ -225,7 +228,10 @@ while ($true) {
             if (Test-Uv) {
                 $lockOk = Invoke-Cmd "uv" @("lock", "--upgrade")
                 if ($lockOk) {
-                    $null = Invoke-Cmd "uv" @("sync")
+                    $ageOk = Invoke-Cmd (Get-Python) @("$RepoRoot/setup/verify_dependency_age.py", "--scope", "python")
+                    if ($ageOk) {
+                        $null = Invoke-Cmd "uv" @("sync", "--locked")
+                    }
                 }
             } else {
                 Write-Host ""

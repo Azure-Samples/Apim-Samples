@@ -176,7 +176,8 @@ def test_check_uv_sync_success_venv_exists(temp_cwd: Path) -> None:
             ok, fix = vls.check_uv_sync()
             assert ok is True
             assert not fix
-            mock_run.assert_called_once()
+            assert mock_run.call_count == 2
+            assert 'verify_dependency_age.py' in mock_run.call_args_list[0][0][0][1]
             assert 'sync' in mock_run.call_args[0][0]
 
 
@@ -198,9 +199,10 @@ def test_check_uv_sync_creates_venv_then_syncs(temp_cwd: Path) -> None:
             ok, fix = vls.check_uv_sync()
             assert ok is True
             assert not fix
-            assert mock_run.call_count == 2
+            assert mock_run.call_count == 3
             assert 'venv' in mock_run.call_args_list[0][0][0]
-            assert 'sync' in mock_run.call_args_list[1][0][0]
+            assert 'verify_dependency_age.py' in mock_run.call_args_list[1][0][0][1]
+            assert 'sync' in mock_run.call_args_list[2][0][0]
 
 
 def test_check_uv_sync_fail_venv_creation(temp_cwd: Path) -> None:
@@ -347,8 +349,8 @@ def test_check_jupyter_kernel_found(stdout: str, should_pass: bool) -> None:
 @pytest.mark.parametrize(
     'exception,error_text',
     [
-        (subprocess.CalledProcessError(1, 'jupyter'), 'Install Jupyter'),
-        (FileNotFoundError(), 'Install Jupyter'),
+        (subprocess.CalledProcessError(1, 'jupyter'), 'eligible Jupyter'),
+        (FileNotFoundError(), 'eligible Jupyter'),
         (subprocess.TimeoutExpired('jupyter', 10), 'timed out'),
     ],
 )

@@ -7,6 +7,10 @@ description: Guide for creating Azure API Management (APIM) XML policies. Use wh
 
 This skill provides guidance for creating Azure API Management XML policies.
 
+Do not add policy tooling or package installation that bypasses the repository's seven-day release waiting period. Use the locked dependency workflow and verify release ages before running new tooling.
+
+When this workflow creates or updates Markdown, follow `.markdownlint.json` and `.github/markdown.instructions.md` without flattening semantic structure. Before completion, run `npx --no-install markdownlint-cli2 "**/*.md" "#**/.venv/**" "#**/node_modules/**"` from the repository root and require zero violations.
+
 ## Policy Document Structure
 
 Every APIM policy document follows this structure:
@@ -36,14 +40,14 @@ The `<base />` element inherits policies from parent scopes (Global → Product 
 
 ## Policy Categories Quick Reference
 
-| Category | Common Policies | Section |
-|----------|-----------------|---------|
-| **Authentication** | `authentication-managed-identity`, `validate-azure-ad-token`, `validate-jwt` | inbound |
-| **Rate Limiting** | `rate-limit-by-key`, `quota-by-key` | inbound |
-| **Caching** | `cache-lookup`, `cache-store` | inbound/outbound |
-| **Routing** | `set-backend-service`, `forward-request`, `retry` | inbound/backend |
-| **Transformation** | `set-header`, `set-body`, `set-variable`, `rewrite-uri` | any |
-| **Control Flow** | `choose`, `return-response`, `retry`, `wait` | any |
+| Category           | Common Policies                                                              | Section          |
+| ------------------ | ---------------------------------------------------------------------------- | ---------------- |
+| **Authentication** | `authentication-managed-identity`, `validate-azure-ad-token`, `validate-jwt` | inbound          |
+| **Rate Limiting**  | `rate-limit-by-key`, `quota-by-key`                                          | inbound          |
+| **Caching**        | `cache-lookup`, `cache-store`                                                | inbound/outbound |
+| **Routing**        | `set-backend-service`, `forward-request`, `retry`                            | inbound/backend  |
+| **Transformation** | `set-header`, `set-body`, `set-variable`, `rewrite-uri`                      | any              |
+| **Control Flow**   | `choose`, `return-response`, `retry`, `wait`                                 | any              |
 
 ## Essential Policies
 
@@ -196,12 +200,12 @@ Before using a type or member in a policy expression, verify it appears on the o
 
 When a member you need is not allowed, refactor to an equivalent that is. Examples:
 
-| Disallowed | Allowed replacement |
-|---|---|
+| Disallowed                                                        | Allowed replacement                                                                             |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `DateTime.TryParse(s, ..., DateTimeStyles.RoundtripKind, out dt)` | Store as Unix epoch via `DateTimeOffset.UtcNow.ToUnixTimeSeconds()`, parse with `long.TryParse` |
-| `DateTime.ParseExact(s, fmt, CultureInfo.InvariantCulture)` | `DateTime.Parse(s)` (allowed) or epoch-based representation |
-| `Enum.GetValues(typeof(T))` | Hard-code the comparison values or store as a string |
-| `System.Text.Json.JsonSerializer.Deserialize<T>(s)` | `JsonConvert.DeserializeObject<T>(s)` |
+| `DateTime.ParseExact(s, fmt, CultureInfo.InvariantCulture)`       | `DateTime.Parse(s)` (allowed) or epoch-based representation                                     |
+| `Enum.GetValues(typeof(T))`                                       | Hard-code the comparison values or store as a string                                            |
+| `System.Text.Json.JsonSerializer.Deserialize<T>(s)`               | `JsonConvert.DeserializeObject<T>(s)`                                                           |
 
 If you are unsure whether a member is allowed, fetch the [allowed types table](https://learn.microsoft.com/azure/api-management/api-management-policy-expressions#CLRTypes) and confirm before writing the expression.
 

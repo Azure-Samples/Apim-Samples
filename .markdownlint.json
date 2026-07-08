@@ -1,0 +1,15 @@
+{
+  "MD007": {
+    "indent": 3
+  },
+  "MD013": false,
+  "MD033": {
+    "allowed_elements": [
+      "br",
+      "details",
+      "img",
+      "summary"
+    ]
+  },
+  "MD049": false
+}

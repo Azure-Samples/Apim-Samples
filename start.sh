@@ -70,13 +70,18 @@ has_uv() {
 
 ensure_uv_env() {
   if has_uv; then
-    (cd "${REPO_ROOT}" && { [ -d .venv ] || uv venv; } && uv sync >/dev/null 2>&1 || true)
+    (
+      cd "${REPO_ROOT}" &&
+        { [ -d .venv ] || uv venv; } &&
+        "$(find_python)" setup/verify_dependency_age.py --scope python &&
+        uv sync --locked >/dev/null 2>&1 || true
+    )
   fi
 }
 
 pyrun() {
   if has_uv; then
-    uv run python "$@"
+    uv run --no-sync python "$@"
   else
     "$(find_python)" "$@"
   fi
@@ -90,8 +95,8 @@ while true; do
   echo "Setup"
   echo "  1) Complete environment setup"
   echo "  2) Azure CLI login"
-  echo "  u) Install uv dependencies from uv.lock (uv sync)"
-  echo "  l) Upgrade uv dependencies & sync (refresh uv.lock)"
+  echo "  u) Install eligible uv dependencies from uv.lock"
+  echo "  l) Upgrade to eligible uv dependencies & sync"
   echo ""
   echo "Verify"
   echo "  3) Verify local setup"
@@ -179,7 +184,9 @@ while true; do
       ;;
     u)
       if has_uv; then
-        run_cmd uv sync
+        if run_cmd "$(find_python)" "${REPO_ROOT}/setup/verify_dependency_age.py" --scope python; then
+          run_cmd uv sync --locked
+        fi
       else
         echo ""
         echo "uv is not installed or not on PATH. Install uv first (see setup/README.md)."
@@ -189,7 +196,9 @@ while true; do
     l)
       if has_uv; then
         if run_cmd uv lock --upgrade; then
-          run_cmd uv sync
+          if run_cmd "$(find_python)" "${REPO_ROOT}/setup/verify_dependency_age.py" --scope python; then
+            run_cmd uv sync --locked
+          fi
         fi
       else
         echo ""

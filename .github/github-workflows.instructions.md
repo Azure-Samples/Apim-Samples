@@ -14,6 +14,8 @@ This instructions file provides guidelines for creating and maintaining GitHub A
 
 **CRITICAL: All GitHub Actions MUST use commit hashes instead of version tags or branches.**
 
+Every selected action release must also be at least seven days old. Keep Dependabot's seven-day cooldown enabled and run `python setup/verify_dependency_age.py --scope github-actions` when adding or changing an action pin. The trailing version comment is mandatory because the verifier resolves it to release metadata and confirms that its tag matches the pinned SHA.
+
 - ❌ **DO NOT** use: `uses: actions/checkout@v4`, `uses: actions/setup-python@v6`, `uses: astral-sh/setup-uv@v7`
 - ✅ **DO** use: `uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2`
 
@@ -47,10 +49,7 @@ This instructions file provides guidelines for creating and maintaining GitHub A
 
 - Use the `permissions:` key to explicitly define required permissions
 - Follow the principle of least privilege—only request permissions needed for the workflow
-- Common permissions for CI workflows:
-  - `contents: read` — for reading repository files
-  - `checks: write` — for writing check results
-  - `pull-requests: write` — for commenting on PR
+- Common permissions for CI workflows include `contents: read` for repository files, `checks: write` for check results, and `pull-requests: write` for PR comments.
 
 ## Workflow Structure
 
@@ -176,6 +175,7 @@ steps:
 - [ ] No use of `pull_request_target` without proper security review
 - [ ] Secrets are never logged or exposed
 - [ ] Third-party actions have been vetted and pinned to commit hashes
+- [ ] Every action release is at least seven days old and passes the dependency-age verifier
 
 ## OpenSSF Security Best Practices
 
@@ -184,6 +184,7 @@ steps:
 **CRITICAL: Never use untrusted input directly in `run:` commands.**
 
 Untrusted input includes:
+
 - `${{ github.event.pull_request.title }}`
 - `${{ github.event.pull_request.body }}`
 - `${{ github.event.issue.title }}`
@@ -237,17 +238,20 @@ Untrusted input includes:
 **⚠️ EXTREMELY DANGEROUS: `pull_request_target` runs with write permissions to the base repository.**
 
 The `pull_request_target` trigger:
+
 - Runs in the context of the base branch (not the PR branch)
 - Has **write access** to the base repository
 - Has access to repository secrets
 - Can be triggered by anyone who can create a PR (including attackers)
 
 **When NOT to use:**
+
 - ❌ Never checkout code from the PR (`${{ github.event.pull_request.head.ref }}`)
 - ❌ Never execute code from the PR (tests, builds, scripts)
 - ❌ Never install dependencies from the PR's package files
 
 **When it's safe to use (rare cases):**
+
 - ✅ Commenting on PRs using `actions/github-script`
 - ✅ Labeling PRs based on metadata (not content)
 - ✅ Static analysis that doesn't execute PR code
@@ -296,11 +300,13 @@ jobs:
 **⚠️ NEVER use self-hosted runners on public repositories.**
 
 Risks:
+
 - Pull requests from forks can execute arbitrary code on your infrastructure
 - Runners may retain secrets or sensitive data between runs
 - Potential for persistent backdoors or data exfiltration
 
 **Guidelines:**
+
 - ✅ Use GitHub-hosted runners (`ubuntu-latest`, `windows-latest`, `macos-latest`) for public repos
 - ✅ Use self-hosted runners only on private repositories with strict access controls
 - ✅ If you must use self-hosted runners, isolate them completely (ephemeral containers)
@@ -310,6 +316,7 @@ Risks:
 **Best practices for handling secrets:**
 
 1. **Never log secrets:**
+
    ```yaml
    # ❌ WRONG: Secret appears in logs
    - name: Deploy
@@ -323,6 +330,7 @@ Risks:
    ```
 
 2. **Mask dynamic secrets:**
+
    ```yaml
    - name: Generate temporary token
      run: |
@@ -332,11 +340,13 @@ Risks:
    ```
 
 3. **Secrets in fork PRs:**
+
    - Secrets are **NOT** available to workflows triggered by forks
    - Use `pull_request_target` only for safe operations (commenting, labeling)
    - Never trust fork PR code with write permissions or secrets access
 
 4. **Least privilege:**
+
    ```yaml
    # Only request secrets that are actually needed
    env:
@@ -371,6 +381,7 @@ Risks:
    - Update commit hashes when new versions are released
 
 5. **Example vetting process:**
+
    ```yaml
    # Good: Vetted, pinned, documented
    - name: Setup Python
@@ -497,7 +508,7 @@ jobs:
    - Require manual approval for production deployments
    - Restrict which branches can deploy to environments
 
-## Checklist Before Committing
+## Final Workflow Checklist Before Committing
 
 - [ ] All GitHub Actions use commit hashes (no version tags)
 - [ ] Triggers are explicitly defined (`on:`)

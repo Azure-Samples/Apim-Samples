@@ -27,6 +27,7 @@ jobs:
           # MPL-2.0: certifi
           # PSF-2.0: matplotlib
           # ISC: pexpect, ptyprocess
+          # MIT-CMU: pycparser
           # LGPL-3.0-or-later: pyzmq (libzmq shared library)
           # HPND: pillow
           # HPND-Markus-Kuhn: wcwidth (used in jupyter stack)
@@ -38,6 +39,7 @@ jobs:
             OFL-1.1,
             PSF-2.0,
             ISC,
+            MIT-CMU,
             HPND,
             HPND-Markus-Kuhn,
             Python-2.0,

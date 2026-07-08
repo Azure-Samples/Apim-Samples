@@ -7,6 +7,10 @@ version: 2
 updates:
 - package-ecosystem: uv
   directory: "/"
+  cooldown:
+    default-days: 7
+    include:
+      - "*"
   schedule:
     interval: daily
     time: "02:21"
@@ -21,6 +25,10 @@ updates:
 # comment in a single PR — the pin never drifts back to a floating tag.
 - package-ecosystem: github-actions
   directory: "/"
+  cooldown:
+    default-days: 7
+    include:
+      - "*"
   schedule:
     # Weekly is plenty — actions release far less often than PyPI packages.
     # Dependabot security advisories bypass this schedule and fire immediately.
@@ -29,3 +37,28 @@ updates:
     github-actions:
       patterns:
         - "*"
+
+- package-ecosystem: devcontainers
+  directories:
+    - "/.devcontainer/python312"
+    - "/.devcontainer/python313"
+    - "/.devcontainer/python314"
+  cooldown:
+    default-days: 7
+    include:
+      - "*"
+  schedule:
+    interval: weekly
+  groups:
+    devcontainer-features:
+      patterns:
+        - "*"
+
+- package-ecosystem: docker
+  directory: "/.devcontainer"
+  cooldown:
+    default-days: 7
+    include:
+      - "*"
+  schedule:
+    interval: weekly

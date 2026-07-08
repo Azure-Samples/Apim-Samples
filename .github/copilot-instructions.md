@@ -65,6 +65,9 @@ Uniformity, clarity, and ease of use are paramount across all infrastructures an
 
 ## General Coding Guidelines
 
+- Enforce a seven-day post-release waiting period for every package ecosystem. Python resolution must use the `tool.uv.exclude-newer = "7 days"` setting, locked installs must run `python setup/verify_dependency_age.py --scope python` before `uv sync --locked`, and GitHub Actions must pass the repository-wide dependency-age workflow.
+- Do not bypass the waiting period with direct `pip install`, `uv pip install`, `npm install`, floating GitHub Action tags, or ad hoc installer commands. Update the lockfile or pin only a release that has completed the waiting period.
+- Keep Dependabot `cooldown.default-days` at seven or greater for every configured ecosystem. Security updates remain subject to the same repository verifier even when the hosting service bypasses cooldown for advisory PRs.
 - All code, scripts, and configuration must be cross-platform compatible, supporting Windows, Linux, and macOS. If any special adjustments are to be made, please clearly indicate so in comments.
 - Prioritize clarity, maintainability, and readability in all generated code.
 - Focus on achieving a Minimal Viable Product (MVP) first, then iterate.
@@ -87,14 +90,13 @@ Uniformity, clarity, and ease of use are paramount across all infrastructures an
 ## Repository Structure
 
 - `/`: Root directory containing the main files and folders. Bicep configuration is stored in `bicepconfig.json`.
-- The following folders are all at the root level:
-    - `assets/`: Draw.io diagrams, SVG exports, and images. Static assets such as these should be placed here. Architecture diagrams should be placed in the /diagrams subfolder.
-    - `docs/`: Source for the public GitHub Pages landing page. See the *GitHub Pages Site* section below for upkeep rules.
-    - `infrastructure/`: Contains Jupyter notebooks for setting up various API Management infrastructures. When modifying samples, these notebooks should not need to be modified.
-    - `samples/`: Various policy and scenario samples that can be applied to the infrastructures.
-    - `setup/`: General setup scripts and configurations for the repository and dev environment setup.
-    - `shared/`: Shared resources, such as Bicep modules, Python libraries, and other reusable components.
-    - `tests/`: Contains unit tests for Python code and Bicep modules. This folder should contain all tests for all code in the repository.
+- `assets/`: Draw.io diagrams, SVG exports, and images. Static assets such as these should be placed here. Architecture diagrams should be placed in the /diagrams subfolder.
+- `docs/`: Source for the public GitHub Pages landing page. See the *GitHub Pages Site* section below for upkeep rules.
+- `infrastructure/`: Contains Jupyter notebooks for setting up various API Management infrastructures. When modifying samples, these notebooks should not need to be modified.
+- `samples/`: Various policy and scenario samples that can be applied to the infrastructures.
+- `setup/`: General setup scripts and configurations for the repository and dev environment setup.
+- `shared/`: Shared resources, such as Bicep modules, Python libraries, and other reusable components.
+- `tests/`: Contains unit tests for Python code and Bicep modules. This folder should contain all tests for all code in the repository.
 
 ## Infrastructure Development Guidelines
 
@@ -103,6 +105,7 @@ Infrastructures live in `infrastructure/[infra-name]/` and provide the foundatio
 ### Infrastructure File Structure
 
 Each infrastructure in `infrastructure/[infra-name]/` must contain:
+
 - `create.ipynb` - Jupyter notebook that deploys the infrastructure
 - `create_infrastructure.py` - Python helper script for infrastructure creation logic
 - `main.bicep` - Bicep template for deploying the infrastructure resources
@@ -115,24 +118,28 @@ Each infrastructure in `infrastructure/[infra-name]/` must contain:
 All infrastructure notebooks must follow this exact cell pattern:
 
 #### Cell 1: Configure & Create (Markdown)
+
 - Heading: `### 🛠️ Configure Infrastructure Parameters & Create the Infrastructure`
 - One-sentence description naming the specific infrastructure
 - Bold reminder: `❗️ **Modify entries under _User-defined parameters_**.`
 - Optional: a short note if the infrastructure has unique deployment phases (e.g. private link approval)
 
 #### Cell 2: Configure & Create (Python Code)
+
 - Import only `APIM_SKU`, `INFRASTRUCTURE` from `apimtypes`, `InfrastructureNotebookHelper` from `utils`, and `print_ok` from `console`
 - `USER CONFIGURATION` section with `rg_location`, `index`, and `apim_sku` (comment each with inline description)
 - `SYSTEM CONFIGURATION` section: instantiate `InfrastructureNotebookHelper` and call `create_infrastructure()`
 - Final line: `print_ok('All done!')`
 
 #### Cell 3: Clean Up (Markdown)
+
 - Heading: `### 🗑️ Clean up resources`
 - Standard text: "When you're finished experimenting, it's advisable to remove all associated resources from Azure to avoid unnecessary cost. Use the clean-up notebook for that."
 
 ### Infrastructure README.md
 
 Use this consistent layout:
+
 - **Title** - Name of the architecture (e.g. "Simple API Management Infrastructure")
 - **Description** - One to two sentences summarising the architecture and its value
 - **Architecture diagram** - `<img>` tag referencing the SVG in the infrastructure folder
@@ -148,6 +155,7 @@ Use this consistent layout:
 ### Sample File Structure
 
 Each sample in `samples/[sample-name]/` must contain:
+
 - `create.ipynb` - Jupyter notebook that deploys and demonstrates the sample
 - `main.bicep` - Bicep template for deploying sample resources
 - `README.md` - Documentation explaining the sample, use cases, and concepts
@@ -160,6 +168,7 @@ New sample-owned APIM policy XML and KQL files must not be placed at the sample 
 ### New Sample Sync Checklist
 
 Whenever a new sample is added:
+
 - Ask for the sample name if it has not been provided. Do not invent it.
 - Ask for supported infrastructures if they have not been provided. Do not assume "All infrastructures".
 - Create the sample under `samples/[sample-name]/` unless the user explicitly requests another location.
@@ -175,20 +184,25 @@ Whenever a new sample is added:
 Follow this pattern for **all** sample `create.ipynb` files. Consistency here is critical - users should recognise the layout immediately from having used any other sample:
 
 #### Cell 1: Title & Overview (Markdown)
+
 - Notebook title and brief description
 - Reference to README.md for detailed information
 
 #### Cell 2: What This Sample Does (Markdown)
+
 - Bullet list of key actions/demonstrations
 - Keep focused on user-facing outcomes
 
 #### Cell 3: Initialize Notebook Variables (Markdown)
+
 - Heading with note that only USER CONFIGURATION should be modified
 
 #### Cell 4: Initialize Notebook Variables (Python Code)
+
 **This cell should be straightforward configuration only. No Azure SDK calls here.**
 
 Structure:
+
 1. Import statements at the top:
    - Standard library imports (time, json, tempfile, requests, pathlib, datetime)
    - `utils`, `apimtypes`, `console`, `azure_resources` (including `az`, `get_infra_rg_name`, `get_account_info`)
@@ -211,6 +225,7 @@ Structure:
 **Important:** Do NOT call `az` commands in this cell. Do NOT create a config dictionary. Do NOT initialize deployment outputs. All Azure operations and variable definitions should happen in subsequent operation cells.
 
 #### Cell 5+: Functional Cells (Markdown + Code pairs)
+
 - Each logical operation gets a markdown heading cell followed by one or more code cells
 - Keep educational configuration, scenario steps, and key APIM concepts visible in the notebook. Extract non-educational Python mechanics, such as reusable orchestration, parsing, retries, polling, data transformation, and repeated request setup, into existing shared helpers or focused sample-local Python helper modules. Compose established helpers first; extend one only when the behavior belongs to its existing responsibility, state, and lifecycle.
 - Follow `shared/python/README.md` for the complete helper and supporting-class strategy, including ownership, dependency direction, state, lifecycle, selective autoreload, promotion, and testing rules.
@@ -223,22 +238,26 @@ Structure:
 **First operation cell (typically deployment):**
 
 ⚠️ **CRITICAL**: Use `nb_helper.deploy_sample()` for all sample deployments. This method:
-  - Automatically validates the infrastructure exists (checks resource group)
-  - Prompts user to select or create infrastructure if needed
-  - Handles all Azure availability checks internally
-  - Returns deployment outputs including the APIM service name
+
+- Automatically validates the infrastructure exists (checks resource group)
+- Prompts user to select or create infrastructure if needed
+- Handles all Azure availability checks internally
+- Returns deployment outputs including the APIM service name
 
 **Process:**
+
 1. Print configuration summary using variables from init cell
 2. Build `bicep_parameters` dict with sample-specific parameters (e.g., `location`, `costExportFrequency`)
    - **DO NOT** manually query for APIM services
    - **DO NOT** pass `apimServiceName` to `bicep_parameters` if the infrastructure already provides it
 3. Call `nb_helper.deploy_sample(bicep_parameters)` to deploy Bicep template
 4. Call `nb_helper.get_deployment_context(output)` to validate common outputs, then store its fields as **individual variables** (not in a dictionary)
-  - Example: `apim_name = deployment_context.apim_name`, `apim_gateway_url = deployment_context.apim_gateway_url`
-  - Continue to use `output.get(...)` or `output.getJson(...)` for sample-specific outputs that are not part of `SampleDeploymentContext`
+
+- Example: `apim_name = deployment_context.apim_name`, `apim_gateway_url = deployment_context.apim_gateway_url`
+- Continue to use `output.get(...)` or `output.getJson(...)` for sample-specific outputs that are not part of `SampleDeploymentContext`
 
 **Invalid approach** (do NOT do this):
+
 ```python
 # ❌ WRONG - Manual APIM service queries
 apim_list_result = az.run(f'az apim list --resource-group {rg_name}...')
@@ -249,6 +268,7 @@ bicep_parameters = {'apimServiceName': {'value': apim_name}}
 ```
 
 **Valid approach** (do this):
+
 ```python
 # ✅ CORRECT - Let deploy_sample() handle infrastructure validation
 bicep_parameters = {
@@ -263,6 +283,7 @@ apim_apis = deployment_context.apis
 ```
 
 **Subsequent cells:**
+
 - Check prerequisites with `if 'variable_name' not in locals(): raise SystemExit(1)`
 - Use variables directly in code (e.g., `rg_name`, `subscription_id`, `apim_name`)
 - Do NOT recreate or duplicate variables from previous cells
@@ -271,6 +292,7 @@ apim_apis = deployment_context.apis
 ### Variable Management
 
 **Do NOT use a config dictionary.** Use individual variables that flow naturally through cells:
+
 - Init cell defines user and system configuration variables
 - Deployment cell creates new variables for deployment outputs (e.g., `apim_name`, `app_insights_name`)
 - Subsequent cells reference these variables directly
@@ -278,6 +300,7 @@ apim_apis = deployment_context.apis
 - Variables created in one cell are automatically available in all subsequent cells
 
 Example:
+
 ```python
 # Init cell
 apim_sku = APIM_SKU.BASICV2
@@ -298,6 +321,7 @@ storage_account_id = f'/subscriptions/{subscription_id}/...'
 ### NotebookHelper Usage
 
 **What NotebookHelper does:**
+
 - `__init__()`: Initializes with sample folder, resource group name, location, infrastructure type, and supported infrastructure list
 - `deploy_sample(bicep_parameters)`: Orchestrates the complete deployment process:
   1. Checks if the desired resource group/infrastructure exists
@@ -308,7 +332,9 @@ storage_account_id = f'/subscriptions/{subscription_id}/...'
 - `create_apim_requests(apim_gateway_url, subscription_key=None, headers=None)`: Resolves the selected infrastructure endpoint and creates a configured `ApimRequests` client.
 
 **How to use:**
+
 1. Initialize in the configuration cell (Cell 4):
+
    ```python
    nb_helper = utils.NotebookHelper(
        sample_folder,
@@ -322,6 +348,7 @@ storage_account_id = f'/subscriptions/{subscription_id}/...'
    ```
 
 2. Call in the deployment cell (Cell 5+):
+
    ```python
    bicep_parameters = {
        'location': {'value': rg_location},
@@ -330,16 +357,18 @@ storage_account_id = f'/subscriptions/{subscription_id}/...'
    output = nb_helper.deploy_sample(bicep_parameters)
    ```
 
-3. Extract common and sample-specific outputs:
-   ```python
-  deployment_context = nb_helper.get_deployment_context(output)
-  apim_name = deployment_context.apim_name
-  apim_gateway_url = deployment_context.apim_gateway_url
-  apim_apis = deployment_context.apis
-   app_insights_name = output.get('applicationInsightsName')
-   ```
+Extract common and sample-specific outputs:
+
+```python
+deployment_context = nb_helper.get_deployment_context(output)
+apim_name = deployment_context.apim_name
+apim_gateway_url = deployment_context.apim_gateway_url
+apim_apis = deployment_context.apis
+app_insights_name = output.get('applicationInsightsName')
+```
 
 **CRITICAL: Do not bypass NotebookHelper!**
+
 - ❌ Do NOT manually check `az group exists`
 - ❌ Do NOT manually query `az apim list` to find APIM services
 - ❌ Do NOT check if resources exist before deployment
@@ -397,15 +426,17 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 
 - **Do NOT repeat general prerequisites** (Azure subscription, Azure CLI, Python environment, APIM instance). These are documented once in the root README's [Getting Started](../../README.md#-getting-started) section and apply to all samples. The APIM Samples Developer CLI (`start.ps1` / `start.sh`) handles environment setup.
 - **Only add `## ✅ Prerequisites`** when a sample has genuinely unique requirements that go beyond the root README, such as:
-  - Additional Azure RBAC role assignments beyond Contributor
-  - External service accounts (e.g., a Spotify developer account)
-  - Special tooling or configuration not covered by the Developer CLI
+   - Additional Azure RBAC role assignments beyond Contributor
+   - External service accounts (e.g., a Spotify developer account)
+   - Special tooling or configuration not covered by the Developer CLI
 - When a Prerequisites section is needed, **open with a one-line reference** to the root README for general prerequisites, then list only the sample-specific requirements. Example:
+
   ```markdown
   ## ✅ Prerequisites
 
   Beyond the [general prerequisites](../../README.md#-getting-started) (Azure subscription, CLI, Python environment), this sample requires ...
   ```
+
 - The `oauth-3rd-party` sample is the canonical example of sample-specific prerequisites (external service accounts). The `costing` sample is the canonical example of additional RBAC requirements.
 
 ### Testing and Traffic Generation
@@ -416,6 +447,7 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 - **One session per cell is fine.** Each notebook cell should be independently runnable, so create and close a session within the same cell rather than sharing one across cells.
 - For `ApimRequests`, use `nb_helper.create_apim_requests(...)` to resolve the correct endpoint URL, headers, and TLS behavior. Use `utils.get_endpoint(...)` directly only when constructing a raw session for high-volume traffic.
 - Session pattern example (preferred for loops):
+
   ```python
   import requests as http_requests
 
@@ -435,7 +467,9 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
   finally:
       session.close()
   ```
+
 - ApimRequests example (for structured test verification with logging):
+
   ```python
   from apimtesting import ApimTesting
 
@@ -460,10 +494,10 @@ When designing or restructuring a sample notebook:
 
 ## Language-specific Instructions
 
-  - Python: see `.github/python.instructions.md`
-  - Bicep: see `.github/bicep.instructions.md`
-  - JSON: see `.github/json.instructions.md`
-  - Markdown: see `.github/markdown.instructions.md`
+- Python: see `.github/python.instructions.md`
+- Bicep: see `.github/bicep.instructions.md`
+- JSON: see `.github/json.instructions.md`
+- Markdown: see `.github/markdown.instructions.md`
 
 ## Formatting and Style
 
@@ -492,7 +526,7 @@ The public landing page at <https://azure-samples.github.io/Apim-Samples/> is bu
 **Treat `docs/index.html` as a downstream consumer of the README.** When you change any of the following, update the landing page in the same PR:
 
 | Change | Update required in `docs/index.html` | Also update |
-|---|---|---|
+| --- | --- | --- |
 | Add / remove / rename an **infrastructure** | Add / remove / rename the matching `.infra-card` **and** the matching `ListItem` in the JSON-LD `ItemList` (in `<head>`). Update the infrastructure count in the first `.value-card` if it still says "Five". | Add / remove the SVG copy line in `.github/workflows/github-pages.yml`. |
 | Add / remove / rename a **sample** | Add / remove / rename the matching `.sample-card` **and** the matching `ListItem` in the JSON-LD `ItemList`. | — |
 | Change a sample's **supported infrastructures** | Update the `.infra-tag` text on that sample's card. | — |
@@ -502,8 +536,11 @@ The public landing page at <https://azure-samples.github.io/Apim-Samples/> is bu
 Check `docs/README.md` for local preview instructions and styling notes. The page is deliberately plain static HTML + an external stylesheet (`docs/styles.css`), with no executable JavaScript and no build tooling, so that it cannot rot due to a transitive npm dependency. The only `<script>` tag is the JSON-LD structured-data block, which must stay inline because search-engine crawlers do not reliably follow external JSON-LD references. Keep it that way unless there is a compelling reason to add a build step.
 
 ## Required before each commit
+
 - Ensure all code is well-documented and follows the guidelines in this file.
-- Ensure markdownlint passes with zero violations for all new or modified Markdown files.
+- Generate every Markdown file, including instructions, skills, and agents, against `.markdownlint.json` and `.github/markdown.instructions.md` from the start.
+- After any Markdown change, run `npx --no-install markdownlint-cli2 "**/*.md" "#**/.venv/**" "#**/node_modules/**"` from the repository root and require zero violations.
+- Preserve document hierarchy while fixing lint issues. Do not flatten nested lists or collapse structured content into prose solely to satisfy markdownlint.
 - Ensure that Jupyter notebooks do not contain any cell output.
 - Ensure that Jupyter notebooks have `index` assigned to `1` in the first cell.
 - If the change touches the infrastructure list, sample list, quick-start steps, or architecture SVGs, ensure `docs/index.html` (and the asset copy step in `.github/workflows/github-pages.yml` where relevant) has been updated to match.
@@ -512,10 +549,7 @@ Check `docs/README.md` for local preview instructions and styling notes. The pag
 
 - Use these [configuration settings](https://github.com/microsoft/vscode-jupyter/blob/dd568fde/package.nls.json) as a reference for the VS Code Jupyter extension configuration.
 - When generating or editing notebook files as JSON, structure the document with a top-level `cells` array.
-- Each cell must be a valid JSON object with:
-  - `cell_type`
-  - `metadata.language`
-  - `source`
+- Each cell must be a valid JSON object with `cell_type`, `metadata.language`, and `source`.
 - Existing cells must keep a unique `metadata.id` value.
 - New cells do not need a `metadata.id` value unless an editor or tool assigns one.
 - Keep notebook JSON logically structured and valid. Do not emit partial notebook fragments when a full notebook document is required.
@@ -546,17 +580,22 @@ Check `docs/README.md` for local preview instructions and styling notes. The pag
 
 - Store every sample-owned KQL query in a dedicated `.kql` file under `samples/<sample-name>/queries/` rather than at the sample root or embedded inline in Python code. This keeps notebooks readable and lets users copy-paste the query directly into a Log Analytics or Azure Data Explorer query editor.
 - Resolve `.kql` files from the sample's `queries/` directory and load them with `Path.read_text()`:
+
   ```python
   from pathlib import Path
 
   kql_path = Path(utils.get_project_root()) / 'samples' / sample_folder / 'queries' / 'my-query.kql'
   kql_query = Path(kql_path).read_text(encoding='utf-8')
   ```
+
 - Parameterise KQL queries using native `let` bindings. Define parameters as `let` statements prepended to the query body at runtime, keeping the `.kql` file free of Python string interpolation:
+
   ```python
   kusto_query = f"let buName = '{bu_name}';\nlet threshold = {alert_threshold};\n{kql_template}"
   ```
+
 - In the `.kql` file, document available parameters in a comment header so users know which `let` bindings to supply:
+
   ```kql
   // Parameters (prepend as KQL 'let' bindings before running):
   //   let buName    = 'bu-hr';     // Business unit subscription ID
@@ -566,6 +605,7 @@ Check `docs/README.md` for local preview instructions and styling notes. The pag
   | summarize RequestCount = count()
   | where RequestCount > threshold
   ```
+
 - When executing KQL via `az rest` or `az monitor log-analytics query`, write the query body to a temporary JSON file and pass it with `--body @tempfile.json` to avoid shell pipe-character interpretation issues on Windows.
 
 ### Azure Monitor Workbook File Convention
@@ -584,6 +624,7 @@ Azure Monitor Workbook definitions stored in this repository must follow the **`
 Azure Monitor Workbook query items execute independently — there is no native mechanism to share a materialized table across query items. Apply the following patterns to minimise data scanned and improve workbook responsiveness:
 
 - **`materialize()` for multi-reference `let` bindings.** When a `let` binding is referenced more than once in the same query (e.g. once for a `toscalar(count)` and once for the main `summarize`), wrap it in `materialize()` so Log Analytics computes the base set once per query execution rather than scanning the underlying table twice.
+
   ```kql
   let logs = materialize(ApiManagementGatewayLogs
   | where TimeGenerated {TimeRange} and ApimSubscriptionId startswith 'bu-');
@@ -592,7 +633,9 @@ Azure Monitor Workbook query items execute independently — there is no native 
   | summarize RequestCount = count() by ApimSubscriptionId
   | extend UsageShare = round(RequestCount * 100.0 / totalRequests, 2)
   ```
+
 - **Column-project before joins.** When joining two tables, add an explicit `| project` on both sides to carry only the columns that the downstream `summarize`/`extend`/`project` actually needs. Wide diagnostic tables like `ApiManagementGatewayLlmLog` contain many columns; projecting only the needed ones before the join reduces memory and network cost.
+
   ```kql
   ApiManagementGatewayLlmLog
   | where TimeGenerated {TimeRange} and TotalTokens > 0
@@ -604,6 +647,7 @@ Azure Monitor Workbook query items execute independently — there is no native 
   ) on CorrelationId
   | summarize TotalTokens = sum(TotalTokens) by BusinessUnit
   ```
+
 - **Avoid duplicate queries across items.** If two workbook visualisations require identical data, consider whether they can share a single query item with different chart/table renderings, or whether the layout can be restructured to avoid scanning the same data twice. Workbook Merge items can combine two previously-computed result sets but cannot perform arbitrary re-aggregation.
 - **Keep the Workbook `timeContext` on each query item** rather than relying solely on the global parameter. This ensures Log Analytics can push down the time filter to the storage layer even when the parameter is complex.
 - **Prefer `summarize` close to the source.** Push `summarize` as early as possible in the pipeline to reduce the volume of rows flowing through subsequent operators.

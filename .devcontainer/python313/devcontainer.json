@@ -9,7 +9,7 @@
     }
   },
   "features": {
-    "ghcr.io/devcontainers/features/common-utils:2": {
+    "ghcr.io/devcontainers/features/common-utils:2.5.4": {
       "installZsh": false,
       "configureZshAsDefaultShell": false,
       "installOhMyZsh": false,
@@ -65,7 +65,7 @@
   "updateContentCommand": [
     "bash",
     "-c",
-    "echo '📦 Installing/updating Python packages with uv...' && source /workspaces/Apim-Samples/.venv/bin/activate && uv sync && echo '✅ Python packages installed/updated' && python setup/local_setup.py --generate-env && echo '✅ Environment configuration updated'"
+    "echo '📦 Installing locked Python packages with uv...' && source /workspaces/Apim-Samples/.venv/bin/activate && python setup/verify_dependency_age.py --scope python && uv sync --locked && echo '✅ Python packages installed' && python setup/local_setup.py --generate-env && echo '✅ Environment configuration updated'"
   ],
   "postStartCommand": [
     "bash",

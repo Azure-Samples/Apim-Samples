@@ -2,13 +2,28 @@
     "version": "2.0.0",
     "tasks": [
         {
+            "label": "Verify Dependency Age",
+            "type": "shell",
+            "command": "${config:python.pythonPath}",
+            "args": [
+                "setup/verify_dependency_age.py",
+                "--scope",
+                "python"
+            ],
+            "problemMatcher": [],
+            "detail": "Reject locked artifacts published during the seven-day waiting period"
+        },
+        {
             "label": "Install Dependencies (uv)",
             "type": "shell",
             "command": "uv",
             "args": [
-                "sync"
+                "sync",
+                "--locked"
             ],
             "group": "build",
+            "dependsOn": "Verify Dependency Age",
+            "dependsOrder": "sequence",
             "presentation": {
                 "echo": true,
                 "reveal": "always",
@@ -18,7 +33,7 @@
                 "clear": false
             },
             "problemMatcher": [],
-            "detail": "Install/sync Python dependencies using uv (fast)"
+            "detail": "Install locked Python dependencies after uv applies the seven-day release exclusion"
         },
         {
             "label": "Setup Python Environment",

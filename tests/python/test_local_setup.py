@@ -636,8 +636,8 @@ def test_install_jupyter_kernel_ipykernel_not_installed():
         assert result is True
 
 
-def test_install_jupyter_kernel_pip_install_fails(monkeypatch: pytest.MonkeyPatch):
-    """Test install_jupyter_kernel handles pip install failures."""
+def test_install_jupyter_kernel_locked_install_requires_uv(monkeypatch: pytest.MonkeyPatch):
+    """Test install_jupyter_kernel refuses an unlocked pip fallback."""
     call_count = [0]
 
     monkeypatch.setattr(shutil, 'which', lambda _: None)
@@ -655,8 +655,8 @@ def test_install_jupyter_kernel_pip_install_fails(monkeypatch: pytest.MonkeyPatc
         assert result is False
 
 
-def test_install_jupyter_kernel_falls_back_to_pip(monkeypatch: pytest.MonkeyPatch):
-    """Test install_jupyter_kernel uses pip when uv is unavailable."""
+def test_install_jupyter_kernel_does_not_fall_back_to_pip(monkeypatch: pytest.MonkeyPatch):
+    """Test install_jupyter_kernel does not bypass the lockfile with pip."""
     call_log: list[list[str]] = []
 
     monkeypatch.setattr(shutil, 'which', lambda _: None)
@@ -671,8 +671,8 @@ def test_install_jupyter_kernel_falls_back_to_pip(monkeypatch: pytest.MonkeyPatc
     with patch('subprocess.run', side_effect=mock_run):
         result = sps.install_jupyter_kernel()
 
-    assert result is True
-    assert [sys.executable, '-m', 'pip', 'install', 'ipykernel'] in call_log
+    assert result is False
+    assert len(call_log) == 1
 
 
 def test_install_jupyter_kernel_registration_fails():
@@ -1823,18 +1823,21 @@ def test_ensure_utf8_streams_with_reconfigure():
 def test_install_jupyter_kernel_ipykernel_check_fails():
     """Test install_jupyter_kernel when ipykernel version check fails."""
 
+    check_count = 0
+
     def mock_run(*args, **kwargs):
-        # First call checks ipykernel - fails
-        # So we try to pip install, which succeeds
-        # Then kernel install call
+        nonlocal check_count
         if '-m' in args[0] and 'ipykernel' in args[0]:
             if '--version' in args[0]:
-                raise subprocess.CalledProcessError(1, 'ipykernel')
+                check_count += 1
+                if check_count == 1:
+                    raise subprocess.CalledProcessError(1, 'ipykernel')
         return Mock(returncode=0)
 
-    with patch('subprocess.run', side_effect=mock_run):
-        result = sps.install_jupyter_kernel()
-        assert result is True
+    with patch('shutil.which', return_value='/usr/bin/uv'):
+        with patch('subprocess.run', side_effect=mock_run):
+            result = sps.install_jupyter_kernel()
+            assert result is True
 
 
 def test_create_vscode_settings_with_parse_error_message():

@@ -7,6 +7,10 @@ description: Guide for building Bicep files for Azure API Management (APIM) and 
 
 This skill provides guidance for creating Azure Bicep templates for API Management and related services.
 
+Do not add tool, module, CLI extension, container feature, or package installation that bypasses the repository's seven-day release waiting period. Any new dependency must use an eligible exact version and the repository's guarded install flow.
+
+When this workflow creates or updates Markdown, follow `.markdownlint.json` and `.github/markdown.instructions.md` without flattening semantic structure. Before completion, run `npx --no-install markdownlint-cli2 "**/*.md" "#**/.venv/**" "#**/node_modules/**"` from the repository root and require zero violations.
+
 ## Quick Start - Basic APIM Instance
 
 ```bicep
@@ -50,17 +54,17 @@ output principalId string = apimService.identity.principalId
 
 ## Resource Types Reference
 
-| Resource Type | API Version | Purpose |
-|---------------|-------------|---------|
-| `Microsoft.ApiManagement/service` | `2024-06-01-preview` | APIM service instance |
-| `Microsoft.ApiManagement/service/apis` | `2024-06-01-preview` | API definitions |
-| `Microsoft.ApiManagement/service/apis/operations` | `2024-06-01-preview` | API operations |
-| `Microsoft.ApiManagement/service/apis/policies` | `2024-06-01-preview` | API-level policies |
-| `Microsoft.ApiManagement/service/backends` | `2024-06-01-preview` | Backend services |
-| `Microsoft.ApiManagement/service/subscriptions` | `2024-06-01-preview` | API subscriptions |
-| `Microsoft.ApiManagement/service/products` | `2024-06-01-preview` | API products |
-| `Microsoft.ApiManagement/service/loggers` | `2024-06-01-preview` | Logging configuration |
-| `Microsoft.ApiManagement/service/apis/diagnostics` | `2024-06-01-preview` | API diagnostics |
+| Resource Type                                      | API Version          | Purpose               |
+| -------------------------------------------------- | -------------------- | --------------------- |
+| `Microsoft.ApiManagement/service`                  | `2024-06-01-preview` | APIM service instance |
+| `Microsoft.ApiManagement/service/apis`             | `2024-06-01-preview` | API definitions       |
+| `Microsoft.ApiManagement/service/apis/operations`  | `2024-06-01-preview` | API operations        |
+| `Microsoft.ApiManagement/service/apis/policies`    | `2024-06-01-preview` | API-level policies    |
+| `Microsoft.ApiManagement/service/backends`         | `2024-06-01-preview` | Backend services      |
+| `Microsoft.ApiManagement/service/subscriptions`    | `2024-06-01-preview` | API subscriptions     |
+| `Microsoft.ApiManagement/service/products`         | `2024-06-01-preview` | API products          |
+| `Microsoft.ApiManagement/service/loggers`          | `2024-06-01-preview` | Logging configuration |
+| `Microsoft.ApiManagement/service/apis/diagnostics` | `2024-06-01-preview` | API diagnostics       |
 
 ## Essential Patterns
 

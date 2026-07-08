@@ -54,7 +54,7 @@ def check_virtual_environment():
     """Check if we're running in the correct virtual environment."""
     venv_path = Path.cwd() / '.venv'
     if not venv_path.exists():
-        return False, 'Create it: uv venv && uv sync (then activate: source .venv/bin/activate or .venv\\Scripts\\activate on Windows)'
+        return False, 'Create it: uv venv && uv sync --locked (then activate: source .venv/bin/activate or .venv\\Scripts\\activate on Windows)'
 
     current_python = Path(sys.executable)
     expected_venv_python = venv_path / ('Scripts' if os.name == 'nt' else 'bin') / 'python'
@@ -79,7 +79,9 @@ def check_uv_sync():
             return False, f'Failed to create venv with uv: {exc}'
 
     try:
-        subprocess.run([uv_path, 'sync'], check=True, capture_output=True)
+        dependency_check = Path(__file__).resolve().parent / 'verify_dependency_age.py'
+        subprocess.run([sys.executable, str(dependency_check), '--scope', 'python'], check=True, capture_output=True)
+        subprocess.run([uv_path, 'sync', '--locked'], check=True, capture_output=True)
         return True, ''
     except subprocess.CalledProcessError as exc:
         return False, f'Failed to sync dependencies with uv: {exc}'
@@ -102,7 +104,7 @@ def check_required_packages():
             missing.append(package_name)
 
     if missing:
-        return False, f'Install missing packages: uv sync (missing: {", ".join(missing)})'
+        return False, f'Install missing packages: uv sync --locked (missing: {", ".join(missing)})'
 
     return True, ''
 
@@ -149,7 +151,7 @@ def check_jupyter_kernel():
     except subprocess.TimeoutExpired:
         return False, "Jupyter kernel check timed out. Try: python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)'"
     except (subprocess.CalledProcessError, FileNotFoundError):
-        return False, 'Install Jupyter tooling: uv add --dev jupyter && uv sync'
+        return False, 'Add eligible Jupyter tooling after its waiting period, then run uv sync --locked'
 
 
 def check_vscode_settings():
@@ -257,7 +259,7 @@ def check_bicep_cli():
     except subprocess.TimeoutExpired:
         return False, f'Bicep version check timed out after {AZURE_CLI_TIMEOUT_SECONDS} seconds. Retry verification or run: az bicep version'
     except subprocess.CalledProcessError:
-        return False, 'Install Bicep: az bicep install'
+        return False, 'Install Bicep: az bicep install --version v0.44.1'
 
 
 def check_azure_login():
