@@ -76,8 +76,8 @@
                 </when>
             </choose>
 
-            <trace source="InferenceFailover" severity="information">
-                <message>@("InferenceAttempt|n=" + ((int)context.Variables["backendAttempt"]).ToString() + "|code=" + (context.Response == null ? "none" : context.Response.StatusCode.ToString()))</message>
+            <trace source="InferenceBackendAttempt" severity="information">
+                <message>@("InferenceAttempt|attempt=" + ((int)context.Variables["backendAttempt"]).ToString() + "/" + (RETRY_COUNT + 1).ToString() + "|backend=" + context.Request.Url.ToString() + "|code=" + (context.Response == null ? "none" : context.Response.StatusCode.ToString()) + (context.Response != null &amp;&amp; context.Response.StatusCode == 429 &amp;&amp; context.Response.Headers.ContainsKey("Retry-After") ? "|retryAfter=" + context.Response.Headers.GetValueOrDefault("Retry-After", "") : ""))</message>
             </trace>
         </retry>
     </backend>

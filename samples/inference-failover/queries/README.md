@@ -1,6 +1,6 @@
 # Inference Failover Queries
 
-These KQL queries help operators inspect AI gateway routing, fallback behavior, failures, latency, and LLM telemetry for the inference failover sample. Run them against the Log Analytics workspace used by the selected API Management infrastructure.
+These KQL queries help operators inspect AI gateway routing, fallback behavior, failures, latency, API delivery modes, estimated token cost, and LLM telemetry for the inference failover sample. Run them against the Log Analytics workspace used by the selected API Management infrastructure.
 
 Return to the [Inference Failover sample](../README.md) for deployment steps and the broader scenario description.
 
@@ -20,9 +20,15 @@ Adjust `timeWindow` when investigating a shorter incident window or a longer tre
 - `ApiManagementGatewayLogs`: Caller-visible response codes, final backend response codes, backend placement, timing, APIM errors, and policy trace records.
 - `ApiManagementGatewayLlmLog`: Correlated model deployment, prompt token, completion token, total token, and message-chunk telemetry.
 
-The retry-aware queries count compact `InferenceAttempt` entries in `TraceRecords`. Exhausted fallback is derived from native `ResponseCode`, `BackendResponseCode`, and `LastErrorReason` fields.
+The retry-aware queries count compact `InferenceAttempt` entries in `TraceRecords`. Each entry includes the attempt budget, concrete backend member ID and URL, response code, and an optional `Retry-After` value for `429` responses. Exhausted fallback is derived from native `ResponseCode`, `BackendResponseCode`, and `LastErrorReason` fields.
 
 ## Query Catalog
+
+### [api-delivery-modes.kql](api-delivery-modes.kql)
+
+Use this query to compare Chat Completions and Responses API traffic and split each API surface into streaming and non-streaming delivery modes. It correlates token-bearing LLM telemetry with the APIM operation ID, then reports request and token totals by API, model, API surface, and delivery mode.
+
+The automated sample harness currently produces Chat Completions non-streaming traffic. Other categories appear when those request types are routed through the sample APIs and recorded in `ApiManagementGatewayLlmLog`.
 
 ### [backend-distribution.kql](backend-distribution.kql)
 
@@ -59,6 +65,12 @@ The output includes caller and backend status codes, AOAI account and backend pl
 Use this query to measure token-bearing model consumption across API routes and concrete backends. It joins token-bearing LLM rows to gateway placement rows by `CorrelationId`, then summarizes request count and prompt, completion, and total tokens by API, AOAI instance, backend, and model.
 
 This view helps connect routing behavior to model usage and identify which fallback tiers served token-bearing requests.
+
+### [token-cost-allocation.kql](token-cost-allocation.kql)
+
+Use this query to estimate token cost by final AOAI account and backend, model, API surface, and delivery mode. In addition to `timeWindow`, prepend current prompt and completion rates per 1,000 tokens for both sample models, as shown in the query header. The workbook exposes the same values as editable parameters and defaults every rate to zero.
+
+This estimate excludes PTU commitments, cached-input discounts, Batch pricing, taxes, negotiated adjustments, and requests without token telemetry. Confirm the configured rates and reconcile the result with Azure Cost Management before using it for financial reporting or showback.
 
 ### [verify-llm-ingestion.kql](verify-llm-ingestion.kql)
 

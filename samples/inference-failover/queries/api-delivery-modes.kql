@@ -1,0 +1,29 @@
+// Shows Azure OpenAI API surface and streaming mode for token-bearing requests.
+//
+// Parameters (prepend as KQL 'let' bindings before running):
+//   let timeWindow = 1h;
+//
+let routes = materialize(ApiManagementGatewayLogs
+| where TimeGenerated > ago(timeWindow)
+| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')
+| project CorrelationId, ApiId, OperationId);
+ApiManagementGatewayLlmLog
+| where TimeGenerated > ago(timeWindow)
+| where TotalTokens > 0 and isnotempty(ModelName)
+| project CorrelationId, ModelName, IsStreamCompletion, PromptTokens, CompletionTokens, TotalTokens
+| summarize
+	IsStreamCompletion = take_any(IsStreamCompletion),
+	PromptTokens = sum(PromptTokens),
+	CompletionTokens = sum(CompletionTokens),
+	TotalTokens = sum(TotalTokens)
+	by CorrelationId, ModelName
+| join kind=inner routes on CorrelationId
+| extend ApiSurface = iff(OperationId contains 'responses', 'Responses', 'Chat Completions')
+| extend DeliveryMode = iff(IsStreamCompletion == true, 'Streaming', 'Non-Streaming')
+| summarize
+	Requests = count(),
+	PromptTokens = sum(PromptTokens),
+	CompletionTokens = sum(CompletionTokens),
+	TotalTokens = sum(TotalTokens)
+	by ApiId, ModelName, ApiSurface, DeliveryMode
+| order by ApiId asc, ModelName asc, ApiSurface asc, DeliveryMode asc

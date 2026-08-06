@@ -127,7 +127,7 @@ This lab adds the following to an existing APIM infrastructure:
 - Three AI Gateway APIs with managed identity authentication to Azure OpenAI. Both exercised routes permit two retries after the initial attempt, for three total attempts. This may already be more than sufficient for interactive traffic. The bounded limit is independent of pool size because failed backends are removed from selection by their circuit breakers. Members separated by `/` share a priority and have equal weights.
 - An optional `POST /inference/gpt-5-1-retry-tracked/chat/completions` route that shares the gpt-5.1 pool and demonstrates minimum `Retry-After` tracking. It is deployed for manual comparison and excluded from the notebook's automated traffic and verification.
 - Model-specific retry policies that buffer the POST body while immediately retrying conditional conflicts, throttling, and listed infrastructure failures; emit an information-level trace after every backend attempt; return caller-visible retry counts; and return a generic `503` when infrastructure failover is exhausted. Only the optional comparison policy caches the soonest recovery time and rewrites retry-budget `429` exhaustion.
-- APIM AI Gateway diagnostics using the infrastructure-provided Log Analytics workspace and Application Insights component, plus an AOAI-only workbook for terminal outcomes, retry trails, backend distribution, APIM errors, token coverage, and latency.
+- APIM AI Gateway diagnostics using the infrastructure-provided Log Analytics workspace and Application Insights component, plus a workbook for terminal outcomes, retry trails, backend distribution, APIM errors, token coverage, API surface, streaming mode, estimated token cost, and latency.
 - An optional Standard Event Hubs namespace, telemetry hub, and `external-observability` consumer group in the APIM region for downstream stream processors, SIEM platforms, or external analytics systems.
 
 ### Observability Signals
@@ -141,19 +141,43 @@ Every inference call produces one `ApiManagementGatewayLogs` row. The workbook a
 | Final backend response       | `ApiManagementGatewayLogs.BackendResponseCode`                                         | The HTTP status from the last selected Azure OpenAI backend.                                                                           |
 | Final backend placement      | `ApiManagementGatewayLogs.BackendId`, `BackendUrl`                                     | The concrete backend used for the final attempt.                                                                                       |
 | AOAI account instance        | First DNS label parsed from `ApiManagementGatewayLogs.BackendUrl`                      | The Azure OpenAI account resource that serviced the final backend request; empty when APIM recorded no backend call.                   |
-| Retry trail                  | `ApiManagementGatewayLogs.TraceRecords`                                                | Each compact `InferenceAttempt` event records its sequence number and backend response code. Retry count is attempts minus one.        |
+| Retry trail                  | `ApiManagementGatewayLogs.TraceRecords`                                                | Attempt budget, backend URL, status, and optional `Retry-After`; workbook KQL derives the member ID from the deployment path.          |
 | Exhausted fallback           | `ApiManagementGatewayLogs.ResponseCode`, `BackendResponseCode`, and `LastErrorReason`  | The workbook derives whether APIM returned capacity exhaustion as `429` or normalized infrastructure or transport exhaustion to `503`. |
 | Native APIM failures         | `Errors`, `LastErrorSource`, `LastErrorReason`, `LastErrorSection`, `LastErrorMessage` | Pipeline failures that are not ordinary Azure OpenAI HTTP responses.                                                                   |
 | LLM usage and message chunks | `ApiManagementGatewayLlmLog` joined by `CorrelationId`                                 | Model deployment, token usage, and whether prompt/completion message telemetry arrived.                                                |
 
-The sample includes copy-paste KQL for aggregated outcomes, backend distribution, failure taxonomy, telemetry coverage, and a per-request investigation view. The workbook exposes the same operational views and adds a correlation-ID filter for targeted troubleshooting. See the [query catalog](queries/README.md) for parameters, signal sources, and investigation guidance.
+The sample includes copy-paste KQL for aggregated outcomes, backend distribution, failure taxonomy, telemetry coverage, API delivery modes, estimated token cost, and a per-request investigation view. The workbook exposes the same operational views and adds a correlation-ID filter for targeted troubleshooting. See the [query catalog](queries/README.md) for parameters, signal sources, and investigation guidance.
 
+- [api-delivery-modes.kql](queries/api-delivery-modes.kql) - Chat Completions or Responses API usage split by streaming mode.
 - [failover-outcomes.kql](queries/failover-outcomes.kql) - Caller-visible outcomes, final backend outcomes, and retry statistics.
 - [backend-distribution.kql](queries/backend-distribution.kql) - Final backend placement, status distribution, and latency.
 - [failure-analysis.kql](queries/failure-analysis.kql) - Recovered failovers, exhausted chains, backend failures, and APIM pipeline errors.
 - [llm-telemetry-coverage.kql](queries/llm-telemetry-coverage.kql) - Token and prompt/completion message-chunk coverage for successful calls.
 - [request-details.kql](queries/request-details.kql) - Joined per-request gateway, retry, failure, and LLM telemetry for incident investigation.
 - [token-throughput.kql](queries/token-throughput.kql) - Token volume by API, backend, and model.
+- [token-cost-allocation.kql](queries/token-cost-allocation.kql) - Model-aware token-cost estimate by final backend, API surface, and delivery mode.
+
+### Token Cost Rate Configuration
+
+The workbook's **AI Usage & Cost** tab estimates token charges from prompt and completion token counts. Configure the four model-specific rate parameters at the top of the workbook with your current cost per 1,000 tokens. Rates default to `0`, and affected rows display `Configure model rates`, so an unconfigured workbook does not present stale public pricing as authoritative.
+
+The estimate covers token-bearing requests found in `ApiManagementGatewayLlmLog`. It does not model PTU commitments, cached-input discounts, Batch pricing, taxes, negotiated adjustments, or requests without token telemetry. Validate the configured rates and resulting allocation against Azure Cost Management before using it for financial reporting or showback.
+
+### Per-Request Service Tier Requirement
+
+Priority-processing attribution must be recorded for each Azure OpenAI backend request. Aggregate Azure Monitor dimensions such as `ServiceTierRequest` and `ServiceTierResponse` are useful for fleet trends, but they cannot replace per-request evidence or be correlated reliably with one APIM `CorrelationId`.
+
+Azure OpenAI returns the effective `service_tier` as top-level response metadata, normally `default` or `priority`. Treat that value as applying to the complete backend request, including every chunk in one successful stream. Do not infer the effective tier from the requested tier, deployment configuration, APIM pool priority, or another request. One APIM frontend request can make multiple backend attempts during failover, and each attempt is a separate Azure OpenAI request that can have its own effective tier. The caller-visible stream comes from the final successful attempt.
+
+APIM's native LLM diagnostic pipeline already recognizes a terminal streaming usage event and writes its token counts to `ApiManagementGatewayLlmLog` when `stream_options.include_usage = true`. This is how streaming tokens can be captured without a policy-level response-body read. However, the current LLM log schema does not expose `service_tier`, and APIM policies do not provide a callback for inspecting individual SSE events as they pass through the gateway. Reading `context.Response.Body` in an outbound policy would buffer or consume the response and is therefore not the low-impact streaming solution.
+
+Use these per-request extraction rules:
+
+- For Chat Completions streaming, inspect SSE events incrementally and retain the latest nonempty `service_tier`. The final JSON event before `data: [DONE]` can be inspected, including the terminal usage event when `stream_options.include_usage = true`; the consumer does not need to retain or reparse the complete stream.
+- For non-streaming responses, parse the completed JSON response once and read its top-level `service_tier`. APIM's policy body API must read the complete response body even if the property appears near the beginning of the serialized JSON.
+- Correlate the captured value with `x-ms-client-request-id` or the APIM correlation ID and record `unknown` when the response omits the field. Do not substitute an aggregate result.
+
+This sample's current `ApiManagementGatewayLlmLog` queries provide per-request token attribution but do not yet claim per-request priority-processing attribution. A production implementation that requires `service_tier` must add the streaming-aware consumer described above, or wait for the native APIM LLM diagnostic schema to expose the field.
 
 ### Managed Identity And Privacy
 
@@ -193,6 +217,8 @@ After the traffic cells run and telemetry ingestion completes, the notebook plot
 - Per-request retry trails, recovered failovers, and terminal fallback exhaustion.
 - Native APIM pipeline failures from `Errors` and `LastError*` fields.
 - Prompt, completion, and total tokens by model route, plus successful-request token coverage and message-chunk statistics.
+- Chat Completions and Responses API usage by streaming or non-streaming delivery mode when those request types reach the sample APIs.
+- Estimated token cost by final AOAI account and backend, model, API surface, and delivery mode after current model rates are configured in the workbook.
 - Total and backend latency trends during controlled pressure.
 - Joined request exploration by `CorrelationId` without rendering sensitive prompt or completion bodies.
 

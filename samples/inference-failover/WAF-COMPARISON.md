@@ -32,7 +32,7 @@ The deployed behavior is defined in [main.bicep](main.bicep), the primary [infer
 - A circuit-open backend is excluded from subsequent pool selection, so an immediate retry normally selects another eligible backend.
 - The primary routes preserve the final backend `429`; the optional retry-tracked gpt-5.1 route rewrites `429` with the soonest observed relative `Retry-After` only when every attempt in the bounded retry chain returned `429`.
 - Exhausted infrastructure or transport failure is returned as a generic `503` without unsupported recovery guidance.
-- `X-Backend-Retry` and `InferenceAttempt` trace records expose the attempts absorbed by the gateway.
+- `X-Backend-Retry` and `InferenceAttempt` trace records expose the attempts absorbed by the gateway, including the attempt budget, concrete backend member ID and URL, response code, and optional `Retry-After` value.
 
 Although APIM calls this mechanism a `retry` policy, its role in this sample is primarily **bounded cross-backend failover**. It is not a general-purpose loop that repeatedly calls a backend already known to be throttled.
 

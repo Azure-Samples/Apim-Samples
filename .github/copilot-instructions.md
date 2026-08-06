@@ -703,7 +703,7 @@ Azure Monitor Workbook query items execute independently — there is no native 
   ```
 
 - **Avoid duplicate queries across items.** If two workbook visualisations require identical data, consider whether they can share a single query item with different chart/table renderings, or whether the layout can be restructured to avoid scanning the same data twice. Workbook Merge items can combine two previously-computed result sets but cannot perform arbitrary re-aggregation.
-- **Keep the Workbook `timeContext` on each query item** rather than relying solely on the global parameter. This ensures Log Analytics can push down the time filter to the storage layer even when the parameter is complex.
+- **Bind each Workbook query item's `timeContext` to the visible time parameter.** Set `timeContext.durationMs` to `0` and `timeContextFromParameter` to the parameter name (for example, `TimeRange`). A fixed item-level duration silently intersects the KQL time filter and can hide rows that are inside the user's selected range. Keeping the bound item context also lets Log Analytics push the time filter down to the storage layer.
 - **Prefer `summarize` close to the source.** Push `summarize` as early as possible in the pipeline to reduce the volume of rows flowing through subsequent operators.
 
 ### Admin APIs (`/admin/`) Convention

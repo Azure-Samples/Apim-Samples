@@ -19,6 +19,14 @@ if ($candidates.Count -ne 1) {
 }
 
 $workbookId = $candidates[0]
+$tenantId = az account show --query tenantId -o tsv
+$workbookPortalUrl = if (-not [string]::IsNullOrWhiteSpace($tenantId)) {
+    "https://ms.portal.azure.com/#@$tenantId/resource$workbookId/workbook"
+}
+else {
+    "https://ms.portal.azure.com/#resource$workbookId/workbook"
+}
+
 $existingJson = az rest --method get --uri $workbookId --url-parameters 'api-version=2022-04-01' 'canFetchContent=true'
 $existing = $existingJson | ConvertFrom-Json
 $sourceWorkbook = Get-Content $workbookJsonPath -Raw | ConvertFrom-Json
@@ -51,6 +59,9 @@ try {
     Set-Content -Path $bodyFile -Value $body -Encoding UTF8 -NoNewline
     az rest --method put --uri "${workbookId}?api-version=2022-04-01" --headers 'Content-Type=application/json' --body "@$($bodyFile.FullName)" | Out-Null
     Write-Host "Workbook updated: $workbookId" -ForegroundColor Green
+    Write-Host
+    Write-Host "Workbook link: $workbookPortalUrl" -ForegroundColor Cyan
+    Write-Host
 }
 finally {
     Remove-Item $bodyFile -ErrorAction SilentlyContinue

@@ -15,8 +15,18 @@ let gatewayRequests = materialize(ApiManagementGatewayLogs
 | extend FallbackExhausted = (ResponseCode == 429 and BackendResponseCode in (429, 503))
     or (ResponseCode == 503 and (BackendResponseCode in (500, 502, 503, 504) or LastErrorReason in ('BackendConnectionFailure', 'Timeout')))
 | extend AOAIInstance = iff(isnotempty(BackendUrl), tostring(split(tostring(parse_url(BackendUrl).Host), '.')[0]), '')
+| extend NormalizedTraceText = replace_regex(TraceText, @'(\|attempt=[0-9]+/[0-9]+)\|backendId=[^|]+(\|backend=)', @'\1\2')
+| extend EnrichedTraceText = replace_regex(NormalizedTraceText, @'(\|backend=[^|]*/deployments/a-gpt-5-1/)', @'|backendId=gpt-5-1-PTU-eastus2\1')
+| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/d-gpt-5-1/)', @'|backendId=gpt-5-1-PTU-westus3\1')
+| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/b-gpt-5-1/)', @'|backendId=gpt-5-1-PAYG-eastus2\1')
+| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/e-gpt-5-1/)', @'|backendId=gpt-5-1-PAYG-westus3\1')
+| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/g-gpt-5-1/)', @'|backendId=gpt-5-1-PAYG-southcentralus\1')
+| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/c-gpt-4-1-mini/)', @'|backendId=gpt-4-1-mini-PTU-eastus2\1')
+| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/f-gpt-4-1-mini/)', @'|backendId=gpt-4-1-mini-PTU-westus3\1')
+| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/d-gpt-4-1-mini/)', @'|backendId=gpt-4-1-mini-PAYG-eastus2\1')
+| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/h-gpt-4-1-mini/)', @'|backendId=gpt-4-1-mini-PAYG-southcentralus\1')
 | extend AttemptTrail = strcat_array(
-    extract_all(@'(InferenceAttempt\|n=[0-9]+\|code=(?:[0-9]+|none))', TraceText),
+    extract_all(@'(InferenceAttempt\|attempt=[0-9]+/[0-9]+\|backendId=[^|]+\|backend=[^|]+\|code=(?:[0-9]+|none)(?:\|retryAfter=[^|"]+)?)', EnrichedTraceText),
     ' -> '));
 let llmPerRequest = ApiManagementGatewayLlmLog
 | where TimeGenerated > ago(timeWindow)

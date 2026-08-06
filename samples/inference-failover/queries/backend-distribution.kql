@@ -21,8 +21,8 @@ ApiManagementGatewayLogs
 	AverageBackendMs = round(avg(BackendTime), 1)
 	by ApiId, AOAIInstance, Backend
 | extend
-	CallerResponseCodes = tostring(array_sort_asc(CallerResponseCodes)),
-	FinalBackendResponseCodes = tostring(array_sort_asc(FinalBackendResponseCodes)),
+	CallerResponseCodes = strcat_array(array_sort_asc(CallerResponseCodes), ', '),
+	FinalBackendResponseCodes = strcat_array(array_sort_asc(FinalBackendResponseCodes), ', '),
 	OtherResponses = Requests - Successes - ClientErrors - Throttled - ServerErrors,
 	SuccessRate = round(100.0 * Successes / Requests, 1)
 | project ApiId, AOAIInstance, Backend, Requests, CallerResponseCodes, FinalBackendResponseCodes, Successes, ClientErrors, Throttled, ServerErrors, OtherResponses, AverageBackendMs, SuccessRate

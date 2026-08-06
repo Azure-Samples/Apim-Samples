@@ -1,4 +1,4 @@
-"""Regression tests for the AOAI-only Inference Failover sample assets."""
+"""Regression tests for the Inference Failover sample assets."""
 
 import ast
 import json
@@ -19,12 +19,14 @@ WORKBOOK_PATH = SAMPLE_PATH / 'inference-failover.workbook.json'
 WORKBOOK_UPDATE_PATH = SAMPLE_PATH / 'update-workbook.ps1'
 QUERIES_PATH = SAMPLE_PATH / 'queries'
 KQL_PATHS = [
+    QUERIES_PATH / 'api-delivery-modes.kql',
     QUERIES_PATH / 'backend-distribution.kql',
     QUERIES_PATH / 'failure-analysis.kql',
     QUERIES_PATH / 'failover-outcomes.kql',
     QUERIES_PATH / 'llm-telemetry-coverage.kql',
     QUERIES_PATH / 'request-details.kql',
     QUERIES_PATH / 'token-throughput.kql',
+    QUERIES_PATH / 'token-cost-allocation.kql',
     QUERIES_PATH / 'verify-llm-ingestion.kql',
 ]
 EXPECTED_BACKENDS = {
@@ -86,6 +88,14 @@ def _collect_item_names(items: list[dict]) -> set[str]:
     return names
 
 
+def _collect_workbook_items(items: list[dict]) -> list[dict]:
+    """Collect workbook items recursively from nested tab groups."""
+    collected = list(items)
+    for item in items:
+        collected.extend(_collect_workbook_items(item.get('content', {}).get('items', [])))
+    return collected
+
+
 def _find_workbook_item(items: list[dict], name: str) -> dict:
     """Find a workbook item recursively by name."""
     for item in items:
@@ -100,13 +110,14 @@ def _find_workbook_item(items: list[dict], name: str) -> dict:
     raise KeyError(name)
 
 
-def test_inference_failover_workbook_is_aoai_only_and_query_backed() -> None:
-    """Keep the workbook focused on inference telemetry rather than cost/showback features."""
+def test_inference_failover_workbook_is_ai_telemetry_and_cost_query_backed() -> None:
+    """Keep failover, API-mode, streaming, and token-cost telemetry available."""
     workbook = _load_workbook()
     serialized = json.dumps(workbook).lower()
     item_names = _collect_item_names(workbook['items'])
 
     assert workbook['$schema'].endswith('/schema/workbook.json')
+    assert workbook['fallbackResourceIds'] == []
     assert 'query - outcome-summary' in item_names
     assert 'query - outcome-status-matrix' in item_names
     assert 'query - backend-distribution' in item_names
@@ -115,18 +126,55 @@ def test_inference_failover_workbook_is_aoai_only_and_query_backed() -> None:
     assert 'query - failure-taxonomy' in item_names
     assert 'query - raw-failure-explorer' in item_names
     assert 'query - token-throughput' in item_names
+    assert 'query - api-delivery-mode-chart' in item_names
+    assert 'query - api-delivery-mode-table' in item_names
+    assert 'query - token-cost-allocation' in item_names
+    assert 'query - token-cost-chart' in item_names
     assert 'query - llm-telemetry-coverage' in item_names
     assert 'query - backend-latency-trend' in item_names
     assert 'query - request-explorer' in item_names
     assert 'apimanagementgatewayllmlog' in serialized
     assert 'inferenceattempt' in serialized
+    assert r'inferenceattempt\\|attempt=[0-9]+/[0-9]+\\|backendid=[^|]+\\|backend=[^|]+\\|code=' in serialized
+    assert 'selectedbackendid' not in serialized
     assert 'inferencebackendattemptcomplete' not in serialized
     assert 'inferencefallbackexhausted' not in serialized
     assert "lasterrorreason in ('backendconnectionfailure', 'timeout')" in serialized
     assert 'max_of(attempts - 1, 0)' in serialized
-    assert 'cost export' not in serialized
+    assert 'api surface' in serialized
+    assert 'streaming' in serialized
+    assert 'token cost allocation' in serialized
     assert 'business unit' not in serialized
     assert 'budget' not in serialized
+
+
+def test_inference_failover_workbook_queries_follow_time_range_parameter() -> None:
+    """Keep every Log Analytics query aligned with the visible time-range selection."""
+    workbook_items = _collect_workbook_items(_load_workbook()['items'])
+    query_items = [item for item in workbook_items if item.get('type') == 3]
+
+    assert query_items
+    for item in query_items:
+        content = item['content']
+        assert content['timeContext'] == {'durationMs': 0}, item['name']
+        assert content['timeContextFromParameter'] == 'TimeRange', item['name']
+
+
+def test_inference_failover_workbook_preserves_summary_visualizations() -> None:
+    """Keep the visual summaries alongside the detailed diagnostic tables."""
+    workbook = _load_workbook()
+    expected_visualizations = {
+        'query - outcome-summary': 'tiles',
+        'query - outcome-chart': 'piechart',
+        'query - backend-distribution-chart': 'barchart',
+        'query - backend-latency-trend': 'timechart',
+        'query - api-delivery-mode-chart': 'piechart',
+        'query - token-cost-chart': 'barchart',
+    }
+
+    for item_name, visualization in expected_visualizations.items():
+        content = _find_workbook_item(workbook['items'], item_name)['content']
+        assert content['visualization'] == visualization
 
 
 def test_inference_failover_workbook_leaves_missing_numeric_aggregates_empty() -> None:
@@ -149,6 +197,8 @@ def test_backend_distribution_reports_exact_and_exhaustive_outcomes() -> None:
     for query in (standalone_query, workbook_query):
         assert 'CallerResponseCodes = make_set(ResponseCode)' in query
         assert 'FinalBackendResponseCodes = make_set(BackendResponseCode)' in query
+        assert "CallerResponseCodes = strcat_array(array_sort_asc(CallerResponseCodes), ', ')" in query
+        assert "FinalBackendResponseCodes = strcat_array(array_sort_asc(FinalBackendResponseCodes), ', ')" in query
         assert 'ClientErrors = countif(ResponseCode between (400 .. 499) and ResponseCode != 429)' in query
         assert 'Throttled = countif(ResponseCode == 429)' in query
         assert 'ServerErrors = countif(ResponseCode >= 500)' in query
@@ -199,6 +249,7 @@ def test_inference_failover_workbook_uses_readable_table_column_titles() -> None
         'query - failure-taxonomy': ("['Failure Type'] = FailureType", "['Last Error Reason'] = LastErrorReason"),
         'query - raw-failure-explorer': ("['Backend URL'] = BackendUrl", "['Trace Records'] = TraceRecords"),
         'query - token-throughput': ("['Model Deployment'] = DeploymentName", "['Total Tokens'] = TotalTokens"),
+        'query - api-delivery-mode-table': ("['API Surface'] = ApiSurface", "['Delivery Mode'] = DeliveryMode"),
         'query - llm-telemetry-coverage': ("['LLM Rows'] = LlmRows", "['Response Message Chunks'] = ResponseMessageChunks"),
         'query - request-explorer': ("['AOAI Instance'] = AOAIInstance", "['LLM Request ID'] = LlmRequestId"),
     }
@@ -220,6 +271,8 @@ def test_inference_failover_workbook_groups_quantitative_table_values() -> None:
         'query - failure-taxonomy': [0, 2, 1],
         'query - raw-failure-explorer': [1],
         'query - token-throughput': [0],
+        'query - api-delivery-mode-table': [0],
+        'query - token-cost-allocation': [0, 6],
         'query - llm-telemetry-coverage': [0],
         'query - request-explorer': [0, 1],
     }
@@ -259,6 +312,29 @@ def test_inference_failover_kql_queries_scope_to_ai_gateway_signals() -> None:
     assert 'CostManagement' not in query_text
 
 
+def test_inference_failover_workbook_has_model_rates_and_delivery_dimensions() -> None:
+    """Require explicit model rates and API-surface/streaming cost dimensions."""
+    workbook = _load_workbook()
+    parameter_item = _find_workbook_item(workbook['items'], 'parameters - shared')
+    parameter_names = {parameter['name'] for parameter in parameter_item['content']['parameters']}
+    expected_rates = {
+        'Gpt51PromptTokenRate',
+        'Gpt51CompletionTokenRate',
+        'Gpt41MiniPromptTokenRate',
+        'Gpt41MiniCompletionTokenRate',
+    }
+    cost_query = _find_workbook_item(workbook['items'], 'query - token-cost-allocation')['content']['query']
+    delivery_query = _find_workbook_item(workbook['items'], 'query - api-delivery-mode-table')['content']['query']
+
+    assert expected_rates <= parameter_names
+    assert all(f'{{{rate}}}' in cost_query for rate in expected_rates)
+    assert "ApiSurface = iff(OperationId contains 'responses', 'Responses', 'Chat Completions')" in delivery_query
+    assert "DeliveryMode = iff(IsStreamCompletion == true, 'Streaming', 'Non-Streaming')" in delivery_query
+    assert "['AOAI Instance'] = AOAIInstance" in cost_query
+    assert 'Backend' in cost_query
+    assert "['Total Cost ($)'] = TotalCost" in cost_query
+
+
 def test_inference_policies_use_managed_identity_retries_and_generic_terminal_error() -> None:
     """Protect managed identity routing and the non-disclosing terminal response contract."""
     api_policy = POLICY_PATH.read_text(encoding='utf-8')
@@ -292,15 +368,21 @@ def test_inference_policies_use_managed_identity_retries_and_generic_terminal_er
     assert 'interval="1"' not in api_policy
     assert 'buffer-request-body="true"' in api_policy
     assert 'Inference service is temporarily unavailable.' in api_policy
-    assert 'BackendId' not in api_policy
-    assert 'InferenceAttempt|n=' in api_policy
+    assert 'context.Backend.Id' not in api_policy
+    assert 'InferenceAttempt|attempt=' in api_policy
+    assert '/" + (RETRY_COUNT + 1).ToString()' in api_policy
+    assert '|backendId=' not in api_policy
+    assert 'selectedBackendId' not in api_policy
+    assert '|backend=" + context.Request.Url.ToString()' in api_policy
     assert '|code=' in api_policy
+    assert '|retryAfter=' in api_policy
+    assert 'context.Response.StatusCode == 429 &amp;&amp; context.Response.Headers.ContainsKey("Retry-After")' in api_policy
     assert 'InferenceBackendAttemptComplete' not in api_policy
     assert 'InferenceFallbackExhausted' not in api_policy
     assert 'InferenceTransportFailure' not in api_policy
     assert 'InferenceRequestAccepted' not in api_policy
     assert 'InferenceGatewayResponse' not in api_policy
-    assert api_policy.count('<trace source="InferenceFailover"') == 1
+    assert api_policy.count('<trace source="InferenceBackendAttempt"') == 1
     assert '<metadata ' not in api_policy
     assert api_policy.count('<set-variable name="backendRetry"') == 2
     assert terminal_response.find("set-header[@name='X-Backend-Retry']") is None
@@ -334,6 +416,13 @@ def test_inference_retry_tracked_policy_requires_all_attempts_and_finalizes_in_o
     assert 'StatusCode == 429' in retry_tracking_condition
     assert 'StatusCode == 503' not in retry_tracking_condition
     assert 'Headers.ContainsKey("Retry-After")' in api_policy
+    assert api_policy.count('<trace source="InferenceBackendAttempt"') == 1
+    assert 'InferenceAttempt|attempt=' in api_policy
+    assert '/" + (RETRY_COUNT + 1).ToString()' in api_policy
+    assert '|backendId=' not in api_policy
+    assert 'selectedBackendId' not in api_policy
+    assert '|backend=" + context.Request.Url.ToString()' in api_policy
+    assert '|retryAfter=' in api_policy
     assert api_policy.count('key="inference-retry-min-BACKEND_POOL_ID"') == 2
     assert 'currentEpoch &gt; nowEpoch &amp;&amp; currentEpoch &lt; candidateEpoch' in api_policy
     assert 'cachedEpoch &gt; nowEpoch &amp;&amp; cachedEpoch &lt; candidateEpoch' in api_policy
@@ -365,6 +454,33 @@ def test_inference_retry_tracked_policy_requires_all_attempts_and_finalizes_in_o
     assert 'context.LastError.Reason == "Timeout"' in api_policy
     assert 'context.Response.StatusCode == 429' not in on_error.find('choose/when').attrib['condition']
     assert '&quot;' not in api_policy
+
+
+def test_inference_kql_backend_id_lookup_matches_bicep_deployments() -> None:
+    """Keep the workbook-side backend member lookup aligned with the Bicep inventory."""
+    bicep = BICEP_PATH.read_text(encoding='utf-8')
+    deployment_pairs = set(re.findall(r"backendName: '([^']+)'\s+deploymentName: '([^']+)'", bicep))
+
+    assert {backend_name for backend_name, _ in deployment_pairs} == EXPECTED_BACKENDS
+    expected_lookup_pairs = {(deployment_name, backend_name) for backend_name, deployment_name in deployment_pairs}
+    query = (QUERIES_PATH / 'request-details.kql').read_text(encoding='utf-8')
+    query_lookup_pairs = set(re.findall(r"deployments/([^/]+)/\)', @'\|backendId=([^\\]+)\\1'", query))
+    workbook_items = _load_workbook()['items']
+    workbook_queries = '\n'.join(_find_workbook_item(workbook_items, item_name)['content']['query'] for item_name in ('query - failover-request-trails', 'query - request-explorer'))
+    workbook_lookup_pairs = set(re.findall(r"deployments/([^/]+)/\)', @'\|backendId=([^\\]+)\\1'", workbook_queries))
+
+    assert query_lookup_pairs == expected_lookup_pairs
+    assert workbook_lookup_pairs == expected_lookup_pairs
+
+
+def test_request_details_parses_backend_member_id_and_url_per_attempt() -> None:
+    """Derive the member ID while preserving the URL-only policy trace contract."""
+    query = (QUERIES_PATH / 'request-details.kql').read_text(encoding='utf-8')
+
+    assert "replace_regex(TraceText, @'(\\|attempt=[0-9]+/[0-9]+)\\|backendId=[^|]+(\\|backend=)'" in query
+    assert "extract_all(@'(InferenceAttempt\\|attempt=" in query
+    assert r'InferenceAttempt\|attempt=[0-9]+/[0-9]+\|backendId=[^|]+\|backend=[^|]+\|code=' in query
+    assert 'EnrichedTraceText)' in query
 
 
 def test_inference_generated_params_match_bounded_policy_templates() -> None:
