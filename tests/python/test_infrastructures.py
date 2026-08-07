@@ -3775,6 +3775,28 @@ def test_cleanup_resources_with_thread_safe_printing_missing_resource_group_is_a
 
 
 @pytest.mark.unit
+def test_cleanup_resources_with_thread_safe_printing_existing_empty_resource_group(monkeypatch):
+    """Continue cleanup when Azure confirms that an empty resource group exists."""
+    run_calls: list[str] = []
+
+    def mock_run(command, *args, **kwargs):
+        run_calls.append(command)
+        if 'group exists' in command:
+            return Output(True, 'true')
+        return Output(True, '[]')
+
+    monkeypatch.setattr(infrastructures.az, 'run', mock_run)
+    patch_module_thread_safe_printing(monkeypatch, infrastructures)
+    delete_resource_group = MagicMock()
+    monkeypatch.setattr(infrastructures, '_delete_resource_group_best_effort', delete_resource_group)
+
+    infrastructures._cleanup_resources_with_thread_safe_printing('test-deployment', 'test-rg', '[TEST]: ', 'color')
+
+    assert len(run_calls) == 4
+    delete_resource_group.assert_called_once_with('test-rg', thread_prefix='[TEST]: ', thread_color='color')
+
+
+@pytest.mark.unit
 def test_cleanup_resources_with_thread_safe_printing_cognitiveservices_list_fails(monkeypatch):
     """Test cleanup when cognitiveservices list fails."""
 
@@ -3917,6 +3939,31 @@ def test_cleanup_resources_with_thread_safe_printing_success_completion_message(
 
 
 @pytest.mark.unit
+def test_get_resource_group_existence_handles_command_exception(monkeypatch):
+    """Return unknown when Azure CLI cannot check resource group existence."""
+    monkeypatch.setattr(infrastructures.az, 'run', MagicMock(side_effect=RuntimeError('Azure CLI unavailable')))
+
+    assert infrastructures._get_resource_group_existence('rg-error') is None
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ('output', 'expected'),
+    [
+        (Output(False, 'command failed'), None),
+        (Output(True, 'unexpected'), None),
+        (Output(True, ' TRUE '), True),
+        (Output(True, ' FALSE '), False),
+    ],
+)
+def test_get_resource_group_existence_normalizes_command_output(monkeypatch, output, expected):
+    """Normalize successful, failed, and unexpected Azure CLI output."""
+    monkeypatch.setattr(infrastructures.az, 'run', MagicMock(return_value=output))
+
+    assert infrastructures._get_resource_group_existence('rg-test') is expected
+
+
+@pytest.mark.unit
 def test_delete_resource_group_best_effort_no_rg_name(monkeypatch):
     """Returns immediately when rg_name is empty or None."""
     # Capture print log to ensure no messages when no thread_prefix
@@ -3948,6 +3995,17 @@ def test_delete_resource_group_best_effort_already_absent(monkeypatch):
 
     assert run_calls == [('az group exists --name rg-absent', {'retries': 0})]
     assert any('already absent. No deletion is needed.' in message for message in info_messages)
+
+
+@pytest.mark.unit
+def test_delete_resource_group_best_effort_already_absent_with_thread_prefix(monkeypatch):
+    """Log an absent resource group through the thread-safe output path."""
+    monkeypatch.setattr(infrastructures.az, 'run', lambda *args, **kwargs: Output(True, 'false'))
+    log_calls = capture_module_print_log(monkeypatch, infrastructures)
+
+    infrastructures._delete_resource_group_best_effort('rg-absent', thread_prefix='[TEST]: ', thread_color='color')
+
+    assert any(call['icon'] == 'ℹ️ ' and 'already absent. No deletion is needed.' in call['msg'] for call in log_calls)
 
 
 @pytest.mark.unit

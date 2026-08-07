@@ -134,11 +134,10 @@ def sync_dependencies(repo_root: Path | None = None, uv_path: str | None = None,
         _run([uv_command, 'sync', '--locked'])
         return
 
-    requirements_path: Path | None = None
-    try:
-        with tempfile.NamedTemporaryFile(prefix='apim-samples-', suffix='.requirements.txt', delete=False) as requirements_file:
-            requirements_path = Path(requirements_file.name)
+    with tempfile.NamedTemporaryFile(prefix='apim-samples-', suffix='.requirements.txt', delete=False) as requirements_file:
+        requirements_path = Path(requirements_file.name)
 
+    try:
         _run(
             [
                 uv_command,
@@ -166,8 +165,7 @@ def sync_dependencies(repo_root: Path | None = None, uv_path: str | None = None,
             ]
         )
     finally:
-        if requirements_path is not None:
-            requirements_path.unlink(missing_ok=True)
+        requirements_path.unlink(missing_ok=True)
 
 
 def upgrade_and_sync_dependencies(

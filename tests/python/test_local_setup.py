@@ -657,6 +657,14 @@ def test_install_jupyter_kernel_locked_install_requires_uv(monkeypatch: pytest.M
         assert result is False
 
 
+def test_install_jupyter_kernel_handles_dependency_validation_failure(monkeypatch: pytest.MonkeyPatch):
+    """Test locked dependency validation failures without subprocess-only diagnostics."""
+    monkeypatch.setattr(shutil, 'which', lambda _: 'uv')
+
+    with patch('subprocess.run', side_effect=subprocess.CalledProcessError(1, 'ipykernel')), patch.object(sps, 'sync_dependencies', side_effect=ValueError('invalid package index')):
+        assert sps.install_jupyter_kernel() is False
+
+
 def test_install_jupyter_kernel_does_not_fall_back_to_pip(monkeypatch: pytest.MonkeyPatch):
     """Test install_jupyter_kernel does not bypass the lockfile with pip."""
     call_log: list[list[str]] = []
@@ -781,6 +789,20 @@ def test_setup_complete_environment_uv_sync_fails(temp_project_root: Path, monke
         ),
     ):
         # Should complete without raising exception
+        sps.setup_complete_environment()
+
+
+def test_setup_complete_environment_uv_validation_fails(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test setup handles dependency validation failures without subprocess-only diagnostics."""
+    monkeypatch.setattr(sps, 'check_uv_installed', lambda: True)
+    monkeypatch.setattr(sps, 'check_azure_cli_installed', lambda: True)
+    monkeypatch.setattr(sps, 'check_bicep_cli_installed', lambda: True)
+    monkeypatch.setattr(sps, 'check_azure_providers_registered', lambda: True)
+    monkeypatch.setattr(sps, 'install_jupyter_kernel', lambda: True)
+    monkeypatch.setattr(sps, 'create_vscode_settings', lambda: True)
+    monkeypatch.setattr(sps, 'force_kernel_consistency', lambda: True)
+
+    with patch('shutil.which', return_value='/usr/bin/uv'), patch.object(sps, 'sync_dependencies', side_effect=ValueError('invalid package index')):
         sps.setup_complete_environment()
 
 

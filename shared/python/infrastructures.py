@@ -1349,7 +1349,7 @@ def _get_resource_group_existence(rg_name: str) -> bool | None:
     """Return whether a resource group exists, or None when the check fails."""
     try:
         output = az.run(f'az group exists --name {rg_name}', retries=0)
-    except Exception:  # pragma: no cover
+    except Exception:
         return None
 
     if not output.success:
