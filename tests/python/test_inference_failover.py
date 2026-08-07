@@ -699,6 +699,7 @@ def test_inference_notebook_is_clean_and_defaults_to_simple_apim() -> None:
     assert "queries_path = Path(utils.get_project_root()) / 'samples' / sample_folder / 'queries'" in code_source
     assert "queries_path / 'verify-llm-ingestion.kql'" in code_source
     assert "queries_path / 'backend-distribution.kql'" in code_source
+    assert "queries_path / 'api-delivery-modes.kql'" in code_source
     assert "queries_path / 'token-throughput.kql'" in code_source
     expected_distribution_columns = [
         'API',
@@ -721,6 +722,23 @@ def test_inference_notebook_is_clean_and_defaults_to_simple_apim() -> None:
     assert 'distribution_frame = inference_failover_helpers.with_backend_identifier(distribution_frame)' in code_source
     assert 'distribution_frame = inference_failover_helpers.format_gateway_distribution(distribution_frame)' in code_source
     assert code_source.count("distribution_frame.pivot(index='API', columns='Backend', values='Requests')") == 1
+    expected_delivery_columns = [
+        'API',
+        'Model',
+        'API Surface',
+        'Delivery Mode',
+        'Requests',
+        'Prompt Tokens',
+        'Completion Tokens',
+        'Total Tokens',
+    ]
+    assert _get_dataframe_columns(code_cells, 'delivery_frame') == expected_delivery_columns
+    assert "[['Chat Completions', 'Responses'], ['Non-Streaming', 'Streaming']]" in code_source
+    assert "delivery_summary['Requests'].unstack(fill_value=0)" in code_source
+    assert "delivery_summary['Total Tokens'].unstack(fill_value=0)" in code_source
+    assert "axes[0].set_title('Requests by API surface and delivery mode')" in code_source
+    assert "axes[1].set_title('Tokens by API surface and delivery mode')" in code_source
+    assert "hatches = ['', '//']" in code_source
     expected_token_columns = ['API', 'AOAI Instance', 'Backend URL', 'Model', 'Requests', 'PromptTokens', 'CompletionTokens', 'TotalTokens']
     assert _get_dataframe_columns(code_cells, 'token_frame') == expected_token_columns
     assert 'token_frame = inference_failover_helpers.with_backend_identifier(token_frame)' in code_source
