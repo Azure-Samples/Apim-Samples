@@ -52,7 +52,7 @@ The following extensions are required for optimal APIM policy development:
         "noGrammar": "ignore"
     },
     {
-        "pattern": "**/samples/**/*.xml", 
+        "pattern": "**/samples/**/*.xml",
         "noGrammar": "ignore"
     }
 ]

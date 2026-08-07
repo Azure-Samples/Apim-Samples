@@ -39,20 +39,20 @@ This lab sets up:
 
 - **Azure Maps Account** with Gen2 pricing tier
 - **APIM Managed Identity** with roles:
-  - **Azure Maps Data Reader**: Read access to Maps APIs
-  - **Azure Maps Contributor**: Ability to generate SAS tokens
+   - **Azure Maps Data Reader**: Read access to Maps APIs
+   - **Azure Maps Contributor**: Ability to generate SAS tokens
 - **User Assigned Managed Identity (UAMI)** for SAS token principal, with:
-  - **Azure Maps Data Reader**: Used as the identity for SAS token operations
+   - **Azure Maps Data Reader**: Used as the identity for SAS token operations
 - **Three API Operations** demonstrating each authentication method:
-  - `/geocode` - Azure Entra ID authentication
-  - `/geocode/batch/async` - Shared key authentication  
-  - `/default/*` - SAS token authentication with caching
+   - `/geocode` - Azure Entra ID authentication
+   - `/geocode/batch/async` - Shared key authentication
+   - `/default/*` - SAS token authentication with caching
 
 ## ⚙️ Configuration
 
 1. Decide which of the [Infrastructure Architectures][infrastructure-architectures] you wish to use.
-1. If the infrastructure *does not* yet exist, navigate to the desired [infrastructure][infrastructure-folder] folder and follow its README.md.
-1. If the infrastructure *does* exist, adjust the `user-defined parameters` in the *Initialize notebook variables* below. Please ensure that all parameters match your infrastructure.
+   1. If the infrastructure _does not_ yet exist, navigate to the desired [infrastructure][infrastructure-folder] folder and follow its README.md.
+   1. If the infrastructure _does_ exist, adjust the `user-defined parameters` in the _Initialize notebook variables_ below. Please ensure that all parameters match your infrastructure.
 
 [infrastructure-architectures]: ../../README.md#infrastructure-architectures
 [infrastructure-folder]: ../../infrastructure/

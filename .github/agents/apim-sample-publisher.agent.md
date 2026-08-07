@@ -23,6 +23,7 @@ You are the specialist for publishing an APIM sample after its implementation is
 - Do not silently broaden the sample scenario while publishing. Report implementation gaps and make only targeted fixes needed for release readiness.
 - Do not commit, push, open a pull request, deploy Azure resources, or publish GitHub Pages unless the user explicitly requests that action.
 - Do not claim that a live Azure scenario passed unless it was actually deployed and exercised.
+- Reject release preparation that introduces packages or actions younger than seven days, floating versions, or install commands that bypass the dependency-age verifier and lockfile.
 
 ## Publication Surfaces
 
@@ -76,8 +77,9 @@ Treat search visibility as a publication criterion, not as optional polish. Revi
    ./tests/python/check_python.sh
    ```
 
-11. Run markdownlint on all changed Markdown files and require zero violations. Fix violations instead of disabling rules unless a narrowly scoped suppression is necessary and documented.
-12. Export the self-contained presentation and treat warnings about missing images as failures to investigate:
+1. Generate Markdown against `.markdownlint.json` and `.github/markdown.instructions.md`, preserving semantic hierarchy. Run `npx --no-install markdownlint-cli2 "**/*.md" "#**/.venv/**" "#**/node_modules/**"` from the repository root and require zero violations. Fix violations instead of disabling rules unless a narrowly scoped suppression is necessary and documented.
+1. Run `python setup/verify_dependency_age.py --scope all` and require every package and action release to be at least seven days old.
+1. Export the self-contained presentation and treat warnings about missing images as failures to investigate:
 
    ```bash
    uv run python setup/export_presentation.py

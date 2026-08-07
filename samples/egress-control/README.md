@@ -32,11 +32,11 @@ This sample demonstrates the hub/spoke pattern with:
 
 Three APIM APIs demonstrate the routing behaviour:
 
-| API | Backend | Expected result |
-| --- | --- | --- |
-| `egress-weather` | `https://api.weather.gov` (HTTPS) | ✅ 200 — allowed by firewall |
-| `egress-blocked-http` | `http://api.weather.gov` (HTTP/port 80) | ❌ 5xx — HTTP blocked by firewall |
-| `egress-blocked-host` | `https://api.accuweather.com` (HTTPS) | ❌ 5xx — host not in allow list |
+| API                       | Backend                                      | Expected result                        |
+| ------------------------- | -------------------------------------------- | -------------------------------------- |
+| `egress-weather`          | `https://api.weather.gov` (HTTPS)            | ✅ 200 — allowed by firewall           |
+| `egress-blocked-http`     | `http://api.weather.gov` (HTTP/port 80)      | ❌ 5xx — HTTP blocked by firewall      |
+| `egress-blocked-host`     | `https://api.accuweather.com` (HTTPS)        | ❌ 5xx — host not in allow list        |
 
 ## 🛩️ Lab Components
 
@@ -44,12 +44,12 @@ The sample deploys the following resources into the infrastructure resource grou
 
 - **Hub VNet** (`10.1.0.0/16`) with an `AzureFirewallSubnet` (`10.1.0.0/26`).
 - **Azure Firewall** (Standard SKU) with a Firewall Policy containing:
-  - Application rules: allow HTTPS to `api.weather.gov`.
-  - Network rules: allow APIM management-plane traffic to Azure Monitor, Storage, SQL, Azure Key Vault, and Microsoft Entra ID.
+   - Application rules: allow HTTPS to `api.weather.gov`.
+   - Network rules: allow APIM management-plane traffic to Azure Monitor, Storage, SQL, Azure Key Vault, and Microsoft Entra ID.
 - **VNet peerings** between the hub and the infrastructure spoke VNet.
 - **Route table** attached to the APIM subnet (`snet-apim`):
-  - Route `0.0.0.0/0` → Azure Firewall private IP (internet traffic through NVA).
-  - Route `10.0.0.0/16` → Virtual Network (VNet-local traffic bypasses the NVA).
+   - Route `0.0.0.0/0` → Azure Firewall private IP (internet traffic through NVA).
+   - Route `10.0.0.0/16` → Virtual Network (VNet-local traffic bypasses the NVA).
 - **Three APIM APIs** that proxy requests to internet backends to verify the firewall rules.
 
 ## ⚙️ Configuration

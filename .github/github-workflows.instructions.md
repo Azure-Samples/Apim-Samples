@@ -14,6 +14,8 @@ This instructions file provides guidelines for creating and maintaining GitHub A
 
 **CRITICAL: All GitHub Actions MUST use commit hashes instead of version tags or branches.**
 
+Every selected action release must also be at least seven days old. Keep Dependabot's seven-day cooldown enabled and run `python setup/verify_dependency_age.py --scope github-actions` when adding or changing an action pin. The trailing version comment is mandatory because the verifier resolves it to release metadata and confirms that its tag matches the pinned SHA.
+
 - ❌ **DO NOT** use: `uses: actions/checkout@v4`, `uses: actions/setup-python@v6`, `uses: astral-sh/setup-uv@v7`
 - ✅ **DO** use: `uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2`
 
@@ -47,10 +49,7 @@ This instructions file provides guidelines for creating and maintaining GitHub A
 
 - Use the `permissions:` key to explicitly define required permissions
 - Follow the principle of least privilege—only request permissions needed for the workflow
-- Common permissions for CI workflows:
-  - `contents: read` — for reading repository files
-  - `checks: write` — for writing check results
-  - `pull-requests: write` — for commenting on PR
+- Common permissions for CI workflows include `contents: read` for repository files, `checks: write` for check results, and `pull-requests: write` for PR comments.
 
 ## Workflow Structure
 
@@ -176,6 +175,7 @@ steps:
 - [ ] No use of `pull_request_target` without proper security review
 - [ ] Secrets are never logged or exposed
 - [ ] Third-party actions have been vetted and pinned to commit hashes
+- [ ] Every action release is at least seven days old and passes the dependency-age verifier
 
 ## OpenSSF Security Best Practices
 
@@ -340,6 +340,7 @@ Risks:
    ```
 
 3. **Secrets in fork PRs:**
+
    - Secrets are **NOT** available to workflows triggered by forks
    - Use `pull_request_target` only for safe operations (commenting, labeling)
    - Never trust fork PR code with write permissions or secrets access
@@ -507,7 +508,7 @@ jobs:
    - Require manual approval for production deployments
    - Restrict which branches can deploy to environments
 
-## Checklist Before Committing
+## Final Workflow Checklist Before Committing
 
 - [ ] All GitHub Actions use commit hashes (no version tags)
 - [ ] Triggers are explicitly defined (`on:`)

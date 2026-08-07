@@ -96,7 +96,7 @@ def check_bicep_cli_installed():
         print('✅ Azure Bicep CLI is installed (via az bicep)')
         return True
     except subprocess.CalledProcessError:
-        print('❌ Azure Bicep CLI is not installed. Install with: az bicep install')
+        print('❌ Azure Bicep CLI is not installed. Install with: az bicep install --version v0.44.1')
         return False
 
 
@@ -345,14 +345,17 @@ def install_jupyter_kernel():
         # Check if ipykernel is available
         subprocess.run([sys.executable, '-m', 'ipykernel', '--version'], check=True, capture_output=True, text=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
-        print('Installing ipykernel...')
+        print('Installing locked dependencies for ipykernel...')
         try:
-            # Try uv first, fallback to pip
             uv_cmd = shutil.which('uv')
-            if uv_cmd:
-                subprocess.run([uv_cmd, 'pip', 'install', 'ipykernel'], check=True, capture_output=True, text=True)
-            else:
-                subprocess.run([sys.executable, '-m', 'pip', 'install', 'ipykernel'], check=True, capture_output=True, text=True)
+            if not uv_cmd:
+                print('❌ uv is required to install verified locked dependencies')
+                return False
+
+            dependency_check = Path(__file__).resolve().parent / 'verify_dependency_age.py'
+            subprocess.run([sys.executable, str(dependency_check), '--scope', 'python'], check=True, capture_output=True, text=True)
+            subprocess.run([uv_cmd, 'sync', '--locked'], check=True, capture_output=True, text=True)
+            subprocess.run([sys.executable, '-m', 'ipykernel', '--version'], check=True, capture_output=True, text=True)
             print('✅ ipykernel installed successfully')
         except subprocess.CalledProcessError as e:
             print(f'❌ Failed to install ipykernel: {e}')
@@ -676,28 +679,30 @@ def setup_complete_environment():
         print(f'❌ Error configuring notebook git filter: {e}')
         print('   Continuing with setup...')
 
-    # Step 8: Run uv sync if uv is available
+    # Step 8: Run a verified locked uv sync if uv is available
     print('\n8/8) Syncing dependencies with uv (if available)...\n')
     sync_success = False
     if uv_ok:
         try:
             uv_path = shutil.which('uv')
             if uv_path:
-                subprocess.run([uv_path, 'sync'], check=True, capture_output=True, text=True)
+                dependency_check = Path(__file__).resolve().parent / 'verify_dependency_age.py'
+                subprocess.run([sys.executable, str(dependency_check), '--scope', 'python'], check=True, capture_output=True, text=True)
+                subprocess.run([uv_path, 'sync', '--locked'], check=True, capture_output=True, text=True)
                 print('✅ Dependencies synced successfully with uv')
                 sync_success = True
             else:
                 print('⚠️  uv reported installed but executable not found in PATH; skipping sync')
-                print("   Install uv and run 'uv sync' for dependency management")
+                print("   Install uv and run 'uv sync --locked' for dependency management")
         except subprocess.CalledProcessError as e:
             print(f'⚠️  Failed to sync dependencies with uv: {e}')
-            print("   You can manually run 'uv sync' after setup")
+            print("   You can manually run 'python setup/verify_dependency_age.py --scope python' then 'uv sync --locked'")
         except Exception as e:
             print(f'⚠️  Error during uv sync: {e}')
-            print("   You can manually run 'uv sync' after setup")
+            print("   You can manually run 'python setup/verify_dependency_age.py --scope python' then 'uv sync --locked'")
     else:
         print('⚠️  Skipping dependency sync (uv not available)')
-        print("   Install uv and run 'uv sync' for dependency management")
+        print("   Install uv and run 'uv sync --locked' for dependency management")
 
     # Summary
     print('\n' + '=' * 50)
@@ -729,9 +734,9 @@ def setup_complete_environment():
         if uv_ok and sync_success:
             print('   2. Dependencies are synced and ready to use')
         elif uv_ok:
-            print("   2. Run 'uv sync' to install dependencies")
+            print("   2. Run 'uv sync --locked' to install dependencies")
         else:
-            print("   2. Install uv and run 'uv sync' for dependency management")
+            print("   2. Install uv and run 'uv sync --locked' for dependency management")
         print('   3. Open any notebook - it should automatically use the correct kernel')
     else:
         print('\n⚠️  Setup completed with some issues. Check error messages above.')

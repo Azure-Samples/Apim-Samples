@@ -7,6 +7,8 @@ description: Guide for creating or scaffolding Azure API Management (APIM) usage
 
 This skill guides creating new APIM samples that follow the repository's established patterns.
 
+Before adding or changing any dependency, require a release at least seven days old. Preserve the uv release exclusion and locked install flow, and run `python setup/verify_dependency_age.py --scope all` before final validation.
+
 ## Sample Structure
 
 Every sample under `samples/` must contain these files:
@@ -441,13 +443,13 @@ api = API(
 
 Available infrastructure types:
 
-| Constant | Description |
-| --- | --- |
-| `INFRASTRUCTURE.AFD_APIM_PE` | Azure Front Door + APIM with Private Endpoint |
-| `INFRASTRUCTURE.APIM_ACA` | APIM with Azure Container Apps |
-| `INFRASTRUCTURE.APPGW_APIM` | Application Gateway + APIM |
+| Constant                       | Description                                      |
+| ------------------------------ | ------------------------------------------------ |
+| `INFRASTRUCTURE.AFD_APIM_PE`   | Azure Front Door + APIM with Private Endpoint    |
+| `INFRASTRUCTURE.APIM_ACA`      | APIM with Azure Container Apps                   |
+| `INFRASTRUCTURE.APPGW_APIM`    | Application Gateway + APIM                       |
 | `INFRASTRUCTURE.APPGW_APIM_PE` | Application Gateway + APIM with Private Endpoint |
-| `INFRASTRUCTURE.SIMPLE_APIM` | Basic APIM setup |
+| `INFRASTRUCTURE.SIMPLE_APIM`   | Basic APIM setup                                 |
 
 ## Naming Conventions
 
@@ -461,6 +463,8 @@ Available infrastructure types:
 
 Before committing, verify:
 
+- [ ] Markdown follows `.markdownlint.json` and `.github/markdown.instructions.md` without flattening semantic structure
+- [ ] `npx --no-install markdownlint-cli2 "**/*.md" "#**/.venv/**" "#**/node_modules/**"` reports zero violations
 - [ ] README.md follows the template structure
 - [ ] create.ipynb has all required cells with correct order
 - [ ] main.bicep references shared modules correctly

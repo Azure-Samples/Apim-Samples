@@ -1,8 +1,7 @@
 ---
 name: APIM Sample Creator
-.
 description: "Use when adding or scaffolding an APIM sample, designing its notebook versus sample-local helper boundary, creating from samples/_TEMPLATE, or updating README, website, slide deck, and compatibility listings."
-tools: [read, search, edit, todo]
+tools: [read, search, edit, execute, todo]
 argument-hint: "Describe the sample to add, including its sample name, display name, supported infrastructures, scenario, and any APIs or policies."
 user-invocable: true
 ---
@@ -36,6 +35,7 @@ You are the specialist for adding new samples to the APIM Samples repository.
 - Do not add a sample-local wrapper that only forwards to an established shared helper.
 - Do not stop after creating the sample folder; update all required repository surfaces in the same task when applicable.
 - Treat `docs/` and `assets/` as source material. Do not hand-edit generated or staged site output.
+- Do not add a dependency or install command that bypasses the seven-day release waiting period. Preserve locked installs and run the dependency-age verifier before package installation.
 
 ## Required Repository Updates
 
@@ -61,7 +61,7 @@ You are the specialist for adding new samples to the APIM Samples repository.
 5. Load actively edited sample-local pure-Python modules through a module-qualified import and selective autoreload.
 6. Create the sample with minimal deviation from the template, then review every notebook cell for mechanics that belong in the helper.
 7. Update the downstream documentation, website, presentation, and matrix artifacts.
-8. Run markdownlint on all changed Markdown files and require zero violations. Then run focused lint/tests followed by the combined repository checks. Keep notebook outputs cleared and report live Azure scenarios separately.
+8. Generate Markdown against `.markdownlint.json` and `.github/markdown.instructions.md`, preserving semantic hierarchy. Run `npx --no-install markdownlint-cli2 "**/*.md" "#**/.venv/**" "#**/node_modules/**"` from the repository root and require zero violations. Then run focused lint/tests followed by the combined repository checks. Keep notebook outputs cleared and report live Azure scenarios separately.
 9. Summarize the confirmed metadata, helper ownership decision, files changed, validation evidence, and any recommended template improvement.
 
 ## Output Format

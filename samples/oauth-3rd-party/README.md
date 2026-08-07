@@ -1,6 +1,6 @@
 # Samples: OAuth 2.0 with 3rd Party
 
-Sets up a 3rd party integration via [Azure API Management Credential Manager][apim-credential-manager].  
+Sets up a 3rd party integration via [Azure API Management Credential Manager][apim-credential-manager].
 
 ***This sample has prerequisites! Please follow the instructions below.***
 
@@ -26,7 +26,7 @@ Beyond the [general prerequisites](../../README.md#-getting-started) (Azure subs
 
 ### A Spotify Account
 
-1. You can use your existing Spotify account or visit the [Spotify signup page][spotify-signup] to create one. Please ensure you adhere to Spotify's terms & conditions of use.
+1. You can use your existing Spotify account or [sign up for a new Spotify account][spotify-signup]. Please ensure you adhere to Spotify's terms & conditions of use.
 
 ### A Spotify Application
 
@@ -37,8 +37,8 @@ In order for API Management to gain access to Spotify's API, we need to create a
 1. Proceed with verifying your email address, if required.
 1. If the Dashboard does not open immediately, select it from the menu after clicking on your profile name (top-right corner).
 1. [Create the app][spotify-create-app]:
-    - **App Name**: *APIM*
-    - **App Description**: *API Management*
+    - **App Name**: _APIM_
+    - **App Description**: _API Management_
     - **Redirect URIs**: <https://localhost:8080/callback>
         We will update this placeholder once we have the APIM URL.
     - **Which API/SDKs are you planning to use?** *Web API*
@@ -49,8 +49,8 @@ In order for API Management to gain access to Spotify's API, we need to create a
 ## 📝 Scenario
 
 We chose Spotify as it provides an extensive [REST API][spotify-rest-api] and has relatively generous limits on free API access. This makes for a relatively straight-forward experience for this sample.
-Specifically, this sample uses Spotify's REST API to obtain information about its deep music and artist catalog. API Management is registered as an application in Spotify's applications with its own client ID and client secret for a given scope. This application is then set up as a generic OAuth 2.0 integration in Credential Manager.  
-Furthermore, we build on the knowledge gained from the *AuthX* and *AuthX-Pro* samples to authentication callers and authorize their use of the Spotify integration.
+Specifically, this sample uses Spotify's REST API to obtain information about its deep music and artist catalog. API Management is registered as an application in Spotify's applications with its own client ID and client secret for a given scope. This application is then set up as a generic OAuth 2.0 integration in Credential Manager.
+Furthermore, we build on the knowledge gained from the _AuthX_ and _AuthX-Pro_ samples to authentication callers and authorize their use of the Spotify integration.
 
 We use only one persona in this sample:
 

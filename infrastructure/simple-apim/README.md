@@ -22,7 +22,7 @@ The infrastructure enables `revealBackendApiInfo` by default so samples can show
 
 👟 **Expected *Run All* runtime: ~3 minutes**
 
-1. Execute this lab's [Jupyter Notebook][infra-notebook] step-by-step or via *Run All*.
+1. Execute this lab's [Jupyter Notebook][infra-notebook] step-by-step or via _Run All_.
 
 [infra-notebook]: ./create.ipynb
 [init-notebook-variables]: ./create.ipynb#initialize-notebook-variables

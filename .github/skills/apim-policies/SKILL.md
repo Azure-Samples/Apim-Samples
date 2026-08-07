@@ -7,6 +7,10 @@ description: Guide for creating Azure API Management (APIM) XML policies. Use wh
 
 This skill provides guidance for creating Azure API Management XML policies.
 
+Do not add policy tooling or package installation that bypasses the repository's seven-day release waiting period. Use the locked dependency workflow and verify release ages before running new tooling.
+
+When this workflow creates or updates Markdown, follow `.markdownlint.json` and `.github/markdown.instructions.md` without flattening semantic structure. Before completion, run `npx --no-install markdownlint-cli2 "**/*.md" "#**/.venv/**" "#**/node_modules/**"` from the repository root and require zero violations.
+
 ## Policy Document Structure
 
 Every APIM policy document follows this structure:

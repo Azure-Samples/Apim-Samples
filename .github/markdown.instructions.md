@@ -8,12 +8,20 @@ This document provides standards for Markdown files in the APIM Samples reposito
 
 ## Critical Rules
 
+### Dependency Command Safety
+
+- Documentation must use the repository's guarded install sequence: `python setup/verify_dependency_age.py --scope python` followed by `uv sync --locked`.
+- Do not document direct installs, floating versions, or upgrade commands that can select a release less than seven days old.
+
 ### Markdownlint Must Pass
 
 - Every new or modified Markdown file must pass markdownlint with zero violations before the work is considered complete.
-- Run markdownlint against all changed `.md` files using the available CLI or VS Code diagnostics.
+- Generate Markdown against the repository rules in `.markdownlint.json`; do not wait for lint output before applying its spacing, list, fence, heading, link, and table conventions.
+- After generating or editing Markdown, run `npx --no-install markdownlint-cli2 "**/*.md" "#**/.venv/**" "#**/node_modules/**"` when the cached CLI is available. Otherwise, use the VS Code markdownlint diagnostics for every Markdown file changed.
+- Require zero errors before completing the task.
 - Format every table before running markdownlint. Use the editor's Markdown formatter or Prettier, then review the file-wide diff for unrelated changes.
 - Fix violations instead of disabling rules. Add a narrowly scoped suppression only when the Markdown intentionally cannot comply, and explain why next to the suppression.
+- Preserve semantic list hierarchy while fixing indentation. Do not flatten nested lists or collapse them into prose solely to satisfy lint rules.
 
 ### 🚨 No Emoji Variation Selectors in Markdown Links
 
@@ -234,12 +242,12 @@ Structured guides for domain-specific tasks (Bicep, Python policies, sample crea
 - Remove reference-style link definitions when their final usage is removed. Unused definitions fail `MD053`.
 - Example:
 
-    ```markdown
-    See the [setup guide][setup] and [troubleshooting][troubleshooting] pages.
+  ```markdown
+  See the [setup guide][setup] and [troubleshooting][troubleshooting] pages.
 
-    [setup]: docs/setup.md
-    [troubleshooting]: docs/troubleshooting.md
-    ```
+  [setup]: docs/setup.md
+  [troubleshooting]: docs/troubleshooting.md
+  ```
 
 - Link within README sections using anchor links: `[Jump to section](#section-name)`
 

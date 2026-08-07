@@ -20,7 +20,7 @@ Adjust the `user-defined parameters` in this lab's Jupyter Notebook's [Initializ
 
 👟 **Expected *Run All* runtime: ~5 minutes**
 
-1. Execute this lab's [Jupyter Notebook][infra-notebook] step-by-step or via *Run All*.
+1. Execute this lab's [Jupyter Notebook][infra-notebook] step-by-step or via _Run All_.
 
 [init-notebook-variables]: ./create.ipynb#initialize-notebook-variables
 [infra-notebook]: ./create.ipynb

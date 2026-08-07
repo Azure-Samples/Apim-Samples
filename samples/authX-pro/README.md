@@ -1,6 +1,6 @@
 # Samples: AuthX Pro - Authentication & Authorization
 
-Sets up a more sophisticate authentication (authN) and authorization (authZ) combination for role-based access control (RBAC) to a mock API and its operations.  
+Sets up a more sophisticate authentication (authN) and authorization (authZ) combination for role-based access control (RBAC) to a mock API and its operations.
 
 ⚙️ **Supported infrastructures**: All infrastructures
 
@@ -16,9 +16,9 @@ Sets up a more sophisticate authentication (authN) and authorization (authZ) com
 
 ## 📝 Scenario
 
-This sample, compared to the simpler *AuthX*, introduces use of API Management Product and policy fragments to simplify and consolidate shared logic. When considering scaling, consider this as your starting point.
+This sample, compared to the simpler _AuthX_, introduces use of API Management Product and policy fragments to simplify and consolidate shared logic. When considering scaling, consider this as your starting point.
 
-The same two personas from *AuthX* are at play:
+The same two personas from _AuthX_ are at play:
 
 - `HR Administrator` - holds broad rights to the API
 - `HR Associate` - has read-only permissions

@@ -13,13 +13,13 @@ This architecture provides secure ingress through Azure Application Gateway (WAF
 3. Enable optional backends with Azure Container Apps (ACA)
 4. Provide observability via Log Analytics and Application Insights
 
-## 💡 Why Developer SKU?
+## 💡 Why Developer SKU
 
 - Significant cost savings for learning, demos, and dev/test:
-  - Developer is a fraction of Premium costs (often >90% cheaper)
-  - No SLA and single-instance only, which is acceptable for the purpose of this repo
+   - Developer is a fraction of Premium costs (often >90% cheaper)
+   - No SLA and single-instance only, which is acceptable for the purpose of this repo
 - Trade-offs:
-  - Longer deployment times compared to v2/Premium SKUs (APIM creation can be slow)
+   - Longer deployment times compared to v2/Premium SKUs (APIM creation can be slow)
 
 We choose the Developer SKU here to dramatically lower costs for experimentation. If you need SLAs, scaling, or production-grade features, use Premium or Premiumv2 because those SKUs also support VNet *injection*.
 
@@ -53,7 +53,7 @@ NSG behavior:
 
 Because we use a self-signed certificate for Application Gateway TLS termination (for convenience in this sample), testing can be done with curl by ignoring certificate warnings and sending the Host header:
 
-```shell
+```bash
 curl -v -k -H "Host: api.apim-samples.contoso.com" https://<APPGW_PUBLIC_IP>/status-0123456789abcdef
 ```
 

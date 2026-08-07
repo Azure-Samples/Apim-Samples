@@ -5,15 +5,15 @@ This folder contains the source for the public landing page at
 
 ## How it works
 
-| Piece | Role |
-| --- | --- |
-| `docs/index.html` | The page markup, structured data, and meta tags. CSS is externalised to `styles.css`; there is no executable JavaScript. |
-| `docs/styles.css` | All visual rules for the landing page. Referenced by `index.html` via `<link rel="stylesheet">`. |
-| `docs/robots.txt` | Permissive crawler policy plus a pointer to the sitemap. |
-| `docs/sitemap.xml` | Single-URL sitemap. Deep links live on github.com and are out of scope for this origin. |
-| `.github/workflows/github-pages.yml` | Assembles and publishes the site on every push to `main`. |
-| `assets/` (repo root) | The workflow copies the logo, favicons, and architecture SVGs from here into the published artifact. `index.html` references them at `./assets/...`. |
-| `assets/APIM-Samples-Slide-Deck.html` | The workflow runs `setup/export_presentation.py` to inline this deck's images and stages the result at `/slide-deck.html`. |
+| Piece                                    | Role                                                                                                                                                     |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/index.html`                        | The page markup, structured data, and meta tags. CSS is externalised to `styles.css`; there is no executable JavaScript.                                 |
+| `docs/styles.css`                        | All visual rules for the landing page. Referenced by `index.html` via `<link rel="stylesheet">`.                                                         |
+| `docs/robots.txt`                        | Permissive crawler policy plus a pointer to the sitemap.                                                                                                 |
+| `docs/sitemap.xml`                       | Single-URL sitemap. Deep links live on github.com and are out of scope for this origin.                                                                  |
+| `.github/workflows/github-pages.yml`     | Assembles and publishes the site on every push to `main`.                                                                                                |
+| `assets/` (repo root)                    | The workflow copies the logo, favicons, and architecture SVGs from here into the published artifact. `index.html` references them at `./assets/...`.     |
+| `assets/APIM-Samples-Slide-Deck.html`    | The workflow runs `setup/export_presentation.py` to inline this deck's images and stages the result at `/slide-deck.html`.                               |
 
 There is **no JavaScript framework, no bundler, and no npm install**. That is deliberate: the page changes rarely, and plain static HTML + CSS means the publish workflow cannot break due to a transitive package update. The only `<script>` in `index.html` is the JSON-LD structured-data block, which must remain inline because search-engine crawlers do not reliably follow external JSON-LD references.
 

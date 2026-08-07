@@ -229,6 +229,14 @@ Shared modules in `shared/bicep/modules/`:
 
 ## Code Quality Requirements
 
+### Dependency Supply-Chain Safety
+
+- Every package or GitHub Action release must complete a seven-day waiting period before use.
+- Preserve `tool.uv.exclude-newer = "7 days"` and Dependabot cooldowns for all configured ecosystems.
+- Before a locked Python install, run `python setup/verify_dependency_age.py --scope python`, then `uv sync --locked`.
+- Keep GitHub Actions pinned to 40-character commit SHAs with version comments and validate them with `python setup/verify_dependency_age.py --scope github-actions`.
+- Do not introduce direct install or upgrade commands that bypass the lockfile, age verifier, or release exclusion.
+
 ### Python
 
 - Follow Ruff configuration in `pyproject.toml`
@@ -248,6 +256,12 @@ Shared modules in `shared/bicep/modules/`:
 - Clear all cell outputs before committing
 - Set `index = 1` in the first code cell
 - Follow the standard cell structure from `_TEMPLATE`
+
+### Markdown
+
+- Generate Markdown, including repository instructions, skills, and agents, against `.markdownlint.json` and `.github/markdown.instructions.md`.
+- Preserve semantic heading, list, table, and code-block structure instead of flattening content to satisfy lint rules.
+- After any Markdown change, run `npx --no-install markdownlint-cli2 "**/*.md" "#**/.venv/**" "#**/node_modules/**"` from the repository root and require zero violations.
 
 ## Testing
 
@@ -283,7 +297,6 @@ ruff check shared/python/
 
 - **Troubleshooting**: See `TROUBLESHOOTING.md` for common issues
 - **Contributing**: See `CONTRIBUTING.md` for contribution guidelines
-- **Language-specific instructions**:
-  - Python: `.github/python.instructions.md`
-  - Bicep: `.github/bicep.instructions.md`
-  - JSON: `.github/json.instructions.md`
+- **Python instructions**: `.github/python.instructions.md`
+- **Bicep instructions**: `.github/bicep.instructions.md`
+- **JSON instructions**: `.github/json.instructions.md`

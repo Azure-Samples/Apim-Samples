@@ -65,6 +65,9 @@ Uniformity, clarity, and ease of use are paramount across all infrastructures an
 
 ## General Coding Guidelines
 
+- Enforce a seven-day post-release waiting period for every package ecosystem. Python resolution must use the `tool.uv.exclude-newer = "7 days"` setting, locked installs must run `python setup/verify_dependency_age.py --scope python` before `uv sync --locked`, and GitHub Actions must pass the repository-wide dependency-age workflow.
+- Do not bypass the waiting period with direct `pip install`, `uv pip install`, `npm install`, floating GitHub Action tags, or ad hoc installer commands. Update the lockfile or pin only a release that has completed the waiting period.
+- Keep Dependabot `cooldown.default-days` at seven or greater for every configured ecosystem. Security updates remain subject to the same repository verifier even when the hosting service bypasses cooldown for advisory PRs.
 - All code, scripts, and configuration must be cross-platform compatible, supporting Windows, Linux, and macOS. If any special adjustments are to be made, please clearly indicate so in comments.
 - Treat CodeQL rules as code-generation requirements. Before writing or changing code, consider applicable security queries and use patterns that are structurally safe and recognizable to static analysis.
 - Do not validate, allowlist, or sanitize URLs with substring checks. Parse the URL and compare the required scheme, hostname, port, and path components explicitly. In tests, parse structured content and assert exact URL-bearing fields instead of searching serialized text for a URL substring.
@@ -90,14 +93,13 @@ Uniformity, clarity, and ease of use are paramount across all infrastructures an
 ## Repository Structure
 
 - `/`: Root directory containing the main files and folders. Bicep configuration is stored in `bicepconfig.json`.
-- The following folders are all at the root level:
-  - `assets/`: Draw.io diagrams, SVG exports, and images. Static assets such as these should be placed here. Architecture diagrams should be placed in the /diagrams subfolder.
-  - `docs/`: Source for the public GitHub Pages landing page. See the *GitHub Pages Site* section below for upkeep rules.
-  - `infrastructure/`: Contains Jupyter notebooks for setting up various API Management infrastructures. When modifying samples, these notebooks should not need to be modified.
-  - `samples/`: Various policy and scenario samples that can be applied to the infrastructures.
-  - `setup/`: General setup scripts and configurations for the repository and dev environment setup.
-  - `shared/`: Shared resources, such as Bicep modules, Python libraries, and other reusable components.
-  - `tests/`: Contains unit tests for Python code and Bicep modules. This folder should contain all tests for all code in the repository.
+- `assets/`: Draw.io diagrams, SVG exports, and images. Static assets such as these should be placed here. Architecture diagrams should be placed in the /diagrams subfolder.
+- `docs/`: Source for the public GitHub Pages landing page. See the *GitHub Pages Site* section below for upkeep rules.
+- `infrastructure/`: Contains Jupyter notebooks for setting up various API Management infrastructures. When modifying samples, these notebooks should not need to be modified.
+- `samples/`: Various policy and scenario samples that can be applied to the infrastructures.
+- `setup/`: General setup scripts and configurations for the repository and dev environment setup.
+- `shared/`: Shared resources, such as Bicep modules, Python libraries, and other reusable components.
+- `tests/`: Contains unit tests for Python code and Bicep modules. This folder should contain all tests for all code in the repository.
 
 ## Infrastructure Development Guidelines
 
@@ -360,13 +362,13 @@ storage_account_id = f'/subscriptions/{subscription_id}/...'
 
 3. Extract common and sample-specific outputs:
 
-    ```python
-    deployment_context = nb_helper.get_deployment_context(output)
-    apim_name = deployment_context.apim_name
-    apim_gateway_url = deployment_context.apim_gateway_url
-    apim_apis = deployment_context.apis
-   app_insights_name = output.get('applicationInsightsName')
-   ```
+  ```python
+  deployment_context = nb_helper.get_deployment_context(output)
+  apim_name = deployment_context.apim_name
+  apim_gateway_url = deployment_context.apim_gateway_url
+  apim_apis = deployment_context.apis
+  app_insights_name = output.get('applicationInsightsName')
+  ```
 
 **CRITICAL: Do not bypass NotebookHelper!**
 
@@ -427,9 +429,9 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 
 - **Do NOT repeat general prerequisites** (Azure subscription, Azure CLI, Python environment, APIM instance). These are documented once in the [root README](../README.md), under Getting Started, and apply to all samples. The APIM Samples Developer CLI (`start.ps1` / `start.sh`) handles environment setup.
 - **Only add `## ✅ Prerequisites`** when a sample has genuinely unique requirements that go beyond the root README, such as:
-  - Additional Azure RBAC role assignments beyond Contributor
-  - External service accounts (e.g., a Spotify developer account)
-  - Special tooling or configuration not covered by the Developer CLI
+   - Additional Azure RBAC role assignments beyond Contributor
+   - External service accounts (e.g., a Spotify developer account)
+   - Special tooling or configuration not covered by the Developer CLI
 - When a Prerequisites section is needed, **open with a one-line reference** to the root README for general prerequisites, then list only the sample-specific requirements. Example:
 
   ```markdown
@@ -539,7 +541,9 @@ Check `docs/README.md` for local preview instructions and styling notes. The pag
 ## Required before each commit
 
 - Ensure all code is well-documented and follows the guidelines in this file.
-- Ensure markdownlint passes with zero violations for all new or modified Markdown files.
+- Generate every Markdown file, including instructions, skills, and agents, against `.markdownlint.json` and `.github/markdown.instructions.md` from the start.
+- After any Markdown change, run `npx --no-install markdownlint-cli2 "**/*.md" "#**/.venv/**" "#**/node_modules/**"` from the repository root and require zero violations.
+- Preserve document hierarchy while fixing lint issues. Do not flatten nested lists or collapse structured content into prose solely to satisfy markdownlint.
 - Ensure that Jupyter notebooks do not contain any cell output.
 - Ensure that Jupyter notebooks have `index` assigned to `1` in the first cell.
 - If the change touches the infrastructure list, sample list, quick-start steps, or architecture SVGs, ensure `docs/index.html` (and the asset copy step in `.github/workflows/github-pages.yml` where relevant) has been updated to match.
@@ -548,10 +552,7 @@ Check `docs/README.md` for local preview instructions and styling notes. The pag
 
 - Use these [configuration settings](https://github.com/microsoft/vscode-jupyter/blob/dd568fde/package.nls.json) as a reference for the VS Code Jupyter extension configuration.
 - When generating or editing notebook files as JSON, structure the document with a top-level `cells` array.
-- Each cell must be a valid JSON object with:
-  - `cell_type`
-  - `metadata.language`
-  - `source`
+- Each cell must be a valid JSON object with `cell_type`, `metadata.language`, and `source`.
 - Existing cells must keep a unique `metadata.id` value.
 - New cells do not need a `metadata.id` value unless an editor or tool assigns one.
 - Keep notebook JSON logically structured and valid. Do not emit partial notebook fragments when a full notebook document is required.
