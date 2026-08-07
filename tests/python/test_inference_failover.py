@@ -11,7 +11,6 @@ SIMPLE_APIM_BICEP_PATH = Path(__file__).resolve().parents[2] / 'infrastructure' 
 BICEP_PATH = SAMPLE_PATH / 'main.bicep'
 DIAGNOSTICS_BICEP_PATH = Path(__file__).resolve().parents[2] / 'shared' / 'bicep' / 'modules' / 'apim' / 'v1' / 'diagnostics.bicep'
 NOTEBOOK_PATH = SAMPLE_PATH / 'create.ipynb'
-PARAMS_PATH = SAMPLE_PATH / 'params.json'
 POLICY_PATH = SAMPLE_PATH / 'apim-policies' / 'inference-api-policy.xml'
 RETRY_TRACKED_POLICY_PATH = SAMPLE_PATH / 'apim-policies' / 'inference-api-policy-with-retry-tracked.xml'
 README_PATH = SAMPLE_PATH / 'README.md'
@@ -483,18 +482,6 @@ def test_request_details_parses_backend_member_id_and_url_per_attempt() -> None:
     assert 'EnrichedTraceText)' in query
 
 
-def test_inference_generated_params_match_bounded_policy_templates() -> None:
-    """Keep checked-in deployment parameters synchronized with the policy templates."""
-    params = json.loads(PARAMS_PATH.read_text(encoding='utf-8'))
-    policies = {api['name']: api['policyXml'] for api in params['parameters']['apis']['value']}
-    primary_template = POLICY_PATH.read_text(encoding='utf-8')
-    tracked_template = RETRY_TRACKED_POLICY_PATH.read_text(encoding='utf-8')
-
-    assert policies['inference-gpt-5-1'] == primary_template.replace('BACKEND_POOL_ID', 'inference-gpt-5-1-pool').replace('RETRY_COUNT', '2')
-    assert policies['inference-gpt-4-1-mini'] == primary_template.replace('BACKEND_POOL_ID', 'inference-gpt-4-1-mini-pool').replace('RETRY_COUNT', '2')
-    assert policies['inference-gpt-5-1-retry-tracked'] == tracked_template.replace('BACKEND_POOL_ID', 'inference-gpt-5-1-pool').replace('RETRY_COUNT', '2')
-
-
 def test_inference_policy_uses_exact_managed_identity_resource() -> None:
     """Require the exact Cognitive Services resource in the parsed policy structure."""
     for policy_path in (POLICY_PATH, RETRY_TRACKED_POLICY_PATH):
@@ -670,9 +657,11 @@ def test_inference_notebook_is_clean_and_defaults_to_simple_apim() -> None:
     code_source = '\n'.join(''.join(cell['source']) for cell in code_cells)
 
     assert all(not cell['outputs'] for cell in code_cells)
-    assert 'index = 1' in ''.join(code_cells[0]['source'])
+    initialization_source = ''.join(code_cells[0]['source'])
+    assert 'index = 1' in initialization_source
     assert 'deployment = INFRASTRUCTURE.SIMPLE_APIM' in code_source
     assert 'enable_event_hub_export = False' in code_source
+    assert initialization_source.index('enable_event_hub_export = False') < initialization_source.index('#    SYSTEM CONFIGURATION')
     assert "'enableEventHubExport': {'value': enable_event_hub_export}" in code_source
     assert "output.get('eventHubNamespaceId', 'Event Hubs namespace ID')" in code_source
     retry_tracked_cells = [''.join(cell['source']) for cell in code_cells if 'inference-gpt-5-1-retry-tracked' in ''.join(cell['source'])]

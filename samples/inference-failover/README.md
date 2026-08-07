@@ -187,7 +187,7 @@ This learning sample enables LLM prompt and completion message logging. Treat th
 
 ### Optional Event Hub Export
 
-Set `enable_event_hub_export = True` under _SYSTEM CONFIGURATION_ in [create.ipynb](create.ipynb) to stream the APIM diagnostic feed to a sample-scoped Event Hub while retaining Log Analytics ingestion and workbook views. The option defaults to `False` so the normal sample deployment does not add Event Hubs cost. When enabled, the sample deploys a Standard Event Hubs namespace in the selected infrastructure/APIM region, a non-compacted `apim-inference-failover` hub, and an `external-observability` consumer group for downstream processors.
+Set `enable_event_hub_export = True` under _USER CONFIGURATION_ in [create.ipynb](create.ipynb) to stream the APIM diagnostic feed to a sample-scoped Event Hub while retaining Log Analytics ingestion and workbook views. The option defaults to `False` so the normal sample deployment does not add Event Hubs cost. When enabled, the sample deploys a Standard Event Hubs namespace in the selected infrastructure/APIM region, a non-compacted `apim-inference-failover` hub, and an `external-observability` consumer group for downstream processors.
 
 The Event Hub receives the same broad APIM diagnostic stream configured for Log Analytics: `GatewayLogs`, `GatewayLlmLogs`, `WebSocketConnectionLogs`, and `AllMetrics`. This includes caller-visible responses, final backend responses, backend placement, policy `TraceRecords`, native APIM errors, model and token telemetry, and logged prompt/completion message chunks. Workbook calculations are derived views rather than emitted events, so external processors should reconstruct their preferred aggregations from the raw stream.
 
@@ -201,7 +201,7 @@ Routine probes intentionally do not perform inference: recurring multi-location 
 
 1. Deploy any [infrastructure architecture](../../README.md#list-of-infrastructures), with [Simple API Management](../../infrastructure/simple-apim/README.md) as the notebook default.
 1. Open [create.ipynb](create.ipynb) and adjust only values under _USER CONFIGURATION_ if necessary.
-1. To externalize the APIM diagnostic feed, set `enable_event_hub_export = True` under _SYSTEM CONFIGURATION_. Leave the default `False` value in place when Event Hub streaming is not needed.
+1. To externalize the APIM diagnostic feed, set `enable_event_hub_export = True` under _USER CONFIGURATION_. Leave the default `False` value in place when Event Hub streaming is not needed.
 1. Run all notebook cells to deploy the model constellation, APIs, workbook, controlled inference requests, and telemetry charts.
 1. Increase `max_completion_tokens` only when the initial traffic does not produce sufficient concentrated pressure for failover observation; requests consume real Azure OpenAI tokens.
 
@@ -228,9 +228,6 @@ The sample resources live in the selected infrastructure resource group. Remove 
 
 ## 🔗 Additional Resources
 
-- [Inference Failover APIOps Environment Promotion Plan](APIOPS-ENVIRONMENT-PROMOTION-PLAN.md)
-- [Terraform and APIOps Backend Environment Configuration Plan](TERRAFORM-APIOPS-BACKEND-ENVIRONMENT-PLAN.md)
-- [Inference Failover and WAF Throttling Guidance](WAF-COMPARISON.md)
 - [Backends in API Management](https://learn.microsoft.com/azure/api-management/backends)
 - [Authenticate and authorize access to LLM APIs by using API Management](https://learn.microsoft.com/azure/api-management/api-management-authenticate-authorize-ai-apis)
 - [Diagnostic settings in Azure Monitor](https://learn.microsoft.com/azure/azure-monitor/platform/diagnostic-settings)
