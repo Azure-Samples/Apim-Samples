@@ -214,10 +214,7 @@ while ($true) {
         }
         'u' {
             if (Test-Uv) {
-                $ageOk = Invoke-Cmd (Get-Python) @("$RepoRoot/setup/verify_dependency_age.py", "--scope", "python")
-                if ($ageOk) {
-                    $null = Invoke-Cmd "uv" @("sync", "--locked")
-                }
+                $null = Invoke-Cmd (Get-Python) @("$RepoRoot/setup/sync_dependencies.py")
             } else {
                 Write-Host ""
                 Write-Host "uv is not installed or not on PATH. Install uv first (see setup/README.md)." -ForegroundColor Red
@@ -226,13 +223,7 @@ while ($true) {
         }
         'l' {
             if (Test-Uv) {
-                $lockOk = Invoke-Cmd "uv" @("lock", "--upgrade")
-                if ($lockOk) {
-                    $ageOk = Invoke-Cmd (Get-Python) @("$RepoRoot/setup/verify_dependency_age.py", "--scope", "python")
-                    if ($ageOk) {
-                        $null = Invoke-Cmd "uv" @("sync", "--locked")
-                    }
-                }
+                $null = Invoke-Cmd (Get-Python) @("$RepoRoot/setup/sync_dependencies.py", "--upgrade")
             } else {
                 Write-Host ""
                 Write-Host "uv is not installed or not on PATH. Install uv first (see setup/README.md)." -ForegroundColor Red

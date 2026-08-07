@@ -628,12 +628,14 @@ def test_install_jupyter_kernel_ipykernel_not_installed():
         if call_count[0] == 1:
             # First call checks for ipykernel
             raise subprocess.CalledProcessError(1, 'ipykernel')
-        # Subsequent calls succeed
+        # Subsequent subprocess calls succeed
         return Mock(returncode=0)
 
-    with patch('subprocess.run', side_effect=mock_run):
+    with patch('subprocess.run', side_effect=mock_run), patch.object(sps, 'sync_dependencies') as mock_sync:
         result = sps.install_jupyter_kernel()
-        assert result is True
+
+    assert result is True
+    mock_sync.assert_called_once()
 
 
 def test_install_jupyter_kernel_locked_install_requires_uv(monkeypatch: pytest.MonkeyPatch):
@@ -739,12 +741,11 @@ def test_setup_complete_environment_success(temp_project_root: Path, monkeypatch
     monkeypatch.setattr(sps, 'create_vscode_settings', lambda: True)
     monkeypatch.setattr(sps, 'force_kernel_consistency', lambda: True)
 
-    with patch('shutil.which') as mock_which:
-        with patch('subprocess.run') as mock_run:
-            mock_which.return_value = '/usr/bin/uv'
-            mock_run.return_value = Mock(returncode=0)
-            # Should not raise any exceptions
-            sps.setup_complete_environment()
+    with patch('shutil.which', return_value='/usr/bin/uv'), patch.object(sps, 'sync_dependencies') as mock_sync:
+        # Should not raise any exceptions
+        sps.setup_complete_environment()
+
+    mock_sync.assert_called_once_with(uv_path='/usr/bin/uv')
 
 
 def test_setup_complete_environment_without_uv(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
@@ -771,12 +772,38 @@ def test_setup_complete_environment_uv_sync_fails(temp_project_root: Path, monke
     monkeypatch.setattr(sps, 'create_vscode_settings', lambda: True)
     monkeypatch.setattr(sps, 'force_kernel_consistency', lambda: True)
 
-    with patch('shutil.which') as mock_which:
-        with patch('subprocess.run') as mock_run:
-            mock_which.return_value = '/usr/bin/uv'
-            mock_run.side_effect = subprocess.CalledProcessError(1, 'uv sync')
-            # Should complete without raising exception
-            sps.setup_complete_environment()
+    with (
+        patch('shutil.which', return_value='/usr/bin/uv'),
+        patch.object(
+            sps,
+            'sync_dependencies',
+            side_effect=subprocess.CalledProcessError(1, 'uv sync'),
+        ),
+    ):
+        # Should complete without raising exception
+        sps.setup_complete_environment()
+
+
+def test_setup_complete_environment_skips_consistency_after_kernel_failure(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Test setup does not immediately retry a failed kernel installation."""
+    consistency_calls = 0
+
+    def track_consistency():
+        nonlocal consistency_calls
+        consistency_calls += 1
+        return True
+
+    monkeypatch.setattr(sps, 'check_uv_installed', lambda: False)
+    monkeypatch.setattr(sps, 'check_azure_cli_installed', lambda: True)
+    monkeypatch.setattr(sps, 'check_bicep_cli_installed', lambda: True)
+    monkeypatch.setattr(sps, 'check_azure_providers_registered', lambda: True)
+    monkeypatch.setattr(sps, 'install_jupyter_kernel', lambda: False)
+    monkeypatch.setattr(sps, 'create_vscode_settings', lambda: True)
+    monkeypatch.setattr(sps, 'force_kernel_consistency', track_consistency)
+
+    sps.setup_complete_environment()
+
+    assert consistency_calls == 0
 
 
 def test_setup_complete_environment_check_uv_exception(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
@@ -994,12 +1021,9 @@ def test_setup_complete_environment_uv_sync_exception(temp_project_root: Path, m
     monkeypatch.setattr(sps, 'create_vscode_settings', lambda: True)
     monkeypatch.setattr(sps, 'force_kernel_consistency', lambda: True)
 
-    with patch('shutil.which') as mock_which:
-        with patch('subprocess.run') as mock_run:
-            mock_which.return_value = '/usr/bin/uv'
-            mock_run.side_effect = RuntimeError('Unexpected error')
-            # Should continue despite exception
-            sps.setup_complete_environment()
+    with patch('shutil.which', return_value='/usr/bin/uv'), patch.object(sps, 'sync_dependencies', side_effect=RuntimeError('Unexpected error')):
+        # Should continue despite exception
+        sps.setup_complete_environment()
 
 
 def test_setup_complete_environment_uv_sync_path_not_found(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
@@ -1298,13 +1322,14 @@ def test_create_vscode_settings_ioerror_creates_new(temp_project_root: Path):
     assert settings.get('existing') == 'setting'
 
 
-def test_install_jupyter_kernel_with_stderr_output(monkeypatch: pytest.MonkeyPatch):
+def test_install_jupyter_kernel_with_stderr_output(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
     """Test install_jupyter_kernel displays stderr on failure."""
     with patch('subprocess.run') as mock_run:
         error_msg = 'some error message'
         mock_run.side_effect = subprocess.CalledProcessError(1, 'kernel install', stderr=error_msg)
         result = sps.install_jupyter_kernel()
         assert result is False
+        assert error_msg in capsys.readouterr().out
 
 
 def test_check_azure_cli_variants_windows(monkeypatch: pytest.MonkeyPatch):
@@ -2311,9 +2336,7 @@ def test_generate_env_file_multiline_logic():
 
         try:
             # Create .env with invalid lines
-            (temp_project_root / '.env').write_text(
-                '# comment\nKEY1=value1\nINVALID_LINE_NO_EQUALS\nKEY2=value2\n\n  \nKEY3=value3\n', encoding='utf-8'
-            )
+            (temp_project_root / '.env').write_text('# comment\nKEY1=value1\nINVALID_LINE_NO_EQUALS\nKEY2=value2\n\n  \nKEY3=value3\n', encoding='utf-8')
 
             sps.generate_env_file()
             env = _read_env(temp_project_root)

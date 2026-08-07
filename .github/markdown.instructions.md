@@ -11,6 +11,8 @@ This document provides standards for Markdown files in the APIM Samples reposito
 ### Dependency Command Safety
 
 - Documentation must use the repository's guarded install sequence: `python setup/verify_dependency_age.py --scope python` followed by `uv sync --locked`.
+- Documentation for package-mirror environments may use the guarded mirror fallback: verify artifact ages, export `uv.lock` with `uv export --frozen` without emitted index settings, then install the temporary hash-locked requirements through the mirror with `uv pip sync --no-config --require-hashes --strict`.
+- Never instruct users to generate or rewrite `uv.lock` with a private mirror, proxy, credential, or internal endpoint. Explain that uv requires registry and artifact URLs in its native lock, while the temporary mirror-install export contains portable names, versions, markers, and hashes.
 - Do not document direct installs, floating versions, or upgrade commands that can select a release less than seven days old.
 
 ### Markdownlint Must Pass

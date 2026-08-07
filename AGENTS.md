@@ -234,6 +234,8 @@ Shared modules in `shared/bicep/modules/`:
 - Every package or GitHub Action release must complete a seven-day waiting period before use.
 - Preserve `tool.uv.exclude-newer = "7 days"` and Dependabot cooldowns for all configured ecosystems.
 - Before a locked Python install, run `python setup/verify_dependency_age.py --scope python`, then `uv sync --locked`.
+- Generate `uv.lock` against canonical public PyPI only by running `python setup/sync_dependencies.py --upgrade`. Never commit private mirror URLs, proxy configuration, credentials, or internal endpoints. Do not manually remove the registry and artifact URLs required by uv's lock schema.
+- If the lock's direct artifact URLs are inaccessible, export the frozen lock without index settings and install the temporary names, versions, markers, and hashes through the approved mirror with `uv pip sync --no-config --require-hashes --strict`. Use this fallback only after the age verifier succeeds, and never commit the temporary export.
 - Keep GitHub Actions pinned to 40-character commit SHAs with version comments and validate them with `python setup/verify_dependency_age.py --scope github-actions`.
 - Do not introduce direct install or upgrade commands that bypass the lockfile, age verifier, or release exclusion.
 

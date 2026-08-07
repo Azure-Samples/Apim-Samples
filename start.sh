@@ -73,8 +73,7 @@ ensure_uv_env() {
     (
       cd "${REPO_ROOT}" &&
         { [ -d .venv ] || uv venv; } &&
-        "$(find_python)" setup/verify_dependency_age.py --scope python &&
-        uv sync --locked >/dev/null 2>&1 || true
+        "$(find_python)" setup/sync_dependencies.py >/dev/null 2>&1 || true
     )
   fi
 }
@@ -184,9 +183,7 @@ while true; do
       ;;
     u)
       if has_uv; then
-        if run_cmd "$(find_python)" "${REPO_ROOT}/setup/verify_dependency_age.py" --scope python; then
-          run_cmd uv sync --locked
-        fi
+        run_cmd "$(find_python)" "${REPO_ROOT}/setup/sync_dependencies.py"
       else
         echo ""
         echo "uv is not installed or not on PATH. Install uv first (see setup/README.md)."
@@ -195,11 +192,7 @@ while true; do
       ;;
     l)
       if has_uv; then
-        if run_cmd uv lock --upgrade; then
-          if run_cmd "$(find_python)" "${REPO_ROOT}/setup/verify_dependency_age.py" --scope python; then
-            run_cmd uv sync --locked
-          fi
-        fi
+        run_cmd "$(find_python)" "${REPO_ROOT}/setup/sync_dependencies.py" --upgrade
       else
         echo ""
         echo "uv is not installed or not on PATH. Install uv first (see setup/README.md)."
