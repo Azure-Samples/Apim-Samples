@@ -25,7 +25,10 @@ This ensures all code changes comply with the project's linting standards from t
 
 ## Goals
 
-- Before installing, syncing, or upgrading Python packages, preserve the seven-day release exclusion in `pyproject.toml`, run `python setup/verify_dependency_age.py --scope python`, and install only with `uv sync --locked`. Never introduce a direct package-manager command that bypasses the lockfile or waiting period.
+- Before installing or syncing Python packages, preserve the seven-day release exclusion in `pyproject.toml`, run `python setup/verify_dependency_age.py --scope python`, and normally install with `uv sync --locked`. Upgrade packages with `python setup/sync_dependencies.py --upgrade` so lock generation is isolated to canonical public PyPI before the guarded sync.
+- Generate `uv.lock` only against canonical public PyPI. Never commit organization-specific mirror URLs, proxy details, credentials, or internal endpoints to the lock. Do not manually remove uv's required registry source or artifact URL fields.
+- If locked artifact URLs are inaccessible, export the frozen lock to a temporary requirements file without index settings, then install through the approved mirror with `uv pip sync --no-config --require-hashes --strict`. `--no-config` is also required for the helper's canonical lock update so user mirror configuration cannot change the committed lock. Never commit the temporary export.
+- Never introduce a package-manager command that bypasses the lockfile, artifact hashes, or waiting period.
 - Make changes that are easy to review, test, and maintain.
 - Keep scripts cross-platform (Windows, Linux, macOS).
 - Prefer minimal, working implementations (MVP), then iterate.
@@ -66,8 +69,8 @@ This ensures all code changes comply with the project's linting standards from t
 - Only use multi-line imports when a single-line is too long
 - Avoid mixing patterns: Don't use both `import module` and `from module import ...` for the same module
 - Parentheses in imports: Only use parentheses for multi-line imports, not for single-line imports.
-   - Good: `from console import print_error, print_val`
-   - Bad: `from console import (print_error, print_val)`
+  - Good: `from console import print_error, print_val`
+  - Bad: `from console import (print_error, print_val)`
 
 Good multi-line example:
 
@@ -89,9 +92,9 @@ from console import (
 Before completing any Python code changes, verify:
 
 - All ruff warnings and errors are resolved (`ruff check <file>`)
-   - Ruff rules cover these, but we don't see `pyproject.toml` being added to context. Therefore, please pay special attention to these common occurrences:
-      - No trailing whitespace
-      - No assertion of empty strings in tests (use `assert not`)
+  - Ruff rules cover these, but we don't see `pyproject.toml` being added to context. Therefore, please pay special attention to these common occurrences:
+    - No trailing whitespace
+    - No assertion of empty strings in tests (use `assert not`)
 - Code follows PEP 8 and the style guidelines in this file
 - Import statements for modules within this repo are placed last in the imports and are grouped with the `# APIM Samples imports` header
 - Type hints are present where appropriate

@@ -2,7 +2,7 @@
 
 Secure architecture that takes all traffic off the public Internet once Azure Front Door is traversed. Traffic behind Front Door is subsequently inaccessible to the public. This is due to Front Door's use of Private Link to Azure API Management.
 
-<img src="../../assets/diagrams/Azure Front Door, API Management & Container Apps Architecture.svg" alt="Diagram showing Azure Front Door, API Management, and Container Apps architecture. Azure Front Door routes traffic to API Management, which then routes to Container Apps. Telemetry is sent to Azure Monitor." title="Azure Front Door, API Management & Container Apps Architecture" width="1000" />
+![Diagram showing Azure Front Door, API Management, and Container Apps architecture. Azure Front Door routes traffic to API Management, which then routes to Container Apps. Telemetry is sent to Azure Monitor.](../../assets/diagrams/Azure%20Front%20Door%2C%20API%20Management%20%26%20Container%20Apps%20Architecture.svg "Azure Front Door, API Management & Container Apps Architecture")
 
 > Diagram created with the [Azure Draw.io MCP Server](https://github.com/simonkurtz-MSFT/drawio-mcp-server).
 

@@ -40,6 +40,7 @@ CONSOLE_WIDTH = 220
 _CONSOLE_WIDTH_ENV = 'APIM_SAMPLES_CONSOLE_WIDTH'
 _DEFAULT_CONSOLE_WIDTH = 220
 _MIN_CONSOLE_WIDTH = 20
+_PAD_MAX = 35
 
 # Thread-safe print lock
 _print_lock = threading.Lock()
@@ -204,13 +205,13 @@ def print_warning(msg: str, output: str = '', duration: str = '') -> None:
 
 def print_val(name: str, value: str, val_below: bool = False) -> None:
     """Print a key-value pair."""
-    _print_log(f'{name:<25}:{"\n" if val_below else " "}{value}', '👉 ', BOLD_B, wrap_lines=True, level=logging.INFO)
+    _print_log(f'{name:<{_PAD_MAX}}:{"\n" if val_below else " "}{value}', '👉 ', BOLD_B, wrap_lines=True, level=logging.INFO)
 
 
 def print_secret(name: str, value: str) -> None:
     """Print a key-value pair with the value masked, showing only its length."""
     masked = f'***REDACTED*** ({len(value)} chars)' if value else '(empty)'
-    _print_log(f'{name:<25}: {masked}', '🔒 ', BOLD_B, wrap_lines=True, level=logging.INFO)
+    _print_log(f'{name:<{_PAD_MAX}}: {masked}', '🔒 ', BOLD_B, wrap_lines=True, level=logging.INFO)
 
 
 def print_plain(msg: str = '', *, level: int | None = None, wrap_lines: bool = True, blank_above: bool = False, blank_below: bool = False) -> None:

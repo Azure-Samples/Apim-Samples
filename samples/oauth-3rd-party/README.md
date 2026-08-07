@@ -13,7 +13,7 @@ Sets up a 3rd party integration via [Azure API Management Credential Manager][ap
 1. Distinguish between authentication to APIM via JSON Web Tokens and to the 3rd party using Credential Manager.
 1. Understand how API Management supports OAuth 2.0 authentication (authN) with JSON Web Tokens (JWT).
 1. Learn how authorization (authZ) can be accomplished based on JWT claims.
-1. Configure authN and authZ at the API level (simpler than _AuthX-Pro_)
+1. Configure authN and authZ at the API level (simpler than *AuthX-Pro*)
 1. Use external secrets in policies.
 1. Experience how API Management policy fragments simplify shared logic.
 
@@ -33,7 +33,7 @@ Beyond the [general prerequisites](../../README.md#-getting-started) (Azure subs
 In order for API Management to gain access to Spotify's API, we need to create an application that represents API Management.
 
 1. Open or log into the [Spotify Developer Dashboard][spotify-dashboard].
-1. Review and accept the _Spotify Developer Terms of Service_, if required.
+1. Review and accept the *Spotify Developer Terms of Service*, if required.
 1. Proceed with verifying your email address, if required.
 1. If the Dashboard does not open immediately, select it from the menu after clicking on your profile name (top-right corner).
 1. [Create the app][spotify-create-app]:
@@ -41,8 +41,8 @@ In order for API Management to gain access to Spotify's API, we need to create a
     - **App Description**: _API Management_
     - **Redirect URIs**: <https://localhost:8080/callback>
         We will update this placeholder once we have the APIM URL.
-    - **Which API/SDKs are you planning to use?** _Web API_
-1. Once the app has been created, copy the _Client ID_ and _Client secret_ into the root `.env` file. We will need them for the Credential Manager setup.
+    - **Which API/SDKs are you planning to use?** *Web API*
+1. Once the app has been created, copy the *Client ID* and *Client secret* into the root `.env` file. We will need them for the Credential Manager setup.
 1. Leave the Dashboard page open in your browser, as we will need to replace the Redirect URI shortly.
 1. Proceed to the [create](./create.ipynb) Jupyter notebook and follow directions there.
 

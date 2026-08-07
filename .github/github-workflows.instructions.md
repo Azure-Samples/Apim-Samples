@@ -161,7 +161,7 @@ steps:
       COVERAGE_FILE: tests/.coverage-${{ matrix.python-version }}
 ```
 
-## Checklist Before Committing
+## Final Checklist Before Committing
 
 - [ ] All GitHub Actions use commit hashes (no version tags)
 - [ ] Triggers are explicitly defined (`on:`)

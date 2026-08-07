@@ -171,38 +171,42 @@ def test_check_uv_sync_success_venv_exists(temp_cwd: Path) -> None:
     """UV sync check should pass when uv syncs dependencies successfully."""
     (temp_cwd / '.venv').mkdir()
 
-    with patch('shutil.which', return_value='/usr/bin/uv'):
-        with patch('subprocess.run', return_value=Mock(returncode=0)) as mock_run:
-            ok, fix = vls.check_uv_sync()
-            assert ok is True
-            assert not fix
-            assert mock_run.call_count == 2
-            assert 'verify_dependency_age.py' in mock_run.call_args_list[0][0][0][1]
-            assert 'sync' in mock_run.call_args[0][0]
+    with patch('shutil.which', return_value='/usr/bin/uv'), patch.object(vls, 'sync_dependencies') as mock_sync:
+        ok, fix = vls.check_uv_sync()
+
+    assert ok is True
+    assert not fix
+    mock_sync.assert_called_once_with(uv_path='/usr/bin/uv')
 
 
 def test_check_uv_sync_fail_sync(temp_cwd: Path) -> None:
     """UV sync check should fail when uv sync fails."""
     (temp_cwd / '.venv').mkdir()
 
-    with patch('shutil.which', return_value='/usr/bin/uv'):
-        with patch('subprocess.run', side_effect=subprocess.CalledProcessError(1, ['uv', 'sync'])):
-            ok, fix = vls.check_uv_sync()
-            assert ok is False
-            assert 'Failed to sync dependencies' in fix
+    with (
+        patch('shutil.which', return_value='/usr/bin/uv'),
+        patch.object(
+            vls,
+            'sync_dependencies',
+            side_effect=subprocess.CalledProcessError(1, ['uv', 'sync']),
+        ),
+    ):
+        ok, fix = vls.check_uv_sync()
+
+    assert ok is False
+    assert 'Failed to sync dependencies' in fix
 
 
 def test_check_uv_sync_creates_venv_then_syncs(temp_cwd: Path) -> None:
     """UV sync check should create venv if missing then sync successfully."""
-    with patch('shutil.which', return_value='/usr/bin/uv'):
-        with patch('subprocess.run', return_value=Mock(returncode=0)) as mock_run:
-            ok, fix = vls.check_uv_sync()
-            assert ok is True
-            assert not fix
-            assert mock_run.call_count == 3
-            assert 'venv' in mock_run.call_args_list[0][0][0]
-            assert 'verify_dependency_age.py' in mock_run.call_args_list[1][0][0][1]
-            assert 'sync' in mock_run.call_args_list[2][0][0]
+    with patch('shutil.which', return_value='/usr/bin/uv'), patch('subprocess.run', return_value=Mock(returncode=0)) as mock_run, patch.object(vls, 'sync_dependencies') as mock_sync:
+        ok, fix = vls.check_uv_sync()
+
+    assert ok is True
+    assert not fix
+    mock_run.assert_called_once()
+    assert 'venv' in mock_run.call_args[0][0]
+    mock_sync.assert_called_once_with(uv_path='/usr/bin/uv')
 
 
 def test_check_uv_sync_fail_venv_creation(temp_cwd: Path) -> None:
@@ -216,19 +220,19 @@ def test_check_uv_sync_fail_venv_creation(temp_cwd: Path) -> None:
 
 def test_check_uv_sync_venv_created_but_sync_fails(temp_cwd: Path) -> None:
     """UV sync check should fail when venv is created but sync fails."""
-    with patch('shutil.which', return_value='/usr/bin/uv'):
+    with (
+        patch('shutil.which', return_value='/usr/bin/uv'),
+        patch('subprocess.run', return_value=Mock(returncode=0)),
+        patch.object(
+            vls,
+            'sync_dependencies',
+            side_effect=subprocess.CalledProcessError(1, ['uv', 'sync']),
+        ),
+    ):
+        ok, fix = vls.check_uv_sync()
 
-        def run_side_effect(cmd, **kwargs):
-            if 'venv' in cmd:
-                return Mock(returncode=0)
-            if 'sync' in cmd:
-                raise subprocess.CalledProcessError(1, ['uv', 'sync'])
-            return Mock(returncode=0)
-
-        with patch('subprocess.run', side_effect=run_side_effect):
-            ok, fix = vls.check_uv_sync()
-            assert ok is False
-            assert 'Failed to sync dependencies' in fix
+    assert ok is False
+    assert 'Failed to sync dependencies' in fix
 
 
 # ============================================================
@@ -267,7 +271,7 @@ def test_check_required_packages_missing(monkeypatch: pytest.MonkeyPatch) -> Non
 
     ok, fix = vls.check_required_packages()
     assert ok is False
-    assert 'uv sync' in fix
+    assert 'setup/sync_dependencies.py' in fix
 
 
 def test_check_required_packages_requests_missing(monkeypatch: pytest.MonkeyPatch) -> None:

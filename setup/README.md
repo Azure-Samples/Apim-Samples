@@ -48,7 +48,25 @@ uv sync --locked
 python setup/local_setup.py --complete-setup
 ```
 
-The repository excludes packages published within the last seven days. Use `uv lock --upgrade` to refresh the lockfile; the `exclude-newer = "7 days"` project setting applies the same policy automatically. The age verifier checks every locked artifact before installation.
+The repository excludes packages published within the last seven days. Use the guarded helper to refresh the lockfile and sync the environment:
+
+```shell
+python setup/sync_dependencies.py --upgrade
+```
+
+The helper isolates lock generation from user package-index configuration, resolves the lock against canonical public PyPI with `exclude-newer = "7 days"`, and then runs the age verifier before installation. If canonical PyPI's artifact host is unreachable, the helper preserves the existing lock and syncs its verified packages through the configured index instead.
+
+Generate `uv.lock` only against canonical public PyPI. The uv lock format requires registry sources and artifact URLs, so do not remove those fields manually or replace them with organization-specific package mirror URLs.
+
+If your network cannot access the artifact URLs stored in `uv.lock`, install the same locked packages through an approved package mirror. The temporary export contains package names, versions, environment markers, and hashes without carrying the lock's index URLs:
+
+```shell
+python setup/verify_dependency_age.py --scope python
+uv export --frozen --no-emit-project --no-header --no-annotate --output-file <temporary-requirements-file>
+uv pip sync <temporary-requirements-file> --no-config --default-index <mirror-url> --require-hashes --system-certs --strict
+```
+
+Delete the temporary requirements file after installation and do not commit it. In this fallback, `--no-config` prevents uv from reevaluating the already-verified age cutoff against mirrors that omit upload timestamps. The guarded helper also uses `--no-config` while updating the lock so user mirror configuration cannot affect canonical resolution; do not use it for other dependency operations.
 
 This will:
 

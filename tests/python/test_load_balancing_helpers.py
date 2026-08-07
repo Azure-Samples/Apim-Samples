@@ -1,5 +1,6 @@
 """Tests for the load-balancing sample-local runtime helpers."""
 
+import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -13,6 +14,41 @@ LOAD_BALANCING_DIR = Path(__file__).resolve().parents[2] / 'samples' / 'load-bal
 sys.path.insert(0, str(LOAD_BALANCING_DIR))
 
 from load_balancing_helpers import LoadBalancingScenario, LoadBalancingTrafficRunner, RetryTrackingResult  # noqa: E402
+
+
+@pytest.mark.unit
+def test_load_balancing_policies_use_bounded_retry_count() -> None:
+    """Keep every load-balancing route on two retries independent of pool size."""
+    notebook = json.loads((LOAD_BALANCING_DIR / 'create.ipynb').read_text(encoding='utf-8'))
+    code_source = '\n'.join(''.join(cell['source']) for cell in notebook['cells'] if cell['cell_type'] == 'code')
+    policy_paths = sorted((LOAD_BALANCING_DIR / 'apim-policies').glob('*.xml'))
+    expected_bindings = {
+        'pol_lb_prioritized': ('aca-backend-pool-load-balancing.xml', 'aca-backend-pool-web-api-429-prioritized', None),
+        'pol_lb_prioritized_weighted': ('aca-backend-pool-load-balancing.xml', 'aca-backend-pool-web-api-429-prioritized-and-weighted', None),
+        'pol_lb_weighted_equal': ('aca-backend-pool-load-balancing.xml', 'aca-backend-pool-web-api-429-weighted-50-50', None),
+        'pol_lb_weighted_unequal': ('aca-backend-pool-load-balancing.xml', 'aca-backend-pool-web-api-429-weighted-80-20', None),
+        'pol_lb_429_prioritized': ('aca-backend-pool-load-balancing-with-429.xml', 'aca-backend-pool-web-api-429-prioritized', None),
+        'pol_lb_retry_tracked': ('aca-backend-pool-load-balancing-with-retry-tracked.xml', 'aca-backend-pool-web-api-429-prioritized', 'retry-tracked'),
+    }
+
+    assert 'backend_retry_count = 2' in code_source
+    assert code_source.count('retry_count=backend_retry_count') == 6
+    assert len(policy_paths) == 3
+    assert all('number of backends' not in policy_path.read_text(encoding='utf-8') for policy_path in policy_paths)
+
+    for variable_name, (template_name, backend_id, cache_key) in expected_bindings.items():
+        format_arguments = f"backend_id='{backend_id}', retry_count=backend_retry_count"
+        render_arguments = {'backend_id': backend_id, 'retry_count': 2}
+        if cache_key is not None:
+            format_arguments += f", cache_key='{cache_key}'"
+            render_arguments['cache_key'] = cache_key
+
+        expected_assignment = f"{variable_name} = utils.read_policy_xml('{template_name}', sample_name=sample_folder).format(\n    {format_arguments}\n)"
+        template = (LOAD_BALANCING_DIR / 'apim-policies' / template_name).read_text(encoding='utf-8')
+        rendered_policy = template.format(**render_arguments)
+
+        assert expected_assignment in code_source
+        assert '<retry count="2"' in rendered_policy
 
 
 def _create_runner(*, responses=None, sleep=None, clock=None):

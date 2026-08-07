@@ -1,0 +1,19 @@
+// Aggregates token telemetry for successful inference requests by model route.
+//
+// Parameters (prepend as KQL 'let' bindings before running):
+//   let timeWindow = 1h;
+//   let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-4-1-mini']);
+//
+let requestRoutes = ApiManagementGatewayLogs
+| where TimeGenerated > ago(timeWindow)
+| where ApiId in~ (apiIds)
+| project CorrelationId, ApiId, BackendId, BackendUrl;
+ApiManagementGatewayLlmLog
+| where TimeGenerated > ago(timeWindow)
+| where TotalTokens > 0 and isnotempty(ModelName)
+| summarize PromptTokens = sum(PromptTokens), CompletionTokens = sum(CompletionTokens), TotalTokens = sum(TotalTokens) by CorrelationId, ModelName
+| join kind=inner requestRoutes on CorrelationId
+| extend AOAIInstance = iff(isnotempty(BackendUrl), tostring(split(tostring(parse_url(BackendUrl).Host), '.')[0]), '')
+| extend Backend = case(isnotempty(BackendUrl), BackendUrl, isnotempty(BackendId), BackendId, '(backend not recorded)')
+| summarize Requests = count(), PromptTokens = sum(PromptTokens), CompletionTokens = sum(CompletionTokens), TotalTokens = sum(TotalTokens) by ApiId, AOAIInstance, Backend, ModelName
+| order by TotalTokens desc

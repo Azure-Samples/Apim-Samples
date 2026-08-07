@@ -4,7 +4,7 @@ Sets up an APIM instance that demonstrates load balancing and circuit breaking a
 
 ⚙️ **Supported infrastructures**: apim-aca, afd-apim-pe
 
-👟 **Expected *Run All* runtime (excl. infrastructure prerequisite): ~3 minutes**
+👟 **Expected _Run All_ runtime (excl. infrastructure prerequisite): ~3 minutes**
 
 ## 🎯 Objectives
 
@@ -20,6 +20,7 @@ This lab integrates into an existing Azure Container Apps architecture and sets 
 - Three separate backends are set up in APIM that each point to a different endpoint on this container app (e.g. /api/0, /api/1, etc.).
 - Four separate backend pool with varying load balancer setups are configured using these three backends.
 - Six APIs that each demonstrate a different load-balancing or error-handling behavior, including a `/lb-retry-tracked` endpoint that records the soonest backend recovery time as an absolute UTC timestamp and emits a decreasing `Retry-After` header until that instant elapses.
+- Every policy uses a bounded retry count of `2`, allowing two retries after the initial attempt, for three total attempts. This may already be more than sufficient for interactive traffic. The limit is intentionally independent of pool size because circuit breakers remove failed backends from selection and repeated failures across recently eligible members are a signal to return control to the caller.
 
 ## 🧪 Test Matrix
 
@@ -35,10 +36,10 @@ The notebook exercises each load-balancing strategy with a dedicated test. Run o
 | 6   | Absolute-Time `Retry-After` Tracking | `/lb-retry-tracked`        | 25   | 2 backends, priorities P1 -> P2         | On every 429 with a parseable `Retry-After`, the loop sleeps exactly that many seconds (the policy bakes in a +1s buffer) | Pre-first-wait `Retry-After` values are non-increasing; first emitted value is > 0; at least one request after the first wait returns 200 (pool recovered) | Yes   |
 | 7   | 503-to-429 Error Handling            | `/lb-429-prioritized`      | 12   | 2 backends, priorities P1 -> P2         | None                                                                                                                      | At least one 429 is returned once the pool is exhausted; 429 responses carry a `Retry-After` header and non-429 responses do not                           | No    |
 
-Tests 1-6 run in the *Verify Deployment* cell; test 7 runs in the separate *Test 503-to-429 Error Handling* cell. All charts apply a 95th-percentile cutoff when computing the mean so the cold-path first request does not skew the steady-state average.
+Tests 1-6 run in the _Verify Deployment_ cell; test 7 runs in the separate _Test 503-to-429 Error Handling_ cell. All charts apply a 95th-percentile cutoff when computing the mean so the cold-path first request does not skew the steady-state average.
 
 ## ⚙️ Configuration
 
 1. Decide which of the [Infrastructure Architectures](../../README.md#infrastructure-architectures) you wish to use.
-    1. If the infrastructure *does not* yet exist, navigate to the desired [infrastructure](../../infrastructure/) folder and follow its README.md.
-    1. If the infrastructure *does* exist, adjust the `user-defined parameters` in the *Initialize notebook variables* below. Please ensure that all parameters match your infrastructure.
+    1. If the infrastructure _does not_ yet exist, navigate to the desired [infrastructure](../../infrastructure/) folder and follow its README.md.
+    1. If the infrastructure _does_ exist, adjust the `user-defined parameters` in the _Initialize notebook variables_ below. Please ensure that all parameters match your infrastructure.

@@ -1,0 +1,38 @@
+// Measures whether successful APIM inference requests have correlated LLM token and message telemetry.
+//
+// Parameters (prepend as KQL 'let' bindings before running):
+//   let timeWindow = 1h;
+//   let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-4-1-mini']);
+//
+let gatewayRequests = materialize(ApiManagementGatewayLogs
+| where TimeGenerated > ago(timeWindow)
+| where ApiId in~ (apiIds)
+| project CorrelationId, ApiId, ResponseCode);
+let llmPerRequest = ApiManagementGatewayLlmLog
+| where TimeGenerated > ago(timeWindow)
+| summarize
+    ModelName = take_any(ModelName),
+    DeploymentName = take_any(DeploymentName),
+    PromptTokens = sum(PromptTokens),
+    CompletionTokens = sum(CompletionTokens),
+    TotalTokens = sum(TotalTokens),
+    LlmRows = count(),
+    RequestMessageChunks = countif(isnotempty(tostring(RequestMessages))),
+    ResponseMessageChunks = countif(isnotempty(tostring(ResponseMessages)))
+    by CorrelationId;
+gatewayRequests
+| join kind=leftouter llmPerRequest on CorrelationId
+| extend Coverage = case(
+    ResponseCode !between (200 .. 299), 'Not expected for non-2xx response',
+    coalesce(TotalTokens, 0) > 0, 'Token telemetry recorded',
+    'Successful request without token telemetry')
+| summarize
+    Requests = count(),
+    PromptTokens = sum(coalesce(PromptTokens, 0)),
+    CompletionTokens = sum(coalesce(CompletionTokens, 0)),
+    TotalTokens = sum(coalesce(TotalTokens, 0)),
+    LlmRows = sum(coalesce(LlmRows, 0)),
+    RequestMessageChunks = sum(coalesce(RequestMessageChunks, 0)),
+    ResponseMessageChunks = sum(coalesce(ResponseMessageChunks, 0))
+    by ApiId, Coverage
+| order by ApiId asc, Coverage asc

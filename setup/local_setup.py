@@ -24,6 +24,8 @@ import subprocess
 import sys
 from pathlib import Path  # Cross-platform path handling (Windows: \, Unix: /)
 
+from sync_dependencies import sync_dependencies
+
 DEFAULT_PYTHON_ANALYSIS_EXCLUDE = [
     '**/node_modules',
     '**/__pycache__',
@@ -61,6 +63,13 @@ def _ensure_utf8_streams() -> None:
 
 # Configure streams immediately on import so all prints are safe.
 _ensure_utf8_streams()
+
+
+def _print_subprocess_stderr(error: subprocess.CalledProcessError) -> None:
+    """Print captured subprocess stderr when it contains actionable details."""
+
+    if error.stderr and error.stderr.strip():
+        print(error.stderr.strip())
 
 
 def _venv_python_path() -> str:
@@ -352,13 +361,13 @@ def install_jupyter_kernel():
                 print('❌ uv is required to install verified locked dependencies')
                 return False
 
-            dependency_check = Path(__file__).resolve().parent / 'verify_dependency_age.py'
-            subprocess.run([sys.executable, str(dependency_check), '--scope', 'python'], check=True, capture_output=True, text=True)
-            subprocess.run([uv_cmd, 'sync', '--locked'], check=True, capture_output=True, text=True)
+            sync_dependencies(uv_path=uv_cmd)
             subprocess.run([sys.executable, '-m', 'ipykernel', '--version'], check=True, capture_output=True, text=True)
             print('✅ ipykernel installed successfully')
-        except subprocess.CalledProcessError as e:
+        except (subprocess.CalledProcessError, ValueError) as e:
             print(f'❌ Failed to install ipykernel: {e}')
+            if isinstance(e, subprocess.CalledProcessError):
+                _print_subprocess_stderr(e)
             return False
 
     kernel_name = KERNEL_NAME
@@ -381,8 +390,7 @@ def install_jupyter_kernel():
 
     except subprocess.CalledProcessError as e:
         print(f'❌ Failed to register Jupyter kernel: {e}')
-        if e.stderr:
-            print(f'Error details: {e.stderr}')
+        _print_subprocess_stderr(e)
         return False
 
 
@@ -482,6 +490,7 @@ def validate_kernel_setup():
 
     except subprocess.CalledProcessError as e:
         print(f'❌ Failed to check kernel list: {e}')
+        _print_subprocess_stderr(e)
         return False
     except FileNotFoundError:
         print('❌ Jupyter not found - please ensure Jupyter is installed')
@@ -664,11 +673,14 @@ def setup_complete_environment():
     # Step 6: Enforce kernel consistency
     print('\n6/8) Enforcing kernel consistency for future reliability...\n')
     consistency_success = False
-    try:
-        consistency_success = force_kernel_consistency()
-    except Exception as e:
-        print(f'❌ Error enforcing kernel consistency: {e}')
-        print('   Continuing with setup...')
+    if kernel_success:
+        try:
+            consistency_success = force_kernel_consistency()
+        except Exception as e:
+            print(f'❌ Error enforcing kernel consistency: {e}')
+            print('   Continuing with setup...')
+    else:
+        print('⚠️  Skipping kernel consistency because kernel registration failed')
 
     # Step 7: Configure notebook git filter
     print('\n7/8) Configuring notebook metadata git filter...\n')
@@ -686,23 +698,23 @@ def setup_complete_environment():
         try:
             uv_path = shutil.which('uv')
             if uv_path:
-                dependency_check = Path(__file__).resolve().parent / 'verify_dependency_age.py'
-                subprocess.run([sys.executable, str(dependency_check), '--scope', 'python'], check=True, capture_output=True, text=True)
-                subprocess.run([uv_path, 'sync', '--locked'], check=True, capture_output=True, text=True)
+                sync_dependencies(uv_path=uv_path)
                 print('✅ Dependencies synced successfully with uv')
                 sync_success = True
             else:
                 print('⚠️  uv reported installed but executable not found in PATH; skipping sync')
-                print("   Install uv and run 'uv sync --locked' for dependency management")
-        except subprocess.CalledProcessError as e:
+                print("   Install uv and run 'python setup/sync_dependencies.py' for dependency management")
+        except (subprocess.CalledProcessError, ValueError) as e:
             print(f'⚠️  Failed to sync dependencies with uv: {e}')
-            print("   You can manually run 'python setup/verify_dependency_age.py --scope python' then 'uv sync --locked'")
+            if isinstance(e, subprocess.CalledProcessError):
+                _print_subprocess_stderr(e)
+            print("   Run 'python setup/sync_dependencies.py' to retry the guarded dependency sync")
         except Exception as e:
             print(f'⚠️  Error during uv sync: {e}')
-            print("   You can manually run 'python setup/verify_dependency_age.py --scope python' then 'uv sync --locked'")
+            print("   Run 'python setup/sync_dependencies.py' to retry the guarded dependency sync")
     else:
         print('⚠️  Skipping dependency sync (uv not available)')
-        print("   Install uv and run 'uv sync --locked' for dependency management")
+        print("   Install uv and run 'python setup/sync_dependencies.py' for dependency management")
 
     # Summary
     print('\n' + '=' * 50)
@@ -734,9 +746,9 @@ def setup_complete_environment():
         if uv_ok and sync_success:
             print('   2. Dependencies are synced and ready to use')
         elif uv_ok:
-            print("   2. Run 'uv sync --locked' to install dependencies")
+            print("   2. Run 'python setup/sync_dependencies.py' to install dependencies")
         else:
-            print("   2. Install uv and run 'uv sync --locked' for dependency management")
+            print("   2. Install uv and run 'python setup/sync_dependencies.py' for dependency management")
         print('   3. Open any notebook - it should automatically use the correct kernel')
     else:
         print('\n⚠️  Setup completed with some issues. Check error messages above.')

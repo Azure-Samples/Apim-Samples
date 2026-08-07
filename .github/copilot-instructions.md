@@ -66,9 +66,15 @@ Uniformity, clarity, and ease of use are paramount across all infrastructures an
 ## General Coding Guidelines
 
 - Enforce a seven-day post-release waiting period for every package ecosystem. Python resolution must use the `tool.uv.exclude-newer = "7 days"` setting, locked installs must run `python setup/verify_dependency_age.py --scope python` before `uv sync --locked`, and GitHub Actions must pass the repository-wide dependency-age workflow.
-- Do not bypass the waiting period with direct `pip install`, `uv pip install`, `npm install`, floating GitHub Action tags, or ad hoc installer commands. Update the lockfile or pin only a release that has completed the waiting period.
+- Generate `uv.lock` only against the canonical public PyPI index by running `python setup/sync_dependencies.py --upgrade`. Never regenerate or rewrite the committed lock with an organization-specific mirror, proxy, credential, or internal endpoint. A uv lock necessarily records registry sources and artifact URLs; do not remove those required fields manually.
+- When direct artifact URLs in `uv.lock` are inaccessible but an approved package mirror is available, first run the age verifier, export the frozen lock without emitted index settings, and sync that temporary requirements export through the mirror with `uv pip sync --no-config --require-hashes --strict`. The export must contain only locked package names, versions, environment markers, and hashes, and must not be committed.
+- `--no-config` is allowed for the helper's canonical lock update, where it prevents user mirror configuration from changing the committed lock, and for mirror-backed installation after the age verifier succeeds and `uv export --frozen` produces the hash-locked input. Do not use it for any other dependency resolution or installation.
+- Do not bypass the waiting period with direct `pip install`, unverified `uv pip install`, `npm install`, floating GitHub Action tags, or ad hoc installer commands. Update the lockfile or pin only a release that has completed the waiting period.
 - Keep Dependabot `cooldown.default-days` at seven or greater for every configured ecosystem. Security updates remain subject to the same repository verifier even when the hosting service bypasses cooldown for advisory PRs.
 - All code, scripts, and configuration must be cross-platform compatible, supporting Windows, Linux, and macOS. If any special adjustments are to be made, please clearly indicate so in comments.
+- Treat CodeQL rules as code-generation requirements. Before writing or changing code, consider applicable security queries and use patterns that are structurally safe and recognizable to static analysis.
+- Do not validate, allowlist, or sanitize URLs with substring checks. Parse the URL and compare the required scheme, hostname, port, and path components explicitly. In tests, parse structured content and assert exact URL-bearing fields instead of searching serialized text for a URL substring.
+- Resolve CodeQL findings at the source. Do not suppress, dismiss, or weaken a security query unless the repository maintainers have documented why the result is a false positive and approved the narrowest possible suppression.
 - Prioritize clarity, maintainability, and readability in all generated code.
 - Focus on achieving a Minimal Viable Product (MVP) first, then iterate.
 - Follow language-specific conventions and style guides (e.g., PEP 8 for Python).
@@ -357,15 +363,15 @@ storage_account_id = f'/subscriptions/{subscription_id}/...'
    output = nb_helper.deploy_sample(bicep_parameters)
    ```
 
-Extract common and sample-specific outputs:
+3. Extract common and sample-specific outputs:
 
-```python
-deployment_context = nb_helper.get_deployment_context(output)
-apim_name = deployment_context.apim_name
-apim_gateway_url = deployment_context.apim_gateway_url
-apim_apis = deployment_context.apis
-app_insights_name = output.get('applicationInsightsName')
-```
+  ```python
+  deployment_context = nb_helper.get_deployment_context(output)
+  apim_name = deployment_context.apim_name
+  apim_gateway_url = deployment_context.apim_gateway_url
+  apim_apis = deployment_context.apis
+  app_insights_name = output.get('applicationInsightsName')
+  ```
 
 **CRITICAL: Do not bypass NotebookHelper!**
 
@@ -424,7 +430,7 @@ Match the heading emojis, heading levels, and section ordering exactly. If a sec
 
 #### Prerequisites rules
 
-- **Do NOT repeat general prerequisites** (Azure subscription, Azure CLI, Python environment, APIM instance). These are documented once in the root README's [Getting Started](../../README.md#-getting-started) section and apply to all samples. The APIM Samples Developer CLI (`start.ps1` / `start.sh`) handles environment setup.
+- **Do NOT repeat general prerequisites** (Azure subscription, Azure CLI, Python environment, APIM instance). These are documented once in the [root README](../README.md), under Getting Started, and apply to all samples. The APIM Samples Developer CLI (`start.ps1` / `start.sh`) handles environment setup.
 - **Only add `## ✅ Prerequisites`** when a sample has genuinely unique requirements that go beyond the root README, such as:
    - Additional Azure RBAC role assignments beyond Contributor
    - External service accounts (e.g., a Spotify developer account)
@@ -525,13 +531,13 @@ The public landing page at <https://azure-samples.github.io/Apim-Samples/> is bu
 
 **Treat `docs/index.html` as a downstream consumer of the README.** When you change any of the following, update the landing page in the same PR:
 
-| Change | Update required in `docs/index.html` | Also update |
-| --- | --- | --- |
-| Add / remove / rename an **infrastructure** | Add / remove / rename the matching `.infra-card` **and** the matching `ListItem` in the JSON-LD `ItemList` (in `<head>`). Update the infrastructure count in the first `.value-card` if it still says "Five". | Add / remove the SVG copy line in `.github/workflows/github-pages.yml`. |
-| Add / remove / rename a **sample** | Add / remove / rename the matching `.sample-card` **and** the matching `ListItem` in the JSON-LD `ItemList`. | — |
-| Change a sample's **supported infrastructures** | Update the `.infra-tag` text on that sample's card. | — |
-| Change the **quick-start flow** in the root README | Update the four `.step` items. | — |
-| Rename or replace an **architecture SVG** in `assets/diagrams/` | — | Update the matching `cp` line in `.github/workflows/github-pages.yml`. |
+| Change                                                          | Update required in `docs/index.html`                                                                                                                                                                          | Also update                                                             |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Add / remove / rename an **infrastructure**                     | Add / remove / rename the matching `.infra-card` **and** the matching `ListItem` in the JSON-LD `ItemList` (in `<head>`). Update the infrastructure count in the first `.value-card` if it still says "Five". | Add / remove the SVG copy line in `.github/workflows/github-pages.yml`. |
+| Add / remove / rename a **sample**                              | Add / remove / rename the matching `.sample-card` **and** the matching `ListItem` in the JSON-LD `ItemList`.                                                                                                  | —                                                                       |
+| Change a sample's **supported infrastructures**                 | Update the `.infra-tag` text on that sample's card.                                                                                                                                                           | —                                                                       |
+| Change the **quick-start flow** in the root README              | Update the four `.step` items.                                                                                                                                                                                | —                                                                       |
+| Rename or replace an **architecture SVG** in `assets/diagrams/` | —                                                                                                                                                                                                             | Update the matching `cp` line in `.github/workflows/github-pages.yml`.  |
 
 Check `docs/README.md` for local preview instructions and styling notes. The page is deliberately plain static HTML + an external stylesheet (`docs/styles.css`), with no executable JavaScript and no build tooling, so that it cannot rot due to a transitive npm dependency. The only `<script>` tag is the JSON-LD structured-data block, which must stay inline because search-engine crawlers do not reliably follow external JSON-LD references. Keep it that way unless there is a compelling reason to add a build step.
 
@@ -619,9 +625,61 @@ Azure Monitor Workbook definitions stored in this repository must follow the **`
 - **Push script**: A sample that ships a workbook should provide an `update-workbook.ps1` (or equivalent) helper that reads `<name>.workbook.json` and updates the deployed workbook resource via `az rest`. The script should accept a mandatory `-rg` parameter and preserve any user-edited workbook parameter values (e.g. cost rates) from the live resource so that re-pushing source-controlled changes does not clobber portal edits.
 - **Tests**: Workbook JSON files should be parsed and structurally validated by a unit test (see `tests/python/test_costing_workbook.py` for the canonical pattern: schema check, parameter presence, KQL query well-formedness).
 
+### Azure Monitor Workbook Table Presentation
+
+Workbook tables must use readable, consistently formatted column titles and numeric values:
+
+- **Use human-readable column titles.** Do not expose raw camelCase or PascalCase telemetry identifiers as table headers. Add a final KQL `project-rename` presentation layer after filtering, aggregation, ordering, and row limiting so internal query names remain stable. Separate words with spaces and preserve standard initialisms such as `API`, `APIM`, `AOAI`, `ID`, and `LLM`. For example, use `AOAI Instance`, `Correlation ID`, and `Model Deployment`, not `AOAIInstance`, `CorrelationId`, or `DeploymentName`.
+- **Include units in column titles.** Add the unit in parentheses whenever the value's unit is not otherwise obvious. For example, rename `TotalTime` to `Total Time (ms)`, `AverageBackendMs` to `Average Backend (ms)`, and a percentage value to a title ending in `(%)`.
+- **Always use thousands separators for quantitative numeric values.** Configure every count, duration, token, cost, percentage, and other quantitative numeric table column with a `gridSettings.formatters` entry whose `numberFormat.options` uses `"style": "decimal"` and `"useGrouping": true`. Set `minimumFractionDigits` and `maximumFractionDigits` to values appropriate for the metric. Numeric identifiers and categorical status codes do not require numeric formatting.
+- **Keep formatted values numeric.** Do not use KQL `format_*()`, `tostring()`, or string concatenation to add separators, units, currency symbols, or percent signs. Keep the result typed as numeric so workbook sorting, filtering, thresholds, and visualizations continue to work; apply presentation through `numberFormat`.
+
+```kql
+| project-rename
+    ['API'] = ApiId,
+    ['AOAI Instance'] = AOAIInstance,
+    ['Total Time (ms)'] = TotalTime,
+    ['Total Tokens'] = TotalTokens
+```
+
+```json
+"gridSettings": {
+  "formatters": [
+    {
+      "columnMatch": "Total Time \\(ms\\)",
+      "formatter": 0,
+      "numberFormat": {
+        "unit": 0,
+        "options": {
+          "style": "decimal",
+          "useGrouping": true,
+          "minimumFractionDigits": 1,
+          "maximumFractionDigits": 1
+        }
+      }
+    },
+    {
+      "columnMatch": "Total Tokens",
+      "formatter": 0,
+      "numberFormat": {
+        "unit": 0,
+        "options": {
+          "style": "decimal",
+          "useGrouping": true,
+          "minimumFractionDigits": 0,
+          "maximumFractionDigits": 0
+        }
+      }
+    }
+  ]
+}
+```
+
 ### Azure Monitor Workbook Query Optimization
 
 Azure Monitor Workbook query items execute independently — there is no native mechanism to share a materialized table across query items. Apply the following patterns to minimise data scanned and improve workbook responsiveness:
+
+- **Leave missing numeric values empty.** Workbook tables must not show `Na`, `NaN`, `Infinity`, or other sentinel text when a numeric value is unavailable. Keep the column numeric and normalize non-finite aggregate results to a typed null, for example `iff(isfinite(toreal(AverageMs)), round(AverageMs, 1), real(null))`. Do not stringify the numeric column or substitute labels such as `N/A`; Azure Workbooks render `real(null)` as an empty cell while preserving numeric sorting and formatting for populated values.
 
 - **`materialize()` for multi-reference `let` bindings.** When a `let` binding is referenced more than once in the same query (e.g. once for a `toscalar(count)` and once for the main `summarize`), wrap it in `materialize()` so Log Analytics computes the base set once per query execution rather than scanning the underlying table twice.
 
@@ -649,7 +707,7 @@ Azure Monitor Workbook query items execute independently — there is no native 
   ```
 
 - **Avoid duplicate queries across items.** If two workbook visualisations require identical data, consider whether they can share a single query item with different chart/table renderings, or whether the layout can be restructured to avoid scanning the same data twice. Workbook Merge items can combine two previously-computed result sets but cannot perform arbitrary re-aggregation.
-- **Keep the Workbook `timeContext` on each query item** rather than relying solely on the global parameter. This ensures Log Analytics can push down the time filter to the storage layer even when the parameter is complex.
+- **Bind each Workbook query item's `timeContext` to the visible time parameter.** Set `timeContext.durationMs` to `0` and `timeContextFromParameter` to the parameter name (for example, `TimeRange`). A fixed item-level duration silently intersects the KQL time filter and can hide rows that are inside the user's selected range. Keeping the bound item context also lets Log Analytics push the time filter down to the storage layer.
 - **Prefer `summarize` close to the source.** Push `summarize` as early as possible in the pipeline to reduce the volume of rows flowing through subsequent operators.
 
 ### Admin APIs (`/admin/`) Convention
@@ -669,5 +727,7 @@ Samples that require administrative or operational endpoints (cache loading, con
 - When migrating existing samples, update policy path helpers to check `samples/<sample-name>/apim-policies/` first and the sample root second as a temporary backwards-compatible fallback. New files must use `apim-policies/`; do not rely on the fallback for newly created policies.
 - After moving KQL or policy XML files, check and update every notebook, Python helper, Bicep `loadTextContent()` call, test, script, and documentation reference that consumes them. Add or update tests for canonical-directory resolution, root-level fallback, explicit paths, auto-detected sample names, and missing files before considering the migration complete.
 - Policies should use camelCase for all variable names.
+- In XML attribute values and element text, encode `&` as `&amp;` and `<` as `&lt;`. Encode `>` as `&gt;` for paired angle brackets and comparisons so the policy expression remains unambiguous and consistent. This applies to C# generic type arguments (`GetValueOrDefault&lt;int&gt;`), comparisons (`value &lt;= limit`, `value &gt; limit`), and logical AND (`left &amp;&amp; right`).
 - In policy expressions inside double-quoted XML attributes, escape embedded double quotes as `&quot;` (for example, `value="@((string)context.Variables[&quot;callerId&quot;])"`). Unescaped quotes make the XML malformed. Expressions in element text, such as `<value>@("text")</value>`, do not require this escaping.
+- The `<backend>` section may contain only one direct child policy. When retrying a backend request, make `<retry>` the sole direct child of `<backend>` and place `<forward-request>` plus any per-attempt policies inside it. Move terminal fallback handling to `<on-error>` or `<outbound>` as appropriate. Do not add sibling policies such as `<base />` or `<choose>` alongside the backend `<retry>`; APIM rejects the policy during deployment.
 - Policy expressions (`@(...)` and `@{...}`) may **only** reference .NET types and members on APIM's [allow-list](https://learn.microsoft.com/azure/api-management/api-management-policy-expressions#CLRTypes). Using anything outside the list (e.g. `System.Globalization.*`, `DateTime.TryParse`, `DateTime.ToUniversalTime`, `System.Text.Json`) causes a deploy-time `ValidationError: One or more fields contain incorrect values` with no further detail. Verify each type/member against the allow-list before writing the expression. See `.github/skills/apim-policies/SKILL.md` for common pitfalls and allowed replacements.

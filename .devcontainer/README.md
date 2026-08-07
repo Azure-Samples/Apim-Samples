@@ -4,14 +4,16 @@ This directory contains the optimized dev container configuration for the Azure 
 
 ## 📋 Table of Contents
 
-- [Overview](#-overview)
-- [Files in this Directory](#-files-in-this-directory)
-- [Setup Stages](#-setup-stages)
-- [Optimization Strategy](#-optimization-strategy)
-- [Prebuild Configuration](#-prebuild-configuration)
-- [Jupyter Kernel Configuration](#-jupyter-kernel-configuration)
-- [Troubleshooting](#-troubleshooting)
-- [Performance Notes](#-performance-notes)
+<!-- markdownlint-disable MD051 -->
+- [Overview](#overview)
+- [Files in this Directory](#files-in-this-directory)
+- [Setup Stages](#setup-stages)
+- [Optimization Strategy](#optimization-strategy)
+- [Prebuild Configuration](#prebuild-configuration)
+- [Jupyter Kernel Configuration](#jupyter-kernel-configuration)
+- [Troubleshooting](#troubleshooting)
+- [Performance Notes](#performance-notes)
+<!-- markdownlint-enable MD051 -->
 
 ## 🎯 Overview
 

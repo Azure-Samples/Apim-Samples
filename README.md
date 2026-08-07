@@ -44,6 +44,7 @@ It's quick and easy to get started!
 
 ## 📁 List of Infrastructures
 
+<!-- markdownlint-disable-next-line MD033 -->
 <details open>
 
 | Infrastructure Name                                                                         | Description                                                                                                                                                                                                                                                                                                                                                                                                                                 |
@@ -58,6 +59,7 @@ It's quick and easy to get started!
 
 ## 📁 List of Samples
 
+<!-- markdownlint-disable-next-line MD033 -->
 <details open>
 
 | Sample Name                                     | Description                                                                                                                                                                                                                                                                                          | Supported Infrastructure(s) |
@@ -69,6 +71,7 @@ It's quick and easy to get started!
 | [Dynamic CORS][sample-dynamic-cors]             | Dynamic per-API CORS origin validation using custom policy fragments and a maintainable origin mapping.                                                                                                                                                                                              | All infrastructures         |
 | [Egress Control][sample-egress-control]         | Control APIM outbound internet traffic by routing it through a Network Virtual Appliance (NVA) in a hub/spoke topology.                                                                                                                                                                              | appgw-apim, appgw-apim-pe   |
 | [General][sample-general]                       | Basic demo of APIM sample setup and policy usage.                                                                                                                                                                                                                                                    | All infrastructures         |
+| [Inference Failover][sample-inference-failover] | Route compatible Azure OpenAI models through priority and weighted APIM backend pools with focused LLM failover and token telemetry.                                                                                                                                                                 | All infrastructures         |
 | [Load Balancing][sample-load-balancing]         | Priority and weighted load balancing across backends.                                                                                                                                                                                                                                                | apim-aca, afd-apim-pe       |
 | [OAuth 3rd-Party][sample-oauth-3rd-party]       | Authenticate with APIM which then uses its Credential Manager with Spotify's REST API.                                                                                                                                                                                                               | All infrastructures         |
 | [Secure Blob Access][sample-secure-blob-access] | Secure blob access via the [valet key pattern][valet-key-pattern].                                                                                                                                                                                                                                   | All infrastructures         |
@@ -79,9 +82,7 @@ It's quick and easy to get started!
 
 Most samples work with all infrastructures, making this a truly _à la carte_ experience. The diagrams below show which samples are compatible with which infrastructures, and which APIM SKUs each infrastructure supports.
 
-<img src="./assets/diagrams/Infrastructure-Sample-Compatibility.svg" alt="Infrastructure and Sample Compatibility Matrix" title="Infrastructure and Sample Compatibility Matrix" />
-
-<img src="./assets/diagrams/Infrastructure-SKU-Compatibility.svg" alt="Infrastructure and SKU Compatibility Matrix" title="Infrastructure and SKU Compatibility Matrix" />
+![Infrastructure and Sample Compatibility Matrix](./assets/diagrams/Infrastructure-Sample-Compatibility.svg "Infrastructure and Sample Compatibility Matrix")
 
 ## 🧰 APIM Samples Developer CLI
 
@@ -106,7 +107,7 @@ This menu-driven interface provides quick access to:
 - **Tests**: Run ruff, pytest, and full Python checks
 - **Presentation**: Serve the slide deck in a browser or export a self-contained HTML copy
 
-<img src="./assets/dev-cli-lint-test-results.png" alt="APIM Samples Developer CLI showing final linting, test, and code coverage results" title="APIM Samples Developer CLI Final Results" />
+![APIM Samples Developer CLI showing final linting, test, and code coverage results](./assets/dev-cli-lint-test-results.png "APIM Samples Developer CLI Final Results")
 
 > The _APIM Samples Developer CLI_ is not synonomous with the _Azure Developer CLI_. These are two separate CLIs.
 
@@ -158,19 +159,18 @@ APIM Samples supports two setup options:
 ### Option 1: GitHub Codespaces / Dev Container (Recommended for First-Time Users)
 
 <details>
-<br/>
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Azure-Samples/Apim-Samples?devcontainer_path=.devcontainer%2Fpython314%2Fdevcontainer.json)
 
-**The fastest way to get started is using our pre-configured development environment. Just click the *Open in GitHub Codespaces* button above!** Everything is pre-installed and configured—just sign in to Azure and you're ready to go.
+**The fastest way to get started is using our pre-configured development environment. Just click the _Open in GitHub Codespaces_ button above!** Everything is pre-installed and configured—just sign in to Azure and you're ready to go.
 
 This is especially helpful if you're new to APIM, unfamiliar with Python environments, or want to avoid local setup complexity. **The entire setup typically takes 2-3 minutes.**
 
-**GitHub Codespaces**: You can also go through the menu by clicking the green "Code" button → "Codespaces" → "..." → "New with options..." → "Dev container configuration" (select Python version but ignore *Default project configuration*) → "Create codespace"
+**GitHub Codespaces**: You can also go through the menu by clicking the green "Code" button → "Codespaces" → "..." → "New with options..." → "Dev container configuration" (select Python version but ignore _Default project configuration_) → "Create codespace"
 
 📖 **For detailed setup information, troubleshooting, and optimization details, see [Codespaces Quickstart](.devcontainer/CODESPACES-QUICKSTART.md) and [Dev Container Documentation](.devcontainer/README.md)**
 
-<img src="./assets/codespaces-python-configurations.png" alt="Codespaces configuration selector for various supposed Python versions" title="Codespaces configuration selector" />
+![Codespaces configuration selector for various supposed Python versions](./assets/codespaces-python-configurations.png "Codespaces configuration selector")
 
 **VS Code Dev Containers**: Alternatively, you can run the dev container locally by installing the [Dev Containers extension][vscode-devcontainers], then selecting "Reopen in Container".
 
@@ -197,6 +197,8 @@ All prerequisites are automatically installed and configured.
 #### 📋 Prerequisites
 
 These prerequisites apply broadly across all infrastructure and samples. If there are specific deviations, expect them to be noted there.
+
+<!-- markdownlint-disable MD005 MD007 -->
 
 - [Python][python] **3.12, 3.13, and 3.14 are all supported**
 - **uv** (<https://docs.astral.sh/uv/>) - Fast Python package manager
@@ -251,8 +253,10 @@ Now that infrastructure and sample have been stood up, you can experiment with t
 
 The Python helpers in this repo use standard-library `logging`, empowering you to control verbosity via environment variables in the root `.env` file. This file is created via the APIM Samples Developer CLI.
 
+<!-- markdownlint-disable MD007 -->
+
 - `APIM_SAMPLES_LOG_LEVEL`: Controls the overall verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`). Default: `INFO`.
-   - When set to `DEBUG`, the Azure CLI runner in [shared/python/azure_resources.py](shared/python/azure_resources.py) will also add `--debug` to simple `az ...` commands.
+   - If set to `DEBUG`, the Azure CLI runner in [shared/python/azure_resources.py](shared/python/azure_resources.py) will also add `--debug` to simple `az ...` commands.
 - `APIM_SAMPLES_CONSOLE_WIDTH`: Optional wrap width for long lines (defaults to `120`).
 
 ## Troubleshooting
@@ -376,6 +380,7 @@ _For much more API Management content, please also check out [APIM Love](https:/
 [sample-costing]: ./samples/costing/README.md
 [sample-dynamic-cors]: ./samples/dynamic-cors/README.md
 [sample-general]: ./samples/general/README.md
+[sample-inference-failover]: ./samples/inference-failover/README.md
 [sample-load-balancing]: ./samples/load-balancing/README.md
 [sample-egress-control]: ./samples/egress-control/README.md
 [sample-oauth-3rd-party]: ./samples/oauth-3rd-party/README.md

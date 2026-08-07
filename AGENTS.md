@@ -37,6 +37,7 @@ All repository contributions should treat accessibility as a first-class quality
 │   ├── costing/             # APIM costing and showback
 │   ├── egress-control/      # Egress control via NVA routing
 │   ├── general/             # Basic policy demonstrations
+│   ├── inference-failover/  # AOAI model failover with LLM telemetry
 │   ├── load-balancing/      # Backend pool load balancing
 │   ├── oauth-3rd-party/     # OAuth 3rd-party (Spotify example)
 │   └── secure-blob-access/  # Valet key pattern for blob storage
@@ -82,9 +83,10 @@ Use these skills for specialized tasks. Skills are located in `.github/skills/`.
 
 Use these custom agents for focused repository workflows. Agents are located in `.github/agents/`.
 
-| Agent                   | When to Use                                                                                                                                                 |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **APIM Sample Creator** | Adding a new sample, gathering missing sample metadata, scaffolding from `_TEMPLATE`, and updating README, website, slide deck, and compatibility artifacts |
+| Agent                       | When to Use                                                                                                                                                        |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **APIM Sample Creator**     | Adding a new sample, gathering missing sample metadata, scaffolding from `_TEMPLATE`, and updating README, website, slide deck, and compatibility artifacts        |
+| **APIM Sample Publisher**   | Finalizing an implemented sample for review or release by synchronizing READMEs, website, SEO, slide deck, compatibility artifacts, and quality checks             |
 
 ### How to Use Skills
 
@@ -122,6 +124,10 @@ Skills provide templates, patterns, and step-by-step workflows.
 - Ask the user for supported infrastructures if they are not provided.
 - Keep sample display names consistent across README tables, the website, the slide deck, and compatibility artifacts.
 - If a broadly useful improvement is discovered while creating a sample, suggest updating `samples/_TEMPLATE` so future samples inherit it.
+
+## Publishing a Sample
+
+Use `.github/agents/apim-sample-publisher.agent.md` after sample implementation is ready for a final quality pass. The publisher agent checks the working-tree diff, synchronizes README, website, SEO metadata and structured data, slideshow, matrix, and compatibility-diagram surfaces, runs the applicable linting and unit tests, exports the presentation, and reports any manual or live-Azure verification that remains.
 
 ### Sample Naming Conventions
 
@@ -228,6 +234,8 @@ Shared modules in `shared/bicep/modules/`:
 - Every package or GitHub Action release must complete a seven-day waiting period before use.
 - Preserve `tool.uv.exclude-newer = "7 days"` and Dependabot cooldowns for all configured ecosystems.
 - Before a locked Python install, run `python setup/verify_dependency_age.py --scope python`, then `uv sync --locked`.
+- Generate `uv.lock` against canonical public PyPI only by running `python setup/sync_dependencies.py --upgrade`. Never commit private mirror URLs, proxy configuration, credentials, or internal endpoints. Do not manually remove the registry and artifact URLs required by uv's lock schema.
+- If the lock's direct artifact URLs are inaccessible, export the frozen lock without index settings and install the temporary names, versions, markers, and hashes through the approved mirror with `uv pip sync --no-config --require-hashes --strict`. Use this fallback only after the age verifier succeeds, and never commit the temporary export.
 - Keep GitHub Actions pinned to 40-character commit SHAs with version comments and validate them with `python setup/verify_dependency_age.py --scope github-actions`.
 - Do not introduce direct install or upgrade commands that bypass the lockfile, age verifier, or release exclusion.
 

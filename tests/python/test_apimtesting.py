@@ -2,9 +2,9 @@
 Unit tests for the ApimTesting module.
 """
 
-from unittest.mock import patch
-import sys
 import os
+import sys
+from unittest.mock import call, patch
 
 # APIM Samples imports
 from apimtesting import ApimTesting
@@ -42,6 +42,12 @@ def test_apimtesting_init_with_parameters():
     assert not testing.errors
 
 
+def test_format_runtime():
+    """Test runtime formatting for sub-minute and multi-hour durations."""
+    assert ApimTesting.format_runtime(8.25) == '00:00:08.25'
+    assert ApimTesting.format_runtime(7384.5) == '02:03:04.50'
+
+
 # ------------------------------
 #    TEST VERIFY METHOD
 # ------------------------------
@@ -58,7 +64,11 @@ def test_verify_success():
         assert testing.tests_passed == 1
         assert not testing.tests_failed
         assert testing.total_tests == 1
-        mock_print.assert_called_with('✅ Test 1: PASS')
+        assert mock_print.call_args_list == [
+            call('🔍 Test 1: Assert that value [5] matches expected value [5].'),
+            call('✅ Test 1: PASS'),
+            call(),
+        ]
 
 
 def test_verify_failure():
@@ -74,7 +84,11 @@ def test_verify_failure():
         assert testing.total_tests == 1
         assert len(testing.errors) == 1
         assert 'Value [5] does not match expected value [10]' in testing.errors[0]
-        mock_print.assert_called_with('❌ Test 1: FAIL - Value [5] does not match expected value [10]')
+        assert mock_print.call_args_list == [
+            call('🔍 Test 1: Assert that value [5] matches expected value [10].'),
+            call('❌ Test 1: FAIL - Value [5] does not match expected value [10]'),
+            call(),
+        ]
 
 
 def test_verify_multiple_tests():
@@ -147,10 +161,11 @@ def test_verify_with_label():
         assert testing.tests_passed == 1
         assert not testing.tests_failed
 
-        # Check that label was used in the print statement
-        calls = [str(call) for call in mock_print.call_args_list]
-        label_found = any('HTTP Status Code' in call for call in calls)
-        assert label_found
+        assert mock_print.call_args_list == [
+            call('🔍 Test 1: Assert that HTTP Status Code value [200] matches expected value [200].'),
+            call('✅ Test 1: PASS'),
+            call(),
+        ]
 
 
 def test_verify_with_label_failure():
@@ -163,10 +178,11 @@ def test_verify_with_label_failure():
         assert result is False
         assert testing.tests_failed == 1
 
-        # Check that label was used in the output
-        calls = [str(call) for call in mock_print.call_args_list]
-        label_found = any('Status' in call for call in calls)
-        assert label_found
+        assert mock_print.call_args_list == [
+            call('🔍 Test 1: Assert that Status value [404] matches expected value [200].'),
+            call('❌ Test 1: FAIL - Value [404] does not match expected value [200]'),
+            call(),
+        ]
 
 
 # ------------------------------
@@ -269,6 +285,19 @@ def test_print_summary_with_none_values():
         calls = [call.args[0] for call in mock_print.call_args_list if call.args]
         na_messages = [call for call in calls if 'N/A' in call]
         assert len(na_messages) > 0
+
+
+def test_print_summary_runtime():
+    """Test that print_summary reports elapsed runtime from suite initialization."""
+    with patch('apimtesting.perf_counter', side_effect=[100.0, 223.456]):
+        testing = ApimTesting()
+
+        with patch('builtins.print') as mock_print:
+            testing.print_summary()
+
+    calls = [call.args[0] for call in mock_print.call_args_list if call.args]
+    runtime_messages = [call for call in calls if 'Runtime' in call]
+    assert runtime_messages == ['    • Runtime      : 00:02:03.46 (HH:MM:SS.ss)\n']
 
 
 # ------------------------------

@@ -4,7 +4,7 @@ Sets up a simple authentication (authN) and authorization (authZ) combination fo
 
 ⚙️ **Supported infrastructures**: All infrastructures
 
-👟 **Expected *Run All* runtime (excl. infrastructure prerequisite): ~2-3 minutes**
+👟 **Expected _Run All_ runtime (excl. infrastructure prerequisite): ~2-3 minutes**
 
 ## 🎯 Objectives
 

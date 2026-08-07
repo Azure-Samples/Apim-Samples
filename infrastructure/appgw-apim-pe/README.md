@@ -2,7 +2,7 @@
 
 Secure architecture that takes all traffic off the public Internet once Azure Application (App) Gateway is traversed. Traffic behind App Gateway is subsequently inaccessible to the public. This is due to App Gateway's use of Private Link to Azure API Management.
 
-<img src="../../assets/diagrams/Azure Application Gateway, API Management & Container Apps Architecture.svg" alt="Diagram showing Azure Application Gateway, API Management, and Container Apps architecture. Azure Application Gateway routes traffic to API Management, which then routes to Container Apps. Telemetry is sent to Azure Monitor." title="Azure Application Gateway, API Management & Container Apps Architecture" width="1000" />
+![Diagram showing Azure Application Gateway, API Management, and Container Apps architecture. Azure Application Gateway routes traffic to API Management, which then routes to Container Apps. Telemetry is sent to Azure Monitor.](../../assets/diagrams/Azure%20Application%20Gateway%2C%20API%20Management%20%26%20Container%20Apps%20Architecture.svg "Azure Application Gateway, API Management & Container Apps Architecture")
 
 > Diagram created with the [Azure Draw.io MCP Server](https://github.com/simonkurtz-MSFT/drawio-mcp-server).
 
@@ -31,7 +31,7 @@ NSG behavior:
 
 👟 **Expected *Run All* runtime: ~13 minutes**
 
-1. Execute this lab's [Jupyter Notebook][infra-notebook] step-by-step or via _Run All_.
+1. Execute this lab's [Jupyter Notebook][infra-notebook] step-by-step or via *Run All*.
 
 ## 🧪 Testing
 

@@ -8,9 +8,11 @@
 | **authX**                   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   |
 | **authX-pro**               | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   |
 | **azure-maps**              | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   |
-| **costin**                  | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   |
+| **costing**                 | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   |
 | **dynamic-cors**            | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   |
+| **egress-control**          | **N/A**                      | **N/A**                      | **N/A**                      | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   |
 | **general**                 | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   |
+| **inference-failover**      | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   |
 | **load-balancing**          | **N/A**                      | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   |
 | **oauth-3rd-party**         | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   |
 | **secure-blob-access**      | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   | ▢ Local<br>▢ Dev Container   |

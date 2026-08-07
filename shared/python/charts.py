@@ -5,12 +5,27 @@ This module will likely be moved to the /shared/python directory in the future o
 """
 
 import json
+from collections import Counter
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import pandas as pd
 from apimtypes import HttpStatusCode
+from matplotlib.figure import Figure
 from matplotlib.patches import Rectangle as pltRectangle
+
+
+def _format_request_count(count: int) -> str:
+    """Return a request count with the grammatically correct noun."""
+    noun = 'request' if count == 1 else 'requests'
+
+    return f'{count} {noun}'
+
+
+def _format_percentage(count: int, total: int) -> str:
+    """Return a percentage while handling an empty denominator."""
+    return f'{count / total:.1%}' if total else '0.0%'
+
 
 # ------------------------------
 #    CLASSES
@@ -34,6 +49,7 @@ class BarChart:
         api_results: list[dict],
         fig_text: str = None,
         vertical_separator: tuple[float, str] | list[tuple[float, str]] | None = None,
+        backend_labels: dict[int, str] | None = None,
     ) -> None:
         """
         Initialize the BarChart with API results.
@@ -47,6 +63,8 @@ class BarChart:
             vertical_separator (tuple[float, str] | list[tuple[float, str]], optional): Either a
                 single (x_position, label) tuple or a list of such tuples. Each entry draws a
                 dashed vertical separator at the given x (in bar-index units) with an annotation.
+            backend_labels (dict[int, str], optional): Human-readable legend labels keyed by
+                backend index. Missing indexes use the default numeric label.
         """
         self.title = title
         self.x_label = x_label
@@ -54,6 +72,7 @@ class BarChart:
         self.api_results = api_results
         self.fig_text = fig_text
         self.vertical_separator = vertical_separator
+        self.backend_labels = backend_labels or {}
 
     # ------------------------------
     #    PUBLIC METHODS
@@ -65,11 +84,15 @@ class BarChart:
         """
         self._plot_barchart(self.api_results)
 
+    def render(self) -> Figure:
+        """Render the bar chart without displaying it and return the figure."""
+        return self._plot_barchart(self.api_results, show=False)
+
     # ------------------------------
     #    PRIVATE METHODS
     # ------------------------------
 
-    def _plot_barchart(self, api_results: list[dict]) -> None:
+    def _plot_barchart(self, api_results: list[dict], show: bool = True) -> Figure:
         """
         Internal method to plot the bar chart.
 
@@ -103,34 +126,80 @@ class BarChart:
 
         df = pd.DataFrame(rows)
 
-        mpl.rcParams['figure.figsize'] = [15, 8]
+        mpl.rcParams['figure.figsize'] = [17, 11]
 
-        # Define a color map for each backend index (OK) and errors (non-OK always lightcoral)
+        # Define a color map for each successful backend and conspicuous error categories.
         backend_indexes_200 = sorted(df[df['Status Code'] == HttpStatusCode.OK]['Backend Index'].unique())
         color_palette = ['lightyellow', 'lightblue', 'lightgreen', 'plum', 'orange']
         color_map_200 = {idx: color_palette[i % len(color_palette)] for i, idx in enumerate(backend_indexes_200)}
+        backend_request_counts = Counter(row['Backend Index'] for row in rows if row['Status Code'] == HttpStatusCode.OK)
+        request_count = len(api_results)
+        response_count = len(rows)
+        successful_response_count = sum(200 <= row['Status Code'] < 300 for row in rows)
+        client_error_count = sum(400 <= row['Status Code'] < 500 for row in rows)
+        server_error_count = sum(500 <= row['Status Code'] < 600 for row in rows)
+        other_error_count = sum(row['Status Code'] != HttpStatusCode.OK and not 400 <= row['Status Code'] < 600 for row in rows)
+        client_error_color = '#d83b01'
+        server_error_color = '#a4262c'
+        other_error_color = '#5c2d91'
 
         bar_colors = []
         for _, row in df.iterrows():
             if row['Status Code'] == HttpStatusCode.OK:
                 bar_colors.append(color_map_200.get(row['Backend Index'], 'gray'))
+            elif 400 <= row['Status Code'] < 500:
+                bar_colors.append(client_error_color)
+            elif 500 <= row['Status Code'] < 600:
+                bar_colors.append(server_error_color)
             else:
-                bar_colors.append('lightcoral')
+                bar_colors.append(other_error_color)
 
         # Plot the dataframe with colored bars
         ax = df.plot(kind='bar', x='Run', y='Response Time (ms)', color=bar_colors, legend=False, edgecolor='black')
 
-        # Add dynamic legend based on backend indexes present in the data. We let the legend
-        # auto-size to its contents and use `borderpad` to add internal padding (especially at
-        # the top) so entries do not visually touch the legend frame.
+        # Add a dynamic legend based on backend indexes present in the data.
         legend_labels = []
         legend_names = []
         for idx in backend_indexes_200:
             legend_labels.append(pltRectangle((0, 0), 1, 1, color=color_map_200[idx]))
-            legend_names.append(f'Backend index {idx} (200)')
-        legend_labels.append(pltRectangle((0, 0), 1, 1, color='lightcoral'))
-        legend_names.append('Error/Other (non-200)')
-        ax.legend(legend_labels, legend_names, borderpad=1.5)
+            backend_label = self.backend_labels.get(idx, f'Backend index {idx}')
+            legend_names.append(f'{backend_label} - {_format_request_count(backend_request_counts[idx])}')
+        if client_error_count:
+            legend_labels.append(pltRectangle((0, 0), 1, 1, color=client_error_color))
+            legend_names.append(f'!!! 4xx CLIENT ERRORS - {_format_request_count(client_error_count)} !!!')
+        if server_error_count:
+            legend_labels.append(pltRectangle((0, 0), 1, 1, color=server_error_color))
+            legend_names.append(f'!!! 5xx SERVER ERRORS - {_format_request_count(server_error_count)} !!!')
+        if other_error_count:
+            legend_labels.append(pltRectangle((0, 0), 1, 1, color=other_error_color))
+            legend_names.append(f'!!! OTHER NON-200 RESPONSES - {_format_request_count(other_error_count)} !!!')
+        ax.legend(legend_labels, legend_names, loc='upper left', bbox_to_anchor=(1.01, 1), borderpad=1.2)
+
+        has_errors = client_error_count or server_error_count or other_error_count
+        status_summary = (
+            f'Requests: {request_count}\n'
+            f'Responses: {response_count} ({_format_percentage(response_count, request_count)})\n\n'
+            f'2xx: {successful_response_count} ({_format_percentage(successful_response_count, response_count)})\n'
+            f'4xx: {client_error_count} ({_format_percentage(client_error_count, response_count)})\n'
+            f'5xx: {server_error_count} ({_format_percentage(server_error_count, response_count)})'
+        )
+        ax.text(
+            1.02,
+            0.62,
+            status_summary,
+            transform=ax.transAxes,
+            ha='left',
+            va='top',
+            fontsize=11,
+            color=server_error_color if has_errors else 'black',
+            fontweight='bold' if has_errors else 'normal',
+            bbox={
+                'boxstyle': 'square,pad=0.8',
+                'facecolor': '#fff1f0' if has_errors else 'white',
+                'edgecolor': server_error_color if has_errors else 'lightgray',
+                'linewidth': 2.5 if has_errors else 1,
+            },
+        )
 
         plt.title(self.title)
         plt.xlabel(self.x_label)
@@ -150,8 +219,9 @@ class BarChart:
                 plt.axhline(y=avg, color='b', linestyle='--')
                 plt.text(len(df) - 1, avg, avg_label, color='b', va='bottom', ha='right', fontsize=10)
 
-        # Add figtext under the chart
-        plt.figtext(0.13, -0.1, wrap=True, ha='left', fontsize=11, s=self.fig_text)
+        # Reserve room for the right-side summary and explanatory text below the x-axis.
+        plt.subplots_adjust(right=0.76, bottom=0.3)
+        plt.figtext(0.08, 0.03, wrap=True, ha='left', fontsize=11, s=self.fig_text)
 
         # Optional vertical separator(s) with annotation (e.g. wait-period marker). Accepts
         # either a single (x, label) tuple or a list of them. The label is nudged slightly to
@@ -164,4 +234,7 @@ class BarChart:
                 plt.axvline(x=sep_x, color='gray', linestyle='--', linewidth=4, alpha=0.7)
                 plt.text(sep_x - 0.25, y_max * 0.95, sep_label, color='dimgray', rotation=90, va='top', ha='right', fontsize=10)
 
-        plt.show()
+        if show:
+            plt.show()
+
+        return ax.figure

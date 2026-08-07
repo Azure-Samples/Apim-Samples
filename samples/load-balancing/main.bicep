@@ -8,8 +8,13 @@ param location string = resourceGroup().location
 @description('The unique suffix to append. Defaults to a unique string based on subscription and resource group IDs.')
 param resourceSuffix string = uniqueString(subscription().id, resourceGroup().id)
 
+@description('Name of the existing API Management service.')
 param apimName string = 'apim-${resourceSuffix}'
+
+@description('Name of the existing infrastructure-deployed Application Insights component to reuse for API diagnostics.')
 param appInsightsName string = 'appi-${resourceSuffix}'
+
+@description('Array of inference APIs assembled by the notebook.')
 param apis array = []
 
 // ------------------

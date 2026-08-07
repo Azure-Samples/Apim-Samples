@@ -25,6 +25,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from sync_dependencies import sync_dependencies
+
 AZURE_CLI_TIMEOUT_SECONDS = 15
 
 # Configure UTF-8 encoding for console output
@@ -54,7 +56,7 @@ def check_virtual_environment():
     """Check if we're running in the correct virtual environment."""
     venv_path = Path.cwd() / '.venv'
     if not venv_path.exists():
-        return False, 'Create it: uv venv && uv sync --locked (then activate: source .venv/bin/activate or .venv\\Scripts\\activate on Windows)'
+        return False, 'Create it: uv venv && python setup/sync_dependencies.py (then activate: source .venv/bin/activate or .venv\\Scripts\\activate on Windows)'
 
     current_python = Path(sys.executable)
     expected_venv_python = venv_path / ('Scripts' if os.name == 'nt' else 'bin') / 'python'
@@ -79,11 +81,9 @@ def check_uv_sync():
             return False, f'Failed to create venv with uv: {exc}'
 
     try:
-        dependency_check = Path(__file__).resolve().parent / 'verify_dependency_age.py'
-        subprocess.run([sys.executable, str(dependency_check), '--scope', 'python'], check=True, capture_output=True)
-        subprocess.run([uv_path, 'sync', '--locked'], check=True, capture_output=True)
+        sync_dependencies(uv_path=uv_path)
         return True, ''
-    except subprocess.CalledProcessError as exc:
+    except (subprocess.CalledProcessError, ValueError) as exc:
         return False, f'Failed to sync dependencies with uv: {exc}'
 
 
@@ -104,7 +104,7 @@ def check_required_packages():
             missing.append(package_name)
 
     if missing:
-        return False, f'Install missing packages: uv sync --locked (missing: {", ".join(missing)})'
+        return False, f'Install missing packages: python setup/sync_dependencies.py (missing: {", ".join(missing)})'
 
     return True, ''
 
@@ -151,7 +151,7 @@ def check_jupyter_kernel():
     except subprocess.TimeoutExpired:
         return False, "Jupyter kernel check timed out. Try: python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)'"
     except (subprocess.CalledProcessError, FileNotFoundError):
-        return False, 'Add eligible Jupyter tooling after its waiting period, then run uv sync --locked'
+        return False, 'Add eligible Jupyter tooling after its waiting period, then run python setup/sync_dependencies.py'
 
 
 def check_vscode_settings():
@@ -285,10 +285,7 @@ def check_azure_login():
     except subprocess.TimeoutExpired:
         return False, f'Azure login check timed out after {AZURE_CLI_TIMEOUT_SECONDS} seconds. Retry verification or run: az account show'
     except (subprocess.CalledProcessError, json.JSONDecodeError):
-        return False, (
-            'Log in via the APIM Developer CLI or `az login --tenant <tenant-id>`,'
-            ' then set the subscription, if needed, via `az account set --subscription <subscription-id>`'
-        )
+        return False, ('Log in via the APIM Developer CLI or `az login --tenant <tenant-id>`, then set the subscription, if needed, via `az account set --subscription <subscription-id>`')
 
 
 def check_azure_providers():
@@ -332,9 +329,7 @@ def check_azure_providers():
         fix_cmds = ', '.join([f'az provider register -n {provider}' for provider in missing_providers])
         return False, f'Register missing providers: {fix_cmds}'
     except subprocess.TimeoutExpired:
-        return False, (
-            f'Azure provider check timed out after {AZURE_CLI_TIMEOUT_SECONDS} seconds. Retry verification after Azure CLI responds normally.'
-        )
+        return False, (f'Azure provider check timed out after {AZURE_CLI_TIMEOUT_SECONDS} seconds. Retry verification after Azure CLI responds normally.')
     except (subprocess.CalledProcessError, json.JSONDecodeError, FileNotFoundError):
         return False, 'Log in then retry: az login --tenant <tenant> && az account set --subscription <subscription>'
 

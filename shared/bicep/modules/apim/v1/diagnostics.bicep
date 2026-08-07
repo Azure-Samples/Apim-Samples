@@ -24,6 +24,15 @@ param enableLogAnalytics bool = true
 @description('Log Analytics Workspace ID for diagnostic settings')
 param logAnalyticsWorkspaceId string = ''
 
+@description('Enable Event Hub streaming for APIM logs and metrics')
+param enableEventHub bool = false
+
+@description('Resource ID of the Event Hubs namespace authorization rule used by Azure Monitor diagnostic settings')
+param eventHubAuthorizationRuleId string = ''
+
+@description('Name of the Event Hub to receive APIM logs and metrics')
+param eventHubName string = ''
+
 @description('Enable Application Insights logger and diagnostic policy for APIM')
 param enableApplicationInsights bool = true
 
@@ -51,6 +60,9 @@ param enableLlmLogs bool = false
 // ------------------
 
 var diagnosticSettingsName = 'apim-${diagnosticSettingsNameSuffix}'
+var enableEventHubDestination = enableEventHub && !empty(eventHubAuthorizationRuleId) && !empty(eventHubName)
+var enableLogAnalyticsDestination = enableLogAnalytics && !empty(logAnalyticsWorkspaceId)
+var enableResourceLogExport = enableLogAnalyticsDestination || enableEventHubDestination
 
 
 // ------------------
@@ -65,12 +77,14 @@ resource apimService 'Microsoft.ApiManagement/service@2024-06-01-preview' existi
 
 // Configure diagnostic settings to send logs to Log Analytics Workspace
 // https://learn.microsoft.com/azure/templates/microsoft.insights/diagnosticsettings
-resource apimDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (enableLogAnalytics && !empty(logAnalyticsWorkspaceId)) {
+resource apimDiagnosticSettings 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (enableResourceLogExport) {
   name: diagnosticSettingsName
   scope: apimService
   properties: {
-    workspaceId: logAnalyticsWorkspaceId
-    logAnalyticsDestinationType: 'Dedicated'
+    eventHubAuthorizationRuleId: enableEventHubDestination ? eventHubAuthorizationRuleId : null
+    eventHubName: enableEventHubDestination ? eventHubName : null
+    workspaceId: enableLogAnalyticsDestination ? logAnalyticsWorkspaceId : null
+    logAnalyticsDestinationType: enableLogAnalyticsDestination ? 'Dedicated' : null
     logs: [
       {
         category: 'GatewayLogs'
@@ -178,7 +192,7 @@ resource apimDiagnostic 'Microsoft.ApiManagement/service/diagnostics@2024-06-01-
 // Configure Azure Monitor diagnostic settings for APIM
 // This ensures gateway logs include subscription IDs and other details
 // https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/diagnostics
-resource apimAzureMonitorDiagnostic 'Microsoft.ApiManagement/service/diagnostics@2024-06-01-preview' = if (enableLogAnalytics) {
+resource apimAzureMonitorDiagnostic 'Microsoft.ApiManagement/service/diagnostics@2024-06-01-preview' = if (enableLogAnalytics || enableEventHub) {
   parent: apimService
   name: 'azuremonitor'
   properties: {
@@ -198,7 +212,7 @@ resource apimAzureMonitorDiagnostic 'Microsoft.ApiManagement/service/diagnostics
 // ------------------
 
 @description('APIM diagnostic settings resource ID')
-output diagnosticSettingsId string = enableLogAnalytics && !empty(logAnalyticsWorkspaceId) ? apimDiagnosticSettings.id : ''
+output diagnosticSettingsId string = enableResourceLogExport ? apimDiagnosticSettings.id : ''
 
 @description('APIM logger resource ID')
 output apimLoggerId string = enableApplicationInsights && !empty(appInsightsInstrumentationKey) && !empty(appInsightsResourceId) ? apimLogger.id : ''
@@ -207,4 +221,4 @@ output apimLoggerId string = enableApplicationInsights && !empty(appInsightsInst
 output apimDiagnosticId string = enableApplicationInsights && !empty(appInsightsInstrumentationKey) && !empty(appInsightsResourceId) ? apimDiagnostic.id : ''
 
 @description('APIM Azure Monitor diagnostic resource ID')
-output apimAzureMonitorDiagnosticId string = enableLogAnalytics ? apimAzureMonitorDiagnostic.id : ''
+output apimAzureMonitorDiagnosticId string = enableLogAnalytics || enableEventHub ? apimAzureMonitorDiagnostic.id : ''

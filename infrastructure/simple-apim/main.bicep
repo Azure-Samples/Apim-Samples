@@ -14,6 +14,9 @@ param apimSku string
 param apis array = []
 param policyFragments array = []
 
+@description('Whether APIM responses expose the selected backend URL for learning and testing. Disable for production-like environments.')
+param revealBackendApiInfo bool = true
+
 // ------------------
 //    RESOURCES
 // ------------------
@@ -44,7 +47,7 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
     apimSku: apimSku
     appInsightsInstrumentationKey: appInsightsInstrumentationKey
     appInsightsId: appInsightsId
-    globalPolicyXml: loadTextContent('../../shared/apim-policies/all-apis.xml')
+    globalPolicyXml: revealBackendApiInfo ? loadTextContent('../../shared/apim-policies/all-apis-reveal-backend.xml') : loadTextContent('../../shared/apim-policies/all-apis.xml')
   }
 }
 

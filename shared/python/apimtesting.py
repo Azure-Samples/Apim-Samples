@@ -2,6 +2,8 @@
 Rudimentary test framework to offload validations from the Jupyter notebooks.
 """
 
+from time import perf_counter
+
 # APIM Samples imports
 from apimtypes import INFRASTRUCTURE
 
@@ -35,10 +37,19 @@ class ApimTesting:
         self.tests_failed = 0
         self.total_tests = 0
         self.errors = []
+        self.start_time = perf_counter()
 
     # ------------------------------
     #    PUBLIC METHODS
     # ------------------------------
+
+    @staticmethod
+    def format_runtime(runtime_seconds: float) -> str:
+        """Format an elapsed runtime as hours, minutes, and seconds."""
+        hours, remaining_seconds = divmod(runtime_seconds, 3600)
+        minutes, seconds = divmod(remaining_seconds, 60)
+
+        return f'{int(hours):02}:{int(minutes):02}:{seconds:05.2f}'
 
     def verify(self, value: any, expected: any, label: str = '') -> bool:
         """
@@ -52,16 +63,18 @@ class ApimTesting:
         Returns:
             bool: True, if the assertion passes; otherwise, False.
         """
+        self.total_tests += 1
+
         try:
             if label:
-                print(f'🔍 Assert that {label} value [{value}] matches expected value [{expected}].')
+                print(f'🔍 Test {self.total_tests}: Assert that {label} value [{value}] matches expected value [{expected}].')
             else:
-                print(f'🔍 Assert that value [{value}] matches expected value [{expected}].')
+                print(f'🔍 Test {self.total_tests}: Assert that value [{value}] matches expected value [{expected}].')
 
-            self.total_tests += 1
             assert value == expected, f'Value [{value}] does not match expected value [{expected}]'
             self.tests_passed += 1
             print(f'✅ Test {self.total_tests}: PASS')
+            print()
 
             return True
         except AssertionError as e:
@@ -69,6 +82,7 @@ class ApimTesting:
             label_suffix = f' [{label}]' if label else ''
             self.errors.append(f'Test {self.total_tests}{label_suffix}: {str(e)}')
             print(f'❌ Test {self.total_tests}: FAIL - {str(e)}')
+            print()
 
             return False
 
@@ -82,6 +96,7 @@ class ApimTesting:
 
         # Calculate success rate and create visual elements
         success_rate = (self.tests_passed / self.total_tests * 100) if self.total_tests > 0 else 0
+        runtime = self.format_runtime(perf_counter() - self.start_time)
         border_width = 70
         border_line = '=' * border_width
 
@@ -104,7 +119,8 @@ class ApimTesting:
         print(f'    • Total Tests  : {self.total_tests:>5}')
         print(f'    • Tests Passed : {self.tests_passed:>5}')
         print(f'    • Tests Failed : {self.tests_failed:>5} {"❌" if self.tests_failed > 0 else ""}')
-        print(f'    • Success Rate : {success_rate:>5.1f}%\n')
+        print(f'    • Success Rate : {success_rate:>5.1f}%')
+        print(f'    • Runtime      : {runtime} (HH:MM:SS.ss)\n')
 
         # Overall result
         if not self.tests_failed and self.total_tests > 0:
