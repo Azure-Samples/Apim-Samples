@@ -49,7 +49,7 @@
         <retry count="RETRY_COUNT" interval="0" first-fast-retry="true" condition='@(context.Response == null || context.Response.StatusCode == 408 || (context.Response.StatusCode == 409 &amp;&amp; context.Response.Headers.ContainsKey("Retry-After")) || context.Response.StatusCode == 429 || context.Response.StatusCode == 499 || context.Response.StatusCode == 500 || context.Response.StatusCode == 502 || context.Response.StatusCode == 503 || context.Response.StatusCode == 504)'>
             <set-variable name="backendAttempt" value='@(((int)context.Variables["backendAttempt"]) + 1)' />
 
-            <forward-request buffer-request-body="true" />
+            <forward-request timeout="60" buffer-request-body="true" />
 
             <!-- Record one compact event per backend call; gateway fields provide the final response and error details. -->
             <trace source="InferenceBackendAttempt" severity="information">

@@ -12,7 +12,7 @@
     <backend>
         <!-- Two retries permit three total attempts and may already be more than sufficient. -->
         <retry count="{retry_count}" interval="0" first-fast-retry="true" condition="@(context.Response.StatusCode == 429 || context.Response.StatusCode == 503)">
-            <forward-request buffer-request-body="true" />
+            <forward-request timeout="60" buffer-request-body="true" />
         </retry>
     </backend>
     <outbound>
