@@ -13,7 +13,7 @@ This sample uses Azure API Management as an AI Gateway for two Azure OpenAI mode
 
 1. Route each model only to compatible Azure OpenAI deployments through model-specific APIM backend pools.
 1. Observe priority failover and equal-weight terminal routing when regional `Standard` deployments return `429` or `503` responses.
-1. Capture request, retry-trail, failure, latency, and token telemetry through `ApiManagementGatewayLogs`, `TraceRecords`, and `ApiManagementGatewayLlmLog`.
+1. Capture request, retry-trail, per-backend-attempt, total APIM, failure, and token telemetry through gateway logs and Application Insights.
 1. Use a controlled low-capacity model constellation to generate observable failover without treating simulated PTU tiers as real provisioned deployments.
 
 ## ✅ Prerequisites
@@ -127,12 +127,12 @@ This lab adds the following to an existing APIM infrastructure:
 - Three AI Gateway APIs with managed identity authentication to Azure OpenAI. Both exercised routes permit two retries after the initial attempt, for three total attempts. This may already be more than sufficient for interactive traffic. The bounded limit is independent of pool size because failed backends are removed from selection by their circuit breakers. Members separated by `/` share a priority and have equal weights.
 - An optional `POST /inference/gpt-5-1-retry-tracked/chat/completions` route that shares the gpt-5.1 pool and demonstrates minimum `Retry-After` tracking. It is deployed for manual comparison and excluded from the notebook's automated traffic and verification.
 - Model-specific retry policies that buffer the POST body while immediately retrying conditional conflicts, throttling, and listed infrastructure failures; emit an information-level trace after every backend attempt; return caller-visible retry counts; and return a generic `503` when infrastructure failover is exhausted. Only the optional comparison policy caches the soonest recovery time and rewrites retry-budget `429` exhaustion.
-- APIM AI Gateway diagnostics using the infrastructure-provided Log Analytics workspace and Application Insights component, plus a workbook for terminal outcomes, retry trails, backend distribution, APIM errors, token coverage, API surface, streaming mode, estimated token cost, and latency.
+- APIM AI Gateway diagnostics using the infrastructure-provided Log Analytics workspace and Application Insights component, plus a workbook for terminal outcomes, retry trails, individual backend-attempt duration, total APIM duration, backend distribution, APIM errors, token coverage, API surface, streaming mode, estimated token cost, and latency.
 - An optional Standard Event Hubs namespace, telemetry hub, and `external-observability` consumer group in the APIM region for downstream stream processors, SIEM platforms, or external analytics systems.
 
 ### Observability Signals
 
-Every inference call produces one `ApiManagementGatewayLogs` row. The workbook and KQL files preserve the difference between the APIM caller response and the final backend response so an operator can determine whether APIM recovered, transformed the result, or exhausted fallback capacity.
+Every inference call produces one `ApiManagementGatewayLogs` row and one Application Insights `AppRequests` row. APIM also emits one `AppDependencies` row for each forwarded backend call, so a retried request has multiple dependency rows under the same `OperationId`. The workbook and KQL files preserve the difference between the APIM caller response and the final backend response so an operator can determine whether APIM recovered, transformed the result, or exhausted fallback capacity.
 
 | Signal                       | Source                                                                                 | What it explains                                                                                                                       |
 | ---------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
@@ -142,11 +142,13 @@ Every inference call produces one `ApiManagementGatewayLogs` row. The workbook a
 | Final backend placement      | `ApiManagementGatewayLogs.BackendId`, `BackendUrl`                                     | The concrete backend used for the final attempt.                                                                                       |
 | AOAI account instance        | First DNS label parsed from `ApiManagementGatewayLogs.BackendUrl`                      | The Azure OpenAI account resource that serviced the final backend request; empty when APIM recorded no backend call.                   |
 | Retry trail                  | `ApiManagementGatewayLogs.TraceRecords`                                                | Attempt budget, backend URL, status, and optional `Retry-After`; workbook KQL derives the member ID from the deployment path.          |
+| Individual attempt duration  | `AppDependencies.DurationMs` joined to `AppRequests` by `OperationId`                  | The duration of each failed or successful backend call in a retry chain.                                                               |
+| Total APIM duration          | `ApiManagementGatewayLogs.TotalTime` or `AppRequests.DurationMs`                       | End-to-end time from APIM receiving the request until it completes, including retries and policy processing.                           |
 | Exhausted fallback           | `ApiManagementGatewayLogs.ResponseCode`, `BackendResponseCode`, and `LastErrorReason`  | The workbook derives whether APIM returned capacity exhaustion as `429` or normalized infrastructure or transport exhaustion to `503`. |
 | Native APIM failures         | `Errors`, `LastErrorSource`, `LastErrorReason`, `LastErrorSection`, `LastErrorMessage` | Pipeline failures that are not ordinary Azure OpenAI HTTP responses.                                                                   |
 | LLM usage and message chunks | `ApiManagementGatewayLlmLog` joined by `CorrelationId`                                 | Model deployment, token usage, and whether prompt/completion message telemetry arrived.                                                |
 
-The sample includes copy-paste KQL for aggregated outcomes, backend distribution, failure taxonomy, telemetry coverage, API delivery modes, estimated token cost, and a per-request investigation view. The workbook exposes the same operational views and adds a correlation-ID filter for targeted troubleshooting. See the [query catalog](queries/README.md) for parameters, signal sources, and investigation guidance.
+The sample includes copy-paste KQL for aggregated outcomes, backend distribution, retry-attempt duration, failure taxonomy, telemetry coverage, API delivery modes, estimated token cost, and a per-request investigation view. The workbook's **Failover Trails** tab includes a **Retried Backend Requests** table with one row per dependency attempt and the complete APIM duration repeated for context. See the [query catalog](queries/README.md) for parameters, signal sources, and investigation guidance.
 
 - [api-delivery-modes.kql](queries/api-delivery-modes.kql) - Chat Completions or Responses API usage split by streaming mode.
 - [failover-outcomes.kql](queries/failover-outcomes.kql) - Caller-visible outcomes, final backend outcomes, and retry statistics.

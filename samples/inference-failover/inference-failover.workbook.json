@@ -218,7 +218,7 @@
         "items": [
           {
             "content": {
-              "json": "# Inference Failover Telemetry\n\nThis workbook observes Azure OpenAI inference requests routed through APIM backend pools. All model deployments are regional `Standard` pay-as-you-go deployments with deliberately small capacity. The `PTU` labels describe the preference tiers simulated by the policy; they do not represent provisioned throughput billing or capacity.\n\nEvery APIM call is represented by one `ApiManagementGatewayLogs` row. The workbook separates the status returned to the caller (`ResponseCode`) from the final backend status (`BackendResponseCode`), retains native APIM `Errors` and `LastError*` details, and uses `TraceRecords` emitted by the policy to reconstruct retry counts and exhausted fallback chains. Successful calls are correlated with `ApiManagementGatewayLlmLog` for token and message-chunk telemetry.\n\n**Pick a Time Range** at the top - it applies to every tab. Then open the tab that matches your question."
+              "json": "# Inference Failover Telemetry\n\nThis workbook observes Azure OpenAI inference requests routed through APIM backend pools. All model deployments are regional `Standard` pay-as-you-go deployments with deliberately small capacity. The `PTU` labels describe the preference tiers simulated by the policy; they do not represent provisioned throughput billing or capacity.\n\nEvery APIM call is represented by one `ApiManagementGatewayLogs` row. The workbook separates the status returned to the caller (`ResponseCode`) from the final backend status (`BackendResponseCode`), retains native APIM `Errors` and `LastError*` details, and uses `TraceRecords` emitted by the policy to reconstruct retry counts and exhausted fallback chains. Application Insights provides one `AppRequests` frontend row and one `AppDependencies` row per forwarded backend call, which exposes total APIM duration and each retry attempt's duration. Successful calls are correlated with `ApiManagementGatewayLlmLog` for token and message-chunk telemetry.\n\n**Pick a Time Range** at the top - it applies to every tab. Then open the tab that matches your question."
             },
             "name": "text - overview-intro",
             "type": 1
@@ -231,7 +231,7 @@
               "items": [
                 {
                   "content": {
-                    "json": "| Tab | Question it answers |\n|---|---|\n| **Failover Outcomes** | What did APIM return to callers, and what did the final selected backend return? |\n| **Backend Distribution** | Which concrete backend URLs handled the final attempts? |\n| **Failover Trails** | Which calls retried, recovered after failover, or exhausted the chain? |\n| **Failures & Errors** | What backend and APIM pipeline failures occurred, with native diagnostics? |\n| **Tokens & Latency** | Are token/message logs complete, and how did latency trend? |\n| **Request Explorer** | What happened on one correlation ID from gateway ingress through LLM telemetry? |"
+                    "json": "| Tab | Question it answers |\n|---|---|\n| **Failover Outcomes** | What did APIM return to callers, and what did the final selected backend return? |\n| **Backend Distribution** | Which concrete backend URLs handled the final attempts? |\n| **Failover Trails** | Which calls retried, how long did each backend attempt take, and what was the total APIM duration? |\n| **Failures & Errors** | What backend and APIM pipeline failures occurred, with native diagnostics? |\n| **Tokens & Latency** | Are token/message logs complete, and how did latency trend? |\n| **Request Explorer** | What happened on one correlation ID from gateway ingress through LLM telemetry? |"
                   },
                   "name": "text - overview-tabmap",
                   "type": 1
@@ -495,7 +495,7 @@
         "items": [
           {
             "content": {
-              "json": "## Failover Trails\n\nThe policy writes a compact `InferenceAttempt` record after every forwarded backend attempt. These views count the records, derive retries as attempts minus one, and retain an ordered trail with the attempt number and total, concrete backend member ID and URL, response code, and optional `Retry-After` value."
+              "json": "## Failover Trails\n\nThe policy writes a compact `InferenceAttempt` record after every forwarded backend attempt. The summary and request trail count those records, derive retries as attempts minus one, and retain the backend identity, response code, and optional `Retry-After` value. **Retried Backend Requests** uses Application Insights instead: APIM emits one `AppDependencies` row for every forwarded call and one `AppRequests` row for the complete frontend transaction. This shows the failed and successful attempt durations independently while repeating the total APIM duration for context."
             },
             "name": "text - trails",
             "type": 1
@@ -557,6 +557,59 @@
               "visualization": "table"
             },
             "name": "query - failover-summary",
+            "type": 3
+          },
+          {
+            "content": {
+              "gridSettings": {
+                "filter": true,
+                "formatters": [
+                  {
+                    "columnMatch": "^(Attempt|Attempts)$",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 0,
+                        "maximumFractionDigits": 0
+                      }
+                    }
+                  },
+                  {
+                    "columnMatch": "^(Backend Duration \\(ms\\)|Total APIM \\(ms\\))$",
+                    "formatter": 0,
+                    "numberFormat": {
+                      "unit": 0,
+                      "options": {
+                        "style": "decimal",
+                        "useGrouping": true,
+                        "minimumFractionDigits": 1,
+                        "maximumFractionDigits": 1
+                      }
+                    }
+                  }
+                ],
+                "rowLimit": 10000
+              },
+              "noDataMessage": "No retried Application Insights dependency chains found. Generate retrying traffic and allow Application Insights ingestion to complete.",
+              "query": "let frontendRequests = materialize(AppRequests\n| where TimeGenerated {TimeRange}\n| extend RequestPath = tostring(parse_url(Url).Path)\n| where RequestPath in~ ('/inference/gpt-5-1/chat/completions', '/inference/gpt-4-1-mini/chat/completions')\n| project OperationId, RequestTime = TimeGenerated, API = RequestPath, CallerStatus = toint(ResultCode), TotalApimMs = DurationMs);\nlet backendAttempts = materialize(AppDependencies\n| where TimeGenerated {TimeRange}\n| where DependencyType =~ 'HTTP'\n| extend BackendHost = tostring(parse_url(Data).Host)\n| where BackendHost endswith '.openai.azure.com'\n| join kind=inner frontendRequests on OperationId\n| project OperationId, BackendStart = TimeGenerated, API, CallerStatus, TotalApimMs, BackendHost, BackendUrl = Data, BackendStatus = toint(ResultCode), BackendDurationMs = DurationMs, BackendSucceeded = Success);\nlet retriedOperations = backendAttempts\n| summarize Attempts = count() by OperationId\n| where Attempts > 1;\nbackendAttempts\n| join kind=inner retriedOperations on OperationId\n| sort by OperationId asc, BackendStart asc\n| serialize\n| extend Attempt = row_number(1, prev(OperationId) != OperationId)\n| extend AOAIInstance = tostring(split(BackendHost, '.')[0])\n| project BackendStart, OperationId, API, Attempt, Attempts, AOAIInstance, BackendUrl, BackendStatus, BackendSucceeded, BackendDurationMs, CallerStatus, TotalApimMs\n| order by BackendStart desc\n| project-rename ['Backend Start'] = BackendStart, ['Operation ID'] = OperationId, ['AOAI Instance'] = AOAIInstance, ['Backend URL'] = BackendUrl, ['Backend Status'] = BackendStatus, ['Backend Succeeded'] = BackendSucceeded, ['Backend Duration (ms)'] = BackendDurationMs, ['Caller Status'] = CallerStatus, ['Total APIM (ms)'] = TotalApimMs",
+              "queryType": 0,
+              "resourceType": "microsoft.operationalinsights/workspaces",
+              "size": 0,
+              "timeContext": {
+                "durationMs": 0
+              },
+              "timeContextFromParameter": "TimeRange",
+              "title": "Retried Backend Requests",
+              "version": "KqlItem/1.0",
+              "visualization": "table"
+            },
+            "name": "query - backend-retry-attempts",
+            "styleSettings": {
+              "showBorder": true
+            },
             "type": 3
           },
           {

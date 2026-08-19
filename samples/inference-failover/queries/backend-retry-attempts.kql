@@ -1,0 +1,72 @@
+// Shows one row per forwarded backend call for APIM requests that retried.
+// AppRequests.DurationMs is the complete APIM request duration; each
+// AppDependencies.DurationMs value is the duration of one backend attempt.
+//
+// Parameters (prepend as KQL 'let' bindings before running):
+//   let timeWindow = 1h;
+//   let apiPaths = dynamic([
+//       '/inference/gpt-5-1/chat/completions',
+//       '/inference/gpt-4-1-mini/chat/completions'
+//   ]);
+//
+let frontendRequests = materialize(AppRequests
+| where TimeGenerated > ago(timeWindow)
+| extend RequestPath = tostring(parse_url(Url).Path)
+| where RequestPath in~ (apiPaths)
+| project
+    OperationId,
+    RequestTime = TimeGenerated,
+    API = RequestPath,
+    CallerStatus = toint(ResultCode),
+    TotalApimMs = DurationMs);
+let backendAttempts = materialize(AppDependencies
+| where TimeGenerated > ago(timeWindow)
+| where DependencyType =~ 'HTTP'
+| extend BackendHost = tostring(parse_url(Data).Host)
+| where BackendHost endswith '.openai.azure.com'
+| join kind=inner frontendRequests on OperationId
+| project
+    OperationId,
+    BackendStart = TimeGenerated,
+    API,
+    CallerStatus,
+    TotalApimMs,
+    BackendHost,
+    BackendUrl = Data,
+    BackendStatus = toint(ResultCode),
+    BackendDurationMs = DurationMs,
+    BackendSucceeded = Success);
+let retriedOperations = backendAttempts
+| summarize Attempts = count() by OperationId
+| where Attempts > 1;
+backendAttempts
+| join kind=inner retriedOperations on OperationId
+| sort by OperationId asc, BackendStart asc
+| serialize
+| extend Attempt = row_number(1, prev(OperationId) != OperationId)
+| extend AOAIInstance = tostring(split(BackendHost, '.')[0])
+| project
+    BackendStart,
+    OperationId,
+    API,
+    Attempt,
+    Attempts,
+    AOAIInstance,
+    BackendUrl,
+    BackendStatus,
+    BackendSucceeded,
+    BackendDurationMs,
+    CallerStatus,
+    TotalApimMs
+| order by BackendStart desc
+| project-rename
+    ['Backend Start'] = BackendStart,
+    ['Operation ID'] = OperationId,
+    ['API'] = API,
+    ['AOAI Instance'] = AOAIInstance,
+    ['Backend URL'] = BackendUrl,
+    ['Backend Status'] = BackendStatus,
+    ['Backend Succeeded'] = BackendSucceeded,
+    ['Backend Duration (ms)'] = BackendDurationMs,
+    ['Caller Status'] = CallerStatus,
+    ['Total APIM (ms)'] = TotalApimMs

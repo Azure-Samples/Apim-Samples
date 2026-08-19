@@ -15,12 +15,16 @@ let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-4-1-mini']);
 
 Adjust `timeWindow` when investigating a shorter incident window or a longer trend. Narrow `apiIds` when you only need one model-safe backend pool.
 
+The retry-attempt query scopes Application Insights by request path instead. Its header includes the `apiPaths` binding for the two exercised inference routes.
+
 ## Signal Sources
 
 - `ApiManagementGatewayLogs`: Caller-visible response codes, final backend response codes, backend placement, timing, APIM errors, and policy trace records.
+- `AppRequests`: One Application Insights frontend request per APIM transaction, including complete request duration in `DurationMs`.
+- `AppDependencies`: One Application Insights dependency per forwarded backend call, including each retry attempt's target, status, success state, and `DurationMs`.
 - `ApiManagementGatewayLlmLog`: Correlated model deployment, prompt token, completion token, total token, and message-chunk telemetry.
 
-The retry-aware queries count compact `InferenceAttempt` entries in `TraceRecords`. Each entry includes the attempt budget, concrete backend member ID and URL, response code, and an optional `Retry-After` value for `429` responses. Exhausted fallback is derived from native `ResponseCode`, `BackendResponseCode`, and `LastErrorReason` fields.
+The retry-aware gateway queries count compact `InferenceAttempt` entries in `TraceRecords`. Each entry includes the attempt budget, concrete backend member ID and URL, response code, and an optional `Retry-After` value for `429` responses. Exhausted fallback is derived from native `ResponseCode`, `BackendResponseCode`, and `LastErrorReason` fields. These policy records explain the retry decision but do not measure each attempt. Use `AppDependencies.DurationMs` for individual backend duration and `AppRequests.DurationMs` or `ApiManagementGatewayLogs.TotalTime` for end-to-end APIM duration.
 
 ## Query Catalog
 
@@ -32,9 +36,15 @@ The automated sample harness currently produces Chat Completions non-streaming t
 
 ### [backend-distribution.kql](backend-distribution.kql)
 
-Use this query to see where APIM ultimately placed inference requests. It parses the Azure OpenAI account name from the final backend URL, groups gateway rows by API, AOAI instance, and concrete backend URL or backend ID, then reports the exact caller and final-backend status sets, successes, non-throttling client errors, throttled responses, server errors, residual responses, average backend latency, and success rate. The outcome counts are mutually exclusive and add up to the request total.
+Use this query to see where APIM ultimately placed inference requests. It parses the Azure OpenAI account name from the final backend URL, groups gateway rows by API, AOAI instance, and concrete backend URL or backend ID, then reports the exact caller and final-backend status sets, successes, non-throttling client errors, throttled responses, server errors, residual responses, average gateway `BackendTime`, and success rate. The outcome counts are mutually exclusive and add up to the request total.
 
-This is a useful first view when validating weighted distribution or checking whether pressure moved traffic to a regional fallback tier.
+This is a useful first view when validating weighted distribution or checking whether pressure moved traffic to a regional fallback tier. Because the gateway emits one row per APIM request, `BackendTime` does not provide a separate duration for every retry attempt. Use `backend-retry-attempts.kql` for that breakdown.
+
+### [backend-retry-attempts.kql](backend-retry-attempts.kql)
+
+Use this query to inspect only APIM operations that made more than one Azure OpenAI dependency call. It correlates `AppRequests` and `AppDependencies` by `OperationId`, sequences dependency spans by start time, and returns one row for every failed or successful backend attempt.
+
+`Backend Duration (ms)` is the individual dependency duration. `Total APIM (ms)` is the complete frontend request duration and is repeated on each row in the operation so it can be compared with the sum of backend calls and APIM policy overhead. The matching **Retried Backend Requests** table is on the workbook's **Failover Trails** tab.
 
 ### [failover-outcomes.kql](failover-outcomes.kql)
 

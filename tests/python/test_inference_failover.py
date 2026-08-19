@@ -19,6 +19,7 @@ WORKBOOK_UPDATE_PATH = SAMPLE_PATH / 'update-workbook.ps1'
 QUERIES_PATH = SAMPLE_PATH / 'queries'
 KQL_PATHS = [
     QUERIES_PATH / 'api-delivery-modes.kql',
+    QUERIES_PATH / 'backend-retry-attempts.kql',
     QUERIES_PATH / 'backend-distribution.kql',
     QUERIES_PATH / 'failure-analysis.kql',
     QUERIES_PATH / 'failover-outcomes.kql',
@@ -121,6 +122,7 @@ def test_inference_failover_workbook_is_ai_telemetry_and_cost_query_backed() -> 
     assert 'query - outcome-status-matrix' in item_names
     assert 'query - backend-distribution' in item_names
     assert 'query - failover-summary' in item_names
+    assert 'query - backend-retry-attempts' in item_names
     assert 'query - failover-request-trails' in item_names
     assert 'query - failure-taxonomy' in item_names
     assert 'query - raw-failure-explorer' in item_names
@@ -133,6 +135,8 @@ def test_inference_failover_workbook_is_ai_telemetry_and_cost_query_backed() -> 
     assert 'query - backend-latency-trend' in item_names
     assert 'query - request-explorer' in item_names
     assert 'apimanagementgatewayllmlog' in serialized
+    assert 'appdependencies' in serialized
+    assert 'apprequests' in serialized
     assert 'inferenceattempt' in serialized
     assert r'inferenceattempt\\|attempt=[0-9]+/[0-9]+\\|backendid=[^|]+\\|backend=[^|]+\\|code=' in serialized
     assert 'selectedbackendid' not in serialized
@@ -244,6 +248,7 @@ def test_inference_failover_workbook_uses_readable_table_column_titles() -> None
         'query - outcome-status-matrix': ("['API'] = ApiId", "['Average Total (ms)'] = AverageTotalMs"),
         'query - backend-distribution': ("['AOAI Instance'] = AOAIInstance", "['APIM Statuses'] = CallerResponseCodes"),
         'query - failover-summary': ("['Maximum Attempts'] = MaximumAttempts", "['P95 Total (ms)'] = P95TotalMs"),
+        'query - backend-retry-attempts': ("['Operation ID'] = OperationId", "['Backend Duration (ms)'] = BackendDurationMs"),
         'query - failover-request-trails': ("['Correlation ID'] = CorrelationId", "['Attempt Trail'] = AttemptTrail"),
         'query - failure-taxonomy': ("['Failure Type'] = FailureType", "['Last Error Reason'] = LastErrorReason"),
         'query - raw-failure-explorer': ("['Backend URL'] = BackendUrl", "['Trace Records'] = TraceRecords"),
@@ -266,6 +271,7 @@ def test_inference_failover_workbook_groups_quantitative_table_values() -> None:
         'query - outcome-status-matrix': [0, 2, 1],
         'query - backend-distribution': [0, 1],
         'query - failover-summary': [0, 2, 1],
+        'query - backend-retry-attempts': [0, 1],
         'query - failover-request-trails': [0],
         'query - failure-taxonomy': [0, 2, 1],
         'query - raw-failure-explorer': [1],
@@ -298,6 +304,10 @@ def test_inference_failover_kql_queries_scope_to_ai_gateway_signals() -> None:
     assert all(path.exists() for path in KQL_PATHS)
     assert 'ApiManagementGatewayLogs' in query_text
     assert 'ApiManagementGatewayLlmLog' in query_text
+    assert 'AppDependencies' in query_text
+    assert 'AppRequests' in query_text
+    assert 'OperationId' in query_text
+    assert 'DurationMs' in query_text
     assert 'BackendResponseCode' in query_text
     assert 'BackendUrl' in query_text
     assert 'TraceRecords' in query_text
@@ -309,6 +319,24 @@ def test_inference_failover_kql_queries_scope_to_ai_gateway_signals() -> None:
     assert 'inference-gpt-5-1' in query_text
     assert 'inference-gpt-4-1-mini' in query_text
     assert 'CostManagement' not in query_text
+
+
+def test_backend_retry_attempts_query_reports_attempt_and_total_duration() -> None:
+    """Keep retry dependency spans sequenced and joined to total APIM duration."""
+    query = (QUERIES_PATH / 'backend-retry-attempts.kql').read_text(encoding='utf-8')
+    workbook_query = _find_workbook_item(
+        _load_workbook()['items'],
+        'query - backend-retry-attempts',
+    )['content']['query']
+
+    for query_text in (query, workbook_query):
+        assert 'AppRequests' in query_text
+        assert 'AppDependencies' in query_text
+        assert 'join kind=inner frontendRequests on OperationId' in query_text
+        assert '| where Attempts > 1' in query_text
+        assert 'row_number(1, prev(OperationId) != OperationId)' in query_text
+        assert "['Backend Duration (ms)'] = BackendDurationMs" in query_text
+        assert "['Total APIM (ms)'] = TotalApimMs" in query_text
 
 
 def test_inference_failover_workbook_has_model_rates_and_delivery_dimensions() -> None:
