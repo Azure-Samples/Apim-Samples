@@ -161,6 +161,30 @@ def test_migrate_legacy_apim_diagnostic_settings_is_noop_without_existing_resour
     assert mock_run.call_count == 2
 
 
+def test_migrate_legacy_apim_diagnostic_settings_fails_when_resource_discovery_fails():
+    """Migration should stop when APIM or workspace discovery fails."""
+    with patch('azure_resources.run', side_effect=(Output(False, 'forbidden'), Output(True, '[]'))) as mock_run:
+        with pytest.raises(RuntimeError, match='Failed to discover.*resource group rg'):
+            az.migrate_legacy_apim_diagnostic_settings('rg')
+
+    assert mock_run.call_count == 2
+
+
+def test_migrate_legacy_apim_diagnostic_settings_fails_when_settings_inspection_fails():
+    """Migration should stop when an APIM resource's diagnostic settings cannot be inspected."""
+    apim_id = '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ApiManagement/service/apim-test'
+    apim_output = Output(True, json.dumps([apim_id]))
+    apim_output.json_data = [apim_id]
+    workspace_output = Output(True, '["workspace-id"]')
+    workspace_output.json_data = ['workspace-id']
+
+    with patch('azure_resources.run', side_effect=(apim_output, workspace_output, Output(False, 'forbidden'))) as mock_run:
+        with pytest.raises(RuntimeError, match=f'Failed to inspect diagnostic settings for APIM resource {apim_id}'):
+            az.migrate_legacy_apim_diagnostic_settings('rg')
+
+    assert mock_run.call_count == 3
+
+
 def test_migrate_legacy_apim_diagnostic_settings_fails_when_deletion_fails():
     """Migration should stop before deployment if a known conflict cannot be removed."""
     apim_id = '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ApiManagement/service/apim-test'
