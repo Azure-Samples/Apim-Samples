@@ -32,11 +32,13 @@ module lawModule '../../shared/bicep/modules/operational-insights/v1/workspaces.
   name: 'lawModule'
 }
 
+var lawId = lawModule.outputs.id
+
 // 2. Application Insights
 module appInsightsModule '../../shared/bicep/modules/monitor/v1/appinsights.bicep' = {
   name: 'appInsightsModule'
   params: {
-    lawId: lawModule.outputs.id
+    lawId: lawId
     customMetricsOptedInType: 'WithDimensions'
   }
 }
@@ -95,7 +97,7 @@ module apimDiagnosticsModule '../../shared/bicep/modules/apim/v1/diagnostics.bic
     enableEventHub: false
     enableLlmLogs: true
     enableLogAnalytics: true
-    logAnalyticsWorkspaceId: lawModule.outputs.id
+    logAnalyticsWorkspaceId: lawId
   }
   dependsOn: [
     apimModule

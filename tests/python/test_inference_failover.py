@@ -781,7 +781,7 @@ def test_inference_event_hub_export_is_regional_comprehensive_and_default_off() 
     assert "var eventHubConsumerGroupName = 'external-observability'" in bicep
     assert "resource eventHubExportAuthorizationRule 'Microsoft.EventHub/namespaces/authorizationRules@2024-01-01'" in bicep
     assert "'Listen'\n      'Send'\n      'Manage'" in bicep
-    assert 'enableEventHub: enableEventHubExport' in bicep
+    assert "module apimEventHubDiagnostics '../../shared/bicep/modules/apim/v1/diagnostics.bicep' = if (enableEventHubExport)" in bicep
     assert "eventHubAuthorizationRuleId: enableEventHubExport ? eventHubExportAuthorizationRule.id : ''" in bicep
     assert "eventHubName: enableEventHubExport ? eventHub.name : ''" in bicep
     assert 'output eventHubExportEnabled bool = enableEventHubExport' in bicep
