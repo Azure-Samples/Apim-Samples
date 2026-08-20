@@ -248,8 +248,8 @@ def test_inference_failover_workbook_uses_readable_table_column_titles() -> None
         'query - outcome-status-matrix': ("['API'] = ApiId", "['Average Total (ms)'] = AverageTotalMs"),
         'query - backend-distribution': ("['AOAI Instance'] = AOAIInstance", "['APIM Statuses'] = CallerResponseCodes"),
         'query - failover-summary': ("['Maximum Attempts'] = MaximumAttempts", "['P95 Total (ms)'] = P95TotalMs"),
-        'query - backend-retry-attempts': ("['Operation ID'] = OperationId", "['Backend Duration (ms)'] = BackendDurationMs"),
-        'query - failover-request-trails': ("['Correlation ID'] = CorrelationId", "['Attempt Trail'] = AttemptTrail"),
+        'query - backend-retry-attempts': ("['Operation ID'] = OperationId", "['Model Deployment'] = ModelDeployment"),
+        'query - failover-request-trails': ("['Correlation ID'] = CorrelationId", "['Model Deployment'] = ModelDeployment"),
         'query - failure-taxonomy': ("['Failure Type'] = FailureType", "['Last Error Reason'] = LastErrorReason"),
         'query - raw-failure-explorer': ("['Backend URL'] = BackendUrl", "['Trace Records'] = TraceRecords"),
         'query - token-throughput': ("['Model Deployment'] = DeploymentName", "['Total Tokens'] = TotalTokens"),
@@ -271,7 +271,7 @@ def test_inference_failover_workbook_groups_quantitative_table_values() -> None:
         'query - outcome-status-matrix': [0, 2, 1],
         'query - backend-distribution': [0, 1],
         'query - failover-summary': [0, 2, 1],
-        'query - backend-retry-attempts': [0, 1],
+        'query - backend-retry-attempts': [1, 1],
         'query - failover-request-trails': [0],
         'query - failure-taxonomy': [0, 2, 1],
         'query - raw-failure-explorer': [1],
@@ -284,12 +284,13 @@ def test_inference_failover_workbook_groups_quantitative_table_values() -> None:
 
     for item_name, precision in expected_precision.items():
         grid_settings = _find_workbook_item(workbook['items'], item_name)['content']['gridSettings']
-        formatters = grid_settings['formatters']
+        formatters = [formatter for formatter in grid_settings['formatters'] if 'numberFormat' in formatter]
+        expected_renderers = [0] * len(precision)
 
         assert len(formatters) == len(precision)
-        for formatter, fraction_digits in zip(formatters, precision, strict=True):
+        for formatter, fraction_digits, expected_renderer in zip(formatters, precision, expected_renderers, strict=True):
             options = formatter['numberFormat']['options']
-            assert formatter['formatter'] == 0
+            assert formatter['formatter'] == expected_renderer
             assert formatter['numberFormat']['unit'] == 0
             assert options['style'] == 'decimal'
             assert options['useGrouping'] is True
@@ -321,22 +322,141 @@ def test_inference_failover_kql_queries_scope_to_ai_gateway_signals() -> None:
     assert 'CostManagement' not in query_text
 
 
-def test_backend_retry_attempts_query_reports_attempt_and_total_duration() -> None:
-    """Keep retry dependency spans sequenced and joined to total APIM duration."""
+def test_backend_retry_attempts_query_reports_attempt_progress_and_durations() -> None:
+    """Keep retry spans sequenced with X/Y progress and backend and APIM durations."""
+    workbook = _load_workbook()
     query = (QUERIES_PATH / 'backend-retry-attempts.kql').read_text(encoding='utf-8')
-    workbook_query = _find_workbook_item(
-        _load_workbook()['items'],
-        'query - backend-retry-attempts',
-    )['content']['query']
+    workbook_query = _find_workbook_item(workbook['items'], 'query - backend-retry-attempts')['content']['query']
 
     for query_text in (query, workbook_query):
         assert 'AppRequests' in query_text
         assert 'AppDependencies' in query_text
+        assert "ApimRequestId = tostring(Properties['Request Id'])" in query_text
+        assert 'CallerStatus = tostring(ResultCode)' in query_text
+        assert 'TotalApimDurationMs = DurationMs' in query_text
+        assert 'ApimRequestId = CorrelationId' in query_text
+        assert "RetryAfter = tolong(extract(@'\\|retryAfter=([^|\"]+)', 1, AttemptRecord))" in query_text
+        assert '| where isnotnull(RetryAfter)' in query_text
         assert 'join kind=inner frontendRequests on OperationId' in query_text
         assert '| where Attempts > 1' in query_text
-        assert 'row_number(1, prev(OperationId) != OperationId)' in query_text
+        assert "BackendUrl = replace_regex(tostring(Data), @'^POST\\s+-\\s+', '')" in query_text
+        assert 'BackendHost = tostring(parse_url(BackendUrl).Host)' in query_text
+        assert 'BackendStatus = tostring(ResultCode)' in query_text
+        assert 'BackendUrl = Data' not in query_text
+        assert 'AttemptNumber = row_number(1, prev(OperationId) != OperationId)' in query_text
+        assert "Attempt = strcat(AttemptNumber, '/', Attempts)" in query_text
+        assert 'CumulativeBackendMs = row_cumsum(BackendDurationMs, prev(OperationId) != OperationId)' in query_text
+        assert "ModelDeployment = extract(@'/deployments/([^/?]+)', 1, BackendUrl)" in query_text
+        assert 'join kind=leftouter retryAfterAttempts on ApimRequestId, AttemptNumber' in query_text
+        assert "RetryAfter = iff(BackendStatus == '429', RetryAfter, long(null))" in query_text
+        assert '| order by RequestTime desc, AttemptNumber asc' in query_text
+        assert '| project-away RequestTime, AttemptNumber' in query_text
+        displayed_columns = query_text.split('| project-away RequestTime, AttemptNumber', maxsplit=1)[1]
+        assert 'AttemptNumber' not in displayed_columns
+        assert 'Attempts' not in displayed_columns
+        assert displayed_columns.index("['API'] = API") < displayed_columns.index("['Caller Status'] = CallerStatus")
+        assert displayed_columns.index("['Caller Status'] = CallerStatus") < displayed_columns.index("['Backend Start'] = BackendStart")
+        assert displayed_columns.index("['Backend Start'] = BackendStart") < displayed_columns.index("['AOAI Instance'] = AOAIInstance")
+        assert displayed_columns.index("['AOAI Instance'] = AOAIInstance") < displayed_columns.index("['Model Deployment'] = ModelDeployment")
+        assert displayed_columns.index("['Model Deployment'] = ModelDeployment") < displayed_columns.index("['Backend URL'] = BackendUrl")
+        assert displayed_columns.index("['Backend Status'] = BackendStatus") < displayed_columns.index("['Retry-After (s)'] = RetryAfter")
+        assert displayed_columns.index("['Retry-After (s)'] = RetryAfter") < displayed_columns.index("['Backend Succeeded'] = BackendSucceeded")
         assert "['Backend Duration (ms)'] = BackendDurationMs" in query_text
-        assert "['Total APIM (ms)'] = TotalApimMs" in query_text
+        assert "['Cumulative Backend (ms)'] = CumulativeBackendMs" in query_text
+        assert displayed_columns.index("['Cumulative Backend (ms)'] = CumulativeBackendMs") < displayed_columns.index("['Total APIM Duration (ms)'] = TotalApimDurationMs")
+        assert displayed_columns.rstrip().endswith("['Total APIM Duration (ms)'] = TotalApimDurationMs")
+
+    grid_settings = _find_workbook_item(workbook['items'], 'query - backend-retry-attempts')['content']['gridSettings']
+    assert grid_settings['hierarchySettings'] == {
+        'expandTopLevel': False,
+        'groupBy': ['Operation ID'],
+        'treeType': 1,
+    }
+    assert grid_settings['labelSettings'] == [{'columnId': 'Group', 'label': 'Operation ID Group'}]
+    assert any(formatter == {'columnMatch': 'Operation ID', 'formatter': 5} for formatter in grid_settings['formatters'])
+    assert all(formatter['columnMatch'] != '^(Attempt|Attempts)$' for formatter in grid_settings['formatters'])
+    assert all(formatter['formatter'] != 18 for formatter in grid_settings['formatters'])
+    assert any(
+        formatter
+        == {
+            'columnMatch': r'^(Backend Duration \(ms\)|Cumulative Backend \(ms\))$',
+            'formatter': 0,
+            'numberFormat': {
+                'unit': 0,
+                'options': {
+                    'style': 'decimal',
+                    'useGrouping': True,
+                    'minimumFractionDigits': 1,
+                    'maximumFractionDigits': 1,
+                },
+            },
+        }
+        for formatter in grid_settings['formatters']
+    )
+    assert any(
+        formatter
+        == {
+            'columnMatch': r'Total APIM Duration \(ms\)',
+            'formatter': 0,
+            'numberFormat': {
+                'unit': 0,
+                'options': {
+                    'style': 'decimal',
+                    'useGrouping': True,
+                    'minimumFractionDigits': 1,
+                    'maximumFractionDigits': 1,
+                },
+            },
+        }
+        for formatter in grid_settings['formatters']
+    )
+
+
+def test_failover_trails_tables_have_adjacent_names_and_descriptions() -> None:
+    """Place each detailed trail table immediately after its explanatory heading."""
+    trails_group = _find_workbook_item(_load_workbook()['items'], 'group - tab-4-trails')
+    items = trails_group['content']['items']
+    item_names = [item['name'] for item in items]
+
+    retry_text_index = item_names.index('text - backend-retry-attempts')
+    policy_text_index = item_names.index('text - failover-request-trails')
+
+    assert item_names[retry_text_index + 1] == 'query - backend-retry-attempts'
+    assert item_names[policy_text_index + 1] == 'query - failover-request-trails'
+    assert items[retry_text_index]['content']['json'].startswith('## Retried Backend Requests\n\n')
+    assert '`X/Y` attempt position' in items[retry_text_index]['content']['json']
+    assert 'model deployment parsed from the backend URL' in items[retry_text_index]['content']['json']
+    assert 'cumulative backend duration' in items[retry_text_index]['content']['json']
+    assert items[policy_text_index]['content']['json'].startswith('## Policy Attempt Trails\n\n')
+    assert 'policy-recorded attempt sequence' in items[policy_text_index]['content']['json']
+    assert 'final AOAI instance and model deployment' in items[policy_text_index]['content']['json']
+
+
+def test_policy_attempt_trails_reports_final_model_deployment() -> None:
+    """Derive the final deployment from its backend URL and keep identity columns together."""
+    workbook = _load_workbook()
+    query = _find_workbook_item(workbook['items'], 'query - failover-request-trails')['content']['query']
+
+    assert ("ModelDeployment = iff(isnotempty(BackendUrl), extract(@'/deployments/([^/?]+)', 1, tostring(BackendUrl)), '')") in query
+    displayed_columns = query.split('| project-rename', maxsplit=1)[1]
+    assert displayed_columns.index("['AOAI Instance'] = AOAIInstance") < displayed_columns.index("['Model Deployment'] = ModelDeployment")
+    assert displayed_columns.index("['Model Deployment'] = ModelDeployment") < displayed_columns.index("['Backend URL'] = BackendUrl")
+
+
+def test_failover_trails_uses_compact_summary_and_dynamic_details() -> None:
+    """Keep the small summary compact while letting detailed trail tables fit their results."""
+    trails_group = _find_workbook_item(_load_workbook()['items'], 'group - tab-4-trails')
+    summary = _find_workbook_item(trails_group['content']['items'], 'query - failover-summary')
+    dynamic_query_names = {
+        'query - backend-retry-attempts',
+        'query - failover-request-trails',
+    }
+    dynamic_queries = [item for item in trails_group['content']['items'] if item['name'] in dynamic_query_names]
+
+    assert trails_group['styleSettings'] == {'margin': '0 0 16px 0'}
+    assert summary['content']['size'] == 1
+    assert {item['name'] for item in dynamic_queries} == dynamic_query_names
+    assert all(item['content']['size'] == 0 for item in dynamic_queries)
 
 
 def test_inference_failover_workbook_has_model_rates_and_delivery_dimensions() -> None:

@@ -42,9 +42,9 @@ This is a useful first view when validating weighted distribution or checking wh
 
 ### [backend-retry-attempts.kql](backend-retry-attempts.kql)
 
-Use this query to inspect only APIM operations that made more than one Azure OpenAI dependency call. It correlates `AppRequests` and `AppDependencies` by `OperationId`, sequences dependency spans by start time, and returns one row for every failed or successful backend attempt.
+Use this query to inspect only APIM operations that made more than one Azure OpenAI dependency call. It correlates `AppRequests` and `AppDependencies` by `OperationId`, sequences dependency spans by start time, and returns one row for every failed or successful backend attempt. It also correlates `ApiManagementGatewayLogs.CorrelationId` with the Application Insights `Request Id` property to recover the policy-recorded `Retry-After` value for each `429` attempt.
 
-`Backend Duration (ms)` is the individual dependency duration. `Total APIM (ms)` is the complete frontend request duration and is repeated on each row in the operation so it can be compared with the sum of backend calls and APIM policy overhead. The matching **Retried Backend Requests** table is on the workbook's **Failover Trails** tab.
+`Attempt` shows the current and total attempt count as `X/Y`. `Retry-After (s)` preserves the raw backend header value and remains empty when a `429` response omitted the header or the attempt returned another status. `Backend Duration (ms)` is the individual dependency duration. `Cumulative Backend (ms)` adds each attempt's backend duration to the preceding attempts in the same operation and resets for each operation ID. `Total APIM Duration (ms)` repeats the matching `AppRequests.DurationMs` value on each attempt row and includes retries and APIM policy processing. The matching **Retried Backend Requests** table on the workbook's **Failover Trails** tab starts with one collapsed row per operation ID; expand an operation to inspect its backend attempts.
 
 ### [failover-outcomes.kql](failover-outcomes.kql)
 

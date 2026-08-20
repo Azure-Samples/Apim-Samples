@@ -495,7 +495,7 @@
         "items": [
           {
             "content": {
-              "json": "## Failover Trails\n\nThe policy writes a compact `InferenceAttempt` record after every forwarded backend attempt. The summary and request trail count those records, derive retries as attempts minus one, and retain the backend identity, response code, and optional `Retry-After` value. **Retried Backend Requests** uses Application Insights instead: APIM emits one `AppDependencies` row for every forwarded call and one `AppRequests` row for the complete frontend transaction. This shows the failed and successful attempt durations independently while repeating the total APIM duration for context."
+              "json": "## Failover Trails\n\nThe policy writes a compact `InferenceAttempt` record after every forwarded backend attempt. The summary counts those records, derives retries as attempts minus one, and reports recovery and latency outcomes by API."
             },
             "name": "text - trails",
             "type": 1
@@ -549,6 +549,7 @@
               "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| extend TraceText = tostring(TraceRecords)\n| extend Attempts = countof(TraceText, 'InferenceAttempt')\n| extend FallbackExhausted = (ResponseCode == 429 and BackendResponseCode in (429, 503)) or (ResponseCode == 503 and (BackendResponseCode in (500, 502, 503, 504) or LastErrorReason in ('BackendConnectionFailure', 'Timeout')))\n| where Attempts > 1 or FallbackExhausted\n| summarize Requests = count(), Recovered = countif(ResponseCode between (200 .. 299)), FallbackExhausted = countif(FallbackExhausted), AverageAttempts = avg(Attempts), MaximumAttempts = max(Attempts), AverageTotalMs = avg(TotalTime), P95TotalMs = percentile(TotalTime, 95) by ApiId\n| extend AverageAttempts = iff(isfinite(toreal(AverageAttempts)), round(AverageAttempts, 2), real(null)), AverageTotalMs = iff(isfinite(toreal(AverageTotalMs)), round(AverageTotalMs, 1), real(null)), P95TotalMs = iff(isfinite(toreal(P95TotalMs)), round(P95TotalMs, 1), real(null))\n| order by ApiId asc\n| project-rename ['API'] = ApiId, ['Fallback Exhausted'] = FallbackExhausted, ['Average Attempts'] = AverageAttempts, ['Maximum Attempts'] = MaximumAttempts, ['Average Total (ms)'] = AverageTotalMs, ['P95 Total (ms)'] = P95TotalMs",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
+              "size": 1,
               "timeContext": {
                 "durationMs": 0
               },
@@ -561,24 +562,35 @@
           },
           {
             "content": {
+              "json": "## Retried Backend Requests\n\nApplication Insights records one `AppDependencies` row for every forwarded backend call and one `AppRequests` row for the complete frontend transaction. Expand an operation ID to compare each failed or successful backend attempt, its `X/Y` attempt position, AOAI instance, model deployment parsed from the backend URL, optional policy-recorded `Retry-After` value for `429` responses, individual duration, cumulative backend duration, and total APIM transaction duration."
+            },
+            "name": "text - backend-retry-attempts",
+            "type": 1
+          },
+          {
+            "content": {
               "gridSettings": {
                 "filter": true,
                 "formatters": [
                   {
-                    "columnMatch": "^(Attempt|Attempts)$",
+                    "columnMatch": "Operation ID",
+                    "formatter": 5
+                  },
+                  {
+                    "columnMatch": "^(Backend Duration \\(ms\\)|Cumulative Backend \\(ms\\))$",
                     "formatter": 0,
                     "numberFormat": {
                       "unit": 0,
                       "options": {
                         "style": "decimal",
                         "useGrouping": true,
-                        "minimumFractionDigits": 0,
-                        "maximumFractionDigits": 0
+                        "minimumFractionDigits": 1,
+                        "maximumFractionDigits": 1
                       }
                     }
                   },
                   {
-                    "columnMatch": "^(Backend Duration \\(ms\\)|Total APIM \\(ms\\))$",
+                    "columnMatch": "Total APIM Duration \\(ms\\)",
                     "formatter": 0,
                     "numberFormat": {
                       "unit": 0,
@@ -591,10 +603,23 @@
                     }
                   }
                 ],
+                "labelSettings": [
+                  {
+                    "columnId": "Group",
+                    "label": "Operation ID Group"
+                  }
+                ],
+                "hierarchySettings": {
+                  "expandTopLevel": false,
+                  "groupBy": [
+                    "Operation ID"
+                  ],
+                  "treeType": 1
+                },
                 "rowLimit": 10000
               },
               "noDataMessage": "No retried Application Insights dependency chains found. Generate retrying traffic and allow Application Insights ingestion to complete.",
-              "query": "let frontendRequests = materialize(AppRequests\n| where TimeGenerated {TimeRange}\n| extend RequestPath = tostring(parse_url(Url).Path)\n| where RequestPath in~ ('/inference/gpt-5-1/chat/completions', '/inference/gpt-4-1-mini/chat/completions')\n| project OperationId, RequestTime = TimeGenerated, API = RequestPath, CallerStatus = toint(ResultCode), TotalApimMs = DurationMs);\nlet backendAttempts = materialize(AppDependencies\n| where TimeGenerated {TimeRange}\n| where DependencyType =~ 'HTTP'\n| extend BackendHost = tostring(parse_url(Data).Host)\n| where BackendHost endswith '.openai.azure.com'\n| join kind=inner frontendRequests on OperationId\n| project OperationId, BackendStart = TimeGenerated, API, CallerStatus, TotalApimMs, BackendHost, BackendUrl = Data, BackendStatus = toint(ResultCode), BackendDurationMs = DurationMs, BackendSucceeded = Success);\nlet retriedOperations = backendAttempts\n| summarize Attempts = count() by OperationId\n| where Attempts > 1;\nbackendAttempts\n| join kind=inner retriedOperations on OperationId\n| sort by OperationId asc, BackendStart asc\n| serialize\n| extend Attempt = row_number(1, prev(OperationId) != OperationId)\n| extend AOAIInstance = tostring(split(BackendHost, '.')[0])\n| project BackendStart, OperationId, API, Attempt, Attempts, AOAIInstance, BackendUrl, BackendStatus, BackendSucceeded, BackendDurationMs, CallerStatus, TotalApimMs\n| order by BackendStart desc\n| project-rename ['Backend Start'] = BackendStart, ['Operation ID'] = OperationId, ['AOAI Instance'] = AOAIInstance, ['Backend URL'] = BackendUrl, ['Backend Status'] = BackendStatus, ['Backend Succeeded'] = BackendSucceeded, ['Backend Duration (ms)'] = BackendDurationMs, ['Caller Status'] = CallerStatus, ['Total APIM (ms)'] = TotalApimMs",
+              "query": "let frontendRequests = materialize(AppRequests\n| where TimeGenerated {TimeRange}\n| extend RequestPath = tostring(parse_url(Url).Path)\n| where RequestPath in~ ('/inference/gpt-5-1/chat/completions', '/inference/gpt-4-1-mini/chat/completions')\n| project OperationId, ApimRequestId = tostring(Properties['Request Id']), RequestTime = TimeGenerated, API = RequestPath, CallerStatus = tostring(ResultCode), TotalApimDurationMs = DurationMs);\nlet retryAfterAttempts = materialize(ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| extend TraceText = tostring(TraceRecords)\n| where TraceText has 'InferenceAttempt'\n| extend AttemptRecords = extract_all(@'(InferenceAttempt\\|attempt=[0-9]+/[0-9]+\\|backend=[^|]+\\|code=(?:[0-9]+|none)(?:\\|retryAfter=[^|\"]+)?)', TraceText)\n| mv-expand AttemptRecord = AttemptRecords to typeof(string)\n| extend ApimRequestId = CorrelationId, AttemptNumber = toint(extract(@'\\|attempt=([0-9]+)/', 1, AttemptRecord)), RetryAfter = tolong(extract(@'\\|retryAfter=([^|\"]+)', 1, AttemptRecord))\n| where isnotnull(RetryAfter)\n| summarize RetryAfter = take_any(RetryAfter) by ApimRequestId, AttemptNumber);\nlet backendAttempts = materialize(AppDependencies\n| where TimeGenerated {TimeRange}\n| where DependencyType =~ 'HTTP'\n| extend BackendUrl = replace_regex(tostring(Data), @'^POST\\s+-\\s+', '')\n| extend BackendHost = tostring(parse_url(BackendUrl).Host)\n| where BackendHost endswith '.openai.azure.com'\n| join kind=inner frontendRequests on OperationId\n| project OperationId, ApimRequestId, RequestTime, BackendStart = TimeGenerated, API, CallerStatus, TotalApimDurationMs, BackendHost, BackendUrl, BackendStatus = tostring(ResultCode), BackendDurationMs = DurationMs, BackendSucceeded = Success);\nlet retriedOperations = backendAttempts\n| summarize Attempts = count() by OperationId\n| where Attempts > 1;\nbackendAttempts\n| join kind=inner retriedOperations on OperationId\n| sort by OperationId asc, BackendStart asc\n| serialize\n| extend AttemptNumber = row_number(1, prev(OperationId) != OperationId)\n| extend Attempt = strcat(AttemptNumber, '/', Attempts)\n| extend CumulativeBackendMs = row_cumsum(BackendDurationMs, prev(OperationId) != OperationId)\n| extend AOAIInstance = tostring(split(BackendHost, '.')[0])\n| extend ModelDeployment = extract(@'/deployments/([^/?]+)', 1, BackendUrl)\n| join kind=leftouter retryAfterAttempts on ApimRequestId, AttemptNumber\n| extend RetryAfter = iff(BackendStatus == '429', RetryAfter, long(null))\n| project OperationId, API, CallerStatus, Attempt, BackendStart, AOAIInstance, ModelDeployment, BackendUrl, BackendStatus, RetryAfter, BackendSucceeded, BackendDurationMs, CumulativeBackendMs, TotalApimDurationMs, RequestTime, AttemptNumber\n| order by RequestTime desc, AttemptNumber asc\n| project-away RequestTime, AttemptNumber\n| project-rename ['Operation ID'] = OperationId, ['API'] = API, ['Caller Status'] = CallerStatus, ['Backend Start'] = BackendStart, ['AOAI Instance'] = AOAIInstance, ['Model Deployment'] = ModelDeployment, ['Backend URL'] = BackendUrl, ['Backend Status'] = BackendStatus, ['Retry-After (s)'] = RetryAfter, ['Backend Succeeded'] = BackendSucceeded, ['Backend Duration (ms)'] = BackendDurationMs, ['Cumulative Backend (ms)'] = CumulativeBackendMs, ['Total APIM Duration (ms)'] = TotalApimDurationMs",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
               "size": 0,
@@ -602,7 +627,6 @@
                 "durationMs": 0
               },
               "timeContextFromParameter": "TimeRange",
-              "title": "Retried Backend Requests",
               "version": "KqlItem/1.0",
               "visualization": "table"
             },
@@ -611,6 +635,13 @@
               "showBorder": true
             },
             "type": 3
+          },
+          {
+            "content": {
+              "json": "## Policy Attempt Trails\n\nReview the policy-recorded attempt sequence for each APIM request, including the final AOAI instance and model deployment parsed from the backend URL, response status, optional `Retry-After` value, recovered failures, and fallback exhaustion. Use this table when investigating policy routing decisions or correlating a request with its compact `InferenceAttempt` trace records."
+            },
+            "name": "text - failover-request-trails",
+            "type": 1
           },
           {
             "content": {
@@ -632,9 +663,10 @@
                 ]
               },
               "noDataMessage": "No policy-recorded failover trails found for the selected time range.",
-              "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| extend TraceText = tostring(TraceRecords)\n| extend Attempts = countof(TraceText, 'InferenceAttempt')\n| extend RetriedFailures = max_of(Attempts - 1, 0)\n| extend FallbackExhausted = (ResponseCode == 429 and BackendResponseCode in (429, 503)) or (ResponseCode == 503 and (BackendResponseCode in (500, 502, 503, 504) or LastErrorReason in ('BackendConnectionFailure', 'Timeout')))\n| extend AOAIInstance = iff(isnotempty(BackendUrl), tostring(split(tostring(parse_url(BackendUrl).Host), '.')[0]), '')\n| extend NormalizedTraceText = replace_regex(TraceText, @'(\\|attempt=[0-9]+/[0-9]+)\\|backendId=[^|]+(\\|backend=)', @'\\1\\2')\n| extend EnrichedTraceText = replace_regex(NormalizedTraceText, @'(\\|backend=[^|]*/deployments/a-gpt-5-1/)', @'|backendId=gpt-5-1-PTU-eastus2\\1')\n| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\\|backend=[^|]*/deployments/d-gpt-5-1/)', @'|backendId=gpt-5-1-PTU-westus3\\1')\n| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\\|backend=[^|]*/deployments/b-gpt-5-1/)', @'|backendId=gpt-5-1-PAYG-eastus2\\1')\n| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\\|backend=[^|]*/deployments/e-gpt-5-1/)', @'|backendId=gpt-5-1-PAYG-westus3\\1')\n| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\\|backend=[^|]*/deployments/g-gpt-5-1/)', @'|backendId=gpt-5-1-PAYG-southcentralus\\1')\n| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\\|backend=[^|]*/deployments/c-gpt-4-1-mini/)', @'|backendId=gpt-4-1-mini-PTU-eastus2\\1')\n| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\\|backend=[^|]*/deployments/f-gpt-4-1-mini/)', @'|backendId=gpt-4-1-mini-PTU-westus3\\1')\n| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\\|backend=[^|]*/deployments/d-gpt-4-1-mini/)', @'|backendId=gpt-4-1-mini-PAYG-eastus2\\1')\n| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\\|backend=[^|]*/deployments/h-gpt-4-1-mini/)', @'|backendId=gpt-4-1-mini-PAYG-southcentralus\\1')\n| extend AttemptTrail = strcat_array(extract_all(@'(InferenceAttempt\\|attempt=[0-9]+/[0-9]+\\|backendId=[^|]+\\|backend=[^|]+\\|code=(?:[0-9]+|none)(?:\\|retryAfter=[^|\"]+)?)', EnrichedTraceText), ' -> ')\n| where Attempts > 1 or FallbackExhausted\n| project TimeGenerated, CorrelationId, ApiId, ['APIM Response'] = ResponseCode, ['Final Backend Response'] = BackendResponseCode, Attempts, RetriedFailures, FallbackExhausted, AOAIInstance, BackendUrl, AttemptTrail\n| order by TimeGenerated desc\n| project-rename ['Time'] = TimeGenerated, ['Correlation ID'] = CorrelationId, ['API'] = ApiId, ['Retried Failures'] = RetriedFailures, ['Fallback Exhausted'] = FallbackExhausted, ['AOAI Instance'] = AOAIInstance, ['Backend URL'] = BackendUrl, ['Attempt Trail'] = AttemptTrail",
+              "query": "ApiManagementGatewayLogs\n| where TimeGenerated {TimeRange}\n| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')\n| extend TraceText = tostring(TraceRecords)\n| extend Attempts = countof(TraceText, 'InferenceAttempt')\n| extend RetriedFailures = max_of(Attempts - 1, 0)\n| extend FallbackExhausted = (ResponseCode == 429 and BackendResponseCode in (429, 503)) or (ResponseCode == 503 and (BackendResponseCode in (500, 502, 503, 504) or LastErrorReason in ('BackendConnectionFailure', 'Timeout')))\n| extend AOAIInstance = iff(isnotempty(BackendUrl), tostring(split(tostring(parse_url(BackendUrl).Host), '.')[0]), '')\n| extend ModelDeployment = iff(isnotempty(BackendUrl), extract(@'/deployments/([^/?]+)', 1, tostring(BackendUrl)), '')\n| extend NormalizedTraceText = replace_regex(TraceText, @'(\\|attempt=[0-9]+/[0-9]+)\\|backendId=[^|]+(\\|backend=)', @'\\1\\2')\n| extend EnrichedTraceText = replace_regex(NormalizedTraceText, @'(\\|backend=[^|]*/deployments/a-gpt-5-1/)', @'|backendId=gpt-5-1-PTU-eastus2\\1')\n| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\\|backend=[^|]*/deployments/d-gpt-5-1/)', @'|backendId=gpt-5-1-PTU-westus3\\1')\n| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\\|backend=[^|]*/deployments/b-gpt-5-1/)', @'|backendId=gpt-5-1-PAYG-eastus2\\1')\n| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\\|backend=[^|]*/deployments/e-gpt-5-1/)', @'|backendId=gpt-5-1-PAYG-westus3\\1')\n| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\\|backend=[^|]*/deployments/g-gpt-5-1/)', @'|backendId=gpt-5-1-PAYG-southcentralus\\1')\n| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\\|backend=[^|]*/deployments/c-gpt-4-1-mini/)', @'|backendId=gpt-4-1-mini-PTU-eastus2\\1')\n| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\\|backend=[^|]*/deployments/f-gpt-4-1-mini/)', @'|backendId=gpt-4-1-mini-PTU-westus3\\1')\n| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\\|backend=[^|]*/deployments/d-gpt-4-1-mini/)', @'|backendId=gpt-4-1-mini-PAYG-eastus2\\1')\n| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\\|backend=[^|]*/deployments/h-gpt-4-1-mini/)', @'|backendId=gpt-4-1-mini-PAYG-southcentralus\\1')\n| extend AttemptTrail = strcat_array(extract_all(@'(InferenceAttempt\\|attempt=[0-9]+/[0-9]+\\|backendId=[^|]+\\|backend=[^|]+\\|code=(?:[0-9]+|none)(?:\\|retryAfter=[^|\"]+)?)', EnrichedTraceText), ' -> ')\n| where Attempts > 1 or FallbackExhausted\n| project TimeGenerated, CorrelationId, ApiId, ['APIM Response'] = ResponseCode, ['Final Backend Response'] = BackendResponseCode, Attempts, RetriedFailures, FallbackExhausted, AOAIInstance, ModelDeployment, BackendUrl, AttemptTrail\n| order by TimeGenerated desc\n| project-rename ['Time'] = TimeGenerated, ['Correlation ID'] = CorrelationId, ['API'] = ApiId, ['Retried Failures'] = RetriedFailures, ['Fallback Exhausted'] = FallbackExhausted, ['AOAI Instance'] = AOAIInstance, ['Model Deployment'] = ModelDeployment, ['Backend URL'] = BackendUrl, ['Attempt Trail'] = AttemptTrail",
               "queryType": 0,
               "resourceType": "microsoft.operationalinsights/workspaces",
+              "size": 0,
               "timeContext": {
                 "durationMs": 0
               },
@@ -649,6 +681,9 @@
         "version": "NotebookGroup/1.0"
       },
       "name": "group - tab-4-trails",
+      "styleSettings": {
+        "margin": "0 0 16px 0"
+      },
       "type": 12
     },
     {

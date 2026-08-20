@@ -1,6 +1,7 @@
 // Shows one row per forwarded backend call for APIM requests that retried.
-// AppRequests.DurationMs is the complete APIM request duration; each
-// AppDependencies.DurationMs value is the duration of one backend attempt.
+// AppDependencies.DurationMs is the duration of one backend attempt. The
+// cumulative duration resets for each APIM operation. AppRequests.DurationMs
+// is the total APIM transaction duration and repeats for each attempt row.
 //
 // Parameters (prepend as KQL 'let' bindings before running):
 //   let timeWindow = 1h;
@@ -15,25 +16,41 @@ let frontendRequests = materialize(AppRequests
 | where RequestPath in~ (apiPaths)
 | project
     OperationId,
+    ApimRequestId = tostring(Properties['Request Id']),
     RequestTime = TimeGenerated,
     API = RequestPath,
-    CallerStatus = toint(ResultCode),
-    TotalApimMs = DurationMs);
+    CallerStatus = tostring(ResultCode),
+    TotalApimDurationMs = DurationMs);
+let retryAfterAttempts = materialize(ApiManagementGatewayLogs
+| where TimeGenerated > ago(timeWindow)
+| extend TraceText = tostring(TraceRecords)
+| where TraceText has 'InferenceAttempt'
+| extend AttemptRecords = extract_all(@'(InferenceAttempt\|attempt=[0-9]+/[0-9]+\|backend=[^|]+\|code=(?:[0-9]+|none)(?:\|retryAfter=[^|"]+)?)', TraceText)
+| mv-expand AttemptRecord = AttemptRecords to typeof(string)
+| extend
+    ApimRequestId = CorrelationId,
+    AttemptNumber = toint(extract(@'\|attempt=([0-9]+)/', 1, AttemptRecord)),
+    RetryAfter = tolong(extract(@'\|retryAfter=([^|"]+)', 1, AttemptRecord))
+| where isnotnull(RetryAfter)
+| summarize RetryAfter = take_any(RetryAfter) by ApimRequestId, AttemptNumber);
 let backendAttempts = materialize(AppDependencies
 | where TimeGenerated > ago(timeWindow)
 | where DependencyType =~ 'HTTP'
-| extend BackendHost = tostring(parse_url(Data).Host)
+| extend BackendUrl = replace_regex(tostring(Data), @'^POST\s+-\s+', '')
+| extend BackendHost = tostring(parse_url(BackendUrl).Host)
 | where BackendHost endswith '.openai.azure.com'
 | join kind=inner frontendRequests on OperationId
 | project
     OperationId,
+    ApimRequestId,
+    RequestTime,
     BackendStart = TimeGenerated,
     API,
     CallerStatus,
-    TotalApimMs,
+    TotalApimDurationMs,
     BackendHost,
-    BackendUrl = Data,
-    BackendStatus = toint(ResultCode),
+    BackendUrl,
+    BackendStatus = tostring(ResultCode),
     BackendDurationMs = DurationMs,
     BackendSucceeded = Success);
 let retriedOperations = backendAttempts
@@ -43,30 +60,43 @@ backendAttempts
 | join kind=inner retriedOperations on OperationId
 | sort by OperationId asc, BackendStart asc
 | serialize
-| extend Attempt = row_number(1, prev(OperationId) != OperationId)
+| extend AttemptNumber = row_number(1, prev(OperationId) != OperationId)
+| extend Attempt = strcat(AttemptNumber, '/', Attempts)
+| extend CumulativeBackendMs = row_cumsum(BackendDurationMs, prev(OperationId) != OperationId)
 | extend AOAIInstance = tostring(split(BackendHost, '.')[0])
+| extend ModelDeployment = extract(@'/deployments/([^/?]+)', 1, BackendUrl)
+| join kind=leftouter retryAfterAttempts on ApimRequestId, AttemptNumber
+| extend RetryAfter = iff(BackendStatus == '429', RetryAfter, long(null))
 | project
-    BackendStart,
     OperationId,
     API,
+    CallerStatus,
     Attempt,
-    Attempts,
+    BackendStart,
     AOAIInstance,
+    ModelDeployment,
     BackendUrl,
     BackendStatus,
+    RetryAfter,
     BackendSucceeded,
     BackendDurationMs,
-    CallerStatus,
-    TotalApimMs
-| order by BackendStart desc
+    CumulativeBackendMs,
+    TotalApimDurationMs,
+    RequestTime,
+    AttemptNumber
+| order by RequestTime desc, AttemptNumber asc
+| project-away RequestTime, AttemptNumber
 | project-rename
-    ['Backend Start'] = BackendStart,
     ['Operation ID'] = OperationId,
     ['API'] = API,
+    ['Caller Status'] = CallerStatus,
+    ['Backend Start'] = BackendStart,
     ['AOAI Instance'] = AOAIInstance,
+    ['Model Deployment'] = ModelDeployment,
     ['Backend URL'] = BackendUrl,
     ['Backend Status'] = BackendStatus,
+    ['Retry-After (s)'] = RetryAfter,
     ['Backend Succeeded'] = BackendSucceeded,
     ['Backend Duration (ms)'] = BackendDurationMs,
-    ['Caller Status'] = CallerStatus,
-    ['Total APIM (ms)'] = TotalApimMs
+    ['Cumulative Backend (ms)'] = CumulativeBackendMs,
+    ['Total APIM Duration (ms)'] = TotalApimDurationMs
