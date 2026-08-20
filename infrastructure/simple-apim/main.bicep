@@ -51,7 +51,24 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
   }
 }
 
-// 4. APIM Policy Fragments
+// 4. APIM resource diagnostics
+module apimDiagnosticsModule '../../shared/bicep/modules/apim/v1/diagnostics.bicep' = {
+  name: 'apimDiagnosticsModule'
+  params: {
+    apimServiceName: apimName
+    diagnosticSettingsNameSuffix: 'diagnostics'
+    enableApplicationInsights: false
+    enableEventHub: false
+    enableLlmLogs: true
+    enableLogAnalytics: true
+    logAnalyticsWorkspaceId: lawId
+  }
+  dependsOn: [
+    apimModule
+  ]
+}
+
+// 5. APIM Policy Fragments
 module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.bicep' = [for pf in policyFragments: {
   name: 'pf-${pf.name}'
   params:{
@@ -65,7 +82,7 @@ module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.
   ]
 }]
 
-// 5. APIM APIs
+// 6. APIM APIs
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: if(length(apis) > 0) {
   name: 'api-${api.name}'
   params: {

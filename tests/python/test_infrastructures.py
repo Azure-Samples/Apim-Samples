@@ -4022,8 +4022,7 @@ def test_delete_resource_group_best_effort_thread_prefix_path(monkeypatch):
 
     infrastructures._delete_resource_group_best_effort('rg-test', thread_prefix='[TEST]: ', thread_color='\x1b[35m')
 
-    # Verify az.run was invoked with delete command
-    assert any('az group delete' in c for c in run_calls)
+    assert 'az group delete --name rg-test -y --no-wait' in run_calls
     # Verify thread-safe print was used
     assert any('Deleting resource group' in call['msg'] for call in log_calls)
 
@@ -4045,7 +4044,7 @@ def test_delete_resource_group_best_effort_no_thread_prefix(monkeypatch):
 
     infrastructures._delete_resource_group_best_effort('rg-delete')
 
-    assert any('az group delete' in c for c in run_calls)
+    assert 'az group delete --name rg-delete -y --no-wait' in run_calls
     assert any('Deleting resource group' in msg for msg in captured)
 
 
@@ -4064,7 +4063,7 @@ def test_delete_resource_group_best_effort_exception_non_thread(monkeypatch):
 
     infrastructures._delete_resource_group_best_effort('rg-oops')
 
-    assert any('Failed to initiate deletion' in m for m in printed)
+    assert any('Failed to initiate deletion' in message for message in printed)
 
 
 # ------------------------------

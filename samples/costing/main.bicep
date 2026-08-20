@@ -105,7 +105,7 @@ param aiModels array = [
 var storageAccountName = 'stcost${take(string(index), 1)}${take(replace(resourceSuffix, '-', ''), 12)}'
 var workbookName = 'APIM Cost Tracking ${index}'
 var costExportName = 'apim-cost-export'
-var diagnosticSettingsNameSuffix = 'costing-diagnostics-${index}'
+var diagnosticSettingsNameSuffix = 'diagnostics'
 
 // Foundry resource names (only used when enableFoundry is true)
 var aiServicesName = 'ais-cost-${index}-${take(resourceSuffix, 4)}'
@@ -236,7 +236,7 @@ module apimDiagnosticsModule '../../shared/bicep/modules/apim/v1/diagnostics.bic
     appInsightsInstrumentationKey: ''
     appInsightsResourceId: ''
     diagnosticSettingsNameSuffix: diagnosticSettingsNameSuffix
-    enableLlmLogs: enableFoundry
+    enableLlmLogs: true
   }
 }
 
