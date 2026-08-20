@@ -160,6 +160,13 @@ resource subscription 'Microsoft.ApiManagement/service/subscriptions@2024-06-01-
 
 ## Diagnostics and Logging
 
+### Diagnostic Setting Ownership
+
+- Each infrastructure owns one canonical `apim-diagnostics` setting for its APIM service and Log Analytics workspace.
+- Enable `GatewayLogs`, `WebSocketConnectionLogs`, and `GatewayLlmLogs` in that shared setting so samples can coexist without redefining category-to-sink mappings.
+- Samples that need the infrastructure workspace must reuse the canonical setting name. Do not create a sample-named setting for the same workspace and categories.
+- A sample-specific diagnostic setting is valid only for a different sink, such as Event Hub. Keep that setting destination-specific so later baseline deployments cannot remove its configuration.
+
 ### Azure Monitor Logger
 
 ```bicep

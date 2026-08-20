@@ -1,0 +1,102 @@
+// Shows one row per forwarded backend call for APIM requests that retried.
+// AppDependencies.DurationMs is the duration of one backend attempt. The
+// cumulative duration resets for each APIM operation. AppRequests.DurationMs
+// is the total APIM transaction duration and repeats for each attempt row.
+//
+// Parameters (prepend as KQL 'let' bindings before running):
+//   let timeWindow = 1h;
+//   let apiPaths = dynamic([
+//       '/inference/gpt-5-1/chat/completions',
+//       '/inference/gpt-4-1-mini/chat/completions'
+//   ]);
+//
+let frontendRequests = materialize(AppRequests
+| where TimeGenerated > ago(timeWindow)
+| extend RequestPath = tostring(parse_url(Url).Path)
+| where RequestPath in~ (apiPaths)
+| project
+    OperationId,
+    ApimRequestId = tostring(Properties['Request Id']),
+    RequestTime = TimeGenerated,
+    API = RequestPath,
+    CallerStatus = tostring(ResultCode),
+    TotalApimDurationMs = DurationMs);
+let retryAfterAttempts = materialize(ApiManagementGatewayLogs
+| where TimeGenerated > ago(timeWindow)
+| extend TraceText = tostring(TraceRecords)
+| where TraceText has 'InferenceAttempt'
+| extend AttemptRecords = extract_all(@'(InferenceAttempt\|attempt=[0-9]+/[0-9]+\|backend=[^|]+\|code=(?:[0-9]+|none)(?:\|retryAfter=[^|"]+)?)', TraceText)
+| mv-expand AttemptRecord = AttemptRecords to typeof(string)
+| extend
+    ApimRequestId = CorrelationId,
+    AttemptNumber = toint(extract(@'\|attempt=([0-9]+)/', 1, AttemptRecord)),
+    RetryAfter = tolong(extract(@'\|retryAfter=([^|"]+)', 1, AttemptRecord))
+| where isnotnull(RetryAfter)
+| summarize RetryAfter = take_any(RetryAfter) by ApimRequestId, AttemptNumber);
+let backendAttempts = materialize(AppDependencies
+| where TimeGenerated > ago(timeWindow)
+| where DependencyType =~ 'HTTP'
+| extend BackendUrl = replace_regex(tostring(Data), @'^POST\s+-\s+', '')
+| extend BackendHost = tostring(parse_url(BackendUrl).Host)
+| where BackendHost endswith '.openai.azure.com'
+| join kind=inner frontendRequests on OperationId
+| project
+    OperationId,
+    ApimRequestId,
+    RequestTime,
+    BackendStart = TimeGenerated,
+    API,
+    CallerStatus,
+    TotalApimDurationMs,
+    BackendHost,
+    BackendUrl,
+    BackendStatus = tostring(ResultCode),
+    BackendDurationMs = DurationMs,
+    BackendSucceeded = Success);
+let retriedOperations = backendAttempts
+| summarize Attempts = count() by OperationId
+| where Attempts > 1;
+backendAttempts
+| join kind=inner retriedOperations on OperationId
+| sort by OperationId asc, BackendStart asc
+| serialize
+| extend AttemptNumber = row_number(1, prev(OperationId) != OperationId)
+| extend Attempt = strcat(AttemptNumber, '/', Attempts)
+| extend CumulativeBackendMs = row_cumsum(BackendDurationMs, prev(OperationId) != OperationId)
+| extend AOAIInstance = tostring(split(BackendHost, '.')[0])
+| extend ModelDeployment = extract(@'/deployments/([^/?]+)', 1, BackendUrl)
+| join kind=leftouter retryAfterAttempts on ApimRequestId, AttemptNumber
+| extend RetryAfter = iff(BackendStatus == '429', RetryAfter, long(null))
+| project
+    OperationId,
+    API,
+    CallerStatus,
+    Attempt,
+    BackendStart,
+    AOAIInstance,
+    ModelDeployment,
+    BackendUrl,
+    BackendStatus,
+    RetryAfter,
+    BackendSucceeded,
+    BackendDurationMs,
+    CumulativeBackendMs,
+    TotalApimDurationMs,
+    RequestTime,
+    AttemptNumber
+| order by RequestTime desc, AttemptNumber asc
+| project-away RequestTime, AttemptNumber
+| project-rename
+    ['Operation ID'] = OperationId,
+    ['API'] = API,
+    ['Caller Status'] = CallerStatus,
+    ['Backend Start'] = BackendStart,
+    ['AOAI Instance'] = AOAIInstance,
+    ['Model Deployment'] = ModelDeployment,
+    ['Backend URL'] = BackendUrl,
+    ['Backend Status'] = BackendStatus,
+    ['Retry-After (s)'] = RetryAfter,
+    ['Backend Succeeded'] = BackendSucceeded,
+    ['Backend Duration (ms)'] = BackendDurationMs,
+    ['Cumulative Backend (ms)'] = CumulativeBackendMs,
+    ['Total APIM Duration (ms)'] = TotalApimDurationMs

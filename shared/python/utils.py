@@ -443,9 +443,7 @@ class NotebookHelper:
             if QUERY_RG_LOCATION:
                 print_plain(f'     {"#":>3} {"Infrastructure":<20} {"Index":>8} {"Resource Group":<35} {"Location":<15}')
                 print_plain(f'     {"-" * 3:>3} {"-" * 20:<20} {"-" * 8:>8} {"-" * 35:<35} {"-" * 15:<15}')
-                print_plain(
-                    f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35} {desired_location:<15}'
-                )
+                print_plain(f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35} {desired_location:<15}')
             else:
                 print_plain(f'     {"#":>3} {"Infrastructure":<20} {"Index":>8} {"Resource Group":<35}')
                 print_plain(f'     {"-" * 3:>3} {"-" * 20:<20} {"-" * 8:>8} {"-" * 35:<35}')
@@ -583,6 +581,7 @@ class NotebookHelper:
 
         # Call the resource group existence check only once
         rg_exists = az.does_resource_group_exist(self.rg_name)
+        infrastructure_available = rg_exists
 
         # If the desired infrastructure doesn't exist, use the interactive selection process
         if not rg_exists:
@@ -601,6 +600,7 @@ class NotebookHelper:
                 self.index = selected_index
                 self.rg_name = az.get_infra_rg_name(self.deployment, self.index)
                 self._infrastructure_selection_completed = True
+                infrastructure_available = True
 
                 # Verify the updates were applied correctly
                 print_plain('📝 Updated infrastructure variables')
@@ -616,6 +616,9 @@ class NotebookHelper:
         print_plain(f'   Infrastructure : {self.deployment.value}')
         print_plain(f'   Index          : {self.index}')
         print_plain(f'   Resource group : {self.rg_name}\n')
+
+        if infrastructure_available:
+            az.migrate_legacy_apim_diagnostic_settings(self.rg_name)
 
         # Execute the deployment using the utility function that handles working directory management
         output = create_bicep_deployment_group_for_sample(
@@ -983,10 +986,7 @@ def create_bicep_deployment_group(
     if not os.path.exists(main_bicep_path):  # pragma: no cover
         raise FileNotFoundError(f'main.bicep file not found in expected infrastructure directory: {bicep_dir}')
 
-    cmd = (
-        f'az deployment group create --name {deployment_name} --resource-group {rg_name}'
-        f' --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"'
-    )
+    cmd = f'az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"'
 
     if is_debug:
         cmd += ' --debug'
@@ -1278,12 +1278,7 @@ def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str
     # Legacy mode check: if named_values is None, always treat as legacy (backwards compatibility)
     # OR if it looks like a path (contains separators or is absolute)
     # Note: Check for leading slash to handle POSIX paths on Windows
-    if (
-        path_obj.is_absolute()
-        or policy_xml_filepath_or_filename.startswith('/')
-        or '/' in policy_xml_filepath_or_filename
-        or '\\' in policy_xml_filepath_or_filename
-    ):
+    if path_obj.is_absolute() or policy_xml_filepath_or_filename.startswith('/') or '/' in policy_xml_filepath_or_filename or '\\' in policy_xml_filepath_or_filename:
         # Legacy mode: treat as full path
         policy_xml_filepath = policy_xml_filepath_or_filename
     else:
@@ -1449,10 +1444,7 @@ def wait_for_apim_blob_permissions(apim_name: str, storage_account_name: str, re
         bool: True if permissions are available, False if timeout or error occurred.
     """
 
-    print_info(
-        'Azure role assignments can take several minutes to propagate across Azure AD.'
-        ' This check will verify that APIM can access the blob storage before proceeding with tests.\n'
-    )
+    print_info('Azure role assignments can take several minutes to propagate across Azure AD. This check will verify that APIM can access the blob storage before proceeding with tests.\n')
 
     success = az.check_apim_blob_permissions(apim_name, storage_account_name, resource_group_name, max_wait_minutes)
 

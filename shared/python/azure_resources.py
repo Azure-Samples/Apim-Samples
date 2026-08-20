@@ -54,6 +54,7 @@ _AZ_COMMAND_RE = re.compile(r'^\s*az(\s|$)')
 # cleanups reliable.
 _AZ_CLI_LOCK = threading.Lock()
 _NESTED_DEPLOYMENT_RESOURCE_TYPE = 'microsoft.resources/deployments'
+_LEGACY_APIM_DIAGNOSTIC_SETTING_PATTERN = re.compile(r'^apim-(?:costing-diagnostics|inference-failover)-\d+$')
 
 
 def _strip_ansi(text: str) -> str:
@@ -271,9 +272,7 @@ def _extract_operation_status_details(status_message: Any) -> tuple[str, str]:
 def _fetch_group_deployment_operations(deployment_name: str, resource_group_name: str) -> list[dict[str, Any]] | None:
     """Return deployment operations for a group deployment when the Azure CLI call succeeds."""
 
-    operations_command = _maybe_add_az_debug_flag(
-        f'az deployment operation group list --name "{deployment_name}" --resource-group "{resource_group_name}" -o json'
-    )
+    operations_command = _maybe_add_az_debug_flag(f'az deployment operation group list --name "{deployment_name}" --resource-group "{resource_group_name}" -o json')
 
     try:
         with _AZ_CLI_LOCK:
@@ -586,9 +585,7 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
         current_key_match = re.match(current_key_pattern, current_jwt_key_name)
 
         if not current_key_match:
-            print_error(
-                f"Current JWT key name '{current_jwt_key_name}' does not match expected pattern 'JwtSigningKey-{{sample_folder}}-{{timestamp}}'"
-            )
+            print_error(f"Current JWT key name '{current_jwt_key_name}' does not match expected pattern 'JwtSigningKey-{{sample_folder}}-{{timestamp}}'")
             return False
 
         sample_folder = current_key_match.group(1)
@@ -598,8 +595,7 @@ def cleanup_old_jwt_signing_keys(apim_name: str, resource_group_name: str, curre
         print_info(f"Getting all JWT signing key named values from APIM '{apim_name}'...")
 
         output = run(
-            f'az apim nv list --service-name "{apim_name}" --resource-group "{resource_group_name}"'
-            f' --query "[?contains(name, \'JwtSigningKey\')].name" -o tsv',
+            f'az apim nv list --service-name "{apim_name}" --resource-group "{resource_group_name}" --query "[?contains(name, \'JwtSigningKey\')].name" -o tsv',
             'Retrieved JWT signing keys',
             'Failed to retrieve JWT signing keys',
         )
@@ -669,10 +665,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
         bool: True if APIM has the required permissions, False otherwise.
     """
 
-    print_info(
-        f"🔍 Checking if APIM '{apim_name}' has Storage Blob Data Reader"
-        f" permissions on '{storage_account_name}' in resource group '{resource_group_name}'..."
-    )
+    print_info(f"🔍 Checking if APIM '{apim_name}' has Storage Blob Data Reader permissions on '{storage_account_name}' in resource group '{resource_group_name}'...")
 
     # Storage Blob Data Reader role definition ID
     blob_reader_role_id = get_azure_role_guid('StorageBlobDataReader')
@@ -730,9 +723,7 @@ def check_apim_blob_permissions(apim_name: str, storage_account_name: str, resou
             # Additional check: try to test blob access using the managed identity
             print_info('Testing actual blob access...')
             test_access_output = run(
-                f'az storage blob list --account-name {storage_account_name}'
-                f' --container-name samples --auth-mode login --only-show-errors'
-                f" --query '[0].name' -o tsv 2>/dev/null || echo 'access-test-failed'",
+                f"az storage blob list --account-name {storage_account_name} --container-name samples --auth-mode login --only-show-errors --query '[0].name' -o tsv 2>/dev/null || echo 'access-test-failed'",
                 error_message='',
             )
 
@@ -937,9 +928,7 @@ def get_account_info() -> Tuple[str, str, str, str]:
     if account_show_output.success and account_show_output.json_data and ad_user_show_output.success and ad_user_show_output.json_data:
         return current_user, current_user_id, tenant_id, subscription_id
 
-    error = (
-        'Failed to retrieve account information. Please ensure the Azure CLI is installed, you are logged in, and the subscription is set correctly.'
-    )
+    error = 'Failed to retrieve account information. Please ensure the Azure CLI is installed, you are logged in, and the subscription is set correctly.'
     print_error(error)
     raise RuntimeError(error)
 
@@ -1101,9 +1090,7 @@ def get_apim_subscription_key(
     return None
 
 
-def list_apim_subscriptions(
-    apim_name: str, rg_name: str, *, subscription_id: str | None = None, api_version: str = '2022-08-01'
-) -> list[dict[str, Any]]:
+def list_apim_subscriptions(apim_name: str, rg_name: str, *, subscription_id: str | None = None, api_version: str = '2022-08-01') -> list[dict[str, Any]]:
     """List APIM subscriptions for an API Management instance.
 
     Returns the raw ARM subscription resources (dicts). This does not include keys.
@@ -1119,11 +1106,7 @@ def list_apim_subscriptions(
             return []
         resolved_subscription_id = sub_output.text.strip()
 
-    list_url = (
-        f'https://management.azure.com/subscriptions/{resolved_subscription_id}'
-        f'/resourceGroups/{rg_name}/providers/Microsoft.ApiManagement/service/{apim_name}'
-        f'/subscriptions?api-version={api_version}'
-    )
+    list_url = f'https://management.azure.com/subscriptions/{resolved_subscription_id}/resourceGroups/{rg_name}/providers/Microsoft.ApiManagement/service/{apim_name}/subscriptions?api-version={api_version}'
 
     output = run(f'az rest --method get --url "{list_url}" -o json', log_command=False)
 
@@ -1208,6 +1191,53 @@ def get_infra_rg_name(deployment_name: INFRASTRUCTURE, index: int | None = None)
     return rg_name
 
 
+def migrate_legacy_apim_diagnostic_settings(rg_name: str) -> list[str]:
+    """Remove repository-owned APIM diagnostic settings superseded by the canonical setting.
+
+    Only legacy settings that target a Log Analytics workspace in the same infrastructure
+    resource group are removed. User-created settings and settings for other sinks are preserved.
+
+    Args:
+        rg_name: Infrastructure resource group containing APIM and Log Analytics.
+
+    Returns:
+        Names of legacy diagnostic settings that were removed.
+
+    Raises:
+        RuntimeError: If Azure resource discovery or deletion fails.
+    """
+    apim_output = run(f'az resource list --resource-group {rg_name} --resource-type Microsoft.ApiManagement/service --query "[].id" -o json')
+    workspace_output = run(f'az resource list --resource-group {rg_name} --resource-type Microsoft.OperationalInsights/workspaces --query "[].id" -o json')
+    if not apim_output.success or not workspace_output.success:
+        raise RuntimeError(f'Failed to discover APIM diagnostic-setting migration resources in resource group {rg_name}.')
+
+    apim_ids = apim_output.json_data or []
+    workspace_ids = {workspace_id.casefold() for workspace_id in (workspace_output.json_data or [])}
+    if not apim_ids or not workspace_ids:
+        return []
+
+    removed_settings: list[str] = []
+    for apim_id in apim_ids:
+        settings_output = run(f'az monitor diagnostic-settings list --resource "{apim_id}" -o json')
+        if not settings_output.success:
+            raise RuntimeError(f'Failed to inspect diagnostic settings for APIM resource {apim_id}.')
+
+        for setting in settings_output.json_data or []:
+            setting_name = setting.get('name') or ''
+            workspace_id = setting.get('workspaceId') or ''
+            if not _LEGACY_APIM_DIAGNOSTIC_SETTING_PATTERN.fullmatch(setting_name) or workspace_id.casefold() not in workspace_ids:
+                continue
+
+            delete_output = run(f'az monitor diagnostic-settings delete --name {setting_name} --resource "{apim_id}"')
+            if not delete_output.success:
+                raise RuntimeError(f'Failed to remove legacy APIM diagnostic setting {setting_name}.')
+
+            removed_settings.append(setting_name)
+            print_info(f'Removed legacy APIM diagnostic setting {setting_name}; the canonical apim-diagnostics setting will replace it.')
+
+    return removed_settings
+
+
 def get_unique_suffix_for_resource_group(rg_name: str) -> str:
     """
     Get the exact uniqueString value that Bicep/ARM generates for a resource group.
@@ -1239,10 +1269,7 @@ def get_unique_suffix_for_resource_group(rg_name: str) -> str:
 
     try:
         deployment_name = f'get-suffix-{int(time.time())}'
-        output = run(
-            f'az deployment group create --name {deployment_name} --resource-group {rg_name}'
-            f' --template-file "{template_path}" --query "properties.outputs.suffix.value" -o tsv'
-        )
+        output = run(f'az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file "{template_path}" --query "properties.outputs.suffix.value" -o tsv')
 
         if output.success and output.text.strip():
             return output.text.strip()

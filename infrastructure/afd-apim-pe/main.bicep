@@ -288,6 +288,22 @@ module apimModule '../../shared/bicep/modules/apim/v1/apim.bicep' = {
 }
 
 // 10. APIM Policy Fragments
+module apimDiagnosticsModule '../../shared/bicep/modules/apim/v1/diagnostics.bicep' = {
+  name: 'apimDiagnosticsModule'
+  params: {
+    apimServiceName: apimName
+    diagnosticSettingsNameSuffix: 'diagnostics'
+    enableApplicationInsights: false
+    enableEventHub: false
+    enableLlmLogs: true
+    enableLogAnalytics: true
+    logAnalyticsWorkspaceId: lawId
+  }
+  dependsOn: [
+    apimModule
+  ]
+}
+
 module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.bicep' = [for pf in policyFragments: {
   name: 'pf-${pf.name}'
   params:{
