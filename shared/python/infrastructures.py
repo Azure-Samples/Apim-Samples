@@ -489,6 +489,9 @@ class Infrastructure:
             #    EXECUTE DEPLOYMENT
             # ------------------------------
 
+            if is_update:
+                az.migrate_legacy_apim_diagnostic_settings(self.rg_name)
+
             # Run the deployment directly
             main_bicep_path = infra_dir / 'main.bicep'
             output = az.run(

@@ -845,10 +845,11 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
     ):
         infra = TestInfrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=TEST_INDEX, rg_location=TEST_LOCATION)
 
-        result = infra.deploy_infrastructure()
+        result = infra.deploy_infrastructure(is_update=True)
 
     # Verify the deployment process
     mock_az.create_resource_group.assert_called_once()
+    mock_az.migrate_legacy_apim_diagnostic_settings.assert_called_once_with(infra.rg_name)
     assert mock_az.run.call_count >= 1  # At least one call for deployment
 
     # Verify directory changes - just check that chdir was called twice (to infra dir and back)

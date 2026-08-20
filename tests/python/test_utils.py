@@ -1521,9 +1521,7 @@ def test_infrastructure_notebook_helper_create_low_cost_sku_no_prompt(monkeypatc
 
 def test_deploy_sample_with_infrastructure_selection(monkeypatch, suppress_console):
     """Test deploy_sample method with infrastructure selection when original doesn't exist."""
-    nb_helper = utils.NotebookHelper(
-        'test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA]
-    )
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA])
 
     # Mock does_resource_group_exist to return False for original, triggering selection
     monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: False)
@@ -1539,6 +1537,8 @@ def test_deploy_sample_with_infrastructure_selection(monkeypatch, suppress_conso
 
     # Mock utility functions
     monkeypatch.setattr(az, 'get_infra_rg_name', lambda infra, idx: f'apim-infra-{infra.value}-{idx}')
+    migrate_diagnostics = MagicMock()
+    monkeypatch.setattr(az, 'migrate_legacy_apim_diagnostic_settings', migrate_diagnostics)
 
     # Test the deployment
     result = nb_helper.deploy_sample({'test': {'value': 'param'}})
@@ -1547,6 +1547,7 @@ def test_deploy_sample_with_infrastructure_selection(monkeypatch, suppress_conso
     assert nb_helper.deployment == selected_infra
     assert nb_helper.rg_name == 'apim-infra-apim-aca-2'
     assert nb_helper._infrastructure_selection_completed is True
+    migrate_diagnostics.assert_called_once_with('apim-infra-apim-aca-2')
     assert result.success is True
 
 
@@ -1574,6 +1575,8 @@ def test_deploy_sample_existing_infrastructure(monkeypatch):
 
     # Mock does_resource_group_exist to return True (infrastructure exists)
     monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: True)
+    migrate_diagnostics = MagicMock()
+    monkeypatch.setattr(az, 'migrate_legacy_apim_diagnostic_settings', migrate_diagnostics)
 
     # Mock successful deployment
     mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
@@ -1589,6 +1592,7 @@ def test_deploy_sample_existing_infrastructure(monkeypatch):
     assert nb_helper.deployment == INFRASTRUCTURE.SIMPLE_APIM
     assert nb_helper.rg_name == 'test-rg'
     assert nb_helper.deployment_outputs is mock_output
+    migrate_diagnostics.assert_called_once_with('test-rg')
     assert result.success is True
 
 
@@ -1698,6 +1702,7 @@ def test_deploy_sample_deployment_failure(monkeypatch):
 
     # Mock does_resource_group_exist to return True
     monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: True)
+    monkeypatch.setattr(az, 'migrate_legacy_apim_diagnostic_settings', MagicMock())
 
     # Mock failed deployment
     mock_output = utils.Output(success=False, text='Deployment failed')
@@ -1718,6 +1723,7 @@ def test_deploy_sample_with_jwt(monkeypatch, suppress_console):
 
     # Mock does_resource_group_exist to return True
     monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: True)
+    monkeypatch.setattr(az, 'migrate_legacy_apim_diagnostic_settings', MagicMock())
 
     # Mock successful deployment
     mock_output = utils.Output(success=True, text='{"outputs": {"apimServiceName": {"value": "test-apim"}}}')
@@ -2269,9 +2275,7 @@ def test_get_endpoint_with_afd_url(monkeypatch, suppress_console):
 
     monkeypatch.setattr(az, 'get_endpoints', lambda d, r: mock_endpoints)
 
-    endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(
-        INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim-internal.azure-api.net'
-    )
+    endpoint_url, request_headers, allow_insecure_tls = utils.get_endpoint(INFRASTRUCTURE.AFD_APIM_PE, 'test-rg', 'https://apim-internal.azure-api.net')
 
     assert endpoint_url == 'https://myapp.azurefd.net'
     assert request_headers is None
@@ -3245,9 +3249,7 @@ def test_query_and_select_infrastructure_else_branch_with_unexpected_type(monkey
                         return selected_infra, selected_index
                     elif option_type == 'create_new':
                         # This elif should NOT execute when option_type == 'foo'
-                        inb_helper = utils.InfrastructureNotebookHelper(
-                            nb_helper.rg_location, nb_helper.deployment, selected_index, nb_helper.apim_sku
-                        )
+                        inb_helper = utils.InfrastructureNotebookHelper(nb_helper.rg_location, nb_helper.deployment, selected_index, nb_helper.apim_sku)
                         success = inb_helper.create_infrastructure(True)
                         if success:
                             return selected_infra, selected_index
