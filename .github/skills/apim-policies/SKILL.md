@@ -58,7 +58,7 @@ When retrying a backend request, make `<retry>` the sole direct child of `<backe
 <backend>
     <retry count="2" interval="1" first-fast-retry="true"
         condition='@(context.Response.StatusCode == 429 || context.Response.StatusCode &gt;= 500)'>
-        <forward-request buffer-request-body="true" />
+        <forward-request timeout="60" buffer-request-body="true" />
     </retry>
 </backend>
 ```
@@ -90,6 +90,16 @@ Route requests to a specific backend:
 
 ```xml
 <set-backend-service backend-id="my-backend" />
+```
+
+### Forward Request Timeout
+
+Set `timeout="60"` explicitly on every `forward-request` policy. This bounds each backend attempt to 60 seconds, including each attempt nested inside a `retry` policy.
+
+Use a different timeout only when measured workload behavior requires it, such as a documented long-running synchronous backend contract. Record the reason next to the policy and account for the total worst-case duration across the initial request and all retries. Do not omit the attribute to rely on the platform default.
+
+```xml
+<forward-request timeout="60" />
 ```
 
 ### Authentication with Managed Identity
@@ -152,7 +162,7 @@ Retry failed requests with conditions:
 ```xml
 <retry count="2" interval="1" first-fast-retry="true"
     condition='@(context.Response.StatusCode == 429 || context.Response.StatusCode &gt;= 500)'>
-    <forward-request buffer-request-body="true" />
+    <forward-request timeout="60" buffer-request-body="true" />
 </retry>
 ```
 

@@ -42,7 +42,7 @@ param appInsightsInstrumentationKey string = ''
 @description('Application Insights resource ID')
 param appInsightsResourceId string = ''
 
-@description('Name suffix for the diagnostic settings resource')
+@description('Name suffix for the diagnostic settings resource. Use the default for the shared Log Analytics destination and a unique suffix only for a different sink.')
 param diagnosticSettingsNameSuffix string = 'diagnostics'
 
 @description('Name of the APIM logger resource')

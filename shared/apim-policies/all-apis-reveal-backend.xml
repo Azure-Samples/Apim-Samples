@@ -22,7 +22,7 @@
         -->
     </inbound>
     <backend>
-        <forward-request />
+        <forward-request timeout="60" />
     </backend>
     <outbound>
         <!-- Please be aware that this reveals internal information to the caller. Use for learning and testing only. -->

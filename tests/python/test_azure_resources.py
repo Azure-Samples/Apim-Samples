@@ -116,6 +116,91 @@ def test_get_resource_group_location_empty():
         assert result is None
 
 
+def test_migrate_legacy_apim_diagnostic_settings_removes_only_repository_owned_settings():
+    """Legacy sample settings using the infrastructure workspace should be removed."""
+    apim_id = '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ApiManagement/service/apim-test'
+    workspace_id = '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/log-test'
+    outputs = []
+    for json_data in (
+        [apim_id],
+        [workspace_id],
+        [
+            {'name': 'apim-costing-diagnostics-1', 'workspaceId': workspace_id.upper()},
+            {'name': 'apim-inference-failover-60', 'workspaceId': workspace_id},
+            {'name': 'customer-diagnostics', 'workspaceId': workspace_id},
+            {'name': 'apim-costing-diagnostics-2', 'workspaceId': f'{workspace_id}-other'},
+            {'name': 'apim-inference-failover-3', 'workspaceId': None, 'eventHubName': 'telemetry'},
+        ],
+    ):
+        output = Output(True, json.dumps(json_data))
+        output.json_data = json_data
+        outputs.append(output)
+    outputs.extend((Output(True, ''), Output(True, '')))
+
+    with patch('azure_resources.run', side_effect=outputs) as mock_run:
+        removed = az.migrate_legacy_apim_diagnostic_settings('rg')
+
+    assert removed == ['apim-costing-diagnostics-1', 'apim-inference-failover-60']
+    assert mock_run.call_args_list[-2:] == [
+        call(f'az monitor diagnostic-settings delete --name apim-costing-diagnostics-1 --resource "{apim_id}"'),
+        call(f'az monitor diagnostic-settings delete --name apim-inference-failover-60 --resource "{apim_id}"'),
+    ]
+
+
+def test_migrate_legacy_apim_diagnostic_settings_is_noop_without_existing_resources():
+    """A new infrastructure should not require diagnostic-setting migration."""
+    no_apim = Output(True, '[]')
+    no_apim.json_data = []
+    workspace = Output(True, '["workspace-id"]')
+    workspace.json_data = ['workspace-id']
+
+    with patch('azure_resources.run', side_effect=(no_apim, workspace)) as mock_run:
+        removed = az.migrate_legacy_apim_diagnostic_settings('rg')
+
+    assert not removed
+    assert mock_run.call_count == 2
+
+
+def test_migrate_legacy_apim_diagnostic_settings_fails_when_resource_discovery_fails():
+    """Migration should stop when APIM or workspace discovery fails."""
+    with patch('azure_resources.run', side_effect=(Output(False, 'forbidden'), Output(True, '[]'))) as mock_run:
+        with pytest.raises(RuntimeError, match='Failed to discover.*resource group rg'):
+            az.migrate_legacy_apim_diagnostic_settings('rg')
+
+    assert mock_run.call_count == 2
+
+
+def test_migrate_legacy_apim_diagnostic_settings_fails_when_settings_inspection_fails():
+    """Migration should stop when an APIM resource's diagnostic settings cannot be inspected."""
+    apim_id = '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ApiManagement/service/apim-test'
+    apim_output = Output(True, json.dumps([apim_id]))
+    apim_output.json_data = [apim_id]
+    workspace_output = Output(True, '["workspace-id"]')
+    workspace_output.json_data = ['workspace-id']
+
+    with patch('azure_resources.run', side_effect=(apim_output, workspace_output, Output(False, 'forbidden'))) as mock_run:
+        with pytest.raises(RuntimeError, match=f'Failed to inspect diagnostic settings for APIM resource {apim_id}'):
+            az.migrate_legacy_apim_diagnostic_settings('rg')
+
+    assert mock_run.call_count == 3
+
+
+def test_migrate_legacy_apim_diagnostic_settings_fails_when_deletion_fails():
+    """Migration should stop before deployment if a known conflict cannot be removed."""
+    apim_id = '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ApiManagement/service/apim-test'
+    workspace_id = '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/log-test'
+    apim_output = Output(True, json.dumps([apim_id]))
+    apim_output.json_data = [apim_id]
+    workspace_output = Output(True, json.dumps([workspace_id]))
+    workspace_output.json_data = [workspace_id]
+    settings_output = Output(True, json.dumps([{'name': 'apim-costing-diagnostics-1', 'workspaceId': workspace_id}]))
+    settings_output.json_data = [{'name': 'apim-costing-diagnostics-1', 'workspaceId': workspace_id}]
+
+    with patch('azure_resources.run', side_effect=(apim_output, workspace_output, settings_output, Output(False, 'forbidden'))):
+        with pytest.raises(RuntimeError, match='apim-costing-diagnostics-1'):
+            az.migrate_legacy_apim_diagnostic_settings('rg')
+
+
 # ------------------------------
 #    ACCOUNT INFO TESTS
 # ------------------------------
@@ -806,9 +891,7 @@ def test_get_appgw_endpoint_success():
             {
                 'name': 'test-appgw',
                 'httpListeners': [{'hostName': 'api.contoso.com'}],
-                'frontendIPConfigurations': [
-                    {'publicIPAddress': {'id': '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/publicIPAddresses/test-pip'}}
-                ],
+                'frontendIPConfigurations': [{'publicIPAddress': {'id': '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/publicIPAddresses/test-pip'}}],
             }
         ]
         ip_output = Output(True, '')
@@ -1066,9 +1149,7 @@ def test_get_appgw_endpoint_no_public_ip(monkeypatch):
             {
                 'name': 'test-appgw',
                 'httpListeners': [{'hostName': 'api.contoso.com'}],
-                'frontendIPConfigurations': [
-                    {'publicIPAddress': {'id': '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/publicIPAddresses/pip'}}
-                ],
+                'frontendIPConfigurations': [{'publicIPAddress': {'id': '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/publicIPAddresses/pip'}}],
             }
         ]
 
@@ -2600,9 +2681,7 @@ class TestGetApimSubscriptionKeyEdgeCases:
             elif 'subscriptions?' in cmd:  # list subscriptions
                 output = Mock()
                 output.success = True
-                output.json_data = {
-                    'value': [{'name': 'sid-1', 'properties': {'state': 'suspended'}}, {'name': 'sid-2', 'properties': {'state': 'cancelled'}}]
-                }
+                output.json_data = {'value': [{'name': 'sid-1', 'properties': {'state': 'suspended'}}, {'name': 'sid-2', 'properties': {'state': 'cancelled'}}]}
                 return output
             else:  # listSecrets
                 output = Mock()

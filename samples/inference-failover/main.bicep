@@ -34,8 +34,8 @@ param enableEventHubExport bool = false
 @description('Resource ID of the Cognitive Services OpenAI User built-in role assigned to the APIM managed identity.')
 var openAiUserRoleDefinitionId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
 
-@description('Suffix for the APIM diagnostic setting associated with this sample.')
-var diagnosticsSuffix = 'inference-failover-${index}'
+@description('Suffix for the optional Event Hub-only APIM diagnostic setting associated with this sample.')
+var eventHubDiagnosticsSuffix = 'inference-failover-eventhub-${index}'
 
 @description('Display name of the telemetry workbook deployed for this sample.')
 var workbookName = 'APIM Inference Failover ${index}'
@@ -422,14 +422,31 @@ module apimDiagnostics '../../shared/bicep/modules/apim/v1/diagnostics.bicep' = 
     location: location
     apimServiceName: apimName
     apimResourceGroupName: resourceGroup().name
-    diagnosticSettingsNameSuffix: diagnosticsSuffix
+    diagnosticSettingsNameSuffix: 'diagnostics'
     enableApplicationInsights: false
-    enableEventHub: enableEventHubExport
+    enableEventHub: false
     enableLlmLogs: true
     enableLogAnalytics: true
+    eventHubAuthorizationRuleId: ''
+    eventHubName: ''
+    logAnalyticsWorkspaceId: logAnalyticsWorkspace.id
+  }
+}
+
+module apimEventHubDiagnostics '../../shared/bicep/modules/apim/v1/diagnostics.bicep' = if (enableEventHubExport) {
+  name: 'diagnostics-inference-failover-eventhub'
+  params: {
+    location: location
+    apimServiceName: apimName
+    apimResourceGroupName: resourceGroup().name
+    diagnosticSettingsNameSuffix: eventHubDiagnosticsSuffix
+    enableApplicationInsights: false
+    enableEventHub: true
+    enableLlmLogs: true
+    enableLogAnalytics: false
     eventHubAuthorizationRuleId: enableEventHubExport ? eventHubExportAuthorizationRule.id : ''
     eventHubName: enableEventHubExport ? eventHub.name : ''
-    logAnalyticsWorkspaceId: logAnalyticsWorkspace.id
+    logAnalyticsWorkspaceId: ''
   }
 }
 
