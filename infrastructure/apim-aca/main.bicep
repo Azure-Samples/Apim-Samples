@@ -95,7 +95,7 @@ module apimDiagnosticsModule '../../shared/bicep/modules/apim/v1/diagnostics.bic
     enableEventHub: false
     enableLlmLogs: true
     enableLogAnalytics: true
-    logAnalyticsWorkspaceId: lawId
+    logAnalyticsWorkspaceId: lawModule.outputs.id
   }
   dependsOn: [
     apimModule
