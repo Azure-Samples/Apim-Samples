@@ -23,6 +23,7 @@ dependencies = [
 [dependency-groups]
 # Developer tooling (installed automatically by default with `uv sync`)
 dev = [
+  "pip>=26.2",  # Resolves PYSEC-2026-3721 (CVE-2026-13346): https://github.com/pypa/advisory-database/blob/main/vulns/pip/PYSEC-2026-3721.yaml
   "ruff>=0.16.2",
   "pytest>=9.1.1",
   "pytest-cov>=7.1.0",
