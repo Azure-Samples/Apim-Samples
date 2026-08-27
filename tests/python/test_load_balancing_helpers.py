@@ -2,6 +2,7 @@
 
 import json
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -49,6 +50,19 @@ def test_load_balancing_policies_use_bounded_retry_count() -> None:
 
         assert expected_assignment in code_source
         assert '<retry count="2"' in rendered_policy
+        ET.fromstring(rendered_policy)
+
+
+@pytest.mark.unit
+def test_retry_tracking_policy_uses_csharp_string_literals() -> None:
+    """Prevent multi-character C# values from being emitted as character literals."""
+    policy = (LOAD_BALANCING_DIR / 'apim-policies' / 'aca-backend-pool-load-balancing-with-retry-tracked.xml').read_text(encoding='utf-8')
+
+    assert 'ContainsKey("Retry-After")' in policy
+    assert 'GetValueOrDefault("Retry-After", "0")' in policy
+    assert 'ContainsKey("cachedRetryEpoch")' in policy
+    assert "ContainsKey('" not in policy
+    assert "GetValueOrDefault('" not in policy
 
 
 def _create_runner(*, responses=None, sleep=None, clock=None):

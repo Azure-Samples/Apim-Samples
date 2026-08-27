@@ -54,7 +54,7 @@ _AZ_COMMAND_RE = re.compile(r'^\s*az(\s|$)')
 # cleanups reliable.
 _AZ_CLI_LOCK = threading.Lock()
 _NESTED_DEPLOYMENT_RESOURCE_TYPE = 'microsoft.resources/deployments'
-_LEGACY_APIM_DIAGNOSTIC_SETTING_PATTERN = re.compile(r'^apim-(?:costing-diagnostics|inference-failover)-\d+$')
+_LEGACY_APIM_DIAGNOSTIC_SETTING_PATTERN = re.compile(r'^apim-(?:diag|costing-diagnostics-\d+|inference-failover-\d+)$')
 
 
 def _strip_ansi(text: str) -> str:
@@ -227,9 +227,6 @@ def _extract_arm_error_details(error_payload: Any) -> tuple[str, str]:
     code = error_payload.get('code') if isinstance(error_payload.get('code'), str) else ''
     message = error_payload.get('message') if isinstance(error_payload.get('message'), str) else ''
 
-    if message:
-        return code, message
-
     details = error_payload.get('details')
     if isinstance(details, list):
         for detail in details:
@@ -242,6 +239,9 @@ def _extract_arm_error_details(error_payload: Any) -> tuple[str, str]:
         nested_code, nested_message = _extract_arm_error_details(inner_error)
         if nested_message:
             return nested_code or code, nested_message
+
+    if message:
+        return code, message
 
     return code, message
 
