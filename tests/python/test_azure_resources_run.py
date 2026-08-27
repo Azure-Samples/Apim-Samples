@@ -127,6 +127,7 @@ def test_extract_group_deployment_context_returns_none_for_non_matching_commands
 def test_extract_arm_error_details_prefers_nested_detail_message() -> None:
     payload = {
         'code': 'TopLevel',
+        'message': 'One or more fields contain incorrect values:',
         'details': [
             {
                 'code': 'NestedCode',

@@ -227,9 +227,6 @@ def _extract_arm_error_details(error_payload: Any) -> tuple[str, str]:
     code = error_payload.get('code') if isinstance(error_payload.get('code'), str) else ''
     message = error_payload.get('message') if isinstance(error_payload.get('message'), str) else ''
 
-    if message:
-        return code, message
-
     details = error_payload.get('details')
     if isinstance(details, list):
         for detail in details:
@@ -242,6 +239,9 @@ def _extract_arm_error_details(error_payload: Any) -> tuple[str, str]:
         nested_code, nested_message = _extract_arm_error_details(inner_error)
         if nested_message:
             return nested_code or code, nested_message
+
+    if message:
+        return code, message
 
     return code, message
 
