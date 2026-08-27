@@ -117,7 +117,7 @@ def test_get_resource_group_location_empty():
 
 
 def test_migrate_legacy_apim_diagnostic_settings_removes_only_repository_owned_settings():
-    """Legacy sample settings using the infrastructure workspace should be removed."""
+    """Legacy repository settings using the infrastructure workspace should be removed."""
     apim_id = '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ApiManagement/service/apim-test'
     workspace_id = '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/log-test'
     outputs = []
@@ -125,6 +125,7 @@ def test_migrate_legacy_apim_diagnostic_settings_removes_only_repository_owned_s
         [apim_id],
         [workspace_id],
         [
+            {'name': 'apim-diag', 'workspaceId': workspace_id},
             {'name': 'apim-costing-diagnostics-1', 'workspaceId': workspace_id.upper()},
             {'name': 'apim-inference-failover-60', 'workspaceId': workspace_id},
             {'name': 'customer-diagnostics', 'workspaceId': workspace_id},
@@ -135,13 +136,14 @@ def test_migrate_legacy_apim_diagnostic_settings_removes_only_repository_owned_s
         output = Output(True, json.dumps(json_data))
         output.json_data = json_data
         outputs.append(output)
-    outputs.extend((Output(True, ''), Output(True, '')))
+    outputs.extend((Output(True, ''), Output(True, ''), Output(True, '')))
 
     with patch('azure_resources.run', side_effect=outputs) as mock_run:
         removed = az.migrate_legacy_apim_diagnostic_settings('rg')
 
-    assert removed == ['apim-costing-diagnostics-1', 'apim-inference-failover-60']
-    assert mock_run.call_args_list[-2:] == [
+    assert removed == ['apim-diag', 'apim-costing-diagnostics-1', 'apim-inference-failover-60']
+    assert mock_run.call_args_list[-3:] == [
+        call(f'az monitor diagnostic-settings delete --name apim-diag --resource "{apim_id}"'),
         call(f'az monitor diagnostic-settings delete --name apim-costing-diagnostics-1 --resource "{apim_id}"'),
         call(f'az monitor diagnostic-settings delete --name apim-inference-failover-60 --resource "{apim_id}"'),
     ]

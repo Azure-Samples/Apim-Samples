@@ -54,7 +54,7 @@ _AZ_COMMAND_RE = re.compile(r'^\s*az(\s|$)')
 # cleanups reliable.
 _AZ_CLI_LOCK = threading.Lock()
 _NESTED_DEPLOYMENT_RESOURCE_TYPE = 'microsoft.resources/deployments'
-_LEGACY_APIM_DIAGNOSTIC_SETTING_PATTERN = re.compile(r'^apim-(?:costing-diagnostics|inference-failover)-\d+$')
+_LEGACY_APIM_DIAGNOSTIC_SETTING_PATTERN = re.compile(r'^apim-(?:diag|costing-diagnostics-\d+|inference-failover-\d+)$')
 
 
 def _strip_ansi(text: str) -> str:
