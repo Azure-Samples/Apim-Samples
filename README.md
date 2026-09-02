@@ -106,6 +106,7 @@ This menu-driven interface provides quick access to:
 - **Verify**: Show Azure account info, list soft-deleted resources, and list deployed infrastructures
 - **Tests**: Run ruff, pytest, and full Python checks
 - **Presentation**: Serve the slide deck in a browser or export a self-contained HTML copy
+- **Cleanup**: Select deployed infrastructures to delete and clean local development artifacts
 
 ![APIM Samples Developer CLI showing final linting, test, and code coverage results](./assets/dev-cli-lint-test-results.png "APIM Samples Developer CLI Final Results")
 
