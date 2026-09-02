@@ -29,7 +29,7 @@ def test_run_cleanup_menu_selects_one_and_tracks_pending(monkeypatch):
     deployments = [_deployment(INFRASTRUCTURE.APIM_ACA, 1), _deployment(INFRASTRUCTURE.APIM_ACA, 2)]
     answers = iter(['2', '1', '0'])
     output: list[str] = []
-    cleanup_calls: list[tuple[INFRASTRUCTURE, int | list[int | None] | None]] = []
+    cleanup_calls: list[tuple[INFRASTRUCTURE, int | list[int] | None]] = []
     monkeypatch.setattr(cleanup_menu, 'gather_deployments', lambda: deployments)
 
     pending = cleanup_menu.run_cleanup_menu(
@@ -77,7 +77,7 @@ def test_run_cleanup_menu_deletes_all_and_returns_to_type_list(monkeypatch):
 
     deployments = [_deployment(INFRASTRUCTURE.SIMPLE_APIM, 1), _deployment(INFRASTRUCTURE.SIMPLE_APIM, 2)]
     answers = iter(['1', '0', '1', 'a', '0'])
-    cleanup_calls: list[tuple[INFRASTRUCTURE, int | list[int | None] | None]] = []
+    cleanup_calls: list[tuple[INFRASTRUCTURE, int | list[int] | None]] = []
     monkeypatch.setattr(cleanup_menu, 'gather_deployments', lambda: deployments)
 
     pending = cleanup_menu.run_cleanup_menu(
@@ -88,6 +88,48 @@ def test_run_cleanup_menu_deletes_all_and_returns_to_type_list(monkeypatch):
 
     assert cleanup_calls == [(INFRASTRUCTURE.SIMPLE_APIM, [1, 2])]
     assert pending == deployments
+
+
+def test_run_cleanup_menu_splits_non_indexed_and_indexed_deployments(monkeypatch):
+    """Delete non-indexed and indexed instances without passing None in a list."""
+
+    deployments = [
+        cleanup_menu.InfrastructureDeployment(INFRASTRUCTURE.SIMPLE_APIM, None, 'apim-infra-simple-apim'),
+        _deployment(INFRASTRUCTURE.SIMPLE_APIM, 1),
+    ]
+    answers = iter(['1', 'a', '0'])
+    cleanup_calls: list[tuple[INFRASTRUCTURE, int | list[int] | None]] = []
+    monkeypatch.setattr(cleanup_menu, 'gather_deployments', lambda: deployments)
+
+    pending = cleanup_menu.run_cleanup_menu(
+        read=lambda prompt: next(answers),
+        write=lambda message: None,
+        cleanup=lambda infrastructure, index: cleanup_calls.append((infrastructure, index)),
+    )
+
+    assert cleanup_calls == [
+        (INFRASTRUCTURE.SIMPLE_APIM, None),
+        (INFRASTRUCTURE.SIMPLE_APIM, 1),
+    ]
+    assert pending == deployments
+
+
+def test_run_cleanup_menu_deletes_non_indexed_deployment(monkeypatch):
+    """Delete a legacy deployment that has no index."""
+
+    deployment = cleanup_menu.InfrastructureDeployment(INFRASTRUCTURE.SIMPLE_APIM, None, 'apim-infra-simple-apim')
+    answers = iter(['1', '1', '0'])
+    cleanup_calls: list[tuple[INFRASTRUCTURE, int | list[int] | None]] = []
+    monkeypatch.setattr(cleanup_menu, 'gather_deployments', lambda: [deployment])
+
+    pending = cleanup_menu.run_cleanup_menu(
+        read=lambda prompt: next(answers),
+        write=lambda message: None,
+        cleanup=lambda infrastructure, index: cleanup_calls.append((infrastructure, index)),
+    )
+
+    assert cleanup_calls == [(INFRASTRUCTURE.SIMPLE_APIM, None)]
+    assert pending == [deployment]
 
 
 def test_run_cleanup_menu_handles_empty_and_invalid_choices(monkeypatch):
@@ -108,3 +150,18 @@ def test_run_cleanup_menu_handles_empty_and_invalid_choices(monkeypatch):
     assert not pending
     assert sum('Invalid selection' in line for line in output) == 2
     assert any('No selectable deployments' in line for line in output)
+
+
+def test_main_runs_cleanup_menu(monkeypatch):
+    """Run the cleanup menu from the script entry function."""
+
+    cleanup_calls = 0
+
+    def run_cleanup_menu():
+        nonlocal cleanup_calls
+        cleanup_calls += 1
+
+    monkeypatch.setattr(cleanup_menu, 'run_cleanup_menu', run_cleanup_menu)
+
+    assert cleanup_menu.main() == 0
+    assert cleanup_calls == 1

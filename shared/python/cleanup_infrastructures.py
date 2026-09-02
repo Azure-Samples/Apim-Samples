@@ -11,7 +11,7 @@ from console import BOLD_G, DIM, RESET
 
 InputReader = Callable[[str], str]
 OutputWriter = Callable[[str], None]
-CleanupRunner = Callable[[INFRASTRUCTURE, int | list[int | None] | None], None]
+CleanupRunner = Callable[[INFRASTRUCTURE, int | list[int] | None], None]
 INFRASTRUCTURE_NAME_WIDTH = max(len(infrastructure.value) for infrastructure in INFRASTRUCTURE)
 
 
@@ -138,8 +138,12 @@ def run_cleanup_menu(
                 pending.append(deployment)
                 write(f'\n[PENDING] Starting deletion of {deployment.resource_group}')
 
-            indexes = [deployment.index for deployment in selected_deployments]
-            cleanup(selected_type, indexes if len(indexes) > 1 else indexes[0])
+            if any(deployment.index is None for deployment in selected_deployments):
+                cleanup(selected_type, None)
+
+            indexes = [deployment.index for deployment in selected_deployments if deployment.index is not None]
+            if indexes:
+                cleanup(selected_type, indexes if len(indexes) > 1 else indexes[0])
             break
 
 
