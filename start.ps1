@@ -75,6 +75,42 @@ function Invoke-Cmd {
     return $true
 }
 
+function Invoke-InteractiveCmd {
+    $flatArgs = @()
+    foreach ($a in $args) {
+        if ($a -is [System.Collections.IEnumerable] -and -not ($a -is [string])) {
+            $flatArgs += $a
+        } else {
+            $flatArgs += $a
+        }
+    }
+
+    Write-Host "`n>>> $($flatArgs -join ' ')`n" -ForegroundColor Cyan
+    Push-Location $RepoRoot
+    try {
+        $exe = $flatArgs[0]
+        $cmdArgs = if ($flatArgs.Count -gt 1) { @($flatArgs[1..($flatArgs.Count - 1)]) } else { @() }
+        $global:LASTEXITCODE = 0
+        & $exe @cmdArgs
+        $exitCode = if ($?) { $LASTEXITCODE } else { [Math]::Max($LASTEXITCODE, 1) }
+    }
+    catch {
+        Write-Host ""
+        Write-Host "Command failed: $_" -ForegroundColor Red
+        Write-Host ""
+        return
+    }
+    finally {
+        Pop-Location
+    }
+
+    if ($exitCode -ne 0) {
+        Write-Host ""
+        Write-Host "Command exited with code $exitCode" -ForegroundColor Yellow
+        Write-Host ""
+    }
+}
+
 function Show-AccountInfo {
     $python = Get-Python
     $code = @"
@@ -118,6 +154,18 @@ function PyRun {
     }
 }
 
+function PyRunInteractive {
+    param(
+        [Parameter(ValueFromRemainingArguments=$true)]
+        [string[]] $Args
+    )
+    if (Test-Uv) {
+        Invoke-InteractiveCmd "uv" (@("run", "--no-sync", "python") + $Args)
+    } else {
+        Invoke-InteractiveCmd (Get-Python) $Args
+    }
+}
+
 while ($true) {
     Write-Host ""
     Write-Host "APIM Samples Developer CLI" -ForegroundColor Cyan
@@ -147,6 +195,7 @@ while ($true) {
     Write-Host "  w) Serve & view GitHub Pages website (auto-opens browser)"
     Write-Host ""
     Write-Host "Cleanup" -ForegroundColor Yellow
+    Write-Host "  d) Delete deployed infrastructures"
     Write-Host "  c) Clean local artifacts (preserves .env)"
     Write-Host ""
     Write-Host "Misc" -ForegroundColor Yellow
@@ -211,6 +260,11 @@ while ($true) {
         }
         'c' {
             $null = Invoke-Cmd "$RepoRoot/setup/clean-local-artifacts.ps1"
+        }
+        'd' {
+            Write-Host ""
+            Write-Host "Checking what is currently deployed. This discovery step does not delete any resources." -ForegroundColor Yellow
+            PyRunInteractive "$RepoRoot/shared/python/cleanup_infrastructures.py"
         }
         'u' {
             if (Test-Uv) {

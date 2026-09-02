@@ -41,6 +41,22 @@ run_cmd() {
   fi
 }
 
+run_interactive_cmd() {
+  echo ""
+  echo ">>> $*"
+  echo ""
+  (cd "${REPO_ROOT}" && "$@")
+  status=$?
+  if [ "$status" -eq 0 ]; then
+    return 0
+  fi
+
+  echo ""
+  echo "Command exited with code $status"
+  echo ""
+  return $status
+}
+
 show_account() {
   local py
   py=$(find_python)
@@ -115,6 +131,7 @@ while true; do
   echo "  w) Serve & view GitHub Pages website (auto-opens browser)"
   echo ""
   echo "Cleanup"
+  echo "  d) Delete deployed infrastructures"
   echo "  c) Clean local artifacts (preserves .env)"
   echo ""
   echo "Misc"
@@ -180,6 +197,11 @@ while true; do
       ;;
     c)
       run_cmd bash "${REPO_ROOT}/setup/clean-local-artifacts.sh"
+      ;;
+    d)
+      echo ""
+      echo "Checking what is currently deployed. This discovery step does not delete any resources."
+      run_interactive_cmd pyrun "${REPO_ROOT}/shared/python/cleanup_infrastructures.py"
       ;;
     u)
       if has_uv; then

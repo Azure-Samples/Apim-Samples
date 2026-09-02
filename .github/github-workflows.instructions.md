@@ -71,6 +71,7 @@ Every selected action release must also be at least seven days old. Keep Dependa
 - Upload test reports and coverage reports as artifacts for visibility
 - Use consistent artifact naming: include the matrix variable in the name (e.g., `coverage-html-${{ matrix.python-version }}`)
 - Provide meaningful artifact names that help users identify the contents
+- Use `term-missing:skip-covered` for pytest-cov terminal summaries so CI logs show only files below 100% coverage; keep the complete HTML report as an artifact
 
 ### Environment Variables
 
