@@ -30,6 +30,7 @@ BOLD_Y = '\x1b[1;33m'  # yellow
 BOLD_C = '\x1b[1;36m'  # cyan
 BOLD_M = '\x1b[1;35m'  # magenta
 BOLD_W = '\x1b[1;37m'  # white
+DIM = '\x1b[2m'
 RESET = '\x1b[0m'
 
 # Thread colors for parallel operations
