@@ -27,7 +27,11 @@ class InfrastructureDeployment:
 def gather_deployments() -> list[InfrastructureDeployment]:
     """Return all tagged infrastructure deployments in display order."""
 
-    deployments = [InfrastructureDeployment(infrastructure, index, az.get_infra_rg_name(infrastructure, index)) for infrastructure in INFRASTRUCTURE for _, index in az.find_infrastructure_instances(infrastructure)]
+    deployments: list[InfrastructureDeployment] = []
+    for infrastructure in INFRASTRUCTURE:
+        for _, index in az.find_infrastructure_instances(infrastructure):
+            resource_group = az.get_infra_rg_name(infrastructure, index)
+            deployments.append(InfrastructureDeployment(infrastructure, index, resource_group))
 
     return sorted(deployments, key=lambda deployment: (deployment.infrastructure.value, deployment.index or 0))
 
