@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 
-WAITING_PERIOD_DAYS = 7
+WAITING_PERIOD_DAYS = 8
 ACTION_PATTERN = re.compile(
     r'uses:\s*(?P<action>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_./-]+)?)'
     r'@(?P<sha>[0-9a-fA-F]{40})\s*#\s*(?P<version>v?[^\s#]+)'

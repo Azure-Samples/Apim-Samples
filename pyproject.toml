@@ -33,7 +33,7 @@ dev = [
 
 [tool.uv]
 # Exclude every artifact published during the repository's supply-chain waiting period.
-exclude-newer = "7 days"
+exclude-newer = "8 days"
 
 [tool.ruff]
 line-length = 220

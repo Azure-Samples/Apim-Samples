@@ -7,7 +7,7 @@ applyTo: '**/*.json'
 
 ## Conventions
 
-- When JSON declares packages, features, extensions, or tool versions, use exact versions that are at least seven days old and keep the applicable Dependabot cooldown enabled. Do not add a floating package reference.
+- When JSON declares packages, features, extensions, or tool versions, use exact versions that are at least eight days old and keep the applicable Dependabot cooldown enabled. Do not add a floating package reference.
 - If $schema is defined, ensure that all changes are validated.
 - Use two spaces for indentation. Do not use tabs.
 - Sort properties alphabetically.

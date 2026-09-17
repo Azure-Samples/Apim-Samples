@@ -215,7 +215,7 @@ def test_upgrade_uses_canonical_pypi_then_syncs_through_mirror(tmp_path: Path) -
         '--default-index',
         'https://pypi.org/simple',
         '--exclude-newer',
-        '7 days',
+        '8 days',
         '--system-certs',
         '--project',
         str(tmp_path),

@@ -7,7 +7,7 @@ description: Guide for creating or scaffolding Azure API Management (APIM) usage
 
 This skill guides creating new APIM samples that follow the repository's established patterns.
 
-Before adding or changing any dependency, require a release at least seven days old. Preserve the uv release exclusion and locked install flow, and run `python setup/verify_dependency_age.py --scope all` before final validation.
+Before adding or changing any dependency, require a release at least eight days old. Preserve the uv release exclusion and locked install flow, and run `python setup/verify_dependency_age.py --scope all` before final validation.
 
 ## Sample Structure
 

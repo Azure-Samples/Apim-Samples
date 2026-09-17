@@ -8,7 +8,7 @@ updates:
 - package-ecosystem: uv
   directory: "/"
   cooldown:
-    default-days: 7
+    default-days: 8
     include:
       - "*"
   schedule:
@@ -26,7 +26,7 @@ updates:
 - package-ecosystem: github-actions
   directory: "/"
   cooldown:
-    default-days: 7
+    default-days: 8
     include:
       - "*"
   schedule:
@@ -44,7 +44,7 @@ updates:
     - "/.devcontainer/python313"
     - "/.devcontainer/python314"
   cooldown:
-    default-days: 7
+    default-days: 8
     include:
       - "*"
   schedule:
@@ -57,7 +57,7 @@ updates:
 - package-ecosystem: docker
   directory: "/.devcontainer"
   cooldown:
-    default-days: 7
+    default-days: 8
     include:
       - "*"
   schedule:

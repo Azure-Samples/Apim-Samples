@@ -7,7 +7,7 @@ applyTo: '**/*.bicep'
 
 ## Goals
 
-- Do not add package, module, CLI extension, or tool installation steps that bypass the repository's seven-day dependency waiting period and locked install commands.
+- Do not add package, module, CLI extension, or tool installation steps that bypass the repository's eight-day dependency waiting period and locked install commands.
 - Prefer modern Bicep syntax and patterns.
 - Keep templates readable and easy to extend.
 - Keep deployments cross-platform (Windows, Linux, macOS).
