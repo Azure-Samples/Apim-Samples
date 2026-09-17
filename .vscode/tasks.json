@@ -11,7 +11,7 @@
                 "python"
             ],
             "problemMatcher": [],
-            "detail": "Reject locked artifacts published during the seven-day waiting period"
+            "detail": "Reject locked artifacts published during the eight-day waiting period"
         },
         {
             "label": "Install Dependencies (uv)",
@@ -33,7 +33,7 @@
                 "clear": false
             },
             "problemMatcher": [],
-            "detail": "Install locked Python dependencies after uv applies the seven-day release exclusion"
+            "detail": "Install locked Python dependencies after uv applies the eight-day release exclusion"
         },
         {
             "label": "Setup Python Environment",

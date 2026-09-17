@@ -18,7 +18,7 @@ from urllib.request import Request, urlopen
 PYPI_ARTIFACT_HOST = 'files.pythonhosted.org'
 PYPI_HOST = 'pypi.org'
 PYPI_INDEX = 'https://pypi.org/simple'
-WAITING_PERIOD = '7 days'
+WAITING_PERIOD = '8 days'
 
 
 def _user_config_paths(environment: Mapping[str, str]) -> list[Path]:

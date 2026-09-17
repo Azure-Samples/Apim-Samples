@@ -355,7 +355,7 @@ def test_main_reports_all_violations(
 
     assert dependency_age.main() == 1
     assert capsys.readouterr().err.splitlines() == [
-        'Dependency age validation failed (7-day minimum):',
+        'Dependency age validation failed (8-day minimum):',
         '- bad package',
         '- bad action',
     ]

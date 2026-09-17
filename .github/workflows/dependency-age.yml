@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   verify:
-    name: Enforce seven-day waiting period
+    name: Enforce eight-day waiting period
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

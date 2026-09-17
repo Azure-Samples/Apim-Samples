@@ -7,7 +7,7 @@ description: Guide for building Bicep files for Azure API Management (APIM) and 
 
 This skill provides guidance for creating Azure Bicep templates for API Management and related services.
 
-Do not add tool, module, CLI extension, container feature, or package installation that bypasses the repository's seven-day release waiting period. Any new dependency must use an eligible exact version and the repository's guarded install flow.
+Do not add tool, module, CLI extension, container feature, or package installation that bypasses the repository's eight-day release waiting period. Any new dependency must use an eligible exact version and the repository's guarded install flow.
 
 When this workflow creates or updates Markdown, follow `.markdownlint.json` and `.github/markdown.instructions.md` without flattening semantic structure. Before completion, run `npx --no-install markdownlint-cli2 "**/*.md" "#**/.venv/**" "#**/node_modules/**"` from the repository root and require zero violations.
 

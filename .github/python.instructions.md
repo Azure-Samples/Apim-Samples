@@ -25,7 +25,7 @@ This ensures all code changes comply with the project's linting standards from t
 
 ## Goals
 
-- Before installing or syncing Python packages, preserve the seven-day release exclusion in `pyproject.toml`, run `python setup/verify_dependency_age.py --scope python`, and normally install with `uv sync --locked`. Upgrade packages with `python setup/sync_dependencies.py --upgrade` so lock generation is isolated to canonical public PyPI before the guarded sync.
+- Before installing or syncing Python packages, preserve the eight-day release exclusion in `pyproject.toml`, run `python setup/verify_dependency_age.py --scope python`, and normally install with `uv sync --locked`. Upgrade packages with `python setup/sync_dependencies.py --upgrade` so lock generation is isolated to canonical public PyPI before the guarded sync.
 - Generate `uv.lock` only against canonical public PyPI. Never commit organization-specific mirror URLs, proxy details, credentials, or internal endpoints to the lock. Do not manually remove uv's required registry source or artifact URL fields.
 - If locked artifact URLs are inaccessible, export the frozen lock to a temporary requirements file without index settings, then install through the approved mirror with `uv pip sync --no-config --require-hashes --strict`. `--no-config` is also required for the helper's canonical lock update so user mirror configuration cannot change the committed lock. Never commit the temporary export.
 - Never introduce a package-manager command that bypasses the lockfile, artifact hashes, or waiting period.

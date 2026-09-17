@@ -48,13 +48,13 @@ uv sync --locked
 python setup/local_setup.py --complete-setup
 ```
 
-The repository excludes packages published within the last seven days. Use the guarded helper to refresh the lockfile and sync the environment:
+The repository excludes packages published within the last eight days. Use the guarded helper to refresh the lockfile and sync the environment:
 
 ```shell
 python setup/sync_dependencies.py --upgrade
 ```
 
-The helper isolates lock generation from user package-index configuration, resolves the lock against canonical public PyPI with `exclude-newer = "7 days"`, and then runs the age verifier before installation. If canonical PyPI's artifact host is unreachable, the helper preserves the existing lock and syncs its verified packages through the configured index instead.
+The helper isolates lock generation from user package-index configuration, resolves the lock against canonical public PyPI with `exclude-newer = "8 days"`, and then runs the age verifier before installation. If canonical PyPI's artifact host is unreachable, the helper preserves the existing lock and syncs its verified packages through the configured index instead.
 
 Generate `uv.lock` only against canonical public PyPI. The uv lock format requires registry sources and artifact URLs, so do not remove those fields manually or replace them with organization-specific package mirror URLs.
 

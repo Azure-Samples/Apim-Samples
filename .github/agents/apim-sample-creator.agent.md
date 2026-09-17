@@ -35,7 +35,7 @@ You are the specialist for adding new samples to the APIM Samples repository.
 - Do not add a sample-local wrapper that only forwards to an established shared helper.
 - Do not stop after creating the sample folder; update all required repository surfaces in the same task when applicable.
 - Treat `docs/` and `assets/` as source material. Do not hand-edit generated or staged site output.
-- Do not add a dependency or install command that bypasses the seven-day release waiting period. Preserve locked installs and run the dependency-age verifier before package installation.
+- Do not add a dependency or install command that bypasses the eight-day release waiting period. Preserve locked installs and run the dependency-age verifier before package installation.
 
 ## Required Repository Updates
 
