@@ -4,6 +4,7 @@ import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock
+from xml.etree import ElementTree
 
 import pytest
 
@@ -12,6 +13,74 @@ sys.path.insert(0, str(DYNAMIC_CORS_DIR))
 
 import dynamic_cors_helpers  # noqa: E402
 from dynamic_cors_helpers import DynamicCorsTestRunner, load_test_results, wait_for_gateway_dns  # noqa: E402
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ('option', 'suffix', 'fragment_id', 'variable', 'cache_key'),
+    [
+        (3, 'cached', 'DynamicCorsCached', 'corsMappingJson', 'corsOriginMapping'),
+        (4, 'cached-per-api', 'DynamicCorsCachedPerApi', 'allowedOriginsJson', '@((string)context.Variables["corsOriginCacheKey"])'),
+    ],
+)
+def test_cached_cors_lookup_precedes_fragment_at_api_scope(option, suffix, fragment_id, variable, cache_key):
+    """Load cache data once at API scope, using the policies wired into the notebook."""
+    policy_name = f'cors-api-policy-{suffix}.xml'
+    policy = ElementTree.parse(DYNAMIC_CORS_DIR / 'apim-policies' / policy_name).getroot()
+    inbound = policy.find('inbound')
+    lookup = inbound.find('cache-lookup-value')
+    fragment = inbound.find('include-fragment')
+
+    assert len(list(policy.iter('cache-lookup-value'))) == 1
+    assert lookup.attrib == {'key': cache_key, 'variable-name': variable}
+    assert fragment.get('fragment-id') == fragment_id
+    assert list(inbound).index(lookup) < list(inbound).index(fragment)
+    assert inbound[0].tag == 'base'
+    assert policy.find('outbound/include-fragment').get('fragment-id') == 'DynamicCorsOutbound'
+    for section in ('backend', 'outbound', 'on-error'):
+        assert policy.find(f'{section}/base') is not None
+
+    if option == 4:
+        key = inbound.find('set-variable')
+        assert key.attrib == {'name': 'corsOriginCacheKey', 'value': '@("corsOriginMapping-" + context.Api.Id)'}
+        assert list(inbound).index(key) < list(inbound).index(lookup)
+
+    notebook = json.loads((DYNAMIC_CORS_DIR / 'create.ipynb').read_text(encoding='utf-8'))
+    code = '\n'.join(''.join(cell['source']) for cell in notebook['cells'] if cell['cell_type'] == 'code')
+    assert f"pol_api_opt{option} = utils.read_policy_xml('{policy_name}', sample_name = sample_folder)" in code
+    assert code.count(f'pol_api_opt{option}, [cors_get_op, cors_options_op]') == 2
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    ('suffix', 'variable'),
+    [('cached', 'corsMappingJson'), ('cached-per-api', 'allowedOriginsJson')],
+)
+def test_cached_cors_fragments_preserve_fail_closed_and_preflight_handling(suffix, variable):
+    """Keep cache-miss rejection ahead of origin parsing and preserve CORS responses."""
+    fragment = ElementTree.parse(DYNAMIC_CORS_DIR / 'apim-policies' / f'pf-dynamic-cors-{suffix}.xml').getroot()
+
+    assert fragment.tag == 'fragment'
+    assert fragment.find('.//cache-lookup-value') is None
+    assert fragment.find('set-variable[@name="corsOriginCacheKey"]') is None
+    missing = fragment[0].find('when')
+    assert missing.get('condition') == f'@(!context.Variables.ContainsKey("{variable}"))'
+    assert missing.find('return-response/set-status').get('code') == '503'
+    assert missing.find('trace').get('severity') == 'error'
+    origin = fragment.find('set-variable[@name="corsOrigin"]')
+    assert fragment[1] is origin
+    assert f'GetValueOrDefault<string>("{variable}"' in origin.get('value')
+    assert 'if (string.IsNullOrEmpty(origin)) { return ""; }' in origin.get('value')
+    assert 'allowedOrigins.Any(o => o.ToString() == "*")' in origin.get('value')
+    assert 'allowedOrigins.Any(o => o.ToString() == origin)' in origin.get('value')
+
+    preflight = fragment.findall('choose')[1].find('when')
+    assert preflight.get('condition') == '@(context.Request.Method == "OPTIONS")'
+    allowed = preflight.find('choose/when')
+    assert allowed.get('condition') == '@(!string.IsNullOrEmpty(context.Variables.GetValueOrDefault<string>("corsOrigin", "")))'
+    assert allowed.find('return-response/set-status').get('code') == '200'
+    assert allowed.find('return-response/set-header[@name="Access-Control-Allow-Origin"]/value').text == '@((string)context.Variables["corsOrigin"])'
+    assert preflight.find('choose/otherwise/return-response/set-status').get('code') == '403'
 
 
 def _create_runner(monkeypatch, results_path: Path, result_groups: list[str] | None = None) -> DynamicCorsTestRunner:
