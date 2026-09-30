@@ -816,11 +816,12 @@ def test_all_concrete_infrastructure_classes_have_verification(mock_utils):
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize('is_update', [False, True])
 @patch('os.getcwd')
 @patch('os.chdir')
 @patch('pathlib.Path')
-def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd, mock_utils, mock_az):
-    """Test successful infrastructure deployment."""
+def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd, mock_utils, mock_az, is_update):
+    """Migrate legacy diagnostics before deployment, including creates targeting existing resources."""
     # Setup mocks
     mock_getcwd.return_value = '/original/path'
     mock_infra_dir = Mock()
@@ -837,6 +838,9 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
 
     # Mock file writing and JSON dumps to avoid MagicMock serialization issues
     mock_open = MagicMock()
+    deployment_steps = Mock()
+    deployment_steps.attach_mock(mock_az.migrate_legacy_apim_diagnostic_settings, 'migrate')
+    deployment_steps.attach_mock(mock_az.run, 'deploy')
 
     with (
         patch('builtins.open', mock_open),
@@ -845,11 +849,12 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
     ):
         infra = TestInfrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=TEST_INDEX, rg_location=TEST_LOCATION)
 
-        result = infra.deploy_infrastructure(is_update=True)
+        result = infra.deploy_infrastructure(is_update = is_update)
 
     # Verify the deployment process
     mock_az.create_resource_group.assert_called_once()
     mock_az.migrate_legacy_apim_diagnostic_settings.assert_called_once_with(infra.rg_name)
+    assert [step[0] for step in deployment_steps.mock_calls[:2]] == ['migrate', 'deploy']
     assert mock_az.run.call_count >= 1  # At least one call for deployment
 
     # Verify directory changes - just check that chdir was called twice (to infra dir and back)
@@ -862,6 +867,28 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
     mock_json_dumps.assert_called_once()
 
     assert result.success is True
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize('is_update', [False, True])
+@patch('os.getcwd', return_value = '/original/path')
+@patch('os.chdir')
+def test_deploy_infrastructure_stops_when_diagnostic_migration_fails(mock_chdir, mock_getcwd, mock_utils, mock_az, is_update):
+    """Do not deploy into a known conflict, and restore the working directory on migration failure."""
+    infra = infrastructures.SimpleApimInfrastructure(TEST_LOCATION, TEST_INDEX)
+    mock_az.migrate_legacy_apim_diagnostic_settings.side_effect = RuntimeError('Diagnostic migration failed')
+
+    with (
+        patch('builtins.open', MagicMock()),
+        patch('json.dumps', return_value = '{"mocked": "params"}'),
+        pytest.raises(RuntimeError, match = 'Diagnostic migration failed'),
+    ):
+        infra.deploy_infrastructure(is_update = is_update)
+
+    mock_az.migrate_legacy_apim_diagnostic_settings.assert_called_once_with(infra.rg_name)
+    mock_az.run.assert_not_called()
+    assert mock_chdir.call_count == 2
+    assert mock_chdir.call_args.args == ('/original/path',)
 
 
 @pytest.mark.unit
