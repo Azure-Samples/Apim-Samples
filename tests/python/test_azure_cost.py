@@ -196,6 +196,29 @@ class TestGetModelPricing:
         assert p.prompt_rate_per_k == pytest.approx(0.00025)
         assert p.completion_rate_per_k == pytest.approx(0.002)
 
+    def test_gpt5_nano_global_standard(self):
+        """gpt-5-nano GlobalStandard returns expected token rates."""
+        p = get_model_pricing('gpt-5-nano')
+        assert p.model == 'gpt-5-nano'
+        assert p.sku == 'GlobalStandard'
+        assert p.prompt_rate_per_k == pytest.approx(0.00005)
+        assert p.completion_rate_per_k == pytest.approx(0.0004)
+
+    def test_gpt51_global_standard(self):
+        """gpt-5.1 GlobalStandard returns expected token rates."""
+        p = get_model_pricing('gpt-5.1')
+        assert p.model == 'gpt-5.1'
+        assert p.sku == 'GlobalStandard'
+        assert p.prompt_rate_per_k == pytest.approx(0.00125)
+        assert p.completion_rate_per_k == pytest.approx(0.01)
+
+    def test_legacy_model_still_resolvable(self):
+        """Legacy/Deprecating models remain resolvable for historical cost modeling."""
+        p = get_model_pricing('gpt-4o-mini')
+        assert p.model == 'gpt-4o-mini'
+        p = get_model_pricing('gpt-4.1-nano')
+        assert p.model == 'gpt-4.1-nano'
+
     def test_case_insensitive_model(self):
         """Model name lookup is case-insensitive."""
         p = get_model_pricing('GPT-5-Mini')

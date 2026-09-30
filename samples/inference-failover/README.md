@@ -22,7 +22,7 @@ Beyond the [general prerequisites](../../README.md#-getting-started) (Azure subs
 
 - **Cognitive Services Contributor** at resource group scope to create three Azure OpenAI resources and nine regional model deployments.
 - **Role Based Access Control Administrator** or equivalent role-assignment permission at resource group scope to assign APIM's managed identity the **Cognitive Services OpenAI User** role.
-- Regional model availability and quota in `eastus2`, `westus3`, and `southcentralus` for the requested `gpt-5.1` and `gpt-4.1-mini` `Standard` deployments.
+- Regional model availability and quota in `eastus2`, `westus3`, and `southcentralus` for the requested `gpt-5.1` and `gpt-5-mini` `Standard` deployments.
 
 ## 📝 Scenario
 
@@ -83,17 +83,19 @@ For the HTTP fault cases, a minimal local origin can return the requested status
 
 All deployments below use the regional `Standard` SKU with a capacity of `1` thousand tokens per minute (TPM). This deliberately small capacity makes concentrated `429`-driven failover practical to observe; it is not production sizing advice.
 
-| Region           | Label | Deployment       | Model          | Version      | Simulates          |
-| ---------------- | ----- | ---------------- | -------------- | ------------ | ------------------ |
-| East US 2        | A     | `a-gpt-5-1`      | `gpt-5.1`      | `2025-11-13` | In-region PTU      |
-| East US 2        | B     | `b-gpt-5-1`      | `gpt-5.1`      | `2025-11-13` | In-region PAYG     |
-| East US 2        | C     | `c-gpt-4-1-mini` | `gpt-4.1-mini` | `2025-04-14` | In-region PTU      |
-| East US 2        | D     | `d-gpt-4-1-mini` | `gpt-4.1-mini` | `2025-04-14` | In-region PAYG     |
-| West US 3        | D     | `d-gpt-5-1`      | `gpt-5.1`      | `2025-11-13` | Out-of-region PTU  |
-| West US 3        | E     | `e-gpt-5-1`      | `gpt-5.1`      | `2025-11-13` | Out-of-region PAYG |
-| West US 3        | F     | `f-gpt-4-1-mini` | `gpt-4.1-mini` | `2025-04-14` | Out-of-region PTU  |
-| South Central US | G     | `g-gpt-5-1`      | `gpt-5.1`      | `2025-11-13` | Out-of-region PAYG |
-| South Central US | H     | `h-gpt-4-1-mini` | `gpt-4.1-mini` | `2025-04-14` | Out-of-region PAYG |
+| Region           | Label | Deployment      | Model        | Version      | Simulates          |
+| ---------------- | ----- | --------------- | ------------ | ------------ | ------------------ |
+| East US 2        | A     | `a-gpt-5-1`     | `gpt-5.1`    | `2025-11-13` | In-region PTU      |
+| East US 2        | B     | `b-gpt-5-1`     | `gpt-5.1`    | `2025-11-13` | In-region PAYG     |
+| East US 2        | C     | `c-gpt-5-mini`  | `gpt-5-mini` | `2025-08-07` | In-region PTU      |
+| East US 2        | D     | `d-gpt-5-mini`  | `gpt-5-mini` | `2025-08-07` | In-region PAYG     |
+| West US 3        | D     | `d-gpt-5-1`     | `gpt-5.1`    | `2025-11-13` | Out-of-region PTU  |
+| West US 3        | E     | `e-gpt-5-1`     | `gpt-5.1`    | `2025-11-13` | Out-of-region PAYG |
+| West US 3        | F     | `f-gpt-5-mini`  | `gpt-5-mini` | `2025-08-07` | Out-of-region PTU  |
+| South Central US | G     | `g-gpt-5-1`     | `gpt-5.1`    | `2025-11-13` | Out-of-region PAYG |
+| South Central US | H     | `h-gpt-5-mini`  | `gpt-5-mini` | `2025-08-07` | Out-of-region PAYG |
+
+> **Model lifecycle note:** Azure OpenAI models move through `GenerallyAvailable`, `Legacy`, and `Deprecating` lifecycle states, and Legacy or Deprecating models eventually stop accepting new deployments. This sample was updated away from the now-retiring `gpt-4.1-mini` to the current `gpt-5-mini`. Before deploying, confirm the lifecycle status and deprecation date for any model in your target regions with `az cognitiveservices model list --location <region> --query "value[?model.name=='<model-name>'].model.lifecycleStatus"`.
 
 ### Load Balancer Configuration
 
@@ -105,17 +107,17 @@ The routing rules are:
 1. **Priority 2 - in-region PAYG:** Use the East US 2 PAYG deployment after all compatible PTUs are unavailable.
 1. **Priority 3 - any PAYG:** Distribute traffic across any remaining compatible PAYG deployments, with equal weight when a model has multiple members in this tier.
 
-| Model          | Label | APIM Backend                       | Capacity Tier      | Priority | Weight |
-| -------------- | ----- | ---------------------------------- | ------------------ | -------- | ------ |
-| `gpt-5.1`      | A     | `gpt-5-1-PTU-eastus2`              | In-region PTU      | 1        | 50     |
-| `gpt-5.1`      | D     | `gpt-5-1-PTU-westus3`              | Out-of-region PTU  | 1        | 50     |
-| `gpt-5.1`      | B     | `gpt-5-1-PAYG-eastus2`             | In-region PAYG     | 2        | 100    |
-| `gpt-5.1`      | E     | `gpt-5-1-PAYG-westus3`             | Out-of-region PAYG | 3        | 50     |
-| `gpt-5.1`      | G     | `gpt-5-1-PAYG-southcentralus`      | Out-of-region PAYG | 3        | 50     |
-| `gpt-4.1-mini` | C     | `gpt-4-1-mini-PTU-eastus2`         | In-region PTU      | 1        | 50     |
-| `gpt-4.1-mini` | F     | `gpt-4-1-mini-PTU-westus3`         | Out-of-region PTU  | 1        | 50     |
-| `gpt-4.1-mini` | D     | `gpt-4-1-mini-PAYG-eastus2`        | In-region PAYG     | 2        | 100    |
-| `gpt-4.1-mini` | H     | `gpt-4-1-mini-PAYG-southcentralus` | Out-of-region PAYG | 3        | 100    |
+| Model        | Label | APIM Backend                     | Capacity Tier      | Priority | Weight |
+| ------------ | ----- | --------------------------------- | ------------------ | -------- | ------ |
+| `gpt-5.1`    | A     | `gpt-5-1-PTU-eastus2`             | In-region PTU      | 1        | 50     |
+| `gpt-5.1`    | D     | `gpt-5-1-PTU-westus3`             | Out-of-region PTU  | 1        | 50     |
+| `gpt-5.1`    | B     | `gpt-5-1-PAYG-eastus2`            | In-region PAYG     | 2        | 100    |
+| `gpt-5.1`    | E     | `gpt-5-1-PAYG-westus3`            | Out-of-region PAYG | 3        | 50     |
+| `gpt-5.1`    | G     | `gpt-5-1-PAYG-southcentralus`     | Out-of-region PAYG | 3        | 50     |
+| `gpt-5-mini` | C     | `gpt-5-mini-PTU-eastus2`          | In-region PTU      | 1        | 50     |
+| `gpt-5-mini` | F     | `gpt-5-mini-PTU-westus3`          | Out-of-region PTU  | 1        | 50     |
+| `gpt-5-mini` | D     | `gpt-5-mini-PAYG-eastus2`         | In-region PAYG     | 2        | 100    |
+| `gpt-5-mini` | H     | `gpt-5-mini-PAYG-southcentralus`  | Out-of-region PAYG | 3        | 100    |
 
 ## 🛩️ Lab Components
 

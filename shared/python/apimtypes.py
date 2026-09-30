@@ -205,6 +205,44 @@ class APIM_SKU(StrEnum):
         return self in (APIM_SKU.STANDARD, APIM_SKU.PREMIUM, APIM_SKU.STANDARDV2, APIM_SKU.PREMIUMV2)
 
 
+class AzureOpenAIModel(StrEnum):
+    """Azure OpenAI model snapshots supported by the samples."""
+
+    GPT_5_MINI = 'gpt-5-mini'
+    GPT_5_NANO = 'gpt-5-nano'
+    GPT_5_1 = 'gpt-5.1'
+
+    @property
+    def version(self) -> str:
+        """Return the model snapshot version used for new deployments."""
+        return {
+            AzureOpenAIModel.GPT_5_MINI: '2025-08-07',
+            AzureOpenAIModel.GPT_5_NANO: '2025-08-07',
+            AzureOpenAIModel.GPT_5_1: '2025-11-13',
+        }[self]
+
+    @property
+    def deployment_slug(self) -> str:
+        """Return the model name normalized for Azure resource names and API paths."""
+        return self.value.replace('.', '-')
+
+    @property
+    def intended_use(self) -> str:
+        """Return the sample-oriented role used when evaluating migration targets."""
+        return {
+            AzureOpenAIModel.GPT_5_MINI: 'balanced general-purpose inference',
+            AzureOpenAIModel.GPT_5_NANO: 'lowest-cost high-volume inference',
+            AzureOpenAIModel.GPT_5_1: 'premium general-purpose inference',
+        }[self]
+
+    def to_deployment_config(self, capacity: int) -> dict[str, str | int]:
+        """Return the model fields expected by the shared Azure OpenAI Bicep modules."""
+        if capacity <= 0:
+            raise ValueError('Model deployment capacity must be greater than zero')
+
+        return {'name': self.value, 'version': self.version, 'capacity': capacity}
+
+
 class HTTP_VERB(StrEnum):
     """
     HTTP verbs that can be used for API operations.

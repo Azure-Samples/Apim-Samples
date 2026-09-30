@@ -2,7 +2,7 @@
 //
 // Parameters (prepend as KQL 'let' bindings before running):
 //   let timeWindow = 1h;
-//   let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-4-1-mini']);
+//   let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-5-mini']);
 //
 let requestRoutes = ApiManagementGatewayLogs
 | where TimeGenerated > ago(timeWindow)
