@@ -415,11 +415,11 @@ def test_generate_local_html_report_owns_rendering_links_and_output(monkeypatch,
     tests = MagicMock(total_tests=3, tests_passed=3, tests_failed=0, errors=[])
     labels = {
         'gpt-5.1': {0: 'Priority 1 / Weight 100: PTU (East US 2)'},
-        'gpt-4.1-mini': {0: 'Priority 1 / Weight 100: PTU (East US 2)'},
+        'gpt-5-mini': {0: 'Priority 1 / Weight 100: PTU (East US 2)'},
     }
     indexes = {
         'gpt-5.1': {'/deployments/a-model': 0},
-        'gpt-4.1-mini': {'/deployments/a-model': 0},
+        'gpt-5-mini': {'/deployments/a-model': 0},
     }
 
     result = generate_local_html_report(_report_context(), tests, _report_results(), indexes, labels, output_path=output_path)
@@ -448,11 +448,11 @@ def test_generate_local_html_report_adds_available_telemetry(monkeypatch, tmp_pa
     tests = MagicMock(total_tests=1, tests_passed=0, tests_failed=1, errors=['failed assertion'])
     labels = {
         'gpt-5.1': {0: 'Priority 1 / Weight 100: PTU (East US 2)'},
-        'gpt-4.1-mini': {0: 'Priority 1 / Weight 100: PTU (East US 2)'},
+        'gpt-5-mini': {0: 'Priority 1 / Weight 100: PTU (East US 2)'},
     }
     indexes = {
         'gpt-5.1': {'/deployments/a-model': 0},
-        'gpt-4.1-mini': {'/deployments/a-model': 0},
+        'gpt-5-mini': {'/deployments/a-model': 0},
     }
     distribution_frame = pd.DataFrame(
         [['inference-gpt-5-1', 'https://host/openai/deployments/a-model', 1]],
@@ -484,8 +484,8 @@ def test_generate_local_html_report_adds_available_telemetry(monkeypatch, tmp_pa
 @pytest.mark.parametrize(
     ('scenario_results', 'indexes', 'labels', 'message'),
     (
-        ([], {'gpt-5.1': {}, 'gpt-4.1-mini': {}}, {'gpt-5.1': {}, 'gpt-4.1-mini': {}}, 'six scenario'),
-        ([[] for _ in range(6)], {'gpt-5.1': {}}, {'gpt-5.1': {}, 'gpt-4.1-mini': {}}, 'gpt-4.1-mini'),
+        ([], {'gpt-5.1': {}, 'gpt-5-mini': {}}, {'gpt-5.1': {}, 'gpt-5-mini': {}}, 'six scenario'),
+        ([[] for _ in range(6)], {'gpt-5.1': {}}, {'gpt-5.1': {}, 'gpt-5-mini': {}}, 'gpt-5-mini'),
     ),
 )
 def test_generate_local_html_report_rejects_incomplete_inputs(scenario_results, indexes, labels, message):

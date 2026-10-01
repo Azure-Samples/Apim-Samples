@@ -8,12 +8,28 @@ without manual look-up.
 APIM pricing source (as of March 2026):
     https://azure.microsoft.com/pricing/details/api-management/
 
-Azure OpenAI pricing source (as of April 2026):
+Azure OpenAI pricing source (as of September 2026):
     https://azure.microsoft.com/pricing/details/cognitive-services/openai-service/
 
 Classic-tier (v1) SKUs do not publish a per-request overage rate;
 ``get_apim_sku_pricing`` returns ``0.0`` for both ``per_k_rate`` and
 ``included_requests_k`` on those tiers.
+
+Azure OpenAI model lifecycle (surfaced here so older, no-longer-provisionable
+models are easy to spot when choosing a model for a new sample or deployment).
+Status is authoritative only via ``az cognitiveservices model list --location
+<region>`` (the ``lifecycleStatus`` field); the Azure AI Foundry model catalog
+does not reliably surface it. Snapshot taken September 2026:
+    - ``gpt-4o-mini`` (2024-07-18): **Deprecating** - blocked for *new*
+      deployments; existing deployments still served until retirement.
+    - ``gpt-4.1-mini`` / ``gpt-4.1-nano`` (2025-04-14): **Legacy** - still
+      deployable today but superseded by the GPT-5 family; prefer a current
+      model for new samples.
+    - ``gpt-5`` / ``gpt-5-mini`` / ``gpt-5-nano`` (2025-08-07) and ``gpt-5.1``
+      (2025-11-13): **Generally Available** - current, recommended choices.
+    The ``gpt-4o-mini`` and ``gpt-4.1-nano`` pricing entries below are kept
+    for historical/cost-modeling reference only; do not use them for new
+    deployments.
 """
 
 from __future__ import annotations
@@ -27,7 +43,7 @@ from apimtypes import APIM_SKU
 APIM_PRICING_URL = 'https://azure.microsoft.com/pricing/details/api-management/'
 APIM_PRICING_AS_OF = 'March 2026'
 AOAI_PRICING_URL = 'https://azure.microsoft.com/pricing/details/cognitive-services/openai-service/'
-AOAI_PRICING_AS_OF = 'April 2026'
+AOAI_PRICING_AS_OF = 'September 2026'
 
 
 @dataclass(frozen=True)
@@ -138,6 +154,10 @@ class ModelPricing:
 
 
 # Key format: (lower-cased model name, lower-cased sku name)
+#
+# Current (Generally Available) models are listed first; Legacy/Deprecating
+# models are retained below them for historical cost-modeling reference only.
+# See the module docstring for full lifecycle status per model.
 _MODEL_PRICING: dict[tuple[str, str], ModelPricing] = {
     ('gpt-5-mini', 'globalstandard'): ModelPricing(
         model='gpt-5-mini',
@@ -145,13 +165,26 @@ _MODEL_PRICING: dict[tuple[str, str], ModelPricing] = {
         prompt_rate_per_k=0.00025,  # $0.25 / 1M input tokens
         completion_rate_per_k=0.002,  # $2.00 / 1M output tokens
     ),
-    ('gpt-4o-mini', 'globalstandard'): ModelPricing(
+    ('gpt-5-nano', 'globalstandard'): ModelPricing(
+        model='gpt-5-nano',
+        sku='GlobalStandard',
+        prompt_rate_per_k=0.00005,  # $0.05 / 1M input tokens
+        completion_rate_per_k=0.0004,  # $0.40 / 1M output tokens
+    ),
+    ('gpt-5.1', 'globalstandard'): ModelPricing(
+        model='gpt-5.1',
+        sku='GlobalStandard',
+        prompt_rate_per_k=0.00125,  # $1.25 / 1M input tokens
+        completion_rate_per_k=0.01,  # $10.00 / 1M output tokens
+    ),
+    # --- Legacy/Deprecating models below: kept for historical reference only. ---
+    ('gpt-4o-mini', 'globalstandard'): ModelPricing(  # Deprecating; blocked for new deployments
         model='gpt-4o-mini',
         sku='GlobalStandard',
         prompt_rate_per_k=0.00015,  # $0.15 / 1M input tokens
         completion_rate_per_k=0.0006,  # $0.60 / 1M output tokens
     ),
-    ('gpt-4.1-nano', 'globalstandard'): ModelPricing(
+    ('gpt-4.1-nano', 'globalstandard'): ModelPricing(  # Legacy; superseded by gpt-5-nano
         model='gpt-4.1-nano',
         sku='GlobalStandard',
         prompt_rate_per_k=0.0001,  # $0.10 / 1M input tokens

@@ -26,6 +26,18 @@ param apis array = []
 @description('Deploy a regional Event Hub and stream APIM logs and metrics for external consumers.')
 param enableEventHubExport bool = false
 
+@description('Primary Azure OpenAI model name supplied by the supported model catalog in apimtypes.py.')
+param primaryModelName string
+
+@description('Primary Azure OpenAI model snapshot version supplied by the supported model catalog in apimtypes.py.')
+param primaryModelVersion string
+
+@description('Secondary Azure OpenAI model name supplied by the supported model catalog in apimtypes.py.')
+param secondaryModelName string
+
+@description('Secondary Azure OpenAI model snapshot version supplied by the supported model catalog in apimtypes.py.')
+param secondaryModelVersion string
+
 
 // ------------------------------
 //    VARIABLES
@@ -73,8 +85,8 @@ var deployments = [
     accountIndex: 0
     backendName: 'gpt-5-1-PTU-eastus2'
     deploymentName: 'a-gpt-5-1'
-    modelName: 'gpt-5.1'
-    modelVersion: '2025-11-13'
+    modelName: primaryModelName
+    modelVersion: primaryModelVersion
     region: 'eastus2'
     route: 'In-region PTU'
   }
@@ -82,8 +94,8 @@ var deployments = [
     accountIndex: 1
     backendName: 'gpt-5-1-PTU-westus3'
     deploymentName: 'd-gpt-5-1'
-    modelName: 'gpt-5.1'
-    modelVersion: '2025-11-13'
+    modelName: primaryModelName
+    modelVersion: primaryModelVersion
     region: 'westus3'
     route: 'Out-of-region PTU'
   }
@@ -91,8 +103,8 @@ var deployments = [
     accountIndex: 0
     backendName: 'gpt-5-1-PAYG-eastus2'
     deploymentName: 'b-gpt-5-1'
-    modelName: 'gpt-5.1'
-    modelVersion: '2025-11-13'
+    modelName: primaryModelName
+    modelVersion: primaryModelVersion
     region: 'eastus2'
     route: 'In-region PAYG'
   }
@@ -100,8 +112,8 @@ var deployments = [
     accountIndex: 1
     backendName: 'gpt-5-1-PAYG-westus3'
     deploymentName: 'e-gpt-5-1'
-    modelName: 'gpt-5.1'
-    modelVersion: '2025-11-13'
+    modelName: primaryModelName
+    modelVersion: primaryModelVersion
     region: 'westus3'
     route: 'Out-of-region PAYG'
   }
@@ -109,44 +121,44 @@ var deployments = [
     accountIndex: 2
     backendName: 'gpt-5-1-PAYG-southcentralus'
     deploymentName: 'g-gpt-5-1'
-    modelName: 'gpt-5.1'
-    modelVersion: '2025-11-13'
+    modelName: primaryModelName
+    modelVersion: primaryModelVersion
     region: 'southcentralus'
     route: 'Out-of-region PAYG'
   }
   {
     accountIndex: 0
-    backendName: 'gpt-4-1-mini-PTU-eastus2'
-    deploymentName: 'c-gpt-4-1-mini'
-    modelName: 'gpt-4.1-mini'
-    modelVersion: '2025-04-14'
+    backendName: 'gpt-5-mini-PTU-eastus2'
+    deploymentName: 'c-gpt-5-mini'
+    modelName: secondaryModelName
+    modelVersion: secondaryModelVersion
     region: 'eastus2'
     route: 'In-region PTU'
   }
   {
     accountIndex: 1
-    backendName: 'gpt-4-1-mini-PTU-westus3'
-    deploymentName: 'f-gpt-4-1-mini'
-    modelName: 'gpt-4.1-mini'
-    modelVersion: '2025-04-14'
+    backendName: 'gpt-5-mini-PTU-westus3'
+    deploymentName: 'f-gpt-5-mini'
+    modelName: secondaryModelName
+    modelVersion: secondaryModelVersion
     region: 'westus3'
     route: 'Out-of-region PTU'
   }
   {
     accountIndex: 0
-    backendName: 'gpt-4-1-mini-PAYG-eastus2'
-    deploymentName: 'd-gpt-4-1-mini'
-    modelName: 'gpt-4.1-mini'
-    modelVersion: '2025-04-14'
+    backendName: 'gpt-5-mini-PAYG-eastus2'
+    deploymentName: 'd-gpt-5-mini'
+    modelName: secondaryModelName
+    modelVersion: secondaryModelVersion
     region: 'eastus2'
     route: 'In-region PAYG'
   }
   {
     accountIndex: 2
-    backendName: 'gpt-4-1-mini-PAYG-southcentralus'
-    deploymentName: 'h-gpt-4-1-mini'
-    modelName: 'gpt-4.1-mini'
-    modelVersion: '2025-04-14'
+    backendName: 'gpt-5-mini-PAYG-southcentralus'
+    deploymentName: 'h-gpt-5-mini'
+    modelName: secondaryModelName
+    modelVersion: secondaryModelVersion
     region: 'southcentralus'
     route: 'Out-of-region PAYG'
   }
@@ -382,30 +394,30 @@ module gpt51BackendPool '../../shared/bicep/modules/apim/v1/backend-pool.bicep' 
   ]
 }
 
-module gpt41MiniBackendPool '../../shared/bicep/modules/apim/v1/backend-pool.bicep' = {
-  name: 'pool-gpt-4-1-mini'
+module gpt5MiniBackendPool '../../shared/bicep/modules/apim/v1/backend-pool.bicep' = {
+  name: 'pool-gpt-5-mini'
   params: {
     apimName: apimName
-    backendPoolName: 'inference-gpt-4-1-mini-pool'
-    backendPoolDescription: 'gpt-4.1-mini routing preference: equal-weight PTUs, in-region PAYG, then remaining PAYG.'
+    backendPoolName: 'inference-gpt-5-mini-pool'
+    backendPoolDescription: 'gpt-5-mini routing preference: equal-weight PTUs, in-region PAYG, then remaining PAYG.'
     backends: [
       {
-        name: 'gpt-4-1-mini-PTU-eastus2'
+        name: 'gpt-5-mini-PTU-eastus2'
         priority: 1
         weight: 50
       }
       {
-        name: 'gpt-4-1-mini-PTU-westus3'
+        name: 'gpt-5-mini-PTU-westus3'
         priority: 1
         weight: 50
       }
       {
-        name: 'gpt-4-1-mini-PAYG-eastus2'
+        name: 'gpt-5-mini-PAYG-eastus2'
         priority: 2
         weight: 100
       }
       {
-        name: 'gpt-4-1-mini-PAYG-southcentralus'
+        name: 'gpt-5-mini-PAYG-southcentralus'
         priority: 3
         weight: 100
       }
@@ -461,7 +473,7 @@ module inferenceApis '../../shared/bicep/modules/apim/v1/api.bicep' = [for api i
   dependsOn: [
     apimDiagnostics
     gpt51BackendPool
-    gpt41MiniBackendPool
+    gpt5MiniBackendPool
   ]
 }]
 
