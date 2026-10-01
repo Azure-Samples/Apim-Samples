@@ -9,6 +9,7 @@ import time
 from unittest.mock import MagicMock, Mock, patch
 
 # APIM Samples imports
+import azure_resources as az
 import console
 import infrastructures
 import pytest
@@ -855,7 +856,7 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
     mock_az.create_resource_group.assert_called_once()
     mock_az.migrate_legacy_apim_diagnostic_settings.assert_called_once_with(infra.rg_name)
     assert [step[0] for step in deployment_steps.mock_calls[:2]] == ['migrate', 'deploy']
-    assert mock_az.run.call_count >= 1  # At least one call for deployment
+    mock_az.run.assert_called_once()
 
     # Verify directory changes - just check that chdir was called twice (to infra dir and back)
     assert mock_chdir.call_count == 2
@@ -888,6 +889,79 @@ def test_deploy_infrastructure_stops_when_diagnostic_migration_fails(mock_chdir,
     mock_az.migrate_legacy_apim_diagnostic_settings.assert_called_once_with(infra.rg_name)
     mock_az.run.assert_not_called()
     assert mock_chdir.call_count == 2
+    assert mock_chdir.call_args.args == ('/original/path',)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize('is_update', [False, True])
+@pytest.mark.parametrize('retry_success', [False, True])
+@patch('os.getcwd', return_value = '/original/path')
+@patch('os.chdir')
+def test_deploy_infrastructure_recovers_reappearing_legacy_diagnostics(
+    mock_chdir, mock_getcwd, mock_utils, mock_az, is_update, retry_success,
+):
+    """Migrate settings restored only after APIM recreation, and retry at most once."""
+    infra = infrastructures.SimpleApimInfrastructure(TEST_LOCATION, TEST_INDEX)
+    infra._verify_infrastructure = Mock(return_value = True)
+    apim_id = '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ApiManagement/service/apim-test'
+    workspace_id = '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/log-test'
+    legacy_setting = {'name': 'apim-costing-diagnostics-2', 'workspaceId': workspace_id}
+    conflict = Output(False, "Data sinks can't be reused in different settings on the same category for the same resource.")
+    retry_output = Output(
+        retry_success,
+        '{"apimResourceGatewayURL": {"value": "https://test-apim.azure-api.net"}, "apiOutputs": {"value": []}}',
+    )
+    mock_az.run.side_effect = [conflict, retry_output]
+    mock_az.migrate_legacy_apim_diagnostic_settings.side_effect = az.migrate_legacy_apim_diagnostic_settings
+    deployment_steps = Mock()
+    deployment_steps.attach_mock(mock_az.migrate_legacy_apim_diagnostic_settings, 'migrate')
+    deployment_steps.attach_mock(mock_az.run, 'deploy')
+
+    with (
+        patch('builtins.open', MagicMock()),
+        patch('json.dumps', return_value = '{"mocked": "params"}'),
+        patch(
+            'azure_resources.run',
+            side_effect = [
+                Output(True, '[]'),
+                Output(True, '[]'),
+                Output(True, f'["{apim_id}"]'),
+                Output(True, f'["{workspace_id}"]'),
+                Output(True, f'[{{"name": "{legacy_setting["name"]}", "workspaceId": "{workspace_id}"}}]'),
+                Output(True, ''),
+            ],
+        ) as migration_run,
+    ):
+        result = infra.deploy_infrastructure(is_update = is_update)
+
+    assert result is retry_output
+    assert mock_az.run.call_count == 2
+    assert mock_az.migrate_legacy_apim_diagnostic_settings.call_count == 2
+    assert [step[0] for step in deployment_steps.mock_calls] == ['migrate', 'deploy', 'migrate', 'deploy']
+    assert mock_az.run.call_args_list[0] == mock_az.run.call_args_list[1]
+    migration_run.assert_called_with(f'az monitor diagnostic-settings delete --name apim-costing-diagnostics-2 --resource "{apim_id}"')
+    assert infra._verify_infrastructure.call_count == int(retry_success)
+    assert mock_chdir.call_args.args == ('/original/path',)
+
+
+@pytest.mark.unit
+@patch('os.getcwd', return_value = '/original/path')
+@patch('os.chdir')
+def test_deploy_infrastructure_stops_when_recovery_migration_fails(mock_chdir, mock_getcwd, mock_utils, mock_az):
+    """A failed recovery migration must stop without another deployment and restore cwd."""
+    infra = infrastructures.SimpleApimInfrastructure(TEST_LOCATION, TEST_INDEX)
+    mock_az.run.return_value = Output(False, 'Diagnostic-setting conflict')
+    mock_az.migrate_legacy_apim_diagnostic_settings.side_effect = [[], RuntimeError('Recovery migration failed')]
+
+    with (
+        patch('builtins.open', MagicMock()),
+        patch('json.dumps', return_value = '{"mocked": "params"}'),
+        pytest.raises(RuntimeError, match = 'Recovery migration failed'),
+    ):
+        infra.deploy_infrastructure()
+
+    mock_az.run.assert_called_once()
+    assert mock_az.migrate_legacy_apim_diagnostic_settings.call_count == 2
     assert mock_chdir.call_args.args == ('/original/path',)
 
 
@@ -934,6 +1008,7 @@ def test_deploy_infrastructure_failure(mock_path_class, mock_chdir, mock_getcwd,
     mock_output = Mock()
     mock_output.success = False
     mock_az.run.return_value = mock_output
+    mock_az.migrate_legacy_apim_diagnostic_settings.return_value = []
 
     # Create a concrete subclass for testing
     class TestInfrastructure(infrastructures.Infrastructure):
@@ -951,6 +1026,7 @@ def test_deploy_infrastructure_failure(mock_path_class, mock_chdir, mock_getcwd,
     # Verify the deployment process was attempted
     mock_az.create_resource_group.assert_called_once()
     mock_az.run.assert_called_once()
+    assert mock_az.migrate_legacy_apim_diagnostic_settings.call_count == 2
     # Note: utils.verify_infrastructure is currently commented out in the actual code
     # mock_utils.verify_infrastructure.assert_not_called()  # Should not be called on failure
 
