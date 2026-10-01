@@ -98,6 +98,28 @@ The resource already exists and conflicts with...
    az resource delete --ids /subscriptions/.../resourceGroups/.../providers/...
    ```
 
+### Diagnostic Setting "Data sinks can't be reused" Conflict
+
+**Error Message:**
+
+```text
+Data sink '.../workspaces/...' is already used in diagnostic setting
+'apim-inference-failover-101' for category 'GatewayLogs'.
+Data sinks can't be reused in different settings on the same category for the same resource.
+```
+
+**Root Cause:** A legacy sample setting is already sending the same APIM log category to the infrastructure's Log Analytics workspace. Azure rejects the canonical `apim-diagnostics` setting while that mapping exists. Retrying the same ARM deployment does not resolve the conflict.
+
+**Solution:**
+
+1. Use the latest repository code and restart the notebook kernel to reload the shared helpers.
+1. Rerun the infrastructure notebook or its creation script. The infrastructure helper checks for legacy diagnostic settings before every deployment, including creates and retries targeting existing resources. This check must not depend on an earlier resource-group existence check or the caller's update flag.
+1. The migration removes recognized legacy settings (`apim-diag`, `apim-costing-diagnostics-<index>`, and `apim-inference-failover-<index>`) pointing to a workspace in the infrastructure resource group. The deployment then creates `apim-diagnostics`. A fresh resource group needs no migration.
+
+Deleting a diagnostic setting does not delete the workspace or previously ingested logs, but collection can pause until its replacement is deployed. Do not delete APIM or the resource group to fix this conflict. If a legacy setting was customized with additional destinations, preserve that configuration before removing it.
+
+Running `az deployment group create` directly bypasses the Python migration. Use the infrastructure helper for the migration, or inspect and migrate only the conflicting legacy setting before retrying a direct deployment.
+
 ### Module Path Resolution Errors
 
 **Error Message:**

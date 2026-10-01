@@ -10,7 +10,7 @@ The query files intentionally keep runtime values separate from their query bodi
 
 ```kql
 let timeWindow = 1h;
-let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-4-1-mini']);
+let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-5-mini']);
 ```
 
 Adjust `timeWindow` when investigating a shorter incident window or a longer trend. Narrow `apiIds` when you only need one model-safe backend pool.
@@ -90,7 +90,7 @@ When running it manually, prepend these bindings:
 
 ```kql
 let timeWindow = 30m;
-let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-4-1-mini']);
+let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-5-mini']);
 ```
 
 The output reports gateway request rows, successful requests, unavailable responses, token-bearing correlation IDs, and total tokens. An empty result usually means telemetry is still ingesting or the selected time window does not include recent sample traffic.

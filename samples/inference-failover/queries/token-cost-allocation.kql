@@ -5,12 +5,12 @@
 //   let timeWindow = 1h;
 //   let gpt51PromptRate = 0.0;
 //   let gpt51CompletionRate = 0.0;
-//   let gpt41MiniPromptRate = 0.0;
-//   let gpt41MiniCompletionRate = 0.0;
+//   let gpt5MiniPromptRate = 0.0;
+//   let gpt5MiniCompletionRate = 0.0;
 //
 let routes = materialize(ApiManagementGatewayLogs
 | where TimeGenerated > ago(timeWindow)
-| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')
+| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-5-mini')
 | project CorrelationId, ApiId, OperationId, BackendId, BackendUrl);
 ApiManagementGatewayLlmLog
 | where TimeGenerated > ago(timeWindow)
@@ -34,8 +34,8 @@ ApiManagementGatewayLlmLog
 	TotalTokens = sum(TotalTokens)
 	by ApiId, AOAIInstance, Backend, ModelName, ApiSurface, DeliveryMode
 | extend
-	PromptRate = case(ModelName startswith 'gpt-5.1', gpt51PromptRate, ModelName startswith 'gpt-4.1-mini', gpt41MiniPromptRate, 0.0),
-	CompletionRate = case(ModelName startswith 'gpt-5.1', gpt51CompletionRate, ModelName startswith 'gpt-4.1-mini', gpt41MiniCompletionRate, 0.0)
+	PromptRate = case(ModelName startswith 'gpt-5.1', gpt51PromptRate, ModelName startswith 'gpt-5-mini', gpt5MiniPromptRate, 0.0),
+	CompletionRate = case(ModelName startswith 'gpt-5.1', gpt51CompletionRate, ModelName startswith 'gpt-5-mini', gpt5MiniCompletionRate, 0.0)
 | extend
 	PromptCost = round(PromptTokens * PromptRate / 1000.0, 6),
 	CompletionCost = round(CompletionTokens * CompletionRate / 1000.0, 6)

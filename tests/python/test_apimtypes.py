@@ -33,6 +33,7 @@ from apimtypes import (
     Product,
     Region,
     Role,
+    AzureOpenAIModel,
     get_project_root,
 )
 from test_helpers import assert_policy_fragment_structure
@@ -243,6 +244,27 @@ class TestEnums:
     def test_apim_sku(self, enum_value, expected):
         """Test APIM_SKU enum values."""
         assert enum_value == expected
+
+    @pytest.mark.parametrize(
+        'model,expected_name,expected_version,expected_slug',
+        [
+            (AzureOpenAIModel.GPT_5_MINI, 'gpt-5-mini', '2025-08-07', 'gpt-5-mini'),
+            (AzureOpenAIModel.GPT_5_NANO, 'gpt-5-nano', '2025-08-07', 'gpt-5-nano'),
+            (AzureOpenAIModel.GPT_5_1, 'gpt-5.1', '2025-11-13', 'gpt-5-1'),
+        ],
+    )
+    def test_azure_openai_model(self, model, expected_name, expected_version, expected_slug):
+        """Test supported Azure OpenAI model metadata."""
+        assert model == expected_name
+        assert model.version == expected_version
+        assert model.deployment_slug == expected_slug
+        assert model.intended_use
+        assert model.to_deployment_config(10) == {'name': expected_name, 'version': expected_version, 'capacity': 10}
+
+    def test_azure_openai_model_rejects_invalid_capacity(self):
+        """Test that deployment configuration requires positive capacity."""
+        with pytest.raises(ValueError, match='greater than zero'):
+            AzureOpenAIModel.GPT_5_MINI.to_deployment_config(0)
 
     @pytest.mark.parametrize('sku', [APIM_SKU.DEVELOPER, APIM_SKU.BASIC, APIM_SKU.STANDARD, APIM_SKU.PREMIUM])
     def test_apim_sku_is_v1(self, sku):
