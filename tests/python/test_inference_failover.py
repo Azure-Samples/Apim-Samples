@@ -35,10 +35,10 @@ EXPECTED_BACKENDS = {
     'gpt-5-1-PTU-westus3',
     'gpt-5-1-PAYG-westus3',
     'gpt-5-1-PAYG-southcentralus',
-    'gpt-4-1-mini-PTU-eastus2',
-    'gpt-4-1-mini-PAYG-eastus2',
-    'gpt-4-1-mini-PTU-westus3',
-    'gpt-4-1-mini-PAYG-southcentralus',
+    'gpt-5-mini-PTU-eastus2',
+    'gpt-5-mini-PAYG-eastus2',
+    'gpt-5-mini-PTU-westus3',
+    'gpt-5-mini-PAYG-southcentralus',
 }
 EXPECTED_POOL_MEMBERS = [
     ('gpt-5.1', 'A', 'gpt-5-1-PTU-eastus2', 'In-region PTU', 1, 50),
@@ -46,10 +46,10 @@ EXPECTED_POOL_MEMBERS = [
     ('gpt-5.1', 'B', 'gpt-5-1-PAYG-eastus2', 'In-region PAYG', 2, 100),
     ('gpt-5.1', 'E', 'gpt-5-1-PAYG-westus3', 'Out-of-region PAYG', 3, 50),
     ('gpt-5.1', 'G', 'gpt-5-1-PAYG-southcentralus', 'Out-of-region PAYG', 3, 50),
-    ('gpt-4.1-mini', 'C', 'gpt-4-1-mini-PTU-eastus2', 'In-region PTU', 1, 50),
-    ('gpt-4.1-mini', 'F', 'gpt-4-1-mini-PTU-westus3', 'Out-of-region PTU', 1, 50),
-    ('gpt-4.1-mini', 'D', 'gpt-4-1-mini-PAYG-eastus2', 'In-region PAYG', 2, 100),
-    ('gpt-4.1-mini', 'H', 'gpt-4-1-mini-PAYG-southcentralus', 'Out-of-region PAYG', 3, 100),
+    ('gpt-5-mini', 'C', 'gpt-5-mini-PTU-eastus2', 'In-region PTU', 1, 50),
+    ('gpt-5-mini', 'F', 'gpt-5-mini-PTU-westus3', 'Out-of-region PTU', 1, 50),
+    ('gpt-5-mini', 'D', 'gpt-5-mini-PAYG-eastus2', 'In-region PAYG', 2, 100),
+    ('gpt-5-mini', 'H', 'gpt-5-mini-PAYG-southcentralus', 'Out-of-region PAYG', 3, 100),
 ]
 
 
@@ -318,7 +318,7 @@ def test_inference_failover_kql_queries_scope_to_ai_gateway_signals() -> None:
     assert 'InferenceFallbackExhausted' not in query_text
     assert "LastErrorReason in ('BackendConnectionFailure', 'Timeout')" in query_text
     assert 'inference-gpt-5-1' in query_text
-    assert 'inference-gpt-4-1-mini' in query_text
+    assert 'inference-gpt-5-mini' in query_text
     assert 'CostManagement' not in query_text
 
 
@@ -467,8 +467,8 @@ def test_inference_failover_workbook_has_model_rates_and_delivery_dimensions() -
     expected_rates = {
         'Gpt51PromptTokenRate',
         'Gpt51CompletionTokenRate',
-        'Gpt41MiniPromptTokenRate',
-        'Gpt41MiniCompletionTokenRate',
+        'Gpt5MiniPromptTokenRate',
+        'Gpt5MiniCompletionTokenRate',
     }
     cost_query = _find_workbook_item(workbook['items'], 'query - token-cost-allocation')['content']['query']
     delivery_query = _find_workbook_item(workbook['items'], 'query - api-delivery-mode-table')['content']['query']
@@ -725,8 +725,14 @@ def test_inference_bicep_contains_only_compatible_model_backend_pools() -> None:
     single_quote = chr(39)
 
     assert all(backend in bicep for backend in EXPECTED_BACKENDS)
-    assert bicep.count(f'modelName: {single_quote}gpt-5.1{single_quote}') == 5
-    assert bicep.count(f'modelName: {single_quote}gpt-4.1-mini{single_quote}') == 4
+    assert bicep.count('modelName: primaryModelName') == 5
+    assert bicep.count('modelVersion: primaryModelVersion') == 5
+    assert bicep.count('modelName: secondaryModelName') == 4
+    assert bicep.count('modelVersion: secondaryModelVersion') == 4
+    assert 'param primaryModelName string' in bicep
+    assert 'param primaryModelVersion string' in bicep
+    assert 'param secondaryModelName string' in bicep
+    assert 'param secondaryModelVersion string' in bicep
     assert 'capacity: 1' in bicep
     assert f'name: {single_quote}Standard{single_quote}' in bicep
     assert 'acceptRetryAfter: true' in bicep
@@ -747,7 +753,7 @@ def test_inference_bicep_contains_only_compatible_model_backend_pools() -> None:
     assert status_ranges == {408, 429, 499, 500, 502, 503, 504}
     assert 'enableLlmLogs: true' in bicep
     assert f'backendPoolName: {single_quote}inference-gpt-5-1-pool{single_quote}' in bicep
-    assert f'backendPoolName: {single_quote}inference-gpt-4-1-mini-pool{single_quote}' in bicep
+    assert f'backendPoolName: {single_quote}inference-gpt-5-mini-pool{single_quote}' in bicep
     for _, _, backend_name, _, priority, weight in EXPECTED_POOL_MEMBERS:
         expected_member = f"name: '{backend_name}'\n        priority: {priority}\n        weight: {weight}"
         assert expected_member in bicep
@@ -757,10 +763,10 @@ def test_inference_bicep_contains_only_compatible_model_backend_pools() -> None:
         'gpt-5-1-PAYG-eastus2',
         'gpt-5-1-PAYG-westus3',
         'gpt-5-1-PAYG-southcentralus',
-        'gpt-4-1-mini-PTU-eastus2',
-        'gpt-4-1-mini-PTU-westus3',
-        'gpt-4-1-mini-PAYG-eastus2',
-        'gpt-4-1-mini-PAYG-southcentralus',
+        'gpt-5-mini-PTU-eastus2',
+        'gpt-5-mini-PTU-westus3',
+        'gpt-5-mini-PAYG-eastus2',
+        'gpt-5-mini-PAYG-southcentralus',
     ]
     declaration_offsets = [bicep.index(f"backendName: '{backend}'") for backend in backend_declaration_order]
     assert declaration_offsets == sorted(declaration_offsets)
@@ -821,8 +827,8 @@ def test_inference_notebook_is_clean_and_defaults_to_simple_apim() -> None:
     assert 'gpt_5_1_retry_tracked_api' in retry_tracked_cells[0]
     non_deployment_source = code_source.replace(retry_tracked_cells[0], '')
     assert 'inference-gpt-5-1-retry-tracked' not in non_deployment_source
-    assert "required_api_names = ['inference-gpt-5-1', 'inference-gpt-4-1-mini']" in non_deployment_source
-    assert "let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-4-1-mini'])" in non_deployment_source
+    assert "required_api_names = ['inference-gpt-5-1', 'inference-gpt-5-mini']" in non_deployment_source
+    assert "let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-5-mini'])" in non_deployment_source
     assert "importlib.import_module('inference_failover_helpers')" in code_source
     assert "utils.enable_module_autoreload('inference_failover_helpers')" in code_source
     assert 'inference_failover_helpers.InferenceTrafficRunner(' in code_source
@@ -916,7 +922,7 @@ def test_inference_notebook_generates_local_html_report() -> None:
     assert 'inference_failover_helpers.generate_local_html_report(' in code_source
     assert 'scenario_results=scenario_results' in code_source
     assert "'gpt-5.1': gpt_5_1_backend_url_index" in code_source
-    assert "'gpt-4.1-mini': gpt_4_1_mini_backend_labels" in code_source
+    assert "'gpt-5-mini': gpt_5_mini_backend_labels" in code_source
     assert "distribution_frame=distribution_frame if 'distribution_frame' in locals() else None" in code_source
     assert "token_frame=token_frame if 'token_frame' in locals() else None" in code_source
     assert 'htmlreport.HtmlReport' not in code_source
@@ -926,14 +932,14 @@ def test_inference_notebook_generates_local_html_report() -> None:
     assert "print_ok(f'Local HTML report ready: {report_url}')" in code_source
 
 
-def test_inference_notebook_uses_tuned_gpt_4_1_mini_pressure_window() -> None:
+def test_inference_notebook_uses_tuned_gpt_5_mini_pressure_window() -> None:
     """Keep the independent pool pressure run demonstrative without flooding callers with terminal failures."""
     notebook = json.loads(NOTEBOOK_PATH.read_text(encoding='utf-8'))
     notebook_source = '\n'.join(''.join(cell['source']) for cell in notebook['cells'])
 
-    assert '| 3 | Sustained pressure | gpt-4.1-mini | 15 | none |' in notebook_source
-    assert "'3/5: Sustained pressure - gpt-4.1-mini (no spacing)'" in notebook_source
-    assert "('gpt-4.1-mini sustained pressure', scenario3_gpt_4_1_mini, 15)" in notebook_source
+    assert '| 3 | Sustained pressure | gpt-5-mini | 15 | none |' in notebook_source
+    assert "'3/5: Sustained pressure - gpt-5-mini (no spacing)'" in notebook_source
+    assert "('gpt-5-mini sustained pressure', scenario3_gpt_5_mini, 15)" in notebook_source
     assert '(`134` requests)' in notebook_source
 
 

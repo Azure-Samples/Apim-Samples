@@ -3,7 +3,7 @@
 //
 // Parameters (prepend as KQL 'let' bindings before running):
 //   let timeWindow = 1h;
-//   let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-4-1-mini']);
+//   let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-5-mini']);
 //
 let gatewayRequests = materialize(ApiManagementGatewayLogs
 | where TimeGenerated > ago(timeWindow)
@@ -21,10 +21,10 @@ let gatewayRequests = materialize(ApiManagementGatewayLogs
 | extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/b-gpt-5-1/)', @'|backendId=gpt-5-1-PAYG-eastus2\1')
 | extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/e-gpt-5-1/)', @'|backendId=gpt-5-1-PAYG-westus3\1')
 | extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/g-gpt-5-1/)', @'|backendId=gpt-5-1-PAYG-southcentralus\1')
-| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/c-gpt-4-1-mini/)', @'|backendId=gpt-4-1-mini-PTU-eastus2\1')
-| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/f-gpt-4-1-mini/)', @'|backendId=gpt-4-1-mini-PTU-westus3\1')
-| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/d-gpt-4-1-mini/)', @'|backendId=gpt-4-1-mini-PAYG-eastus2\1')
-| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/h-gpt-4-1-mini/)', @'|backendId=gpt-4-1-mini-PAYG-southcentralus\1')
+| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/c-gpt-5-mini/)', @'|backendId=gpt-5-mini-PTU-eastus2\1')
+| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/f-gpt-5-mini/)', @'|backendId=gpt-5-mini-PTU-westus3\1')
+| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/d-gpt-5-mini/)', @'|backendId=gpt-5-mini-PAYG-eastus2\1')
+| extend EnrichedTraceText = replace_regex(EnrichedTraceText, @'(\|backend=[^|]*/deployments/h-gpt-5-mini/)', @'|backendId=gpt-5-mini-PAYG-southcentralus\1')
 | extend AttemptTrail = strcat_array(
     extract_all(@'(InferenceAttempt\|attempt=[0-9]+/[0-9]+\|backendId=[^|]+\|backend=[^|]+\|code=(?:[0-9]+|none)(?:\|retryAfter=[^|"]+)?)', EnrichedTraceText),
     ' -> '));

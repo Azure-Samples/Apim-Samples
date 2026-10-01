@@ -7,7 +7,7 @@
 //   let timeWindow = 1h;
 //   let apiPaths = dynamic([
 //       '/inference/gpt-5-1/chat/completions',
-//       '/inference/gpt-4-1-mini/chat/completions'
+//       '/inference/gpt-5-mini/chat/completions'
 //   ]);
 //
 let frontendRequests = materialize(AppRequests

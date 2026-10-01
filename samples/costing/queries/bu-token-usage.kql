@@ -20,8 +20,8 @@ ApiManagementGatewayLlmLog
     TotalTokens,
     ModelName,
     IsStreamCompletion
-// Collapse dated AOAI base-model variants (e.g. 'gpt-4o-mini-2024-07-18')
-// into the deployment alias (e.g. 'gpt-4o-mini'). The trailing date suffix
+// Collapse dated AOAI base-model variants (e.g. 'gpt-5-mini-2025-08-07')
+// into the deployment alias (e.g. 'gpt-5-mini'). The trailing date suffix
 // is informational only and would otherwise split a single deployment
 // across multiple rows.
 | extend ModelName = replace_regex(ModelName, @'-\d{4}-\d{2}-\d{2}$', '')
