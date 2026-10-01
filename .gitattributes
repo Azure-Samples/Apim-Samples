@@ -47,3 +47,5 @@ start.sh export-ignore diff=sh
 *.svg binary
 *.ico binary
 *.pdn binary
+
+.github/workflows/*.lock.yml linguist-generated=true

@@ -5,7 +5,7 @@
 //
 let routes = materialize(ApiManagementGatewayLogs
 | where TimeGenerated > ago(timeWindow)
-| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-4-1-mini')
+| where ApiId in~ ('inference-gpt-5-1', 'inference-gpt-5-mini')
 | project CorrelationId, ApiId, OperationId);
 ApiManagementGatewayLlmLog
 | where TimeGenerated > ago(timeWindow)

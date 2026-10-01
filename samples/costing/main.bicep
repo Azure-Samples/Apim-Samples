@@ -86,13 +86,13 @@ param aiModels array = [
     capacity: 10
   }
   {
-    name: 'gpt-4o-mini'
-    version: '2024-07-18'
+    name: 'gpt-5-nano'
+    version: '2025-08-07'
     capacity: 10
   }
   {
-    name: 'gpt-4.1-nano'
-    version: '2025-04-14'
+    name: 'gpt-5.1'
+    version: '2025-11-13'
     capacity: 10
   }
 ]
@@ -354,7 +354,7 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2024-10-01' = if (enab
   }
 }
 
-// Model deployments (e.g. gpt-5-mini, gpt-4o-mini) on the AI Services account
+// Model deployments (e.g. gpt-5-mini, gpt-5-nano) on the AI Services account
 // Serial deployment avoids quota contention on the account's "create deployment" API.
 // https://learn.microsoft.com/azure/templates/microsoft.cognitiveservices/accounts/deployments
 @batchSize(1)

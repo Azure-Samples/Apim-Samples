@@ -496,7 +496,7 @@ def _build_report_scenario_groups(
     if len(scenario_results) != 6:
         raise ValueError('The inference report requires exactly six scenario result sets.')
 
-    required_models = ('gpt-5.1', 'gpt-4.1-mini')
+    required_models = ('gpt-5.1', 'gpt-5-mini')
     missing_models = [model for model in required_models if model not in backend_url_indexes or model not in backend_labels]
     if missing_models:
         raise ValueError(f'Missing report backend metadata for: {", ".join(missing_models)}')
@@ -540,23 +540,23 @@ def _build_report_scenario_groups(
             ],
         ),
         (
-            'gpt-4.1-mini',
+            'gpt-5-mini',
             [
                 (
                     'B-1',
                     'Baseline Warm Path',
-                    'Small control requests against the independent gpt-4.1-mini pool.',
+                    'Small control requests against the independent gpt-5-mini pool.',
                     scenario_results[1],
-                    backend_url_indexes['gpt-4.1-mini'],
-                    backend_labels['gpt-4.1-mini'],
+                    backend_url_indexes['gpt-5-mini'],
+                    backend_labels['gpt-5-mini'],
                 ),
                 (
                     'B-2',
                     'Sustained Pressure',
-                    'Unpaced load confirms that gpt-4.1-mini fallback remains model-safe.',
+                    'Unpaced load confirms that gpt-5-mini fallback remains model-safe.',
                     scenario_results[3],
-                    backend_url_indexes['gpt-4.1-mini'],
-                    backend_labels['gpt-4.1-mini'],
+                    backend_url_indexes['gpt-5-mini'],
+                    backend_labels['gpt-5-mini'],
                 ),
             ],
         ),
