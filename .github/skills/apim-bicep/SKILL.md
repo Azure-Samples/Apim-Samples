@@ -167,6 +167,7 @@ resource subscription 'Microsoft.ApiManagement/service/subscriptions@2024-06-01-
 - Samples that need the infrastructure workspace must reuse the canonical setting name. Do not create a sample-named setting for the same workspace and categories.
 - A sample-specific diagnostic setting is valid only for a different sink, such as Event Hub. Keep that setting destination-specific so later baseline deployments cannot remove its configuration.
 - Run legacy diagnostic-setting migration before every infrastructure deployment, not only when an update flag is set. Create and retry paths can target existing resources; test both paths and stop deployment if migration fails.
+- Azure can restore orphaned diagnostic settings after a deleted APIM resource is recreated, when preflight discovery found nothing. After a failed infrastructure deployment, rerun migration and retry once only if it removed a legacy setting. Test reappearance after empty preflight, no-op recovery, migration failure, and the retry limit.
 
 ### Azure Monitor Logger
 

@@ -110,11 +110,14 @@ Data sinks can't be reused in different settings on the same category for the sa
 
 **Root Cause:** A legacy sample setting is already sending the same APIM log category to the infrastructure's Log Analytics workspace. Azure rejects the canonical `apim-diagnostics` setting while that mapping exists. Retrying the same ARM deployment does not resolve the conflict.
 
+Azure can also [reapply orphaned diagnostic settings when a deleted resource is recreated](https://learn.microsoft.com/azure/azure-monitor/data-collection/diagnostic-settings). On this path, the resource group and APIM service can be absent during the migration preflight, but the old setting reappears after APIM is created. A preflight-only migration cannot prevent that conflict.
+
 **Solution:**
 
 1. Use the latest repository code and restart the notebook kernel to reload the shared helpers.
 1. Rerun the infrastructure notebook or its creation script. The infrastructure helper checks for legacy diagnostic settings before every deployment, including creates and retries targeting existing resources. This check must not depend on an earlier resource-group existence check or the caller's update flag.
 1. The migration removes recognized legacy settings (`apim-diag`, `apim-costing-diagnostics-<index>`, and `apim-inference-failover-<index>`) pointing to a workspace in the infrastructure resource group. The deployment then creates `apim-diagnostics`. A fresh resource group needs no migration.
+1. If deployment fails, the helper checks again for legacy settings restored during resource creation. It retries the deployment once only if migration removed a legacy setting. If nothing was removed, migration fails, or the recovery deployment fails, it reports the failure rather than continuing to retry.
 
 Deleting a diagnostic setting does not delete the workspace or previously ingested logs, but collection can pause until its replacement is deployed. Do not delete APIM or the resource group to fix this conflict. If a legacy setting was customized with additional destinations, preserve that configuration before removing it.
 

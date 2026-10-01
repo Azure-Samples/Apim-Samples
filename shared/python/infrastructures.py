@@ -494,12 +494,27 @@ class Infrastructure:
 
             # Run the deployment directly
             main_bicep_path = infra_dir / 'main.bicep'
-            output = az.run(
-                f'az deployment group create --name {self.infra.value} --resource-group {self.rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
-                f"Deployment '{self.infra.value}' succeeded",
-                utils.get_deployment_failure_message(self.infra.value),
-                timeout=1800,
+            deployment_command = (
+                f'az deployment group create --name {self.infra.value} --resource-group {self.rg_name} '
+                f'--template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"'
             )
+            recovery_attempted = False
+            while True:
+                output = az.run(
+                    deployment_command,
+                    f"Deployment '{self.infra.value}' succeeded",
+                    utils.get_deployment_failure_message(self.infra.value),
+                    timeout = 1800,
+                )
+                if output.success or recovery_attempted:
+                    break
+
+                # Azure can restore orphaned settings after APIM is recreated, beyond the preflight check.
+                if not az.migrate_legacy_apim_diagnostic_settings(self.rg_name):
+                    break
+
+                print_warning('Legacy APIM diagnostic settings reappeared during deployment and were removed. Retrying infrastructure deployment once.')
+                recovery_attempted = True
 
             # ------------------------------
             #    VERIFY DEPLOYMENT RESULTS
