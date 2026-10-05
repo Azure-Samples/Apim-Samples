@@ -46,6 +46,9 @@ jobs:
             GPL-1.0-or-later,
             0BSD
 
-          # ✅ Packages whose license cannot be auto-detected
+          # ✅ Packages whose acceptable compound license cannot be represented by the global SPDX allow-list
           # cyclonedx-python-lib is Apache-2.0 (https://github.com/CycloneDX/cyclonedx-python-lib)
-          allow-dependencies-licenses: "pkg:pypi/cyclonedx-python-lib"
+          # matplotlib includes Apache-2.0, Python-2.0, and its package-specific Matplotlib 1.3 license
+          allow-dependencies-licenses: >-
+            pkg:pypi/cyclonedx-python-lib,
+            pkg:pypi/matplotlib
