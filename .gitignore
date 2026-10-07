@@ -25,6 +25,7 @@ labs-in-progress/
 
 # Misc
 *.log
+/tmp/
 
 # Exclude sensitive or generated files (except for the benign example)
 .env*

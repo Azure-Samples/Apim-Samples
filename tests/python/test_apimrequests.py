@@ -105,6 +105,35 @@ def test_multi_get_error(apim, apimrequests_patches):
                 apim.multiGet(DEFAULT_PATH, runs=1, printResponse=True)
 
 
+@pytest.mark.http
+def test_multi_post_success_and_cleanup():
+    """POST results retain HTTP status and use one context-owned session."""
+    response = create_mock_http_response(status_code = 201, json_data = {'created': True})
+    session = create_mock_session_with_response(response)
+    with patch('apimrequests.requests.Session', return_value = session):
+        with ApimRequests(DEFAULT_URL, DEFAULT_KEY) as client:
+            result = client.multiPost(DEFAULT_PATH, 2, data = DEFAULT_DATA, printResponse = False, sleepMs = 0)
+    assert len(result) == 2
+    assert all(row['status_code'] == 201 and row['response'] == '{\n    "created": true\n}' for row in result)
+    for call in session.request.call_args_list:
+        assert call.args == ('POST', DEFAULT_URL + DEFAULT_PATH)
+        assert call.kwargs['json'] == DEFAULT_DATA
+    assert session.request.call_count == 2
+    session.close.assert_called_once()
+
+
+@pytest.mark.http
+def test_multi_post_transport_error_cleanup():
+    """Transport failures propagate without leaking the session."""
+    session = MagicMock()
+    session.request.side_effect = requests.exceptions.RequestException('offline')
+    with patch('apimrequests.requests.Session', return_value = session):
+        with pytest.raises(requests.exceptions.RequestException, match = 'offline'):
+            with ApimRequests(DEFAULT_URL, DEFAULT_KEY) as client:
+                client.multiPost(DEFAULT_PATH, 1, data = DEFAULT_DATA, printResponse = False)
+    session.close.assert_called_once()
+
+
 # Sample values for tests
 URL = 'https://example.com/apim/'
 KEY = 'test-KEY'

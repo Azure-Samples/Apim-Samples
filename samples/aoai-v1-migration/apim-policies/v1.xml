@@ -1,0 +1,89 @@
+<!--
+    v1 chat-completions policy.
+
+    Compared with legacy.xml:
+    - The caller selects a deployment with a JSON "model" field, not a deployment URL segment.
+    - The backend path is /openai/v1/chat/completions, with no dated api-version.
+    - The caller supplies the actual deployment name in "model"; the entire request body is forwarded unchanged.
+    Both contracts select the same model-specific PAYG pools and use the same authentication.
+-->
+<policies>
+    <inbound>
+        <base />
+
+        <!-- v1 requires one JSON parse to obtain the deployment name from "model"; preserveContent leaves the body unchanged.
+             Derive the pool name directly, with no dictionary, allowlist or fallback. Missing pools and malformed JSON
+             fail at the gateway and are traced in on-error. Resolved pools leave payload validation to Azure OpenAI. -->
+        <set-variable name="backendPool" value='@{
+            var body = context.Request.Body.As&lt;JObject&gt;(preserveContent: true);
+            var selector = body == null ? null : body["model"];
+            var model = selector != null &amp;&amp; selector.Type == JTokenType.String ? (string)selector : "";
+
+            return model + "-pool";
+        }' />
+        <!-- v1 removes the deployment URL segment. Unmatched query parameters, including api-version, are dropped, not rejected. -->
+        <set-backend-service backend-id='@((string)context.Variables["backendPool"])' />
+        <rewrite-uri template="/openai/v1/chat/completions" copy-unmatched-params="false" />
+
+        <!-- Authentication is unchanged from legacy: remove caller credentials and authenticate APIM to Azure OpenAI. -->
+        <set-header name="api-key" exists-action="delete" />
+        <set-header name="Ocp-Apim-Subscription-Key" exists-action="delete" />
+        <set-header name="Authorization" exists-action="delete" />
+        <authentication-managed-identity resource="https://cognitiveservices.azure.com" />
+    </inbound>
+    <backend>
+        <!-- No automatic replay, including streaming requests. -->
+        <!-- Keep backend HTTP errors on the response path. Forcing them into on-error can replace the original 404 with 500.
+             outbound traces their status without replacing the body or headers; on-error handles gateway failures only. -->
+        <forward-request timeout="60" buffer-response="false" fail-on-error-status-code="false" />
+    </backend>
+    <outbound>
+        <!-- Azure OpenAI owns model/payload validation. Trace only failed responses; do not parse or rewrite their content.
+             This single status-range check is not a model/version allowlist. The backend status and Retry-After remain intact. -->
+        <choose>
+            <when condition='@(context.Response.StatusCode &gt;= 400 &amp;&amp; context.Response.StatusCode &lt;= 599)'>
+                <trace source="AoaiMigrationError" severity="error">
+                    <message>@("Azure OpenAI returned an HTTP error")</message>
+                    <metadata name="contract" value="v1" />
+                    <metadata name="requestId" value='@(context.RequestId.ToString())' />
+                    <metadata name="status" value='@(context.Response.StatusCode.ToString())' />
+                    <metadata name="source" value="backend" />
+                    <metadata name="reason" value="http_error" />
+                </trace>
+            </when>
+        </choose>
+        <base />
+        <!-- Sample-owned evidence identifies the selected pool; never accept this value from the caller or backend. -->
+        <set-header name="x-migration-backend-pool" exists-action="override">
+            <value>@((string)context.Variables["backendPool"])</value>
+        </set-header>
+    </outbound>
+    <on-error>
+        <!-- Gateway failures are distinct from backend HTTP errors, which pass through outbound unchanged.
+             A gateway timeout without a backend error response is 504; a connection failure is 502; other failures are 500. -->
+        <set-variable name="errorStatus" value='@(
+            context.Response != null &amp;&amp; context.Response.StatusCode &gt;= 400 &amp;&amp; context.Response.StatusCode &lt;= 599
+                ? context.Response.StatusCode
+                : context.LastError != null &amp;&amp; context.LastError.Reason == "Timeout" ? 504
+                : context.LastError != null &amp;&amp; context.LastError.Reason == "BackendConnectionFailure" ? 502 : 500
+        )' />
+        <!-- Trace only correlation, status and fixed gateway error identifiers, never bodies, model names, URLs or credentials. -->
+        <trace source="AoaiMigrationError" severity="error">
+            <message>@("Azure OpenAI request failed")</message>
+            <metadata name="contract" value="v1" />
+            <metadata name="requestId" value='@(context.RequestId.ToString())' />
+            <metadata name="status" value='@(((int)context.Variables["errorStatus"]).ToString())' />
+            <metadata name="source" value='@(context.LastError == null ? "" : context.LastError.Source)' />
+            <metadata name="reason" value='@(context.LastError == null ? "" : context.LastError.Reason)' />
+        </trace>
+        <base />
+        <!-- Restore the gateway failure status after inherited error handling; do not synthesize a backend response. -->
+        <set-status code='@((int)context.Variables["errorStatus"])' reason="Request failed" />
+        <!-- Missing pools are gateway configuration errors (500), not backend deployment-not-found responses (404).
+             Return a fixed JSON error without exposing the selector or APIM's internal error message. -->
+        <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+        </set-header>
+        <set-body>{"error":{"code":"gateway_error","message":"The gateway could not route or complete the request."}}</set-body>
+    </on-error>
+</policies>
