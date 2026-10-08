@@ -12,6 +12,7 @@ Create PAYG Azure OpenAI resources, establish a dated legacy API and smoke-test 
 1. Establish the deployment-in-path, dated `api-version` legacy contract before adding v1.
 1. Demonstrate the v1 model-in-body contract with unchanged request bodies and managed identity authentication.
 1. Exercise both pools through legacy and v1, then repeat both unchanged legacy requests after adding v1.
+1. Compare sanitized routing, latency and token evidence with the same test-summary and chart/report helpers used by the AOAI peer samples.
 
 ## ✅ Prerequisites
 
@@ -62,15 +63,28 @@ Policies do not replay requests automatically. Streaming is passed through, but 
 
 Subscription keys come from the shared API module's deployment outputs and are selected without logging. Never paste them into notebook configuration or commit executed notebook outputs.
 
-## ✅ Results and Reruns
+## 🖼️ Expected Results
 
-The notebook makes six successful probes: both models through legacy before v1 exists, both through v1, and both through the original legacy requests after v1 is added. Each asserts HTTP 200, a non-empty completion, the exact `x-migration-backend-pool` response header, and the backend's actual `model` snapshot (`<model-name>-<version>`). HTTP 200 alone is not sufficient routing evidence. The policy overwrites the sample-owned header after inherited outbound processing.
+The notebook records six successful probes: both models through legacy before v1 exists, both through v1, and both through the original legacy requests after v1 is added. Before each model's **Legacy Before** measurement, it validates one successful warm-up request, discards its evidence, and sends an identical second request through the same client. Only that second successful request appears in the evidence table and chart. Each warm-up and measured request asserts HTTP 200, a non-empty completion, the exact `x-migration-backend-pool` response header, and the backend's actual `model` snapshot (`<model-name>-<version>`). HTTP 200 alone is not sufficient routing evidence. The policy overwrites the sample-owned header after inherited outbound processing.
 
 A seventh probe supplies an unknown v1 deployment name, which derives a nonexistent pool and expects a JSON HTTP 500 gateway error, not a completion from a fallback pool. This intentional negative probe makes one attempt without readiness retries. Generated completion wording is not expected to be identical.
 
+The final verification cell produces:
+
+- An `ApimTesting` summary with 26 checks covering HTTP status, completion shape, exact pool/model identity and expected rejection.
+- A `TableLogger` evidence table with status, readiness attempts, response time in milliseconds and prompt/completion/total tokens.
+- Two shared `charts.BarChart` latency charts, one per model, showing **Legacy Before**, **v1** and **Legacy After**. The expected HTTP 500 rejection is labeled in the table rather than plotted as an operational failure.
+- A self-contained `HtmlReport` saved under the repository's ignored `tmp/` folder as `<sample_name>-report.html`, with the same table, verified routing and embedded charts.
+
+Measurements describe the **final response** of each measured probe. Warm-up requests, earlier readiness attempts and waits are excluded from recorded latency and token counts. Attempt counts include only the measured phase, never the warm-up phase. Missing latency/token fields remain empty rather than becoming zero. No keys, prompts or completion content are saved. Three successful probes per model do not establish a performance baseline or compare model quality.
+
+This deliberately reuses the peer samples' test, table, chart and local-report building blocks, not their scope. Unlike [Costing](../costing/README.md), it does not generate showback traffic, exercise Responses/streaming modes or allocate costs. Unlike [Inference Failover](../inference-failover/README.md), it does not pressure capacity, introduce retry policies or deploy a telemetry workbook. The legacy baseline must precede adding v1, so that verification remains between the two deployment stages; all charts and reporting run together at the end without telemetry polling.
+
+### Results and Reruns
+
 Stage two reuses the legacy API definition and verifies that its subscription key is unchanged. Deterministic names make deployments incremental and rerunnable. Stage one resets old smoke evidence; stage two requires successful new baselines for both pools. Rerunning stage one after stage two **does not remove** v1, because incremental deployments do not delete omitted resources. Use a new namespace for a fresh legacy-only sample.
 
-Readiness failures are retried with a bounded total of six attempts and 180 seconds of scheduled waits. This generates additional small billable lab requests; it is not an APIM retry/failover policy. If propagation takes longer, resolve the issue and rerun the affected smoke cell.
+Each warm-up or measured request has a separate readiness budget of six attempts and 180 seconds of scheduled waits. A **Legacy Before** probe can therefore make up to 12 requests with 360 seconds of scheduled waits across both phases; normally it makes two successful requests. Other successful probes normally make one request, and the negative probe never retries. Warm-ups and retries are still billable; they are not an APIM retry/failover policy. If propagation takes longer, resolve the issue and rerun the affected smoke cell.
 
 See [RUNBOOK.md](RUNBOOK.md) for failures, cleanup and optional existing-workspace queries.
 
@@ -78,7 +92,7 @@ See [RUNBOOK.md](RUNBOOK.md) for failures, cleanup and optional existing-workspa
 
 Follow [sample-only cleanup](RUNBOOK.md#clean-up) when sharing an infrastructure. If the entire infrastructure resource group is disposable, use that infrastructure's cleanup notebook instead. PAYG inference is billed per usage; APIM and other infrastructure resources can continue accruing charges independently.
 
-## 🔗 Links
+## 🔗 Additional Resources
 
 - [Azure OpenAI v1 API](https://learn.microsoft.com/azure/ai-foundry/openai/api-version-lifecycle)
 - [Azure OpenAI deployment types](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/deployment-types)

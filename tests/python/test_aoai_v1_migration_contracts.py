@@ -25,6 +25,9 @@ def test_notebook_clean_and_configuration_defaults():
     """Outputs must contain no private execution material."""
     cells = notebook()['cells']
     assert len({cell['id'] for cell in cells}) == len(cells)
+    assert [cell['cell_type'] for cell in cells[:4]] == ['markdown', 'markdown', 'markdown', 'code']
+    assert 'What This Sample Does' in ''.join(cells[1]['source'])
+    assert 'Initialize Notebook Variables' in ''.join(cells[2]['source'])
     sources = []
     for cell in cells:
         if cell['cell_type'] == 'code':
@@ -195,7 +198,7 @@ def test_notebook_staged_workflow_with_mocked_remote_boundaries(monkeypatch):
         """Implement the NotebookHelper boundary without Azure."""
 
         def __init__(self, *args, **kwargs):
-            pass
+            self.deployment = args[3]
 
         def deploy_sample(self, params):
             names = [api['name'] for api in params['apis']['value']]
@@ -223,6 +226,7 @@ def test_notebook_staged_workflow_with_mocked_remote_boundaries(monkeypatch):
         return SimpleNamespace(
             status_code = kwargs.get('expected_status', 200), has_completion = kwargs.get('expected_status', 200) == 200,
             attempts = 1, backend_pool = kwargs.get('expected_pool'), model = kwargs.get('expected_model'),
+            response_time = 0.25, prompt_tokens = 10, completion_tokens = 5, total_tokens = 15,
         )
 
     monkeypatch.syspath_prepend(str(SAMPLE))
@@ -246,7 +250,10 @@ def test_notebook_staged_workflow_with_mocked_remote_boundaries(monkeypatch):
     assert namespace['legacy_api'].path == f'{namespace["sample_name"]}/openai'
     assert namespace['legacy_api'].displayName == 'Azure OpenAI Chat Completions'
     assert namespace['v1_api'].path == f'{namespace["sample_name"]}/openai/v1'
+    assert namespace['legacy_api'].tags == namespace['v1_api'].tags == ['aoai-v1-migration', 'ai-gateway']
     monkeypatch.setattr(namespace['migration_helpers'], 'test', fake_smoke)
+    report = Mock(return_value = SAMPLE / 'offline-report.html')
+    monkeypatch.setattr(namespace['migration_helpers'], 'generate_report', report)
     exec(code[1], namespace)
     with pytest.raises(AssertionError, match = 'legacy baseline'):
         exec(code[3], namespace)
@@ -256,6 +263,14 @@ def test_notebook_staged_workflow_with_mocked_remote_boundaries(monkeypatch):
     assert len(deployments[0]['apis']['value']) == 1
     assert deployments[1]['apis']['value'][0] == deployments[0]['apis']['value'][0]
     assert len(deployments[1]['apis']['value']) == 2
+    assert namespace['tests'].total_tests == 26
+    assert namespace['tests'].tests_failed == 0
+    report.assert_called_once()
+    assert len(report.call_args.args[0]) == 7
+    assert [probe.stage for probe in report.call_args.args[0]] == [
+        'Legacy Before', 'Legacy Before', 'v1', 'v1', 'Legacy After', 'Legacy After', 'v1 Rejection',
+    ]
+    assert report.call_args.args[1].name == 'aoai-v1-migration-1-report.html'
     assert deployments[0]['apis']['value'][0]['policyXml'] == namespace['pol_legacy']
     assert deployments[1]['apis']['value'][1]['policyXml'] == namespace['pol_v1']
     assert deployments[0]['models'] == deployments[1]['models'] == {'value': namespace['model_configuration']}
@@ -264,7 +279,10 @@ def test_notebook_staged_workflow_with_mocked_remote_boundaries(monkeypatch):
     assert deployments[0]['location']['value'] == namespace['rg_location']
     for index, model in enumerate(namespace['model_configuration']):
         before, v1, after = events[1 + index], events[4 + index], events[7 + index]
-        assert before[1:] == after[1:]  # Exact legacy URL/body and pool/model assertions reused.
+        assert before[1:3] == after[1:3]  # Exact legacy URL/body reused.
+        assert {key: value for key, value in before[3].items() if key != 'warmup'} == after[3]
+        assert before[3]['warmup'] is True
+        assert 'warmup' not in v1[3] and 'warmup' not in after[3]
         assert before[1] == (
             f'/{namespace["sample_name"]}/openai/deployments/{model["deploymentName"]}/chat/completions'
             f'?api-version={namespace["legacy_api_version"]}'
@@ -281,6 +299,21 @@ def test_notebook_staged_workflow_with_mocked_remote_boundaries(monkeypatch):
     assert events[6][2]['model'] == 'unknown-model'
     assert events[6][3]['expected_status'] == 500
     assert 'expected_pool' not in events[6][3]
+
+    def failed_rejection(factory, path, payload, **kwargs):
+        if payload.get('model') == 'unknown-model':
+            raise RuntimeError('rejection unavailable')
+
+        return fake_smoke(factory, path, payload, **kwargs)
+
+    monkeypatch.setattr(namespace['migration_helpers'], 'test', failed_rejection)
+    with pytest.raises(RuntimeError, match = 'rejection unavailable'):
+        exec(code[4], namespace)
+    assert namespace['v1_rejection'] is None
+    assert namespace['legacy_after'] == {}
+    with pytest.raises(AssertionError, match = 'Run all probes'):
+        exec(code[-1], namespace)
+    assert report.call_count == 1
     namespace['legacy_before'].pop(namespace['model_configuration'][1]['deploymentName'])
     deployment_count = len(deployments)
     with pytest.raises(AssertionError, match = 'both pools'):
@@ -288,6 +321,11 @@ def test_notebook_staged_workflow_with_mocked_remote_boundaries(monkeypatch):
     assert len(deployments) == deployment_count
     exec(code[1], namespace)
     assert namespace['legacy_before'] == {}
+    assert namespace['v1_success'] == namespace['legacy_after'] == {}
+    assert namespace['v1_rejection'] is None
+    with pytest.raises(AssertionError, match = 'Run all probes'):
+        exec(code[-1], namespace)
+    assert report.call_count == 1
 
 
 @pytest.mark.parametrize('stage', [1, 3])
@@ -314,9 +352,91 @@ def test_deployment_rejects_stale_kernel_configuration_before_remote_calls(stage
     helper = Mock(spec = utils.NotebookHelper)
     namespace = {**configuration, 'nb_helper': helper, 'legacy_before': SimpleNamespace(has_completion = True)}
     code = [''.join(cell['source']) for cell in notebook()['cells'] if cell['cell_type'] == 'code']
-    with pytest.raises(AssertionError, match = 'Re-run Cell 2'):
+    with pytest.raises(AssertionError, match = 'Re-run Cell 4'):
         exec(code[stage], namespace)
     helper.deploy_sample.assert_not_called()
+
+
+def evidence_namespace():
+    """Build complete final-cell inputs without executing configuration or Azure calls."""
+    models = [
+        {'name': name, 'version': '2025-08-07', 'deploymentName': name, 'poolName': f'{name}-pool'}
+        for name in ('gpt-5-mini', 'gpt-5-nano')
+    ]
+    success = {
+        model['deploymentName']: SimpleNamespace(
+            status_code = 200, has_completion = True, backend_pool = model['poolName'],
+            model = f'{model["name"]}-{model["version"]}',
+        )
+        for model in models
+    }
+
+    return {
+        'model_configuration': models, 'legacy_before': success.copy(), 'v1_success': success.copy(), 'legacy_after': success.copy(),
+        'v1_rejection': SimpleNamespace(status_code = 500, has_completion = False),
+        'sample_folder': 'aoai-v1-migration', 'nb_helper': SimpleNamespace(deployment = None),
+        'migration_helpers': SimpleNamespace(ProbeEvidence = Mock(), generate_report = Mock()),
+    }
+
+
+@pytest.mark.parametrize('missing', ['legacy_after', 'v1_rejection'])
+def test_evidence_requires_completed_probe_cells(missing):
+    """Executing reporting before its prerequisite cells gives a useful error."""
+    namespace = evidence_namespace()
+    namespace.pop(missing)
+    source = next(''.join(cell['source']) for cell in notebook()['cells'] if cell['id'] == 'migration-evidence')
+    with pytest.raises(SystemExit, match = 'Run both migration stages'):
+        exec(source, namespace)
+    namespace['migration_helpers'].generate_report.assert_not_called()
+
+
+@pytest.mark.parametrize('stage', ['legacy_before', 'v1_success', 'legacy_after'])
+def test_evidence_rejects_incomplete_model_results(stage):
+    """Reporting requires both models in every contract stage, not a partial run."""
+    namespace = evidence_namespace()
+    namespace[stage].pop('gpt-5-nano')
+    source = next(''.join(cell['source']) for cell in notebook()['cells'] if cell['id'] == 'migration-evidence')
+    with pytest.raises(AssertionError, match = 'Run all probes'):
+        exec(source, namespace)
+    namespace['migration_helpers'].generate_report.assert_not_called()
+
+
+def test_evidence_rejects_missing_negative_probe():
+    """Complete successes alone cannot replace the unknown-model rejection probe."""
+    namespace = evidence_namespace()
+    namespace['v1_rejection'] = None
+    source = next(''.join(cell['source']) for cell in notebook()['cells'] if cell['id'] == 'migration-evidence')
+    with pytest.raises(AssertionError, match = 'unknown-model rejection'):
+        exec(source, namespace)
+    namespace['migration_helpers'].generate_report.assert_not_called()
+
+
+@pytest.mark.parametrize('stage', ['legacy_before', 'v1_success', 'legacy_after'])
+@pytest.mark.parametrize('field,value', [
+    ('status_code', 500), ('has_completion', False), ('backend_pool', 'wrong-pool'), ('model', 'wrong-snapshot'),
+])
+def test_evidence_does_not_write_report_when_success_checks_fail(stage, field, value):
+    """All status, completion, pool and snapshot checks must pass before reporting."""
+    namespace = evidence_namespace()
+    namespace[stage]['gpt-5-mini'] = SimpleNamespace(**{**vars(namespace[stage]['gpt-5-mini']), field: value})
+    source = next(''.join(cell['source']) for cell in notebook()['cells'] if cell['id'] == 'migration-evidence')
+    with pytest.raises(AssertionError, match = 'Migration checks failed'):
+        exec(source, namespace)
+    assert namespace['tests'].total_tests == 26
+    assert namespace['tests'].tests_failed == 1
+    namespace['migration_helpers'].generate_report.assert_not_called()
+
+
+@pytest.mark.parametrize('field,value', [('status_code', 200), ('has_completion', True)])
+def test_evidence_does_not_write_report_when_rejection_checks_fail(field, value):
+    """An unexpected negative-probe outcome cannot receive a success report."""
+    namespace = evidence_namespace()
+    namespace['v1_rejection'] = SimpleNamespace(**{**vars(namespace['v1_rejection']), field: value})
+    source = next(''.join(cell['source']) for cell in notebook()['cells'] if cell['id'] == 'migration-evidence')
+    with pytest.raises(AssertionError, match = 'Migration checks failed'):
+        exec(source, namespace)
+    assert namespace['tests'].tests_failed == 1
+    namespace['migration_helpers'].generate_report.assert_not_called()
 
 
 def test_only_current_lab_artifacts_remain():
