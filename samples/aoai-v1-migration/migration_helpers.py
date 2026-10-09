@@ -43,6 +43,7 @@ class SmokeResult:
     prompt_tokens: int | None = None
     completion_tokens: int | None = None
     total_tokens: int | None = None
+    backend_retries: int | None = None
 
 
 @dataclass(frozen = True)
@@ -106,6 +107,7 @@ def test(
     expected_status: int = 200,
     expected_pool: str | None = None,
     expected_model: str | None = None,
+    require_backend_retries: bool = False,
     warmup: bool = False,
     retry_delays: Sequence[float] = (10, 20, 30, 60, 60),
     sleep: Callable[[float], None] = time.sleep,
@@ -175,6 +177,15 @@ def test(
                 if expected_model is not None and response_model != expected_model:
                     raise ValueError(f'Expected response model {expected_model}, received {response_model}.')
 
+                retry_header = next((value for name, value in headers.items() if name.lower() == 'x-backend-retry'), None)
+                backend_retries = None
+                if retry_header is not None:
+                    if not isinstance(retry_header, str) or not re.fullmatch(r'[0-2]', retry_header):
+                        raise ValueError('Malformed backend retry response header.')
+                    backend_retries = int(retry_header)
+                if require_backend_retries and backend_retries is None:
+                    raise ValueError('Missing backend retry response header.')
+
                 response_time = rows[0].get('response_time')
                 if response_time is not None and (
                     isinstance(response_time, bool) or not isinstance(response_time, (int, float))
@@ -197,7 +208,7 @@ def test(
                     attempt = 0
                     continue
 
-                return SmokeResult(status, attempt + 1, completion, pool, response_model, response_time, *token_counts)
+                return SmokeResult(status, attempt + 1, completion, pool, response_model, response_time, *token_counts, backend_retries)
 
             if status not in (401, 403, 404, 429, 500, 502, 503, 504) or attempt == len(retry_delays):
                 phase = 'Warm-up' if warmup else 'Smoke test'
@@ -221,7 +232,7 @@ def generate_report(probes: Sequence[ProbeEvidence], output_path: Path) -> Path:
     )
     report = HtmlReport('Azure OpenAI v1 Migration', 'Legacy baseline, v1 coexistence, and unchanged legacy regression')
     report.add_info_callout('How to read this evidence', description)
-    headers = ['Stage', 'Model', 'HTTP', 'Attempts', 'Response Time (ms)', 'Prompt Tokens', 'Completion Tokens', 'Total Tokens', 'Outcome']
+    headers = ['Stage', 'Model', 'HTTP', 'Attempts', 'Response Time (ms)', 'Prompt Tokens', 'Completion Tokens', 'Total Tokens', 'Backend Retries', 'Outcome']
     rows = []
     for probe in probes:
         result = probe.result
@@ -229,17 +240,18 @@ def generate_report(probes: Sequence[ProbeEvidence], output_path: Path) -> Path:
             probe.stage, probe.model_name, result.status_code, f'{result.attempts:,}',
             '' if result.response_time is None else f'{result.response_time * 1000:,.1f}',
             *['' if count is None else f'{count:,}' for count in (result.prompt_tokens, result.completion_tokens, result.total_tokens)],
+            '' if result.backend_retries is None else f'{result.backend_retries:,}',
             'Completion' if result.has_completion else 'Expected rejection',
         ])
     table = TableLogger()
-    table.header(*(Column(name, align = '>' if 2 <= index <= 7 else '<') for index, name in enumerate(headers)))
+    table.header(*(Column(name, align = '>' if 2 <= index <= 8 else '<') for index, name in enumerate(headers)))
     table.populate(rows)
     table.print()
     report.add_table('Contract Probe Evidence', headers, rows, 'Final-response measurements, with the intentional negative probe labeled explicitly.')
     report.add_table(
         'Verified Model Routing', ['Stage', 'Model', 'Backend Pool', 'Response Model'],
         [[probe.stage, probe.model_name, probe.result.backend_pool or '', probe.result.model or ''] for probe in probes if probe.result.has_completion],
-        'Both contracts use the same singleton pool for each model. Exact pool and snapshot assertions remain in the notebook.',
+        'Each policy pair shares a model-specific singleton pool. Advanced pools have isolated breaker state, not additional OpenAI capacity.',
     )
 
     model_names = list(dict.fromkeys(probe.model_name for probe in probes if probe.result.has_completion))
@@ -257,10 +269,10 @@ def generate_report(probes: Sequence[ProbeEvidence], output_path: Path) -> Path:
             }
             for probe in model_probes
         ]
-        title = f'{model_name}: Legacy Before / v1 / Legacy After'
+        title = f'{model_name}: ' + ' / '.join(probe.stage for probe in model_probes)
         figure = charts.BarChart(
             title, 'Contract Probe', 'Response Time (ms)', chart_rows,
-            fig_text = 'Final successful request only; warm-up and readiness waits are excluded. Three probes do not establish a latency trend.\n'
+            fig_text = 'Final successful request only; warm-up and readiness waits are excluded. These probes do not establish a latency trend.\n'
                        'The expected HTTP 500 rejection is shown in the evidence table, not in this successful-contract comparison.',
             backend_labels = {1: f'{model_name} singleton pool'},
         ).render()

@@ -555,7 +555,7 @@ def test_report_shared_charts_tables_and_expected_rejection(tmp_path, monkeypatc
     assert show.call_count == 2
     assert plt.get_fignums() == figures_before
     assert document.count('data:image/png;base64,') == 2
-    assert document.count('<th scope="col">') == 13
+    assert document.count('<th scope="col">') == 14
     assert 'Expected rejection' in document and '1,300' in document and '1,250.0' in document
     assert 'earlier readiness attempts and waits are excluded' in document
     assert 'gpt-5-mini-pool' in document and 'gpt-5-nano-snapshot' in document

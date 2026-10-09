@@ -1,0 +1,94 @@
+<!--
+    Adapted from inference-failover/inference-api-policy.xml for the dated migration contract.
+    Separate advanced pools retain isolated circuit-breaker state on the same PAYG deployments.
+    Non-streaming requests permit two retries (three attempts, at most 180 seconds of backend waits).
+    Streaming requests are never replayed. Singleton pools demonstrate policy behavior, not regional failover.
+-->
+<policies>
+    <inbound>
+        <base />
+
+        <set-variable name="backendAttempt" value='@(0)' />
+        <set-variable name="isStreaming" value='@{
+            var body = context.Request.Body.As&lt;JObject&gt;(preserveContent: true);
+            return body != null &amp;&amp; body["stream"] != null
+                &amp;&amp; body["stream"].Type == JTokenType.Boolean &amp;&amp; (bool)body["stream"];
+        }' />
+        <set-variable name="backendPool" value='@(context.Request.MatchedParameters["deployment"] + "-advanced-pool")' />
+        <set-backend-service backend-id='@((string)context.Variables["backendPool"])' />
+        <rewrite-uri
+            template='@("/openai/deployments/" + Uri.EscapeDataString(context.Request.MatchedParameters["deployment"]) + "/chat/completions")'
+            copy-unmatched-params="true" />
+
+        <set-header name="api-key" exists-action="delete" />
+        <set-header name="Ocp-Apim-Subscription-Key" exists-action="delete" />
+        <set-header name="Authorization" exists-action="delete" />
+        <authentication-managed-identity resource="https://cognitiveservices.azure.com" />
+        <set-header name="x-ms-client-request-id" exists-action="override">
+            <value>@(context.RequestId.ToString())</value>
+        </set-header>
+    </inbound>
+    <backend>
+        <!-- Match inference-failover: explicit timeouts, transient conflicts, capacity and infrastructure errors. -->
+        <retry
+            count="2"
+            interval="0"
+            first-fast-retry="true"
+            condition='@(!(bool)context.Variables["isStreaming"] &amp;&amp; (context.Response == null || context.Response.StatusCode == 408 || (context.Response.StatusCode == 409 &amp;&amp; context.Response.Headers.ContainsKey("Retry-After")) || context.Response.StatusCode == 429 || context.Response.StatusCode == 499 || context.Response.StatusCode == 500 || context.Response.StatusCode == 502 || context.Response.StatusCode == 503 || context.Response.StatusCode == 504))'>
+            <set-variable name="backendAttempt" value='@((int)context.Variables["backendAttempt"] + 1)' />
+            <forward-request timeout="60" buffer-request-body="true" buffer-response="false" fail-on-error-status-code="false" />
+
+            <!-- Do not copy the peer's backend URL trace: migration telemetry must not retain caller selectors or credentials. -->
+            <trace source="InferenceBackendAttempt" severity="information">
+                <message>@("Azure OpenAI backend attempt")</message>
+                <metadata name="contract" value="legacy-advanced" />
+                <metadata name="requestId" value='@(context.RequestId.ToString())' />
+                <metadata name="attempt" value='@(((int)context.Variables["backendAttempt"]).ToString())' />
+                <metadata name="status" value='@(context.Response == null ? "none" : context.Response.StatusCode.ToString())' />
+            </trace>
+        </retry>
+    </backend>
+    <outbound>
+        <!-- Preserve final 408, 409, 429 (including Retry-After) and 499; normalize exhausted infrastructure failures. -->
+        <choose>
+            <when condition='@(context.Response != null &amp;&amp; (context.Response.StatusCode == 500 || context.Response.StatusCode == 502 || context.Response.StatusCode == 503 || context.Response.StatusCode == 504))'>
+                <set-status code="503" reason="Inference Service Unavailable" />
+                <set-header name="Content-Type" exists-action="override">
+                    <value>application/json</value>
+                </set-header>
+                <set-body>{"error":{"code":"inference_unavailable","message":"Inference service is temporarily unavailable."}}</set-body>
+            </when>
+        </choose>
+        <base />
+        <set-header name="X-Backend-Retry" exists-action="override">
+            <value>@(Math.Max(0, (int)context.Variables["backendAttempt"] - 1).ToString())</value>
+        </set-header>
+        <set-header name="x-migration-backend-pool" exists-action="override">
+            <value>@((string)context.Variables["backendPool"])</value>
+        </set-header>
+    </outbound>
+    <on-error>
+        <!-- Only transport failures normalize to 503; missing pools and parsing errors remain gateway errors. -->
+        <set-variable name="errorStatus" value='@(
+            context.LastError != null &amp;&amp; (context.LastError.Reason == "BackendConnectionFailure" || context.LastError.Reason == "Timeout")
+                ? 503 : 500
+        )' />
+        <trace source="AoaiMigrationError" severity="error">
+            <message>@("Azure OpenAI request failed")</message>
+            <metadata name="contract" value="legacy-advanced" />
+            <metadata name="requestId" value='@(context.RequestId.ToString())' />
+            <metadata name="status" value='@(((int)context.Variables["errorStatus"]).ToString())' />
+            <metadata name="source" value='@(context.LastError == null ? "" : context.LastError.Source)' />
+            <metadata name="reason" value='@(context.LastError == null ? "" : context.LastError.Reason)' />
+        </trace>
+        <base />
+        <set-status code='@((int)context.Variables["errorStatus"])' reason="Request failed" />
+        <set-header name="X-Backend-Retry" exists-action="override">
+            <value>@(Math.Max(0, context.Variables.GetValueOrDefault&lt;int&gt;("backendAttempt", 0) - 1).ToString())</value>
+        </set-header>
+        <set-header name="Content-Type" exists-action="override">
+            <value>application/json</value>
+        </set-header>
+        <set-body>{"error":{"code":"gateway_error","message":"The gateway could not route or complete the request."}}</set-body>
+    </on-error>
+</policies>

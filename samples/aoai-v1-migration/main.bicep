@@ -19,7 +19,7 @@ param appInsightsName string = 'appi-${resourceSuffix}'
 @maxLength(40)
 param sampleName string = 'aoai-v1-migration-1'
 
-@description('APIs for this stage: legacy first, then legacy plus v1.')
+@description('APIs for this stage: simple legacy first, then simple legacy/v1 plus advanced legacy/v1.')
 param apis array
 
 @description('Two model records: name, version, capacity, deploymentName, backendName and poolName.')
@@ -132,6 +132,54 @@ module pools '../../shared/bicep/modules/apim/v1/backend-pool.bicep' = [for mode
   dependsOn: [backends]
 }]
 
+// Separate APIM breaker state preserves the simpler APIs; no additional OpenAI capacity is deployed.
+module advancedBackends '../../shared/bicep/modules/apim/v1/backend.bicep' = [for model in models: {
+  name: '${model.deploymentName}-advanced-backend'
+  params: {
+    apimName: apimName
+    backendName: '${model.deploymentName}-advanced-backend'
+    backendDescription: 'Inference-failover policy destination for ${model.name}, reusing the PAYG deployment.'
+    backendType: 'Single'
+    url: openAiAccount.properties.endpoint
+    tls: {
+      validateCertificateChain: true
+      validateCertificateName: true
+    }
+    circuitBreaker: {
+      rules: [
+        {
+          name: 'failover-on-capacity-or-infrastructure-failure'
+          acceptRetryAfter: true
+          failureCondition: {
+            count: 1
+            interval: 'PT1M'
+            statusCodeRanges: [
+              { min: 408, max: 408 }
+              { min: 429, max: 429 }
+              { min: 499, max: 500 }
+              { min: 502, max: 504 }
+            ]
+          }
+          tripDuration: 'PT1M'
+        }
+      ]
+    }
+  }
+}]
+
+module advancedPools '../../shared/bicep/modules/apim/v1/backend-pool.bicep' = [for model in models: {
+  name: '${model.deploymentName}-advanced-pool'
+  params: {
+    apimName: apimName
+    backendPoolName: '${model.deploymentName}-advanced-pool'
+    backendPoolDescription: '${model.name} singleton pool for the advanced legacy and v1 policies.'
+    backends: [
+      { name: '${model.deploymentName}-advanced-backend', priority: 1, weight: 100 }
+    ]
+  }
+  dependsOn: [advancedBackends]
+}]
+
 // The notebook deliberately supplies only legacy in stage one.
 module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in apis: {
   name: '${api.name}-${resourceSuffix}'
@@ -139,7 +187,7 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [for api in a
     apimName: apimName
     api: api
   }
-  dependsOn: [pools, modelDeploymentResources, apimOpenAiRole]
+  dependsOn: [pools, advancedPools, modelDeploymentResources, apimOpenAiRole]
 }]
 
 
@@ -159,6 +207,8 @@ output modelDeployments array = [for model in models: {
   deploymentName: model.deploymentName
   backendName: model.backendName
   poolName: model.poolName
+  advancedBackendName: '${model.deploymentName}-advanced-backend'
+  advancedPoolName: '${model.deploymentName}-advanced-pool'
 }]
 output apiOutputs array = [for i in range(0, length(apis)): {
   name: apis[i].name

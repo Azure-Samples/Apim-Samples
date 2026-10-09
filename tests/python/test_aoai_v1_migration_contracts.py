@@ -68,11 +68,11 @@ def test_payg_iac_and_isolation():
     assert 'version: model.version' in main and "versionUpgradeOption: 'NoAutoUpgrade'" in main
     assert "@batchSize(1)\nresource modelDeploymentResources 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01'" in main
     assert '@minLength(2)\n@maxLength(2)\nparam models array' in main
-    assert main.count('= [for model in models: {') == 4  # Deployments, backends, pools, output.
+    assert main.count('= [for model in models: {') == 6  # Deployments, simple/advanced backends and pools, output.
     assert '../../shared/bicep/modules/apim/v1/backend-pool.bicep' in main
     assert 'backendPoolName: model.poolName' in main
     assert 'backends: [\n      { name: model.backendName, priority: 1, weight: 100 }\n    ]' in main
-    assert 'dependsOn: [pools, modelDeploymentResources, apimOpenAiRole]' in main
+    assert 'dependsOn: [pools, advancedPools, modelDeploymentResources, apimOpenAiRole]' in main
     assert 'scope: openAiAccount' in main and 'apimService.identity.principalId' in main
     assert 'uniqueString(resourceGroup().id, sampleName)' in main
     assert "param sampleName string = 'aoai-v1-migration-1'" in main
@@ -227,6 +227,7 @@ def test_notebook_staged_workflow_with_mocked_remote_boundaries(monkeypatch):
             status_code = kwargs.get('expected_status', 200), has_completion = kwargs.get('expected_status', 200) == 200,
             attempts = 1, backend_pool = kwargs.get('expected_pool'), model = kwargs.get('expected_model'),
             response_time = 0.25, prompt_tokens = 10, completion_tokens = 5, total_tokens = 15,
+            backend_retries = 0 if kwargs.get('require_backend_retries') else None,
         )
 
     monkeypatch.syspath_prepend(str(SAMPLE))
@@ -259,20 +260,42 @@ def test_notebook_staged_workflow_with_mocked_remote_boundaries(monkeypatch):
         exec(code[3], namespace)
     for source in code[2:]:
         exec(source, namespace)
-    assert [event[0] for event in events] == ['deploy', 'smoke', 'smoke', 'deploy', 'smoke', 'smoke', 'smoke', 'smoke', 'smoke']
+    assert [event[0] for event in events] == ['deploy', 'smoke', 'smoke', 'deploy', *['smoke'] * 10]
     assert len(deployments[0]['apis']['value']) == 1
     assert deployments[1]['apis']['value'][0] == deployments[0]['apis']['value'][0]
-    assert len(deployments[1]['apis']['value']) == 2
-    assert namespace['tests'].total_tests == 26
+    assert len(deployments[1]['apis']['value']) == 4
+    assert namespace['tests'].total_tests == 48
     assert namespace['tests'].tests_failed == 0
     report.assert_called_once()
-    assert len(report.call_args.args[0]) == 7
+    assert len(report.call_args.args[0]) == 12
     assert [probe.stage for probe in report.call_args.args[0]] == [
         'Legacy Before', 'Legacy Before', 'v1', 'v1', 'Legacy After', 'Legacy After', 'v1 Rejection',
+        'Advanced Legacy', 'Advanced Legacy', 'Advanced v1', 'Advanced v1', 'Advanced v1 Rejection',
     ]
     assert report.call_args.args[1].name == 'aoai-v1-migration-1-report.html'
     assert deployments[0]['apis']['value'][0]['policyXml'] == namespace['pol_legacy']
     assert deployments[1]['apis']['value'][1]['policyXml'] == namespace['pol_v1']
+    for index, contract in enumerate(('legacy', 'v1'), 2):
+        api = namespace[f'advanced_{contract}_api']
+        assert deployments[1]['apis']['value'][index]['policyXml'] == api.policyXml
+        assert api.policyXml == (SAMPLE / 'apim-policies' / f'{contract}-advanced.xml').read_text(encoding = 'utf-8')
+        assert api.subscriptionRequired is True
+        assert api.path == f'{namespace["sample_name"]}/advanced/openai' + ('/v1' if contract == 'v1' else '')
+        assert api.operations == namespace[f'{contract}_api'].operations
+    for index, model in enumerate(namespace['model_configuration']):
+        advanced_legacy, advanced_v1 = events[9 + index * 2:11 + index * 2]
+        assert advanced_legacy[1] == (
+            f'/{namespace["advanced_legacy_path"]}/deployments/{model["deploymentName"]}/chat/completions'
+            f'?api-version={namespace["legacy_api_version"]}'
+        )
+        assert advanced_legacy[2] == namespace['legacy_payload']
+        assert advanced_v1[1] == f'/{namespace["advanced_v1_path"]}/chat/completions'
+        assert advanced_v1[2] == {**namespace['legacy_payload'], 'model': model['deploymentName']}
+        for event in (advanced_legacy, advanced_v1):
+            assert event[3]['require_backend_retries'] is True
+            assert event[3]['expected_pool'] == f'{model["deploymentName"]}-advanced-pool'
+            assert event[3]['expected_model'] == f'{model["name"]}-{model["version"]}'
+    assert events[-1][3]['expected_status'] == 500 and events[-1][3]['retry_delays'] == ()
     assert deployments[0]['models'] == deployments[1]['models'] == {'value': namespace['model_configuration']}
     assert {item['name'] for item in namespace['model_configuration']} == {'gpt-5-mini', 'gpt-5-nano'}
     assert deployments[0]['sampleName']['value'] == deployments[1]['sampleName']['value'] == namespace['sample_name']
@@ -310,6 +333,8 @@ def test_notebook_staged_workflow_with_mocked_remote_boundaries(monkeypatch):
     with pytest.raises(RuntimeError, match = 'rejection unavailable'):
         exec(code[4], namespace)
     assert namespace['v1_rejection'] is None
+    assert namespace['advanced_legacy_success'] == namespace['advanced_v1_success'] == {}
+    assert namespace['advanced_v1_rejection'] is None
     assert namespace['legacy_after'] == {}
     with pytest.raises(AssertionError, match = 'Run all probes'):
         exec(code[-1], namespace)
@@ -374,6 +399,15 @@ def evidence_namespace():
     return {
         'model_configuration': models, 'legacy_before': success.copy(), 'v1_success': success.copy(), 'legacy_after': success.copy(),
         'v1_rejection': SimpleNamespace(status_code = 500, has_completion = False),
+        'advanced_legacy_success': {
+            name: SimpleNamespace(**{**vars(result), 'backend_pool': f'{name}-advanced-pool', 'backend_retries': 0})
+            for name, result in success.items()
+        },
+        'advanced_v1_success': {
+            name: SimpleNamespace(**{**vars(result), 'backend_pool': f'{name}-advanced-pool', 'backend_retries': 0})
+            for name, result in success.items()
+        },
+        'advanced_v1_rejection': SimpleNamespace(status_code = 500, has_completion = False),
         'sample_folder': 'aoai-v1-migration', 'nb_helper': SimpleNamespace(deployment = None),
         'migration_helpers': SimpleNamespace(ProbeEvidence = Mock(), generate_report = Mock()),
     }
@@ -422,7 +456,7 @@ def test_evidence_does_not_write_report_when_success_checks_fail(stage, field, v
     source = next(''.join(cell['source']) for cell in notebook()['cells'] if cell['id'] == 'migration-evidence')
     with pytest.raises(AssertionError, match = 'Migration checks failed'):
         exec(source, namespace)
-    assert namespace['tests'].total_tests == 26
+    assert namespace['tests'].total_tests == 48
     assert namespace['tests'].tests_failed == 1
     namespace['migration_helpers'].generate_report.assert_not_called()
 
@@ -441,7 +475,9 @@ def test_evidence_does_not_write_report_when_rejection_checks_fail(field, value)
 
 def test_only_current_lab_artifacts_remain():
     """Do not retain misleading fault-gate policies or PTU runbooks."""
-    assert {path.name for path in (SAMPLE / 'apim-policies').glob('*.xml')} == {'legacy.xml', 'v1.xml'}
+    assert {path.name for path in (SAMPLE / 'apim-policies').glob('*.xml')} == {
+        'legacy.xml', 'v1.xml', 'legacy-advanced.xml', 'v1-advanced.xml',
+    }
     assert {path.name for path in (SAMPLE / 'queries').glob('*.kql')} == {'migration-requests.kql'}
     assert not (SAMPLE / 'openai-role.bicep').exists()
     readme = (SAMPLE / 'README.md').read_text(encoding = 'utf-8')

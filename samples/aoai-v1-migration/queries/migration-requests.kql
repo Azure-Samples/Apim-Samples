@@ -2,7 +2,8 @@
 // Change this namespace if USER CONFIGURATION uses another sample_name.
 ApiManagementGatewayLogs
 | where TimeGenerated > ago(1h)
-| where ApiId in ("aoai-v1-migration-1-legacy", "aoai-v1-migration-1-v1")
+| where ApiId in ("aoai-v1-migration-1-legacy", "aoai-v1-migration-1-v1",
+    "aoai-v1-migration-1-legacy-advanced", "aoai-v1-migration-1-v1-advanced")
 | summarize Requests=count(), Failures=countif(ResponseCode >= 400),
     AverageLatencyMs=avg(TotalTime) by ApiId, ResponseCode
 | order by ApiId asc, ResponseCode asc
