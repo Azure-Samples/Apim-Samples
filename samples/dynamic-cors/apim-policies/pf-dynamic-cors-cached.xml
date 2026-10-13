@@ -14,21 +14,21 @@
         - The admin API stores the mapping with an effectively infinite TTL (2^31 - 1 seconds).
           Re-calling the admin API replaces (invalidates) the previous entry.
 
-    Context variables set:
+    Context variables supplied by the API-level policy before including this fragment:
         corsMappingJson - The raw JSON mapping string from the cache (if present).
+
+    Context variables set:
         corsOrigin      - The validated origin if allowed, or empty string if not.
 -->
 <fragment>
-    <!-- Look up the CORS origin mapping from APIM internal cache -->
-    <cache-lookup-value key="corsOriginMapping" variable-name="corsMappingJson" />
     <!-- Fail-closed: if cache entry is missing, log and reject with 503 -->
     <choose>
-        <when condition="@(!context.Variables.ContainsKey("corsMappingJson"))">
+        <when condition='@(!context.Variables.ContainsKey("corsMappingJson"))'>
             <trace source="DynamicCorsCached" severity="error">
                 <message>CORS origin cache not initialized. Cache key 'corsOriginMapping' not found.</message>
                 <metadata name="apiId" value="@(context.Api.Id)" />
                 <metadata name="operationId" value="@(context.Operation.Id)" />
-                <metadata name="origin" value="@(context.Request.Headers.GetValueOrDefault("Origin", ""))" />
+                <metadata name="origin" value='@(context.Request.Headers.GetValueOrDefault("Origin", ""))' />
             </trace>
             <return-response>
                 <set-status code="503" reason="Service Unavailable" />
@@ -40,26 +40,26 @@
         </when>
     </choose>
     <!-- Evaluate the Origin header against the cached mapping -->
-    <set-variable name="corsOrigin" value="@{
+    <set-variable name="corsOrigin" value='@{
         var origin = context.Request.Headers.GetValueOrDefault("Origin", "");
         if (string.IsNullOrEmpty(origin)) { return ""; }
 
-        var corsMappingJson = context.Variables.GetValueOrDefault<string>("corsMappingJson", "{}");
+        var corsMappingJson = context.Variables.GetValueOrDefault&lt;string&gt;("corsMappingJson", "{}");
         var corsMapping = JObject.Parse(corsMappingJson);
 
         var apiId = context.Api.Id;
         var allowedOrigins = corsMapping[apiId] as JArray;
 
         if (allowedOrigins == null) { return ""; }
-        if (allowedOrigins.Any(o => o.ToString() == "*")) { return origin; }
-        if (allowedOrigins.Any(o => o.ToString() == origin)) { return origin; }
+        if (allowedOrigins.Any(o =&gt; o.ToString() == "*")) { return origin; }
+        if (allowedOrigins.Any(o =&gt; o.ToString() == origin)) { return origin; }
 
         return "";
-    }" />
+    }' />
     <choose>
-        <when condition="@(context.Request.Method == "OPTIONS")">
+        <when condition='@(context.Request.Method == "OPTIONS")'>
             <choose>
-                <when condition="@(!string.IsNullOrEmpty(context.Variables.GetValueOrDefault<string>("corsOrigin", "")))">
+                <when condition='@(!string.IsNullOrEmpty(context.Variables.GetValueOrDefault&lt;string&gt;("corsOrigin", "")))'>
                     <return-response>
                         <set-status code="200" reason="OK" />
                         <set-header name="Access-Control-Allow-Origin" exists-action="override">
@@ -81,7 +81,7 @@
                         <message>CORS origin rejected by cache-backed mapping.</message>
                         <metadata name="apiId" value="@(context.Api.Id)" />
                         <metadata name="operationId" value="@(context.Operation.Id)" />
-                        <metadata name="origin" value="@(context.Request.Headers.GetValueOrDefault("Origin", ""))" />
+                        <metadata name="origin" value='@(context.Request.Headers.GetValueOrDefault("Origin", ""))' />
                     </trace>
                     <return-response>
                         <set-status code="403" reason="CORS Origin Not Allowed" />
