@@ -18,7 +18,7 @@ This ensures all code changes comply with the project's linting standards from t
 ## Ruff Expectations
 
 - Use explicit imports (avoid `from module import *`), especially in notebooks, to prevent `F403/F405`.
-- Keep lines within the configured length limit (**150 characters** per `pyproject.toml`), and wrap long strings or calls. **Inline comments on assignments are the most commonly missed line-length offender** — when `var = value  # comment` would exceed 150 chars, move the comment to its own line(s) above the assignment.
+- Read the line-length limit from `pyproject.toml` (currently **220 characters**) rather than assuming a fixed value. Wrap long strings or calls; move assignment comments above the assignment when they would exceed the limit.
 - Avoid f-strings without placeholders (e.g., `F541`).
 - **Ruff gap:** `PLC0415` (`import-outside-toplevel`) only flags imports inside functions and classes. It does **not** flag imports inside module-level `if` / `else` / `try` blocks. Ruff will not catch those, so the top-of-file import rule below must be enforced manually.
 - **Notebook cells follow the same rules** as `.py` files except for `F821` and `F401` (suppressed via per-file-ignores because notebook cells share kernel state). Line-length, quote style, and import placement still apply. After editing notebook cells, run `get_errors` and resolve any ruff `compileError` entries; ignore only the `"X" is not defined` cross-cell false positives.
@@ -41,6 +41,10 @@ This ensures all code changes comply with the project's linting standards from t
 
 ## Notebook and Helper Architecture
 
+- Compare notebook layout with `samples/_TEMPLATE/create.ipynb` and at least one active peer before editing. Preserve the sample's intentional workflow and dependencies; do not reorder staged deployments or probes solely for visual uniformity.
+- Use `## What This Sample Does` below a notebook title, then the standard `### 🛠️ Initialize Notebook Variables` heading and `**Only modify entries under _USER CONFIGURATION_.**` reminder. Functional sections use descriptive `###` headings with the established deployment, verification, reporting, or cleanup emoji, followed by their code cells.
+- Leave a blank line after configuration banners and between logical code sections. Align adjacent configuration assignments consistently and expand dense API declarations or parameter dictionaries when that improves scanability.
+- For layout-only changes, preserve cell IDs, executable behavior, defaults, and resource/API contracts. Match peer cell metadata conventions; keep execution counts null and outputs empty. Update visible cell-number references if cells move.
 - Keep user configuration, scenario intent, APIM concepts, expected outcomes, and assertions in notebooks.
 - Extract incidental mechanics such as parsers, retries, polling, persistence, Azure command composition, response normalization, repeated request setup, and multi-step cleanup into Python modules.
 - Start one-sample behavior in a descriptive `samples/<sample>/<domain>_helpers.py` module. Promote directly to a focused `shared/python/` module only after a second active consumer establishes the same stable contract.
@@ -69,8 +73,8 @@ This ensures all code changes comply with the project's linting standards from t
 - Only use multi-line imports when a single-line is too long
 - Avoid mixing patterns: Don't use both `import module` and `from module import ...` for the same module
 - Parentheses in imports: Only use parentheses for multi-line imports, not for single-line imports.
-  - Good: `from console import print_error, print_val`
-  - Bad: `from console import (print_error, print_val)`
+   - Good: `from console import print_error, print_val`
+   - Bad: `from console import (print_error, print_val)`
 
 Good multi-line example:
 
@@ -84,17 +88,17 @@ from console import (
 
 - Order within APIM Samples imports section:
    1. Module imports with aliases (e.g., `import azure_resources as az`)
-   2. Specific type/constant imports (e.g., `from apimtypes import INFRASTRUCTURE`)
-   3. Specific function imports (e.g., `from console import print_error`)
+   1. Specific type/constant imports (e.g., `from apimtypes import INFRASTRUCTURE`)
+   1. Specific function imports (e.g., `from console import print_error`)
 
 ## Code Quality Checklist
 
 Before completing any Python code changes, verify:
 
 - All ruff warnings and errors are resolved (`ruff check <file>`)
-  - Ruff rules cover these, but we don't see `pyproject.toml` being added to context. Therefore, please pay special attention to these common occurrences:
-    - No trailing whitespace
-    - No assertion of empty strings in tests (use `assert not`)
+   - Follow `pyproject.toml` and pay particular attention to these common occurrences:
+      - No trailing whitespace
+      - No assertion of empty strings in tests (use `assert not`)
 - Code follows PEP 8 and the style guidelines in this file
 - Import statements for modules within this repo are placed last in the imports and are grouped with the `# APIM Samples imports` header
 - Type hints are present where appropriate
