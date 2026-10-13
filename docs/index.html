@@ -114,7 +114,7 @@
         "programmingLanguage": ["Python", "Bicep", "XML"],
         "runtimePlatform": "Azure",
         "license": "https://github.com/Azure-Samples/Apim-Samples/blob/main/LICENSE",
-        "keywords": "Azure API Management, APIM, APIM policies, AI Gateway, Azure OpenAI, inference failover, API gateway, Azure Front Door, Application Gateway, Private Link, VNet injection, Bicep, Jupyter, load balancing, JWT validation, OAuth, Credential Manager",
+        "keywords": "Azure API Management, APIM, APIM policies, AI Gateway, Azure OpenAI, Azure OpenAI v1 migration, inference failover, API gateway, Azure Front Door, Application Gateway, Private Link, VNet injection, Bicep, Jupyter, load balancing, JWT validation, OAuth, Credential Manager",
         "author": {
           "@type": "Organization",
           "name": "Microsoft",
@@ -135,14 +135,15 @@
           { "@type": "ListItem", "position": 6,  "name": "AuthX sample",                                  "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/authX" },
           { "@type": "ListItem", "position": 7,  "name": "AuthX Pro sample",                              "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/authX-pro" },
           { "@type": "ListItem", "position": 8,  "name": "Azure Maps sample",                             "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/azure-maps" },
-          { "@type": "ListItem", "position": 9,  "name": "Costing sample",                                "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/costing" },
-          { "@type": "ListItem", "position": 10, "name": "Dynamic CORS sample",                            "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/dynamic-cors" },
-          { "@type": "ListItem", "position": 11, "name": "Egress Control sample",                         "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/egress-control" },
-          { "@type": "ListItem", "position": 12, "name": "General sample",                                "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/general" },
-          { "@type": "ListItem", "position": 13, "name": "Inference Failover sample",                     "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/inference-failover" },
-          { "@type": "ListItem", "position": 14, "name": "Load Balancing sample",                         "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/load-balancing" },
-          { "@type": "ListItem", "position": 15, "name": "OAuth 3rd-Party sample",                        "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/oauth-3rd-party" },
-          { "@type": "ListItem", "position": 16, "name": "Secure Blob Access sample",                     "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/secure-blob-access" }
+          { "@type": "ListItem", "position": 9,  "name": "Azure OpenAI v1 Migration sample",              "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/aoai-v1-migration" },
+          { "@type": "ListItem", "position": 10, "name": "Costing sample",                                "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/costing" },
+          { "@type": "ListItem", "position": 11, "name": "Dynamic CORS sample",                            "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/dynamic-cors" },
+          { "@type": "ListItem", "position": 12, "name": "Egress Control sample",                         "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/egress-control" },
+          { "@type": "ListItem", "position": 13, "name": "General sample",                                "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/general" },
+          { "@type": "ListItem", "position": 14, "name": "Inference Failover sample",                     "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/inference-failover" },
+          { "@type": "ListItem", "position": 15, "name": "Load Balancing sample",                         "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/load-balancing" },
+          { "@type": "ListItem", "position": 16, "name": "OAuth 3rd-Party sample",                        "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/oauth-3rd-party" },
+          { "@type": "ListItem", "position": 17, "name": "Secure Blob Access sample",                     "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/secure-blob-access" }
         ]
       }
     ]
@@ -444,6 +445,12 @@
             <h3>Azure Maps</h3>
             <p>Proxy and shape calls to Azure Maps through APIM to centralise keys, quotas, and telemetry.</p>
             <span class="infra-tag">All infrastructures</span>
+          </a>
+
+          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/aoai-v1-migration" target="_blank" rel="noopener">
+            <h3>Azure OpenAI v1 Migration</h3>
+            <p>Create PAYG Azure OpenAI resources, test a dated legacy API, add and test v1 alongside it, and verify the original legacy contract again.</p>
+            <span class="infra-tag">All except apim-aca</span>
           </a>
 
           <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/costing" target="_blank" rel="noopener">
