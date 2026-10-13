@@ -1569,6 +1569,23 @@ def test_deploy_sample_no_infrastructure_found(monkeypatch):
         nb_helper.deploy_sample({'test': {'value': 'param'}})
 
 
+def test_deploy_sample_requires_existing_infrastructure(monkeypatch):
+    """Test deploy_sample rejects a missing required infrastructure."""
+    nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM])
+    select_infrastructure = MagicMock()
+    deploy_sample = MagicMock()
+
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda rg: False)
+    monkeypatch.setattr(nb_helper, '_query_and_select_infrastructure', select_infrastructure)
+    monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample', deploy_sample)
+
+    with pytest.raises(SystemExit, match='requires the approved existing infrastructure'):
+        nb_helper.deploy_sample({'test': {'value': 'param'}}, require_existing_infrastructure = True)
+
+    select_infrastructure.assert_not_called()
+    deploy_sample.assert_not_called()
+
+
 def test_deploy_sample_existing_infrastructure(monkeypatch):
     """Test deploy_sample method when the specified infrastructure already exists."""
     nb_helper = utils.NotebookHelper('test-sample', 'test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM])
