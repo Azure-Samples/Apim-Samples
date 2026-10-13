@@ -67,6 +67,7 @@ It's quick and easy to get started!
 | [AuthX][sample-authx]                           | Authentication and role-based authorization in a mock HR API.                                                                                                                                                                                                                                        | All infrastructures         |
 | [AuthX Pro][sample-authx-pro]                   | Authentication and role-based authorization in a mock product with multiple APIs and policy fragments.                                                                                                                                                                                               | All infrastructures         |
 | [Azure Maps][sample-azure-maps]                 | Proxying calls to Azure Maps with APIM policies.                                                                                                                                                                                                                                                     | All infrastructures         |
+| [Azure OpenAI v1 Migration][sample-aoai-v1]     | Create PAYG Azure OpenAI resources, test a dated legacy API, add and test v1 alongside it, and verify the original legacy contract again.                                                                                                                                                            | All except apim-aca         |
 | [Costing][sample-costing]                       | Track and allocate API costs per business unit using APIM subscriptions, Entra ID application tracking, and AI Gateway token/PTU tracking across **both** Azure OpenAI Chat Completions and Responses APIs, including streaming (SSE) token usage which is not simple to capture correctly in APIM.  | All infrastructures         |
 | [Dynamic CORS][sample-dynamic-cors]             | Dynamic per-API CORS origin validation using custom policy fragments and a maintainable origin mapping.                                                                                                                                                                                              | All infrastructures         |
 | [Egress Control][sample-egress-control]         | Control APIM outbound internet traffic by routing it through a Network Virtual Appliance (NVA) in a hub/spoke topology.                                                                                                                                                                              | appgw-apim, appgw-apim-pe   |
@@ -246,7 +247,7 @@ When you open any `.ipynb` notebook, it will automatically use the correct kerne
 1. Optional: Adjust the parameters under the `User-defined Parameters` header, if desired.
 1. Execute the `create.ipynb` Jupyter notebook via `Run All`.
 
-> A supported infrastructure does not yet need to exist before the sample is executed. The notebook will determine the current state and present you with options to create or select a supported infrastructure, if necessary.
+> Samples can select or create a supported infrastructure when needed. [Azure OpenAI v1 Migration][sample-aoai-v1] creates sample-owned PAYG Azure OpenAI resources, tests a dated legacy API, adds v1 alongside it, and verifies the original legacy contract again.
 
 Now that infrastructure and sample have been stood up, you can experiment with the policies, make requests against APIM, etc.
 
@@ -378,6 +379,7 @@ _For much more API Management content, please also check out [APIM Love](https:/
 [sample-authx]: ./samples/authX/README.md
 [sample-authx-pro]: ./samples/authX-pro/README.md
 [sample-azure-maps]: ./samples/azure-maps/README.md
+[sample-aoai-v1]: ./samples/aoai-v1-migration/README.md
 [sample-costing]: ./samples/costing/README.md
 [sample-dynamic-cors]: ./samples/dynamic-cors/README.md
 [sample-general]: ./samples/general/README.md

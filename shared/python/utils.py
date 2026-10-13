@@ -562,12 +562,20 @@ class NotebookHelper:
     #    PUBLIC METHODS
     # ------------------------------
 
-    def deploy_sample(self, bicep_parameters: dict) -> Output:
+    def deploy_sample(
+        self,
+        bicep_parameters: dict,
+        *,
+        migrate_diagnostics: bool = True,
+        require_existing_infrastructure: bool = False,
+    ) -> Output:
         """
         Deploy a sample with infrastructure auto-detection and selection.
 
         Args:
             bicep_parameters (dict): Parameters for the Bicep template deployment.
+            migrate_diagnostics (bool): Migrate legacy diagnostic settings before deployment. Defaults to True.
+            require_existing_infrastructure (bool): Refuse infrastructure selection or creation if the resource group is missing.
 
         Returns:
             Output: The deployment result.
@@ -582,6 +590,8 @@ class NotebookHelper:
         # Call the resource group existence check only once
         rg_exists = az.does_resource_group_exist(self.rg_name)
         infrastructure_available = rg_exists
+        if require_existing_infrastructure and not rg_exists:
+            raise SystemExit('This sample requires the approved existing infrastructure; no selection or creation is allowed.')
 
         # If the desired infrastructure doesn't exist, use the interactive selection process
         if not rg_exists:
@@ -617,7 +627,7 @@ class NotebookHelper:
         print_plain(f'   Index          : {self.index}')
         print_plain(f'   Resource group : {self.rg_name}\n')
 
-        if infrastructure_available:
+        if infrastructure_available and migrate_diagnostics:
             az.migrate_legacy_apim_diagnostic_settings(self.rg_name)
 
         # Execute the deployment using the utility function that handles working directory management

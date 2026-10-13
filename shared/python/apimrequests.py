@@ -487,6 +487,28 @@ class ApimRequests:
             sleepMs=sleepMs,
         )
 
+    def multiPost(
+        self,
+        path: str,
+        runs: int,
+        headers=None,
+        data=None,
+        msg: str | None = None,
+        printResponse: bool = True,
+        sleepMs: int | None = None,
+    ) -> list[dict[str, Any]]:
+        """Make POST requests and return each response's body, status and timing."""
+        return self._multiRequest(
+            method=HTTP_VERB.POST,
+            path=path,
+            runs=runs,
+            headers=headers,
+            data=data,
+            msg=msg,
+            printResponse=printResponse,
+            sleepMs=sleepMs,
+        )
+
     def singlePostAsync(
         self,
         path: str,

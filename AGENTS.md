@@ -34,7 +34,9 @@ All repository contributions should treat accessibility as a first-class quality
 │   ├── authX/               # Authentication and authorization
 │   ├── authX-pro/           # Advanced auth with policy fragments
 │   ├── azure-maps/          # Azure Maps integration
+│   ├── aoai-v1-migration/   # Azure OpenAI v1 Migration on existing lab resources
 │   ├── costing/             # APIM costing and showback
+│   ├── dynamic-cors/        # Dynamic per-API CORS origin validation
 │   ├── egress-control/      # Egress control via NVA routing
 │   ├── general/             # Basic policy demonstrations
 │   ├── inference-failover/  # AOAI model failover with LLM telemetry
