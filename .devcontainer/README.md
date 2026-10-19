@@ -17,7 +17,7 @@ This directory contains the optimized dev container configuration for the Azure 
 
 ## 🎯 Overview
 
-This repository provides three prebuilt dev container configurations, one for each current Python version: 3.12, 3.13, and 3.14. When creating a new Codespace, select the variant you prefer - all variants are functionally equivalent for this project and differ only by Python runtime version.
+This repository provides four prebuilt dev container configurations, one for each current Python version: 3.12, 3.13, 3.14, and 3.15. When creating a new Codespace, select the variant you prefer - all variants are functionally equivalent for this project and differ only by Python runtime version.
 
 The dev container uses a **three-stage optimization approach** to minimize startup time:
 
@@ -39,6 +39,7 @@ This approach ensures that time-consuming operations happen during container pre
 | `python313/Dockerfile`        | Container image definition (Python 3.13)     | Build   |
 | `python314/devcontainer.json` | Dev container configuration (Python 3.14)    | All     |
 | `python314/Dockerfile`        | Container image definition (Python 3.14)     | Build   |
+| `python315/devcontainer.json` | Dev container configuration (Python 3.15)    | All     |
 | `post-start-setup.sh`         | Shared runtime verification script           | Runtime |
 | `README.md`                   | This documentation                           | -       |
 
@@ -53,7 +54,7 @@ This approach ensures that time-consuming operations happen during container pre
 
 #### `Dockerfile` (per Python version folder)
 
-- **Base Image**: Microsoft's Python 3.12/3.13/3.14 dev container (depending on folder)
+- **Base Image**: Microsoft's Python 3.12/3.13/3.14/3.15 dev container (depending on folder)
 - **System Dependencies**: Essential packages and tools
 - **Azure CLI Setup**: Extensions and configuration for Codespaces
 - **Virtual Environment**: Auto-activation configuration
@@ -72,8 +73,9 @@ When creating a new Codespace, GitHub will present multiple dev container option
 - **APIM Samples - Python 3.12** ✅ (folder: `python312`)
 - **APIM Samples - Python 3.13** ✅ (folder: `python313`)
 - **APIM Samples - Python 3.14** ✅ (folder: `python314`)
+- **APIM Samples - Python 3.15** ✅ (folder: `python315`)
 
-All three are supported and prebuilt; choose the Python runtime that best matches your needs or local environment.
+All four are supported and prebuilt; choose the Python runtime that best matches your needs or local environment.
 
 ### ⚠️ About the "Default" Option
 
@@ -83,7 +85,7 @@ GitHub Codespaces will also display a generic **"Default"** dev container option
 - Missing tools, extensions, and optimizations
 - Suboptimal development experience
 
-**Always select one of the three Python-specific configurations above.** Unfortunately, GitHub does not currently provide a way to remove the default option from the Codespace creation dialog. This is a GitHub limitation, and we recommend always selecting one of the optimized Python variants.
+**Always select one of the four Python-specific configurations above.** Unfortunately, GitHub does not currently provide a way to remove the default option from the Codespace creation dialog. This is a GitHub limitation, and we recommend always selecting one of the optimized Python variants.
 
 ## 🚀 Setup Stages
 
@@ -92,7 +94,7 @@ GitHub Codespaces will also display a generic **"Default"** dev container option
 **When it runs**: During initial container build
 **What it does**:
 
-- Installs the selected Python version (3.12, 3.13, or 3.14) and system dependencies
+- Installs the selected Python version (3.12, 3.13, 3.14, or 3.15) and system dependencies
 - Configures Azure CLI for Codespaces (device code authentication)
 - Installs Azure CLI extensions (`containerapp`, `front-door`)
 - Sets up shell auto-activation for virtual environment
@@ -202,7 +204,7 @@ Our devcontainer uses two key lifecycle commands optimized for prebuild:
 
 ```bash
 # Creates Python virtual environment with uv and registers Jupyter kernel
-# Note: The Python path varies by selected variant (3.12/3.13/3.14)
+# Note: The Python path varies by selected variant (3.12/3.13/3.14/3.15)
 echo '🚀 Creating Python virtual environment with uv...' &&
 uv venv /workspaces/Apim-Samples/.venv --python /usr/local/bin/python3.<version> &&
 source /workspaces/Apim-Samples/.venv/bin/activate &&
