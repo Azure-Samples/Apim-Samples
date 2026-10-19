@@ -17,6 +17,7 @@ emits a suggested fix for any failed check. Checks include:
 Run after setup (local or devcontainer) to ensure everything is working.
 """
 
+import argparse
 import io
 import json
 import os
@@ -28,6 +29,8 @@ from pathlib import Path
 from sync_dependencies import sync_dependencies
 
 AZURE_CLI_TIMEOUT_SECONDS = 15
+BICEP_VERSION = 'v0.44.1'
+INSTALL_TIMEOUT_SECONDS = 180
 
 # Configure UTF-8 encoding for console output
 if sys.stdout.encoding != 'utf-8':  # pragma: no cover
@@ -92,7 +95,7 @@ def check_required_packages():
     required_packages = [
         ('requests', 'requests'),
         ('ipykernel', 'ipykernel'),
-        ('jupyter', 'jupyter'),
+        ('jupyter-client', 'jupyter_client'),
         ('python-dotenv', 'dotenv'),
     ]
 
@@ -110,23 +113,34 @@ def check_required_packages():
 
 
 def check_shared_modules():
-    """Check if shared modules can be imported."""
+    """Check shared imports in a fresh interpreter without masking path problems."""
+    project_root = Path(__file__).resolve().parent.parent
+    shared_path = project_root / 'shared' / 'python'
+    modules = sorted(path.stem for path in shared_path.glob('*.py') if path.stem != '__init__')
+    if not modules:
+        return False, f'Shared Python modules are missing from {shared_path}. Restore the repository checkout.'
+    code = (
+        'import importlib, pathlib\n'
+        f'root = pathlib.Path({str(shared_path)!r}).resolve()\n'
+        f'for name in {modules!r}:\n'
+        '    module = importlib.import_module(name)\n'
+        '    if pathlib.Path(module.__file__).resolve() != root / (name + ".py"):\n'
+        '        raise ImportError(f"{name} loaded from {module.__file__}, not {root}")\n'
+    )
     try:
-        project_root = Path(__file__).parent.parent
-        shared_python_path = project_root / 'shared' / 'python'
-
-        if str(shared_python_path) not in sys.path:  # pragma: no cover
-            sys.path.insert(0, str(shared_python_path))
-
-        __import__('utils')
-        __import__('apimtypes')
-        __import__('authfactory')
-        __import__('auth_testing')
-        __import__('apimrequests')
-
+        subprocess.run(
+            [sys.executable, '-c', code],
+            cwd = project_root / 'samples',
+            capture_output = True,
+            text = True,
+            check = True,
+            timeout = 60,
+            stdin = subprocess.DEVNULL,
+        )
         return True, ''
-    except ImportError as exc:
-        return False, f'Regenerate env and PYTHONPATH: python setup/local_setup.py --generate-env (detail: {exc})'
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as exc:
+        detail = exc.stderr if isinstance(exc, subprocess.CalledProcessError) else str(exc)
+        return False, f"Run 'Complete environment setup', then restart notebook kernels (detail: {detail})"
 
 
 def check_jupyter_kernel():
@@ -232,8 +246,8 @@ def check_azure_cli():
         return False, 'Reinstall Azure CLI: https://learn.microsoft.com/cli/azure/install-azure-cli'
 
 
-def check_bicep_cli():
-    """Check if Azure Bicep CLI is installed."""
+def check_bicep_cli(repair: bool = False) -> tuple[bool, str]:
+    """Check Bicep, optionally installing the pinned release after a failed probe."""
     az_path = _az_path()
     if not az_path:
         return False, 'Install Azure CLI first: https://learn.microsoft.com/cli/azure/install-azure-cli'
@@ -258,8 +272,27 @@ def check_bicep_cli():
         return True, f'Bicep {version} detected'
     except subprocess.TimeoutExpired:
         return False, f'Bicep version check timed out after {AZURE_CLI_TIMEOUT_SECONDS} seconds. Retry verification or run: az bicep version'
+    except OSError as exc:
+        return False, f'Could not run Azure CLI to check Bicep: {exc}'
     except subprocess.CalledProcessError:
-        return False, 'Install Bicep: az bicep install --version v0.44.1'
+        if not repair:
+            return False, f'Install Bicep: az bicep install --version {BICEP_VERSION}'
+
+    print(f'Installing missing Bicep: az bicep install --version {BICEP_VERSION}')
+    try:
+        subprocess.run(
+            [az_path, 'bicep', 'install', '--version', BICEP_VERSION],
+            capture_output = True,
+            text = True,
+            check = True,
+            timeout = INSTALL_TIMEOUT_SECONDS,
+            stdin = subprocess.DEVNULL,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as exc:
+        detail = exc.stderr if isinstance(exc, subprocess.CalledProcessError) else str(exc)
+        return False, f'Install Bicep failed: {detail}. Retry: az bicep install --version {BICEP_VERSION}'
+
+    return check_bicep_cli()
 
 
 def check_azure_login():
@@ -375,7 +408,35 @@ def check_git_notebook_filter():
     return True, ''
 
 
-def main():
+def repair_check(check_name: str) -> bool:
+    """Repair supported local setup items using the existing setup entry point."""
+    commands = {
+        'Shared Modules': '--setup-imports',
+        'Environment File': '--generate-env',
+        'Jupyter Kernel': '--setup-kernel',
+        'VS Code Settings': '--setup-vscode',
+        'Git Notebook Filter': '--setup-nb-filter',
+    }
+    option = commands.get(check_name)
+    if option is None:
+        return False
+
+    print(f'Repairing {check_name}...')
+    try:
+        subprocess.run(
+            [sys.executable, str(Path(__file__).with_name('local_setup.py')), option],
+            check = True,
+            timeout = INSTALL_TIMEOUT_SECONDS,
+            stdin = subprocess.DEVNULL,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as exc:
+        print(f'Repair failed for {check_name}: {exc}')
+        return False
+
+    return True
+
+
+def main(repair: bool = False) -> bool:
     """Run all verification checks."""
     print('🔍 APIM Samples Local Environment Verification')
     print('=' * 50)
@@ -405,7 +466,12 @@ def main():
             results.append((check_name, None, 'Skipped because Azure login is required'))
             continue
 
-        passed, fix = check_function()
+        if check_name == 'Azure Bicep' and repair:
+            passed, fix = check_bicep_cli(repair = True)
+        else:
+            passed, fix = check_function()
+        if not passed and repair and repair_check(check_name):
+            passed, fix = check_function()
         print_status(check_name, passed, fix)
         results.append((check_name, passed, fix))
 
@@ -431,4 +497,6 @@ def main():
 
 
 if __name__ == '__main__':  # pragma: no cover
-    sys.exit(0 if main() else 1)
+    parser = argparse.ArgumentParser(description = __doc__)
+    parser.add_argument('--repair', action = 'store_true', help = 'Repair supported local prerequisites and recheck them.')
+    sys.exit(0 if main(repair = parser.parse_args().repair) else 1)

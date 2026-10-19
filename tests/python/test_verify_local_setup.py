@@ -246,7 +246,7 @@ def test_check_required_packages_all_present(monkeypatch: pytest.MonkeyPatch) ->
         {
             'requests': SimpleNamespace(__name__='requests'),
             'ipykernel': SimpleNamespace(__name__='ipykernel'),
-            'jupyter': SimpleNamespace(__name__='jupyter'),
+            'jupyter_client': SimpleNamespace(__name__='jupyter_client'),
             'dotenv': SimpleNamespace(__name__='dotenv'),
         }
     )
@@ -263,7 +263,7 @@ def test_check_required_packages_missing(monkeypatch: pytest.MonkeyPatch) -> Non
         {
             'requests': SimpleNamespace(__name__='requests'),
             'ipykernel': SimpleNamespace(__name__='ipykernel'),
-            'jupyter': SimpleNamespace(__name__='jupyter'),
+            'jupyter_client': SimpleNamespace(__name__='jupyter_client'),
             'dotenv': ImportError('dotenv missing'),
         }
     )
@@ -296,33 +296,62 @@ def test_check_required_packages_requests_missing(monkeypatch: pytest.MonkeyPatc
 # ============================================================
 
 
-def test_check_shared_modules_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Shared modules check should pass when imports succeed."""
-    fake_import = _fake_import_factory(
-        {
-            'utils': SimpleNamespace(__name__='utils'),
-            'apimtypes': SimpleNamespace(__name__='apimtypes'),
-            'authfactory': SimpleNamespace(__name__='authfactory'),
-            'auth_testing': SimpleNamespace(__name__='auth_testing'),
-            'apimrequests': SimpleNamespace(__name__='apimrequests'),
-        }
-    )
-    monkeypatch.setattr('builtins.__import__', fake_import)
+@pytest.mark.parametrize('checkout_state', ['missing', 'empty', 'init-only'])
+def test_check_shared_modules_incomplete_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, checkout_state: str) -> None:
+    """Reject absent shared modules without launching a vacuous import check."""
+    monkeypatch.setattr(vls, '__file__', str(tmp_path / 'setup' / 'verify_local_setup.py'))
+    shared_path = tmp_path / 'shared' / 'python'
+    if checkout_state != 'missing':
+        shared_path.mkdir(parents = True)
+    if checkout_state == 'init-only':
+        (shared_path / '__init__.py').write_text('', encoding = 'utf-8')
 
-    ok, fix = vls.check_shared_modules()
+    with patch('subprocess.run') as run:
+        ok, fix = vls.check_shared_modules()
+
+    assert not ok
+    assert str(shared_path) in fix
+    assert 'Restore the repository checkout.' in fix
+    run.assert_not_called()
+
+
+def test_check_shared_modules_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Use a fresh interpreter without injecting a path that notebooks might lack."""
+    original_path = sys.path.copy()
+    with patch('subprocess.run', return_value = Mock(returncode = 0)) as run:
+        ok, fix = vls.check_shared_modules()
+
     assert ok is True
     assert not fix
+    assert sys.path == original_path
+    command = run.call_args.args[0]
+    assert command[:2] == [sys.executable, '-c']
+    assert "'charts'" in command[2]
+    assert 'module.__file__' in command[2]
+    assert 'sys.path.insert' not in command[2]
+    assert 'env' not in run.call_args.kwargs
+    assert run.call_args.kwargs['cwd'] == PROJECT_ROOT / 'samples'
 
 
-@pytest.mark.parametrize('missing_module', ['utils', 'apimtypes', 'authfactory', 'auth_testing', 'apimrequests'])
+@pytest.mark.parametrize('missing_module', ['utils', 'apimtypes', 'authfactory', 'auth_testing', 'apimrequests', 'charts'])
 def test_check_shared_modules_missing(monkeypatch: pytest.MonkeyPatch, missing_module: str) -> None:
     """Shared modules check should fail when any module is missing."""
-    fake_import = _fake_import_factory({missing_module: ImportError(f'{missing_module} missing')})
-    monkeypatch.setattr('builtins.__import__', fake_import)
+    with patch('subprocess.run', side_effect = subprocess.CalledProcessError(1, 'python', stderr = f'{missing_module} missing')):
+        ok, fix = vls.check_shared_modules()
 
-    ok, fix = vls.check_shared_modules()
     assert ok is False
-    assert 'generate-env' in fix
+    assert missing_module in fix
+    assert 'restart notebook kernels' in fix
+
+
+@pytest.mark.parametrize('error', [subprocess.TimeoutExpired('python', 60), OSError('cannot start python')])
+def test_check_shared_modules_process_error(error: Exception) -> None:
+    """Shared import subprocess failures remain actionable failures."""
+    with patch('subprocess.run', side_effect = error):
+        ok, fix = vls.check_shared_modules()
+
+    assert not ok
+    assert str(error) in fix
 
 
 # ============================================================
@@ -551,10 +580,11 @@ def test_check_bicep_cli_installed() -> None:
             assert '0.39.26' in fix
 
 
-def test_check_bicep_cli_not_found() -> None:
+@pytest.mark.parametrize('repair', [False, True])
+def test_check_bicep_cli_not_found(repair: bool) -> None:
     """Bicep CLI check should fail when az is not found."""
     with patch('shutil.which', return_value=None):
-        ok, fix = vls.check_bicep_cli()
+        ok, fix = vls.check_bicep_cli(repair = repair)
         assert ok is False
         assert 'Install Azure CLI' in fix
 
@@ -575,6 +605,80 @@ def test_check_bicep_cli_timeout() -> None:
             ok, fix = vls.check_bicep_cli()
             assert ok is False
             assert 'timed out' in fix
+
+
+def test_bicep_repair_installs_pin_and_rechecks() -> None:
+    """Repair a missing Bicep with the eligible pin, then verify it works."""
+    with patch.object(vls, '_az_path', return_value = '/bin/az'), patch('subprocess.run') as run:
+        run.side_effect = [
+            subprocess.CalledProcessError(1, 'az bicep version'),
+            Mock(returncode = 0),
+            Mock(stdout = 'Bicep CLI version 0.44.1\n'),
+        ]
+        ok, detail = vls.check_bicep_cli(repair = True)
+
+    assert ok
+    assert '0.44.1' in detail
+    assert [call.args[0] for call in run.call_args_list] == [
+        ['/bin/az', 'bicep', 'version'],
+        ['/bin/az', 'bicep', 'install', '--version', 'v0.44.1'],
+        ['/bin/az', 'bicep', 'version'],
+    ]
+    assert run.call_args_list[1].kwargs['timeout'] == vls.INSTALL_TIMEOUT_SECONDS
+
+
+@pytest.mark.parametrize('error', [
+    subprocess.CalledProcessError(1, 'install', stderr = 'download refused'),
+    subprocess.TimeoutExpired('install', 180),
+    OSError('cannot start az'),
+])
+def test_bicep_repair_failure(error: Exception) -> None:
+    """Installation errors and timeouts must not turn into a passing check."""
+    with patch.object(vls, '_az_path', return_value = '/bin/az'), patch('subprocess.run') as run:
+        run.side_effect = [subprocess.CalledProcessError(1, 'version'), error]
+        ok, detail = vls.check_bicep_cli(repair = True)
+
+    assert not ok
+    assert 'Install Bicep failed' in detail
+    assert run.call_count == 2
+
+
+def test_bicep_repair_recheck_fails() -> None:
+    """An installer exit code alone is not proof that Bicep works."""
+    with patch.object(vls, '_az_path', return_value = '/bin/az'), patch('subprocess.run') as run:
+        run.side_effect = [subprocess.CalledProcessError(1, 'version'), Mock(), subprocess.CalledProcessError(1, 'version')]
+        ok, _ = vls.check_bicep_cli(repair = True)
+
+    assert not ok
+    assert run.call_count == 3
+
+
+def test_bicep_repair_leaves_installed_version_alone() -> None:
+    """Do not upgrade or reinstall an existing Bicep release."""
+    with patch.object(vls, '_az_path', return_value = '/bin/az'), patch('subprocess.run', return_value = Mock(stdout = 'Bicep CLI version 0.39.26\n')) as run:
+        ok, _ = vls.check_bicep_cli(repair = True)
+
+    assert ok
+    run.assert_called_once()
+
+
+def test_bicep_repair_does_not_install_on_timeout() -> None:
+    """An unresponsive CLI must not trigger installation."""
+    with patch.object(vls, '_az_path', return_value = '/bin/az'), patch('subprocess.run', side_effect = subprocess.TimeoutExpired('az', 15)) as run:
+        ok, _ = vls.check_bicep_cli(repair = True)
+
+    assert not ok
+    run.assert_called_once()
+
+
+def test_bicep_repair_cli_disappears() -> None:
+    """Do not crash or install if the Azure CLI executable cannot be launched."""
+    with patch.object(vls, '_az_path', return_value = '/bin/az'), patch('subprocess.run', side_effect = FileNotFoundError('az disappeared')) as run:
+        ok, detail = vls.check_bicep_cli(repair = True)
+
+    assert not ok
+    assert 'az disappeared' in detail
+    run.assert_called_once()
 
 
 @pytest.mark.parametrize(
@@ -860,3 +964,48 @@ def test_main_skip_providers_and_fail_other(monkeypatch: pytest.MonkeyPatch):
     _mock_all_checks(monkeypatch, check_required_packages=(False, 'install'), check_azure_login=(False, 'not logged in'))
     result = vls.main()
     assert result is False
+
+
+@pytest.mark.parametrize('check_name,option', [
+    ('Shared Modules', '--setup-imports'),
+    ('Environment File', '--generate-env'),
+    ('Jupyter Kernel', '--setup-kernel'),
+    ('VS Code Settings', '--setup-vscode'),
+    ('Git Notebook Filter', '--setup-nb-filter'),
+])
+def test_repair_check_commands(check_name: str, option: str) -> None:
+    """Local repairs reuse setup commands and the active interpreter."""
+    with patch('subprocess.run') as run:
+        assert vls.repair_check(check_name)
+
+    assert run.call_args.args[0] == [sys.executable, str(SETUP_PATH / 'local_setup.py'), option]
+
+
+@pytest.mark.parametrize('check_name', ['Azure CLI', 'Azure Login', 'Azure Providers', 'Virtual Environment', 'UV Sync', 'Required Packages'])
+def test_repair_check_does_not_change_external_prerequisites(check_name: str) -> None:
+    """Do not install OS tools or mutate the Azure account during repair."""
+    with patch('subprocess.run') as run:
+        assert not vls.repair_check(check_name)
+
+    run.assert_not_called()
+
+
+@pytest.mark.parametrize('error', [subprocess.CalledProcessError(1, 'setup'), subprocess.TimeoutExpired('setup', 180), OSError('denied')])
+def test_repair_check_failure(error: Exception) -> None:
+    """Repair command failures must remain failures."""
+    with patch('subprocess.run', side_effect = error):
+        assert not vls.repair_check('Shared Modules')
+
+
+@pytest.mark.parametrize('after_repair', [True, False])
+def test_main_rechecks_repairs(monkeypatch: pytest.MonkeyPatch, after_repair: bool) -> None:
+    """Only the recheck, not the repair command's exit code, determines success."""
+    _mock_all_checks(monkeypatch)
+    check = Mock(side_effect = [(False, 'missing'), (after_repair, '')])
+    monkeypatch.setattr(vls, 'check_shared_modules', check)
+    monkeypatch.setattr(vls, 'check_bicep_cli', Mock(return_value = (True, '')))
+    with patch.object(vls, 'repair_check', return_value = True) as repair:
+        assert vls.main(repair = True) is after_repair
+
+    assert check.call_count == 2
+    repair.assert_called_once_with('Shared Modules')

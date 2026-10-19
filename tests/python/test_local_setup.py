@@ -27,6 +27,18 @@ else:
     sps = cast(ModuleType, importlib.import_module('local_setup'))
 
 
+@pytest.fixture(autouse = True)
+def isolated_site_packages(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """Never let setup tests write path files into the real interpreter."""
+    prefix = tmp_path / 'venv'
+    site_packages = prefix / 'site-packages'
+    site_packages.mkdir(parents = True)
+    monkeypatch.setattr(sys, 'prefix', str(prefix))
+    monkeypatch.setattr(sps.sysconfig, 'get_path', lambda name: str(site_packages))
+
+    return site_packages
+
+
 @pytest.fixture
 def temp_project_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     """Create a temp project root and force setup script to use it."""
@@ -56,6 +68,51 @@ def _read_env(project_root: Path) -> dict[str, str]:
         key, value = stripped.split('=', 1)
         data[key.strip()] = value
     return data
+
+
+def test_register_shared_module_path(temp_project_root: Path, isolated_site_packages: Path) -> None:
+    """Persist the whole shared directory rather than a fixed list of modules."""
+    shared = temp_project_root / 'shared' / 'python'
+    shared.mkdir(parents = True)
+    (shared / 'charts.py').write_text('VALUE = 42\n', encoding = 'utf-8')
+    sample = temp_project_root / 'samples' / 'example'
+    sample.mkdir(parents = True)
+    (sample / 'sample_helpers.py').write_text('import charts\nVALUE = charts.VALUE\n', encoding = 'utf-8')
+
+    assert sps.register_shared_module_path()
+    assert sps.register_shared_module_path()
+    assert (isolated_site_packages / 'apim_samples.pth').read_bytes() == f'{shared.resolve()}\n'.encode('utf-8')
+    code = f'import site; site.addsitedir({str(isolated_site_packages)!r}); import sample_helpers; assert sample_helpers.VALUE == 42'
+    subprocess.run([sys.executable, '-E', '-S', '-c', code], cwd = sample, check = True, timeout = 30)
+
+
+def test_register_shared_module_path_refuses_global_interpreter(monkeypatch: pytest.MonkeyPatch, isolated_site_packages: Path) -> None:
+    """Do not write configuration outside a virtual environment."""
+    monkeypatch.setattr(sys, 'prefix', sys.base_prefix)
+
+    assert not sps.register_shared_module_path()
+    assert not (isolated_site_packages / 'apim_samples.pth').exists()
+
+
+def test_register_shared_module_path_missing_directory(temp_project_root: Path, isolated_site_packages: Path) -> None:
+    """An incomplete checkout must not produce a successful registration."""
+    assert not sps.register_shared_module_path()
+    assert not (isolated_site_packages / 'apim_samples.pth').exists()
+
+
+def test_register_shared_module_path_write_failure(temp_project_root: Path) -> None:
+    """Surface filesystem errors instead of claiming imports are configured."""
+    (temp_project_root / 'shared' / 'python').mkdir(parents = True)
+    with patch.object(Path, 'write_text', side_effect = OSError('permission denied')):
+        assert not sps.register_shared_module_path()
+
+
+def test_register_shared_module_path_outside_venv(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reject an overridden installation path outside the active virtualenv."""
+    (temp_project_root / 'shared' / 'python').mkdir(parents = True)
+    monkeypatch.setattr(sps.sysconfig, 'get_path', lambda name: str(temp_project_root / 'global-site'))
+
+    assert not sps.register_shared_module_path()
 
 
 # ============================================================
@@ -279,7 +336,7 @@ def test_check_bicep_cli_installed_success():
     with patch('shutil.which') as mock_which:
         with patch('subprocess.run') as mock_run:
             mock_which.return_value = '/usr/bin/az'
-            mock_run.return_value = Mock(returncode=0)
+            mock_run.return_value = Mock(returncode=0, stdout='Bicep CLI version 0.44.1\n')
             result = sps.check_bicep_cli_installed()
             assert result is True
 
@@ -739,8 +796,9 @@ def test_validate_kernel_setup_jupyter_not_found():
 # ============================================================
 
 
-def test_setup_complete_environment_success(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+def test_setup_complete_environment_success(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
     """Test setup_complete_environment runs all steps successfully including UV."""
+    (temp_project_root / 'shared' / 'python').mkdir(parents = True)
     monkeypatch.setattr(sps, 'check_uv_installed', lambda: True)
     monkeypatch.setattr(sps, 'check_azure_cli_installed', lambda: True)
     monkeypatch.setattr(sps, 'check_bicep_cli_installed', lambda: True)
@@ -754,10 +812,14 @@ def test_setup_complete_environment_success(temp_project_root: Path, monkeypatch
         sps.setup_complete_environment()
 
     mock_sync.assert_called_once_with(uv_path='/usr/bin/uv')
+    output = capsys.readouterr().out
+    assert 'Setup complete! Your local environment is configured.' in output
+    assert 'Dependencies are synced and ready to use' in output
 
 
-def test_setup_complete_environment_without_uv(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+def test_setup_complete_environment_without_uv(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
     """Test setup_complete_environment succeeds even when UV is not available."""
+    (temp_project_root / 'shared' / 'python').mkdir(parents = True)
     monkeypatch.setattr(sps, 'check_uv_installed', lambda: False)
     monkeypatch.setattr(sps, 'check_azure_cli_installed', lambda: True)
     monkeypatch.setattr(sps, 'check_bicep_cli_installed', lambda: True)
@@ -766,12 +828,19 @@ def test_setup_complete_environment_without_uv(temp_project_root: Path, monkeypa
     monkeypatch.setattr(sps, 'create_vscode_settings', lambda: True)
     monkeypatch.setattr(sps, 'force_kernel_consistency', lambda: True)
 
-    # Should complete successfully without UV
-    sps.setup_complete_environment()
+    with patch.object(sps, 'sync_dependencies') as mock_sync:
+        sps.setup_complete_environment()
+
+    mock_sync.assert_not_called()
+    output = capsys.readouterr().out
+    assert 'Setup complete! Your local environment is configured.' in output
+    assert 'Note: uv is not installed but is recommended for faster dependency management' in output
+    assert "2. Install uv and run 'python setup/sync_dependencies.py' for dependency management" in output
 
 
-def test_setup_complete_environment_uv_sync_fails(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+def test_setup_complete_environment_uv_sync_fails(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
     """Test setup_complete_environment handles UV sync failures gracefully."""
+    (temp_project_root / 'shared' / 'python').mkdir(parents = True)
     monkeypatch.setattr(sps, 'check_uv_installed', lambda: True)
     monkeypatch.setattr(sps, 'check_azure_cli_installed', lambda: True)
     monkeypatch.setattr(sps, 'check_bicep_cli_installed', lambda: True)
@@ -790,6 +859,12 @@ def test_setup_complete_environment_uv_sync_fails(temp_project_root: Path, monke
     ):
         # Should complete without raising exception
         sps.setup_complete_environment()
+
+    output = capsys.readouterr().out
+    assert 'Setup complete! Your local environment is configured.' in output
+    assert 'Failed to sync dependencies with uv' in output
+    assert "2. Run 'python setup/sync_dependencies.py' to install dependencies" in output
+    assert 'Dependencies are synced and ready to use' not in output
 
 
 def test_setup_complete_environment_uv_validation_fails(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
@@ -1543,7 +1618,7 @@ def test_check_bicep_cli_finds_by_bat(monkeypatch: pytest.MonkeyPatch):
 
     with patch('shutil.which', side_effect=mock_which):
         with patch('subprocess.run') as mock_run:
-            mock_run.return_value = Mock(returncode=0)
+            mock_run.return_value = Mock(returncode=0, stdout='Bicep CLI version 0.44.1\n')
             result = sps.check_bicep_cli_installed()
             assert result is True
 
@@ -1682,7 +1757,7 @@ def test_check_bicep_cli_with_bat_variant():
         with patch('subprocess.run') as mock_run:
             # Return az.bat on second attempt
             mock_which.side_effect = [None, '/path/to/az.bat']
-            mock_run.return_value = Mock(returncode=0)
+            mock_run.return_value = Mock(returncode=0, stdout='Bicep CLI version 0.44.1\n')
             result = sps.check_bicep_cli_installed()
             assert result is True
 
@@ -1929,7 +2004,7 @@ def test_check_bicep_cli_try_variants():
         with patch('subprocess.run') as mock_run:
             # First which returns az path, subprocess succeeds
             mock_which.return_value = '/usr/bin/az'
-            mock_run.return_value = Mock(returncode=0)
+            mock_run.return_value = Mock(returncode=0, stdout='Bicep CLI version 0.44.1\n')
             result = sps.check_bicep_cli_installed()
             assert result is True
             # verify subprocess was called
@@ -2122,7 +2197,7 @@ def test_check_bicep_cli_with_cmd_success():
     with patch('shutil.which') as mock_which:
         with patch('subprocess.run') as mock_run:
             mock_which.return_value = '/path/to/az.cmd'
-            mock_run.return_value = Mock(returncode=0)
+            mock_run.return_value = Mock(returncode=0, stdout='Bicep CLI version 0.44.1\n')
             result = sps.check_bicep_cli_installed()
             assert result is True
 
@@ -2908,7 +2983,7 @@ def test_check_bicep_cli_cmd_fallback():
     with patch('shutil.which') as mock_which:
         with patch('subprocess.run') as mock_run:
             mock_which.side_effect = [None, '/path/to/az.cmd']
-            mock_run.return_value = Mock(returncode=0)
+            mock_run.return_value = Mock(returncode=0, stdout='Bicep CLI version 0.44.1\n')
 
             result = sps.check_bicep_cli_installed()
             assert result is True

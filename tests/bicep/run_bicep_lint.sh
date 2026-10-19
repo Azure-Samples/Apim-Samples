@@ -18,7 +18,8 @@ get_bicep_executable() {
     return 0
   fi
 
-  local candidates=("$HOME/.azure/bin/bicep" "$HOME/.azure/bin/bicep.exe")
+  local azure_config_directory="${AZURE_CONFIG_DIR:-$HOME/.azure}"
+  local candidates=("$azure_config_directory/bin/bicep" "$azure_config_directory/bin/bicep.exe")
   local candidate
   for candidate in "${candidates[@]}"; do
     if [ -x "$candidate" ] || [ -f "$candidate" ]; then
@@ -31,8 +32,12 @@ get_bicep_executable() {
     return 1
   fi
 
-  # Ask Azure CLI to provision/validate the Bicep binary once, then use it directly.
-  az bicep version >/dev/null || return 1
+  # Install only when the probe fails, preserving the repository's eligible pin.
+  if ! az bicep version >/dev/null; then
+    echo "Installing missing Bicep: az bicep install --version v0.44.1" >&2
+    az bicep install --version v0.44.1 >&2 || return 1
+    az bicep version >/dev/null || return 1
+  fi
 
   for candidate in "${candidates[@]}"; do
     if [ -x "$candidate" ] || [ -f "$candidate" ]; then

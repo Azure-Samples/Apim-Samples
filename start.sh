@@ -163,7 +163,7 @@ while true; do
       fi
       ;;
     3)
-      run_cmd pyrun "${REPO_ROOT}/setup/verify_local_setup.py"
+      run_cmd pyrun "${REPO_ROOT}/setup/verify_local_setup.py" --repair
       ;;
     4)
       show_account

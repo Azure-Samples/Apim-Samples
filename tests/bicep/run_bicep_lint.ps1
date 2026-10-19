@@ -26,9 +26,10 @@ function Get-BicepExecutable {
     }
 
     $homeDirectory = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
+    $azureConfigDirectory = if ($env:AZURE_CONFIG_DIR) { $env:AZURE_CONFIG_DIR } else { Join-Path $homeDirectory '.azure' }
     $candidates = @(
-        (Join-Path $homeDirectory '.azure/bin/bicep.exe'),
-        (Join-Path $homeDirectory '.azure/bin/bicep')
+        (Join-Path $azureConfigDirectory 'bin/bicep.exe'),
+        (Join-Path $azureConfigDirectory 'bin/bicep')
     )
 
     foreach ($candidate in $candidates) {
@@ -41,10 +42,18 @@ function Get-BicepExecutable {
         return $null
     }
 
-    # Ask Azure CLI to provision/validate the Bicep binary once, then use it directly.
+    # Install only when the probe fails, preserving the repository's eligible pin.
     & az bicep version | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        return $null
+        Write-Host 'Installing missing Bicep: az bicep install --version v0.44.1'
+        & az bicep install --version v0.44.1 | Out-Host
+        if ($LASTEXITCODE -ne 0) {
+            return $null
+        }
+        & az bicep version | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+            return $null
+        }
     }
 
     foreach ($candidate in $candidates) {

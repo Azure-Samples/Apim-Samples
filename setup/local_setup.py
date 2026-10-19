@@ -22,9 +22,11 @@ import os
 import shutil
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path  # Cross-platform path handling (Windows: \, Unix: /)
 
 from sync_dependencies import sync_dependencies
+from verify_local_setup import check_bicep_cli
 
 DEFAULT_PYTHON_ANALYSIS_EXCLUDE = [
     '**/node_modules',
@@ -94,19 +96,11 @@ def check_azure_cli_installed():
 
 
 def check_bicep_cli_installed():
-    """Check if Azure Bicep CLI is installed."""
-    az_path = shutil.which('az') or shutil.which('az.cmd') or shutil.which('az.bat')
-    if not az_path:
-        print('❌ Azure CLI is not installed. Please install from: https://learn.microsoft.com/cli/azure/install-azure-cli')
-        return False
+    """Check Azure Bicep and install the pinned release when missing."""
+    passed, detail = check_bicep_cli(repair = True)
+    print(f'{"✅" if passed else "❌"} {detail}')
 
-    try:
-        subprocess.run([az_path, 'bicep', 'version'], capture_output=True, text=True, check=True)
-        print('✅ Azure Bicep CLI is installed (via az bicep)')
-        return True
-    except subprocess.CalledProcessError:
-        print('❌ Azure Bicep CLI is not installed. Install with: az bicep install --version v0.44.1')
-        return False
+    return passed
 
 
 def check_uv_installed():
@@ -340,6 +334,29 @@ def generate_env_file() -> None:
         f.write(env_content)
 
     print(f'\n✅ Successfully generated .env file: {env_file_path}\n')
+
+
+def register_shared_module_path() -> bool:
+    """Persist shared imports in the active virtualenv for every notebook kernel."""
+    shared_path = get_project_root() / 'shared' / 'python'
+    if sys.prefix == sys.base_prefix:
+        print('❌ Select the repository virtual environment before configuring shared imports.')
+        return False
+    if not shared_path.is_dir():
+        print(f'❌ Shared Python directory is missing: {shared_path}')
+        return False
+
+    try:
+        site_packages = Path(sysconfig.get_path('purelib'))
+        site_packages.resolve().relative_to(Path(sys.prefix).resolve())
+        path_file = site_packages / 'apim_samples.pth'
+        path_file.write_text(f'{shared_path.resolve()}\n', encoding = 'utf-8', newline = '\n')
+    except (OSError, ValueError) as exc:
+        print(f'❌ Failed to configure shared imports: {exc}')
+        return False
+
+    print(f'✅ Shared imports configured in {path_file}. Restart running notebook kernels.')
+    return True
 
 
 def install_jupyter_kernel():
@@ -647,7 +664,7 @@ def setup_complete_environment():
     env_success = False
     try:
         generate_env_file()
-        env_success = True
+        env_success = register_shared_module_path()
     except Exception as e:
         print(f'❌ Failed to generate .env file: {e}')
         print('   Continuing with setup...')
@@ -773,6 +790,7 @@ def show_help():
     print('  (no options)        Show this help information')
     print("  --run-only          Only modify current session's PYTHONPATH (basic setup)")
     print('  --generate-env      Generate .env file for VS Code and terminal integration')
+    print('  --setup-imports     Configure persistent shared imports in the active virtualenv')
     print('  --setup-kernel      Register the standardized Jupyter kernel')
     print('  --setup-vscode      Configure VS Code settings for optimal workflow')
     print('  --setup-nb-filter   Configure git clean filter for notebook metadata')
@@ -838,15 +856,17 @@ if __name__ == '__main__':  # pragma: no cover
         if command == '--generate-env':
             # Legacy: just generate .env file
             generate_env_file()
+        elif command == '--setup-imports':
+            sys.exit(0 if register_shared_module_path() else 1)
         elif command == '--setup-kernel':
             # Just register the Jupyter kernel
-            install_jupyter_kernel()
+            sys.exit(0 if install_jupyter_kernel() else 1)
         elif command == '--setup-vscode':
             # Just configure VS Code settings
-            create_vscode_settings()
+            sys.exit(0 if create_vscode_settings() else 1)
         elif command == '--setup-nb-filter':
             # Configure git clean filter for notebook metadata
-            setup_notebook_git_filter()
+            sys.exit(0 if setup_notebook_git_filter() else 1)
         elif command == '--force-kernel':
             # Force kernel consistency and prevent changes
             force_kernel_consistency()

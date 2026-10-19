@@ -226,7 +226,7 @@ while ($true) {
             }
         }
         '3' {
-            $null = PyRun "$RepoRoot/setup/verify_local_setup.py"
+            $null = PyRun "$RepoRoot/setup/verify_local_setup.py" --repair
         }
         '4' {
             Show-AccountInfo
