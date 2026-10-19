@@ -1,84 +1,69 @@
 {
   "$schema": "https://raw.githubusercontent.com/devcontainers/spec/main/schemas/devContainer.schema.json",
-  "name": "APIM Samples - Python 3.15",
   "build": {
-    "dockerfile": "../Dockerfile",
-    "context": "../..",
     "args": {
       "PYTHON_VERSION": "3.15"
-    }
-  },
-  "features": {
-    "ghcr.io/devcontainers/features/common-utils:2.5.4": {
-      "installZsh": false,
-      "configureZshAsDefaultShell": false,
-      "installOhMyZsh": false,
-      "upgradePackages": false,
-      "username": "vscode",
-      "uid": "1000",
-      "gid": "1000"
-    }
+    },
+    "context": "../..",
+    "dockerfile": "../Dockerfile"
   },
   "customizations": {
-    "vscode": {
-      "extensions": [
-        "ms-python.python",
-        "ms-python.debugpy",
-        "ms-toolsai.jupyter",
-        "ms-azuretools.vscode-bicep",
-        "ms-vscode.azurecli",
-        "redhat.vscode-yaml",
-        "ms-vscode.vscode-json",
-        "GitHub.copilot",
-        "GitHub.copilot-chat",
-        "donjayamanne.vscode-default-python-kernel"
-      ],
-      "settings": {
-        "python.defaultInterpreterPath": "/workspaces/Apim-Samples/.venv/bin/python",
-        "python.envFile": "${workspaceFolder}/.env",
-        "python.terminal.activateEnvironment": true,
-        "python.terminal.activateEnvInCurrentTerminal": true,
-        "python.testing.pytestEnabled": true,
-        "jupyter.kernels.trusted": [
-          "/workspaces/Apim-Samples/.venv/bin/python"
-        ],
-        "files.associations": {
-          "*.bicep": "bicep"
-        },
-        "workbench.editorAssociations": {
-          "*.md": "vscode.markdown.preview.editor"
-        },
-        "extensions.ignoreRecommendations": true
-      }
-    },
     "containerEnv": {
       "PATH": "/workspaces/Apim-Samples/.venv/bin:${PATH}",
       "PYTHONPATH": "/workspaces/Apim-Samples/shared/python:/workspaces/Apim-Samples",
       "VIRTUAL_ENV": "/workspaces/Apim-Samples/.venv"
+    },
+    "vscode": {
+      "extensions": [
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "donjayamanne.vscode-default-python-kernel",
+        "ms-azuretools.vscode-bicep",
+        "ms-python.debugpy",
+        "ms-python.python",
+        "ms-toolsai.jupyter",
+        "ms-vscode.azurecli",
+        "ms-vscode.vscode-json",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "extensions.ignoreRecommendations": true,
+        "files.associations": {
+          "*.bicep": "bicep"
+        },
+        "jupyter.kernels.trusted": [
+          "/workspaces/Apim-Samples/.venv/bin/python"
+        ],
+        "python.defaultInterpreterPath": "/workspaces/Apim-Samples/.venv/bin/python",
+        "python.envFile": "${workspaceFolder}/.env",
+        "python.terminal.activateEnvInCurrentTerminal": true,
+        "python.terminal.activateEnvironment": true,
+        "python.testing.pytestEnabled": true,
+        "workbench.editorAssociations": {
+          "*.md": "vscode.markdown.preview.editor"
+        }
+      }
     }
   },
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2.7.1": {
+      "configureZshAsDefaultShell": false,
+      "gid": "1000",
+      "installOhMyZsh": false,
+      "installZsh": false,
+      "uid": "1000",
+      "upgradePackages": false,
+      "username": "vscode"
+    }
+  },
+  "forwardPorts": [
+    8000
+  ],
+  "name": "APIM Samples - Python 3.15",
   "onCreateCommand": [
     "bash",
     "-c",
     "echo '🚀 Creating Python virtual environment with uv...' && uv venv /workspaces/Apim-Samples/.venv --python /usr/local/bin/python3.15 && source /workspaces/Apim-Samples/.venv/bin/activate && echo '✅ Virtual environment created' && echo '🔧 Registering Jupyter kernel...' && python -m ipykernel install --user --name=python-venv --display-name='Python (.venv)' && echo '🧹 Removing default python3 kernel...' && rm -rf /workspaces/Apim-Samples/.venv/share/jupyter/kernels/python3 2>/dev/null || true && echo '✅ Jupyter kernel registered'"
-  ],
-  "updateContentCommand": [
-    "bash",
-    "-c",
-    "echo '📦 Installing locked Python packages with uv...' && source /workspaces/Apim-Samples/.venv/bin/activate && python setup/verify_dependency_age.py --scope python && uv sync --locked && echo '✅ Python packages installed' && python setup/local_setup.py --generate-env && echo '✅ Environment configuration updated'"
-  ],
-  "postStartCommand": [
-    "bash",
-    "-c",
-    "echo 'APIM Samples Codespace Starting - Keep this terminal open to see progress!' && bash .devcontainer/post-start-setup.sh"
-  ],
-  "postAttachCommand": [
-    "bash",
-    "-c",
-    "bash .devcontainer/post-start-setup.sh"
-  ],
-  "forwardPorts": [
-    8000
   ],
   "portsAttributes": {
     "8000": {
@@ -86,9 +71,24 @@
       "onAutoForward": "notify"
     }
   },
+  "postAttachCommand": [
+    "bash",
+    "-c",
+    "bash .devcontainer/post-start-setup.sh"
+  ],
+  "postStartCommand": [
+    "bash",
+    "-c",
+    "echo 'APIM Samples Codespace Starting - Keep this terminal open to see progress!' && bash .devcontainer/post-start-setup.sh"
+  ],
   "remoteUser": "vscode",
-  "workspaceFolder": "/workspaces/Apim-Samples",
   "runArgs": [
     "--init"
-  ]
+  ],
+  "updateContentCommand": [
+    "bash",
+    "-c",
+    "echo '📦 Installing locked Python packages with uv...' && source /workspaces/Apim-Samples/.venv/bin/activate && python setup/verify_dependency_age.py --scope python && uv sync --locked && echo '✅ Python packages installed' && python setup/local_setup.py --generate-env && echo '✅ Environment configuration updated'"
+  ],
+  "workspaceFolder": "/workspaces/Apim-Samples"
 }
