@@ -3,6 +3,8 @@
 import base64
 import json
 import sys
+from copy import deepcopy
+from dataclasses import FrozenInstanceError, replace
 from pathlib import Path
 from unittest.mock import MagicMock, call
 
@@ -46,22 +48,159 @@ def _make_session() -> MagicMock:
     return session
 
 
-def _full_kwargs() -> dict:
-    return {
-        'chat_body': CHAT_BODY,
-        'stream_body': STREAM_BODY,
-        'stream_body_without_usage': STREAM_BODY_NO_USAGE,
-        'responses_url': RESPONSES_URL,
-        'responses_body': RESPONSES_BODY,
-        'responses_stream_body': RESPONSES_STREAM_BODY,
-        'responses_stateless_body': RESPONSES_STATELESS_BODY,
+def _full_plan() -> costing_helpers.AoaiTrafficPlan:
+    return costing_helpers.AoaiTrafficPlan(
+        chat_url=CHAT_URL,
+        chat_body=CHAT_BODY,
+        stream_body=STREAM_BODY,
+        stream_body_without_usage=STREAM_BODY_NO_USAGE,
+        responses_url=RESPONSES_URL,
+        responses_body=RESPONSES_BODY,
+        responses_stream_body=RESPONSES_STREAM_BODY,
+        responses_stateless_body=RESPONSES_STATELESS_BODY,
+    )
+
+
+def test_traffic_plan_is_frozen():
+    plan = _full_plan()
+
+    with pytest.raises(FrozenInstanceError):
+        setattr(plan, 'chat_url', 'https://other.example.com/chat/completions')
+
+
+def test_minimal_traffic_plan_retains_chat_fallbacks():
+    session = _make_session()
+    plan = costing_helpers.AoaiTrafficPlan(chat_url=CHAT_URL, chat_body=CHAT_BODY, stream_body=STREAM_BODY)
+
+    delivered, planned, bailed = send_aoai_traffic(session, plan, CALLER_HEADERS, 6)
+
+    expected = dict.fromkeys(ALL_KEYS, 0)
+    expected.update(chat_non_streaming=3, chat_stream_with_usage=3)
+    assert delivered == planned == expected
+    assert bailed is False
+    assert session.post.call_args_list == [
+        call(CHAT_URL, json=STREAM_BODY if is_stream else CHAT_BODY, headers=CALLER_HEADERS, timeout=45 if is_stream else 30, stream=is_stream) for is_stream in (False, True, True, False, True, False)
+    ]
+
+
+def test_traffic_plan_can_be_reused_without_mutating_payloads_or_headers():
+    session = _make_session()
+    plan = _full_plan()
+    original = deepcopy(plan)
+    first_headers = {'api-key': 'bu-one'}
+    second_headers = {'api-key': 'bu-two'}
+
+    first_result = send_aoai_traffic(session, plan, first_headers, 6)
+    second_result = send_aoai_traffic(session, plan, second_headers, 6)
+
+    assert first_result == second_result
+    assert plan == original
+    assert first_headers == {'api-key': 'bu-one'}
+    assert second_headers == {'api-key': 'bu-two'}
+    assert all(entry.kwargs['headers'] is first_headers for entry in session.post.call_args_list[:6])
+    assert all(entry.kwargs['headers'] is second_headers for entry in session.post.call_args_list[6:])
+
+
+def test_notebook_reuses_model_plans_and_preserves_persisted_counts(monkeypatch, tmp_path):
+    """Run the real traffic cell offline through dispatch, aggregation, and persistence."""
+    session = _make_session()
+    session.headers = {'Content-Type': 'application/json'}
+    monkeypatch.setattr(costing_helpers, 'build_session', lambda *_args, **_kwargs: session)
+    monkeypatch.setattr(costing_helpers, 'get_traffic_endpoint', lambda *_args, **_kwargs: ('https://apim.example.com', {}, False, 'unused'))
+    plan_type = costing_helpers.AoaiTrafficPlan
+    plan_factory = MagicMock(wraps=plan_type)
+    dispatcher = MagicMock(wraps=send_aoai_traffic)
+    monkeypatch.setattr(costing_helpers, 'AoaiTrafficPlan', plan_factory)
+    monkeypatch.setattr(costing_helpers, 'send_aoai_traffic', dispatcher)
+    namespace = {
+        'local_data_path': tmp_path / 'traffic.json',
+        'run_ai_requests': True,
+        'enable_foundry': True,
+        'enable_token_tracking': True,
+        'deployment': 'simple-apim',
+        'rg_name': 'rg',
+        'sample_folder': 'costing',
+        'apim_name': 'apim',
+        'apim_gateway_url': 'https://apim.example.com',
+        'aoai_endpoint': 'https://aoai.example.com',
+        'aoai_api_path': 'aoai',
+        'api_prefix': 'cost-',
+        'model_test_matrix': {'model-a': {'requests_per_caller': 6}, 'model-b': {'requests_per_caller': 7}},
+        'subscriptions': {
+            'bu-one': {'primary_key': 'one', 'request_weight': 1.0},
+            'bu-two': {'primary_key': 'two', 'request_weight': 2.0},
+        },
+        'simulated_callers': [{'appid': 'app-one', 'name': 'One'}, {'appid': 'app-two', 'name': 'Two'}],
+        'print_error': MagicMock(),
+        'print_info': MagicMock(),
+        'print_ok': MagicMock(),
+        'print_val': MagicMock(),
     }
+    notebook = json.loads((COSTING_DIR / 'create.ipynb').read_text(encoding='utf-8'))
+    source = next(''.join(cell['source']) for cell in notebook['cells'] if cell['cell_type'] == 'code' and 'send_aoai_traffic = costing_helpers.send_aoai_traffic' in ''.join(cell['source']))
+
+    exec(source, namespace)
+
+    assert plan_factory.call_count == 2
+    assert dispatcher.call_count == 4
+    assert session.post.call_count == 39
+    session.close.assert_called_once()
+    first_plan = dispatcher.call_args_list[0].args[1]
+    second_plan = dispatcher.call_args_list[2].args[1]
+    assert isinstance(first_plan, plan_type)
+    assert isinstance(second_plan, plan_type)
+    assert first_plan is dispatcher.call_args_list[1].args[1]
+    assert second_plan is dispatcher.call_args_list[3].args[1]
+    assert first_plan is not second_plan
+    for model, plan in [('model-a', first_plan), ('model-b', second_plan)]:
+        assert plan.chat_url == f'https://apim.example.com/aoai/deployments/{model}/chat/completions'
+        assert plan.responses_url == 'https://apim.example.com/aoai/responses'
+        assert plan.responses_body is not None
+        assert plan.responses_stream_body is not None
+        assert plan.responses_stateless_body is not None
+        assert plan.responses_body['model'] == model
+        assert plan.responses_stream_body['model'] == model
+        assert plan.responses_stateless_body['model'] == model
+        assert plan.responses_stateless_body['store'] is False
+
+    totals = {('bu-one', 'model-a'): 6, ('bu-two', 'model-a'): 12, ('bu-one', 'model-b'): 7, ('bu-two', 'model-b'): 14}
+    expected_counts = {pair: {key: (count + 5 - i) // 6 for i, key in enumerate(ALL_KEYS)} for pair, count in totals.items()}
+    assert namespace['bu_model_counts'] == namespace['bu_model_planned'] == expected_counts
+    persisted = json.loads(namespace['local_data_path'].read_text(encoding='utf-8'))
+    assert persisted['sampleFolder'] == 'costing'
+    assert persisted['resourceGroup'] == 'rg'
+    assert persisted['apimService'] == 'apim'
+    traffic = persisted['trafficSources'][0]
+    assert traffic['name'] == 'ai-gateway-aoai'
+    assert traffic['apiName'] == 'aoai'
+    assert traffic['plannedRequests'] == traffic['totalRequests'] == 39
+    for bu in traffic['businessUnits']:
+        assert bu['planned'] == bu['requests'] == sum(count for (bu_name, _), count in totals.items() if bu_name == bu['name'])
+        for model in bu['byModel']:
+            counts = expected_counts[(bu['name'], model['model'])]
+            assert model['total'] == sum(counts.values())
+            assert (
+                model['planned']
+                == model['delivered']
+                == {
+                    'chat': {
+                        'nonStreaming': counts['chat_non_streaming'],
+                        'streamingWithUsage': counts['chat_stream_with_usage'],
+                        'streamingWithoutUsage': counts['chat_stream_without_usage'],
+                    },
+                    'responses': {
+                        'nonStreaming': counts['responses_non_streaming'],
+                        'streaming': counts['responses_stream'],
+                        'nonStreamingStateless': counts['responses_non_streaming_stateless'],
+                    },
+                }
+            )
 
 
 def test_six_requests_cycle_all_six_modes_exactly_once():
     session = _make_session()
 
-    delivered, planned, bailed = send_aoai_traffic(session, CHAT_URL, CALLER_HEADERS, 6, **_full_kwargs())
+    delivered, planned, bailed = send_aoai_traffic(session, _full_plan(), CALLER_HEADERS, 6)
 
     assert bailed is False
     for key in ALL_KEYS:
@@ -73,7 +212,7 @@ def test_six_requests_cycle_all_six_modes_exactly_once():
 def test_dispatcher_routes_each_mode_to_correct_url_and_body():
     session = _make_session()
 
-    send_aoai_traffic(session, CHAT_URL, CALLER_HEADERS, 6, **_full_kwargs())
+    send_aoai_traffic(session, _full_plan(), CALLER_HEADERS, 6)
 
     calls = session.post.call_args_list
     expected = [
@@ -85,16 +224,13 @@ def test_dispatcher_routes_each_mode_to_correct_url_and_body():
         (RESPONSES_URL, RESPONSES_STATELESS_BODY),
     ]
 
-    for j, (url, body) in enumerate(expected):
-        args, kwargs = calls[j]
-        assert args[0] == url, f'mode {j} url mismatch'
-        assert kwargs['json'] == body, f'mode {j} body mismatch'
+    assert calls == [call(url, json=body, headers=CALLER_HEADERS, timeout=45 if j in (1, 2, 4) else 30, stream=j in (1, 2, 4)) for j, (url, body) in enumerate(expected)]
 
 
 def test_responses_stateless_body_carries_store_false():
     session = _make_session()
 
-    send_aoai_traffic(session, CHAT_URL, CALLER_HEADERS, 6, **_full_kwargs())
+    send_aoai_traffic(session, _full_plan(), CALLER_HEADERS, 6)
 
     mode_5_call = session.post.call_args_list[5]
     assert mode_5_call.kwargs['json'].get('store') is False
@@ -104,23 +240,29 @@ def test_streaming_modes_drain_response_lines():
     session = _make_session()
     session.post.return_value.iter_lines.return_value = iter(['data: chunk'])
 
-    send_aoai_traffic(session, CHAT_URL, CALLER_HEADERS, 6, **_full_kwargs())
+    send_aoai_traffic(session, _full_plan(), CALLER_HEADERS, 6)
 
     # Modes 1, 2, 4 are streaming; iter_lines must be called for each.
     response = session.post.return_value
     assert response.iter_lines.call_count == 3
 
 
-def test_falls_back_to_chat_when_responses_inputs_missing():
+@pytest.mark.parametrize(
+    'missing_fields',
+    [
+        ('responses_url',),
+        ('responses_body',),
+        ('responses_stream_body',),
+        ('responses_stateless_body',),
+        ('responses_url', 'responses_body', 'responses_stream_body', 'responses_stateless_body'),
+    ],
+)
+def test_falls_back_to_chat_when_responses_inputs_missing(missing_fields):
     session = _make_session()
 
-    kwargs = _full_kwargs()
-    kwargs['responses_url'] = None
-    kwargs['responses_body'] = None
-    kwargs['responses_stream_body'] = None
-    kwargs['responses_stateless_body'] = None
+    plan = replace(_full_plan(), **dict.fromkeys(missing_fields))
 
-    delivered, planned, _ = send_aoai_traffic(session, CHAT_URL, CALLER_HEADERS, 6, **kwargs)
+    delivered, planned, _ = send_aoai_traffic(session, plan, CALLER_HEADERS, 6)
 
     # Modes 3 and 5 should fall back to mode 0 (chat non-streaming);
     # mode 4 should fall back to mode 1 (chat streaming with usage).
@@ -136,10 +278,9 @@ def test_falls_back_to_chat_when_responses_inputs_missing():
 def test_falls_back_when_stream_body_without_usage_missing():
     session = _make_session()
 
-    kwargs = _full_kwargs()
-    kwargs['stream_body_without_usage'] = None
+    plan = replace(_full_plan(), stream_body_without_usage=None)
 
-    delivered, _planned, _ = send_aoai_traffic(session, CHAT_URL, CALLER_HEADERS, 6, **kwargs)
+    delivered, _planned, _ = send_aoai_traffic(session, plan, CALLER_HEADERS, 6)
 
     # Mode 2 should fall back to mode 1 (stream_body with usage).
     assert delivered['chat_stream_without_usage'] == 0
@@ -155,7 +296,7 @@ def test_timeout_bails_remaining_requests():
     # First call succeeds, second times out, remainder should be skipped.
     session.post.side_effect = [response, http_requests.Timeout()]
 
-    delivered, planned, bailed = send_aoai_traffic(session, CHAT_URL, CALLER_HEADERS, 6, **_full_kwargs())
+    delivered, planned, bailed = send_aoai_traffic(session, _full_plan(), CALLER_HEADERS, 6)
 
     assert bailed is True
     assert sum(delivered.values()) == 1
@@ -169,19 +310,22 @@ def test_timeout_prints_warning(monkeypatch):
     warning = MagicMock()
     monkeypatch.setattr(costing_helpers, 'print_warning', warning)
 
-    _delivered, _planned, bailed = send_aoai_traffic(session, CHAT_URL, CALLER_HEADERS, 1, **_full_kwargs())
+    _delivered, _planned, bailed = send_aoai_traffic(session, _full_plan(), CALLER_HEADERS, 1)
 
     assert bailed is True
     assert '1/1' in warning.call_args.args[0]
 
 
-@pytest.mark.parametrize('count', [0, 1, 7, 13])
+@pytest.mark.parametrize('count', [0, 1, 5, 6, 7, 13])
 def test_planned_count_always_equals_request_count(count):
     session = _make_session()
 
-    _delivered, planned, _ = send_aoai_traffic(session, CHAT_URL, CALLER_HEADERS, count, **_full_kwargs())
+    delivered, planned, bailed = send_aoai_traffic(session, _full_plan(), CALLER_HEADERS, count)
 
     assert sum(planned.values()) == count
+    assert delivered == planned == {key: (count + 5 - i) // 6 for i, key in enumerate(ALL_KEYS)}
+    assert bailed is False
+    assert session.post.call_count == count
 
 
 def _result(*, success=True, text='', json_data=None):
@@ -326,7 +470,7 @@ def test_dispatcher_ignores_request_errors_and_non_200_streams():
     failed_stream = MagicMock(status_code=500)
     session.post.side_effect = [http_requests.ConnectionError('reset'), failed_stream]
 
-    delivered, planned, bailed = send_aoai_traffic(session, CHAT_URL, CALLER_HEADERS, 2, **_full_kwargs())
+    delivered, planned, bailed = send_aoai_traffic(session, _full_plan(), CALLER_HEADERS, 2)
 
     assert bailed is False
     assert sum(planned.values()) == 2

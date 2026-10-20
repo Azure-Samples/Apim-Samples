@@ -190,6 +190,12 @@ Follow these steps to prepare and run the costing sample:
    - Traffic generation takes ~2–3 minutes
    - At the end, the notebook prints Azure portal links — click the workbook link to view your cost dashboard
 
+### AI Traffic Plans
+
+The real AOAI traffic cell builds one `AoaiTrafficPlan` per model using [costing_helpers.py](costing_helpers.py). The plan groups the Chat Completions and Responses URLs and request bodies; prompts and payloads remain visible in the notebook. Each business unit reuses the model's plan with its own headers and weighted request count.
+
+The dispatcher retains all six request modes, Chat fallbacks when optional payloads are absent, 30-second non-streaming and 45-second streaming timeouts, and early exit after the first timeout. Delivered and planned counts retain the same workbook cross-reference format.
+
 ### What Each Configuration Toggle Does
 
 | Toggle                    | Purpose                                        | Impact if disabled                                               |

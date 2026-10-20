@@ -15,6 +15,7 @@ import base64
 import json
 import re
 import tempfile
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -287,19 +288,30 @@ def acquire_entraid_token(
     return access_token, claims
 
 
+@dataclass(frozen=True)
+class AoaiTrafficPlan:
+    """Request targets and payloads shared by callers of one AOAI model.
+
+    Missing Responses inputs retain the Chat fallback. Omitting the usage-free
+    streaming body retains the streaming-with-usage fallback. Payloads remain
+    ordinary dictionaries and are not mutated by the dispatcher.
+    """
+
+    chat_url: str
+    chat_body: dict[str, Any]
+    stream_body: dict[str, Any]
+    stream_body_without_usage: dict[str, Any] | None = None
+    responses_url: str | None = None
+    responses_body: dict[str, Any] | None = None
+    responses_stream_body: dict[str, Any] | None = None
+    responses_stateless_body: dict[str, Any] | None = None
+
+
 def send_aoai_traffic(
     session: http_requests.Session,
-    chat_url: str,
-    caller_headers: dict,
+    plan: AoaiTrafficPlan,
+    caller_headers: dict[str, str],
     count: int,
-    *,
-    chat_body: dict,
-    stream_body: dict,
-    stream_body_without_usage: dict | None = None,
-    responses_url: str | None = None,
-    responses_body: dict | None = None,
-    responses_stream_body: dict | None = None,
-    responses_stateless_body: dict | None = None,
 ) -> tuple[dict[str, int], dict[str, int], bool]:
     """Send `count` AOAI requests cycling through up to six modes.
 
@@ -327,21 +339,9 @@ def send_aoai_traffic(
 
     Args:
         session: Pre-configured `requests.Session` (built via `build_session`).
-        chat_url: Full chat-completions URL for the target deployment.
+        plan: Targets and request bodies shared by callers of this model.
         caller_headers: Per-call headers (api-key for the BU + Authorization JWT).
         count: Total number of requests to send for this (BU, model) cell.
-        chat_body: Non-streaming chat completions body.
-        stream_body: Streaming chat completions body with
-            `stream_options.include_usage = true` set by the client.
-        stream_body_without_usage: Streaming chat completions body that omits
-            `stream_options` so APIM can inject it and emit a trace record.
-            When None, mode 2 falls back to mode 1.
-        responses_url: Full /responses URL. When None, modes 3/4/5 are skipped
-            and replaced by mode-0/1/0 respectively (Chat fallback).
-        responses_body: Responses API non-streaming body (used for mode 3).
-        responses_stream_body: Responses API streaming body (used for mode 4).
-        responses_stateless_body: Responses API non-streaming body with
-            `store: false` (used for mode 5).
 
     Returns:
         `(delivered, planned, bailed)` where `delivered` and `planned` are
@@ -366,7 +366,7 @@ def send_aoai_traffic(
     planned = dict.fromkeys(keys, 0)
     bailed = False
 
-    responses_available = responses_url is not None and responses_body is not None and responses_stream_body is not None and responses_stateless_body is not None
+    responses_available = plan.responses_url is not None and plan.responses_body is not None and plan.responses_stream_body is not None and plan.responses_stateless_body is not None
 
     for j in range(count):
         if bailed:
@@ -374,23 +374,23 @@ def send_aoai_traffic(
 
         # Resolve mode from j % 6, with safe fallbacks when optional bodies/URLs missing.
         mode = j % 6
-        if mode == 2 and stream_body_without_usage is None:
+        if mode == 2 and plan.stream_body_without_usage is None:
             mode = 1
         if mode in (3, 4, 5) and not responses_available:
             mode = 0 if mode in (3, 5) else 1
 
         if mode == 0:
-            url, body, key, is_stream = chat_url, chat_body, 'chat_non_streaming', False
+            url, body, key, is_stream = plan.chat_url, plan.chat_body, 'chat_non_streaming', False
         elif mode == 1:
-            url, body, key, is_stream = chat_url, stream_body, 'chat_stream_with_usage', True
+            url, body, key, is_stream = plan.chat_url, plan.stream_body, 'chat_stream_with_usage', True
         elif mode == 2:
-            url, body, key, is_stream = chat_url, stream_body_without_usage, 'chat_stream_without_usage', True
+            url, body, key, is_stream = plan.chat_url, plan.stream_body_without_usage, 'chat_stream_without_usage', True
         elif mode == 3:
-            url, body, key, is_stream = responses_url, responses_body, 'responses_non_streaming', False
+            url, body, key, is_stream = plan.responses_url, plan.responses_body, 'responses_non_streaming', False
         elif mode == 4:
-            url, body, key, is_stream = responses_url, responses_stream_body, 'responses_stream', True
+            url, body, key, is_stream = plan.responses_url, plan.responses_stream_body, 'responses_stream', True
         else:  # mode == 5
-            url, body, key, is_stream = responses_url, responses_stateless_body, 'responses_non_streaming_stateless', False
+            url, body, key, is_stream = plan.responses_url, plan.responses_stateless_body, 'responses_non_streaming_stateless', False
 
         planned[key] += 1
 
