@@ -838,6 +838,20 @@ def test_setup_complete_environment_without_uv(temp_project_root: Path, monkeypa
     assert "2. Install uv and run 'python setup/sync_dependencies.py' for dependency management" in output
 
 
+def test_setup_complete_environment_does_not_repeat_bootstrap_sync(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Workspace configuration uses the dependencies installed by bootstrap."""
+    (temp_project_root / 'shared' / 'python').mkdir(parents = True)
+
+    for name in ('check_uv_installed', 'check_azure_cli_installed', 'check_bicep_cli_installed', 'check_azure_providers_registered',
+                 'install_jupyter_kernel', 'create_vscode_settings', 'force_kernel_consistency', 'setup_notebook_git_filter'):
+        monkeypatch.setattr(sps, name, lambda: True)
+
+    with patch.object(sps, 'sync_dependencies') as mock_sync:
+        assert sps.setup_complete_environment(dependencies_synced = True) is True
+
+    mock_sync.assert_not_called()
+
+
 def test_setup_complete_environment_uv_sync_fails(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
     """Test setup_complete_environment handles UV sync failures gracefully."""
     (temp_project_root / 'shared' / 'python').mkdir(parents = True)

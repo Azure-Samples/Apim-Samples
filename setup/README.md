@@ -42,11 +42,18 @@ uv --version
 For complete local environment setup that matches the dev container experience:
 
 ```shell
-uv venv
-python setup/verify_dependency_age.py --scope python
-uv sync --locked
 python setup/local_setup.py --complete-setup
 ```
+
+Alternatively, launch the Developer CLI with [start.ps1](../start.ps1) or [start.sh](../start.sh) and choose **1) Complete environment setup**.
+
+Setup detects installed Python interpreters using uv, filters them against `requires-python` in [pyproject.toml](../pyproject.toml), and displays their versions and paths. Select a numbered option for the virtual environment, or enter `q` to cancel. No Python interpreter is downloaded automatically.
+
+Launchers pointing to a missing Python executable are silently skipped. Other discovery diagnostics remain visible, and setup stops if discovery fails or no compatible interpreter or existing environment is available.
+
+If an environment already exists, press Enter to keep it. Selecting another interpreter requires confirmation before replacing [.venv](../.venv/) and its installed packages. To switch versions, use the Developer CLI or run setup from a system Python, not from the environment being replaced.
+
+Setup creates the environment with the selected interpreter, runs the dependency-age verifier, installs the locked dependencies through the guarded sync helper, and registers the notebook kernel using that environment's Python. Failed creation or dependency installation stops setup before workspace configuration.
 
 The repository excludes packages published within the last eight days. Use the guarded helper to refresh the lockfile and sync the environment:
 
@@ -72,7 +79,7 @@ This will:
 
 - Generate `.env` file for Python path configuration
 - Register `shared/python` in the active virtualenv using `apim_samples.pth`, so all samples can import shared helpers without depending on VS Code's `.env` loading
-- Register the standardized "APIM Samples Python 3.12" Jupyter kernel
+- Register the standardized "Python (.venv)" Jupyter kernel
 - Configure VS Code settings for automatic kernel selection
 - Enforce kernel consistency to prevent auto-changes
 - Set up optimal workspace configuration
@@ -93,6 +100,9 @@ python setup/local_setup.py --setup-kernel
 
 # Configure VS Code settings only
 python setup/local_setup.py --setup-vscode
+
+# Configure an already-installed environment without interpreter selection
+python setup/local_setup.py --configure-workspace
 
 # Force kernel consistency (fix kernel switching issues)
 python setup/local_setup.py --force-kernel
@@ -138,7 +148,7 @@ Verification already synchronizes Python packages through the guarded lockfile h
 
 ## Kernel Consistency
 
-To ensure notebooks always use the correct kernel ("APIM Samples Python 3.12" instead of ".venv" or "python3"):
+To ensure notebooks always use the correct kernel ("Python (.venv)" instead of an unrelated Python installation):
 
 1. **Run the complete setup**: `python setup/local_setup.py --complete-setup`
 2. **Restart VS Code** completely
@@ -154,7 +164,7 @@ python setup/local_setup.py --force-kernel
 
 ### Kernel Issues
 
-- **Problem**: Notebooks show ".venv" or "python3" instead of "APIM Samples Python 3.12"
+- **Problem**: Notebooks use an unrelated interpreter instead of "Python (.venv)"
 - **Solution**: Run `--force-kernel` and restart VS Code
 
 ### Python Command Issues
@@ -191,11 +201,12 @@ bash setup/clean-local-artifacts.sh
 
 The following are removed:
 
-| Type                    | Items                                               |
-| ----------------------- | --------------------------------------------------- |
-| Cache directories       | `.pytest_cache`, `.ruff_cache`, `__pycache__`       |
-| Test/coverage artifacts | `htmlcov`, `.coverage`, `.coverage.*`               |
-| Build/package artifacts | `build`, `dist`, `.eggs`, `*.egg-info`              |
-| Temporary files         | `*.pyc`, `*.pyo`, `*.tmp`, `*.temp`                 |
+| Type                    | Items                                         |
+| ----------------------- | --------------------------------------------- |
+| Cache directories       | `.pytest_cache`, `.ruff_cache`, `__pycache__` |
+| Test/coverage artifacts | `htmlcov`, `.coverage`, `.coverage.*`         |
+| Build/package artifacts | `build`, `dist`, `.eggs`, `*.egg-info`        |
+| Temporary directory     | Repository-root `tmp` and all its contents    |
+| Temporary files         | `*.pyc`, `*.pyo`, `*.tmp`, `*.temp`           |
 
-> **Note:** `.env` is intentionally left in place.
+> **Note:** `.env` is intentionally left in place. The repository-root `tmp` directory is disposable; do not store files there that you want to keep.

@@ -137,10 +137,14 @@ while true; do
   echo "Misc"
   echo "  0) Exit"
   echo ""
-  read -rp "Select an option: " choice
+  read -rp "Select an option: " choice || break
   case "$choice" in
     1)
-      run_cmd pyrun "${REPO_ROOT}/setup/local_setup.py" --complete-setup
+      if base_python=$("$(find_python)" -c 'import sys; print(sys._base_executable)'); then
+        run_interactive_cmd "$base_python" "${REPO_ROOT}/setup/local_setup.py" --complete-setup
+      else
+        echo "Could not find a system Python to start setup."
+      fi
       ;;
     2)
       echo ""

@@ -205,7 +205,13 @@ while ($true) {
 
     switch ($choice) {
         '1' {
-            $null = PyRun "$RepoRoot/setup/local_setup.py" "--complete-setup"
+            $python = Get-Python
+            $basePython = & $python -c "import sys; print(sys._base_executable)"
+            if ($LASTEXITCODE -eq 0 -and $basePython) {
+                Invoke-InteractiveCmd $basePython "$RepoRoot/setup/local_setup.py" "--complete-setup"
+            } else {
+                Write-Host "Could not find a system Python to start setup." -ForegroundColor Red
+            }
         }
         '2' {
             Write-Host ""
