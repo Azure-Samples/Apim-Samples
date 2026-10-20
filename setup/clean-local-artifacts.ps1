@@ -12,6 +12,12 @@ Write-Host ""
 
 # ── Directories ───────────────────────────────────────────────────────────────
 
+$tmpDir = Join-Path -Path $RepoRoot -ChildPath 'tmp'
+if (Test-Path -LiteralPath $tmpDir -PathType Container) {
+    Write-Host "  Removing $tmpDir"
+    Remove-Item -LiteralPath $tmpDir -Recurse -Force
+}
+
 $dirPatterns = @('.pytest_cache', '.ruff_cache', '__pycache__', 'htmlcov', 'build', 'dist', '.eggs')
 
 foreach ($pattern in $dirPatterns) {
@@ -32,7 +38,7 @@ Get-ChildItem -Path $RepoRoot -Recurse -Force -Directory -ErrorAction SilentlyCo
 
 # ── Files ─────────────────────────────────────────────────────────────────────
 
-$filePatterns = @('.coverage', '*.pyc', '*.pyo', '*.tmp', '*.temp')
+$filePatterns = @('.coverage', 'coverage.json', 'coverage.xml', '*.pyc', '*.pyo', '*.tmp', '*.temp')
 
 foreach ($pattern in $filePatterns) {
     Get-ChildItem -Path $RepoRoot -Recurse -Force -File -Filter $pattern -ErrorAction SilentlyContinue |

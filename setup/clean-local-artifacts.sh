@@ -11,6 +11,11 @@ echo ""
 
 # ── Directories ───────────────────────────────────────────────────────────────
 
+if [ -d "${REPO_ROOT}/tmp" ]; then
+    echo "  Removing ${REPO_ROOT}/tmp"
+    rm -rf -- "${REPO_ROOT}/tmp" || exit 1
+fi
+
 for pattern in '.pytest_cache' '.ruff_cache' '__pycache__' 'htmlcov' 'build' 'dist' '.eggs'; do
     while IFS= read -r -d $'\0' dir; do
         echo "  Removing $dir"
@@ -26,7 +31,7 @@ done < <(find "${REPO_ROOT}" -type d -name '*.egg-info' -print0 2>/dev/null)
 
 # ── Files ─────────────────────────────────────────────────────────────────────
 
-for pattern in '*.pyc' '*.pyo' '*.tmp' '*.temp' '.coverage'; do
+for pattern in '*.pyc' '*.pyo' '*.tmp' '*.temp' '.coverage' 'coverage.json' 'coverage.xml'; do
     while IFS= read -r -d $'\0' f; do
         echo "  Removing $f"
         rm -f "$f"
