@@ -27,12 +27,12 @@ else:
     sps = cast(ModuleType, importlib.import_module('local_setup'))
 
 
-@pytest.fixture(autouse = True)
+@pytest.fixture(autouse=True)
 def isolated_site_packages(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     """Never let setup tests write path files into the real interpreter."""
     prefix = tmp_path / 'venv'
     site_packages = prefix / 'site-packages'
-    site_packages.mkdir(parents = True)
+    site_packages.mkdir(parents=True)
     monkeypatch.setattr(sys, 'prefix', str(prefix))
     monkeypatch.setattr(sps.sysconfig, 'get_path', lambda name: str(site_packages))
 
@@ -73,17 +73,17 @@ def _read_env(project_root: Path) -> dict[str, str]:
 def test_register_shared_module_path(temp_project_root: Path, isolated_site_packages: Path) -> None:
     """Persist the whole shared directory rather than a fixed list of modules."""
     shared = temp_project_root / 'shared' / 'python'
-    shared.mkdir(parents = True)
-    (shared / 'charts.py').write_text('VALUE = 42\n', encoding = 'utf-8')
+    shared.mkdir(parents=True)
+    (shared / 'charts.py').write_text('VALUE = 42\n', encoding='utf-8')
     sample = temp_project_root / 'samples' / 'example'
-    sample.mkdir(parents = True)
-    (sample / 'sample_helpers.py').write_text('import charts\nVALUE = charts.VALUE\n', encoding = 'utf-8')
+    sample.mkdir(parents=True)
+    (sample / 'sample_helpers.py').write_text('import charts\nVALUE = charts.VALUE\n', encoding='utf-8')
 
     assert sps.register_shared_module_path()
     assert sps.register_shared_module_path()
     assert (isolated_site_packages / 'apim_samples.pth').read_bytes() == f'{shared.resolve()}\n'.encode('utf-8')
     code = f'import site; site.addsitedir({str(isolated_site_packages)!r}); import sample_helpers; assert sample_helpers.VALUE == 42'
-    subprocess.run([sys.executable, '-E', '-S', '-c', code], cwd = sample, check = True, timeout = 30)
+    subprocess.run([sys.executable, '-E', '-S', '-c', code], cwd=sample, check=True, timeout=30)
 
 
 def test_register_shared_module_path_refuses_global_interpreter(monkeypatch: pytest.MonkeyPatch, isolated_site_packages: Path) -> None:
@@ -102,14 +102,14 @@ def test_register_shared_module_path_missing_directory(temp_project_root: Path, 
 
 def test_register_shared_module_path_write_failure(temp_project_root: Path) -> None:
     """Surface filesystem errors instead of claiming imports are configured."""
-    (temp_project_root / 'shared' / 'python').mkdir(parents = True)
-    with patch.object(Path, 'write_text', side_effect = OSError('permission denied')):
+    (temp_project_root / 'shared' / 'python').mkdir(parents=True)
+    with patch.object(Path, 'write_text', side_effect=OSError('permission denied')):
         assert not sps.register_shared_module_path()
 
 
 def test_register_shared_module_path_outside_venv(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject an overridden installation path outside the active virtualenv."""
-    (temp_project_root / 'shared' / 'python').mkdir(parents = True)
+    (temp_project_root / 'shared' / 'python').mkdir(parents=True)
     monkeypatch.setattr(sps.sysconfig, 'get_path', lambda name: str(temp_project_root / 'global-site'))
 
     assert not sps.register_shared_module_path()
@@ -759,20 +759,13 @@ def test_install_jupyter_kernel_registration_fails():
         assert result is False
 
 
-def test_validate_kernel_setup_kernel_found():
-    """Test validate_kernel_setup returns True when kernel is found."""
+@pytest.mark.parametrize('kernel_name, expected', [('python-venv', True), ('other-kernel', False)])
+def test_validate_kernel_setup_kernel_presence(kernel_name, expected):
+    """Kernel validation depends on the registered kernel name."""
     with patch('subprocess.run') as mock_run:
-        mock_run.return_value = Mock(stdout='Available kernels:\n  python-venv\n', returncode=0)
+        mock_run.return_value = Mock(stdout=f'Available kernels:\n  {kernel_name}\n', returncode=0)
         result = sps.validate_kernel_setup()
-        assert result is True
-
-
-def test_validate_kernel_setup_kernel_not_found():
-    """Test validate_kernel_setup returns False when kernel not found."""
-    with patch('subprocess.run') as mock_run:
-        mock_run.return_value = Mock(stdout='Available kernels:\n  other-kernel\n', returncode=0)
-        result = sps.validate_kernel_setup()
-        assert result is False
+        assert result is expected
 
 
 def test_validate_kernel_setup_jupyter_error():
@@ -798,7 +791,7 @@ def test_validate_kernel_setup_jupyter_not_found():
 
 def test_setup_complete_environment_success(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
     """Test setup_complete_environment runs all steps successfully including UV."""
-    (temp_project_root / 'shared' / 'python').mkdir(parents = True)
+    (temp_project_root / 'shared' / 'python').mkdir(parents=True)
     monkeypatch.setattr(sps, 'check_uv_installed', lambda: True)
     monkeypatch.setattr(sps, 'check_azure_cli_installed', lambda: True)
     monkeypatch.setattr(sps, 'check_bicep_cli_installed', lambda: True)
@@ -819,7 +812,7 @@ def test_setup_complete_environment_success(temp_project_root: Path, monkeypatch
 
 def test_setup_complete_environment_without_uv(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
     """Test setup_complete_environment succeeds even when UV is not available."""
-    (temp_project_root / 'shared' / 'python').mkdir(parents = True)
+    (temp_project_root / 'shared' / 'python').mkdir(parents=True)
     monkeypatch.setattr(sps, 'check_uv_installed', lambda: False)
     monkeypatch.setattr(sps, 'check_azure_cli_installed', lambda: True)
     monkeypatch.setattr(sps, 'check_bicep_cli_installed', lambda: True)
@@ -840,21 +833,29 @@ def test_setup_complete_environment_without_uv(temp_project_root: Path, monkeypa
 
 def test_setup_complete_environment_does_not_repeat_bootstrap_sync(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch):
     """Workspace configuration uses the dependencies installed by bootstrap."""
-    (temp_project_root / 'shared' / 'python').mkdir(parents = True)
+    (temp_project_root / 'shared' / 'python').mkdir(parents=True)
 
-    for name in ('check_uv_installed', 'check_azure_cli_installed', 'check_bicep_cli_installed', 'check_azure_providers_registered',
-                 'install_jupyter_kernel', 'create_vscode_settings', 'force_kernel_consistency', 'setup_notebook_git_filter'):
+    for name in (
+        'check_uv_installed',
+        'check_azure_cli_installed',
+        'check_bicep_cli_installed',
+        'check_azure_providers_registered',
+        'install_jupyter_kernel',
+        'create_vscode_settings',
+        'force_kernel_consistency',
+        'setup_notebook_git_filter',
+    ):
         monkeypatch.setattr(sps, name, lambda: True)
 
     with patch.object(sps, 'sync_dependencies') as mock_sync:
-        assert sps.setup_complete_environment(dependencies_synced = True) is True
+        assert sps.setup_complete_environment(dependencies_synced=True) is True
 
     mock_sync.assert_not_called()
 
 
 def test_setup_complete_environment_uv_sync_fails(temp_project_root: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]):
     """Test setup_complete_environment handles UV sync failures gracefully."""
-    (temp_project_root / 'shared' / 'python').mkdir(parents = True)
+    (temp_project_root / 'shared' / 'python').mkdir(parents=True)
     monkeypatch.setattr(sps, 'check_uv_installed', lambda: True)
     monkeypatch.setattr(sps, 'check_azure_cli_installed', lambda: True)
     monkeypatch.setattr(sps, 'check_bicep_cli_installed', lambda: True)

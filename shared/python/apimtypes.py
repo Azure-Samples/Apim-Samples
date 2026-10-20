@@ -34,6 +34,33 @@ def get_project_root() -> Path:
     return Path(__file__).resolve().parent.parent.parent
 
 
+def find_project_root() -> str:
+    """
+    Find the project root directory by looking for specific marker files.
+
+    Returns:
+        str: Path to the project root directory.
+
+    Raises:
+        FileNotFoundError: If project root cannot be determined.
+    """
+    current_dir = os.getcwd()
+
+    # Look for marker files that indicate the project root.
+    # Require all markers to avoid incorrectly treating notebook folders
+    # (which often contain their own README.md) as the repo root.
+    marker_files = ['pyproject.toml', 'README.md', 'bicepconfig.json']
+
+    while current_dir != os.path.dirname(current_dir):  # Stop at filesystem root
+        if all(os.path.exists(os.path.join(current_dir, marker)) for marker in marker_files):
+            return current_dir
+
+        current_dir = os.path.dirname(current_dir)
+
+    # If we can't find the project root, raise an error
+    raise FileNotFoundError('Could not determine project root directory')
+
+
 # Get project root and construct absolute paths to policy files
 _PROJECT_ROOT = get_project_root()
 _SHARED_XML_POLICY_BASE_PATH = _PROJECT_ROOT / 'shared' / 'apim-policies'

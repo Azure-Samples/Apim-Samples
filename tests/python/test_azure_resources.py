@@ -3010,8 +3010,9 @@ def test_run_with_az_lock_acquired(monkeypatch):
                     mock_lock.__exit__.assert_called_once()
 
 
-def test_run_with_explicit_log_command_false(monkeypatch):
-    """Test run function with explicit log_command=False to hit line 203."""
+@pytest.mark.parametrize('log_command', [False, True])
+def test_run_with_explicit_log_command(monkeypatch, log_command):
+    """Explicit log flags preserve successful command output."""
 
     suppress_module_functions(monkeypatch, az, ['print_command'])
 
@@ -3019,22 +3020,7 @@ def test_run_with_explicit_log_command_false(monkeypatch):
         with patch('subprocess.run') as mock_subprocess:
             mock_subprocess.return_value = Mock(returncode=0, stdout='test output', stderr='')
 
-            result = az.run('echo test', log_command=False)
-
-            assert result.success
-            assert result.text == 'test output'
-
-
-def test_run_with_explicit_log_command_true(monkeypatch):
-    """Test run function with explicit log_command=True to hit line 203."""
-
-    suppress_module_functions(monkeypatch, az, ['print_command'])
-
-    with patch('azure_resources.is_debug_enabled', return_value=False):
-        with patch('subprocess.run') as mock_subprocess:
-            mock_subprocess.return_value = Mock(returncode=0, stdout='test output', stderr='')
-
-            result = az.run('echo test', log_command=True)
+            result = az.run('echo test', log_command=log_command)
 
             assert result.success
             assert result.text == 'test output'
