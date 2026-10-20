@@ -108,16 +108,16 @@ The routing rules are:
 1. **Priority 3 - any PAYG:** Distribute traffic across any remaining compatible PAYG deployments, with equal weight when a model has multiple members in this tier.
 
 | Model        | Label | APIM Backend                     | Capacity Tier      | Priority | Weight |
-| ------------ | ----- | --------------------------------- | ------------------ | -------- | ------ |
-| `gpt-5.1`    | A     | `gpt-5-1-PTU-eastus2`             | In-region PTU      | 1        | 50     |
-| `gpt-5.1`    | D     | `gpt-5-1-PTU-westus3`             | Out-of-region PTU  | 1        | 50     |
-| `gpt-5.1`    | B     | `gpt-5-1-PAYG-eastus2`            | In-region PAYG     | 2        | 100    |
-| `gpt-5.1`    | E     | `gpt-5-1-PAYG-westus3`            | Out-of-region PAYG | 3        | 50     |
-| `gpt-5.1`    | G     | `gpt-5-1-PAYG-southcentralus`     | Out-of-region PAYG | 3        | 50     |
-| `gpt-5-mini` | C     | `gpt-5-mini-PTU-eastus2`          | In-region PTU      | 1        | 50     |
-| `gpt-5-mini` | F     | `gpt-5-mini-PTU-westus3`          | Out-of-region PTU  | 1        | 50     |
-| `gpt-5-mini` | D     | `gpt-5-mini-PAYG-eastus2`         | In-region PAYG     | 2        | 100    |
-| `gpt-5-mini` | H     | `gpt-5-mini-PAYG-southcentralus`  | Out-of-region PAYG | 3        | 100    |
+| ------------ | ----- | -------------------------------- | ------------------ | -------- | ------ |
+| `gpt-5.1`    | A     | `gpt-5-1-PTU-eastus2`            | In-region PTU      | 1        | 50     |
+| `gpt-5.1`    | D     | `gpt-5-1-PTU-westus3`            | Out-of-region PTU  | 1        | 50     |
+| `gpt-5.1`    | B     | `gpt-5-1-PAYG-eastus2`           | In-region PAYG     | 2        | 100    |
+| `gpt-5.1`    | E     | `gpt-5-1-PAYG-westus3`           | Out-of-region PAYG | 3        | 50     |
+| `gpt-5.1`    | G     | `gpt-5-1-PAYG-southcentralus`    | Out-of-region PAYG | 3        | 50     |
+| `gpt-5-mini` | C     | `gpt-5-mini-PTU-eastus2`         | In-region PTU      | 1        | 50     |
+| `gpt-5-mini` | F     | `gpt-5-mini-PTU-westus3`         | Out-of-region PTU  | 1        | 50     |
+| `gpt-5-mini` | D     | `gpt-5-mini-PAYG-eastus2`        | In-region PAYG     | 2        | 100    |
+| `gpt-5-mini` | H     | `gpt-5-mini-PAYG-southcentralus` | Out-of-region PAYG | 3        | 100    |
 
 ## 🛩️ Lab Components
 

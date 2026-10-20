@@ -86,8 +86,8 @@ Treat search visibility as a publication criterion, not as optional polish. Revi
    ```
 
 1. Run the SEO pass when public website content changed. Parse the inline JSON-LD block and `docs/sitemap.xml`, then verify that structured-data entries and visible cards stay synchronized.
-2. Preview the staged website when website or deck content changed. Use `uv run python setup/serve_website.py` and review both the landing page and `/slide-deck.html`. Check desktop and narrow layouts when visual changes are material.
-3. Inspect the final diff after validation. Do not include generated artifacts such as `build/`, `_site/`, coverage files, or lint reports unless the repository intentionally tracks them.
+1. Preview the staged website when website or deck content changed. Use `uv run python setup/serve_website.py` and review both the landing page and `/slide-deck.html`. Check desktop and narrow layouts when visual changes are material.
+1. Inspect the final diff after validation. Do not include generated artifacts such as `build/`, `_site/`, coverage files, or lint reports unless the repository intentionally tracks them.
 
 When live Azure validation is relevant but not requested or not available, report the exact notebook scenario and supported infrastructure combinations that remain to be exercised. Do not substitute unit tests for live scenario evidence.
 

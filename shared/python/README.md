@@ -51,15 +51,15 @@ Use this sequence for each extracted behavior:
 
 The number of lines is a signal to inspect a notebook, not a reason by itself to create a helper. Ownership follows the narrowest real consumer set.
 
-| Behavior                                           | Placement                                                        | Reason                                                        |
-| -------------------------------------------------- | ---------------------------------------------------------------- | ------------------------------------------------------------- |
-| Dynamic CORS cache orchestration                   | `samples/dynamic-cors/dynamic_cors_helpers.py`                   | One sample owns the behavior and vocabulary                   |
-| Costing-specific API construction                  | `samples/costing/_helpers.py`                                    | One sample owns the evolving cost model                       |
-| Load-balancing traffic and retry tracking          | `samples/load-balancing/load_balancing_helpers.py`               | One sample owns the traffic scenarios and timing contract     |
-| OAuth credential validation and Spotify parsing    | `samples/oauth-3rd-party/oauth_helpers.py`                       | One sample owns the provider-specific payload contract        |
-| Secure blob upload and valet-key download          | `samples/secure-blob-access/secure_blob_access_helpers.py`       | One sample owns the blob and SAS lifecycle                    |
-| Role-based JWT request execution for AuthX samples | `shared/python/auth_testing.py`                                  | AuthX and AuthX-Pro use the same request and session contract |
-| APIM endpoint resolution                           | `NotebookHelper`                                                 | Broad notebook coordination using existing helper state       |
+| Behavior                                           | Placement                                                  | Reason                                                        |
+| -------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------- |
+| Dynamic CORS cache orchestration                   | `samples/dynamic-cors/dynamic_cors_helpers.py`             | One sample owns the behavior and vocabulary                   |
+| Costing-specific API construction                  | `samples/costing/costing_helpers.py`                       | One sample owns the evolving cost model                       |
+| Load-balancing traffic and retry tracking          | `samples/load-balancing/load_balancing_helpers.py`         | One sample owns the traffic scenarios and timing contract     |
+| OAuth credential validation and Spotify parsing    | `samples/oauth-3rd-party/oauth_helpers.py`                 | One sample owns the provider-specific payload contract        |
+| Secure blob upload and valet-key download          | `samples/secure-blob-access/secure_blob_access_helpers.py` | One sample owns the blob and SAS lifecycle                    |
+| Role-based JWT request execution for AuthX samples | `shared/python/auth_testing.py`                            | AuthX and AuthX-Pro use the same request and session contract |
+| APIM endpoint resolution                           | `NotebookHelper`                                           | Broad notebook coordination using existing helper state       |
 
 Do not create both a sample-local wrapper and a shared helper for the same operation. A notebook should call the narrowest owning contract directly.
 

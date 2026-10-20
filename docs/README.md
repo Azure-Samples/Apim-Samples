@@ -5,15 +5,15 @@ This folder contains the source for the public landing page at
 
 ## How it works
 
-| Piece                                    | Role                                                                                                                                                     |
-| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `docs/index.html`                        | The page markup, structured data, and meta tags. CSS is externalised to `styles.css`; there is no executable JavaScript.                                 |
-| `docs/styles.css`                        | All visual rules for the landing page. Referenced by `index.html` via `<link rel="stylesheet">`.                                                         |
-| `docs/robots.txt`                        | Permissive crawler policy plus a pointer to the sitemap.                                                                                                 |
-| `docs/sitemap.xml`                       | Single-URL sitemap. Deep links live on github.com and are out of scope for this origin.                                                                  |
-| `.github/workflows/github-pages.yml`     | Assembles and publishes the site on every push to `main`.                                                                                                |
-| `assets/` (repo root)                    | The workflow copies the logo, favicons, and architecture SVGs from here into the published artifact. `index.html` references them at `./assets/...`.     |
-| `assets/APIM-Samples-Slide-Deck.html`    | The workflow runs `setup/export_presentation.py` to inline this deck's images and stages the result at `/slide-deck.html`.                               |
+| Piece                                 | Role                                                                                                                                                 |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/index.html`                     | The page markup, structured data, and meta tags. CSS is externalised to `styles.css`; there is no executable JavaScript.                             |
+| `docs/styles.css`                     | All visual rules for the landing page. Referenced by `index.html` via `<link rel="stylesheet">`.                                                     |
+| `docs/robots.txt`                     | Permissive crawler policy plus a pointer to the sitemap.                                                                                             |
+| `docs/sitemap.xml`                    | Single-URL sitemap. Deep links live on github.com and are out of scope for this origin.                                                              |
+| `.github/workflows/github-pages.yml`  | Assembles and publishes the site on every push to `main`.                                                                                            |
+| `assets/` (repo root)                 | The workflow copies the logo, favicons, and architecture SVGs from here into the published artifact. `index.html` references them at `./assets/...`. |
+| `assets/APIM-Samples-Slide-Deck.html` | The workflow runs `setup/export_presentation.py` to inline this deck's images and stages the result at `/slide-deck.html`.                           |
 
 There is **no JavaScript framework, no bundler, and no npm install**. That is deliberate: the page changes rarely, and plain static HTML + CSS means the publish workflow cannot break due to a transitive package update. The only `<script>` in `index.html` is the JSON-LD structured-data block, which must remain inline because search-engine crawlers do not reliably follow external JSON-LD references.
 
@@ -36,14 +36,16 @@ uv run python setup/serve_website.py 7801     # custom port
 
 The staging logic in `serve_website.py` is the single local source of truth. If the workflow's copy step changes, update `stage_site()` to match so local preview stays faithful.
 
+Both preview scripts share HTTP logging and server lifecycle code in [setup/dev_server.py](../setup/dev_server.py). Their entry points, ports, and preview URLs are unchanged. Server shutdown or socket-close errors are reported in the terminal, and the original working directory and signal handlers are restored on exit.
+
 ## Keeping the page current
 
 The page intentionally duplicates a small amount of content from the root `README.md` (infrastructure list, sample list, quick-start steps). **When those change in the README, change them here too.**
 
 Agents and contributors should treat the following as the sync checklist:
 
-- **New infrastructure added** → add an `.infra-card` in the *Infrastructures* section of `index.html`, add a `ListItem` to the JSON-LD `ItemList` in the `<head>`, add its SVG to the copy step in `github-pages.yml`, and update the count in the value-prop card if it still says "Five".
-- **New sample added** → add a `.sample-card` in the *Samples* section of `index.html` **and** a `ListItem` to the JSON-LD `ItemList`.
+- **New infrastructure added** → add an `.infra-card` in the _Infrastructures_ section of `index.html`, add a `ListItem` to the JSON-LD `ItemList` in the `<head>`, add its SVG to the copy step in `github-pages.yml`, and update the count in the value-prop card if it still says "Five".
+- **New sample added** → add a `.sample-card` in the _Samples_ section of `index.html` **and** a `ListItem` to the JSON-LD `ItemList`.
 - **Sample or infrastructure removed or renamed** → remove or rename the matching card and any asset mapping in the workflow.
 - **Quick-start flow changes** → update the four `.step` items.
 
