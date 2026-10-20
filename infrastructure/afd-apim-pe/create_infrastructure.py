@@ -1,16 +1,20 @@
-"""
-This module provides a reusable way to create Azure Front Door with API Management (Private Endpoint) infrastructure
-that can be called from notebooks or other scripts.
-"""
-
-import argparse
-import sys
+"""This module provides a reusable way to create Azure Front Door with API Management (Private Endpoint) infrastructure
+that can be called from notebooks or other scripts."""
 
 # APIM Samples imports
-import azure_resources as az
-import utils
-from apimtypes import API, APIM_SKU, BACKEND_XML_POLICY_PATH, INFRASTRUCTURE, GET_APIOperation, Region
+import infrastructure_cli as cli
+from apimtypes import APIM_SKU, INFRASTRUCTURE
 from infrastructures import AfdApimAcaInfrastructure
+
+SPEC = cli.InfrastructureCliSpec(
+    infrastructure=INFRASTRUCTURE.AFD_APIM_PE,
+    factory=AfdApimAcaInfrastructure,
+    description='Create AFD-APIM-PE infrastructure',
+    sku_choices=('Standardv2', 'Premiumv2'),
+    default_sku='Standardv2',
+    aca_apis=cli.AcaApis.OPTIONAL,
+    supports_strict_nsg=True,
+)
 
 
 def create_infrastructure(
@@ -22,102 +26,13 @@ def create_infrastructure(
     rg_exists: bool | None = None,
 ) -> None:
     """Create the Azure Front Door + APIM Private Endpoint infrastructure."""
-    if rg_exists is None:
-        infrastructure_exists = az.does_resource_group_exist(az.get_infra_rg_name(INFRASTRUCTURE.AFD_APIM_PE, index))
-    else:
-        infrastructure_exists = rg_exists
-
-    # Create custom APIs for AFD-APIM-PE with optional Container Apps backends
-    custom_apis = _create_afd_specific_apis(not no_aca)
-
-    infra = AfdApimAcaInfrastructure(
-        location,
-        index,
-        apim_sku,
-        infra_apis=custom_apis,
-        use_strict_nsg=use_strict_nsg,
-        rg_exists=rg_exists,
-    )
-    result = infra.deploy_infrastructure(infrastructure_exists)
-
-    raise SystemExit(0 if result.success else 1)
+    success = cli.create_infrastructure(SPEC, location, index, apim_sku, no_aca=no_aca, use_strict_nsg=use_strict_nsg, rg_exists=rg_exists)
+    raise SystemExit(0 if success else 1)
 
 
-def _create_afd_specific_apis(use_aca: bool = True) -> list[API]:
-    """
-    Create AFD-APIM-PE specific APIs with optional Container Apps backends.
-
-    Args:
-        use_aca (bool): Whether to include Azure Container Apps backends. Defaults to true.
-
-    Returns:
-        list[API]: List of AFD-specific APIs.
-    """
-
-    # If Container Apps is enabled, create the ACA APIs in APIM
-    if use_aca:
-        pol_backend = utils.read_policy_xml(BACKEND_XML_POLICY_PATH)
-        pol_aca_backend_1 = pol_backend.format(backend_id='aca-backend-1')
-        pol_aca_backend_2 = pol_backend.format(backend_id='aca-backend-2')
-        pol_aca_backend_pool = pol_backend.format(backend_id='aca-backend-pool')
-
-        # API 1: Hello World (ACA Backend 1)
-        api_hwaca_1_get = GET_APIOperation('This is a GET for Hello World on ACA Backend 1')
-        api_hwaca_1 = API(
-            'hello-world-aca-1', 'Hello World (ACA 1)', '/aca-1', 'This is the ACA API for Backend 1', pol_aca_backend_1, [api_hwaca_1_get]
-        )
-
-        # API 2: Hello World (ACA Backend 2)
-        api_hwaca_2_get = GET_APIOperation('This is a GET for Hello World on ACA Backend 2')
-        api_hwaca_2 = API(
-            'hello-world-aca-2', 'Hello World (ACA 2)', '/aca-2', 'This is the ACA API for Backend 2', pol_aca_backend_2, [api_hwaca_2_get]
-        )
-
-        # API 3: Hello World (ACA Backend Pool)
-        api_hwaca_pool_get = GET_APIOperation('This is a GET for Hello World on ACA Backend Pool')
-        api_hwaca_pool = API(
-            'hello-world-aca-pool',
-            'Hello World (ACA Pool)',
-            '/aca-pool',
-            'This is the ACA API for Backend Pool',
-            pol_aca_backend_pool,
-            [api_hwaca_pool_get],
-        )
-
-        return [api_hwaca_1, api_hwaca_2, api_hwaca_pool]
-
-    return []
-
-
-def main():
-    """
-    Main entry point for command-line usage.
-    """
-
-    parser = argparse.ArgumentParser(description='Create AFD-APIM-PE infrastructure')
-    parser.add_argument('--location', default=Region.EAST_US_2, help=f'Azure region (default: {Region.EAST_US_2})')
-    parser.add_argument('--index', type=int, help='Infrastructure index')
-    parser.add_argument('--sku', choices=['Standardv2', 'Premiumv2'], default='Standardv2', help='APIM SKU (default: Standardv2)')
-    parser.add_argument('--no-aca', action='store_true', help='Disable Azure Container Apps')
-    parser.add_argument('--use-strict-nsg', action='store_true', help='Deploy strict NSGs for supported subnets')
-    parser.add_argument('--rg-exists', action=argparse.BooleanOptionalAction, default=None, help='Pre-checked resource group existence state')
-    args = parser.parse_args()
-
-    # Convert SKU string to enum using the enum's built-in functionality
-    try:
-        apim_sku = APIM_SKU(args.sku)
-    except ValueError:
-        print(f"Error: Invalid SKU '{args.sku}'. Valid options are: {', '.join([sku.value for sku in APIM_SKU])}")
-        sys.exit(1)
-
-    create_infrastructure(
-        args.location,
-        args.index,
-        apim_sku,
-        args.no_aca,
-        use_strict_nsg=args.use_strict_nsg,
-        rg_exists=args.rg_exists,
-    )
+def main() -> None:
+    """Run the architecture's existing command-line interface."""
+    cli.main(SPEC)
 
 
 if __name__ == '__main__':  # pragma: no cover

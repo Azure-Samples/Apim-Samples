@@ -105,84 +105,6 @@ def test_infrastructure_creation_with_custom_apis(mock_utils, mock_apis):
 
 
 @pytest.mark.unit
-def test_appgw_apim_pe_create_keyvault_certificate_returns_true_when_cert_exists(mock_utils, mock_az):
-    """If the certificate already exists, do not attempt creation (PE)."""
-    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
-    mock_az.run.return_value = Mock(success=True)
-
-    assert infra._create_keyvault_certificate('test-kv') is True
-    mock_az.run.assert_called_once()
-    assert 'az keyvault certificate show' in mock_az.run.call_args.args[0]
-
-
-@pytest.mark.unit
-def test_appgw_apim_create_keyvault_certificate_returns_true_when_cert_exists(mock_utils, mock_az):
-    """If the certificate already exists, do not attempt creation (Internal)."""
-    infra = infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1)
-    mock_az.run.return_value = Mock(success=True)
-
-    assert infra._create_keyvault_certificate('test-kv') is True
-    mock_az.run.assert_called_once()
-    assert 'az keyvault certificate show' in mock_az.run.call_args.args[0]
-
-
-@pytest.mark.unit
-def test_appgw_apim_pe_create_keyvault_certificate_creates_with_escaped_policy_when_missing(mock_utils, mock_az):
-    """If missing, create certificate and ensure policy string is escaped (PE)."""
-    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
-    mock_az.run.side_effect = [Mock(success=False), Mock(success=True)]
-
-    assert infra._create_keyvault_certificate('test-kv') is True
-    assert mock_az.run.call_count == 2
-
-    create_cmd = mock_az.run.call_args.args[0]
-    assert 'az keyvault certificate create' in create_cmd
-    assert '--vault-name test-kv' in create_cmd
-    assert f'--name {infra.CERT_NAME}' in create_cmd
-    assert '--policy "' in create_cmd
-    assert '\\"issuerParameters\\"' in create_cmd
-    assert '\\"keyProperties\\"' in create_cmd
-    assert '\\"x509CertificateProperties\\"' in create_cmd
-
-
-@pytest.mark.unit
-def test_appgw_apim_create_keyvault_certificate_creates_with_escaped_policy_when_missing(mock_utils, mock_az):
-    """If missing, create certificate and ensure policy string is escaped (Internal)."""
-    infra = infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1)
-    mock_az.run.side_effect = [Mock(success=False), Mock(success=True)]
-
-    assert infra._create_keyvault_certificate('test-kv') is True
-    assert mock_az.run.call_count == 2
-
-    create_cmd = mock_az.run.call_args.args[0]
-    assert 'az keyvault certificate create' in create_cmd
-    assert '--vault-name test-kv' in create_cmd
-    assert f'--name {infra.CERT_NAME}' in create_cmd
-    assert '--policy "' in create_cmd
-    assert '\\"issuerParameters\\"' in create_cmd
-    assert '\\"keyProperties\\"' in create_cmd
-    assert '\\"x509CertificateProperties\\"' in create_cmd
-
-
-@pytest.mark.unit
-def test_appgw_apim_pe_create_keyvault_certificate_returns_false_when_create_fails(mock_utils, mock_az):
-    """If creation fails, return False (PE)."""
-    infra = infrastructures.AppGwApimPeInfrastructure(rg_location='eastus', index=1)
-    mock_az.run.side_effect = [Mock(success=False), Mock(success=False)]
-
-    assert infra._create_keyvault_certificate('test-kv') is False
-
-
-@pytest.mark.unit
-def test_appgw_apim_create_keyvault_certificate_returns_false_when_create_fails(mock_utils, mock_az):
-    """If creation fails, return False (Internal)."""
-    infra = infrastructures.AppGwApimInfrastructure(rg_location='eastus', index=1)
-    mock_az.run.side_effect = [Mock(success=False), Mock(success=False)]
-
-    assert infra._create_keyvault_certificate('test-kv') is False
-
-
-@pytest.mark.unit
 @pytest.mark.parametrize(
     'infra_class, default_sku',
     [
@@ -190,29 +112,13 @@ def test_appgw_apim_create_keyvault_certificate_returns_false_when_create_fails(
         (infrastructures.AppGwApimInfrastructure, APIM_SKU.DEVELOPER),
     ],
 )
-def test_appgw_keyvault_certificate_endpoint_reachable_returns_true(mock_utils, mock_az, infra_class, default_sku):
-    """The Key Vault certificate endpoint helper should return True on a successful CLI call."""
+@pytest.mark.parametrize('success', [True, False])
+def test_appgw_keyvault_certificate_endpoint_reachable(mock_utils, mock_az, infra_class, default_sku, success):
+    """Return the CLI result for either architecture without extra commands."""
     infra = infra_class(rg_location='eastus', index=1, apim_sku=default_sku)
-    mock_az.run.return_value = Mock(success=True)
+    mock_az.run.return_value = Mock(success=success)
 
-    assert infra._keyvault_certificate_endpoint_reachable('test-kv') is True
-    mock_az.run.assert_called_once_with('az keyvault certificate list --vault-name test-kv -o json')
-
-
-@pytest.mark.unit
-@pytest.mark.parametrize(
-    'infra_class, default_sku',
-    [
-        (infrastructures.AppGwApimPeInfrastructure, APIM_SKU.BASICV2),
-        (infrastructures.AppGwApimInfrastructure, APIM_SKU.DEVELOPER),
-    ],
-)
-def test_appgw_keyvault_certificate_endpoint_reachable_returns_false(mock_utils, mock_az, infra_class, default_sku):
-    """The Key Vault certificate endpoint helper should return False when the CLI call fails."""
-    infra = infra_class(rg_location='eastus', index=1, apim_sku=default_sku)
-    mock_az.run.return_value = Mock(success=False)
-
-    assert infra._keyvault_certificate_endpoint_reachable('test-kv') is False
+    assert infra._keyvault_certificate_endpoint_reachable('test-kv') is success
     mock_az.run.assert_called_once_with('az keyvault certificate list --vault-name test-kv -o json')
 
 
@@ -850,7 +756,7 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
     ):
         infra = TestInfrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=TEST_INDEX, rg_location=TEST_LOCATION)
 
-        result = infra.deploy_infrastructure(is_update = is_update)
+        result = infra.deploy_infrastructure(is_update=is_update)
 
     # Verify the deployment process
     mock_az.create_resource_group.assert_called_once()
@@ -872,7 +778,7 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
 
 @pytest.mark.unit
 @pytest.mark.parametrize('is_update', [False, True])
-@patch('os.getcwd', return_value = '/original/path')
+@patch('os.getcwd', return_value='/original/path')
 @patch('os.chdir')
 def test_deploy_infrastructure_stops_when_diagnostic_migration_fails(mock_chdir, mock_getcwd, mock_utils, mock_az, is_update):
     """Do not deploy into a known conflict, and restore the working directory on migration failure."""
@@ -881,10 +787,10 @@ def test_deploy_infrastructure_stops_when_diagnostic_migration_fails(mock_chdir,
 
     with (
         patch('builtins.open', MagicMock()),
-        patch('json.dumps', return_value = '{"mocked": "params"}'),
-        pytest.raises(RuntimeError, match = 'Diagnostic migration failed'),
+        patch('json.dumps', return_value='{"mocked": "params"}'),
+        pytest.raises(RuntimeError, match='Diagnostic migration failed'),
     ):
-        infra.deploy_infrastructure(is_update = is_update)
+        infra.deploy_infrastructure(is_update=is_update)
 
     mock_az.migrate_legacy_apim_diagnostic_settings.assert_called_once_with(infra.rg_name)
     mock_az.run.assert_not_called()
@@ -895,14 +801,19 @@ def test_deploy_infrastructure_stops_when_diagnostic_migration_fails(mock_chdir,
 @pytest.mark.unit
 @pytest.mark.parametrize('is_update', [False, True])
 @pytest.mark.parametrize('retry_success', [False, True])
-@patch('os.getcwd', return_value = '/original/path')
+@patch('os.getcwd', return_value='/original/path')
 @patch('os.chdir')
 def test_deploy_infrastructure_recovers_reappearing_legacy_diagnostics(
-    mock_chdir, mock_getcwd, mock_utils, mock_az, is_update, retry_success,
+    mock_chdir,
+    mock_getcwd,
+    mock_utils,
+    mock_az,
+    is_update,
+    retry_success,
 ):
     """Migrate settings restored only after APIM recreation, and retry at most once."""
     infra = infrastructures.SimpleApimInfrastructure(TEST_LOCATION, TEST_INDEX)
-    infra._verify_infrastructure = Mock(return_value = True)
+    infra._verify_infrastructure = Mock(return_value=True)
     apim_id = '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ApiManagement/service/apim-test'
     workspace_id = '/subscriptions/sub/resourceGroups/rg/providers/Microsoft.OperationalInsights/workspaces/log-test'
     legacy_setting = {'name': 'apim-costing-diagnostics-2', 'workspaceId': workspace_id}
@@ -919,10 +830,10 @@ def test_deploy_infrastructure_recovers_reappearing_legacy_diagnostics(
 
     with (
         patch('builtins.open', MagicMock()),
-        patch('json.dumps', return_value = '{"mocked": "params"}'),
+        patch('json.dumps', return_value='{"mocked": "params"}'),
         patch(
             'azure_resources.run',
-            side_effect = [
+            side_effect=[
                 Output(True, '[]'),
                 Output(True, '[]'),
                 Output(True, f'["{apim_id}"]'),
@@ -932,7 +843,7 @@ def test_deploy_infrastructure_recovers_reappearing_legacy_diagnostics(
             ],
         ) as migration_run,
     ):
-        result = infra.deploy_infrastructure(is_update = is_update)
+        result = infra.deploy_infrastructure(is_update=is_update)
 
     assert result is retry_output
     assert mock_az.run.call_count == 2
@@ -945,7 +856,7 @@ def test_deploy_infrastructure_recovers_reappearing_legacy_diagnostics(
 
 
 @pytest.mark.unit
-@patch('os.getcwd', return_value = '/original/path')
+@patch('os.getcwd', return_value='/original/path')
 @patch('os.chdir')
 def test_deploy_infrastructure_stops_when_recovery_migration_fails(mock_chdir, mock_getcwd, mock_utils, mock_az):
     """A failed recovery migration must stop without another deployment and restore cwd."""
@@ -955,8 +866,8 @@ def test_deploy_infrastructure_stops_when_recovery_migration_fails(mock_chdir, m
 
     with (
         patch('builtins.open', MagicMock()),
-        patch('json.dumps', return_value = '{"mocked": "params"}'),
-        pytest.raises(RuntimeError, match = 'Recovery migration failed'),
+        patch('json.dumps', return_value='{"mocked": "params"}'),
+        pytest.raises(RuntimeError, match='Recovery migration failed'),
     ):
         infra.deploy_infrastructure()
 

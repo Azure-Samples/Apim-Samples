@@ -1,9 +1,8 @@
 import base64
 import builtins
-import inspect
+import importlib
 import json
 import logging
-import os
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, call
@@ -71,6 +70,59 @@ def suppress_builtin_print(monkeypatch):
 # ------------------------------
 #    get_infra_rg_name & get_rg_name
 # ------------------------------
+
+
+@pytest.mark.parametrize(
+    'name, implementation',
+    [
+        # Capture imports before other tests intentionally reload apimtypes.
+        (name, getattr(importlib.import_module(owner), name))
+        for owner, name in [
+            ('apimtypes', 'find_project_root'),
+            ('apimtypes', 'get_project_root'),
+            ('policy_files', 'determine_policy_path'),
+            ('policy_files', 'determine_shared_policy_path'),
+            ('policy_files', 'read_policy_xml'),
+            ('policy_files', 'read_and_modify_policy_xml'),
+            ('bicep_deployment', 'get_deployment_failure_message'),
+            ('bicep_deployment', 'create_bicep_deployment_group'),
+            ('bicep_deployment', 'create_bicep_deployment_group_for_sample'),
+        ]
+    ],
+)
+def test_utils_preserves_direct_capability_exports(name, implementation):
+    """Legacy imports retain function identity and caller-frame behavior."""
+    assert getattr(utils, name) is implementation
+
+
+def test_utils_declares_entire_existing_public_namespace():
+    """Explicit exports must not narrow the historical wildcard-import surface."""
+    public_names = {name for name in vars(utils) if not name.startswith('_')}
+
+    assert set(utils.__all__) == public_names
+    assert len(utils.__all__) == len(public_names)
+
+
+def test_build_infrastructure_options_sorts_without_remote_calls(monkeypatch):
+    """Keep creation first, followed by architecture and numeric index order."""
+    nb_helper = utils.NotebookHelper('test', 'apim-infra-simple-apim-9', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM])
+    remote = MagicMock(side_effect=AssertionError('option construction must be pure'))
+    monkeypatch.setattr(az, 'find_infrastructure_instances', remote)
+    monkeypatch.setattr(az, 'get_resource_group_location', remote)
+    monkeypatch.setattr('builtins.input', remote)
+    available = [(INFRASTRUCTURE.SIMPLE_APIM, 12), (INFRASTRUCTURE.APPGW_APIM, 3), (INFRASTRUCTURE.SIMPLE_APIM, None), (INFRASTRUCTURE.SIMPLE_APIM, 2)]
+
+    options = nb_helper._build_infrastructure_options(available)
+
+    assert [(option.infrastructure, option.index, option.create_new) for option in options] == [
+        (INFRASTRUCTURE.SIMPLE_APIM, 9, True),
+        (INFRASTRUCTURE.APPGW_APIM, 3, False),
+        (INFRASTRUCTURE.SIMPLE_APIM, None, False),
+        (INFRASTRUCTURE.SIMPLE_APIM, 2, False),
+        (INFRASTRUCTURE.SIMPLE_APIM, 12, False),
+    ]
+    assert available[0] == (INFRASTRUCTURE.SIMPLE_APIM, 12)
+    remote.assert_not_called()
 
 
 def test_enable_module_autoreload_configures_selective_mode(monkeypatch):
@@ -144,79 +196,6 @@ def test_run_failure(monkeypatch):
 # ------------------------------
 #    read_policy_xml
 # ------------------------------
-
-
-def test_read_policy_xml_success(monkeypatch):
-    """Test reading a valid XML file returns its contents."""
-    xml_content = '<policies><inbound><base /></inbound></policies>'
-    monkeypatch.setattr(utils, 'determine_policy_path', lambda *a, **k: '/path/to/dummy.xml')
-    patch_open_for_text_read(monkeypatch, match='/path/to/dummy.xml', read_data=xml_content)
-    # Use full path to avoid sample name auto-detection
-    result = utils.read_policy_xml('/path/to/dummy.xml')
-    assert result == xml_content
-
-
-def test_read_policy_xml_file_not_found(monkeypatch):
-    """Test reading a missing XML file raises FileNotFoundError."""
-    patch_open_for_text_read(monkeypatch, match='/path/to/missing.xml', raises=FileNotFoundError('File not found'))
-    with pytest.raises(FileNotFoundError):
-        utils.read_policy_xml('/path/to/missing.xml')
-
-
-def test_read_policy_xml_empty_file(monkeypatch):
-    """Test reading an empty XML file returns an empty string."""
-    patch_open_for_text_read(monkeypatch, match='/path/to/empty.xml', read_data='')
-    result = utils.read_policy_xml('/path/to/empty.xml')
-    assert not result
-
-
-def test_read_policy_xml_with_named_values(monkeypatch):
-    """Test reading policy XML with named values formatting."""
-    xml_content = '<policy><validate-jwt><issuer-signing-keys><key>{jwt_signing_key}</key></issuer-signing-keys></validate-jwt></policy>'
-    patch_open_for_text_read(monkeypatch, match=lambda p: p.endswith('hr_all_operations.xml'), read_data=xml_content)
-
-    # Mock the auto-detection to return 'authX'
-    def mock_inspect_currentframe():
-        frame = MagicMock()
-        caller_frame = MagicMock()
-        caller_frame.f_globals = {'__file__': '/project/samples/authX/create.ipynb'}
-        frame.f_back = caller_frame
-        return frame
-
-    monkeypatch.setattr('inspect.currentframe', mock_inspect_currentframe)
-    monkeypatch.setattr('utils.get_project_root', lambda: Path('/project'))
-
-    named_values = {'jwt_signing_key': 'JwtSigningKey123'}
-
-    result = utils.read_policy_xml('hr_all_operations.xml', named_values)
-    expected = '<policy><validate-jwt><issuer-signing-keys><key>{{JwtSigningKey123}}</key></issuer-signing-keys></validate-jwt></policy>'
-    assert result == expected
-
-
-def test_read_policy_xml_legacy_mode(monkeypatch):
-    """Test that legacy mode (full path) still works."""
-    xml_content = '<policies><inbound><base /></inbound></policies>'
-    patch_open_for_text_read(monkeypatch, match='/full/path/to/policy.xml', read_data=xml_content)
-    result = utils.read_policy_xml('/full/path/to/policy.xml')
-    assert result == xml_content
-
-
-def test_read_policy_xml_auto_detection_failure(monkeypatch):
-    """Test that auto-detection failure provides helpful error."""
-    # Avoid patching builtins.open here, since the failure should happen before any file IO.
-
-    # Mock the auto-detection to fail
-    def mock_inspect_currentframe():
-        frame = MagicMock()
-        caller_frame = MagicMock()
-        caller_frame.f_globals = {'__file__': '/project/notsamples/test/create.ipynb'}
-        frame.f_back = caller_frame
-        return frame
-
-    monkeypatch.setattr('inspect.currentframe', mock_inspect_currentframe)
-
-    with pytest.raises(ValueError, match='Could not auto-detect sample name'):
-        utils.read_policy_xml('policy.xml', {'key': 'value'})
 
 
 # ------------------------------
@@ -307,136 +286,6 @@ def test_build_infrastructure_tags_none_custom_tags():
 # ------------------------------
 
 
-def test_create_bicep_deployment_group_with_enum(monkeypatch):
-    """Test create_bicep_deployment_group with INFRASTRUCTURE enum."""
-    mock_create_rg, mock_run, _mock_open_func = patch_create_bicep_deployment_group_dependencies(
-        monkeypatch,
-        az_module=az,
-        run_success=True,
-        cwd='/test/dir',
-        exists=True,
-        basename='test-dir',
-    )
-
-    bicep_params = {'param1': {'value': 'test'}}
-    rg_tags = {'infrastructure': 'simple-apim'}
-
-    _result = utils.create_bicep_deployment_group('test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, bicep_params, 'params.json', rg_tags)
-
-    # Verify create_resource_group was called with correct parameters
-    mock_create_rg.assert_called_once_with('test-rg', 'eastus', rg_tags)
-
-    # Verify deployment command was called with enum value
-    mock_run.assert_called_once()
-    actual_cmd = mock_run.call_args[0][0]
-    assert 'az deployment group create' in actual_cmd
-    assert '--name simple-apim' in actual_cmd
-    assert '--resource-group test-rg' in actual_cmd
-
-
-def test_create_bicep_deployment_group_with_string(monkeypatch):
-    """Test create_bicep_deployment_group with string deployment name."""
-    mock_create_rg, mock_run, _mock_open_func = patch_create_bicep_deployment_group_dependencies(
-        monkeypatch,
-        az_module=az,
-        run_success=True,
-        cwd='/test/dir',
-        exists=True,
-        basename='test-dir',
-    )
-
-    bicep_params = {'param1': {'value': 'test'}}
-
-    utils.create_bicep_deployment_group('test-rg', 'eastus', 'custom-deployment', bicep_params)
-
-    # Verify create_resource_group was called without tags
-    mock_create_rg.assert_called_once_with('test-rg', 'eastus', None)
-
-    # Verify deployment command uses string deployment name
-    mock_run.assert_called_once()
-    actual_cmd = mock_run.call_args[0][0]
-    assert '--name custom-deployment' in actual_cmd
-
-
-def test_create_bicep_deployment_group_params_file_written(monkeypatch):
-    """Test that bicep parameters are correctly written to file."""
-    # For this test, we want to simulate being in an infrastructure directory
-
-    def mock_exists(path):
-        # Only return True for the main.bicep in the infrastructure directory, not in current dir
-        path_str = str(path)  # Convert Path objects to strings
-        if path_str.endswith('main.bicep') and 'infrastructure' in path_str:
-            return True
-        return False
-
-    _mock_create_rg, _mock_run, mock_open_func = patch_create_bicep_deployment_group_dependencies(
-        monkeypatch,
-        az_module=az,
-        run_success=True,
-        cwd='/test/dir/infrastructure/apim-aca',
-        exists=mock_exists,
-        basename='apim-aca',
-    )
-
-    bicep_params = {'apiManagementName': {'value': 'test-apim'}, 'location': {'value': 'eastus'}}
-
-    utils.create_bicep_deployment_group('test-rg', 'eastus', INFRASTRUCTURE.APIM_ACA, bicep_params, 'custom-params.json')
-
-    # With our new logic, when current directory name matches infrastructure_dir,
-    # it should use the current directory
-    expected_path = os.path.join('/test/dir/infrastructure/apim-aca', 'custom-params.json')
-    mock_open_func.assert_called_once_with(expected_path, 'w', encoding='utf-8')
-
-    # Verify the correct JSON structure was written
-    written_content = ''.join(call.args[0] for call in mock_open_func().write.call_args_list)
-    written_data = json.loads(written_content)
-
-    assert written_data['$schema'] == 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#'
-    assert written_data['contentVersion'] == '1.0.0.0'
-    assert written_data['parameters'] == bicep_params
-
-
-def test_create_bicep_deployment_group_no_tags(monkeypatch):
-    """Test create_bicep_deployment_group without tags."""
-    mock_create_rg, _mock_run, _mock_open_func = patch_create_bicep_deployment_group_dependencies(
-        monkeypatch,
-        az_module=az,
-        run_success=True,
-        cwd='/test/dir',
-        exists=True,
-        basename='test-dir',
-    )
-
-    bicep_params = {'param1': {'value': 'test'}}
-
-    utils.create_bicep_deployment_group('test-rg', 'eastus', 'test-deployment', bicep_params)
-
-    # Verify create_resource_group was called with None tags
-    mock_create_rg.assert_called_once_with('test-rg', 'eastus', None)
-
-
-def test_create_bicep_deployment_group_deployment_failure(monkeypatch):
-    """Test create_bicep_deployment_group when deployment fails."""
-    mock_create_rg, _mock_run, _mock_open_func = patch_create_bicep_deployment_group_dependencies(
-        monkeypatch,
-        az_module=az,
-        run_success=False,
-        cwd='/test/dir',
-        exists=True,
-        basename='test-dir',
-    )
-
-    bicep_params = {'param1': {'value': 'test'}}
-
-    result = utils.create_bicep_deployment_group('test-rg', 'eastus', 'test-deployment', bicep_params)
-
-    # Should still create resource group
-    mock_create_rg.assert_called_once()
-
-    # Result should indicate failure
-    assert result.success is False
-
-
 # ------------------------------
 #   COVERAGE TESTS
 # ------------------------------
@@ -464,89 +313,6 @@ def test_print_functions_comprehensive():
     assert 'Test value' in output
 
 
-def test_determine_policy_path_filename_mode(monkeypatch):
-    """Test determine_policy_path with filename mode."""
-
-    # Mock the project root
-    mock_project_root = Path('/mock/project/root')
-    monkeypatch.setattr('utils.get_project_root', lambda: mock_project_root)
-
-    # Mock current frame to simulate being in samples/test-sample
-    class MockFrame:
-        def __init__(self):
-            self.f_globals = {'__file__': '/mock/project/root/samples/test-sample/create.ipynb'}
-
-    def mock_currentframe():
-        frame = MockFrame()
-        return frame
-
-    monkeypatch.setattr(inspect, 'currentframe', mock_currentframe)
-
-    result = utils.determine_policy_path('policy.xml', 'test-sample')
-    expected = str(mock_project_root / 'samples' / 'test-sample' / 'policy.xml')
-    assert result == expected
-
-
-def test_determine_policy_path_full_path():
-    """Test determine_policy_path with full path."""
-    full_path = '/path/to/policy.xml'
-    result = utils.determine_policy_path(full_path)
-    assert result == full_path
-
-
-def test_determine_policy_path_prefers_canonical_directory(monkeypatch, tmp_path):
-    """Test canonical sample policy paths take precedence over legacy paths."""
-    sample_path = tmp_path / 'samples' / 'test-sample'
-    canonical_path = sample_path / 'apim-policies' / 'policy.xml'
-    canonical_path.parent.mkdir(parents=True)
-    canonical_path.write_text('<canonical />', encoding='utf-8')
-    (sample_path / 'policy.xml').write_text('<legacy />', encoding='utf-8')
-    monkeypatch.setattr(utils, 'get_project_root', lambda: tmp_path)
-
-    result = utils.determine_policy_path('policy.xml', 'test-sample')
-
-    assert result == str(canonical_path)
-
-
-def test_determine_policy_path_falls_back_to_sample_root(monkeypatch, tmp_path):
-    """Test unmigrated sample policies still resolve from the sample root."""
-    legacy_path = tmp_path / 'samples' / 'test-sample' / 'policy.xml'
-    legacy_path.parent.mkdir(parents=True)
-    legacy_path.write_text('<legacy />', encoding='utf-8')
-    monkeypatch.setattr(utils, 'get_project_root', lambda: tmp_path)
-
-    result = utils.determine_policy_path('policy.xml', 'test-sample')
-
-    assert result == str(legacy_path)
-
-
-def test_determine_policy_path_auto_detects_canonical_directory(monkeypatch, tmp_path):
-    """Test auto-detected sample names resolve canonical policy paths."""
-    canonical_path = tmp_path / 'samples' / 'test-sample' / 'apim-policies' / 'policy.xml'
-    canonical_path.parent.mkdir(parents=True)
-    canonical_path.write_text('<canonical />', encoding='utf-8')
-
-    class FakeFrame:
-        def __init__(self):
-            self.f_back = MagicMock()
-            self.f_back.f_globals = {'__file__': str(tmp_path / 'samples' / 'test-sample' / 'helper.py')}
-
-    monkeypatch.setattr(utils, 'get_project_root', lambda: tmp_path)
-    monkeypatch.setattr(utils.inspect, 'currentframe', FakeFrame)
-
-    result = utils.determine_policy_path('policy.xml')
-
-    assert result == str(canonical_path)
-
-
-def test_read_policy_xml_missing_filename_raises(monkeypatch, tmp_path):
-    """Test missing filename-only policies raise FileNotFoundError after fallback."""
-    monkeypatch.setattr(utils, 'get_project_root', lambda: tmp_path)
-
-    with pytest.raises(FileNotFoundError):
-        utils.read_policy_xml('missing.xml', sample_name='test-sample')
-
-
 def test_wait_for_apim_blob_permissions_success(monkeypatch, suppress_console):
     """Test wait_for_apim_blob_permissions with successful wait."""
     monkeypatch.setattr(az, 'check_apim_blob_permissions', lambda *args: True)
@@ -563,29 +329,6 @@ def test_wait_for_apim_blob_permissions_failure(monkeypatch, suppress_console):
     assert result is False
 
 
-def test_read_policy_xml_with_sample_name_explicit(monkeypatch):
-    """Test read_policy_xml with explicit sample name."""
-    mock_project_root = Path('/mock/project/root')
-    monkeypatch.setattr('utils.get_project_root', lambda: mock_project_root)
-
-    xml_content = '<policies><inbound><base /></inbound></policies>'
-    patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in str(p), read_data=xml_content)
-
-    result = utils.read_policy_xml('policy.xml', sample_name='test-sample')
-    assert result == xml_content
-
-
-def test_read_policy_xml_with_named_values_formatting(monkeypatch):
-    """Test read_policy_xml with named values formatting."""
-    xml_content = '<policy><key>{jwt_key}</key></policy>'
-    expected = '<policy><key>{{JwtSigningKey}}</key></policy>'
-    patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in str(p), read_data=xml_content)
-
-    named_values = {'jwt_key': 'JwtSigningKey'}
-    result = utils.read_policy_xml('/path/to/policy.xml', named_values)
-    assert result == expected
-
-
 @pytest.mark.parametrize(
     'infra_type,expected_suffix',
     [
@@ -598,29 +341,6 @@ def test_get_infra_rg_name_different_types(infra_type, expected_suffix):
     """Test get_infra_rg_name with different infrastructure types."""
     result = az.get_infra_rg_name(infra_type)
     assert result == f'apim-infra-{expected_suffix}'
-
-
-def test_create_bicep_deployment_group_for_sample_success(monkeypatch):
-    """Test create_bicep_deployment_group_for_sample success case."""
-    mock_output = utils.Output(success=True, text='{"outputs": {"test": "value"}}')
-
-    def mock_create_bicep(rg_name, rg_location, deployment, bicep_parameters, bicep_parameters_file='params.json', rg_tags=None, is_debug=False):
-        return mock_output
-
-    # Mock file system checks
-    def mock_exists(path):
-        return True  # Pretend all paths exist
-
-    def mock_chdir(path):
-        pass  # Do nothing
-
-    monkeypatch.setattr(utils, 'create_bicep_deployment_group', mock_create_bicep)
-    monkeypatch.setattr(utils, 'build_infrastructure_tags', lambda x: [])
-    monkeypatch.setattr(os.path, 'exists', mock_exists)
-    monkeypatch.setattr(os, 'chdir', mock_chdir)
-
-    result = utils.create_bicep_deployment_group_for_sample('test-sample', 'test-rg', 'eastus', {})
-    assert result.success is True
 
 
 def test_extract_json_invalid_input():
@@ -676,19 +396,6 @@ def test_run_command_with_error_suppression(monkeypatch):
     output = az.run('test command')
     assert output.success is False
     assert output.text == 'test output'
-
-
-def test_bicep_directory_determination_edge_cases(monkeypatch, tmp_path):
-    """Test edge cases in Bicep directory determination."""
-    # Test when no main.bicep exists anywhere
-    empty_dir = tmp_path / 'empty'
-    empty_dir.mkdir()
-    monkeypatch.setattr(os, 'getcwd', lambda: str(empty_dir))
-
-    # Should fall back to current directory + infrastructure/nonexistent
-    result = utils._determine_bicep_directory('nonexistent')
-    expected = os.path.join(str(empty_dir), 'infrastructure', 'nonexistent')
-    assert result == expected
 
 
 def test_create_resource_group_edge_cases(monkeypatch):
@@ -810,7 +517,8 @@ def test_query_and_select_infrastructure_creates_when_none_found(monkeypatch, su
     assert created_helpers[0].calls == [True]
 
 
-def test_query_and_select_infrastructure_user_selects_existing(monkeypatch, suppress_utils_console):
+@pytest.mark.parametrize('existing_index', [5, 7])
+def test_query_and_select_infrastructure_user_selects_existing(monkeypatch, suppress_utils_console, existing_index):
     nb_helper = utils.NotebookHelper(
         'test-sample',
         'apim-infra-simple-apim-1',
@@ -822,7 +530,7 @@ def test_query_and_select_infrastructure_user_selects_existing(monkeypatch, supp
     monkeypatch.setattr(
         az,
         'find_infrastructure_instances',
-        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 5)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
+        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, existing_index)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
     )
     monkeypatch.setattr(
         az,
@@ -834,39 +542,7 @@ def test_query_and_select_infrastructure_user_selects_existing(monkeypatch, supp
     selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
 
     assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
-    assert selected_index == 5
-
-
-@pytest.mark.unit
-def test_query_and_select_infrastructure_branch_not_create_new(monkeypatch, suppress_utils_console):
-    """Explicitly exercise the non-create_new branch by selecting an existing option."""
-    nb_helper = utils.NotebookHelper(
-        'test-sample',
-        'apim-infra-simple-apim-1',
-        'eastus',
-        INFRASTRUCTURE.SIMPLE_APIM,
-        [INFRASTRUCTURE.SIMPLE_APIM],
-    )
-
-    # Provide one existing instance so option 2 maps to ('existing', ...)
-    monkeypatch.setattr(
-        az,
-        'find_infrastructure_instances',
-        lambda infra: [(INFRASTRUCTURE.SIMPLE_APIM, 7)] if infra == INFRASTRUCTURE.SIMPLE_APIM else [],
-    )
-    monkeypatch.setattr(
-        az,
-        'get_infra_rg_name',
-        lambda infra, index=None: f'apim-infra-{infra.value}' if index is None else f'apim-infra-{infra.value}-{index}',
-    )
-
-    # Choose the second menu item, which is 'existing'
-    monkeypatch.setattr('builtins.input', lambda prompt: '2')
-
-    selected_infra, selected_index = nb_helper._query_and_select_infrastructure()
-
-    assert selected_infra == INFRASTRUCTURE.SIMPLE_APIM
-    assert selected_index == 7
+    assert selected_index == existing_index
 
 
 @pytest.mark.unit
@@ -1580,7 +1256,7 @@ def test_deploy_sample_requires_existing_infrastructure(monkeypatch):
     monkeypatch.setattr(utils, 'create_bicep_deployment_group_for_sample', deploy_sample)
 
     with pytest.raises(SystemExit, match='requires the approved existing infrastructure'):
-        nb_helper.deploy_sample({'test': {'value': 'param'}}, require_existing_infrastructure = True)
+        nb_helper.deploy_sample({'test': {'value': 'param'}}, require_existing_infrastructure=True)
 
     select_infrastructure.assert_not_called()
     deploy_sample.assert_not_called()
@@ -1822,25 +1498,6 @@ def test_notebookhelper_initialization_with_jwt(monkeypatch):
     assert nb_helper.jwt_key_value_bytes_b64 == 'test-key-b64'
 
 
-def test_get_deployment_failure_message_debug_disabled(monkeypatch):
-    """Test get_deployment_failure_message when DEBUG is not enabled."""
-    monkeypatch.setattr('logging_config.get_configured_level_name', lambda: 'INFO')
-
-    msg = utils.get_deployment_failure_message('test-deployment')
-    assert 'test-deployment' in msg
-    assert 'DEBUG' in msg
-    assert 'Enable DEBUG' in msg
-
-
-def test_get_deployment_failure_message_debug_enabled(monkeypatch):
-    """Test get_deployment_failure_message when DEBUG is enabled."""
-    monkeypatch.setattr('logging_config.get_configured_level_name', lambda: 'DEBUG')
-
-    msg = utils.get_deployment_failure_message('test-deployment')
-    assert 'test-deployment' in msg
-    assert 'Enable DEBUG' not in msg
-
-
 def test_find_project_root_in_current_dir(monkeypatch, tmp_path):
     """Test find_project_root when called from subdirectory."""
     # Create mock project structure
@@ -1856,23 +1513,6 @@ def test_find_project_root_in_current_dir(monkeypatch, tmp_path):
 
     result = utils.find_project_root()
     assert isinstance(result, str)
-
-
-def test_determine_policy_path_with_full_path():
-    """Test determine_policy_path with full file path."""
-    full_path = '/full/path/to/policy.xml'
-    result = utils.determine_policy_path(full_path)
-    assert result == full_path
-
-
-def test_determine_policy_path_with_sample_name(monkeypatch):
-    """Test determine_policy_path with sample name."""
-    mock_root = Path('/mock/root')
-    monkeypatch.setattr('utils.get_project_root', lambda: mock_root)
-
-    result = utils.determine_policy_path('policy.xml', 'test-sample')
-    expected = str(mock_root / 'samples' / 'test-sample' / 'policy.xml')
-    assert result == expected
 
 
 def test_get_infra_rg_name_with_different_types(monkeypatch):
@@ -2107,55 +1747,9 @@ def test_does_infrastructure_exist_without_update_option(monkeypatch, suppress_c
 # ------------------------------
 
 
-def test_read_and_modify_policy_xml_with_replacements(monkeypatch):
-    """Test read_and_modify_policy_xml with placeholders."""
-    xml_content = '<policy><key>{jwt_key}</key><value>{api_value}</value></policy>'
-    patch_open_for_text_read(monkeypatch, match=lambda p: 'test-policy.xml' in p, read_data=xml_content)
-
-    replacements = {'jwt_key': 'JwtSigningKey123', 'api_value': 'test-api'}
-
-    result = utils.read_and_modify_policy_xml('/path/to/test-policy.xml', replacements)
-    expected = '<policy><key>JwtSigningKey123</key><value>test-api</value></policy>'
-    assert result == expected
-
-
-def test_read_and_modify_policy_xml_placeholder_not_found(monkeypatch, caplog):
-    """Test read_and_modify_policy_xml when placeholder doesn't exist in XML."""
-    xml_content = '<policy><key>static</key></policy>'
-    patch_open_for_text_read(monkeypatch, match=lambda p: 'test-policy.xml' in p, read_data=xml_content)
-
-    replacements = {'missing_key': 'value'}
-
-    with caplog.at_level(logging.WARNING):
-        _ = utils.read_and_modify_policy_xml('/path/to/test-policy.xml', replacements)
-
-    # Should log warning about missing placeholder
-    assert any('missing_key' in record.message for record in caplog.records)
-
-
-def test_read_and_modify_policy_xml_none_replacements(monkeypatch):
-    """Test read_and_modify_policy_xml with None replacements."""
-    xml_content = '<policy><key>{jwt_key}</key></policy>'
-    patch_open_for_text_read(monkeypatch, match=lambda p: 'test-policy.xml' in p, read_data=xml_content)
-
-    result = utils.read_and_modify_policy_xml('/path/to/test-policy.xml', None)
-    # Should return unmodified XML
-    assert result == xml_content
-
-
 # ------------------------------
 #    determine_shared_policy_path TESTS
 # ------------------------------
-
-
-def test_determine_shared_policy_path(monkeypatch):
-    """Test determine_shared_policy_path function."""
-    monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\project')
-
-    result = utils.determine_shared_policy_path('test-policy.xml')
-    expected = Path('c:\\mock\\project') / 'shared' / 'apim-policies' / 'fragments' / 'test-policy.xml'
-
-    assert Path(result) == expected
 
 
 # ------------------------------
@@ -2405,46 +1999,6 @@ def test_deployment_failure_message_consistency(monkeypatch):
             assert 'Enable DEBUG' in msg
 
 
-def test_create_bicep_deployment_group_with_debug_mode(monkeypatch):
-    """Test create_bicep_deployment_group with debug mode enabled."""
-    _mock_create_rg, mock_run, _mock_open_func = patch_create_bicep_deployment_group_dependencies(
-        monkeypatch,
-        az_module=az,
-        run_success=True,
-        cwd='/test/dir',
-        exists=True,
-        basename='test-dir',
-    )
-
-    bicep_params = {'param1': {'value': 'test'}}
-
-    result = utils.create_bicep_deployment_group('test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, bicep_params, is_debug=True)
-
-    # Verify debug flag was included in command
-    mock_run.assert_called_once()
-    actual_cmd = mock_run.call_args[0][0]
-    assert '--debug' in actual_cmd
-    assert result.success is True
-
-
-def test_read_policy_xml_complex_replacements(monkeypatch):
-    """Test read_and_modify_policy_xml with complex replacement scenarios."""
-    xml_content = '<policy><key1>{placeholder1}</key1><key2>{placeholder2}</key2><key3>{placeholder3}</key3></policy>'
-    patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in p, read_data=xml_content)
-
-    replacements = {'placeholder1': 'value1', 'placeholder2': 'value2', 'placeholder3': 'value3'}
-
-    result = utils.read_and_modify_policy_xml('/path/to/policy.xml', replacements)
-
-    # Verify all replacements were made
-    assert 'value1' in result
-    assert 'value2' in result
-    assert 'value3' in result
-    assert '{placeholder1}' not in result
-    assert '{placeholder2}' not in result
-    assert '{placeholder3}' not in result
-
-
 def test_infrastructure_tags_with_special_characters():
     """Test build_infrastructure_tags with special characters in tags."""
     special_tags = {'environment': 'prod-test', 'team-name': 'api-management', 'cost-center': 'cc-123'}
@@ -2556,26 +2110,6 @@ def test_find_project_root_from_nested_directory(monkeypatch, tmp_path):
     assert result == str(root)
 
 
-def test_determine_bicep_directory_with_main_bicep_in_current(monkeypatch):
-    """Test bicep directory determination when main.bicep is in current directory."""
-    monkeypatch.setattr('os.getcwd', lambda: '/current/dir')
-    monkeypatch.setattr('os.path.exists', lambda path: 'main.bicep' in str(path) and '/current/dir' in str(path))
-
-    result = utils._determine_bicep_directory('any-dir')
-    assert result == '/current/dir'
-
-
-def test_read_policy_xml_with_special_characters(monkeypatch):
-    """Test read_policy_xml with special characters and Unicode."""
-    xml_content = '<policy>Unicode: © ® ™ € Chinese: 中文 Arabic: العربية</policy>'
-    patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in p, read_data=xml_content)
-
-    result = utils.read_policy_xml('/path/to/policy.xml')
-    assert '©' in result
-    assert '中文' in result
-    assert 'العربية' in result
-
-
 def test_output_class_json_extraction():
     """Test Output class JSON extraction methods."""
     json_output = '{"properties": {"outputs": {"apiUrl": {"value": "https://test.azure-api.net"}}}}'
@@ -2607,20 +2141,6 @@ def test_notebookhelper_with_all_parameters():
     assert nb_helper.index == 2
     assert nb_helper.is_debug is True
     assert nb_helper.apim_sku == APIM_SKU.PREMIUM
-
-
-def test_create_bicep_deployment_group_for_sample_with_custom_params_file(monkeypatch):
-    """Test determine_shared_policy_path constructs correct path."""
-    monkeypatch.setattr(utils, 'find_project_root', lambda: '/project/root')
-
-    result = utils.determine_shared_policy_path('my-fragment.xml')
-
-    # On Windows, path separators will be backslashes
-    assert 'project' in result and 'root' in result
-    assert 'shared' in result
-    assert 'apim-policies' in result
-    assert 'fragments' in result
-    assert 'my-fragment.xml' in result
 
 
 def test_wait_for_apim_blob_permissions_with_custom_timeout(monkeypatch, suppress_console):
@@ -2734,77 +2254,6 @@ def test_build_infrastructure_tags_with_string_infrastructure():
     assert result['env'] == 'dev'
 
 
-def test_determine_policy_path_with_backslash_separators():
-    """Test determine_policy_path recognizes backslash path separators."""
-    path = 'C:\\path\\to\\policy.xml'
-    result = utils.determine_policy_path(path)
-
-    # Should treat as full path due to backslash
-    assert result == path
-
-
-def test_determine_policy_path_with_forward_slash():
-    """Test determine_policy_path recognizes forward slash paths."""
-    path = '/absolute/path/to/policy.xml'
-    result = utils.determine_policy_path(path)
-
-    # Should treat as full path
-    assert result == path
-
-
-def test_determine_policy_path_with_relative_path():
-    """Test determine_policy_path recognizes relative paths with separators."""
-    path = 'relative/path/policy.xml'
-    result = utils.determine_policy_path(path)
-
-    # Should treat as full path due to separator
-    assert result == path
-
-
-def test_read_policy_xml_with_multiple_named_values(monkeypatch):
-    """Test read_policy_xml with multiple named values."""
-    xml_content = '<policy><key1>{var1}</key1><key2>{var2}</key2><key3>{var3}</key3></policy>'
-    patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in p, read_data=xml_content)
-
-    named_values = {'var1': 'jwt-signing-key', 'var2': 'api-key', 'var3': 'role-id'}
-
-    result = utils.read_policy_xml('/path/to/policy.xml', named_values=named_values)
-
-    # Should have double-braced named values
-    assert '{{jwt-signing-key}}' in result
-    assert '{{api-key}}' in result
-    assert '{{role-id}}' in result
-
-
-def test_read_and_modify_policy_xml_with_empty_replacements(monkeypatch):
-    """Test read_and_modify_policy_xml with empty replacements dict."""
-    xml_content = '<policy><key>{placeholder}</key></policy>'
-    patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in p, read_data=xml_content)
-
-    result = utils.read_and_modify_policy_xml('/path/to/policy.xml', {})
-
-    # With empty replacements, content should be unchanged
-    assert result == xml_content
-
-
-def test_read_and_modify_policy_xml_preserves_formatting(monkeypatch):
-    """Test read_and_modify_policy_xml preserves XML formatting."""
-    xml_content = """<policy>
-    <inbound>
-        <base />
-        <set-variable name="test" value="{placeholder}" />
-    </inbound>
-</policy>"""
-    patch_open_for_text_read(monkeypatch, match=lambda p: 'policy.xml' in p, read_data=xml_content)
-
-    replacements = {'placeholder': 'actual-value'}
-    result = utils.read_and_modify_policy_xml('/path/to/policy.xml', replacements)
-
-    # Should preserve indentation and newlines
-    assert '\n    <inbound>\n' in result
-    assert 'actual-value' in result
-
-
 def test_find_project_root_with_readme_only(monkeypatch, tmp_path):
     """Test find_project_root finds root when all markers are present."""
     root = tmp_path / 'project'
@@ -2864,14 +2313,6 @@ def test_find_project_root_not_found_raises(monkeypatch, tmp_path):
         utils.find_project_root()
 
     assert 'Could not determine project root' in str(exc_info.value)
-
-
-def test_get_deployment_failure_message_with_deployment_name():
-    """Test get_deployment_failure_message includes deployment name."""
-    msg = utils.get_deployment_failure_message('my-custom-deployment')
-
-    assert 'my-custom-deployment' in msg
-    assert 'failed' in msg.lower()
 
 
 def test_endpoints_class_initialization():
@@ -3041,114 +2482,6 @@ def test_create_infrastructure_with_strict_nsg_flag(monkeypatch, tmp_path, suppr
 
     assert result is True
     assert '--use-strict-nsg' in captured_cmd_args
-
-
-def test_determine_bicep_directory_current_infra(monkeypatch, tmp_path):
-    infra_dir = tmp_path / 'foo'
-    infra_dir.mkdir()
-
-    monkeypatch.chdir(infra_dir)
-
-    assert utils._determine_bicep_directory('foo') == str(infra_dir)
-
-
-def test_determine_bicep_directory_in_current_tree(monkeypatch, tmp_path):
-    bicep_dir = tmp_path / 'infrastructure' / 'bar'
-    bicep_dir.mkdir(parents=True)
-
-    monkeypatch.chdir(tmp_path)
-
-    assert utils._determine_bicep_directory('bar') == str(bicep_dir)
-
-
-def test_determine_bicep_directory_in_parent_tree(monkeypatch, tmp_path):
-    workdir = tmp_path / 'work'
-    workdir.mkdir()
-    parent_bicep_dir = tmp_path / 'infrastructure' / 'baz'
-    parent_bicep_dir.mkdir(parents=True)
-
-    monkeypatch.chdir(workdir)
-
-    assert utils._determine_bicep_directory('baz') == str(parent_bicep_dir)
-
-
-def test_determine_bicep_directory_from_project_root(monkeypatch, tmp_path):
-    elsewhere = tmp_path / 'elsewhere'
-    elsewhere.mkdir()
-
-    project_root = tmp_path / 'project'
-    project_bicep_dir = project_root / 'infrastructure' / 'qux'
-    project_bicep_dir.mkdir(parents=True)
-
-    monkeypatch.chdir(elsewhere)
-    monkeypatch.setattr(utils, 'get_project_root', lambda: str(project_root))
-
-    assert utils._determine_bicep_directory('qux') == str(project_bicep_dir)
-
-
-def test_determine_bicep_directory_falls_back(monkeypatch, tmp_path):
-    nowhere = tmp_path / 'nowhere'
-    nowhere.mkdir()
-
-    monkeypatch.chdir(nowhere)
-    monkeypatch.setattr(utils, 'get_project_root', lambda: (_ for _ in ()).throw(ValueError('no root')))
-
-    expected = os.path.join(str(nowhere), 'infrastructure', 'missing')
-    assert utils._determine_bicep_directory('missing') == expected
-
-
-def test_create_bicep_deployment_group_for_sample_missing_dir(monkeypatch, tmp_path, suppress_utils_console):
-    monkeypatch.setattr(utils, 'find_project_root', lambda: str(tmp_path))
-
-    with pytest.raises(FileNotFoundError):
-        utils.create_bicep_deployment_group_for_sample('absent', 'rg', 'loc', {})
-
-
-def test_create_bicep_deployment_group_for_sample_missing_main(monkeypatch, tmp_path, suppress_utils_console):
-    sample_dir = tmp_path / 'samples' / 'demo'
-    sample_dir.mkdir(parents=True)
-
-    monkeypatch.setattr(utils, 'find_project_root', lambda: str(tmp_path))
-
-    with pytest.raises(FileNotFoundError):
-        utils.create_bicep_deployment_group_for_sample('demo', 'rg', 'loc', {})
-
-
-def test_create_bicep_deployment_group_for_sample_in_sample_dir(monkeypatch, tmp_path, suppress_utils_console):
-    sample_dir = tmp_path / 'samples' / 'demo'
-    sample_dir.mkdir(parents=True)
-    (sample_dir / 'main.bicep').write_text('// bicep', encoding='utf-8')
-
-    monkeypatch.chdir(sample_dir)
-    monkeypatch.setattr(utils, 'create_bicep_deployment_group', lambda *_, **__: 'ok')
-
-    result = utils.create_bicep_deployment_group_for_sample('demo', 'rg', 'loc', {})
-    assert result == 'ok'
-
-
-def test_determine_policy_path_missing_sample_name(monkeypatch):
-    class FakeFrame:
-        def __init__(self):
-            self.f_back = MagicMock()
-            self.f_back.f_globals = {'__file__': str(Path('/tmp/samples'))}
-
-    monkeypatch.setattr(utils.inspect, 'currentframe', FakeFrame)
-
-    with pytest.raises(ValueError, match='Could not detect sample name'):
-        utils.determine_policy_path('policy.xml')
-
-
-def test_determine_policy_path_fallback_to_cwd(monkeypatch, tmp_path):
-    class FakeFrame:
-        def __init__(self):
-            self.f_back = MagicMock()
-            self.f_back.f_globals = {}
-
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(utils.inspect, 'currentframe', FakeFrame)
-
-    with pytest.raises(ValueError, match='Not running from within a samples directory'):
-        utils.determine_policy_path('policy.xml')
 
 
 def test_query_and_select_infrastructure_user_creates_new_but_fails(monkeypatch, suppress_utils_console):

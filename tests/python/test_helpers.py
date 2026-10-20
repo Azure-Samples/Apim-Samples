@@ -143,9 +143,7 @@ def mock_popen(monkeypatch, *, stdout_lines: list[str], returncode: int = 0) -> 
     monkeypatch.setattr('subprocess.Popen', MockProcess)
 
 
-def patch_os_paths(
-    monkeypatch, *, cwd: str = '/test/dir', exists: bool | Callable[[str], bool] = True, basename: str | Callable[[str], str] = 'test-dir'
-) -> None:
+def patch_os_paths(monkeypatch, *, cwd: str = '/test/dir', exists: bool | Callable[[str], bool] = True, basename: str | Callable[[str], str] = 'test-dir') -> None:
     """Patch common os.getcwd / os.path.exists / os.path.basename for tests."""
     monkeypatch.setattr('os.getcwd', MagicMock(return_value=cwd))
 
@@ -169,7 +167,7 @@ def patch_create_bicep_deployment_group_dependencies(
     exists: bool | Callable[[str], bool] = True,
     basename: str | Callable[[str], str] = 'test-dir',
 ):
-    """Patch common dependencies for utils.create_bicep_deployment_group tests.
+    """Patch common dependencies for bicep_deployment.create_bicep_deployment_group tests.
 
     Returns:
         tuple: (mock_create_resource_group, mock_az_run, mock_open)
@@ -313,10 +311,7 @@ def create_sample_apis(count: int = 2) -> list[API]:
     Returns:
         List of API objects
     """
-    return [
-        API(f'test-api-{i + 1}', f'Test API {i + 1}', f'/test{i + 1}', f'Test API {i + 1} description', f'<policy>api{i + 1}</policy>')
-        for i in range(count)
-    ]
+    return [API(f'test-api-{i + 1}', f'Test API {i + 1}', f'/test{i + 1}', f'Test API {i + 1} description', f'<policy>api{i + 1}</policy>') for i in range(count)]
 
 
 def create_sample_api_operations(count: int = 2) -> list[APIOperation]:
@@ -330,10 +325,7 @@ def create_sample_api_operations(count: int = 2) -> list[APIOperation]:
         List of APIOperation objects
     """
     verbs = [HTTP_VERB.GET, HTTP_VERB.POST, HTTP_VERB.PUT, HTTP_VERB.DELETE]
-    return [
-        APIOperation(f'operation-{i + 1}', f'Operation {i + 1}', verbs[i % len(verbs)], f'/resource{i + 1}', f'<policy>operation{i + 1}</policy>')
-        for i in range(count)
-    ]
+    return [APIOperation(f'operation-{i + 1}', f'Operation {i + 1}', verbs[i % len(verbs)], f'/resource{i + 1}', f'<policy>operation{i + 1}</policy>') for i in range(count)]
 
 
 # ------------------------------

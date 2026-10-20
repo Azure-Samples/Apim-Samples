@@ -4,7 +4,6 @@ Module providing utility functions.
 
 import ast
 import base64
-import inspect
 import json
 import os
 import secrets
@@ -20,11 +19,69 @@ from typing import Any, Tuple
 
 # APIM Samples imports
 import azure_resources as az
-import logging_config
 from apimrequests import ApimRequests
-from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, get_project_root  # noqa: F401 (Endpoints re-exported for callers)
+from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, find_project_root, get_project_root
+from bicep_deployment import create_bicep_deployment_group, create_bicep_deployment_group_for_sample, get_deployment_failure_message
+from policy_files import determine_policy_path, determine_shared_policy_path, read_and_modify_policy_xml, read_policy_xml
 from console import print_error, print_info, print_message, print_ok, print_plain, print_secret, print_val, print_warning
 from IPython import get_ipython
+
+# Preserve the full historical wildcard-import namespace, including imported names.
+__all__ = [
+    'APIM_SKU',
+    'Any',
+    'ApimRequests',
+    'Endpoints',
+    'HTTP_VERB',
+    'INFRASTRUCTURE',
+    'InfrastructureNotebookHelper',
+    'NotebookHelper',
+    'Output',
+    'Path',
+    'SampleDeploymentContext',
+    'Tuple',
+    'ast',
+    'az',
+    'base64',
+    'build_infrastructure_tags',
+    'create_bicep_deployment_group',
+    'create_bicep_deployment_group_for_sample',
+    'dataclass',
+    'determine_policy_path',
+    'determine_shared_policy_path',
+    'does_infrastructure_exist',
+    'enable_module_autoreload',
+    'find_project_root',
+    'generate_signing_key',
+    'get_deployment_failure_message',
+    'get_endpoint',
+    'get_ipython',
+    'get_json',
+    'get_project_root',
+    'json',
+    'os',
+    'print_error',
+    'print_info',
+    'print_message',
+    'print_ok',
+    'print_plain',
+    'print_secret',
+    'print_val',
+    'print_warning',
+    'read_and_modify_policy_xml',
+    'read_policy_xml',
+    'secrets',
+    'string',
+    'subprocess',
+    'sys',
+    'tempfile',
+    'time',
+    'validate_http_verb',
+    'validate_infrastructure',
+    'validate_sku',
+    'wait_for_apim_blob_permissions',
+    'warnings',
+]
 
 # Configure warning filter to suppress IPython exit warnings
 warnings.filterwarnings(
@@ -75,26 +132,6 @@ def enable_module_autoreload(*module_names: str) -> bool:
     return True
 
 
-def get_deployment_failure_message(deployment_name: str) -> str:
-    """
-    Generate a deployment failure message that conditionally includes debug instruction.
-
-    Args:
-        deployment_name (str): The name of the failed deployment.
-
-    Returns:
-        str: Appropriate failure message based on current logging level.
-    """
-    base_message = f"Deployment '{deployment_name}' failed. View deployment details in Azure Portal."
-
-    # Only suggest enabling DEBUG logging if it's not already enabled
-    current_level = logging_config.get_configured_level_name()
-    if current_level != 'DEBUG':
-        return f'{base_message} Enable DEBUG logging in workspace root .env file, then rerun to see details.'
-
-    return base_message
-
-
 def build_infrastructure_tags(infrastructure: str | INFRASTRUCTURE, custom_tags: dict | None = None) -> dict:
     """
     Build standard tags for infrastructure resource groups, including required 'infrastructure' tag.
@@ -135,6 +172,15 @@ class SampleDeploymentContext:
     apim_name: str
     apim_gateway_url: str
     apis: list[dict[str, Any]]
+
+
+@dataclass(frozen=True)
+class _InfrastructureOption:
+    """One numbered choice in the infrastructure selection menu."""
+
+    infrastructure: INFRASTRUCTURE
+    index: int | None
+    create_new: bool = False
 
 
 class InfrastructureNotebookHelper:
@@ -393,135 +439,60 @@ class NotebookHelper:
         if not az.cleanup_old_jwt_signing_keys(apim_name, self.rg_name, self.jwt_key_name):
             print_warning('JWT key cleanup failed, but deployment was successful. Old keys may need manual cleanup.')
 
-    def _query_and_select_infrastructure(self) -> tuple[INFRASTRUCTURE | None, int | None]:
-        """
-        Query for available infrastructures and allow user to select one or create new infrastructure.
+    def _build_infrastructure_options(self, available: list[tuple[INFRASTRUCTURE, int | None]]) -> list[_InfrastructureOption]:
+        """Build stable menu choices without prompting or querying Azure."""
+        existing = sorted(available, key=lambda item: (item[0].value, item[1] if item[1] is not None else 0))
 
-        Returns:
-            tuple: (selected_infrastructure, selected_index) or (None, None) if no valid option
-        """
+        return [
+            _InfrastructureOption(self.deployment, self._get_current_index(), create_new=True),
+            *[_InfrastructureOption(infra, index) for infra, index in existing],
+        ]
 
-        # SJK: Querying the resource group location is inefficient at this time as it's done sequentially.
-        # I'm leaving the code here, but may revisit it later.
-        QUERY_RG_LOCATION = os.getenv('APIM_TEST_QUERY_RG_LOCATION', 'False') == 'True'
+    @staticmethod
+    def _format_infrastructure_row(number: int | str, infrastructure: str, index: int | str, rg_name: str, location: str | None) -> str:
+        """Format one selection-table row, optionally including its location."""
+        row = f'     {number:>3} {infrastructure:<20} {index:>8} {rg_name:<35}'
 
-        print_plain('Querying for available infrastructures...\n')
+        return f'{row} {location:<15}' if location is not None else row
 
-        # Get all resource groups that match the infrastructure pattern
-        available_options = []
+    def _print_infrastructure_table_header(self, include_location: bool) -> None:
+        """Print the same headings for new and existing infrastructure tables."""
+        print_plain(self._format_infrastructure_row('#', 'Infrastructure', 'Index', 'Resource Group', 'Location' if include_location else None))
+        print_plain(self._format_infrastructure_row('-' * 3, '-' * 20, '-' * 8, '-' * 35, '-' * 15 if include_location else None))
 
-        for infra in self.supported_infrastructures:
-            infra_options = az.find_infrastructure_instances(infra)
-            available_options.extend(infra_options)
+    def _display_infrastructure_options(self, options: list[_InfrastructureOption], desired_rg_name: str) -> None:
+        """Render choices while querying locations only when explicitly enabled."""
+        include_location = os.getenv('APIM_TEST_QUERY_RG_LOCATION', 'False') == 'True'
+        print_info(f'Found {len(options) - 1} existing infrastructure(s). You can either create a new one or select an existing one.')
+        print_plain('\n   Create a NEW infrastructure:\n')
+        self._print_infrastructure_table_header(include_location)
+        desired_index = options[0].index
+        print_plain(self._format_infrastructure_row(1, self.deployment.value, desired_index if desired_index is not None else 'N/A', desired_rg_name, self.rg_location if include_location else None))
+        print_plain('\n   Or select an EXISTING infrastructure:\n')
+        self._print_infrastructure_table_header(include_location)
+        for number, option in enumerate(options[1:], start=2):
+            rg_name = az.get_infra_rg_name(option.infrastructure, option.index)
+            location = az.get_resource_group_location(rg_name) if include_location else None
+            print_plain(self._format_infrastructure_row(number, option.infrastructure.value, option.index if option.index is not None else 'N/A', rg_name, location))
 
-        # Check if the desired infrastructure/index combination exists
-        desired_rg_name = az.get_infra_rg_name(self.deployment, self._get_current_index())
-        desired_exists = any(az.get_infra_rg_name(infra, idx) == desired_rg_name for infra, idx in available_options)
+    def _create_new_infrastructure(self, announcement_prefix: str = '') -> tuple[INFRASTRUCTURE | None, int | None]:
+        """Run the shared creation path for automatic and interactive choices."""
+        selected_index = self._get_current_index()
+        index_suffix = f' (index: {selected_index})' if selected_index is not None else ''
+        print_info(f'{announcement_prefix}Creating new infrastructure: {self.deployment.value}{index_suffix}')
+        helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, self.apim_sku)
+        if helper.create_infrastructure(True):
+            print_ok(f'Successfully created infrastructure: {self.deployment.value}{index_suffix}')
+            return self.deployment, selected_index
 
-        if desired_exists:
-            # Scenario 1: Desired infrastructure exists, use it directly
-            print_ok(f'Found desired infrastructure: {self.deployment.value} with resource group {desired_rg_name}')
-            return self.deployment, self._get_current_index()
+        print_error('Failed to create infrastructure.')
+        return None, None
 
-        # Sort available options by infrastructure type, then by index
-        available_options.sort(key=lambda x: (x[0].value, x[1] if x[1] is not None else 0))
-
-        # Prepare display options
-        display_options = []
-        option_counter = 1
-
-        # Add existing infrastructure options
-        if available_options:
-            print_info(f'Found {len(available_options)} existing infrastructure(s). You can either create a new one or select an existing one.')
-
-            # ALWAYS make "Create a NEW infrastructure" the first option for consistency
-            desired_index_str = self._get_current_index() if self._get_current_index() is not None else 'N/A'
-            desired_location = self.rg_location
-
-            print_plain('\n   Create a NEW infrastructure:\n')
-            # Column headers
-            if QUERY_RG_LOCATION:
-                print_plain(f'     {"#":>3} {"Infrastructure":<20} {"Index":>8} {"Resource Group":<35} {"Location":<15}')
-                print_plain(f'     {"-" * 3:>3} {"-" * 20:<20} {"-" * 8:>8} {"-" * 35:<35} {"-" * 15:<15}')
-                print_plain(f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35} {desired_location:<15}')
-            else:
-                print_plain(f'     {"#":>3} {"Infrastructure":<20} {"Index":>8} {"Resource Group":<35}')
-                print_plain(f'     {"-" * 3:>3} {"-" * 20:<20} {"-" * 8:>8} {"-" * 35:<35}')
-                print_plain(f'     {option_counter:>3} {self.deployment.value:<20} {desired_index_str:>8} {desired_rg_name:<35}')
-
-            display_options.append(('create_new', self.deployment, self._get_current_index()))
-            option_counter += 1
-
-            print_plain('\n   Or select an EXISTING infrastructure:\n')
-            # Column headers
-            if QUERY_RG_LOCATION:
-                print_plain(f'     {"#":>3} {"Infrastructure":<20} {"Index":>8} {"Resource Group":<35} {"Location":<15}')
-                print_plain(f'     {"-" * 3:>3} {"-" * 20:<20} {"-" * 8:>8} {"-" * 35:<35} {"-" * 15:<15}')
-            else:
-                print_plain(f'     {"#":>3} {"Infrastructure":<20} {"Index":>8} {"Resource Group":<35}')
-                print_plain(f'     {"-" * 3:>3} {"-" * 20:<20} {"-" * 8:>8} {"-" * 35:<35}')
-
-            for infra, index in available_options:
-                index_str = index if index is not None else 'N/A'
-                rg_name = az.get_infra_rg_name(infra, index)
-
-                if QUERY_RG_LOCATION:
-                    rg_location = az.get_resource_group_location(rg_name)
-                    print_plain(f'     {option_counter:>3} {infra.value:<20} {index_str:>8} {rg_name:<35} {rg_location:<15}')
-                else:
-                    print_plain(f'     {option_counter:>3} {infra.value:<20} {index_str:>8} {rg_name:<35}')
-
-                display_options.append(('existing', infra, index))
-                option_counter += 1
-        else:
-            print_warning('No existing supported infrastructures found.')
-            print_info(f'Automatically proceeding to create new infrastructure: {self.deployment.value}')
-
-            # Automatically create the desired infrastructure without user confirmation
-            selected_index = self._get_current_index()
-            index_suffix = f' (index: {selected_index})' if selected_index is not None else ''
-            print_info(f'Creating new infrastructure: {self.deployment.value}{index_suffix}')
-
-            # Execute the infrastructure creation
-            inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, self.apim_sku)
-            success = inb_helper.create_infrastructure(True)  # Bypass infrastructure check to force creation
-
-            if success:
-                index_suffix = f' (index: {selected_index})' if selected_index is not None else ''
-                print_ok(f'Successfully created infrastructure: {self.deployment.value}{index_suffix}')
-                return self.deployment, selected_index
-
-            print_error('Failed to create infrastructure.')
-            return None, None
-
-        print_plain('')
-
-        # Check the infrastructure creation behavior setting
-        infra_creation_behavior = os.getenv('APIM_SAMPLES_INFRA_CREATION_BEHAVIOR', 'ask-always').lower()
-
-        # If behavior is set to always create new and there are existing options, automatically select create_new (option 1)
-        if infra_creation_behavior == 'create-new-always' and available_options:
-            # Option 1 is always the "create_new" option
-            option_type, selected_infra, selected_index = display_options[0]
-            index_suffix = f' (index: {selected_index})' if selected_index is not None else ''
-            print_info(f'APIM_SAMPLES_INFRA_CREATION_BEHAVIOR=create-new-always: Creating new infrastructure: {selected_infra.value}{index_suffix}')
-
-            # Execute the infrastructure creation
-            inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, self.apim_sku)
-            success = inb_helper.create_infrastructure(True)  # Bypass infrastructure check to force creation
-
-            if success:
-                index_suffix = f' (index: {selected_index})' if selected_index is not None else ''
-                print_ok(f'Successfully created infrastructure: {selected_infra.value}{index_suffix}')
-                return selected_infra, selected_index
-
-            print_error('Failed to create infrastructure.')
-            return None, None
-
-        # Get user selection
+    def _prompt_for_infrastructure_selection(self, options: list[_InfrastructureOption]) -> tuple[INFRASTRUCTURE | None, int | None]:
+        """Validate input until the user chooses a new/existing instance or exits."""
         while True:
             try:
-                choice = input(f'Select infrastructure (1-{len(display_options)}): ').strip()
+                choice = input(f'Select infrastructure (1-{len(options)}): ').strip()
 
                 if not choice:
                     print_warning('No infrastructure selected. Exiting.')
@@ -529,34 +500,44 @@ class NotebookHelper:
 
                 choice_idx = int(choice) - 1
 
-                if 0 <= choice_idx < len(display_options):
-                    option_type, selected_infra, selected_index = display_options[choice_idx]
+                if 0 <= choice_idx < len(options):
+                    option = options[choice_idx]
+                    if option.create_new:
+                        return self._create_new_infrastructure()
 
-                    if option_type == 'existing':
-                        index_suffix = f' (index: {selected_index})' if selected_index is not None else ''
-                        print_ok(f'Selected existing: {selected_infra.value}{index_suffix}')
-                        return selected_infra, selected_index
-
-                    if option_type == 'create_new':  # pragma: no cover
-                        index_suffix = f' (index: {selected_index})' if selected_index is not None else ''
-                        print_info(f'Creating new infrastructure: {selected_infra.value}{index_suffix}')
-
-                        # Execute the infrastructure creation
-                        inb_helper = InfrastructureNotebookHelper(self.rg_location, self.deployment, selected_index, self.apim_sku)
-                        success = inb_helper.create_infrastructure(True)  # Bypass infrastructure check to force creation
-
-                        if success:
-                            index_suffix = f' (index: {selected_index})' if selected_index is not None else ''
-                            print_ok(f'Successfully created infrastructure: {selected_infra.value}{index_suffix}')
-                            return selected_infra, selected_index
-
-                        print_error('Failed to create infrastructure.')
-                        return None, None
+                    index_suffix = f' (index: {option.index})' if option.index is not None else ''
+                    print_ok(f'Selected existing: {option.infrastructure.value}{index_suffix}')
+                    return option.infrastructure, option.index
                 else:
-                    print_error(f'Invalid choice. Please enter a number between 1 and {len(display_options)}.')
+                    print_error(f'Invalid choice. Please enter a number between 1 and {len(options)}.')
 
             except ValueError:
                 print_error('Invalid input. Please enter a number.')
+
+    def _query_and_select_infrastructure(self) -> tuple[INFRASTRUCTURE | None, int | None]:
+        """Discover supported instances and coordinate the existing selection flow."""
+        print_plain('Querying for available infrastructures...\n')
+        available = []
+        for infra in self.supported_infrastructures:
+            available.extend(az.find_infrastructure_instances(infra))
+
+        desired_rg_name = az.get_infra_rg_name(self.deployment, self._get_current_index())
+        if any(az.get_infra_rg_name(infra, index) == desired_rg_name for infra, index in available):
+            print_ok(f'Found desired infrastructure: {self.deployment.value} with resource group {desired_rg_name}')
+            return self.deployment, self._get_current_index()
+
+        if not available:
+            print_warning('No existing supported infrastructures found.')
+            print_info(f'Automatically proceeding to create new infrastructure: {self.deployment.value}')
+            return self._create_new_infrastructure()
+
+        options = self._build_infrastructure_options(available)
+        self._display_infrastructure_options(options, desired_rg_name)
+        print_plain('')
+        if os.getenv('APIM_SAMPLES_INFRA_CREATION_BEHAVIOR', 'ask-always').lower() == 'create-new-always':
+            return self._create_new_infrastructure('APIM_SAMPLES_INFRA_CREATION_BEHAVIOR=create-new-always: ')
+
+        return self._prompt_for_infrastructure_selection(options)
 
     # ------------------------------
     #    PUBLIC METHODS
@@ -875,226 +856,9 @@ def _extract_kql_rows(json_data: Any) -> list[list[Any]]:
     return first.get('rows') or first.get('Rows') or []
 
 
-def _determine_bicep_directory(infrastructure_dir: str) -> str:
-    """
-    Determine the correct Bicep directory based on the current working directory and infrastructure directory name.
-
-    This function implements the following logic:
-    1. If current directory contains main.bicep, use current directory (for samples)
-    2. If current directory name matches infrastructure_dir, use current directory (for infrastructure)
-    3. Look for infrastructure/{infrastructure_dir} relative to current directory
-    4. Look for infrastructure/{infrastructure_dir} relative to parent directory
-    5. Try to find project root and construct path from there
-    6. Fall back to current directory + infrastructure/{infrastructure_dir}
-
-    Args:
-        infrastructure_dir (str): The name of the infrastructure directory to find.
-
-    Returns:
-        str: The path to the directory containing the main.bicep file.
-    """
-    current_dir = os.getcwd()
-
-    # First, check if there's a main.bicep file in the current directory (for samples)
-    if os.path.exists(os.path.join(current_dir, 'main.bicep')):
-        return current_dir
-
-    # Check if we're already in the correct infrastructure directory
-    if os.path.basename(current_dir) == infrastructure_dir:
-        return current_dir
-
-    # Look for the infrastructure directory from the current location
-    bicep_dir = os.path.join(current_dir, 'infrastructure', infrastructure_dir)
-    if os.path.exists(bicep_dir):
-        return bicep_dir
-
-    # If that doesn't exist, try going up one level and looking again
-    parent_dir = os.path.dirname(current_dir)
-    bicep_dir = os.path.join(parent_dir, 'infrastructure', infrastructure_dir)
-    if os.path.exists(bicep_dir):
-        return bicep_dir
-
-    # Try to find the project root and construct the path from there
-    try:
-        project_root = get_project_root()
-        bicep_dir = os.path.join(str(project_root), 'infrastructure', infrastructure_dir)
-        if os.path.exists(bicep_dir):
-            return bicep_dir
-    except Exception:
-        pass
-
-    # Fall back to current directory + infrastructure/{infrastructure_dir}
-    return os.path.join(current_dir, 'infrastructure', infrastructure_dir)
-
-
 # ------------------------------
 #    PUBLIC METHODS
 # ------------------------------
-
-
-def create_bicep_deployment_group(
-    rg_name: str,
-    rg_location: str,
-    deployment: str | INFRASTRUCTURE,
-    bicep_parameters: dict,
-    bicep_parameters_file: str = 'params.json',
-    rg_tags: dict | None = None,
-    is_debug: bool = False,
-) -> Output:
-    """
-    Create a Bicep deployment in a resource group, writing parameters to a file and running the deployment.
-    Creates the resource group if it does not exist.
-
-    Args:
-        rg_name (str): Name of the resource group.
-        rg_location (str): Azure region for the resource group.
-        deployment (str | INFRASTRUCTURE): Deployment name or enum value.
-        bicep_parameters: Parameters for the Bicep template.
-        bicep_parameters_file (str, optional): File to write parameters to.
-        rg_tags (dict, optional): Additional tags to apply to the resource group.
-        is_debug (bool, optional): Whether to enable debug mode. Defaults to False.
-
-    Returns:
-        Output: The result of the deployment command.
-    """
-
-    # Create the resource group if doesn't exist
-    az.create_resource_group(rg_name, rg_location, rg_tags)
-
-    if hasattr(deployment, 'value'):
-        deployment_name = deployment.value
-    else:
-        deployment_name = deployment
-
-    bicep_parameters_format = {
-        '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
-        'contentVersion': '1.0.0.0',
-        'parameters': bicep_parameters,
-    }
-
-    # Determine the correct deployment name and find the Bicep directory
-    if hasattr(deployment, 'value'):
-        deployment_name = deployment.value
-        infrastructure_dir = deployment.value
-    else:
-        deployment_name = deployment
-        infrastructure_dir = deployment
-
-    # Use helper function to determine the correct Bicep directory
-    bicep_dir = _determine_bicep_directory(infrastructure_dir)
-
-    main_bicep_path = os.path.join(bicep_dir, 'main.bicep')
-    params_file_path = os.path.join(bicep_dir, bicep_parameters_file)
-
-    # Write the updated bicep parameters to the specified parameters file
-    with open(params_file_path, 'w', encoding='utf-8') as file:
-        file.write(json.dumps(bicep_parameters_format))
-
-    print_plain(f'📝 Updated the policy XML in the bicep parameters file {bicep_parameters_file}')
-
-    # Verify that main.bicep exists in the infrastructure directory
-    if not os.path.exists(main_bicep_path):  # pragma: no cover
-        raise FileNotFoundError(f'main.bicep file not found in expected infrastructure directory: {bicep_dir}')
-
-    cmd = f'az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"'
-
-    if is_debug:
-        cmd += ' --debug'
-
-    print_plain('\nDeploying bicep...\n')
-    # Bicep deployments routinely run longer than the default 240s subprocess timeout
-    # (APIM provisioning alone can take 30+ minutes). Use a 30-minute cap so a long-running
-    # but successful deployment is not reported as a transient "Command failed" / retry.
-    return az.run(cmd, f"Deployment '{deployment_name}' succeeded", get_deployment_failure_message(deployment_name), timeout=1800)
-
-
-def find_project_root() -> str:
-    """
-    Find the project root directory by looking for specific marker files.
-
-    Returns:
-        str: Path to the project root directory.
-
-    Raises:
-        FileNotFoundError: If project root cannot be determined.
-    """
-    current_dir = os.getcwd()
-
-    # Look for marker files that indicate the project root.
-    # Require all markers to avoid incorrectly treating notebook folders
-    # (which often contain their own README.md) as the repo root.
-    marker_files = ['pyproject.toml', 'README.md', 'bicepconfig.json']
-
-    while current_dir != os.path.dirname(current_dir):  # Stop at filesystem root
-        if all(os.path.exists(os.path.join(current_dir, marker)) for marker in marker_files):
-            return current_dir
-
-        current_dir = os.path.dirname(current_dir)
-
-    # If we can't find the project root, raise an error
-    raise FileNotFoundError('Could not determine project root directory')
-
-
-def create_bicep_deployment_group_for_sample(
-    sample_name: str,
-    rg_name: str,
-    rg_location: str,
-    bicep_parameters: dict,
-    bicep_parameters_file: str = 'params.json',
-    rg_tags: dict | None = None,
-    is_debug: bool = False,
-) -> Output:
-    """
-    Create a Bicep deployment for a sample, handling the working directory change automatically.
-    This function ensures that the params.json file is written to the correct sample directory
-    regardless of the current working directory (e.g., when running from VS Code).
-
-    Args:
-        sample_name (str): Name of the sample (used for deployment name and directory).
-        rg_name (str): Name of the resource group.
-        rg_location (str): Azure region for the resource group.
-        bicep_parameters: Parameters for the Bicep template.
-        bicep_parameters_file (str, optional): File to write parameters to.
-        rg_tags (dict, optional): Additional tags to apply to the resource group.
-        is_debug (bool, optional): Whether to enable debug mode. Defaults to False.
-
-    Returns:
-        Output: The result of the deployment command.
-    """
-
-    # Get the current working directory
-    original_cwd = os.getcwd()
-
-    try:
-        # Determine the sample directory path
-        # This handles both cases: running from project root or from sample directory
-        if os.path.basename(original_cwd) == sample_name:
-            # Already in the sample directory
-            sample_dir = original_cwd
-        else:
-            # Assume we're in project root or elsewhere, navigate to sample directory
-            project_root = find_project_root()
-            sample_dir = os.path.join(project_root, 'samples', sample_name)
-
-        # Verify the sample directory exists and has main.bicep
-        if not os.path.exists(sample_dir):
-            raise FileNotFoundError(f'Sample directory not found: {sample_dir}')
-
-        main_bicep_path = os.path.join(sample_dir, 'main.bicep')
-        if not os.path.exists(main_bicep_path):
-            raise FileNotFoundError(f'main.bicep not found in sample directory: {sample_dir}')
-
-        # Change to the sample directory to ensure params.json is written there
-        os.chdir(sample_dir)
-        print_plain(f'📁 Changed working directory to: {sample_dir}', blank_above=True)
-
-        # Call the original deployment function
-        return create_bicep_deployment_group(rg_name, rg_location, sample_name, bicep_parameters, bicep_parameters_file, rg_tags, is_debug)
-
-    finally:
-        # Always restore the original working directory
-        os.chdir(original_cwd)
-        print_plain(f'📁 Restored working directory to: {original_cwd}')
 
 
 def _prompt_for_high_cost_sku_acknowledgement(apim_sku: APIM_SKU) -> bool:
@@ -1242,144 +1006,6 @@ def does_infrastructure_exist(infrastructure: INFRASTRUCTURE, index: int, allow_
 
     print_plain('   Infrastructure does not yet exist.')
     return False
-
-
-def read_and_modify_policy_xml(policy_xml_filepath: str, replacements: dict[str, str], sample_name: str = None) -> str:
-    """
-    Read and return the contents of a policy XML file, then modifies it by replacing placeholders with provided values.
-
-    Args:
-        policy_xml_filepath (str): Path to the policy XML file.
-
-    Returns:
-        str: Contents of the policy XML file.
-    """
-
-    policy_xml_filepath = determine_policy_path(policy_xml_filepath, sample_name)
-    # print(f'📄 Reading policy XML from : {policy_xml_filepath}')  # debug
-
-    # Read the specified policy XML file
-    with open(policy_xml_filepath, 'r', encoding='utf-8') as policy_xml_file:
-        policy_template_xml = policy_xml_file.read()
-
-    if replacements is not None and isinstance(replacements, dict):
-        # Replace placeholders in the policy XML with provided values
-        for key, value in replacements.items():
-            placeholder = '{' + key + '}'
-
-            if placeholder in policy_template_xml:
-                policy_template_xml = policy_template_xml.replace(placeholder, value)
-            else:
-                print_warning(f"Placeholder '{placeholder}' not found in the policy XML file.")
-
-    return policy_template_xml
-
-
-def determine_shared_policy_path(policy_xml_filename: str) -> str:
-    """Determine the full path to a shared APIM policy fragment file."""
-    return str(Path(find_project_root()) / 'shared' / 'apim-policies' / 'fragments' / policy_xml_filename)
-
-
-def determine_policy_path(policy_xml_filepath_or_filename: str, sample_name: str = None) -> str:
-    """Resolve a sample policy path, preferring the canonical policy directory."""
-    # Determine if this is a full path or just a filename
-    path_obj = Path(policy_xml_filepath_or_filename)
-
-    # Legacy mode check: if named_values is None, always treat as legacy (backwards compatibility)
-    # OR if it looks like a path (contains separators or is absolute)
-    # Note: Check for leading slash to handle POSIX paths on Windows
-    if path_obj.is_absolute() or policy_xml_filepath_or_filename.startswith('/') or '/' in policy_xml_filepath_or_filename or '\\' in policy_xml_filepath_or_filename:
-        # Legacy mode: treat as full path
-        policy_xml_filepath = policy_xml_filepath_or_filename
-    else:
-        # Smart mode: auto-detect sample directory
-        if sample_name is None:
-            try:
-                # Get the current frame's filename (the notebook or script calling this function)
-                frame = inspect.currentframe()
-                caller_frame = frame.f_back
-
-                # Try to get the filename from the caller's frame
-                if hasattr(caller_frame, 'f_globals') and '__file__' in caller_frame.f_globals:
-                    caller_file = caller_frame.f_globals['__file__']
-                    caller_path = Path(caller_file).resolve()
-                else:
-                    # Fallback for Jupyter notebooks: use current working directory
-                    caller_path = Path(os.getcwd()).resolve()
-
-                # Walk up the directory tree to find the samples directory structure
-                current_path = caller_path.parent if caller_path.is_file() else caller_path
-
-                # Look for samples directory in the path
-                path_parts = current_path.parts
-                if 'samples' in path_parts:
-                    samples_index = path_parts.index('samples')
-                    if samples_index + 1 < len(path_parts):
-                        sample_name = path_parts[samples_index + 1]
-                    else:
-                        raise ValueError('Could not detect sample name from path')
-                else:
-                    raise ValueError('Not running from within a samples directory')
-
-            except Exception as e:
-                raise ValueError(f'Could not auto-detect sample name. Please provide sample_name parameter explicitly. Error: {e}') from e
-
-        # Prefer the canonical policy directory while migrated samples coexist
-        # with legacy samples that still keep policy files at the sample root.
-        project_root = get_project_root()
-        sample_path = Path(project_root) / 'samples' / sample_name
-        canonical_path = sample_path / 'apim-policies' / policy_xml_filepath_or_filename
-        legacy_path = sample_path / policy_xml_filepath_or_filename
-        policy_xml_filepath = str(canonical_path if canonical_path.exists() else legacy_path)
-
-    return policy_xml_filepath
-
-
-def read_policy_xml(policy_xml_filepath_or_filename: str, named_values: dict[str, str] = None, sample_name: str = None) -> str:
-    """
-    Read and return the contents of a policy XML file, with optional named value formatting.
-
-    Can work in two modes:
-    1. Legacy mode: Pass a full file path (backwards compatible)
-    2. Smart mode: Pass just a filename and auto-detect sample directory
-
-    Args:
-        policy_xml_filepath_or_filename (str): Full path to policy XML file OR just filename for auto-detection.
-        named_values (dict[str, str], optional): Dictionary of named values to format in the policy XML.
-        sample_name (str, optional): Override the auto-detected sample name if needed.
-
-    Returns:
-        str: Contents of the policy XML file with optional named values formatted.
-
-    Examples:
-        # Legacy usage - full path
-        policy_xml = read_policy_xml('/path/to/policy.xml')
-
-        # Smart usage - auto-detects sample directory
-        policy_xml = read_policy_xml('hr_all_operations.xml', {
-            'jwt_signing_key': jwt_key_name,
-            'hr_member_role_id': 'HRMemberRoleId'
-        })
-    """
-
-    policy_xml_filepath = determine_policy_path(policy_xml_filepath_or_filename, sample_name)
-    # print(f'📄 Reading policy XML from : {policy_xml_filepath}')  # debug
-
-    # Read the specified policy XML file
-    with open(policy_xml_filepath, 'r', encoding='utf-8') as policy_xml_file:
-        policy_template_xml = policy_xml_file.read()
-
-    # Apply named values formatting if provided
-    if named_values is not None and isinstance(named_values, dict):
-        # Format the policy XML with named values (double braces for APIM named value syntax)
-        formatted_replacements = {}
-        for placeholder, named_value in named_values.items():
-            formatted_replacements[placeholder] = '{{' + named_value + '}}'
-
-        # Apply the replacements
-        policy_template_xml = policy_template_xml.format(**formatted_replacements)
-
-    return policy_template_xml
 
 
 # Validation functions will raise ValueError if the value is not valid
