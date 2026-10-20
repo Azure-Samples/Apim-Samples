@@ -20,11 +20,68 @@ from typing import Any, Tuple
 # APIM Samples imports
 import azure_resources as az
 from apimrequests import ApimRequests
-from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, find_project_root, get_project_root  # noqa: F401 (Endpoints re-exported for callers)
-from bicep_deployment import create_bicep_deployment_group, create_bicep_deployment_group_for_sample, get_deployment_failure_message  # noqa: F401 (backward-compatible exports)
-from policy_files import determine_policy_path, determine_shared_policy_path, read_and_modify_policy_xml, read_policy_xml  # noqa: F401 (backward-compatible exports)
+from apimtypes import APIM_SKU, HTTP_VERB, INFRASTRUCTURE, Endpoints, Output, find_project_root, get_project_root
+from bicep_deployment import create_bicep_deployment_group, create_bicep_deployment_group_for_sample, get_deployment_failure_message
+from policy_files import determine_policy_path, determine_shared_policy_path, read_and_modify_policy_xml, read_policy_xml
 from console import print_error, print_info, print_message, print_ok, print_plain, print_secret, print_val, print_warning
 from IPython import get_ipython
+
+# Preserve the full historical wildcard-import namespace, including imported names.
+__all__ = [
+    'APIM_SKU',
+    'Any',
+    'ApimRequests',
+    'Endpoints',
+    'HTTP_VERB',
+    'INFRASTRUCTURE',
+    'InfrastructureNotebookHelper',
+    'NotebookHelper',
+    'Output',
+    'Path',
+    'SampleDeploymentContext',
+    'Tuple',
+    'ast',
+    'az',
+    'base64',
+    'build_infrastructure_tags',
+    'create_bicep_deployment_group',
+    'create_bicep_deployment_group_for_sample',
+    'dataclass',
+    'determine_policy_path',
+    'determine_shared_policy_path',
+    'does_infrastructure_exist',
+    'enable_module_autoreload',
+    'find_project_root',
+    'generate_signing_key',
+    'get_deployment_failure_message',
+    'get_endpoint',
+    'get_ipython',
+    'get_json',
+    'get_project_root',
+    'json',
+    'os',
+    'print_error',
+    'print_info',
+    'print_message',
+    'print_ok',
+    'print_plain',
+    'print_secret',
+    'print_val',
+    'print_warning',
+    'read_and_modify_policy_xml',
+    'read_policy_xml',
+    'secrets',
+    'string',
+    'subprocess',
+    'sys',
+    'tempfile',
+    'time',
+    'validate_http_verb',
+    'validate_infrastructure',
+    'validate_sku',
+    'wait_for_apim_blob_permissions',
+    'warnings',
+]
 
 # Configure warning filter to suppress IPython exit warnings
 warnings.filterwarnings(

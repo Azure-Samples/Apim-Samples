@@ -124,7 +124,9 @@ Follow these rules:
 - [apimtypes.py](apimtypes.py) owns repository-root discovery alongside shared types. `find_project_root()` walks upward from the current directory; `get_project_root()` supports the configured root and module-based discovery.
 - [utils.py](utils.py) keeps notebook orchestration and infrastructure selection. Choice construction, table presentation, prompting, and creation are separate methods; selecting an infrastructure does not redesign the deployment workflow.
 
-Existing policy, root-discovery, and Bicep imports from [utils.py](utils.py) remain direct compatibility re-exports, not forwarding wrappers. This preserves caller-frame-sensitive policy resolution. New code should import the owning module. Tests should patch collaborators where their implementation looks them up, such as `bicep_deployment.find_project_root` rather than `utils.find_project_root`.
+Existing policy, root-discovery, and Bicep imports from [utils.py](utils.py) remain direct compatibility re-exports, not forwarding wrappers. This preserves caller-frame-sensitive policy resolution. Its explicit `__all__` retains the complete historical public namespace, including imported names, without lint suppressions. New code should import the owning module. Tests should patch collaborators where their implementation looks them up, such as `bicep_deployment.find_project_root` rather than `utils.find_project_root`.
+
+Bicep directory resolution retains its current-directory fallback for expected filesystem, path-value, and runtime root-discovery errors, recording the cause at DEBUG level. Unexpected programming errors propagate rather than being hidden by the fallback.
 
 ## Functions, Data Types, and Classes
 

@@ -95,6 +95,14 @@ def test_utils_preserves_direct_capability_exports(name, implementation):
     assert getattr(utils, name) is implementation
 
 
+def test_utils_declares_entire_existing_public_namespace():
+    """Explicit exports must not narrow the historical wildcard-import surface."""
+    public_names = {name for name in vars(utils) if not name.startswith('_')}
+
+    assert set(utils.__all__) == public_names
+    assert len(utils.__all__) == len(public_names)
+
+
 def test_build_infrastructure_options_sorts_without_remote_calls(monkeypatch):
     """Keep creation first, followed by architecture and numeric index order."""
     nb_helper = utils.NotebookHelper('test', 'apim-infra-simple-apim-9', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, [INFRASTRUCTURE.SIMPLE_APIM])

@@ -1,6 +1,7 @@
 """Tests for the extracted bicep_deployment capability."""
 
 import json
+import logging
 import os
 import azure_resources as az
 import pytest
@@ -35,7 +36,7 @@ def test_create_bicep_deployment_group_with_enum(deployment_dependencies):
     bicep_params = {'param1': {'value': 'test'}}
     rg_tags = {'infrastructure': 'simple-apim'}
 
-    _result = bicep_deployment.create_bicep_deployment_group('test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, bicep_params, 'params.json', rg_tags)
+    bicep_deployment.create_bicep_deployment_group('test-rg', 'eastus', INFRASTRUCTURE.SIMPLE_APIM, bicep_params, 'params.json', rg_tags)
 
     # Verify create_resource_group was called with correct parameters
     mock_create_rg.assert_called_once_with('test-rg', 'eastus', rg_tags)
@@ -253,15 +254,32 @@ def test_determine_bicep_directory_from_project_root(monkeypatch, tmp_path):
     assert bicep_deployment._determine_bicep_directory('qux') == str(project_bicep_dir)
 
 
-def test_determine_bicep_directory_falls_back(monkeypatch, tmp_path):
+@pytest.mark.parametrize('error_type', [OSError, RuntimeError, ValueError])
+def test_determine_bicep_directory_falls_back(monkeypatch, tmp_path, caplog, error_type):
+    """Expected root-discovery errors keep the fallback and emit diagnostics."""
     nowhere = tmp_path / 'nowhere'
     nowhere.mkdir()
 
     monkeypatch.chdir(nowhere)
-    monkeypatch.setattr(bicep_deployment, 'get_project_root', lambda: (_ for _ in ()).throw(ValueError('no root')))
+    monkeypatch.setattr(bicep_deployment, 'get_project_root', lambda: (_ for _ in ()).throw(error_type('no root')))
 
     expected = os.path.join(str(nowhere), 'infrastructure', 'missing')
-    assert bicep_deployment._determine_bicep_directory('missing') == expected
+    with caplog.at_level(logging.DEBUG, logger='console'):
+        assert bicep_deployment._determine_bicep_directory('missing') == expected
+
+    assert 'Project-root lookup failed' in caplog.text
+    assert 'no root' in caplog.text
+    assert 'Falling back to the current directory.' in caplog.text
+    assert all(record.levelno == logging.DEBUG for record in caplog.records)
+
+
+def test_determine_bicep_directory_propagates_unexpected_errors(monkeypatch, tmp_path):
+    """Do not disguise programming errors as a successful directory fallback."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(bicep_deployment, 'get_project_root', lambda: (_ for _ in ()).throw(TypeError('invalid root contract')))
+
+    with pytest.raises(TypeError, match='invalid root contract'):
+        bicep_deployment._determine_bicep_directory('missing')
 
 
 def test_create_bicep_deployment_group_for_sample_missing_dir(monkeypatch, tmp_path):

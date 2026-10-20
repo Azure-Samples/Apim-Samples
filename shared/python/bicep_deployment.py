@@ -7,7 +7,7 @@ import os
 import azure_resources as az
 import logging_config
 from apimtypes import INFRASTRUCTURE, Output, find_project_root, get_project_root
-from console import print_plain
+from console import print_debug, print_plain
 
 
 def get_deployment_failure_message(deployment_name: str) -> str:
@@ -75,8 +75,8 @@ def _determine_bicep_directory(infrastructure_dir: str) -> str:
         bicep_dir = os.path.join(str(project_root), 'infrastructure', infrastructure_dir)
         if os.path.exists(bicep_dir):
             return bicep_dir
-    except Exception:
-        pass
+    except (OSError, RuntimeError, ValueError) as exc:
+        print_debug(f'Project-root lookup failed while resolving Bicep directory {infrastructure_dir!r}: {exc}. Falling back to the current directory.')
 
     # Fall back to current directory + infrastructure/{infrastructure_dir}
     return os.path.join(current_dir, 'infrastructure', infrastructure_dir)
@@ -110,11 +110,6 @@ def create_bicep_deployment_group(
 
     # Create the resource group if doesn't exist
     az.create_resource_group(rg_name, rg_location, rg_tags)
-
-    if hasattr(deployment, 'value'):
-        deployment_name = deployment.value
-    else:
-        deployment_name = deployment
 
     bicep_parameters_format = {
         '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
