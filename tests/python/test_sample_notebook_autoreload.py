@@ -19,7 +19,6 @@ def _get_notebook_code(notebook_path: Path) -> str:
 def _get_sample_helpers() -> list[Path]:
     """Return sample-local helper modules that notebooks actively consume."""
     helper_paths = set(SAMPLES_DIR.glob('*/*_helpers.py'))
-    helper_paths.update(SAMPLES_DIR.glob('*/_helpers.py'))
 
     return sorted(helper_paths)
 

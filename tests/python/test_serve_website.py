@@ -1,6 +1,7 @@
 """Unit tests for serve_website module."""
 
 import importlib
+import signal
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -265,13 +266,13 @@ def test_serve_website_keyboard_interrupt_cleans_up(mock_repo: Path) -> None:
     mock_thread_instance = MagicMock()
     mock_thread_instance.is_alive.return_value = True
 
-    with patch('serve_website.TCPServer') as mock_server:
+    with patch('dev_server.TCPServer') as mock_server:
         mock_instance = MagicMock()
         mock_server.return_value = mock_instance
 
-        with patch('serve_website.Thread', return_value=mock_thread_instance):
-            with patch('serve_website.webbrowser'):
-                with patch('serve_website.sleep', side_effect=KeyboardInterrupt):
+        with patch('dev_server.Thread', return_value=mock_thread_instance):
+            with patch('dev_server.webbrowser'):
+                with patch('dev_server.sleep', side_effect=KeyboardInterrupt):
                     with patch('builtins.print') as mock_print:
                         with patch('os.chdir'):
                             serve_web.serve_website(9999)
@@ -288,14 +289,14 @@ def test_serve_website_survives_close_failure(mock_repo: Path) -> None:
     mock_thread_instance = MagicMock()
     mock_thread_instance.is_alive.return_value = True
 
-    with patch('serve_website.TCPServer') as mock_server:
+    with patch('dev_server.TCPServer') as mock_server:
         mock_instance = MagicMock()
         mock_server.return_value = mock_instance
         mock_instance.server_close.side_effect = OSError('boom')
 
-        with patch('serve_website.Thread', return_value=mock_thread_instance):
-            with patch('serve_website.webbrowser'):
-                with patch('serve_website.sleep', side_effect=KeyboardInterrupt):
+        with patch('dev_server.Thread', return_value=mock_thread_instance):
+            with patch('dev_server.webbrowser'):
+                with patch('dev_server.sleep', side_effect=KeyboardInterrupt):
                     with patch('builtins.print'):
                         with patch('os.chdir'):
                             serve_web.serve_website(9999)
@@ -308,14 +309,14 @@ def test_serve_website_survives_shutdown_failure(mock_repo: Path) -> None:
     mock_thread_instance = MagicMock()
     mock_thread_instance.is_alive.return_value = True
 
-    with patch('serve_website.TCPServer') as mock_server:
+    with patch('dev_server.TCPServer') as mock_server:
         mock_instance = MagicMock()
         mock_server.return_value = mock_instance
         mock_instance.shutdown.side_effect = OSError('boom')
 
-        with patch('serve_website.Thread', return_value=mock_thread_instance):
-            with patch('serve_website.webbrowser'):
-                with patch('serve_website.sleep', side_effect=KeyboardInterrupt):
+        with patch('dev_server.Thread', return_value=mock_thread_instance):
+            with patch('dev_server.webbrowser'):
+                with patch('dev_server.sleep', side_effect=KeyboardInterrupt):
                     with patch('builtins.print'):
                         with patch('os.chdir'):
                             serve_web.serve_website(9999)
@@ -336,14 +337,14 @@ def test_serve_website_signal_handler_stops_once_and_cleans_up(mock_repo: Path) 
 
     def tcp_server_side_effect(*args: Any, **kwargs: Any) -> None:
         del args, kwargs
-        handler = registered_handlers[serve_web.signal.SIGINT]
-        handler(serve_web.signal.SIGINT, None)
+        handler = registered_handlers[signal.SIGINT]
+        handler(signal.SIGINT, None)
 
-    with patch('serve_website.signal.getsignal', return_value=MagicMock(name='previous-handler')):
-        with patch('serve_website.signal.signal', side_effect=signal_side_effect):
-            with patch('serve_website.TCPServer', side_effect=tcp_server_side_effect):
-                with patch('serve_website.Thread'):
-                    with patch('serve_website.webbrowser'):
+    with patch('dev_server.signal.getsignal', return_value=MagicMock(name='previous-handler')):
+        with patch('dev_server.signal.signal', side_effect=signal_side_effect):
+            with patch('dev_server.TCPServer', side_effect=tcp_server_side_effect):
+                with patch('dev_server.Thread'):
+                    with patch('dev_server.webbrowser'):
                         with patch('builtins.print') as mock_print:
                             with patch('os.chdir'):
                                 serve_web.serve_website(9999)
@@ -360,16 +361,16 @@ def test_serve_website_non_main_thread_skips_signal_registration(mock_repo: Path
     mock_thread_instance = MagicMock()
     mock_thread_instance.is_alive.return_value = True
 
-    with patch('serve_website.current_thread', return_value=worker_thread):
-        with patch('serve_website.main_thread', return_value=main_thread):
-            with patch('serve_website.signal.signal') as mock_signal:
-                with patch('serve_website.TCPServer') as mock_server:
+    with patch('dev_server.current_thread', return_value=worker_thread):
+        with patch('dev_server.main_thread', return_value=main_thread):
+            with patch('dev_server.signal.signal') as mock_signal:
+                with patch('dev_server.TCPServer') as mock_server:
                     mock_instance = MagicMock()
                     mock_server.return_value = mock_instance
 
-                    with patch('serve_website.Thread', return_value=mock_thread_instance):
-                        with patch('serve_website.webbrowser'):
-                            with patch('serve_website.sleep', side_effect=KeyboardInterrupt):
+                    with patch('dev_server.Thread', return_value=mock_thread_instance):
+                        with patch('dev_server.webbrowser'):
+                            with patch('dev_server.sleep', side_effect=KeyboardInterrupt):
                                 with patch('builtins.print'):
                                     with patch('os.chdir'):
                                         serve_web.serve_website(9999)
@@ -393,13 +394,13 @@ def test_serve_website_open_browser_callback_runs(mock_repo: Path) -> None:
         def is_alive(self) -> bool:
             return False
 
-    with patch('serve_website.TCPServer') as mock_server:
+    with patch('dev_server.TCPServer') as mock_server:
         mock_instance = MagicMock()
         mock_server.return_value = mock_instance
 
-        with patch('serve_website.Thread', ImmediateThread):
-            with patch('serve_website.sleep') as mock_sleep:
-                with patch('serve_website.webbrowser.open') as mock_open:
+        with patch('dev_server.Thread', ImmediateThread):
+            with patch('dev_server.sleep') as mock_sleep:
+                with patch('dev_server.webbrowser.open') as mock_open:
                     with patch('builtins.print') as mock_print:
                         with patch('os.chdir'):
                             serve_web.serve_website(9999)
@@ -408,3 +409,13 @@ def test_serve_website_open_browser_callback_runs(mock_repo: Path) -> None:
     mock_open.assert_called_once_with('http://localhost:9999/')
     printed = [' '.join(str(a) for a in c.args) for c in mock_print.call_args_list]
     assert any('Opening browser to http://localhost:9999/' in message for message in printed)
+
+
+@pytest.mark.parametrize('failed_step', ['build_slide_deck', 'serve_directory'])
+def test_serve_website_failure_removes_staged_site(mock_repo: Path, failed_step: str) -> None:
+    """Build and listener failures must propagate after staged-file cleanup."""
+    with pytest.raises(RuntimeError, match='preview failed'):
+        with patch(f'serve_website.{failed_step}', side_effect=RuntimeError('preview failed')):
+            serve_web.serve_website()
+
+    assert not (mock_repo / '_site').exists()

@@ -1,4 +1,4 @@
-"""Tests for `samples/costing/_helpers.py` 6-mode AOAI traffic dispatcher."""
+"""Tests for `samples/costing/costing_helpers.py` 6-mode AOAI traffic dispatcher."""
 
 import base64
 import json
@@ -13,8 +13,8 @@ import requests as http_requests
 COSTING_DIR = Path(__file__).resolve().parents[2] / 'samples' / 'costing'
 sys.path.insert(0, str(COSTING_DIR))
 
-import _helpers as costing_helpers  # noqa: E402
-from _helpers import send_aoai_traffic  # noqa: E402
+import costing_helpers  # noqa: E402
+from costing_helpers import send_aoai_traffic  # noqa: E402
 
 CHAT_URL = 'https://apim.example.com/aoai/deployments/gpt/chat/completions'
 RESPONSES_URL = 'https://apim.example.com/aoai/responses'
@@ -361,8 +361,7 @@ def _write_costing_policy_files(root: Path) -> None:
     ):
         (root / name).write_text(f'<policies>{name}</policies>', encoding='utf-8')
     (root / 'emit_metric_caller_tokens.xml').write_text(
-        '<policies>\n<!-- Ensure streaming AI requests include stream_options.include_usage = true (reusable fragment) -->\n'
-        '<include-fragment fragment-id="Ensure-Stream-Include-Usage" />\n</policies>',
+        '<policies>\n<!-- Ensure streaming AI requests include stream_options.include_usage = true (reusable fragment) -->\n<include-fragment fragment-id="Ensure-Stream-Include-Usage" />\n</policies>',
         encoding='utf-8',
     )
 
@@ -376,9 +375,7 @@ def _write_costing_policy_files(root: Path) -> None:
         (False, False, True, True, 1, 1),
     ],
 )
-def test_build_costing_apis_honors_feature_toggles(
-    monkeypatch, tmp_path, entraid, tokens, foundry, force_stream, expected_api_count, expected_fragment_count
-):
+def test_build_costing_apis_honors_feature_toggles(monkeypatch, tmp_path, entraid, tokens, foundry, force_stream, expected_api_count, expected_fragment_count):
     _write_costing_policy_files(tmp_path)
     monkeypatch.setattr(costing_helpers.utils, 'determine_policy_path', lambda name, _folder: tmp_path / name)
     monkeypatch.setattr(costing_helpers.utils, 'get_project_root', lambda: tmp_path)
@@ -430,9 +427,7 @@ def test_configure_cost_export_recreates_assigns_role_and_cleans_temp_file(monke
     print_val = MagicMock()
     monkeypatch.setattr(costing_helpers, 'print_val', print_val)
 
-    assert costing_helpers.configure_cost_export(
-        subscription_id='sub', rg_name='rg', storage_account_name='storage', cost_export_name='export', cost_export_frequency='Weekly'
-    )
+    assert costing_helpers.configure_cost_export(subscription_id='sub', rg_name='rg', storage_account_name='storage', cost_export_name='export', cost_export_frequency='Weekly')
 
     put_command = run.call_args_list[3].args[0]
     body_path = Path(put_command.split('--body @', maxsplit=1)[1].split(' -o json', maxsplit=1)[0])
@@ -453,9 +448,7 @@ def test_configure_cost_export_handles_create_identity_and_role_failures(monkeyp
     responses = [_result(text='Registered'), _result(success=False), export_result, _result(success=role_success)]
     monkeypatch.setattr(costing_helpers, 'run', MagicMock(side_effect=responses))
 
-    result = costing_helpers.configure_cost_export(
-        subscription_id='sub', rg_name='rg', storage_account_name='storage', cost_export_name='export', cost_export_frequency='unknown'
-    )
+    result = costing_helpers.configure_cost_export(subscription_id='sub', rg_name='rg', storage_account_name='storage', cost_export_name='export', cost_export_frequency='unknown')
 
     assert result is expected
 

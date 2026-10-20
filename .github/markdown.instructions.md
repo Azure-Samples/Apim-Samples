@@ -224,7 +224,7 @@ Structured guides for domain-specific tasks (Bicep, Python policies, sample crea
 - Heading levels should reflect document structure (H1 for title, H2 for major sections)
 - Never skip levels (e.g., H1 → H3, skipping H2)
 
-### Lists
+### List Content
 
 - Use bullet lists for unordered items
 - Use numbered lists for ordered steps or priorities

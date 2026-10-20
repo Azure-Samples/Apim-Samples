@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
 """Serve the APIM Samples presentation with auto-browser launch."""
 
-import http.server
-import os
-import signal
 import sys
-import webbrowser
 from datetime import datetime
 from pathlib import Path
-from socketserver import TCPServer
-from threading import Thread, current_thread, main_thread
-from time import sleep
+
+# APIM Samples imports
+from dev_server import QuietRequestHandler, serve_directory
 
 # Ensure UTF-8 encoding for console output on Windows
 if sys.platform == 'win32':  # pragma: no cover
@@ -26,11 +22,6 @@ def get_local_timestamp() -> str:
     return f'{current_time:%m/%d/%Y %H:%M:%S}.{current_time.microsecond // 1000:03d}'
 
 
-def print_shutdown_message() -> None:
-    """Print a consistent shutdown message for the presentation server."""
-    print('\n\n✓ Server stopped', flush=True)
-
-
 def get_presentation_dir():
     """Get the assets directory path."""
     repo_root = Path(__file__).parent.parent
@@ -40,11 +31,11 @@ def get_presentation_dir():
     return assets_dir
 
 
-class PresentationHandler(http.server.SimpleHTTPRequestHandler):
+class PresentationHandler(QuietRequestHandler):
     """HTTP handler that serves the presentation."""
 
     _last_polled_mtimes: dict[str, float] = {}
-    _ignored_log_path_prefixes = ('/.well-known/appspecific/',)
+    _log_non_http_status = False
 
     def _rewrite_path(self):
         """Rewrite root path to presentation file.
@@ -92,120 +83,17 @@ class PresentationHandler(http.server.SimpleHTTPRequestHandler):
 
         self._last_polled_mtimes[file_key] = current_mtime
 
-    @classmethod
-    def _should_ignore_log_request(cls, request_line: str) -> bool:
-        """Suppress noisy browser-originated probes that are not actionable."""
-        request_parts = request_line.split()
-        if len(request_parts) < 2:
-            return False
 
-        request_path = request_parts[1]
-        return request_path.startswith(cls._ignored_log_path_prefixes)
-
-    def log_message(self, format, *args):
-        """Customize logging."""
-        request_line = str(args[0]) if args else ''
-        if self._should_ignore_log_request(request_line):
-            return
-
-        status_code = str(args[1]) if len(args) > 1 else ''
-
-        # Keep successful polling and file-serving requests quiet.
-        if status_code.isdigit() and int(status_code) < 400:
-            return
-
-        if 'HTTP' in request_line:
-            print(f'  {format % args}', file=sys.stderr)
-
-
-def serve_presentation(port: int = 7777):
+def serve_presentation(port: int = 7777) -> None:
     """Start the HTTP server and open browser."""
-    pres_dir = get_presentation_dir()
-    httpd = None
-    shutdown_message_printed = False
-    previous_signal_handlers: dict[int, object] = {}
-
-    def print_shutdown_once() -> None:
-        """Ensure the shutdown message is only printed once."""
-        nonlocal shutdown_message_printed
-        if shutdown_message_printed:
-            return
-
-        print_shutdown_message()
-        shutdown_message_printed = True
-
-    def handle_shutdown_signal(signum, frame) -> None:
-        """Handle external shutdown signals with a visible terminal message."""
-        del signum, frame
-        print_shutdown_once()
-        raise KeyboardInterrupt
-
-    # Change to presentation directory
-    original_dir = os.getcwd()
-    os.chdir(pres_dir)
-
-    try:
-        if current_thread() is main_thread():
-            handled_signals = [signal.SIGINT]
-            if hasattr(signal, 'SIGTERM'):  # pragma: no branch
-                handled_signals.append(signal.SIGTERM)
-
-            for handled_signal in handled_signals:
-                previous_signal_handlers[handled_signal] = signal.getsignal(handled_signal)
-                signal.signal(handled_signal, handle_shutdown_signal)
-
-        server_address = ('127.0.0.1', port)
-        httpd = TCPServer(server_address, PresentationHandler)
-
-        # URL to open
-        url = f'http://localhost:{port}'
-        presentation_url = f'{url}{PRESENTATION_ENTRY_PATH}'
-
-        # Print server info
-        print('\n✨ APIM Samples Presentation Server')
-        print(f'   Serving from       : {pres_dir}')
-        print(f'   URL                : {url}')
-        print(f'   Presentation URL   : {presentation_url}')
-        print()
-        print('   🌐 Browser opening in 1 second...')
-        print()
-        print('   To stop the server : Press Ctrl+C')
-        print(flush=True)
-
-        # Open browser in a background thread
-        def open_browser():
-            sleep(1)  # Give server time to start
-            print(f'   ✓ Opening browser to {presentation_url}', flush=True)
-            webbrowser.open(presentation_url)
-
-        Thread(target=open_browser, daemon=True).start()
-
-        # Run the server in a daemon thread so the main thread remains free.
-        # On Windows, serve_forever() blocks inside select() which cannot be
-        # interrupted by Ctrl+C.  Keeping the main thread in a sleep() loop
-        # lets Python's signal machinery raise KeyboardInterrupt reliably.
-        server_thread = Thread(target=httpd.serve_forever, daemon=True)
-        server_thread.start()
-
-        while server_thread.is_alive():
-            sleep(1)
-
-    except KeyboardInterrupt:
-        print_shutdown_once()
-    finally:
-        for handled_signal, previous_handler in previous_signal_handlers.items():
-            signal.signal(handled_signal, previous_handler)
-
-        os.chdir(original_dir)
-        if httpd is not None:
-            try:
-                httpd.shutdown()
-            except Exception:  # noqa: BLE001
-                pass
-            try:
-                httpd.server_close()
-            except Exception:  # noqa: BLE001
-                pass
+    serve_directory(
+        get_presentation_dir(),
+        PresentationHandler,
+        port,
+        title='APIM Samples Presentation Server',
+        links=(('URL', ''), ('Presentation URL', PRESENTATION_ENTRY_PATH)),
+        browser_path=PRESENTATION_ENTRY_PATH,
+    )
 
 
 if __name__ == '__main__':

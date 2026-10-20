@@ -1,5 +1,4 @@
-"""
-Costing-sample-private helpers.
+"""Costing-sample-private helpers.
 
 These functions are intentionally scoped to the costing sample because they
 encode costing-specific contracts (the local `bu-request-counts.local.json`
@@ -367,9 +366,7 @@ def send_aoai_traffic(
     planned = dict.fromkeys(keys, 0)
     bailed = False
 
-    responses_available = (
-        responses_url is not None and responses_body is not None and responses_stream_body is not None and responses_stateless_body is not None
-    )
+    responses_available = responses_url is not None and responses_body is not None and responses_stream_body is not None and responses_stateless_body is not None
 
     for j in range(count):
         if bailed:
@@ -596,9 +593,7 @@ def build_costing_apis(
 
     if enable_foundry and enable_token_tracking and token_metric_policy_xml is not None:
         aoai_operation_policy_xml = Path(utils.determine_policy_path('aoai-gateway-operation.xml', sample_folder)).read_text(encoding='utf-8')
-        aoai_responses_operation_policy_xml = Path(utils.determine_policy_path('aoai-gateway-responses-operation.xml', sample_folder)).read_text(
-            encoding='utf-8'
-        )
+        aoai_responses_operation_policy_xml = Path(utils.determine_policy_path('aoai-gateway-responses-operation.xml', sample_folder)).read_text(encoding='utf-8')
 
         paths['aoai_api_path'] = 'aoai-gateway'
         aoai_chat_post = APIOperation(
@@ -662,9 +657,7 @@ def configure_cost_export(
     """
     print_info('Configuring automated Cost Management export (managed identity)...')
 
-    storage_account_id = (
-        f'/subscriptions/{subscription_id}/resourceGroups/{rg_name}/providers/Microsoft.Storage/storageAccounts/{storage_account_name}'
-    )
+    storage_account_id = f'/subscriptions/{subscription_id}/resourceGroups/{rg_name}/providers/Microsoft.Storage/storageAccounts/{storage_account_name}'
     export_scope = f'/subscriptions/{subscription_id}'
     api_version = '2025-03-01'
 
@@ -675,9 +668,7 @@ def configure_cost_export(
         return False
 
     existing_export = run(
-        f'az rest --method GET '
-        f'--url "{export_scope}/providers/Microsoft.CostManagement/exports/{cost_export_name}'
-        f'?api-version={api_version}" -o json',
+        f'az rest --method GET --url "{export_scope}/providers/Microsoft.CostManagement/exports/{cost_export_name}?api-version={api_version}" -o json',
         retries=0,
     )
     if existing_export.success:
@@ -720,12 +711,7 @@ def configure_cost_export(
         body_file_path = body_file.name
 
     try:
-        export_result = run(
-            f'az rest --method PUT '
-            f'--url "{export_scope}/providers/Microsoft.CostManagement/exports/{cost_export_name}'
-            f'?api-version={api_version}" '
-            f'--body @{body_file_path} -o json'
-        )
+        export_result = run(f'az rest --method PUT --url "{export_scope}/providers/Microsoft.CostManagement/exports/{cost_export_name}?api-version={api_version}" --body @{body_file_path} -o json')
     finally:
         Path(body_file_path).unlink(missing_ok=True)
 
@@ -741,13 +727,7 @@ def configure_cost_export(
     principal_id = json.loads(export_result.text).get('identity', {}).get('principalId')
     if principal_id:
         print_info('Assigning Storage Blob Data Contributor role to export identity...')
-        role_assignment = run(
-            f'az role assignment create '
-            f'--assignee-object-id {principal_id} '
-            f'--assignee-principal-type ServicePrincipal '
-            f'--role "Storage Blob Data Contributor" '
-            f'--scope {storage_account_id}'
-        )
+        role_assignment = run(f'az role assignment create --assignee-object-id {principal_id} --assignee-principal-type ServicePrincipal --role "Storage Blob Data Contributor" --scope {storage_account_id}')
         if role_assignment.success:
             print_ok('Storage Blob Data Contributor role assigned to export identity')
         else:
@@ -789,21 +769,12 @@ def create_bu_budget_alerts(
 
     print_info('Setting up budget alerts per business unit subscription...')
 
-    workspace_result = run(
-        f'az monitor log-analytics workspace show --resource-group {rg_name} --workspace-name {log_analytics_name} --query id -o tsv'
-    )
+    workspace_result = run(f'az monitor log-analytics workspace show --resource-group {rg_name} --workspace-name {log_analytics_name} --query id -o tsv')
     workspace_id = workspace_result.text.strip()
 
     action_group_name = f'ag-apim-cost-alerts-{index}'
     print_info(f'Creating action group: {action_group_name}...')
-    ag_result = run(
-        f'az monitor action-group create '
-        f'--resource-group {rg_name} '
-        f'--name {action_group_name} '
-        f'--short-name apimcost '
-        f'--action email cost-alert-email {alert_email} '
-        f'-o json'
-    )
+    ag_result = run(f'az monitor action-group create --resource-group {rg_name} --name {action_group_name} --short-name apimcost --action email cost-alert-email {alert_email} -o json')
     if not ag_result.success:
         print_error(f'Failed to create action group: {ag_result.text}')
         return
@@ -850,9 +821,7 @@ def create_bu_budget_alerts(
             json.dump(alert_body, f)
             alert_body_path = f.name
         try:
-            result = run(
-                f'az rest --method PUT --uri https://management.azure.com{alert_id}?api-version=2023-03-15-preview --body @{alert_body_path}'
-            )
+            result = run(f'az rest --method PUT --uri https://management.azure.com{alert_id}?api-version=2023-03-15-preview --body @{alert_body_path}')
         finally:
             Path(alert_body_path).unlink(missing_ok=True)
 
