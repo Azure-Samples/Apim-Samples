@@ -10,17 +10,13 @@ The staging logic here is the single local source of truth. If the
 workflow's staging step changes, update stage_site() to match.
 """
 
-import http.server
-import os
 import shutil
-import signal
 import sys
-import webbrowser
 from pathlib import Path
-from socketserver import TCPServer
-from threading import Thread, current_thread, main_thread
-from time import sleep
 
+# APIM Samples imports
+from dev_server import QuietRequestHandler as WebsiteHandler
+from dev_server import serve_directory
 from export_presentation import inline_images, strip_live_reload
 
 # Ensure UTF-8 encoding for console output on Windows
@@ -129,118 +125,22 @@ def cleanup_site() -> None:
         pass
 
 
-class WebsiteHandler(http.server.SimpleHTTPRequestHandler):
-    """HTTP handler that stays quiet on success and suppresses browser noise."""
-
-    _ignored_log_path_prefixes = ('/.well-known/appspecific/',)
-
-    @classmethod
-    def _should_ignore_log_request(cls, request_line: str) -> bool:
-        """Suppress noisy browser-originated probes that are not actionable."""
-        parts = request_line.split()
-        if len(parts) < 2:
-            return False
-
-        return parts[1].startswith(cls._ignored_log_path_prefixes)
-
-    def log_message(self, format, *args):
-        """Print only non-2xx/3xx responses, and never browser probes."""
-        request_line = str(args[0]) if args else ''
-        if self._should_ignore_log_request(request_line):
-            return
-
-        status_code = str(args[1]) if len(args) > 1 else ''
-        if status_code.isdigit() and int(status_code) < 400:
-            return
-
-        if 'HTTP' in request_line or status_code:
-            print(f'  {format % args}', file=sys.stderr)
-
-
 def serve_website(port: int = 7800) -> None:
     """Stage the site, start an HTTP server, and open the browser."""
     stage_site()
 
-    print()
-    build_slide_deck()
-
-    original_dir = os.getcwd()
-    httpd = None
-    shutdown_printed = False
-    previous_handlers: dict[int, object] = {}
-
-    def print_shutdown_once() -> None:
-        nonlocal shutdown_printed
-        if shutdown_printed:
-            return
-        print('\n\n✓ Server stopped', flush=True)
-        shutdown_printed = True
-
-    def handle_shutdown_signal(signum, frame) -> None:
-        del signum, frame
-        print_shutdown_once()
-        raise KeyboardInterrupt
-
-    os.chdir(SITE_DIR)
-
     try:
-        if current_thread() is main_thread():
-            signals_to_handle = [signal.SIGINT]
-            if hasattr(signal, 'SIGTERM'):  # pragma: no branch
-                signals_to_handle.append(signal.SIGTERM)
-
-            for sig in signals_to_handle:
-                previous_handlers[sig] = signal.getsignal(sig)
-                signal.signal(sig, handle_shutdown_signal)
-
-        httpd = TCPServer(('127.0.0.1', port), WebsiteHandler)
-
-        url = f'http://localhost:{port}'
-        print('\n✨ APIM Samples Website Preview')
-        print(f'   Serving from       : {SITE_DIR}')
-        print(f'   Landing page       : {url}/')
-        print(f'   Slide deck         : {url}/{SLIDE_DECK_STAGED}')
         print()
-        print('   🌐 Browser opening in 1 second...')
-        print()
-        print('   To stop the server : Press Ctrl+C')
-        print(flush=True)
-
-        def open_browser() -> None:
-            sleep(1)
-            print(f'   ✓ Opening browser to {url}/')
-            webbrowser.open(f'{url}/')
-
-        Thread(target=open_browser, daemon=True).start()
-
-        # Run the server in a daemon thread so the main thread remains free.
-        # On Windows, serve_forever() blocks inside select() which cannot be
-        # interrupted by Ctrl+C.  Keeping the main thread in a sleep() loop
-        # lets Python's signal machinery raise KeyboardInterrupt reliably.
-        server_thread = Thread(target=httpd.serve_forever, daemon=True)
-        server_thread.start()
-
-        while server_thread.is_alive():
-            sleep(1)
-
-    except KeyboardInterrupt:
-        print_shutdown_once()
+        build_slide_deck()
+        serve_directory(
+            SITE_DIR,
+            WebsiteHandler,
+            port,
+            title='APIM Samples Website Preview',
+            links=(('Landing page', '/'), ('Slide deck', f'/{SLIDE_DECK_STAGED}')),
+            browser_path='/',
+        )
     finally:
-        for sig, prev in previous_handlers.items():
-            signal.signal(sig, prev)
-
-        os.chdir(original_dir)
-
-        if httpd is not None:
-            try:
-                httpd.shutdown()
-            except Exception:  # noqa: BLE001
-                pass
-            try:
-                httpd.server_close()
-            except Exception:  # noqa: BLE001
-                pass
-
         cleanup_site()
 
 

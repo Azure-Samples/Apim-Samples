@@ -1,12 +1,12 @@
 """Unit tests for serve_presentation module."""
 
+import http.server
 import importlib
 import os
 import re
 import runpy
 import signal
 import sys
-import threading
 from pathlib import Path
 from types import ModuleType
 from typing import Any, cast
@@ -74,7 +74,7 @@ def test_presentation_handler_do_get_root_path() -> None:
     """PresentationHandler.do_GET should rewrite '/' to the slide deck HTML file."""
     handler = _make_handler('/')
 
-    with patch.object(serve_pres.http.server.SimpleHTTPRequestHandler, 'do_GET') as mock_super:
+    with patch.object(http.server.SimpleHTTPRequestHandler, 'do_GET') as mock_super:
         handler.do_GET()
 
     assert handler.path == serve_pres.PRESENTATION_ENTRY_PATH
@@ -85,7 +85,7 @@ def test_presentation_handler_do_get_empty_path() -> None:
     """PresentationHandler.do_GET should rewrite empty path to the slide deck HTML file."""
     handler = _make_handler('')
 
-    with patch.object(serve_pres.http.server.SimpleHTTPRequestHandler, 'do_GET') as mock_super:
+    with patch.object(http.server.SimpleHTTPRequestHandler, 'do_GET') as mock_super:
         handler.do_GET()
 
     assert handler.path == serve_pres.PRESENTATION_ENTRY_PATH
@@ -96,7 +96,7 @@ def test_presentation_handler_do_get_other_path() -> None:
     """PresentationHandler.do_GET should not rewrite other paths."""
     handler = _make_handler('/styles.css')
 
-    with patch.object(serve_pres.http.server.SimpleHTTPRequestHandler, 'do_GET') as mock_super:
+    with patch.object(http.server.SimpleHTTPRequestHandler, 'do_GET') as mock_super:
         handler.do_GET()
 
     assert handler.path == '/styles.css'
@@ -243,12 +243,12 @@ def test_serve_presentation_keyboard_interrupt(mock_repo_root: Path) -> None:
     mock_thread_instance.is_alive.return_value = True
 
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
-        with patch('serve_presentation.TCPServer') as mock_server:
+        with patch('dev_server.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
 
-            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
-                with patch('serve_presentation.sleep', side_effect=KeyboardInterrupt):
+            with patch('dev_server.Thread', return_value=mock_thread_instance):
+                with patch('dev_server.sleep', side_effect=KeyboardInterrupt):
                     with patch('builtins.print') as mock_print:
                         with patch('os.chdir'):
                             serve_pres.serve_presentation(8000)
@@ -268,15 +268,15 @@ def test_serve_presentation_registers_signal_handlers(mock_repo_root: Path) -> N
     mock_thread_instance.is_alive.return_value = False
 
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
-        with patch('serve_presentation.TCPServer') as mock_server:
+        with patch('dev_server.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
 
-            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
+            with patch('dev_server.Thread', return_value=mock_thread_instance):
                 with patch('builtins.print'):
                     with patch('os.chdir'):
-                        with patch('serve_presentation.signal.getsignal') as mock_getsignal:
-                            with patch('serve_presentation.signal.signal') as mock_signal:
+                        with patch('dev_server.signal.getsignal') as mock_getsignal:
+                            with patch('dev_server.signal.signal') as mock_signal:
                                 mock_getsignal.side_effect = [previous_sigint_handler, previous_sigterm_handler]
                                 serve_pres.serve_presentation(8000)
 
@@ -298,11 +298,11 @@ def test_serve_presentation_opens_browser(mock_repo_root: Path) -> None:
     mock_thread_instance.is_alive.return_value = False
 
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
-        with patch('serve_presentation.TCPServer') as mock_server:
+        with patch('dev_server.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
 
-            with patch('serve_presentation.Thread', return_value=mock_thread_instance) as mock_thread:
+            with patch('dev_server.Thread', return_value=mock_thread_instance) as mock_thread:
                 with patch('builtins.print'):
                     with patch('os.chdir'):
                         serve_pres.serve_presentation(8000)
@@ -328,16 +328,16 @@ def test_serve_presentation_browser_thread_target_opens_url(mock_repo_root: Path
             return False
 
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
-        with patch('serve_presentation.current_thread', return_value=object()):
-            with patch('serve_presentation.main_thread', return_value=object()):
-                with patch('serve_presentation.TCPServer') as mock_server:
+        with patch('dev_server.current_thread', return_value=object()):
+            with patch('dev_server.main_thread', return_value=object()):
+                with patch('dev_server.TCPServer') as mock_server:
                     mock_server_instance = MagicMock()
                     mock_server.return_value = mock_server_instance
                     mock_server_instance.serve_forever.side_effect = KeyboardInterrupt()
 
-                    with patch('serve_presentation.Thread', ImmediateThread):
-                        with patch('serve_presentation.sleep') as mock_sleep:
-                            with patch('serve_presentation.webbrowser.open') as mock_open:
+                    with patch('dev_server.Thread', ImmediateThread):
+                        with patch('dev_server.sleep') as mock_sleep:
+                            with patch('dev_server.webbrowser.open') as mock_open:
                                 with patch('builtins.print'):
                                     with patch('os.chdir'):
                                         serve_pres.serve_presentation(8123)
@@ -355,11 +355,11 @@ def test_serve_presentation_restores_cwd(mock_repo_root: Path) -> None:
     mock_thread_instance.is_alive.return_value = False
 
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
-        with patch('serve_presentation.TCPServer') as mock_server:
+        with patch('dev_server.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
 
-            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
+            with patch('dev_server.Thread', return_value=mock_thread_instance):
                 with patch('builtins.print'):
                     with patch('os.getcwd', return_value=original_cwd):
                         with patch('os.chdir') as mock_chdir:
@@ -394,16 +394,16 @@ def test_serve_presentation_signal_handler_prints_shutdown_once(mock_repo_root: 
     mock_thread_instance.is_alive.return_value = True
 
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
-        with patch('serve_presentation.TCPServer') as mock_server:
+        with patch('dev_server.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
 
-            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
+            with patch('dev_server.Thread', return_value=mock_thread_instance):
                 with patch('builtins.print') as mock_print:
                     with patch('os.chdir'):
-                        with patch('serve_presentation.signal.getsignal', return_value=signal.default_int_handler):
-                            with patch('serve_presentation.signal.signal', side_effect=capture_signal):
-                                with patch('serve_presentation.sleep', side_effect=sleep_side_effect):
+                        with patch('dev_server.signal.getsignal', return_value=signal.default_int_handler):
+                            with patch('dev_server.signal.signal', side_effect=capture_signal):
+                                with patch('dev_server.sleep', side_effect=sleep_side_effect):
                                     serve_pres.serve_presentation(8000)
 
     shutdown_messages = [call for call in mock_print.call_args_list if 'Server stopped' in ' '.join(str(arg) for arg in call.args)]
@@ -420,11 +420,11 @@ def test_serve_presentation_prints_server_info(mock_repo_root: Path) -> None:
     mock_thread_instance.is_alive.return_value = False
 
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
-        with patch('serve_presentation.TCPServer') as mock_server:
+        with patch('dev_server.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
 
-            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
+            with patch('dev_server.Thread', return_value=mock_thread_instance):
                 with patch('builtins.print') as mock_print:
                     with patch('os.chdir'):
                         serve_pres.serve_presentation(7777)
@@ -444,11 +444,11 @@ def test_serve_presentation_custom_port(mock_repo_root: Path) -> None:
     mock_thread_instance.is_alive.return_value = False
 
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
-        with patch('serve_presentation.TCPServer') as mock_server:
+        with patch('dev_server.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
 
-            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
+            with patch('dev_server.Thread', return_value=mock_thread_instance):
                 with patch('builtins.print'):
                     with patch('os.chdir'):
                         serve_pres.serve_presentation(9000)
@@ -464,11 +464,11 @@ def test_serve_presentation_handler_is_set(mock_repo_root: Path) -> None:
     mock_thread_instance.is_alive.return_value = False
 
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
-        with patch('serve_presentation.TCPServer') as mock_server:
+        with patch('dev_server.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
 
-            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
+            with patch('dev_server.Thread', return_value=mock_thread_instance):
                 with patch('builtins.print'):
                     with patch('os.chdir'):
                         serve_pres.serve_presentation(7777)
@@ -481,11 +481,11 @@ def test_main_default_port() -> None:
     mock_thread_instance = MagicMock()
     mock_thread_instance.is_alive.return_value = False
 
-    with patch('socketserver.TCPServer') as mock_server:
+    with patch('dev_server.TCPServer') as mock_server:
         mock_server_instance = MagicMock()
         mock_server.return_value = mock_server_instance
 
-        with patch.object(threading, 'Thread', return_value=mock_thread_instance):
+        with patch('dev_server.Thread', return_value=mock_thread_instance):
             with patch('builtins.print'):
                 with patch('os.chdir'):
                     with patch('os.getcwd', return_value=str(PROJECT_ROOT)):
@@ -502,11 +502,11 @@ def test_main_custom_port() -> None:
     mock_thread_instance = MagicMock()
     mock_thread_instance.is_alive.return_value = False
 
-    with patch('socketserver.TCPServer') as mock_server:
+    with patch('dev_server.TCPServer') as mock_server:
         mock_server_instance = MagicMock()
         mock_server.return_value = mock_server_instance
 
-        with patch.object(threading, 'Thread', return_value=mock_thread_instance):
+        with patch('dev_server.Thread', return_value=mock_thread_instance):
             with patch('builtins.print'):
                 with patch('os.chdir'):
                     with patch('os.getcwd', return_value=str(PROJECT_ROOT)):
@@ -532,7 +532,7 @@ def test_main_file_not_found(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_main_port_in_use(capsys: pytest.CaptureFixture[str]) -> None:
     """Main entry should handle OSError for port in use gracefully."""
-    with patch('socketserver.TCPServer', side_effect=OSError('Address already in use')):
+    with patch('dev_server.TCPServer', side_effect=OSError('Address already in use')):
         with patch('os.chdir'):
             with patch('os.getcwd', return_value=str(PROJECT_ROOT)):
                 with patch('signal.getsignal', return_value=signal.default_int_handler):
@@ -549,7 +549,7 @@ def test_main_port_in_use(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_main_generic_oserror(capsys: pytest.CaptureFixture[str]) -> None:
     """Main entry should handle generic OSError gracefully."""
-    with patch('socketserver.TCPServer', side_effect=OSError('Some other error')):
+    with patch('dev_server.TCPServer', side_effect=OSError('Some other error')):
         with patch('os.chdir'):
             with patch('os.getcwd', return_value=str(PROJECT_ROOT)):
                 with patch('signal.getsignal', return_value=signal.default_int_handler):
@@ -571,13 +571,13 @@ def test_serve_presentation_survives_shutdown_failure(mock_repo_root: Path) -> N
     mock_thread_instance.is_alive.return_value = True
 
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
-        with patch('serve_presentation.TCPServer') as mock_server:
+        with patch('dev_server.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
             mock_server_instance.shutdown.side_effect = OSError('boom')
 
-            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
-                with patch('serve_presentation.sleep', side_effect=KeyboardInterrupt):
+            with patch('dev_server.Thread', return_value=mock_thread_instance):
+                with patch('dev_server.sleep', side_effect=KeyboardInterrupt):
                     with patch('builtins.print'):
                         with patch('os.chdir'):
                             serve_pres.serve_presentation(8000)
@@ -594,13 +594,13 @@ def test_serve_presentation_survives_close_failure(mock_repo_root: Path) -> None
     mock_thread_instance.is_alive.return_value = True
 
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
-        with patch('serve_presentation.TCPServer') as mock_server:
+        with patch('dev_server.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
             mock_server_instance.server_close.side_effect = OSError('boom')
 
-            with patch('serve_presentation.Thread', return_value=mock_thread_instance):
-                with patch('serve_presentation.sleep', side_effect=KeyboardInterrupt):
+            with patch('dev_server.Thread', return_value=mock_thread_instance):
+                with patch('dev_server.sleep', side_effect=KeyboardInterrupt):
                     with patch('builtins.print'):
                         with patch('os.chdir'):
                             serve_pres.serve_presentation(8000)
@@ -614,7 +614,7 @@ def test_serve_presentation_keyboard_interrupt_before_server_creation(mock_repo_
     presentation_dir = mock_repo_root / 'assets'
 
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
-        with patch('serve_presentation.TCPServer', side_effect=KeyboardInterrupt):
+        with patch('dev_server.TCPServer', side_effect=KeyboardInterrupt):
             with patch('builtins.print') as mock_print:
                 with patch('os.chdir'):
                     serve_pres.serve_presentation(8000)
@@ -638,11 +638,11 @@ def test_open_browser_thread_is_daemon(mock_repo_root: Path) -> None:
     mock_thread_instance.is_alive.return_value = False
 
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
-        with patch('serve_presentation.TCPServer') as mock_server:
+        with patch('dev_server.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
 
-            with patch('serve_presentation.Thread', return_value=mock_thread_instance) as mock_thread:
+            with patch('dev_server.Thread', return_value=mock_thread_instance) as mock_thread:
                 with patch('builtins.print'):
                     with patch('os.chdir'):
                         serve_pres.serve_presentation(7777)
@@ -658,11 +658,11 @@ def test_open_browser_has_sleep_delay(mock_repo_root: Path) -> None:
     mock_thread_instance.is_alive.return_value = False
 
     with patch('serve_presentation.get_presentation_dir', return_value=presentation_dir):
-        with patch('serve_presentation.TCPServer') as mock_server:
+        with patch('dev_server.TCPServer') as mock_server:
             mock_server_instance = MagicMock()
             mock_server.return_value = mock_server_instance
 
-            with patch('serve_presentation.Thread', return_value=mock_thread_instance) as mock_thread:
+            with patch('dev_server.Thread', return_value=mock_thread_instance) as mock_thread:
                 with patch('builtins.print'):
                     with patch('os.chdir'):
                         serve_pres.serve_presentation(7777)
@@ -674,7 +674,7 @@ def test_presentation_handler_integration() -> None:
     """PresentationHandler should consistently rewrite only root-style paths."""
     handler = _make_handler('/')
 
-    with patch.object(serve_pres.http.server.SimpleHTTPRequestHandler, 'do_GET'):
+    with patch.object(http.server.SimpleHTTPRequestHandler, 'do_GET'):
         handler.do_GET()
         assert handler.path == serve_pres.PRESENTATION_ENTRY_PATH
 
