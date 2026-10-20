@@ -32,10 +32,10 @@ get_bicep_executable() {
     return 1
   fi
 
-  # Install only when the probe fails, preserving the repository's eligible pin.
+  # Install the latest release only when the probe fails.
   if ! az bicep version >/dev/null; then
-    echo "Installing missing Bicep: az bicep install --version v0.44.1" >&2
-    az bicep install --version v0.44.1 >&2 || return 1
+    echo "Installing latest Bicep CLI: az bicep install" >&2
+    az bicep install >&2 || return 1
     az bicep version >/dev/null || return 1
   fi
 

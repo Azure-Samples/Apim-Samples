@@ -592,10 +592,11 @@ def test_check_bicep_cli_not_found(repair: bool) -> None:
 def test_check_bicep_cli_subprocess_error() -> None:
     """Bicep CLI check should fail on subprocess errors."""
     with patch('shutil.which', return_value='/usr/bin/az'):
-        with patch('subprocess.run', side_effect=subprocess.CalledProcessError(1, 'az')):
+        with patch('subprocess.run', side_effect=subprocess.CalledProcessError(1, 'az')) as run:
             ok, fix = vls.check_bicep_cli()
             assert ok is False
-            assert 'Install Bicep' in fix
+            assert fix == 'Install Bicep: az bicep install'
+            run.assert_called_once()
 
 
 def test_check_bicep_cli_timeout() -> None:
@@ -607,8 +608,8 @@ def test_check_bicep_cli_timeout() -> None:
             assert 'timed out' in fix
 
 
-def test_bicep_repair_installs_pin_and_rechecks() -> None:
-    """Repair a missing Bicep with the eligible pin, then verify it works."""
+def test_bicep_repair_installs_latest_and_rechecks() -> None:
+    """Repair a missing Bicep without a version pin, then verify it works."""
     with patch.object(vls, '_az_path', return_value = '/bin/az'), patch('subprocess.run') as run:
         run.side_effect = [
             subprocess.CalledProcessError(1, 'az bicep version'),
@@ -621,7 +622,7 @@ def test_bicep_repair_installs_pin_and_rechecks() -> None:
     assert '0.44.1' in detail
     assert [call.args[0] for call in run.call_args_list] == [
         ['/bin/az', 'bicep', 'version'],
-        ['/bin/az', 'bicep', 'install', '--version', 'v0.44.1'],
+        ['/bin/az', 'bicep', 'install'],
         ['/bin/az', 'bicep', 'version'],
     ]
     assert run.call_args_list[1].kwargs['timeout'] == vls.INSTALL_TIMEOUT_SECONDS
@@ -640,6 +641,7 @@ def test_bicep_repair_failure(error: Exception) -> None:
 
     assert not ok
     assert 'Install Bicep failed' in detail
+    assert detail.endswith('Retry: az bicep install')
     assert run.call_count == 2
 
 

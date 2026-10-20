@@ -64,7 +64,7 @@ $result = Get-BicepExecutable
     )
     # Host progress messages precede the structured result.
     data = json.loads(result.stdout.splitlines()[-1])
-    expected_calls = [] if scenario in ('installed', 'no-az') else ['bicep version', 'bicep install --version v0.44.1']
+    expected_calls = [] if scenario in ('installed', 'no-az') else ['bicep version', 'bicep install']
     if scenario in ('missing', 'recheck-fails'):
         expected_calls.append('bicep version')
     assert data['Calls'] == expected_calls
@@ -116,7 +116,7 @@ printf 'STATUS=%s\nRESULT=%s\n' "$status" "$result"
     )
     calls_file = tmp_path / 'calls.txt'
     calls = calls_file.read_text(encoding = 'utf-8').splitlines() if calls_file.exists() else []
-    expected_calls = [] if scenario in ('installed', 'no-az') else ['bicep version', 'bicep install --version v0.44.1']
+    expected_calls = [] if scenario in ('installed', 'no-az') else ['bicep version', 'bicep install']
     if scenario in ('missing', 'recheck-fails'):
         expected_calls.append('bicep version')
     assert calls == expected_calls

@@ -29,7 +29,6 @@ from pathlib import Path
 from sync_dependencies import sync_dependencies
 
 AZURE_CLI_TIMEOUT_SECONDS = 15
-BICEP_VERSION = 'v0.44.1'
 INSTALL_TIMEOUT_SECONDS = 180
 
 # Configure UTF-8 encoding for console output
@@ -276,12 +275,12 @@ def check_bicep_cli(repair: bool = False) -> tuple[bool, str]:
         return False, f'Could not run Azure CLI to check Bicep: {exc}'
     except subprocess.CalledProcessError:
         if not repair:
-            return False, f'Install Bicep: az bicep install --version {BICEP_VERSION}'
+            return False, 'Install Bicep: az bicep install'
 
-    print(f'Installing missing Bicep: az bicep install --version {BICEP_VERSION}')
+    print('Installing latest Bicep CLI: az bicep install')
     try:
         subprocess.run(
-            [az_path, 'bicep', 'install', '--version', BICEP_VERSION],
+            [az_path, 'bicep', 'install'],
             capture_output = True,
             text = True,
             check = True,
@@ -290,7 +289,7 @@ def check_bicep_cli(repair: bool = False) -> tuple[bool, str]:
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as exc:
         detail = exc.stderr if isinstance(exc, subprocess.CalledProcessError) else str(exc)
-        return False, f'Install Bicep failed: {detail}. Retry: az bicep install --version {BICEP_VERSION}'
+        return False, f'Install Bicep failed: {detail}. Retry: az bicep install'
 
     return check_bicep_cli()
 

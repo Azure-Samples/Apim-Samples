@@ -42,11 +42,11 @@ function Get-BicepExecutable {
         return $null
     }
 
-    # Install only when the probe fails, preserving the repository's eligible pin.
+    # Install the latest release only when the probe fails.
     & az bicep version | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        Write-Host 'Installing missing Bicep: az bicep install --version v0.44.1'
-        & az bicep install --version v0.44.1 | Out-Host
+        Write-Host 'Installing latest Bicep CLI: az bicep install'
+        & az bicep install | Out-Host
         if ($LASTEXITCODE -ne 0) {
             return $null
         }

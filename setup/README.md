@@ -132,9 +132,9 @@ This checks:
 - Environment file setup
 - Kernel consistency enforcement
 
-The Developer CLI's **3) Verify local setup** option runs verification with `--repair`. It installs missing Bicep using the pinned `v0.44.1` release, repairs shared imports, generates a missing `.env`, registers a missing Jupyter kernel, and repairs VS Code settings and the notebook Git filter. Every repair is followed by the original check; installation errors and timeouts remain failures. Existing Bicep installations are not upgraded.
+The Developer CLI's **3) Verify local setup** option runs verification with `--repair`. It installs the latest available Bicep CLI using `az bicep install` when Bicep is missing, repairs shared imports, generates a missing `.env`, registers a missing Jupyter kernel, and repairs VS Code settings and the notebook Git filter. Every repair is followed by the original check; installation errors and timeouts remain failures. Existing Bicep installations are not upgraded.
 
-The Bicep lint and full-check options also install the same pinned Bicep release when no standalone or Azure CLI-managed binary is available. They honor `AZURE_CONFIG_DIR` when locating the Azure CLI-managed binary.
+The Bicep lint and full-check options also install the latest available Bicep CLI when no standalone or Azure CLI-managed binary is available. They honor `AZURE_CONFIG_DIR` when locating the Azure CLI-managed binary.
 
 Run the same repair mode directly with:
 
