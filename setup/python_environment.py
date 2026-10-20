@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-@dataclass(frozen = True)
+@dataclass(frozen=True)
 class PythonInstallation:
     """An installed interpreter and its user-visible identity."""
 
@@ -23,17 +23,16 @@ class PythonInstallation:
 def _report_discovery_diagnostics(stderr: str) -> None:
     """Report uv diagnostics except known warnings about missing launcher targets."""
 
-    for block in re.split(r'(?=^\S)', stderr, flags = re.MULTILINE):
+    for block in re.split(r'(?=^\S)', stderr, flags=re.MULTILINE):
         diagnostic = block.strip()
         if not diagnostic:
             continue
         lines = diagnostic.splitlines()
         missing_launcher = lines[0].startswith('warning: Failed to inspect Python interpreter from ') and any(
-            line.strip().startswith('Cannot find file at ') and line.strip().endswith('This usually indicates a missing or moved file.')
-            for line in lines[1:]
+            line.strip().startswith('Cannot find file at ') and line.strip().endswith('This usually indicates a missing or moved file.') for line in lines[1:]
         )
         if not missing_launcher:
-            print(diagnostic, file = sys.stderr)
+            print(diagnostic, file=sys.stderr)
 
 
 def discover_python_installations(uv_path: str, requirement: str) -> list[PythonInstallation]:
@@ -41,9 +40,9 @@ def discover_python_installations(uv_path: str, requirement: str) -> list[Python
 
     result = subprocess.run(
         [uv_path, 'python', 'list', requirement, '--only-installed', '--output-format', 'json', '--offline'],
-        capture_output = True,
-        text = True,
-        check = True,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     _report_discovery_diagnostics(result.stderr)
     entries = json.loads(result.stdout)
@@ -67,15 +66,12 @@ def select_python_installation(installations: list[PythonInstallation], venv_pyt
     if not installations and venv_python is None:
         raise ValueError('No compatible installed Python was found. Install a version matching requires-python in pyproject.toml and retry.')
 
-    print('\nChoose the Python interpreter for .venv:')
+    print('\nChoose the Python interpreter for .venv:\n')
     rows: list[tuple[int, str, str, Path]] = []
     if venv_python is not None:
-        result = subprocess.run([str(venv_python), '--version'], capture_output = True, text = True, check = True)
+        result = subprocess.run([str(venv_python), '--version'], capture_output=True, text=True, check=True)
         rows.append((0, result.stdout.strip(), '[Keep existing environment]', venv_python))
-    rows.extend(
-        (index, f'Python {installation.version}', f'[{installation.key}]', installation.path)
-        for index, installation in enumerate(installations, start = 1)
-    )
+    rows.extend((index, f'Python {installation.version}', f'[{installation.key}]', installation.path) for index, installation in enumerate(installations, start=1))
     option_width = max(len(str(row[0])) for row in rows)
     version_width = max(len(row[1]) for row in rows)
     identity_width = max(len(row[2]) for row in rows)
@@ -125,7 +121,7 @@ def setup_python_environment() -> int:
             command = [uv_path, 'venv', '--python', str(selected_python), '--no-python-downloads']
             if venv.exists():
                 command.append('--clear')
-            subprocess.run([*command, str(venv)], cwd = root, check = True)
+            subprocess.run([*command, str(venv)], cwd=root, check=True)
 
         environment = os.environ.copy()
         environment.pop('VIRTUAL_ENV', None)
@@ -134,22 +130,22 @@ def setup_python_environment() -> int:
         environment['UV_PYTHON_DOWNLOADS'] = 'never'
         subprocess.run(
             [str(venv_python), str(root / 'setup' / 'sync_dependencies.py')],
-            cwd = root,
-            env = environment,
-            check = True,
+            cwd=root,
+            env=environment,
+            check=True,
         )
         subprocess.run(
             [str(venv_python), str(root / 'setup' / 'local_setup.py'), '--configure-workspace'],
-            cwd = root,
-            env = environment,
-            check = True,
+            cwd=root,
+            env=environment,
+            check=True,
         )
         return 0
     except (EOFError, KeyboardInterrupt):
         print('\nSetup cancelled.')
         return 0
     except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
-        print(f'Python environment setup failed: {error}', file = sys.stderr)
+        print(f'Python environment setup failed: {error}', file=sys.stderr)
         if isinstance(error, subprocess.CalledProcessError) and error.stderr:
-            print(error.stderr, file = sys.stderr)
+            print(error.stderr, file=sys.stderr)
         return 1

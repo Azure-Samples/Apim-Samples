@@ -78,6 +78,7 @@ Delete the temporary requirements file after installation and do not commit it. 
 This will:
 
 - Generate `.env` file for Python path configuration
+- Register `shared/python` in the active virtualenv using `apim_samples.pth`, so all samples can import shared helpers without depending on VS Code's `.env` loading
 - Register the standardized "Python (.venv)" Jupyter kernel
 - Configure VS Code settings for automatic kernel selection
 - Enforce kernel consistency to prevent auto-changes
@@ -90,6 +91,9 @@ If you prefer to run setup steps individually:
 ```shell
 # Generate .env file only
 python setup/local_setup.py --generate-env
+
+# Configure persistent shared imports in the active virtualenv
+python setup/local_setup.py --setup-imports
 
 # Register Jupyter kernel only
 python setup/local_setup.py --setup-kernel
@@ -115,7 +119,7 @@ python setup/local_setup.py
 After setup, verify everything is working correctly:
 
 ```shell
-python setup/verify_setup.py
+python setup/verify_local_setup.py
 ```
 
 This checks:
@@ -128,13 +132,27 @@ This checks:
 - Environment file setup
 - Kernel consistency enforcement
 
+The Developer CLI's **3) Verify local setup** option runs verification with `--repair`. It installs the latest available Bicep CLI using `az bicep install` when Bicep is missing, repairs shared imports, generates a missing `.env`, registers a missing Jupyter kernel, and repairs VS Code settings and the notebook Git filter. Every repair is followed by the original check; installation errors and timeouts remain failures. Existing Bicep installations are not upgraded.
+
+The Bicep lint and full-check options also install the latest available Bicep CLI when no standalone or Azure CLI-managed binary is available. They honor `AZURE_CONFIG_DIR` when locating the Azure CLI-managed binary.
+
+Run the same repair mode directly with:
+
+```shell
+python setup/verify_local_setup.py --repair
+```
+
+Shared imports are tested in a fresh Python process from outside the repository root, including `charts` and every other shared module. This detects missing paths and modules loaded from another checkout rather than hiding those problems by modifying the verifier's own `sys.path`. After path repair, restart any running notebook kernels and select the repository's `.venv` interpreter. This applies to all samples, including Azure OpenAI v1 Migration.
+
+Verification already synchronizes Python packages through the guarded lockfile helper. Azure CLI, uv, and Git still require manual installation using the documented eligible releases. Repair mode does not log in, change subscriptions, or register Azure resource providers.
+
 ## Kernel Consistency
 
 To ensure notebooks always use the correct kernel ("Python (.venv)" instead of an unrelated Python installation):
 
 1. **Run the complete setup**: `python setup/local_setup.py --complete-setup`
 2. **Restart VS Code** completely
-3. **Verify with**: `python setup/verify_setup.py`
+3. **Verify with**: `python setup/verify_local_setup.py`
 
 If you still see incorrect kernel names, run:
 
