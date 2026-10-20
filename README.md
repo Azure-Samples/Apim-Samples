@@ -4,7 +4,7 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/Azure-Samples/Apim-Samples/badge)][openssf-scorecard]
 [![Python Tests][badge-python-tests]][workflow-python-tests]
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Azure-Samples/Apim-Samples?devcontainer_path=.devcontainer%2Fpython314%2Fdevcontainer.json)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Azure-Samples/Apim-Samples?devcontainer_path=.devcontainer%2Fpython315%2Fdevcontainer.json)
 
 **This repository provides resources to quickly deploy high-fidelity Azure API Management (APIM) infrastructures and experiment with common APIM.**
 
@@ -162,7 +162,7 @@ APIM Samples supports two setup options:
 
 <details>
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Azure-Samples/Apim-Samples?devcontainer_path=.devcontainer%2Fpython314%2Fdevcontainer.json)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Azure-Samples/Apim-Samples?devcontainer_path=.devcontainer%2Fpython315%2Fdevcontainer.json)
 
 **The fastest way to get started is using our pre-configured development environment. Just click the _Open in GitHub Codespaces_ button above!** Everything is pre-installed and configured—just sign in to Azure and you're ready to go.
 
@@ -202,7 +202,7 @@ These prerequisites apply broadly across all infrastructure and samples. If ther
 
 <!-- markdownlint-disable MD005 MD007 -->
 
-- [Python][python] **3.12, 3.13, and 3.14 are all supported**
+- [Python][python] **3.12, 3.13, 3.14, and 3.15 are all supported**
 - **uv** (<https://docs.astral.sh/uv/>) - Fast Python package manager
    - Install the eligible pinned version:
       - **Windows**: `winget install --id=astral-sh.uv --version 0.9.24 -e`

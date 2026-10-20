@@ -24,6 +24,7 @@ import subprocess
 import sys
 from pathlib import Path  # Cross-platform path handling (Windows: \, Unix: /)
 
+from python_environment import setup_python_environment
 from sync_dependencies import sync_dependencies
 
 DEFAULT_PYTHON_ANALYSIS_EXCLUDE = [
@@ -595,7 +596,7 @@ def setup_notebook_git_filter():
         return False
 
 
-def setup_complete_environment():
+def setup_complete_environment(dependencies_synced: bool = False) -> bool:
     """
     Complete setup: check Azure prerequisites, generate .env file, register kernel, and configure VS Code.
 
@@ -693,8 +694,10 @@ def setup_complete_environment():
 
     # Step 8: Run a verified locked uv sync if uv is available
     print('\n8/8) Syncing dependencies with uv (if available)...\n')
-    sync_success = False
-    if uv_ok:
+    sync_success = dependencies_synced
+    if dependencies_synced:
+        print('✅ Dependencies were synced in the selected virtual environment')
+    elif uv_ok:
         try:
             uv_path = shutil.which('uv')
             if uv_path:
@@ -754,6 +757,8 @@ def setup_complete_environment():
         print('\n⚠️  Setup completed with some issues. Check error messages above.')
         print('   The environment may still be partially functional.')
 
+    return critical_success
+
 
 def show_help():
     """
@@ -777,6 +782,7 @@ def show_help():
     print('  --setup-vscode      Configure VS Code settings for optimal workflow')
     print('  --setup-nb-filter   Configure git clean filter for notebook metadata')
     print('  --complete-setup    Perform complete environment setup (recommended)')
+    print('  --configure-workspace Configure an existing environment without selecting Python')
 
     print('\nDETAILS:')
     print('  --run-only:')
@@ -809,6 +815,9 @@ def show_help():
     print('    • Working-tree files are left untouched')
 
     print('\n  --complete-setup:')
+    print('    • Lists compatible installed Python versions and lets you select one for .venv')
+    print('    • Keeps an existing .venv by default; replacement requires confirmation')
+    print('    • Installs verified locked dependencies before configuring the selected environment')
     print('    • Performs all of the above steps')
     print('    • Recommended for new development environments')
     print('    • Recreates dev container experience locally')
@@ -852,7 +861,9 @@ if __name__ == '__main__':  # pragma: no cover
             force_kernel_consistency()
         elif command == '--complete-setup':
             # Full setup: everything needed for local development
-            setup_complete_environment()
+            sys.exit(setup_python_environment())
+        elif command == '--configure-workspace':
+            sys.exit(0 if setup_complete_environment(dependencies_synced=True) else 1)
         elif command == '--run-only':
             # Only modify current session's PYTHONPATH
             setup_python_path()
