@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 814" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 860" font-family="Segoe UI, Helvetica, Arial, sans-serif">
   <defs>
     <linearGradient id="headerGrad" x1="0%" y1="0%" x2="0%" y2="100%">
       <stop offset="0%" stop-color="#0078D4" />
@@ -14,8 +14,8 @@
   </defs>
 
   <!-- Background -->
-  <rect width="880" height="814" rx="12" fill="#FAFAFA" />
-  <rect x="4" y="4" width="872" height="806" rx="10" fill="none" stroke="#E0E0E0" stroke-width="1" />
+  <rect width="880" height="860" rx="12" fill="#FAFAFA" />
+  <rect x="4" y="4" width="872" height="852" rx="10" fill="none" stroke="#E0E0E0" stroke-width="1" />
 
   <g transform="translate(0,20)">
   <!-- Title -->
@@ -24,7 +24,7 @@
 
   <!-- Section Labels -->
   <text x="540" y="82" text-anchor="middle" font-size="16" font-weight="700" font-style="italic" fill="#0078D4" letter-spacing="2">INFRASTRUCTURES</text>
-  <text x="22" y="451" text-anchor="middle" font-size="16" font-weight="700" font-style="italic" fill="#00796B" letter-spacing="2" transform="rotate(-90 22 451)">SAMPLES</text>
+  <text x="22" y="474" text-anchor="middle" font-size="16" font-weight="700" font-style="italic" fill="#00796B" letter-spacing="2" transform="rotate(-90 22 474)">SAMPLES</text>
 
   <!-- Column Headers (Infrastructure names) -->
   <!-- Background rectangles for headers -->
@@ -73,52 +73,71 @@
   <rect x="30" y="292" width="825" height="42" rx="4" fill="#FFFFFF" />
   <rect x="35" y="294" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
   <text x="120" y="318" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Azure Maps</text>
-  <!-- Row 4: Costing -->
-  <rect x="30" y="338" width="825" height="42" rx="4" fill="#F5F5F5" />
+  <!-- Row 4: Azure OpenAI v1 Migration - all compatible -->
+  <g id="azure-openai-v1-migration" aria-label="Azure OpenAI v1 Migration: compatible with all infrastructures">
+    <rect x="30" y="338" width="825" height="42" rx="4" fill="#F5F5F5" />
+    <rect x="35" y="340" width="170" height="38" rx="6" fill="#00796B" filter="url(#shadow)" />
+    <text x="120" y="364" text-anchor="middle" font-size="12" font-weight="600" fill="#FFFFFF">Azure OpenAI v1 Migration</text>
+    <circle cx="270" cy="359" r="10" fill="#2E7D32" />
+    <text x="270" y="363" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+    <circle cx="400" cy="359" r="10" fill="#2E7D32" />
+    <text x="400" y="363" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+    <circle cx="530" cy="359" r="10" fill="#2E7D32" />
+    <text x="530" y="363" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+    <circle cx="660" cy="359" r="10" fill="#2E7D32" />
+    <text x="660" y="363" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+    <circle cx="790" cy="359" r="10" fill="#2E7D32" />
+    <text x="790" y="363" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  </g>
+
+  <g transform="translate(0,46)">
+  <!-- Row 5: Costing -->
+  <rect x="30" y="338" width="825" height="42" rx="4" fill="#FFFFFF" />
   <rect x="35" y="340" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
   <text x="120" y="364" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Costing</text>
 
-  <!-- Row 5: Dynamic CORS -->
-  <rect x="30" y="384" width="825" height="42" rx="4" fill="#FFFFFF" />
+  <!-- Row 6: Dynamic CORS -->
+  <rect x="30" y="384" width="825" height="42" rx="4" fill="#F5F5F5" />
   <rect x="35" y="386" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
   <text x="120" y="410" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Dynamic CORS</text>
 
-  <!-- Row 6: Egress Control -->
-  <rect x="30" y="430" width="825" height="42" rx="4" fill="#F5F5F5" />
+  <!-- Row 7: Egress Control -->
+  <rect x="30" y="430" width="825" height="42" rx="4" fill="#FFFFFF" />
   <rect x="35" y="432" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
   <text x="120" y="456" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Egress Control</text>
 
-  <!-- Row 7: General -->
-  <rect x="30" y="476" width="825" height="42" rx="4" fill="#FFFFFF" />
+  <!-- Row 8: General -->
+  <rect x="30" y="476" width="825" height="42" rx="4" fill="#F5F5F5" />
   <rect x="35" y="478" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
   <text x="120" y="502" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">General</text>
 
-  <!-- Row 8: Inference Failover -->
-  <rect x="30" y="522" width="825" height="42" rx="4" fill="#F5F5F5" />
+  <!-- Row 9: Inference Failover -->
+  <rect x="30" y="522" width="825" height="42" rx="4" fill="#FFFFFF" />
   <rect x="35" y="524" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
   <text x="120" y="548" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Inference Failover</text>
 
-  <!-- Row 9: Load Balancing -->
-  <rect x="30" y="568" width="825" height="42" rx="4" fill="#FFFFFF" />
+  <!-- Row 10: Load Balancing -->
+  <rect x="30" y="568" width="825" height="42" rx="4" fill="#F5F5F5" />
   <rect x="35" y="570" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
   <text x="120" y="594" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Load Balancing</text>
 
-  <!-- Row 10: OAuth 3rd-Party -->
-  <rect x="30" y="614" width="825" height="42" rx="4" fill="#F5F5F5" />
+  <!-- Row 11: OAuth 3rd-Party -->
+  <rect x="30" y="614" width="825" height="42" rx="4" fill="#FFFFFF" />
   <rect x="35" y="616" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
   <text x="120" y="640" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">OAuth 3rd-Party</text>
 
-  <!-- Row 11: Secure Blob Access -->
-  <rect x="30" y="660" width="825" height="42" rx="4" fill="#FFFFFF" />
+  <!-- Row 12: Secure Blob Access -->
+  <rect x="30" y="660" width="825" height="42" rx="4" fill="#F5F5F5" />
   <rect x="35" y="662" width="170" height="38" rx="6" fill="url(#rowLabelGrad)" filter="url(#shadow)" />
   <text x="120" y="686" text-anchor="middle" font-size="13" font-weight="600" fill="#FFFFFF">Secure Blob Access</text>
+  </g>
 
   <!-- Vertical grid lines -->
-  <line x1="210" y1="92" x2="210" y2="704" stroke="#E0E0E0" stroke-width="0.5" />
-  <line x1="340" y1="92" x2="340" y2="704" stroke="#E0E0E0" stroke-width="0.5" />
-  <line x1="470" y1="92" x2="470" y2="704" stroke="#E0E0E0" stroke-width="0.5" />
-  <line x1="600" y1="92" x2="600" y2="704" stroke="#E0E0E0" stroke-width="0.5" />
-  <line x1="730" y1="92" x2="730" y2="704" stroke="#E0E0E0" stroke-width="0.5" />
+  <line x1="210" y1="92" x2="210" y2="750" stroke="#E0E0E0" stroke-width="0.5" />
+  <line x1="340" y1="92" x2="340" y2="750" stroke="#E0E0E0" stroke-width="0.5" />
+  <line x1="470" y1="92" x2="470" y2="750" stroke="#E0E0E0" stroke-width="0.5" />
+  <line x1="600" y1="92" x2="600" y2="750" stroke="#E0E0E0" stroke-width="0.5" />
+  <line x1="730" y1="92" x2="730" y2="750" stroke="#E0E0E0" stroke-width="0.5" />
 
   <!-- Compatibility indicators -->
   <!-- Row 1: AuthX - all compatible -->
@@ -156,7 +175,8 @@
   <text x="660" y="317" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="790" cy="313" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="790" y="317" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
-  <!-- Row 4: Costing - all compatible -->
+  <g transform="translate(0,46)">
+  <!-- Row 5: Costing - all compatible -->
   <circle cx="270" cy="359" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="270" y="363" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="400" cy="359" r="10" fill="#4CAF50" opacity="0.9" />
@@ -168,7 +188,7 @@
   <circle cx="790" cy="359" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="790" y="363" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
 
-  <!-- Row 5: Dynamic CORS - all compatible -->
+  <!-- Row 6: Dynamic CORS - all compatible -->
   <circle cx="270" cy="405" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="270" y="409" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="400" cy="405" r="10" fill="#4CAF50" opacity="0.9" />
@@ -180,7 +200,7 @@
   <circle cx="790" cy="405" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="790" y="409" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
 
-  <!-- Row 6: Egress Control - only appgw-apim and appgw-apim-pe compatible -->
+  <!-- Row 7: Egress Control - only appgw-apim and appgw-apim-pe compatible -->
   <circle cx="270" cy="451" r="10" fill="#EF5350" opacity="0.9" />
   <text x="270" y="455" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
   <text x="283" y="445" font-size="9" font-weight="600" fill="#1A1A1A">2</text>
@@ -195,7 +215,7 @@
   <circle cx="790" cy="451" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="790" y="455" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
 
-  <!-- Row 7: General - all compatible -->
+  <!-- Row 8: General - all compatible -->
   <circle cx="270" cy="497" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="270" y="501" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="400" cy="497" r="10" fill="#4CAF50" opacity="0.9" />
@@ -207,7 +227,7 @@
   <circle cx="790" cy="497" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="790" y="501" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
 
-  <!-- Row 8: Inference Failover - all compatible -->
+  <!-- Row 9: Inference Failover - all compatible -->
   <circle cx="270" cy="543" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="270" y="547" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="400" cy="543" r="10" fill="#4CAF50" opacity="0.9" />
@@ -219,7 +239,7 @@
   <circle cx="790" cy="543" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="790" y="547" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
 
-  <!-- Row 9: Load Balancing - NOT compatible with Simple APIM -->
+  <!-- Row 10: Load Balancing - NOT compatible with Simple APIM -->
   <circle cx="270" cy="589" r="10" fill="#EF5350" opacity="0.9" />
   <text x="270" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
   <text x="283" y="583" font-size="9" font-weight="600" fill="#1A1A1A">1</text>
@@ -232,7 +252,7 @@
   <circle cx="790" cy="589" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="790" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
 
-  <!-- Row 10: OAuth 3rd-Party - all compatible -->
+  <!-- Row 11: OAuth 3rd-Party - all compatible -->
   <circle cx="270" cy="635" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="270" y="639" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="400" cy="635" r="10" fill="#4CAF50" opacity="0.9" />
@@ -244,7 +264,7 @@
   <circle cx="790" cy="635" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="790" y="639" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
 
-  <!-- Row 11: Secure Blob Access - all compatible -->
+  <!-- Row 12: Secure Blob Access - all compatible -->
   <circle cx="270" cy="681" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="270" y="685" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="400" cy="681" r="10" fill="#4CAF50" opacity="0.9" />
@@ -270,6 +290,7 @@
 
   <!-- Footnote -->
   <text x="40" y="762" font-size="10" fill="#888888"><tspan font-size="8" baseline-shift="super">1</tspan> Requires ACA backends&#160;&#160;&#160;<tspan font-size="8" baseline-shift="super">2</tspan> Requires VNet-capable infrastructure (appgw-apim or appgw-apim-pe)</text>
+  </g>
   </g>
 
 </svg>
