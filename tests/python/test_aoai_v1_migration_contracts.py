@@ -11,7 +11,8 @@ import pytest
 import utils
 
 # APIM Samples imports
-from apimtypes import AzureOpenAIModel
+from apimtypes import INFRASTRUCTURE, AzureOpenAIModel
+from azure_resources import get_infra_rg_name
 
 SAMPLE = Path(__file__).resolve().parents[2] / 'samples' / 'aoai-v1-migration'
 
@@ -52,10 +53,34 @@ def test_notebook_clean_and_configuration_defaults():
     assert ast.unparse(assignments['primary_model']) == 'AzureOpenAIModel.GPT_5_MINI'
     assert ast.unparse(assignments['secondary_model']) == 'AzureOpenAIModel.GPT_5_NANO'
     assert ast.literal_eval(assignments['model_sku']) == 'GlobalStandard'
+    assert {ast.unparse(target) for target in assignments['supported_infras'].elts} == {
+        'INFRASTRUCTURE.SIMPLE_APIM',
+        'INFRASTRUCTURE.APIM_ACA',
+        'INFRASTRUCTURE.APPGW_APIM',
+        'INFRASTRUCTURE.APPGW_APIM_PE',
+        'INFRASTRUCTURE.AFD_APIM_PE',
+    }
     assert AzureOpenAIModel.GPT_5_MINI.version == '2025-08-07'
     assert 'INFRASTRUCTURE.SIMPLE_APIM' in config
     assert "utils.enable_module_autoreload('migration_helpers')" in config
     assert 'require_existing_infrastructure' not in ''.join(sources)
+
+
+def test_compatibility_matrix_includes_all_infrastructures():
+    """Keep the sample's compatibility row complete and alphabetically placed."""
+    root = SAMPLE.parents[1]
+    namespace = {'svg': 'http://www.w3.org/2000/svg'}
+    diagram = ET.parse(root / 'assets' / 'diagrams' / 'Infrastructure-Sample-Compatibility.svg').getroot()
+    row = diagram.find(".//svg:g[@id='azure-openai-v1-migration']", namespace)
+    assert row is not None
+    assert {circle.attrib['cx'] for circle in row.findall('svg:circle', namespace)} == {'270', '400', '530', '660', '790'}
+    texts = [text.text for text in row.findall('svg:text', namespace)]
+    assert texts == ['Azure OpenAI v1 Migration', *['\u2713'] * 5]
+    labels = [text.text for text in diagram.findall('.//svg:text', namespace) if text.attrib.get('x') == '120']
+    assert labels == sorted(labels, key = str.casefold)
+    matrix = (root / 'tests' / 'Test-Matrix.md').read_text(encoding = 'utf-8')
+    matrix_row = next(line for line in matrix.splitlines() if '**Azure OpenAI v1 Migration**' in line)
+    assert [cell.strip() for cell in matrix_row.split('|')[2:-1]] == ['▢ Local<br>▢ Dev Container'] * 5
 
 
 def test_payg_iac_and_isolation():
@@ -189,7 +214,8 @@ def test_backend_http_errors_stay_on_the_response_path(contract):
     assert not any(list(outbound.iter(tag)) for tag in ['set-status', 'set-body', 'return-response'])
 
 
-def test_notebook_staged_workflow_with_mocked_remote_boundaries(monkeypatch):
+@pytest.mark.parametrize('deployment', [INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA])
+def test_notebook_staged_workflow_with_mocked_remote_boundaries(monkeypatch, deployment):
     """Execute the actual cells offline and observe legacy-test-before-v1 ordering."""
     events = []
     deployments = []
@@ -198,6 +224,7 @@ def test_notebook_staged_workflow_with_mocked_remote_boundaries(monkeypatch):
         """Implement the NotebookHelper boundary without Azure."""
 
         def __init__(self, *args, **kwargs):
+            utils.validate_infrastructure(args[3], args[4])
             self.deployment = args[3]
 
         def deploy_sample(self, params):
@@ -235,7 +262,13 @@ def test_notebook_staged_workflow_with_mocked_remote_boundaries(monkeypatch):
     monkeypatch.setattr(utils, 'enable_module_autoreload', lambda *args: None)
     namespace = {}
     code = [''.join(cell['source']) for cell in notebook()['cells'] if cell['cell_type'] == 'code']
-    exec(code[0], namespace)
+    configuration = ast.parse(code[0])
+    for statement in configuration.body:
+        if isinstance(statement, ast.Assign) and isinstance(statement.targets[0], ast.Name) and statement.targets[0].id == 'deployment':
+            statement.value = ast.parse(f'INFRASTRUCTURE.{deployment.name}', mode = 'eval').body
+    exec(compile(ast.fix_missing_locations(configuration), '<notebook configuration>', 'exec'), namespace)
+    assert namespace['nb_helper'].deployment == deployment
+    assert namespace['rg_name'] == get_infra_rg_name(deployment, 1)
     for api_name, policy_name in [('legacy_api', 'pol_legacy'), ('v1_api', 'pol_v1')]:
         api = namespace[api_name]
         assert api.policyXml == namespace[policy_name]
@@ -482,4 +515,4 @@ def test_only_current_lab_artifacts_remain():
     assert not (SAMPLE / 'openai-role.bicep').exists()
     readme = (SAMPLE / 'README.md').read_text(encoding = 'utf-8')
     assert 'No pre-existing Azure OpenAI' in readme
-    assert 'APIM_ACA is unsupported' in readme
+    assert '**Supported infrastructures**: All infrastructures.' in readme
