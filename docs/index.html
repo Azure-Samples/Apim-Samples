@@ -35,7 +35,7 @@
          /index.html and /.
   -->
   <title>Azure API Management Samples - APIM Policies &amp; Architectures</title>
-  <meta name="description" content="Deploy Azure API Management reference architectures and test real-world APIM policies for AI Gateway failover, authentication, networking, and more.">
+  <meta name="description" content="Deploy Azure API Management labs with MockAPI container backends. Explore APIM policies for AI Gateway failover, authentication, load balancing, and networking.">
   <meta name="author" content="Microsoft Azure-Samples">
   <meta name="robots" content="index, follow, max-image-preview:large">
   <meta name="theme-color" content="#0078D4">
@@ -45,7 +45,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Azure-Samples">
   <meta property="og:title" content="Azure API Management Samples - APIM Policies &amp; Architectures">
-  <meta property="og:description" content="Deploy Azure API Management reference architectures and test real-world APIM policies for AI Gateway failover, authentication, networking, and more.">
+  <meta property="og:description" content="Deploy Azure API Management labs with MockAPI container backends. Explore APIM policies for AI Gateway failover, authentication, load balancing, and networking.">
   <meta property="og:url" content="https://azure-samples.github.io/Apim-Samples/">
   <meta property="og:image" content="https://azure-samples.github.io/Apim-Samples/assets/apim-samples-logo.png">
   <meta property="og:image:alt" content="APIM Samples logo: the Azure API Management icon inside a laboratory flask">
@@ -61,7 +61,7 @@
   <!-- Twitter / X card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Azure API Management Samples">
-  <meta name="twitter:description" content="Deploy APIM reference architectures and test real-world policies for AI Gateway failover, authentication, networking, and more.">
+  <meta name="twitter:description" content="Deploy APIM labs with MockAPI container backends. Explore AI Gateway failover, authentication, load balancing, and networking policies.">
   <meta name="twitter:image" content="https://azure-samples.github.io/Apim-Samples/assets/apim-samples-logo.png">
   <meta name="twitter:image:alt" content="APIM Samples logo: the Azure API Management icon inside a laboratory flask">
 
@@ -96,7 +96,7 @@
         "@id": "https://azure-samples.github.io/Apim-Samples/#website",
         "url": "https://azure-samples.github.io/Apim-Samples/",
         "name": "Azure API Management Samples",
-        "description": "Deploy Azure API Management reference architectures and experiment with real-world APIM policies.",
+        "description": "Deploy Azure API Management reference architectures with MockAPI container backends and experiment with real-world APIM policies.",
         "inLanguage": "en-US",
         "publisher": {
           "@type": "Organization",
@@ -108,13 +108,13 @@
         "@type": "SoftwareSourceCode",
         "@id": "https://github.com/Azure-Samples/Apim-Samples#repo",
         "name": "Azure API Management Samples",
-        "description": "High-fidelity Azure API Management infrastructures and real-world policy samples. Jupyter-driven labs covering AI Gateway failover, Azure OpenAI telemetry, Front Door, Application Gateway, Private Link, authentication, load balancing, cost allocation, and OAuth credential management.",
+        "description": "High-fidelity Azure API Management infrastructures and real-world policy samples. Container Apps backends use MockAPI with authenticated dashboards and persistent Blob configuration. Jupyter-driven labs cover AI Gateway failover, Azure OpenAI telemetry, Front Door, Application Gateway, Private Link, authentication, load balancing, cost allocation, and OAuth credential management.",
         "url": "https://azure-samples.github.io/Apim-Samples/",
         "codeRepository": "https://github.com/Azure-Samples/Apim-Samples",
         "programmingLanguage": ["Python", "Bicep", "XML"],
         "runtimePlatform": "Azure",
         "license": "https://github.com/Azure-Samples/Apim-Samples/blob/main/LICENSE",
-        "keywords": "Azure API Management, APIM, APIM policies, AI Gateway, Azure OpenAI, Azure OpenAI v1 migration, inference failover, API gateway, Azure Front Door, Application Gateway, Private Link, VNet injection, Bicep, Jupyter, load balancing, JWT validation, OAuth, Credential Manager",
+        "keywords": "Azure API Management, APIM, APIM policies, MockAPI, Azure Container Apps, AI Gateway, Azure OpenAI, Azure OpenAI v1 migration, inference failover, API gateway, Azure Front Door, Application Gateway, Private Link, VNet injection, Bicep, Jupyter, load balancing, JWT validation, OAuth, Credential Manager",
         "author": {
           "@type": "Organization",
           "name": "Microsoft",
@@ -326,6 +326,8 @@
           Each architecture is deployed with a single Jupyter notebook and torn down just as easily.
           These high-fidelity environments let you explore network patterns, private connectivity, and
           ingress design without building a full landing zone.
+          When enabled, Container Apps backends use two <a href="https://mockapi.simondoescloud.com" target="_blank" rel="noopener">MockAPI</a> instances with authenticated dashboards
+          and persistent Blob configuration. Simple API Management does not deploy MockAPI.
         </p>
 
         <div class="infra-grid">
@@ -348,13 +350,14 @@
           <a class="infra-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/infrastructure/apim-aca" target="_blank" rel="noopener">
             <div class="diagram">
               <img src="./assets/diagrams/apim-aca.svg"
-                   alt="Architecture diagram: Azure API Management routing to APIs hosted in Azure Container Apps">
+                   alt="Architecture diagram: Azure API Management routing to MockAPI backends hosted in Azure Container Apps">
             </div>
             <div class="body">
               <h3>API Management &amp; Container Apps</h3>
               <p>
-                APIs implemented in containers running on Azure Container Apps. Contrast calls through APIM
-                against direct container endpoints to feel the difference the gateway makes.
+                Two MockAPI backends with authenticated dashboards. Compare APIM calls using subscription
+                keys with direct endpoint calls using the separate MockAPI key.
+                MockAPI configuration persists through a private Blob endpoint in a dedicated VNet.
               </p>
             </div>
           </a>
@@ -369,6 +372,7 @@
               <p>
                 A secure implementation with Azure Front Door connecting to APIM via Private Link. Traffic
                 rides entirely on Microsoft-owned networks once it passes Front Door.
+                Optional MockAPI backends run in VNet-integrated Container Apps.
               </p>
               <span class="pill">Private Link</span>
             </div>
@@ -383,7 +387,7 @@
               <h3>Application Gateway (Private Link)</h3>
               <p>
                 Application Gateway reaches APIM through a private endpoint in a VNet subnet. APIM Standard
-                V2 accepts the connection, with VNet-integrated Container Apps behind.
+                V2 accepts the connection, with optional MockAPI backends in VNet-integrated Container Apps.
               </p>
               <span class="pill">Private Link</span>
             </div>
@@ -398,7 +402,7 @@
               <h3>Application Gateway (VNet)</h3>
               <p>
                 Full VNet injection of APIM and Container Apps. APIM is shielded from any traffic unless it
-                comes through Application Gateway. Maximum isolation.
+                comes through Application Gateway. Optional MockAPI backends use private ingress.
               </p>
               <span class="pill">VNet Injection</span>
             </div>
@@ -485,7 +489,7 @@
 
           <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/load-balancing" target="_blank" rel="noopener">
             <h3>Load Balancing</h3>
-            <p>Priority and weighted load balancing across backend pools for resilience and blue-green rollouts.</p>
+            <p>Priority and weighted load balancing, circuit breaking, and recovery using throttled endpoints on infrastructure-owned MockAPI backends. No extra container required.</p>
             <span class="infra-tag">apim-aca · afd-apim-pe</span>
           </a>
 

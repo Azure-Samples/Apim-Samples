@@ -48,12 +48,18 @@ param afdEndpointName string = 'afd-${resourceSuffix}'
 param acaName string = 'aca-${resourceSuffix}'
 param useACA bool = false
 
+@secure()
+@description('MockAPI credentials generated and preserved by the infrastructure deployment helper when ACA is enabled.')
+param mockApiCredentials object = {}
+
+@description('Object ID of the deployment principal that seeds initial MockAPI configurations.')
+param currentUserId string = ''
+
 // ------------------
 //    "CONSTANTS"
 // ------------------
 
 var IMG_HELLO_WORLD = 'simonkurtzmsft/helloworld:latest'
-var IMG_MOCK_WEB_API = 'simonkurtzmsft/mockwebapi:1.0.0-alpha.1'
 
 // ------------------
 //    RESOURCES
@@ -255,22 +261,15 @@ module acaEnvModule '../../shared/bicep/modules/aca/v1/environment.bicep' = if (
   }
 }
 
-// 8. Azure Container Apps (ACA) for Mock Web API
-module acaModule1 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (useACA) {
-  name: 'acaModule-1'
+// 8. Persistent MockAPI backends
+module mockApiModule '../../shared/bicep/modules/aca/v1/mockapi.bicep' = if (useACA) {
+  name: 'mockApiModule'
   params: {
-    name: 'ca-${resourceSuffix}-mockwebapi-1'
-    containerImage: IMG_MOCK_WEB_API
+    location: location
+    resourceSuffix: resourceSuffix
     environmentId: acaEnvModule!.outputs.environmentId
-  }
-}
-
-module acaModule2 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = if (useACA) {
-  name: 'acaModule-2'
-  params: {
-    name: 'ca-${resourceSuffix}-mockwebapi-2'
-    containerImage: IMG_MOCK_WEB_API
-    environmentId: acaEnvModule!.outputs.environmentId
+    configurationWriterPrincipalId: currentUserId
+    credentials: mockApiCredentials
   }
 }
 
@@ -318,15 +317,32 @@ module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.
 }]
 
 // 11. APIM Backends for ACA
+module mockApiKeyNamedValue '../../shared/bicep/modules/apim/v1/named-value.bicep' = if (useACA) {
+  name: 'mockApiKeyNamedValue'
+  params: {
+    apimName: apimName
+    namedValueName: 'mockapi-key'
+    namedValueValue: mockApiCredentials.apiKey
+    namedValueIsSecret: true
+  }
+  dependsOn: [
+    apimModule
+  ]
+}
+
 module backendModule1 '../../shared/bicep/modules/apim/v1/backend.bicep' = if (useACA) {
   name: 'aca-backend-1'
   params: {
     apimName: apimName
     backendName: 'aca-backend-1'
-    url: 'https://${acaModule1!.outputs.containerAppFqdn}'
+    url: 'https://${mockApiModule!.outputs.containerAppFqdns[0]}'
+    credentialHeaders: {
+      'X-MockAPI-Key': ['{{mockapi-key}}']
+    }
   }
   dependsOn: [
     apimModule
+    mockApiKeyNamedValue
   ]
 }
 
@@ -335,10 +351,14 @@ module backendModule2 '../../shared/bicep/modules/apim/v1/backend.bicep' = if (u
   params: {
     apimName: apimName
     backendName: 'aca-backend-2'
-    url: 'https://${acaModule2!.outputs.containerAppFqdn}'
+    url: 'https://${mockApiModule!.outputs.containerAppFqdns[1]}'
+    credentialHeaders: {
+      'X-MockAPI-Key': ['{{mockapi-key}}']
+    }
   }
   dependsOn: [
     apimModule
+    mockApiKeyNamedValue
   ]
 }
 
@@ -434,6 +454,9 @@ output logAnalyticsWorkspaceId string = lawModule.outputs.customerId
 output apimServiceId string = apimModule.outputs.id
 output apimServiceName string = apimModule.outputs.name
 output apimResourceGatewayURL string = apimModule.outputs.gatewayUrl
+output mockApiStorageAccountName string = useACA ? mockApiModule!.outputs.storageAccountName : ''
+output mockApiContainerAppNames array = useACA ? mockApiModule!.outputs.containerAppNames : []
+output mockApiDashboardUrls array = useACA ? map(mockApiModule!.outputs.containerAppFqdns, fqdn => 'https://${fqdn}/') : []
 output fdeHostName string = afdModule.outputs.fdeHostName
 output fdeSecureUrl string = afdModule.outputs.fdeSecureUrl
 

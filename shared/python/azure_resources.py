@@ -426,6 +426,7 @@ def run(
     error_message: str | None = None,
     *,
     log_command: bool | None = None,
+    sensitive_output: bool = False,
     timeout: int = 240,
     retries: int = 1,
 ) -> Output:
@@ -441,9 +442,10 @@ def run(
     Args:
         timeout: Maximum seconds to wait for the command to complete (default 240).
         retries: Number of retry attempts after the initial execution (default 1).
+        sensitive_output: Suppress output logging and automatic CLI debug for secret-bearing requests or responses.
     """
 
-    command_to_run = _maybe_add_az_debug_flag(command)
+    command_to_run = command if sensitive_output else _maybe_add_az_debug_flag(command)
     normalized_ok_message = ok_message or ''
     normalized_error_message = error_message or ''
 
@@ -525,11 +527,11 @@ def run(
 
     display_error = ''
     deployment_failure_summary = ''
-    if not success and _is_az_command(command_to_run):
+    if not success and _is_az_command(command_to_run) and not sensitive_output:
         display_error = _extract_az_cli_error_message(combined_text)
         deployment_failure_summary = _get_group_deployment_failure_summary(command_to_run)
 
-    if is_debug_enabled():
+    if is_debug_enabled() and not sensitive_output:
         # Azure CLI debug output is commonly written to stderr; log it at DEBUG without
         # polluting captured stdout used for JSON parsing.
         if stderr_text.strip():
@@ -544,7 +546,7 @@ def run(
         if normalized_ok_message:
             print_ok(normalized_ok_message, duration=duration)
     else:
-        summary_output = (display_error or combined_text).strip()
+        summary_output = 'Command failed; sensitive output was withheld.' if sensitive_output else (display_error or combined_text).strip()
         if deployment_failure_summary:
             summary_output = f'{summary_output}\n\n{deployment_failure_summary}' if summary_output else deployment_failure_summary
 

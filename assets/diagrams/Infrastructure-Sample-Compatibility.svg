@@ -239,7 +239,7 @@
   <circle cx="790" cy="543" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="790" y="547" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
 
-  <!-- Row 10: Load Balancing - NOT compatible with Simple APIM -->
+  <!-- Row 10: Load Balancing - supported on APIM ACA and AFD APIM PE only -->
   <circle cx="270" cy="589" r="10" fill="#EF5350" opacity="0.9" />
   <text x="270" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
   <text x="283" y="583" font-size="9" font-weight="600" fill="#1A1A1A">1</text>
@@ -247,10 +247,10 @@
   <text x="400" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
   <circle cx="530" cy="589" r="10" fill="#4CAF50" opacity="0.9" />
   <text x="530" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
-  <circle cx="660" cy="589" r="10" fill="#4CAF50" opacity="0.9" />
-  <text x="660" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
-  <circle cx="790" cy="589" r="10" fill="#4CAF50" opacity="0.9" />
-  <text x="790" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2713;</text>
+  <circle cx="660" cy="589" r="10" fill="#EF5350" opacity="0.9" />
+  <text x="660" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
+  <circle cx="790" cy="589" r="10" fill="#EF5350" opacity="0.9" />
+  <text x="790" y="593" text-anchor="middle" font-size="13" font-weight="700" fill="#FFFFFF">&#x2717;</text>
 
   <!-- Row 11: OAuth 3rd-Party - all compatible -->
   <circle cx="270" cy="635" r="10" fill="#4CAF50" opacity="0.9" />

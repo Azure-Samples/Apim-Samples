@@ -1,6 +1,6 @@
 # Front Door & API Management & Container Apps Infrastructure
 
-Secure architecture that takes all traffic off the public Internet once Azure Front Door is traversed. Traffic behind Front Door is subsequently inaccessible to the public. This is due to Front Door's use of Private Link to Azure API Management.
+Secure architecture that takes API traffic off the public Internet once Azure Front Door is traversed, using Private Link to Azure API Management. Optional Azure Container Apps host two [MockAPI](https://github.com/simonkurtz-MSFT/MockAPI) backends with private ingress, authenticated dashboards, and persistent Blob configuration.
 
 ![Diagram showing Azure Front Door, API Management, and Container Apps architecture. Azure Front Door routes traffic to API Management, which then routes to Container Apps. Telemetry is sent to Azure Monitor.](../../assets/diagrams/Azure%20Front%20Door%2C%20API%20Management%20%26%20Container%20Apps%20Architecture.svg "Azure Front Door, API Management & Container Apps Architecture")
 
@@ -26,6 +26,14 @@ NSG behavior:
 - `nsg-default`: Generic fallback NSG for subnets that do not have a service-specific NSG. It stays intentionally generic.
 - `use_strict_nsg = False`: Service subnets get permissive service-aware NSGs: `nsg-apim` and `nsg-aca`. These preserve Azure platform requirements and avoid unnecessary ingress restrictions.
 - `use_strict_nsg = True`: Service subnets get strict NSGs: `nsg-apim-strict` and `nsg-aca-strict`. These keep required platform rules but restrict ingress so traffic follows Front Door -> APIM -> ACA.
+
+### MockAPI backends
+
+Explore the [MockAPI website](https://mockapi.simondoescloud.com) for product information and documentation.
+
+When ACA is enabled, both generic backends use digest-pinned MockAPI with username `admin`, a generated 16-character password, and an independent secret `X-MockAPI-Key`. APIM injects the key while preserving `/aca-1`, `/aca-2`, and `/aca-pool`. Existing Container App names are retained.
+
+Deployment also creates persistent Blob storage and scoped role assignments, so the deployment principal needs role-assignment permissions. Storage uses an authenticated public endpoint even though backend ingress is private. See the [shared MockAPI operations guide](../apim-aca/README.md#mockapi-backends) for credential recovery, bootstrap-only key semantics, reruns, and costs. MockAPI images have no release waiting period. Deployments with ACA disabled are unchanged.
 
 ## ▶️ Execution
 

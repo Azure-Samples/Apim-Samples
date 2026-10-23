@@ -35,6 +35,27 @@ param ingressPort int = 8080
 @description('Enable public ingress')
 param ingressExternal bool = true
 
+@secure()
+@description('Secure configuration object containing the Container Apps secrets array.')
+param secretConfiguration object = {}
+
+@description('Container environment variables, including secretRef entries.')
+param environmentVariables array = []
+
+@description('Optional user-assigned managed identity resource ID.')
+param userAssignedIdentityId string = ''
+
+@description('HTTP health probes for the container.')
+param probes array = []
+
+@minValue(0)
+@description('Minimum number of replicas.')
+param minReplicas int = 1
+
+@minValue(1)
+@description('Maximum number of replicas.')
+param maxReplicas int = 3
+
 
 // ------------------------------
 //    RESOURCES
@@ -45,9 +66,17 @@ param ingressExternal bool = true
 resource containerApp 'Microsoft.App/containerApps@2025-01-01' = {
   name: name
   location: location
+  identity: empty(userAssignedIdentityId) ? null : {
+    type: 'UserAssigned'
+    userAssignedIdentities: {
+      '${userAssignedIdentityId}': {}
+    }
+  }
   properties: {
     managedEnvironmentId: environmentId
     configuration: {
+      activeRevisionsMode: 'Single'
+      secrets: secretConfiguration.?secrets ?? []
       ingress: {
         external: ingressExternal
         targetPort: ingressPort
@@ -61,6 +90,8 @@ resource containerApp 'Microsoft.App/containerApps@2025-01-01' = {
         {
           name: name
           image: containerImage
+          env: environmentVariables
+          probes: probes
           resources: {
             cpu: json(cpu)  // Convert string to JSON, which is bizarre, but required for this "int"
             memory: memory
@@ -68,8 +99,8 @@ resource containerApp 'Microsoft.App/containerApps@2025-01-01' = {
         }
       ]
       scale: {
-        minReplicas: 1
-        maxReplicas: 3
+        minReplicas: minReplicas
+        maxReplicas: maxReplicas
       }
     }
   }

@@ -1,0 +1,18 @@
+<policies>
+    <inbound>
+        <base />
+        <set-header name="X-MockAPI-Key" exists-action="delete" />
+        <set-backend-service backend-id="{backend_id}" />
+        <!-- Exact-path matching must not inherit the caller's trailing slash. -->
+        <rewrite-uri template="/hello" copy-unmatched-params="false" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>

@@ -26,6 +26,9 @@ param backendType string = ''
 @description('The TLS validation settings for the backend. Leave empty to use the API Management defaults.')
 param tls object = {}
 
+@description('Backend credential headers. Use secret Named Value references rather than literal secrets.')
+param credentialHeaders object = {}
+
 @description('The circuit breaker configuration for the backend.')
 param circuitBreaker object = {
   rules: [
@@ -68,6 +71,11 @@ var backendProperties = union(
   },
   empty(tls) ? {} : {
     tls: tls
+  },
+  empty(credentialHeaders) ? {} : {
+    credentials: {
+      header: credentialHeaders
+    }
   }
 )
 

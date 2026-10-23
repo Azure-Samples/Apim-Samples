@@ -1057,7 +1057,7 @@
       <div class="accent"></div>
       <h2>5 Infrastructure Architectures</h2>
     </div>
-    <p class="subtitle">From simple public access to fully-private enterprise-grade networking</p>
+    <p class="subtitle">From public access to private networking. Container Apps backends use <a href="https://mockapi.simondoescloud.com" target="_blank" rel="noopener" style="color: inherit;">MockAPI</a> with authenticated dashboards and persistent configuration.</p>
 
     <div class="arch-grid" style="flex: 1;">
       <div class="arch-card">
@@ -1067,22 +1067,22 @@
       </div>
       <div class="arch-card">
         <h4>APIM & Container Apps</h4>
-        <p>APIs in Azure Container Apps with public access. Ideal for container-based backends.</p>
-        <span class="tag">ACA Backend</span>
+        <p>Two HTTPS MockAPI backends with authenticated dashboards and private Blob connectivity for persistent configuration.</p>
+        <span class="tag">MockAPI Backends</span>
       </div>
       <div class="arch-card">
         <h4>Front Door & APIM (Private Link)</h4>
-        <p>Azure Front Door to APIM via private link. Traffic rides the Microsoft backbone.</p>
+        <p>Azure Front Door to APIM via private link. Optional MockAPI backends in VNet-integrated Container Apps.</p>
         <span class="tag">Standard V2</span>
       </div>
       <div class="arch-card">
         <h4>App Gateway & APIM (Private Link)</h4>
-        <p>Application Gateway to APIM via Private Link, using a private endpoint for the inbound connection.</p>
+        <p>Application Gateway to APIM via Private Link. Optional MockAPI backends in VNet-integrated Container Apps.</p>
         <span class="tag">Standard V2</span>
       </div>
       <div class="arch-card" style="grid-column: span 2;">
         <h4>App Gateway & APIM (VNet Injection)</h4>
-        <p>Full VNet injection of APIM and ACA. Maximum network isolation. APIM is shielded unless traffic comes through App Gateway.</p>
+        <p>Full VNet injection of APIM and ACA. Optional MockAPI backends use private ingress. APIM is shielded unless traffic comes through App Gateway.</p>
         <span class="tag">Max Isolation</span>
       </div>
     </div>
@@ -1138,7 +1138,7 @@
       </div>
       <div class="arch-card">
         <h4>Load Balancing</h4>
-        <p>Priority &amp; weighted load balancing across backends.</p>
+        <p>MockAPI pools: priorities, weights, retries, and circuit breakers.</p>
       </div>
       <div class="arch-card">
         <h4>OAuth 3rd-Party</h4>
@@ -1319,7 +1319,7 @@
           <li><div class="bullet"></div><div><strong>API Management service</strong> &mdash; The core APIM instance with configured APIs and policies</div></li>
           <li><div class="bullet"></div><div><strong>Application Insights</strong> &mdash; Monitoring, logging, and diagnostics for API calls</div></li>
           <li><div class="bullet"></div><div><strong>Networking</strong> &mdash; VNets, subnets, NSGs, private endpoints (depending on infrastructure)</div></li>
-          <li><div class="bullet"></div><div><strong>Container Apps</strong> &mdash; Backend APIs running in ACA (where applicable)</div></li>
+          <li><div class="bullet"></div><div><strong>MockAPI backends</strong> - Two Container Apps with authenticated dashboards and Blob-backed configuration (where enabled)</div></li>
         </ul>
       </div>
       <div class="col">
@@ -1329,6 +1329,7 @@
           <li><div class="bullet"></div><div><strong>Policy Editor</strong> &mdash; View and edit inbound, outbound, and backend policies</div></li>
           <li><div class="bullet"></div><div><strong>Subscriptions</strong> &mdash; Manage API keys and access control</div></li>
           <li><div class="bullet"></div><div><strong>Diagnostics</strong> &mdash; Trace API calls, view logs, and monitor performance</div></li>
+          <li><div class="bullet"></div><div><strong>MockAPI dashboards</strong> - Edit endpoints with the printed credentials; clear notebook output before sharing</div></li>
         </ul>
       </div>
     </div>

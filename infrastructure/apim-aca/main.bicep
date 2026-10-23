@@ -13,15 +13,19 @@ param apimSku string
 param apis array = []
 param policyFragments array = []
 
+@secure()
+@description('MockAPI credentials generated and preserved by the infrastructure deployment helper.')
+param mockApiCredentials object
+
+@description('Object ID of the deployment principal that seeds initial MockAPI configurations.')
+param currentUserId string
+
 @description('Reveals the backend API information. Defaults to true. *** WARNING: This will expose backend API information to the caller - For learning & testing only! ***')
 param revealBackendApiInfo bool = true
 
 // ------------------
 //    "CONSTANTS"
 // ------------------
-
-var IMG_HELLO_WORLD = 'simonkurtzmsft/helloworld:latest'
-var IMG_MOCK_WEB_API = 'simonkurtzmsft/mockwebapi:1.0.0-alpha.1'
 
 // ------------------
 //    RESOURCES
@@ -46,33 +50,76 @@ module appInsightsModule '../../shared/bicep/modules/monitor/v1/appinsights.bice
 var appInsightsId = appInsightsModule.outputs.id
 var appInsightsInstrumentationKey = appInsightsModule.outputs.instrumentationKey
 
-// 3. Azure Container App Environment (ACAE)
+// 3. Container Apps networking and private Blob connectivity
+module nsgAcaModule '../../shared/bicep/modules/vnet/v1/nsg-aca.bicep' = {
+  name: 'nsgAcaModule'
+  params: {
+    location: location
+    acaSubnetPrefix: '10.42.0.0/23'
+  }
+}
+
+module vnetModule '../../shared/bicep/modules/vnet/v1/vnet.bicep' = {
+  name: 'vnetModule'
+  params: {
+    location: location
+    vnetName: 'vnet-mockapi-${resourceSuffix}'
+    vnetAddressPrefixes: [
+      '10.42.0.0/16'
+    ]
+    subnets: [
+      {
+        name: 'aca'
+        properties: {
+          addressPrefix: '10.42.0.0/23'
+          networkSecurityGroup: {
+            id: nsgAcaModule.outputs.nsgId
+          }
+          delegations: [
+            {
+              name: 'Microsoft.App/environments'
+              properties: {
+                serviceName: 'Microsoft.App/environments'
+              }
+            }
+          ]
+        }
+      }
+      {
+        name: 'private-endpoints'
+        properties: {
+          addressPrefix: '10.42.2.0/27'
+          privateEndpointNetworkPolicies: 'Disabled'
+        }
+      }
+    ]
+  }
+}
+
+// A new environment preserves the old non-VNet environment until migration is verified.
 module acaEnvModule '../../shared/bicep/modules/aca/v1/environment.bicep' = {
   name: 'acaEnvModule'
   params: {
-    name: 'cae-${resourceSuffix}'
+    name: 'cae-${resourceSuffix}-private'
     location: location
+    subnetResourceId: '${vnetModule.outputs.vnetId}/subnets/aca'
+    internalVnet: false
     logAnalyticsWorkspaceCustomerId: lawModule.outputs.customerId
     logAnalyticsWorkspaceSharedKey: lawModule.outputs.clientSecret
   }
 }
 
-// 4. Azure Container Apps (ACA) for Mock Web API
-module acaModule1 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = {
-  name: 'acaModule-1'
+// 4. Persistent MockAPI backends
+module mockApiModule '../../shared/bicep/modules/aca/v1/mockapi.bicep' = {
+  name: 'mockApiModule'
   params: {
-    name: 'ca-${resourceSuffix}-mockwebapi-1'
-    containerImage: IMG_MOCK_WEB_API
+    location: location
+    resourceSuffix: resourceSuffix
     environmentId: acaEnvModule.outputs.environmentId
-  }
-}
-
-module acaModule2 '../../shared/bicep/modules/aca/v1/containerapp.bicep' = {
-  name: 'acaModule-2'
-  params: {
-    name: 'ca-${resourceSuffix}-mockwebapi-2'
-    containerImage: IMG_MOCK_WEB_API
-    environmentId: acaEnvModule.outputs.environmentId
+    storageVirtualNetworkId: vnetModule.outputs.vnetId
+    storagePrivateEndpointSubnetId: '${vnetModule.outputs.vnetId}/subnets/private-endpoints'
+    configurationWriterPrincipalId: currentUserId
+    credentials: mockApiCredentials
   }
 }
 
@@ -118,15 +165,32 @@ module policyFragmentModule '../../shared/bicep/modules/apim/v1/policy-fragment.
 }]
 
 // 7. APIM Backends for ACA
+module mockApiKeyNamedValue '../../shared/bicep/modules/apim/v1/named-value.bicep' = {
+  name: 'mockApiKeyNamedValue'
+  params: {
+    apimName: apimName
+    namedValueName: 'mockapi-key'
+    namedValueValue: mockApiCredentials.apiKey
+    namedValueIsSecret: true
+  }
+  dependsOn: [
+    apimModule
+  ]
+}
+
 module backendModule1 '../../shared/bicep/modules/apim/v1/backend.bicep' = {
   name: 'aca-backend-1'
   params: {
     apimName: apimName
     backendName: 'aca-backend-1'
-    url: 'https://${acaModule1.outputs.containerAppFqdn}'
+    url: 'https://${mockApiModule.outputs.containerAppFqdns[0]}'
+    credentialHeaders: {
+      'X-MockAPI-Key': ['{{mockapi-key}}']
+    }
   }
   dependsOn: [
     apimModule
+    mockApiKeyNamedValue
   ]
 }
 
@@ -135,10 +199,14 @@ module backendModule2 '../../shared/bicep/modules/apim/v1/backend.bicep' = {
   params: {
     apimName: apimName
     backendName: 'aca-backend-2'
-    url: 'https://${acaModule2.outputs.containerAppFqdn}'
+    url: 'https://${mockApiModule.outputs.containerAppFqdns[1]}'
+    credentialHeaders: {
+      'X-MockAPI-Key': ['{{mockapi-key}}']
+    }
   }
   dependsOn: [
     apimModule
+    mockApiKeyNamedValue
   ]
 }
 
@@ -195,8 +263,11 @@ output logAnalyticsWorkspaceId string = lawModule.outputs.customerId
 output apimServiceId string = apimModule.outputs.id
 output apimServiceName string = apimModule.outputs.name
 output apimResourceGatewayURL string = apimModule.outputs.gatewayUrl
-output acaUrl1 string = 'https://${acaModule1.outputs.containerAppFqdn}'
-output acaUrl2 string = 'https://${acaModule2.outputs.containerAppFqdn}'
+output acaUrl1 string = 'https://${mockApiModule.outputs.containerAppFqdns[0]}/hello'
+output acaUrl2 string = 'https://${mockApiModule.outputs.containerAppFqdns[1]}/hello'
+output mockApiStorageAccountName string = mockApiModule.outputs.storageAccountName
+output mockApiContainerAppNames array = mockApiModule.outputs.containerAppNames
+output mockApiDashboardUrls array = map(mockApiModule.outputs.containerAppFqdns, fqdn => 'https://${fqdn}/')
 
 // API outputs
 output apiOutputs array = [for i in range(0, length(apis)): {

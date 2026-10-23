@@ -2,13 +2,13 @@
     Load balancing policy that tracks which backend has the soonest recovery time.
 
     On each backend response containing a Retry-After header, the policy records the absolute
-    UTC recovery instant as Unix epoch seconds (now + Retry-After seconds), keeping the
+    UTC recovery instant as Unix epoch seconds, accepting delta-seconds or an HTTP date and keeping the
     minimum value observed across all attempts in the APIM internal cache.
 
     When the backend pool is exhausted, the on-error block converts the 503/429 response into a
     429 and emits a Retry-After header equal to the remaining whole seconds until that minimum
     recovery instant. Using Unix epoch seconds keeps the math to a single subtraction
-    (cachedEpoch - nowEpoch) and avoids DateTime parsing types not allowed in APIM expressions.
+    (cachedEpoch - nowEpoch). DateTimeOffset parsing is supported by APIM policy expressions.
 -->
 <policies>
     <inbound>
@@ -23,14 +23,15 @@
                 <when condition='@((context.Response.StatusCode == 429 || context.Response.StatusCode == 503) &amp;&amp; context.Response.Headers.ContainsKey("Retry-After"))'>
                     <cache-lookup-value key="lb-retry-min-{cache_key}" variable-name="cachedRetryEpoch" />
                     <set-variable name="updatedRetryEpoch" value='@{{
-                        // Parse the Retry-After header value as an integer number of seconds
-                        int seconds;
-                        var raHeader = context.Response.Headers.GetValueOrDefault("Retry-After", "0");
-                        if (!int.TryParse(raHeader, out seconds)) {{ seconds = 0; }}
-
-                        // Calculate the candidate epoch time based on the Retry-After header
                         var nowEpoch = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                        var candidateEpoch = nowEpoch + seconds;
+                        var raHeader = context.Response.Headers.GetValueOrDefault("Retry-After", "3");
+                        int seconds;
+                        DateTimeOffset recoveryDate;
+                        var candidateEpoch = int.TryParse(raHeader, out seconds) &amp;&amp; seconds &gt;= 0
+                            ? nowEpoch + seconds
+                            : DateTimeOffset.TryParse(raHeader, out recoveryDate)
+                                ? recoveryDate.ToUnixTimeSeconds()
+                                : nowEpoch + 3;
 
                         // Return the minimum of the cached value and the candidate value, or the candidate
                         // if no cached value exists or the cached value is already in the past (stale).
@@ -53,23 +54,41 @@
         <base />
         <choose>
             <!-- Catch 503 responses that indicate the backend pool is unhealthy and return 429 instead -->
-            <!-- The Retry-After header is already contained in the output from the backend and will be passed back to the caller -->
             <when condition="@(context.Response.StatusCode == 503 || context.Response.StatusCode == 429)">
                 <cache-lookup-value key="lb-retry-min-{cache_key}" variable-name="cachedRetryEpoch" />
+                <!-- A pool-generated 503 skips post-forward policies and may carry an HTTP-date.
+                     Read that header here too; a cold cache must not turn it into a one-second wait. -->
+                <set-variable name="retryRecoveryEpoch" value='@{{
+                    var nowEpoch = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                    var raHeader = context.Response.Headers.GetValueOrDefault("Retry-After", "3");
+                    int seconds;
+                    DateTimeOffset recoveryDate;
+                    var recoveryEpoch = int.TryParse(raHeader, out seconds) &amp;&amp; seconds &gt;= 0
+                        ? nowEpoch + seconds
+                        : DateTimeOffset.TryParse(raHeader, out recoveryDate)
+                            ? recoveryDate.ToUnixTimeSeconds()
+                            : nowEpoch + 3;
+
+                    long candidateEpoch;
+                    var updated = context.Variables.ContainsKey("updatedRetryEpoch") ? context.Variables["updatedRetryEpoch"] as string : null;
+                    if (long.TryParse(updated, out candidateEpoch) &amp;&amp; candidateEpoch &gt; nowEpoch) {{
+                        recoveryEpoch = Math.Min(recoveryEpoch, candidateEpoch);
+                    }}
+                    var cached = context.Variables.ContainsKey("cachedRetryEpoch") ? context.Variables["cachedRetryEpoch"] as string : null;
+                    if (long.TryParse(cached, out candidateEpoch) &amp;&amp; candidateEpoch &gt; nowEpoch) {{
+                        recoveryEpoch = Math.Min(recoveryEpoch, candidateEpoch);
+                    }}
+                    return recoveryEpoch.ToString();
+                }}' />
                 <set-header name="Retry-After" exists-action="override">
                     <value>@{{
-                        var cached = context.Variables.ContainsKey("cachedRetryEpoch") ? context.Variables["cachedRetryEpoch"] as string : null;
-                        if (string.IsNullOrEmpty(cached)) {{ return "1"; }}
-
-                        long cachedEpoch;
-                        if (!long.TryParse(cached, out cachedEpoch)) {{ return "1"; }}
-
                         // Add a 1-second buffer so callers that wait exactly Retry-After seconds
                         // land just after the backend's recovery instant rather than racing it.
                         // This absorbs clock skew between gateway and client and the small latency
                         // of the next inbound request, both of which would otherwise produce another
                         // 429 immediately after the wait.
-                        var remaining = Math.Max(0L, cachedEpoch - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                        var recoveryEpoch = long.Parse((string)context.Variables["retryRecoveryEpoch"]);
+                        var remaining = Math.Max(0L, recoveryEpoch - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
                         return (remaining + 1).ToString();
                     }}</value>
                 </set-header>

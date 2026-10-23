@@ -59,7 +59,7 @@ def test_retry_tracking_policy_uses_csharp_string_literals() -> None:
     policy = (LOAD_BALANCING_DIR / 'apim-policies' / 'aca-backend-pool-load-balancing-with-retry-tracked.xml').read_text(encoding='utf-8')
 
     assert 'ContainsKey("Retry-After")' in policy
-    assert 'GetValueOrDefault("Retry-After", "0")' in policy
+    assert 'GetValueOrDefault("Retry-After", "3")' in policy
     assert 'ContainsKey("cachedRetryEpoch")' in policy
     assert "ContainsKey('" not in policy
     assert "GetValueOrDefault('" not in policy
@@ -132,7 +132,7 @@ def test_run_retry_tracking_waits_on_parseable_429_and_normalizes_results():
     assert session.headers == requests.headers
     assert session.get.call_count == 3
     session.get.assert_called_with('https://gateway.example/retry-tracked', timeout=30)
-    assert result.api_results[0]['response'] == '{\n    "index": 0\n}'
+    assert json.loads(result.api_results[0]['response']) == {'index': 0, 'count': 1}
     assert result.api_results[1]['response'] == 'limited'
     assert result.retry_after_samples == [3]
     assert result.waits == [(2, 3)]
@@ -140,6 +140,36 @@ def test_run_retry_tracking_waits_on_parseable_429_and_normalizes_results():
     assert result.recovered_after_first_wait is True
     assert result.chart_separators == [(1.5, 'Waited 3s after 429')]
     sleep.assert_called_once_with(3)
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize('statuses', [(429, 429, 200), (429,), (429, 503, 200)])
+def test_retry_tracking_does_not_mistake_eventual_recovery_for_honoring_first_wait(statuses):
+    result = RetryTrackingResult(
+        api_results=[{'run': index, 'status_code': status} for index, status in enumerate(statuses, start = 1)],
+        retry_after_samples=[1],
+        waits=[(1, 1)],
+    )
+
+    assert result.recovered_after_first_wait is False
+
+
+@pytest.mark.unit
+def test_retry_tracking_policy_handles_pool_dates_without_relying_on_cache():
+    template = (LOAD_BALANCING_DIR / 'apim-policies' / 'aca-backend-pool-load-balancing-with-retry-tracked.xml').read_text(encoding = 'utf-8')
+    policy = ET.fromstring(template.format(backend_id = 'pool', retry_count = 2, cache_key = 'test'))
+    backend = policy.find('backend/retry/choose/when/set-variable')
+    recovery = policy.find('on-error/choose/when/set-variable')
+    assert backend is not None and recovery is not None
+    for expression in (backend.attrib['value'], recovery.attrib['value']):
+        assert 'int.TryParse(raHeader, out seconds)' in expression
+        assert 'DateTimeOffset.TryParse(raHeader, out recoveryDate)' in expression
+        assert 'recoveryDate.ToUnixTimeSeconds()' in expression
+        assert 'nowEpoch + 3' in expression
+    header = policy.find('on-error/choose/when/set-header/value')
+    assert header is not None
+    assert 'context.Variables["retryRecoveryEpoch"]' in header.text
+    assert 'return "1"' not in header.text
 
 
 @pytest.mark.unit

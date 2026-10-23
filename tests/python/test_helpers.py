@@ -11,6 +11,7 @@ import json as json_module
 
 # APIM Samples imports
 from apimtypes import APIM_SKU, APIMNetworkMode, API, APIOperation, PolicyFragment, Output, HTTP_VERB
+from mockapi import MockApiCredentials
 
 
 # ------------------------------
@@ -599,6 +600,16 @@ class MockInfrastructuresPatches:
         self.az.run.return_value = mock_output
 
         self.patches.append(self.az_patch)
+
+        credentials_patch = patch(
+            'infrastructures.Infrastructure._prepare_mockapi_credentials',
+            return_value = MockApiCredentials('fixture-password', 'fixture-password-hash', 'fixture-api-key'),
+        )
+        credentials_patch.__enter__()
+        self.patches.append(credentials_patch)
+        initialization_patch = patch('infrastructures.Infrastructure._initialize_mockapi')
+        initialization_patch.__enter__()
+        self.patches.append(initialization_patch)
 
         # Patch utils
         self.utils_patch = patch('infrastructures.utils')
