@@ -44,14 +44,15 @@ The lab also deploys **five APIM policy fragments** (one per dynamic option) dem
 
 - `DynamicCorsHardcoded` - origins embedded in a C# `switch` expression.
 - `DynamicCorsNamedValues` - origins read from an APIM Named Value as JSON.
-- `DynamicCorsCached` - origins read from the APIM internal cache as a single JSON mapping. Returns `503` if the cache is not initialized (fail-closed).
-- `DynamicCorsCachedPerApi` - origins read from per-API cache entries (`corsOriginMapping-{apiId}`). Returns `503` if the current API's cache entry is missing (fail-closed).
+- `DynamicCorsCached` - evaluates the single JSON mapping loaded into `corsMappingJson` by the API-level cache lookup. Returns `503` if the cache is not initialized (fail-closed).
+- `DynamicCorsCachedPerApi` - evaluates `allowedOriginsJson`, loaded by the API-level lookup of `corsOriginMapping-{apiId}`. Returns `503` if the current API's cache entry is missing (fail-closed).
 - `DynamicCorsNvPerApi` - origins passed via a context variable set by the API-level policy from a per-API Named Value. The fragment itself is environment-agnostic.
 
 Additional components include:
 
 - **Three Named Values**: `CorsOriginMapping` (Option 2 JSON mapping), `CorsOrigins-cors-opt5-products` and `CorsOrigins-cors-opt5-analytics` (Option 5 per-API origin arrays).
 - An **API-level policy** (`cors-api-policy.xml`) that includes the active CORS fragment in `<inbound>` and documents the outbound pattern for APIs with real backends.
+- **Cache-backed API-level policies** (`cors-api-policy-cached.xml` and `cors-api-policy-cached-per-api.xml`) for Options 3 and 4. Each runs one `cache-lookup-value` in `<inbound>` before including its CORS fragment because [cache lookups are not supported inside policy fragments](https://learn.microsoft.com/azure/api-management/cache-lookup-value-policy#usage-notes). The fragments consume the resulting context variables and retain fail-closed handling.
 - A **context-variable API-level policy** (`cors-api-policy-named-values.xml`) that sets an `allowedOriginsJson` context variable from a Named Value reference before including the Option 5 fragment.
 
 ### Options

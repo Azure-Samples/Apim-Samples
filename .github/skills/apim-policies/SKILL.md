@@ -84,6 +84,10 @@ When a custom backend policy is not needed, keep `<base />` as the only direct c
 
 ## Essential Policies
 
+### Cache Lookups and Fragments
+
+`cache-lookup-value` is not supported inside policy fragments. Place it in the caller's policy section before `include-fragment`, and let the fragment consume the resulting context variable. Preserve explicit cache-miss handling; the lookup does not set the variable when the key is absent. Use at most one `cache-lookup-value` per policy section.
+
 ### Set Backend Service
 
 Route requests to a specific backend:
