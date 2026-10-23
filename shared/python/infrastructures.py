@@ -4,6 +4,7 @@ Infrastructure Types and Cleanup Utilities
 
 import json
 import os
+import tempfile
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -11,6 +12,7 @@ from pathlib import Path
 from typing import List
 
 import azure_resources as az
+import mockapi
 import requests
 import utils
 
@@ -85,6 +87,7 @@ class Infrastructure:
         self.pfs: List[PolicyFragment] = []
         self.base_apis: List[API] = []
         self.apis: List[API] = []
+        self._mockapi_credentials: mockapi.MockApiCredentials | None = None
 
     # ------------------------------
     #    PRIVATE METHODS
@@ -198,7 +201,32 @@ class Infrastructure:
             'policyFragments': {'value': [pf.to_dict() for pf in self.pfs]},
         }
 
+        if self.infra == INFRASTRUCTURE.APIM_ACA or (self.infra != INFRASTRUCTURE.SIMPLE_APIM and self.infra_apis):
+            if self._mockapi_credentials is None:
+                self._mockapi_credentials = self._prepare_mockapi_credentials()
+            self.bicep_parameters['mockApiCredentials'] = {'value': self._mockapi_credentials.to_parameters()}
+            self.bicep_parameters['currentUserId'] = {'value': self.current_user_id}
+
         return self.bicep_parameters
+
+    def _prepare_mockapi_credentials(self) -> mockapi.MockApiCredentials:
+        """Preserve infrastructure-owned MockAPI secrets across create, update and retries."""
+        return mockapi.prepare_credentials(self.rg_name, self.resource_suffix, self.subscription_id, runner = az.run)
+
+    def _initialize_mockapi(self, output: utils.Output) -> None:
+        """Load missing fixtures before declaring the infrastructure ready."""
+        if self._mockapi_credentials is not None:
+            storage_name = output.get('mockApiStorageAccountName', suppress_logging = True)
+            app_names = output.getJson('mockApiContainerAppNames', suppress_logging = True)
+            if not isinstance(storage_name, str) or not isinstance(app_names, list) or any(not isinstance(name, str) for name in app_names):
+                raise ValueError('MockAPI deployment outputs are missing or malformed.')
+            if self.infra == INFRASTRUCTURE.APIM_ACA:
+                dashboard_urls = output.getJson('mockApiDashboardUrls', 'MockAPI Dashboard URLs', suppress_logging = True)
+                if not isinstance(dashboard_urls, list) or any(not isinstance(url, str) for url in dashboard_urls):
+                    raise ValueError('MockAPI deployment dashboard URLs are missing or malformed.')
+                mockapi.seed_dashboard_configuration(self.rg_name, app_names, dashboard_urls, self._mockapi_credentials.dashboard_password, runner = az.run)
+            else:
+                mockapi.seed_configuration(self.rg_name, storage_name, app_names, runner = az.run)
 
     def _define_policy_fragments(self) -> List[PolicyFragment]:
         """
@@ -270,6 +298,7 @@ class Infrastructure:
         """
         print_plain('🔒 Disabling API Management public network access...')
 
+        parameters_directory = None
         try:
             # Update parameters to disable public access
             self.bicep_parameters['apimPublicAccess']['value'] = False
@@ -288,7 +317,9 @@ class Infrastructure:
                     'parameters': self.bicep_parameters,
                 }
 
-                params_file_path = infra_dir / 'params.json'
+                if self._mockapi_credentials is not None:
+                    parameters_directory = tempfile.TemporaryDirectory(prefix = 'apim-infra-')
+                params_file_path = Path(parameters_directory.name) / 'params.json' if parameters_directory else infra_dir / 'params.json'
                 with open(params_file_path, 'w', encoding='utf-8') as file:
                     file.write(json.dumps(bicep_parameters_format))
 
@@ -300,12 +331,15 @@ class Infrastructure:
                     f'az deployment group create --name {self.infra.value}-lockdown --resource-group {self.rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
                     'Public access disabled successfully',
                     'Failed to disable public access',
+                    sensitive_output = self._mockapi_credentials is not None,
                     timeout=1800,
                 )
 
                 return output.success
 
             finally:
+                if parameters_directory is not None:
+                    parameters_directory.cleanup()
                 os.chdir(original_cwd)
 
         except Exception as e:
@@ -466,6 +500,7 @@ class Infrastructure:
         shared_dir = Path(__file__).parent
         infra_dir = shared_dir.parent.parent / 'infrastructure' / infra_dir_name
 
+        parameters_directory = None
         try:
             os.chdir(infra_dir)
             print_plain(f'📁 Changed working directory to: {infra_dir}', blank_above=True)
@@ -478,12 +513,14 @@ class Infrastructure:
             }
 
             # Write the parameters file
-            params_file_path = infra_dir / 'params.json'
+            if self._mockapi_credentials is not None:
+                parameters_directory = tempfile.TemporaryDirectory(prefix = 'apim-infra-')
+            params_file_path = Path(parameters_directory.name) / 'params.json' if parameters_directory else infra_dir / 'params.json'
 
             with open(params_file_path, 'w', encoding='utf-8') as file:
                 file.write(json.dumps(bicep_parameters_format))
 
-            print_plain("📝 Updated the policy XML in the bicep parameters file 'params.json'")
+            print_plain('📝 Prepared infrastructure deployment parameters')
 
             # ------------------------------
             #    EXECUTE DEPLOYMENT
@@ -504,6 +541,7 @@ class Infrastructure:
                     deployment_command,
                     f"Deployment '{self.infra.value}' succeeded",
                     utils.get_deployment_failure_message(self.infra.value),
+                    sensitive_output = self._mockapi_credentials is not None,
                     timeout = 1800,
                 )
                 if output.success or recovery_attempted:
@@ -521,6 +559,11 @@ class Infrastructure:
             # ------------------------------
 
             if output.success:
+                try:
+                    self._initialize_mockapi(output)
+                except (OSError, RuntimeError, ValueError) as error:
+                    print_error(f'MockAPI initialization failed: {error}')
+                    return utils.Output(False, 'MockAPI initialization failed')
                 print_ok('Infrastructure creation completed successfully!')
                 if output.json_data:
                     apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM API Gateway URL', suppress_logging=True)
@@ -533,6 +576,17 @@ class Infrastructure:
                     print_val('Gateway URL', apim_gateway_url)
                     print_val('APIs Created', len(apim_apis))
 
+                    if 'mockApiDashboardUrls' in output.json_data:
+                        dashboard_urls = output.getJson('mockApiDashboardUrls', 'MockAPI Dashboard URLs', suppress_logging = True)
+                        if not isinstance(dashboard_urls, list) or any(not isinstance(url, str) for url in dashboard_urls):
+                            raise ValueError('MockAPI dashboard URL outputs are malformed.')
+                        for index, dashboard_url in enumerate(dashboard_urls, 1):
+                            print_val(f'MockAPI Dashboard {index}', f'{dashboard_url}?tutorial=skip')
+                        if dashboard_urls and self._mockapi_credentials is not None:
+                            print_warning('Dashboard credentials below are sensitive. Clear notebook output before saving or sharing.')
+                            print_val('MockAPI Username', 'admin')
+                            print_val('MockAPI Password', self._mockapi_credentials.dashboard_password)
+
                     if not self._verify_infrastructure(self.rg_name):
                         return utils.Output(False, 'Infrastructure verification failed')
             else:
@@ -541,6 +595,8 @@ class Infrastructure:
             return output
 
         finally:
+            if parameters_directory is not None:
+                parameters_directory.cleanup()
             # Always restore the original working directory
             os.chdir(original_cwd)
             print_plain(f'📁 Restored working directory to: {original_cwd}')

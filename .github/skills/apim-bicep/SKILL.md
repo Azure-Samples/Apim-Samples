@@ -9,6 +9,8 @@ This skill provides guidance for creating Azure Bicep templates for API Manageme
 
 Do not add tool, module, CLI extension, container feature, or package installation that bypasses the repository's eight-day release waiting period. Any new dependency must use an eligible exact version and the repository's guarded install flow.
 
+MockAPI container images from `simonkurtzmsft/mockapi` are exempt from this waiting period. Keep an exact version tag and immutable digest; this exception does not apply to packages, tools, or GitHub Actions.
+
 When this workflow creates or updates Markdown, follow `.markdownlint.json` and `.github/markdown.instructions.md` without flattening semantic structure. Before completion, run `npx --no-install markdownlint-cli2 "**/*.md" "#**/.venv/**" "#**/node_modules/**"` from the repository root and require zero violations.
 
 ## Quick Start - Basic APIM Instance

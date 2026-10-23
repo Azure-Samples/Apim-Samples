@@ -17,11 +17,9 @@ param appInsightsName string = 'appi-${resourceSuffix}'
 @description('Array of inference APIs assembled by the notebook.')
 param apis array = []
 
-// ------------------
-//    "CONSTANTS"
-// ------------------
-
-var IMG_WEB_API_429 = 'simonkurtzmsft/webapi429:1.0.0'
+@maxLength(2)
+@description('Optional pair of infrastructure mockApiDashboardUrls. When omitted, reuse the URLs published by infrastructure-owned aca-backend-1 and aca-backend-2.')
+param mockApiBaseUrls array = []
 
 // ------------------
 //    RESOURCES
@@ -40,20 +38,44 @@ resource apimService 'Microsoft.ApiManagement/service@2024-06-01-preview' existi
   name: apimName
 }
 
-// https://learn.microsoft.com/azure/templates/microsoft.app/managedenvironments
-#disable-next-line BCP081
-resource acaEnvironment 'Microsoft.App/managedEnvironments@2025-01-01' existing = {
-  name: 'cae-${resourceSuffix}'
+// https://learn.microsoft.com/azure/templates/microsoft.apimanagement/service/backends
+resource infrastructureMockApiBackends 'Microsoft.ApiManagement/service/backends@2024-06-01-preview' existing = [for index in range(1, 2): {
+  parent: apimService
+  name: 'aca-backend-${index}'
+}]
+
+// Infrastructure backend URLs follow either public or private-storage app generations.
+var mockApiOrigins = empty(mockApiBaseUrls)
+  ? [
+      uri(infrastructureMockApiBackends[0].properties.url, '/')
+      uri(infrastructureMockApiBackends[1].properties.url, '/')
+    ]
+  : map(mockApiBaseUrls, url => uri(string(url), '/'))
+
+// Keep backend resource IDs stable for existing policies, but reuse infrastructure-owned MockAPI.
+var mockApiCredentialHeaders = {
+  'X-MockAPI-Key': ['{{mockapi-key}}']
 }
 
-// Azure Container Apps (ACA) for Mock Web API
-module acaModule '../../shared/bicep/modules/aca/v1/containerapp.bicep' = {
-  name: 'acaModule'
-  params: {
-    name: 'ca-${resourceSuffix}-webapi429'
-    containerImage: IMG_WEB_API_429
-    environmentId: acaEnvironment.id
-  }
+@description('Match the five-permit MockAPI three-second window rather than inheriting a one-minute circuit trip.')
+var mockApiCircuitBreaker = {
+  rules: [
+    {
+      name: 'mockapi-capacity'
+      failureCondition: {
+        count: 1
+        interval: 'PT3S'
+        statusCodeRanges: [
+          {
+            min: 429
+            max: 429
+          }
+        ]
+      }
+      tripDuration: 'PT3S'
+      acceptRetryAfter: true
+    }
+  ]
 }
 
 // APIM Backends for ACA
@@ -62,7 +84,9 @@ module backendModule1 '../../shared/bicep/modules/apim/v1/backend.bicep' = {
   params: {
     apimName: apimName
     backendName: 'aca-webapi429-1'
-    url: 'https://${acaModule.outputs.containerAppFqdn}/api/0'
+    url: '${mockApiOrigins[0]}load-balancing/backend-0'
+    credentialHeaders: mockApiCredentialHeaders
+    circuitBreaker: mockApiCircuitBreaker
   }
   dependsOn: [
     apimService
@@ -74,7 +98,9 @@ module backendModule2 '../../shared/bicep/modules/apim/v1/backend.bicep' = {
   params: {
     apimName: apimName
     backendName: 'aca-webapi429-2'
-    url: 'https://${acaModule.outputs.containerAppFqdn}/api/1'
+    url: '${mockApiOrigins[1]}load-balancing/backend-1'
+    credentialHeaders: mockApiCredentialHeaders
+    circuitBreaker: mockApiCircuitBreaker
   }
   dependsOn: [
     apimService
@@ -86,7 +112,9 @@ module backendModule3 '../../shared/bicep/modules/apim/v1/backend.bicep' = {
   params: {
     apimName: apimName
     backendName: 'aca-webapi429-3'
-    url: 'https://${acaModule.outputs.containerAppFqdn}/api/2'
+    url: '${mockApiOrigins[0]}load-balancing/backend-2'
+    credentialHeaders: mockApiCredentialHeaders
+    circuitBreaker: mockApiCircuitBreaker
   }
   dependsOn: [
     apimService
@@ -99,7 +127,7 @@ module backendPoolModule1 '../../shared/bicep/modules/apim/v1/backend-pool.bicep
   params: {
     apimName: apimName
     backendPoolName: 'aca-backend-pool-web-api-429-prioritized'
-    backendPoolDescription: 'Prioritized backend pool for ACA Web API 429'
+    backendPoolDescription: 'Prioritized backend pool for infrastructure-owned MockAPI'
     backends: [
       {
         name: backendModule1.outputs.backendName
@@ -123,7 +151,7 @@ module backendPoolModule2 '../../shared/bicep/modules/apim/v1/backend-pool.bicep
   params: {
     apimName: apimName
     backendPoolName: 'aca-backend-pool-web-api-429-weighted-50-50'
-    backendPoolDescription: 'Weighted (50/50) backend pool for ACA Web API 429'
+    backendPoolDescription: 'Weighted (50/50) backend pool for infrastructure-owned MockAPI'
     backends: [
       {
         name: backendModule1.outputs.backendName
@@ -147,7 +175,7 @@ module backendPoolModule3 '../../shared/bicep/modules/apim/v1/backend-pool.bicep
   params: {
     apimName: apimName
     backendPoolName: 'aca-backend-pool-web-api-429-weighted-80-20'
-    backendPoolDescription: 'Weighted (80/20) backend pool for ACA Web API 429'
+    backendPoolDescription: 'Weighted (80/20) backend pool for infrastructure-owned MockAPI'
     backends: [
       {
         name: backendModule1.outputs.backendName
@@ -171,7 +199,7 @@ module backendPoolModule4 '../../shared/bicep/modules/apim/v1/backend-pool.bicep
   params: {
     apimName: apimName
     backendPoolName: 'aca-backend-pool-web-api-429-prioritized-and-weighted'
-    backendPoolDescription: 'Prioritized (1/2) and weighted (50/50) backend pool for ACA Web API 429'
+    backendPoolDescription: 'Prioritized (1/2) and weighted (50/50) backend pool for infrastructure-owned MockAPI'
     backends: [
       {
         name: backendModule1.outputs.backendName
@@ -209,6 +237,8 @@ module apisModule '../../shared/bicep/modules/apim/v1/api.bicep' = [
       apimService
       backendPoolModule1
       backendPoolModule2
+      backendPoolModule3
+      backendPoolModule4
     ]
   }
 ]
@@ -221,6 +251,8 @@ output applicationInsightsName string = appInsights.name
 output apimServiceId string = apimService.id
 output apimServiceName string = apimService.name
 output apimResourceGatewayURL string = apimService.properties.gatewayUrl
+output mockApiResourceSuffix string = resourceSuffix
+output mockApiDashboardUrls array = mockApiOrigins
 
 // API outputs
 output apiOutputs array = [for i in range(0, length(apis)): {

@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 from unittest.mock import Mock, call
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
@@ -18,6 +19,13 @@ def _step_names(steps: Mock) -> list[str]:
     return [entry[0] for entry in steps.mock_calls]
 
 
+def _parameter_file(infra, deployment_dir: Path) -> Path:
+    if infra._mockapi_credentials is None:
+        return deployment_dir / 'params.json'
+
+    return next((deployment_dir.parents[2] / 'parameters').glob('*/params.json'))
+
+
 @pytest.fixture(params=[INFRASTRUCTURE.SIMPLE_APIM, INFRASTRUCTURE.APIM_ACA], ids=lambda value: value.value)
 def shared_deployment(request, monkeypatch, tmp_path, mock_az, mock_utils):
     """Keep path resolution, parameter serialization, and resource cleanup real."""
@@ -27,6 +35,10 @@ def shared_deployment(request, monkeypatch, tmp_path, mock_az, mock_utils):
     (deployment_dir / 'main.bicep').write_text('// Offline deployment fixture\n', encoding='utf-8')
     original_cwd = tmp_path / 'caller with spaces'
     original_cwd.mkdir()
+    parameter_directory = tmp_path / 'parameters'
+    parameter_directory.mkdir()
+    temporary_directory = infrastructures.tempfile.TemporaryDirectory
+    monkeypatch.setattr(infrastructures.tempfile, 'TemporaryDirectory', lambda **kwargs: temporary_directory(dir = parameter_directory, **kwargs))
     monkeypatch.chdir(original_cwd)
     monkeypatch.setattr(infrastructures, '__file__', str(project / 'shared' / 'python' / 'infrastructures.py'))
     for name in ('print_plain', 'print_val', 'print_ok', 'print_error', 'print_warning'):
@@ -67,12 +79,14 @@ def test_shared_deployment_preserves_order_parameters_and_command(shared_deploym
     """Freeze the complete command and serialized parameter contract for create/update."""
     infra, original_cwd, deployment_dir, steps = shared_deployment
     output = steps.deploy.return_value
-    params_path = deployment_dir / 'params.json'
+    params_path = None
     documents = []
 
     def migrate(rg_name):
+        nonlocal params_path
         assert rg_name == infra.rg_name
         assert Path.cwd() == deployment_dir
+        params_path = _parameter_file(infra, deployment_dir)
         documents.append(json.loads(params_path.read_text(encoding='utf-8')))
 
         return []
@@ -90,7 +104,12 @@ def test_shared_deployment_preserves_order_parameters_and_command(shared_deploym
             'parameters': infra.bicep_parameters,
         }
     ]
-    assert set(infra.bicep_parameters) == {'resourceSuffix', 'apimSku', 'apis', 'policyFragments'}
+    expected_keys = {'resourceSuffix', 'apimSku', 'apis', 'policyFragments'}
+    if infra.infra == INFRASTRUCTURE.APIM_ACA:
+        expected_keys.update(('mockApiCredentials', 'currentUserId'))
+        assert not params_path.exists()
+        assert not (deployment_dir / 'params.json').exists()
+    assert set(infra.bicep_parameters) == expected_keys
     assert infra.bicep_parameters['resourceSuffix'] == {'value': 'abc123def456'}
     assert infra.bicep_parameters['apimSku'] == {'value': 'Basicv2'}
     assert [api['name'] for api in infra.bicep_parameters['apis']['value']] == ['hello-world']
@@ -103,7 +122,9 @@ def test_shared_deployment_preserves_order_parameters_and_command(shared_deploym
         'Remove-Request-Headers',
     ]
     command = f'az deployment group create --name {infra.infra.value} --resource-group {infra.rg_name} --template-file "{deployment_dir / "main.bicep"}" --parameters "{params_path}" --query "properties.outputs"'
-    steps.deploy.assert_called_once_with(command, f"Deployment '{infra.infra.value}' succeeded", 'Deployment failed', timeout=1800)
+    steps.deploy.assert_called_once_with(
+        command, f"Deployment '{infra.infra.value}' succeeded", 'Deployment failed', sensitive_output = infra._mockapi_credentials is not None, timeout=1800
+    )
     mock_utils.get_deployment_failure_message.assert_called_once_with(infra.infra.value)
     steps.verify.assert_called_once_with(infra.rg_name)
     infrastructures.print_val.assert_any_call('Gateway URL', 'https://apim.example.com')
@@ -143,7 +164,7 @@ def test_shared_deployment_retries_once_with_identical_command(shared_deployment
 
     def deploy(*args, **kwargs):
         assert Path.cwd() == deployment_dir
-        parameters.append(json.loads((deployment_dir / 'params.json').read_text(encoding='utf-8')))
+        parameters.append(json.loads(_parameter_file(infra, deployment_dir).read_text(encoding='utf-8')))
 
         return next(outputs)
 
@@ -239,7 +260,15 @@ def test_shared_deployment_restores_cwd_when_parameter_file_cannot_open(shared_d
         infra.deploy_infrastructure()
 
     assert raised.value is error
-    open_file.assert_called_once_with(deployment_dir / 'params.json', 'w', encoding='utf-8')
+    open_file.assert_called_once()
+    path = open_file.call_args.args[0]
+    assert path.name == 'params.json'
+    assert open_file.call_args.args[1:] == ('w',)
+    assert open_file.call_args.kwargs == {'encoding': 'utf-8'}
+    if infra._mockapi_credentials is not None:
+        assert not path.parent.exists()
+    else:
+        assert path == deployment_dir / 'params.json'
     assert _step_names(steps) == PREPARATION_STEPS
     assert Path.cwd() == original_cwd
 
@@ -272,7 +301,7 @@ def test_shared_deployment_closes_parameter_file_on_failure(shared_deployment, m
 
     assert len(opened) == 1
     assert opened[0].closed
-    assert (deployment_dir / 'params.json').exists()
+    assert Path(opened[0].name).exists() is (infra._mockapi_credentials is None)
     assert _step_names(steps) == PREPARATION_STEPS
     assert Path.cwd() == original_cwd
 
@@ -290,6 +319,26 @@ def test_shared_deployment_characterizes_empty_success_outputs(shared_deployment
     assert result.success is True
     assert _step_names(steps) == PREPARATION_STEPS + ['migrate', 'deploy']
     assert Path.cwd() == original_cwd
+
+
+@pytest.mark.parametrize('exception_type', [OSError, RuntimeError, ValueError])
+def test_shared_deployment_reports_mockapi_initialization_failure(shared_deployment, monkeypatch, exception_type):
+    infra, original_cwd, deployment_dir, steps = shared_deployment
+    initialize = Mock(side_effect = exception_type('MockAPI startup rejected'))
+    monkeypatch.setattr(infra, '_initialize_mockapi', initialize)
+
+    result = infra.deploy_infrastructure()
+
+    assert result.success is False
+    assert result.text == 'MockAPI initialization failed'
+    initialize.assert_called_once_with(steps.deploy.return_value)
+    infrastructures.print_error.assert_called_once_with('MockAPI initialization failed: MockAPI startup rejected')
+    infrastructures.print_ok.assert_not_called()
+    steps.verify.assert_not_called()
+    assert Path.cwd() == original_cwd
+    if infra._mockapi_credentials is not None:
+        assert not (deployment_dir / 'params.json').exists()
+        assert not list((deployment_dir.parents[2] / 'parameters').iterdir())
 
 
 @pytest.mark.parametrize(
@@ -324,4 +373,80 @@ def test_shared_deployment_returns_failure_when_verification_fails(shared_deploy
     assert result.text == 'Infrastructure verification failed'
     assert _step_names(steps) == PREPARATION_STEPS + ['migrate', 'deploy', 'verify']
     steps.verify.assert_called_once_with(infra.rg_name)
+    assert Path.cwd() == original_cwd
+
+
+@pytest.mark.parametrize('dashboard_urls', [None, [], ['https://mockapi-1.example.com/', 'https://mockapi-2.example.com/']])
+def test_shared_deployment_prints_available_mockapi_dashboards(shared_deployment, dashboard_urls):
+    """Skip the tutorial in dashboard links without changing management API origins."""
+    infra, _, _, steps = shared_deployment
+    outputs = json.loads(steps.deploy.return_value.text)
+    if dashboard_urls is not None:
+        outputs['mockApiDashboardUrls'] = {'value': dashboard_urls}
+    steps.deploy.return_value = Output(True, json.dumps(outputs))
+
+    assert infra.deploy_infrastructure().success
+
+    dashboard_calls = [entry for entry in infrastructures.print_val.call_args_list if entry.args[0].startswith('MockAPI Dashboard')]
+    assert dashboard_calls == [call(f'MockAPI Dashboard {index}', f'{url}?tutorial=skip') for index, url in enumerate(dashboard_urls or [], 1)]
+    for entry, origin in zip(dashboard_calls, dashboard_urls or [], strict = True):
+        parsed = urlsplit(entry.args[1])
+        assert parsed._replace(query = '') == urlsplit(origin)
+        assert parse_qs(parsed.query) == {'tutorial': ['skip']}
+    assert steps.deploy.return_value.json_data == outputs
+    credential_calls = [entry for entry in infrastructures.print_val.call_args_list if entry.args[0] in ('MockAPI Username', 'MockAPI Password')]
+    if dashboard_urls and infra._mockapi_credentials is not None:
+        assert credential_calls == [
+            call('MockAPI Username', 'admin'),
+            call('MockAPI Password', infra._mockapi_credentials.dashboard_password),
+        ]
+        infrastructures.print_warning.assert_called_once_with(
+            'Dashboard credentials below are sensitive. Clear notebook output before saving or sharing.'
+        )
+        printed_values = [entry.args[1] for entry in infrastructures.print_val.call_args_list]
+        assert infra._mockapi_credentials.api_key not in printed_values
+        assert infra._mockapi_credentials.dashboard_password_hash not in printed_values
+    else:
+        assert credential_calls == []
+        infrastructures.print_warning.assert_not_called()
+
+
+@pytest.mark.parametrize('dashboard_urls', ['https://mockapi.example.com/', [None]])
+def test_shared_deployment_rejects_malformed_dashboard_outputs(shared_deployment, dashboard_urls):
+    infra, original_cwd, _, steps = shared_deployment
+    outputs = json.loads(steps.deploy.return_value.text)
+    outputs['mockApiDashboardUrls'] = {'value': dashboard_urls}
+    steps.deploy.return_value = Output(True, json.dumps(outputs))
+
+    with pytest.raises(ValueError, match = 'MockAPI dashboard URL outputs are malformed'):
+        infra.deploy_infrastructure()
+
+    steps.verify.assert_not_called()
+    assert Path.cwd() == original_cwd
+
+
+@pytest.mark.parametrize('success', [True, False])
+def test_lockdown_keeps_credentials_temporary_and_suppresses_cli_debug(shared_deployment, success):
+    infra, original_cwd, deployment_dir, steps = shared_deployment
+    infra._define_policy_fragments()
+    infra._define_apis()
+    infra._define_bicep_parameters()
+    infra.bicep_parameters['apimPublicAccess'] = {'value': True}
+    parameter_paths = []
+
+    def deploy(command, *args, **kwargs):
+        parameter_path = _parameter_file(infra, deployment_dir)
+        parameter_paths.append(parameter_path)
+        assert f'--parameters "{parameter_path}"' in command
+        assert kwargs['sensitive_output'] is (infra._mockapi_credentials is not None)
+        parameters = json.loads(parameter_path.read_text(encoding = 'utf-8'))['parameters']
+        assert parameters['apimPublicAccess'] == {'value': False}
+        if infra._mockapi_credentials is not None:
+            assert parameters['mockApiCredentials'] == {'value': infra._mockapi_credentials.to_parameters()}
+        return Output(success, '')
+
+    steps.deploy.side_effect = deploy
+    assert infra._disable_apim_public_access() is success
+    assert len(parameter_paths) == 1
+    assert parameter_paths[0].exists() is (infra._mockapi_credentials is None)
     assert Path.cwd() == original_cwd

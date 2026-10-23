@@ -48,6 +48,7 @@ Agents and contributors should treat the following as the sync checklist:
 - **New sample added** → add a `.sample-card` in the _Samples_ section of `index.html` **and** a `ListItem` to the JSON-LD `ItemList`.
 - **Sample or infrastructure removed or renamed** → remove or rename the matching card and any asset mapping in the workflow.
 - **Quick-start flow changes** → update the four `.step` items.
+- **Backend implementation or behavior changes** - synchronize the root and infrastructure READMEs, infrastructure and sample card descriptions, relevant SEO descriptions and JSON-LD, and the slide deck. Container Apps backends use MockAPI; do not imply that Simple API Management or external-service samples deploy it. Link operational details to the [MockAPI operations guide](../infrastructure/apim-aca/README.md#mockapi-backends).
 
 This checklist is also enforced by `.github/copilot-instructions.md` so that GitHub Copilot will prompt for these updates when reviewing related PRs.
 

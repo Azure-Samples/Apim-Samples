@@ -234,6 +234,7 @@ Shared modules in `shared/bicep/modules/`:
 ### Dependency Supply-Chain Safety
 
 - Every package or GitHub Action release must complete an eight-day waiting period before use.
+- MockAPI container images from `simonkurtzmsft/mockapi` are exempt from the eight-day waiting period. Keep an exact version tag and immutable digest; package and GitHub Actions waiting periods remain unchanged.
 - Preserve `tool.uv.exclude-newer = "8 days"` and Dependabot cooldowns for all configured ecosystems.
 - Before a locked Python install, run `python setup/verify_dependency_age.py --scope python`, then `uv sync --locked`.
 - Generate `uv.lock` against canonical public PyPI only by running `python setup/sync_dependencies.py --upgrade`. Never commit private mirror URLs, proxy configuration, credentials, or internal endpoints. Do not manually remove the registry and artifact URLs required by uv's lock schema.

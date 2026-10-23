@@ -21,6 +21,7 @@ def test_request_summary_formatters_handle_singular_plural_and_empty_totals():
     assert charts._format_percentage(1, 2) == '50.0%'
     assert charts._format_percentage(0, 0) == '0.0%'
 
+
 # Add the shared/python directory to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'shared', 'python'))
 
@@ -278,8 +279,8 @@ def test_plot_barchart_shows_harness_error_counts(mock_dataframe, mock_plt):
     assert mock_ax.legend.call_args.kwargs['bbox_to_anchor'] == (1.01, 1)
     mock_ax.text.assert_called_once()
     assert mock_ax.legend.call_args.args[1] == [
-        '!!! 4xx CLIENT ERRORS - 1 request !!!',
-        '!!! 5xx SERVER ERRORS - 1 request !!!',
+        ' 4xx CLIENT ERRORS - 1 request ',
+        ' 5xx SERVER ERRORS - 1 request ',
     ]
     assert mock_df.plot.call_args.kwargs['color'] == ['gray', '#d83b01', '#a4262c']
     assert mock_ax.text.call_args.args[2] == 'Requests: 3\nResponses: 3 (100.0%)\n\n2xx: 1 (33.3%)\n4xx: 1 (33.3%)\n5xx: 1 (33.3%)'
@@ -322,9 +323,7 @@ def test_plot_barchart_matplotlib_calls(mock_dataframe, mock_plt, sample_api_res
     mock_df = MagicMock()
     mock_dataframe.return_value = mock_df
     mock_df.__getitem__.return_value = mock_df
-    mock_df.iterrows.return_value = iter(
-        [(0, {'Status Code': 200, 'Backend Index': 1}), (1, {'Status Code': 200, 'Backend Index': 2}), (2, {'Status Code': 500, 'Backend Index': 99})]
-    )
+    mock_df.iterrows.return_value = iter([(0, {'Status Code': 200, 'Backend Index': 1}), (1, {'Status Code': 200, 'Backend Index': 2}), (2, {'Status Code': 500, 'Backend Index': 99})])
     mock_df.plot.return_value = MagicMock()
     mock_df.empty = False
     mock_df.quantile.return_value = 200
@@ -773,4 +772,4 @@ def test_plot_barchart_shows_other_non_200_responses(mock_chart_plotting):
     BarChart('Test', 'X', 'Y', results)._plot_barchart(results)
 
     legend_names = mock_ax.legend.call_args.args[1]
-    assert legend_names == ['!!! OTHER NON-200 RESPONSES - 1 request !!!']
+    assert legend_names == [' OTHER NON-200 RESPONSES - 1 request ']

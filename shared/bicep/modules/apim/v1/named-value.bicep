@@ -21,6 +21,7 @@ param apimName string
 @description('The name of the named value to create.')
 param namedValueName string
 
+@secure()
 @description('The value to assign to the named value.')
 param namedValueValue string
 

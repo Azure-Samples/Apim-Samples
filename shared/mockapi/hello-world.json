@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/simonkurtz-MSFT/MockAPI/refs/tags/1.10.0/schemas/mockapi.schema.json",
+  "endpoints": [
+    {
+      "enabled": true,
+      "id": "3f245dc4-9d34-4767-9a68-86caa34bb9d4",
+      "methods": [
+        "GET"
+      ],
+      "name": "Infrastructure Hello World",
+      "path": "/hello",
+      "response": {
+        "body": "{\"message\":\"Hello from MockAPI\"}",
+        "contentType": "application/json; charset=utf-8",
+        "headers": {
+          "X-Mock-Source": [
+            "MockAPI"
+          ]
+        },
+        "statusCode": 200
+      }
+    }
+  ],
+  "schemaVersion": "1.0"
+}

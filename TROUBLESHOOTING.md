@@ -7,10 +7,37 @@ This guide helps you resolve common issues when working with the Azure API Manag
 - [Setup Issues](#setup-issues)
 - [Deployment Errors](#deployment-errors)
 - [Authentication Issues](#authentication-issues)
+- [MockAPI Backends](#mockapi-backends)
 - [Notebook and Development Environment Issues](#notebook-and-development-environment-issues)
 - [Azure CLI Issues](#azure-cli-issues)
 - [Resource Management Issues](#resource-management-issues)
 - [Getting Additional Help](#getting-additional-help)
+
+## MockAPI Backends
+
+Container Apps-capable infrastructures use two MockAPI backends. See the [MockAPI operations guide](infrastructure/apim-aca/README.md#mockapi-backends) for the complete credential, persistence, migration, and permissions contract.
+
+### Dashboard is unreachable or credentials are missing
+
+Use the **MockAPI Dashboard 1/2** links and the `admin` username and password printed in the successful infrastructure summary. Private-ingress dashboards require network access to the Container Apps environment; an APIM subscription key does not sign you into the dashboard. Recover the password from the Container App's `dashboard-password` secret if needed. Do not paste credentials into issues, and clear notebook outputs before sharing.
+
+### Direct requests fail but APIM calls succeed
+
+The seeded backend endpoint is `GET /hello`, not the dashboard root. Direct requests require the infrastructure's `X-MockAPI-Key`; APIM injects that secret automatically for `/aca-1`, `/aca-2`, and `/aca-pool`. Continue using APIM subscription keys when calling APIM. Do not disable MockAPI key enforcement to work around a failed direct call.
+
+### Deployment fails on storage access or role assignments
+
+The deploying identity needs permission to create scoped role assignments in addition to deploying resources. APIM-ACA seeds endpoints through authenticated dashboard management APIs while the runtime accesses Blob storage privately. The other three ACA-capable infrastructures currently upload configuration through authenticated public Blob endpoints and require storage data-plane access. If Azure Policy disables public storage access, provide private connectivity rather than bypassing the policy. Allow time for new role assignments to propagate before retrying.
+
+### Load Balancing setup fails or traffic starts with 429/503
+
+Redeploy older infrastructures to obtain MockAPI, the secret `mockapi-key` Named Value, and dashboard URLs before running the updated sample. The notebook identity must be allowed to read Container Apps secrets and reach both dashboard origins. The sample reuses the existing instances and adds only its namespaced endpoints.
+
+Backend permit budgets and APIM circuit-breaker state can carry over between flows and immediate reruns. The sample uses five permits per backend and a three-second window, restoring the original capacity and recovery timing. Rerun the sample deployment and backend configuration cells to update older ten-second sample settings. The 429/503 responses produced by deliberately exhausted pools are expected, but a structured flow with no successful traffic fails its assertion. Older MockAPI images also had an idle-window replenishment defect, where a direct backend request could still return 429 after the configured window had elapsed. Redeploy older infrastructures to apply the repository's digest-pinned image before testing exact-wait recovery; rerunning only the sample does not upgrade the infrastructure-owned containers.
+
+The tracked APIM policy must accept both integer and HTTP-date `Retry-After` headers; pool-generated 503 responses can carry dates and bypass post-forward tracking. Treating those dates as zero or relying only on a warm cache causes repeated one-second waits. Do not independently rotate keys in either dashboard: persisted security state, both Container Apps, and the APIM Named Value must remain aligned.
+
+If weighted traffic appears sequential or a priority flow starts on a lower-priority backend, rerun the updated verification cell. It waits four seconds before each flow so previous breaker trips expire. Weighted flows use 700 ms pacing to keep both backends eligible; bursting until both identical budgets are exhausted produces equal success counts even with unequal weights. These weighted demonstrations must not contain 429/503 responses. Other callers sharing the endpoints can still invalidate the isolated experiment.
 
 ## Setup Issues
 

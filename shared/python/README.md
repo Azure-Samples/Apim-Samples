@@ -63,6 +63,10 @@ The number of lines is a signal to inspect a notebook, not a reason by itself to
 
 Do not create both a sample-local wrapper and a shared helper for the same operation. A notebook should call the narrowest owning contract directly.
 
+Infrastructure-owned MockAPI provisioning follows the same rule: [mockapi.py](mockapi.py) owns credential reuse, configuration seeding, and restart/readiness mechanics shared by four infrastructures. [infrastructures.py](infrastructures.py) composes those operations through the existing Azure CLI boundary. See the [MockAPI operations guide](../../infrastructure/apim-aca/README.md#mockapi-backends) for credential recovery and persistence behavior.
+
+[mockapi_dashboard.py](mockapi_dashboard.py) owns authenticated management sessions, conditional endpoint updates, concurrency retries, and autosave recovery. Both private-storage infrastructure initialization and the Load Balancing sample consume this client; endpoint definitions and scenario-specific traffic remain with their respective owners. The client never requires direct Blob access from the notebook machine.
+
 ## Notebook Boundary
 
 A notebook is the user-facing workflow, not a general-purpose Python module. Each code cell should communicate one operation and remain understandable when read from top to bottom.

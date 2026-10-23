@@ -4,6 +4,7 @@ import argparse
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 from typing import NotRequired, TypedDict
 
 # APIM Samples imports
@@ -41,8 +42,8 @@ class _InfrastructureArguments(TypedDict):
 
 
 def build_aca_hello_world_apis() -> list[API]:
-    """Build the unchanged demo APIs for two Container Apps and their pool."""
-    backend_policy = read_policy_xml(BACKEND_XML_POLICY_PATH)
+    """Build the existing demo URLs with explicit routing to MockAPI's exact Hello World path."""
+    backend_policy = read_policy_xml(str(Path(BACKEND_XML_POLICY_PATH).with_name('mockapi-backend.xml')))
 
     return [
         API(

@@ -166,13 +166,13 @@ class BarChart:
             legend_names.append(f'{backend_label} - {_format_request_count(backend_request_counts[idx])}')
         if client_error_count:
             legend_labels.append(pltRectangle((0, 0), 1, 1, color=client_error_color))
-            legend_names.append(f'!!! 4xx CLIENT ERRORS - {_format_request_count(client_error_count)} !!!')
+            legend_names.append(f' 4xx CLIENT ERRORS - {_format_request_count(client_error_count)} ')
         if server_error_count:
             legend_labels.append(pltRectangle((0, 0), 1, 1, color=server_error_color))
-            legend_names.append(f'!!! 5xx SERVER ERRORS - {_format_request_count(server_error_count)} !!!')
+            legend_names.append(f' 5xx SERVER ERRORS - {_format_request_count(server_error_count)} ')
         if other_error_count:
             legend_labels.append(pltRectangle((0, 0), 1, 1, color=other_error_color))
-            legend_names.append(f'!!! OTHER NON-200 RESPONSES - {_format_request_count(other_error_count)} !!!')
+            legend_names.append(f' OTHER NON-200 RESPONSES - {_format_request_count(other_error_count)} ')
         ax.legend(legend_labels, legend_names, loc='upper left', bbox_to_anchor=(1.01, 1), borderpad=1.2)
 
         has_errors = client_error_count or server_error_count or other_error_count
