@@ -118,3 +118,28 @@ def test_extract_json_nested_edge_cases():
     special = {'key': 'value with "quotes" and \\backslash'}
     s = json.dumps(special)
     assert json_utils.extract_json(s) == special
+
+
+@pytest.mark.parametrize('value, expected', [
+    ({'a': 1}, '{\n    "a": 1\n}'),
+    ([1, 2], '[\n    1,\n    2\n]'),
+    ('{"a": 1}', '{\n    "a": 1\n}'),
+    (b'{"a": 1}', '{\n    "a": 1\n}'),
+    ('plain text', 'plain text'),
+    (b'plain', 'plain'),
+    (None, 'None'),
+])
+def test_pretty_json(value, expected):
+    assert json_utils.pretty_json(value) == expected
+
+
+def test_pretty_json_mapping_and_unserializable():
+    class Headers:
+        def items(self):
+            return [('k', 'v')]
+
+        def __iter__(self):
+            return iter(self.items())
+
+    assert json_utils.pretty_json(Headers()) == '{\n    "k": "v"\n}'
+    assert '"obj"' in json_utils.pretty_json({'obj': object()})

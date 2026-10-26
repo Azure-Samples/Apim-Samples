@@ -229,7 +229,7 @@ def print_plain(msg: str = '', *, level: int | None = None, wrap_lines: bool = T
 def print_debug(msg: str = '', *, wrap_lines: bool = True, blank_above: bool = False, blank_below: bool = False) -> None:
     """Log a debug message."""
 
-    _print_log(msg, prefix='🐞 ', color='', blank_above=blank_above, blank_below=blank_below, wrap_lines=wrap_lines, level=logging.DEBUG)
+    _print_log(msg, prefix='', color='', blank_above=blank_above, blank_below=blank_below, wrap_lines=wrap_lines, level=logging.DEBUG)
 
 
 # ------------------------------

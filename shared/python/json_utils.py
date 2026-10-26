@@ -43,6 +43,33 @@ def is_string_json(text: str) -> bool:
     return False
 
 
+def pretty_json(value: Any, indent: int = 4) -> str:
+    """
+    Return indented JSON for mappings, lists, and JSON text; otherwise return the value as text.
+
+    Args:
+        value (Any): A dict, list, mapping-like object (e.g. response headers), or a string that may contain JSON.
+        indent (int): Number of spaces per indentation level.
+
+    Returns:
+        str: The pretty-printed JSON, or the original text when the value is not JSON.
+    """
+
+    if isinstance(value, (str, bytes, bytearray)):
+        try:
+            value = json.loads(value)
+        except ValueError:
+            return value.decode('utf-8', errors='replace') if isinstance(value, (bytes, bytearray)) else value
+
+    if hasattr(value, 'items'):
+        value = dict(value)
+
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, indent=indent, ensure_ascii=False, default=str)
+
+    return str(value)
+
+
 def extract_json(text: str) -> Any:
     """
     Extract the first valid JSON object or array from a string and return it as a Python object.

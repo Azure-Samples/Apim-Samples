@@ -12,10 +12,14 @@ import urllib3
 
 # APIM Samples imports
 from apimtypes import HTTP_VERB, SLEEP_TIME_BETWEEN_REQUESTS_MS, SUBSCRIPTION_KEY_PARAMETER_NAME, HttpStatusCode
-from console import BOLD_G, BOLD_R, RESET, print_error, print_info, print_message, print_ok, print_val
+from console import BOLD_G, BOLD_R, RESET, print_debug, print_error, print_info, print_message, print_ok, print_val
+from json_utils import pretty_json
+from logging_config import is_debug_enabled
 
 _SENSITIVE_HEADER_NAMES = frozenset(k.lower() for k in (
     'api-key', 'Ocp-Apim-Subscription-Key', 'Authorization', 'x-api-key',
+    'Proxy-Authorization', 'Cookie', 'Set-Cookie', 'x-auth-token',
+    'x-access-token', 'x-ms-token-aad-access-token', 'x-ms-token-aad-refresh-token',
 ))
 
 
@@ -173,12 +177,24 @@ class ApimRequests:
         request_kwargs = kwargs.copy()
         request_kwargs['verify'] = not self.allowInsecureTls
 
+        if is_debug_enabled():
+            print_debug(f'Request headers:\n{pretty_json(_redact_headers(request_kwargs.get("headers")))}')
+            if request_kwargs.get('json') is not None:
+                print_debug(f'Request body:\n{pretty_json(request_kwargs["json"])}')
+
         if self.allowInsecureTls:
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore', urllib3.exceptions.InsecureRequestWarning)
-                return request_callable(*args, **request_kwargs)
+                response = request_callable(*args, **request_kwargs)
+        else:
+            response = request_callable(*args, **request_kwargs)
 
-        return request_callable(*args, **request_kwargs)
+        if is_debug_enabled():
+            print_debug(f'Response status: {response.status_code} - {response.reason}')
+            print_debug(f'Response headers:\n{pretty_json(_redact_headers(response.headers))}')
+            print_debug(f'Response body:\n{pretty_json(response.text)}')
+
+        return response
 
     def _request(
         self,
@@ -330,7 +346,7 @@ class ApimRequests:
         """
 
         self._print_response_code(response)
-        print_val('Response headers', response.headers, True)
+        print_val('Response headers', _redact_headers(response.headers), True)
 
         if response.status_code == HttpStatusCode.OK:
             try:
