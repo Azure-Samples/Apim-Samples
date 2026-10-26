@@ -1,5 +1,6 @@
 """Tests for apimrequests helpers and request behavior."""
 
+import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -16,6 +17,78 @@ DEFAULT_KEY = 'test-KEY'
 DEFAULT_PATH = '/test'
 DEFAULT_HEADERS = {'Custom-Header': 'Value'}
 DEFAULT_DATA = {'foo': 'bar'}
+
+
+@pytest.mark.parametrize('level', [logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL])
+@pytest.mark.parametrize('operation', ['single', 'multi', 'async', 'poll'])
+@pytest.mark.parametrize('status_code', [200, 500])
+@pytest.mark.parametrize('print_response', [True, False])
+def test_debug_http_details_respect_log_level(level, operation, status_code, print_response, monkeypatch, caplog):
+    """Every output mode masks sensitive headers without changing HTTP data."""
+    monkeypatch.setenv('APIM_SAMPLES_LOG_LEVEL', logging.getLevelName(level))
+    caplog.set_level(level)
+    sensitive_headers = {
+        'aUtHoRiZaTiOn': 'bearer-secret',
+        'API-Key': 'api-secret',
+        'X-API-Key': 'custom-secret',
+        'pRoXy-AuThOrIzAtIoN': 'proxy-secret',
+        'Cookie': 'cookie-secret',
+        'sEt-CoOkIe': 'session-secret',
+        'X-Auth-Token': 'auth-token-secret',
+        'X-Access-Token': 'access-token-secret',
+        'X-MS-TOKEN-AAD-ACCESS-TOKEN': 'aad-access-secret',
+        'X-MS-TOKEN-AAD-REFRESH-TOKEN': 'aad-refresh-secret',
+        SUBSCRIPTION_KEY_PARAMETER_NAME: DEFAULT_KEY,
+    }
+    response = create_mock_http_response(
+        status_code = status_code,
+        json_data = {'detail': 'diagnostic response'},
+        headers = {**sensitive_headers, 'x-result': 'visible'},
+    )
+    session = create_mock_session_with_response(response)
+    session.get.return_value = response
+    headers = {**sensitive_headers, 'x-scenario': 'visible'}
+
+    with patch('apimrequests.requests.Session', return_value = session):
+        with ApimRequests(DEFAULT_URL, DEFAULT_KEY, headers = headers) as client:
+            if operation == 'single':
+                result = client.singlePost(DEFAULT_PATH, data = DEFAULT_DATA, printResponse = print_response)
+                assert result == '{\n    "detail": "diagnostic response"\n}'
+            elif operation == 'multi':
+                result = client.multiPost(DEFAULT_PATH, 1, data = DEFAULT_DATA, printResponse = print_response)
+                assert result[0]['status_code'] == status_code
+                assert result[0]['headers'] == response.headers
+            elif operation == 'async':
+                result = client.singlePostAsync(DEFAULT_PATH, data = DEFAULT_DATA, printResponse = print_response)
+                assert result == '{\n    "detail": "diagnostic response"\n}'
+            else:
+                result = client._poll_async_operation(DEFAULT_URL, headers = headers)
+                assert result is response
+
+    debug_output = '\n'.join(record.getMessage() for record in caplog.records if record.levelno == logging.DEBUG)
+    if level == logging.DEBUG:
+        assert 'Request headers:' in debug_output
+        assert 'x-scenario' in debug_output
+        assert f'Response status: {status_code}' in debug_output
+        assert 'Response headers:' in debug_output
+        assert 'x-result' in debug_output
+        assert 'Response body:\n{\n    "detail": "diagnostic response"\n}' in debug_output
+        assert '***REDACTED***' in debug_output
+        if operation == 'poll':
+            assert 'Request body:' not in debug_output
+        else:
+            assert 'Request body:\n{\n    "foo": "bar"\n}' in debug_output
+    else:
+        assert debug_output == ''
+    for name, secret in sensitive_headers.items():
+        assert secret not in caplog.text
+        assert response.headers[name] == secret
+        request = session.get.call_args if operation == 'poll' else session.request.call_args
+        assert request.kwargs['headers'][name] == secret
+    if level <= logging.INFO and print_response and operation != 'poll':
+        assert 'Response headers' in caplog.text
+        assert '***REDACTED***' in caplog.text
+    session.close.assert_called_once()
 
 
 @pytest.fixture

@@ -247,10 +247,10 @@ def test_print_warning_with_duration():
 
 
 def test_print_debug_basic():
-    """Test print_debug logs debug prefix."""
+    """Test print_debug logs the message without an icon prefix."""
     output = capture_output(console.print_debug, 'Debug details')
 
-    assert '🐞' in output
+    assert '🐞' not in output
     assert 'Debug details' in output
 
 

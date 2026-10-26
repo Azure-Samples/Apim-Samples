@@ -272,6 +272,7 @@ The Python helpers in this repo use standard-library `logging`, empowering you t
 
 - `APIM_SAMPLES_LOG_LEVEL`: Controls the overall verbosity (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`). Default: `INFO`.
    - If set to `DEBUG`, the Azure CLI runner in [shared/python/azure_resources.py](shared/python/azure_resources.py) will also add `--debug` to simple `az ...` commands.
+   - `DEBUG` also shows request headers, JSON payloads, response status, headers, and bodies for [ApimRequests](shared/python/apimrequests.py), including test runs with `printResponse=False` and asynchronous polling. Known credential, token, and cookie headers are masked in both normal and debug output, but payloads and response bodies may contain sensitive content. Enable this only for trusted lab data and clear notebook outputs before sharing.
 - `APIM_SAMPLES_CONSOLE_WIDTH`: Optional wrap width for long lines (defaults to `120`).
 
 ## Troubleshooting
