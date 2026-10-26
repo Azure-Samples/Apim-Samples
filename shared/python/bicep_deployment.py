@@ -173,12 +173,14 @@ def deploy_bicep_template(
         with open(params_path, 'w', encoding = 'utf-8', newline = '\n') as file:
             file.write(json.dumps(document))
 
-        command = (
-            f'az deployment group create --name {deployment_name} --resource-group {rg_name} '
-            f'--template-file "{template_path}" --parameters "{params_path}" --query "properties.outputs"'
-        )
+        command = [
+            'az', 'deployment', 'group', 'create',
+            '--name', deployment_name, '--resource-group', rg_name,
+            '--template-file', template_path, '--parameters', params_path,
+            '--query', 'properties.outputs',
+        ]
         if is_debug and not sensitive_output:
-            command += ' --debug'
+            command.append('--debug')
 
         print_plain('\nDeploying bicep...\n')
         run = runner if runner is not None else az.run
@@ -190,6 +192,7 @@ def deploy_bicep_template(
                 error_message if error_message is not None else get_deployment_failure_message(deployment_name),
                 sensitive_output = sensitive_output,
                 timeout = 1800,
+                retries = 0,
             )
             if output.success or recovery_attempted or recover is None or not recover():
                 return output

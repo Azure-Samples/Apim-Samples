@@ -245,6 +245,19 @@ A shared module should not know which notebook cell called it. Its behavior must
 
 Architecture-specific private-link approval, connectivity checks, MockAPI initialization, and final verification remain in infrastructure orchestration rather than the template executor.
 
+### Command Execution and Results
+
+Prefer argument lists when calling `azure_resources.run()`. Arguments are passed with `shell=False`, preserving spaces, quotes, query expressions, and shell metacharacters as literal values. Existing string callers remain supported as legacy shell commands; strings are not automatically split or converted. Template deployments and deployment-operation diagnostics use argument lists.
+
+On Windows, Azure CLI MSI batch launchers are resolved to their bundled Python executable and `azure.cli` module rather than running arguments through a batch shell. Other Windows batch launchers are rejected for argument-list execution; use their native executable instead. Native Azure CLI launchers on Windows, Linux, and macOS are resolved from `PATH`. A missing launcher or unsupported batch layout produces an explicit failed result, not a shell fallback. Azure CLI execution remains serialized.
+
+`Output(success, text)` and its JSON/deployment accessors remain compatible. Command results additionally expose `stdout`, `stderr`, `returncode`, `timed_out`, `attempts`, `elapsed_seconds`, and `execution_error`. Successful `text` contains stdout only; failed `text` combines available streams and execution errors. Timeouts retain partial streams and have no exit code. Manually constructed outputs have no process metadata (`returncode=None`, `attempts=0`). Raw streams can contain secrets and must not be logged directly.
+
+- The default `retry_policy='transient'` retries only recognized throttling and service-unavailability failures, within the existing `retries` limit. Permanent failures, unknown errors, local execution failures, and ambiguous timeouts are not automatically repeated.
+- Use `retry_policy='never'` or `retries=0` when an operation owns polling/recovery or must execute once. Template deployments disable command-level retries; infrastructure diagnostic recovery remains the only retry authority.
+- `retry_policy='always'` explicitly restores retry-on-any-failure behavior for callers that know repeating their operation is safe, including after a timeout.
+- Sensitive operations withhold command arguments and output from logs and suppress automatic CLI debug. Other diagnostic output retains existing secret redaction.
+
 ## Naming and API Surface
 
 - Use verbs for operations: `load_test_results()`, `wait_for_gateway_dns()`.

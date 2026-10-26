@@ -3,7 +3,6 @@
 import json
 import logging
 import os
-import re
 from pathlib import Path
 from unittest.mock import Mock
 import azure_resources as az
@@ -47,9 +46,9 @@ def test_create_bicep_deployment_group_with_enum(deployment_dependencies):
     # Verify deployment command was called with enum value
     mock_run.assert_called_once()
     actual_cmd = mock_run.call_args[0][0]
-    assert 'az deployment group create' in actual_cmd
-    assert '--name simple-apim' in actual_cmd
-    assert '--resource-group test-rg' in actual_cmd
+    assert actual_cmd[:4] == ['az', 'deployment', 'group', 'create']
+    assert actual_cmd[actual_cmd.index('--name') + 1] == 'simple-apim'
+    assert actual_cmd[actual_cmd.index('--resource-group') + 1] == 'test-rg'
 
 
 def test_create_bicep_deployment_group_with_string(deployment_dependencies):
@@ -66,7 +65,7 @@ def test_create_bicep_deployment_group_with_string(deployment_dependencies):
     # Verify deployment command uses string deployment name
     mock_run.assert_called_once()
     actual_cmd = mock_run.call_args[0][0]
-    assert '--name custom-deployment' in actual_cmd
+    assert actual_cmd[actual_cmd.index('--name') + 1] == 'custom-deployment'
 
 
 def test_create_bicep_deployment_group_params_file_written(monkeypatch):
@@ -332,14 +331,12 @@ def test_explicit_deployment_owns_parameters_and_preserves_cwd(monkeypatch, tmp_
     result = Output(success, '{}')
 
     def run(command, *args, **kwargs):
-        match = re.search(r'--parameters "([^"]+)"', command)
-        assert match is not None
-        path = Path(match.group(1))
+        path = Path(command[command.index('--parameters') + 1])
         captured_paths.append(path)
         assert path.is_absolute()
-        assert f'--template-file "{template}"' in command
+        assert command[command.index('--template-file') + 1] == str(template)
         assert ('--debug' in command) is (not sensitive)
-        assert kwargs == {'sensitive_output': sensitive, 'timeout': 1800}
+        assert kwargs == {'sensitive_output': sensitive, 'timeout': 1800, 'retries': 0}
         assert json.loads(path.read_text(encoding = 'utf-8')) == {
             '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
             'contentVersion': '1.0.0.0',
@@ -446,8 +443,8 @@ def test_sample_deployment_resolves_explicit_paths_without_chdir(monkeypatch, tm
     output = Output(True, '{}')
 
     def run(command, *args, **kwargs):
-        assert f'--template-file "{sample_dir / "main.bicep"}"' in command
-        assert f'--parameters "{sample_dir / "params.json"}"' in command
+        assert command[command.index('--template-file') + 1] == str(sample_dir / 'main.bicep')
+        assert command[command.index('--parameters') + 1] == str(sample_dir / 'params.json')
         assert Path.cwd() == caller_dir
         return output
 

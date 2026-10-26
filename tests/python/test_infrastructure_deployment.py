@@ -183,9 +183,13 @@ def test_shared_deployment_preserves_order_parameters_and_command(shared_deploym
         'Product-Match-Any',
         'Remove-Request-Headers',
     ]
-    command = f'az deployment group create --name {infra.infra.value} --resource-group {infra.rg_name} --template-file "{deployment_dir / "main.bicep"}" --parameters "{params_path}" --query "properties.outputs"'
+    command = [
+        'az', 'deployment', 'group', 'create', '--name', infra.infra.value,
+        '--resource-group', infra.rg_name, '--template-file', str(deployment_dir / 'main.bicep'),
+        '--parameters', str(params_path), '--query', 'properties.outputs',
+    ]
     steps.deploy.assert_called_once_with(
-        command, f"Deployment '{infra.infra.value}' succeeded", 'Deployment failed', sensitive_output = infra._mockapi_credentials is not None, timeout=1800
+        command, f"Deployment '{infra.infra.value}' succeeded", 'Deployment failed', sensitive_output = infra._mockapi_credentials is not None, timeout=1800, retries = 0
     )
     mock_utils.get_deployment_failure_message.assert_called_once_with(infra.infra.value)
     steps.verify.assert_called_once_with(infra.rg_name)
@@ -488,7 +492,7 @@ def test_lockdown_keeps_credentials_temporary_and_suppresses_cli_debug(shared_de
     def deploy(command, *args, **kwargs):
         parameter_path = _parameter_file(infra, deployment_dir)
         parameter_paths.append(parameter_path)
-        assert f'--parameters "{parameter_path}"' in command
+        assert command[command.index('--parameters') + 1] == str(parameter_path)
         assert kwargs['sensitive_output'] is (infra._mockapi_credentials is not None)
         parameters = json.loads(parameter_path.read_text(encoding = 'utf-8'))['parameters']
         assert parameters['apimPublicAccess'] == {'value': False}

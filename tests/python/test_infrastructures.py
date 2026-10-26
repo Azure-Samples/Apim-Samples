@@ -2512,9 +2512,9 @@ def test_disable_apim_public_access_success_writes_params_and_calls_az(mock_util
 
     mock_az.run.assert_called_once()
     cmd = mock_az.run.call_args.args[0]
-    assert 'az deployment group create' in cmd
-    assert f'--name {infra.infra.value}-lockdown' in cmd
-    assert f'--resource-group {infra.rg_name}' in cmd
+    assert cmd[:4] == ['az', 'deployment', 'group', 'create']
+    assert cmd[cmd.index('--name') + 1] == f'{infra.infra.value}-lockdown'
+    assert cmd[cmd.index('--resource-group') + 1] == infra.rg_name
     assert '--template-file' in cmd
     assert '--parameters' in cmd
 
