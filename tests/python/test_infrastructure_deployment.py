@@ -10,9 +10,71 @@ import pytest
 
 # APIM Samples imports
 import infrastructures
+import bicep_deployment
 from apimtypes import APIM_SKU, INFRASTRUCTURE, Output, Region
 
 PREPARATION_STEPS = ['prepare_fragments', 'prepare_apis', 'prepare_parameters']
+
+
+@pytest.mark.parametrize(
+    'infra_class',
+    [
+        infrastructures.SimpleApimInfrastructure,
+        infrastructures.ApimAcaInfrastructure,
+        infrastructures.AfdApimAcaInfrastructure,
+        infrastructures.AppGwApimPeInfrastructure,
+        infrastructures.AppGwApimInfrastructure,
+    ],
+)
+@pytest.mark.parametrize('rg_exists', [None, False, True])
+def test_infrastructure_construction_defers_azure_preparation(mock_az, infra_class, rg_exists):
+    """All architectures capture configuration without creating or querying Azure resources."""
+    infra = infra_class(Region.EAST_US_2, 1, rg_exists = rg_exists)
+
+    mock_az.create_resource_group.assert_not_called()
+    mock_az.get_unique_suffix_for_resource_group.assert_not_called()
+    mock_az.get_account_info.assert_not_called()
+    mock_az.run.assert_not_called()
+
+    infra._prepare_deployment()
+    infra._prepare_deployment()
+
+    mock_az.create_resource_group.assert_called_once_with(infra.rg_name, infra.rg_location, infra.rg_tags, rg_exists = rg_exists)
+    mock_az.get_unique_suffix_for_resource_group.assert_called_once_with(infra.rg_name)
+    mock_az.get_account_info.assert_called_once_with()
+
+
+def test_infrastructure_preparation_can_retry_after_partial_failure(mock_az):
+    infra = infrastructures.SimpleApimInfrastructure(Region.EAST_US_2, 1)
+    mock_az.get_unique_suffix_for_resource_group.side_effect = [RuntimeError('Suffix failed'), 'retry-suffix']
+
+    with pytest.raises(RuntimeError, match = 'Suffix failed'):
+        infra._prepare_deployment()
+
+    mock_az.get_account_info.assert_not_called()
+    assert not infra._deployment_prepared
+    infra._prepare_deployment()
+    assert infra._deployment_prepared
+    assert infra.resource_suffix == 'retry-suffix'
+
+
+@pytest.mark.parametrize('infra_class', [infrastructures.AppGwApimPeInfrastructure, infrastructures.AppGwApimInfrastructure])
+def test_gateway_preparation_precedes_certificate_and_main_deployment(mock_az, mock_utils, monkeypatch, infra_class):
+    mock_utils.Output.side_effect = Output
+    infra = infra_class(Region.EAST_US_2, 1)
+    steps = Mock()
+    steps.attach_mock(mock_az.create_resource_group, 'create_rg')
+    steps.attach_mock(mock_az.get_unique_suffix_for_resource_group, 'suffix')
+    steps.attach_mock(mock_az.get_account_info, 'account')
+    certificate = Mock(return_value = False)
+    steps.attach_mock(certificate, 'certificate')
+    monkeypatch.setattr(infra, '_prepare_keyvault_certificate', certificate)
+
+    assert not infra.deploy_infrastructure().success
+
+    assert [entry[0] for entry in steps.mock_calls] == ['create_rg', 'suffix', 'account', 'certificate']
+    certificate.assert_called_once_with('kv-abc123def456')
+    mock_az.run.assert_not_called()
 
 
 def _step_names(steps: Mock) -> list[str]:
@@ -37,8 +99,8 @@ def shared_deployment(request, monkeypatch, tmp_path, mock_az, mock_utils):
     original_cwd.mkdir()
     parameter_directory = tmp_path / 'parameters'
     parameter_directory.mkdir()
-    temporary_directory = infrastructures.tempfile.TemporaryDirectory
-    monkeypatch.setattr(infrastructures.tempfile, 'TemporaryDirectory', lambda **kwargs: temporary_directory(dir = parameter_directory, **kwargs))
+    temporary_directory = bicep_deployment.tempfile.TemporaryDirectory
+    monkeypatch.setattr(bicep_deployment.tempfile, 'TemporaryDirectory', lambda **kwargs: temporary_directory(dir = parameter_directory, **kwargs))
     monkeypatch.chdir(original_cwd)
     monkeypatch.setattr(infrastructures, '__file__', str(project / 'shared' / 'python' / 'infrastructures.py'))
     for name in ('print_plain', 'print_val', 'print_ok', 'print_error', 'print_warning'):
@@ -56,6 +118,7 @@ def shared_deployment(request, monkeypatch, tmp_path, mock_az, mock_utils):
         ),
     )
     infra = infrastructures.Infrastructure(request.param, 1, Region.EAST_US_2, APIM_SKU.BASICV2)
+    infra._prepare_deployment()
     steps = Mock()
     for method, label in (
         ('_define_policy_fragments', 'prepare_fragments'),
@@ -82,16 +145,15 @@ def test_shared_deployment_preserves_order_parameters_and_command(shared_deploym
     params_path = None
     documents = []
 
-    def migrate(rg_name):
+    def deploy(*args, **kwargs):
         nonlocal params_path
-        assert rg_name == infra.rg_name
-        assert Path.cwd() == deployment_dir
+        assert Path.cwd() == original_cwd
         params_path = _parameter_file(infra, deployment_dir)
         documents.append(json.loads(params_path.read_text(encoding='utf-8')))
 
-        return []
+        return output
 
-    steps.migrate.side_effect = migrate
+    steps.deploy.side_effect = deploy
 
     result = infra.deploy_infrastructure(is_update=is_update)
 
@@ -163,7 +225,7 @@ def test_shared_deployment_retries_once_with_identical_command(shared_deployment
     parameters = []
 
     def deploy(*args, **kwargs):
-        assert Path.cwd() == deployment_dir
+        assert Path.cwd() == original_cwd
         parameters.append(json.loads(_parameter_file(infra, deployment_dir).read_text(encoding='utf-8')))
 
         return next(outputs)
@@ -227,34 +289,22 @@ def test_shared_deployment_propagates_exceptions_and_restores_cwd(shared_deploym
         assert not (deployment_dir / 'params.json').exists()
 
 
-def test_shared_deployment_restores_cwd_when_entering_directory_fails(shared_deployment, monkeypatch):
+def test_shared_deployment_never_changes_cwd(shared_deployment, monkeypatch):
     infra, original_cwd, deployment_dir, steps = shared_deployment
-    real_chdir = os.chdir
-    error = OSError('Cannot enter deployment directory')
+    change_directory = Mock(side_effect = AssertionError('Deployment must not change cwd'))
+    monkeypatch.setattr(os, 'chdir', change_directory)
 
-    def chdir(path):
-        if Path(path) == deployment_dir:
-            raise error
-        real_chdir(path)
-
-    change_directory = Mock(side_effect=chdir)
-    monkeypatch.setattr(infrastructures.os, 'chdir', change_directory)
-
-    with pytest.raises(OSError) as raised:
-        infra.deploy_infrastructure()
-
-    assert raised.value is error
-    assert change_directory.call_args_list == [call(deployment_dir), call(str(original_cwd))]
-    assert _step_names(steps) == PREPARATION_STEPS
+    assert infra.deploy_infrastructure().success
+    change_directory.assert_not_called()
+    assert _step_names(steps) == PREPARATION_STEPS + ['migrate', 'deploy', 'verify']
     assert Path.cwd() == original_cwd
-    assert not (deployment_dir / 'params.json').exists()
 
 
 def test_shared_deployment_restores_cwd_when_parameter_file_cannot_open(shared_deployment, monkeypatch):
     infra, original_cwd, deployment_dir, steps = shared_deployment
     error = OSError('Cannot write parameters')
     open_file = Mock(side_effect=error)
-    monkeypatch.setattr(infrastructures, 'open', open_file, raising=False)
+    monkeypatch.setattr(bicep_deployment, 'open', open_file, raising=False)
 
     with pytest.raises(OSError) as raised:
         infra.deploy_infrastructure()
@@ -262,14 +312,15 @@ def test_shared_deployment_restores_cwd_when_parameter_file_cannot_open(shared_d
     assert raised.value is error
     open_file.assert_called_once()
     path = open_file.call_args.args[0]
+    path = Path(path)
     assert path.name == 'params.json'
     assert open_file.call_args.args[1:] == ('w',)
-    assert open_file.call_args.kwargs == {'encoding': 'utf-8'}
+    assert open_file.call_args.kwargs == {'encoding': 'utf-8', 'newline': '\n'}
     if infra._mockapi_credentials is not None:
         assert not path.parent.exists()
     else:
         assert path == deployment_dir / 'params.json'
-    assert _step_names(steps) == PREPARATION_STEPS
+    assert _step_names(steps) == PREPARATION_STEPS + ['migrate']
     assert Path.cwd() == original_cwd
 
 
@@ -281,8 +332,8 @@ def test_shared_deployment_closes_parameter_file_on_failure(shared_deployment, m
     infra, original_cwd, deployment_dir, steps = shared_deployment
     opened = []
 
-    def open_file(path, mode, *, encoding):
-        handle = open(path, mode, encoding=encoding)
+    def open_file(path, mode, *, encoding, newline):
+        handle = open(path, mode, encoding=encoding, newline=newline)
         opened.append(handle)
         if failure_stage == 'write':
             monkeypatch.setattr(handle, 'write', Mock(side_effect=OSError('Disk full')))
@@ -294,7 +345,7 @@ def test_shared_deployment_closes_parameter_file_on_failure(shared_deployment, m
 
     if failure_stage == 'serialization':
         steps.prepare_parameters.side_effect = invalid_parameters
-    monkeypatch.setattr(infrastructures, 'open', open_file, raising=False)
+    monkeypatch.setattr(bicep_deployment, 'open', open_file, raising=False)
 
     with pytest.raises(exception_type, match=message):
         infra.deploy_infrastructure()
@@ -302,7 +353,7 @@ def test_shared_deployment_closes_parameter_file_on_failure(shared_deployment, m
     assert len(opened) == 1
     assert opened[0].closed
     assert Path(opened[0].name).exists() is (infra._mockapi_credentials is None)
-    assert _step_names(steps) == PREPARATION_STEPS
+    assert _step_names(steps) == PREPARATION_STEPS + ['migrate']
     assert Path.cwd() == original_cwd
 
 

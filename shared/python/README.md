@@ -232,6 +232,19 @@ Prefer focused shared modules over continued growth of `utils.py`.
 
 A shared module should not know which notebook cell called it. Its behavior must be usable and testable from ordinary Python.
 
+### Deployment Lifecycle
+
+[bicep_deployment.py](bicep_deployment.py) owns template execution for samples, infrastructure creation and updates, and public-access lockdown. Its `deploy_bicep_template()` function accepts an explicit template path and parameters, serializes the ARM parameter document, and executes the Azure CLI with the existing 30-minute timeout. It never changes the process working directory or creates a resource group.
+
+- Omit `parameters_path` to use an owned temporary directory. Sensitive deployments always use temporary parameters and suppress CLI debug, even when a persistent path or debug mode was requested.
+- Temporary parameters are removed on success, failed deployment, and exceptions. Non-sensitive callers may explicitly retain a parameter file for inspection.
+- An optional recovery callback can authorize one retry with the same command and parameter file. Infrastructure orchestration owns legacy diagnostic migration before execution and only authorizes recovery when migration removes a legacy setting.
+- The existing `create_bicep_deployment_group()` and sample wrapper retain their public calling conventions. Legacy directory discovery remains available, while the sample wrapper passes an explicit template path without changing directories.
+
+[infrastructures.py](infrastructures.py) constructors capture configuration only. `deploy_infrastructure()` explicitly prepares the resource group, ARM naming suffix, and account context before building parameters. Application Gateway architectures prepare this context before creating their Key Vault certificate. Preparation is reused across stages of the same instance; a failed preparation can be retried. Azure-derived attributes such as `resource_suffix` and `subscription_id` become available after preparation, not construction.
+
+Architecture-specific private-link approval, connectivity checks, MockAPI initialization, and final verification remain in infrastructure orchestration rather than the template executor.
+
 ## Naming and API Surface
 
 - Use verbs for operations: `load_test_results()`, `wait_for_gateway_dns()`.
