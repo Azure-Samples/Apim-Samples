@@ -129,6 +129,9 @@ import utils
 from apimtypes import API, APIM_SKU, GET_APIOperation, INFRASTRUCTURE, POST_APIOperation, Region
 from console import print_error, print_ok
 from azure_resources import get_account_info, get_infra_rg_name
+from notebook_autoreload import configure_notebook_autoreload
+
+configure_notebook_autoreload()
 
 # ------------------------------
 #    USER CONFIGURATION
@@ -157,7 +160,6 @@ nb_helper        = utils.NotebookHelper(sample_folder, rg_name, rg_location, dep
 # if sample_dir not in sys.path:
 #     sys.path.insert(0, sample_dir)
 # sample_helpers = importlib.import_module('<domain>_helpers')
-# utils.enable_module_autoreload('<domain>_helpers')
 
 # Get account info (returns: current_user, current_user_id, tenant_id, subscription_id)
 _, _, _, subscription_id = get_account_info()
@@ -256,6 +258,7 @@ The helper must:
 - Close sessions, temporary files, and other resources on both success and exceptions.
 - Accept injected command runners, session factories, sleeps, or clocks when needed for deterministic tests.
 - Expose a small domain-specific API that reads like the scenario.
+- Declare `Autoreload: reload_safe`, `Autoreload: reload_conditional`, or `Autoreload: reload_unsafe` in the opening module docstring, with a reason or limitation following `shared/python/README.md`. The notebook's classified default registers imported dependencies automatically.
 
 Add `tests/python/test_<sample-name>_helpers.py` and cover success, failure, malformed input, and cleanup paths without live Azure access. Target at least 95% meaningful coverage for the helper.
 

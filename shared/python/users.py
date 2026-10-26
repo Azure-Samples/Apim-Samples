@@ -1,5 +1,7 @@
-"""
-Types and constants for authentication and authorization.
+"""Types and constants for authentication and authorization.
+
+Autoreload: reload_unsafe
+Restart the kernel after edits. Reloading recreates user enums and the mutable, predefined user collection.
 """
 
 from typing import List

@@ -133,7 +133,8 @@ All infrastructure notebooks must follow this exact cell pattern:
 
 #### Cell 2: Configure & Create (Python Code)
 
-- Import only `APIM_SKU`, `INFRASTRUCTURE` from `apimtypes`, `InfrastructureNotebookHelper` from `utils`, and `print_ok` from `console`
+- Import `APIM_SKU`, `INFRASTRUCTURE` from `apimtypes`, `InfrastructureNotebookHelper` from `utils`, `print_ok` from `console`, and `configure_notebook_autoreload` from `notebook_autoreload`
+- Call `configure_notebook_autoreload()` immediately after the imports, before configuration and deployment
 - `USER CONFIGURATION` section with `rg_location`, `index`, and `apim_sku` (comment each with inline description)
 - `SYSTEM CONFIGURATION` section: instantiate `InfrastructureNotebookHelper` and call `create_infrastructure()`
 - Final line: `print_ok('All done!')`
@@ -240,7 +241,7 @@ Structure:
 - Sample-local helpers must use explicit inputs and typed outputs, must not read notebook globals, and must own every session, temporary file, or other closeable resource they create. Prefer context managers for lifecycles that span multiple calls.
 - Inject remote, sleep, clock, session-factory, or command-runner boundaries when needed to test success, failure, retry, and cleanup paths without live Azure access or real delays.
 - Add `tests/python/test_<sample>_helpers.py` for each extracted sample-local module. Target meaningful success, failure, malformed-input, and cleanup coverage, not line-count padding.
-- Load actively edited sample-local modules through a module-qualified import and register selective autoreload with `utils.enable_module_autoreload('<module_name>')`. Do not use broad autoreload that can discard notebook state.
+- Initialize every notebook with `configure_notebook_autoreload()` immediately after the first code cell's imports. Use module-qualified sample-local helper calls and the opening-docstring classifications defined in `shared/python/README.md`. Do not use broad autoreload or unconditional `importlib.reload()`.
 
 **First operation cell (typically deployment):**
 

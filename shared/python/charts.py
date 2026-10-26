@@ -1,5 +1,7 @@
-"""
-Module providing charting functions.
+"""Module providing charting functions.
+
+Autoreload: reload_safe
+Rendering functions reload. Rerun the chart cell to regenerate existing figures.
 
 This module will likely be moved to the /shared/python directory in the future once it's more generic.
 """

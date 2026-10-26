@@ -1,5 +1,7 @@
-"""
-Rudimentary test framework to offload validations from the Jupyter notebooks.
+"""Rudimentary test framework to offload validations from the Jupyter notebooks.
+
+Autoreload: reload_conditional
+Method edits reload. Recreate test collectors after changing their stored-state contract.
 """
 
 from time import perf_counter

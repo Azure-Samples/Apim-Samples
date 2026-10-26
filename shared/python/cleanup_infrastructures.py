@@ -1,4 +1,8 @@
-"""Interactively start cleanup for deployed APIM Samples infrastructures."""
+"""Interactively start cleanup for deployed APIM Samples infrastructures.
+
+Autoreload: reload_conditional
+Function edits reload. Recreate selections after changing dataclass fields; cleanup always requires an explicit call.
+"""
 
 from collections.abc import Callable
 from dataclasses import dataclass

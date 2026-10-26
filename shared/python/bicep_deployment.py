@@ -1,4 +1,8 @@
-"""Run existing Bicep resource-group deployment workflows."""
+"""Run existing Bicep resource-group deployment workflows.
+
+Autoreload: reload_safe
+Functions reload between cells. Changed templates still require an explicit deployment.
+"""
 
 import json
 import os

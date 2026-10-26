@@ -1,4 +1,8 @@
-"""Runtime helpers for the inference-failover sample notebook."""
+"""Runtime helpers for the inference-failover sample notebook.
+
+Autoreload: reload_conditional
+Method edits reload. Recreate traffic runners and result objects after state/schema changes; regenerate reports explicitly.
+"""
 
 import json
 import time

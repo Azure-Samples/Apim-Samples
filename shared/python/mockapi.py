@@ -1,4 +1,8 @@
-"""Credential reuse and first-run configuration for infrastructure-owned MockAPI instances."""
+"""Credential reuse and first-run configuration for infrastructure-owned MockAPI instances.
+
+Autoreload: reload_conditional
+Function edits reload. Recreate result objects after changing dataclass fields; remote changes still require an explicit call.
+"""
 
 import base64
 import binascii

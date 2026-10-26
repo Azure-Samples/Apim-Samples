@@ -1,5 +1,8 @@
-"""
-List all deployed APIM infrastructures in the current Azure subscription.
+"""List all deployed APIM infrastructures in the current Azure subscription.
+
+Autoreload: reload_safe
+Listing functions reload; Azure queries run only when explicitly called.
+
 Results are based on resource groups tagged with the standard 'infrastructure' tag
 used by APIM Samples deployments.
 """

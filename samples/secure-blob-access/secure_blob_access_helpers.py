@@ -1,4 +1,8 @@
-"""Runtime helpers for the Secure Blob Access sample notebook."""
+"""Runtime helpers for the Secure Blob Access sample notebook.
+
+Autoreload: reload_conditional
+Function edits reload. Recreate result objects after changing dataclass fields; uploads and cleanup require explicit calls.
+"""
 
 import json
 import tempfile

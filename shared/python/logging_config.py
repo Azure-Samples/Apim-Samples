@@ -1,5 +1,8 @@
 """APIM Samples logging configuration.
 
+Autoreload: reload_unsafe
+Restart the kernel after edits. Reloading would replace logging locks and reset process-wide configuration bookkeeping.
+
 This workspace historically used ad-hoc `print()` and a custom console helper.
 This module centralizes standard-library logging configuration so that:
 - log level can be controlled via environment configuration
@@ -105,6 +108,12 @@ def get_configured_level_name() -> str:
     """Return the configured level name from env (normalized)."""
     _load_dotenv_once()
     return _normalize_level_name(os.getenv(_LOG_LEVEL_ENV))
+
+
+def ensure_logging_configured() -> None:
+    """Initialize logging once without resetting user-selected levels on helper reload."""
+    if not _state['configured']:
+        configure_logging()
 
 
 def configure_logging(*, level: str | None = None, force: bool = False) -> None:

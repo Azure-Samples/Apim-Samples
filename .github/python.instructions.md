@@ -53,7 +53,8 @@ This ensures all code changes comply with the project's linting standards from t
 - Constructors capture and validate state; explicit methods perform Azure, network, file, sleep, or other observable work.
 - A helper that creates an HTTP session, temporary file, or closeable resource owns deterministic cleanup on success and exceptions. Use a context manager when ownership spans multiple calls.
 - Inject command runners, session factories, sleeps, clocks, or other external boundaries when this avoids live Azure access, network calls, or real waits in unit tests.
-- Use module-qualified imports plus `utils.enable_module_autoreload('<module_name>')` for actively edited sample-local pure-Python modules. Do not use broad autoreload.
+- Initialize every notebook with `from notebook_autoreload import configure_notebook_autoreload` and `configure_notebook_autoreload()` immediately after the first cell's imports, before other executable statements. Use module-qualified sample-local helper calls. Do not use broad autoreload or unconditional `importlib.reload()`.
+- Every runtime module under `shared/python/`, sample folders, or infrastructure folders must declare `Autoreload: reload_safe`, `Autoreload: reload_conditional`, or `Autoreload: reload_unsafe` in its opening docstring, followed by the reason or limitation. Follow `shared/python/README.md` for classification and restart rules; preserve enum identity, synchronization locks, and process-wide logging state.
 - Line count alone does not justify extraction. Extract when responsibility, lifecycle, repetition, or testability belongs outside the educational workflow.
 
 ## Style and Conventions

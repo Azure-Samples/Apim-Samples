@@ -1,5 +1,8 @@
-"""
-Script to show all soft-deleted (not yet purged) API Management and Key Vault resources.
+"""Script to show all soft-deleted (not yet purged) API Management and Key Vault resources.
+
+Autoreload: reload_unsafe
+Restart the kernel after edits. Import-time stdout wrapping must not be repeated automatically.
+
 These resources are in a recoverable state and can be restored or purged.
 """
 

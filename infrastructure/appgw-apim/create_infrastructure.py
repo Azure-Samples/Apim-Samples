@@ -1,4 +1,8 @@
-"""Reusable script to create Application Gateway + APIM (Internal) infrastructure."""
+"""Reusable script to create Application Gateway + APIM (Internal) infrastructure.
+
+Autoreload: reload_conditional
+Function edits reload when imported. Recreate deployment specifications after state changes; CLI subprocesses always load fresh source.
+"""
 
 # APIM Samples imports
 import infrastructure_cli as cli

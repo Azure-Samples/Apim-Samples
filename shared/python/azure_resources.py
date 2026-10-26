@@ -1,5 +1,7 @@
-"""
-Module providing Azure resource management functions, often wrapped with additional functionality.
+"""Module providing Azure resource management functions, often wrapped with additional functionality.
+
+Autoreload: reload_conditional
+Function edits reload between cells. The command lock lives in reload_unsafe _runtime_locks; do not edit during active operations.
 
 This module contains functions for interacting with Azure resources,
 including resource groups, deployments, and various Azure services.
@@ -13,13 +15,13 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import threading
 import time
 from collections.abc import Sequence
 from contextlib import nullcontext
 from typing import Any, Literal, Optional, Tuple
 
 # APIM Samples imports
+from _runtime_locks import AZ_CLI_LOCK as _AZ_CLI_LOCK
 from apimtypes import INFRASTRUCTURE, Endpoints, Output
 from console import print_command, print_error, print_info, print_message, print_ok, print_plain, print_val, print_warning
 from logging_config import is_debug_enabled
@@ -56,7 +58,6 @@ _AZ_COMMAND_RE = re.compile(r'^\s*az(\s|$)')
 # Running multiple `az ...` commands concurrently from threads can lead to intermittent
 # failures and corrupted/partial output. Serialize `az` invocations to keep multi-index
 # cleanups reliable.
-_AZ_CLI_LOCK = threading.Lock()
 _NESTED_DEPLOYMENT_RESOURCE_TYPE = 'microsoft.resources/deployments'
 _LEGACY_APIM_DIAGNOSTIC_SETTING_PATTERN = re.compile(r'^apim-(?:diag|costing-diagnostics-\d+|inference-failover-\d+)$')
 

@@ -1,5 +1,7 @@
-"""
-Infrastructure Types and Cleanup Utilities
+"""Infrastructure Types and Cleanup Utilities
+
+Autoreload: reload_conditional
+Method edits reload. Recreate infrastructure objects after constructor changes; CLI subprocesses load fresh source on each execution.
 """
 
 import json

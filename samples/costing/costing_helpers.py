@@ -1,5 +1,8 @@
 """Costing-sample-private helpers.
 
+Autoreload: reload_conditional
+Function and method edits reload. Recreate traffic plans/results after changing dataclass fields; rerun computations and traffic explicitly.
+
 These functions are intentionally scoped to the costing sample because they
 encode costing-specific contracts (the local `bu-request-counts.local.json`
 schema, the fake-JWT shape used by the emit-metric policy, the retry profile

@@ -1,4 +1,8 @@
-"""Runtime helpers for the OAuth 3rd-Party sample notebook."""
+"""Runtime helpers for the OAuth 3rd-Party sample notebook.
+
+Autoreload: reload_conditional
+Function edits reload. Recreate credential/result objects after changing dataclass fields; reread environment configuration explicitly.
+"""
 
 import json
 import os

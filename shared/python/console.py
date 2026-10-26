@@ -1,5 +1,8 @@
 """Console output utilities for APIM samples.
 
+Autoreload: reload_conditional
+Formatting methods reload. Recreate tables after constructor changes; the output lock and logging configuration are not reloaded.
+
 Historically, this repo used `print()` plus a small helper layer for consistent
 console output. This module keeps that public API, but now emits messages via
 standard-library `logging` so that output can be filtered/configured by log
@@ -12,11 +15,12 @@ import datetime
 import logging
 import os
 import textwrap
-import threading
 
-from logging_config import configure_logging
+import _runtime_locks
+import logging_config as _logging_config
 
-configure_logging()
+configure_logging = _logging_config.configure_logging
+_logging_config.ensure_logging_configured()
 
 # ------------------------------
 #    CONSTANTS
@@ -44,8 +48,7 @@ _MIN_CONSOLE_WIDTH = 20
 _PAD_MAX = 35
 
 # Thread-safe print lock
-_print_lock = threading.Lock()
-
+_print_lock = _runtime_locks.PRINT_LOCK
 _logger = logging.getLogger(__name__)
 
 # ------------------------------

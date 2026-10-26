@@ -1,4 +1,8 @@
-"""Sample-owned validation, output selection and bounded smoke-test mechanics."""
+"""Sample-owned validation, output selection and bounded smoke-test mechanics.
+
+Autoreload: reload_conditional
+Function and method edits reload. Recreate validation/result objects after changing their fields and regenerate reports explicitly.
+"""
 
 import json
 import math

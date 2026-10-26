@@ -1,5 +1,7 @@
-"""
-Types and constants for Azure API Management automation and deployment.
+"""Types and constants for Azure API Management automation and deployment.
+
+Autoreload: reload_unsafe
+Restart the kernel after edits. Reloading recreates enums and type identities used by existing objects and isinstance checks.
 """
 
 import ast

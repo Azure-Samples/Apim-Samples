@@ -1,4 +1,8 @@
-"""Locate and read sample and shared APIM policy files."""
+"""Locate and read sample and shared APIM policy files.
+
+Autoreload: reload_safe
+Stateless path and file-loading functions support automatic reload. Reread changed policy files explicitly.
+"""
 
 import inspect
 import os

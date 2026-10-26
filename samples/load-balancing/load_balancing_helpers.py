@@ -1,4 +1,8 @@
-"""Runtime helpers for the load-balancing sample notebook."""
+"""Runtime helpers for the load-balancing sample notebook.
+
+Autoreload: reload_conditional
+Method edits reload. Recreate traffic runners and result objects after state/schema changes; close existing sessions normally.
+"""
 
 import json
 import time

@@ -1,5 +1,7 @@
-"""
-Factory for creating authentication tokens or objects for Azure API Management samples.
+"""Factory for creating authentication tokens or objects for Azure API Management samples.
+
+Autoreload: reload_safe
+Stateless token-building methods reload. Rerun token creation to update already generated tokens.
 """
 
 from typing import Any

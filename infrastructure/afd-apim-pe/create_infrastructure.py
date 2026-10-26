@@ -1,5 +1,10 @@
 """This module provides a reusable way to create Azure Front Door with API Management (Private Endpoint) infrastructure
-that can be called from notebooks or other scripts."""
+
+Autoreload: reload_conditional
+Function edits reload when imported. Recreate deployment specifications after state changes; CLI subprocesses always load fresh source.
+
+that can be called from notebooks or other scripts.
+"""
 
 # APIM Samples imports
 import infrastructure_cli as cli

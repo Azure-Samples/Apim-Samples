@@ -211,13 +211,51 @@ A sample-local helper should:
 - Have tests in `tests/python/test_<sample>_helpers.py`.
 - Remain importable after the sample directory is added to `sys.path`.
 
-Register an actively edited pure-Python module once after its directory is on `sys.path`:
+Every notebook configures repository-scoped autoreload immediately after its first code cell's imports:
 
 ```python
-utils.enable_module_autoreload('dynamic_cors_helpers')
+from notebook_autoreload import configure_notebook_autoreload
+
+configure_notebook_autoreload()
 ```
 
-Selective autoreload checks only registered modules and reloads them only after their source changes. It preserves deployment outputs and other notebook variables. It does not replace rerunning a cell that already computed values, rebuilding existing class instances, restarting after native-extension changes, or redeploying changed Bicep.
+Sample-local modules still need their directory on `sys.path` before importing. Prefer `import dynamic_cors_helpers` and module-qualified calls. When runtime path setup is needed, put `import importlib` at the top of the cell and use `sample_helpers = importlib.import_module('<domain>_helpers')` after path setup, rather than adding a late `from ... import ...`.
+
+### Notebook Autoreload Policy
+
+[notebook_autoreload.py](notebook_autoreload.py) uses IPython's selective `%autoreload 1` mode. It registers already imported Python modules under this checkout's [shared helpers](.), [samples](../../samples/), and [infrastructures](../../infrastructure/), including transitive dependencies. Dependencies imported by later cells are registered after those cells finish. It does not eagerly import unrelated modules, reload third-party packages, or configure ordinary Python processes.
+
+Each runtime module must declare exactly one of these identifiers in its opening docstring, followed by the reason or limitation:
+
+- `reload_safe`: ordinary function and method edits support automatic reload.
+- `reload_conditional`: ordinary code edits support reload, but stored state, constructor changes, or result schemas require explicit recreation or recomputation.
+- `reload_unsafe`: excluded from automatic reload; restart the kernel after editing the module.
+
+```python
+"""Runtime helpers for a sample.
+
+Autoreload: reload_conditional
+Method edits reload. Recreate clients after constructor changes and close
+existing sessions normally.
+"""
+```
+
+The docstring declaration is the registration policy, not merely a comment for readers. Missing, invalid, or duplicate declarations produce a visible configuration error. Classifications describe **reload safety**, not whether importing the module normally is safe. Restart after changing a classification or the autoreload implementation itself.
+
+Before each subsequent cell, IPython checks registered modules' source modification timestamps and reloads changed files only. It does not compare file contents: touching or saving identical source can still trigger a reload. Repeated configuration does not duplicate callbacks, replace notebook bindings, or reset deployment outputs. It never automatically reruns cells or Azure operations.
+
+The default exclusions deliberately include [apimtypes.py](apimtypes.py), [users.py](users.py), and [infrastructure_cli.py](infrastructure_cli.py): even an ordinary edit can cause a full reload to recreate their enums and break identity checks against existing objects. [logging_config.py](logging_config.py) retains process-wide configuration, [_runtime_locks.py](_runtime_locks.py) retains command and output locks, and [show_soft_deleted_resources.py](show_soft_deleted_resources.py) can wrap stdout at import time. All are `reload_unsafe`. Infrastructure creation scripts executed as subprocesses already load fresh source on each run.
+
+Supported function and method edits do not require a restart. However:
+
+- Existing computed results, imported constants, generated tokens, figures, reports, and deployed resources are not recomputed. Rerun the relevant cell explicitly.
+- Existing objects can pick up supported method edits, but constructors are not rerun. Recreate objects after changing initialization or stored-state requirements.
+- Dataclass fields, inheritance, slots, and method/property conversions are structural changes. Recreate affected objects; restart when old and new types cannot safely coexist.
+- Native extensions and installed package changes generally require a kernel restart.
+- Changed Bicep, XML policies, and KQL are not Python reload events. Reread files and redeploy or rerun queries as appropriate.
+- IPython reports reload errors rather than hiding them, but may retain old code. Correct the file and save again before continuing; restart if recovery is uncertain.
+
+To enable this in an already running notebook, rerun its first code cell once. That cell still performs its normal initialization and may reset configuration or, in infrastructure notebooks, start deployment or cleanup. For activation without those effects, execute only the import and configuration call above in a separate cell. The existing `utils.enable_module_autoreload()` remains available for legacy explicit registration; notebooks use the classified default instead.
 
 ## Shared Module Design
 
@@ -345,5 +383,5 @@ Use this order when moving mechanics out of a notebook:
 4. Add unit tests for behavior and failure paths.
 5. Replace notebook mechanics with a readable call.
 6. Remove cross-cell functions, sessions, and mutable runtime dependencies.
-7. Add selective autoreload only for actively edited pure-Python modules.
+7. Declare the module's reload classification and initialize the notebook's repository-scoped selective autoreload.
 8. Promote to `shared/python/` later if a second real consumer establishes a stable shared contract.

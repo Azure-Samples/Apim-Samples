@@ -1,4 +1,8 @@
-"""Role-based authentication test orchestration for APIM samples."""
+"""Role-based authentication test orchestration for APIM samples.
+
+Autoreload: reload_conditional
+Function edits reload. Recreate result objects after changing dataclass fields.
+"""
 
 import json
 from dataclasses import dataclass

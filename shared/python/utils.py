@@ -1,5 +1,7 @@
-"""
-Module providing utility functions.
+"""Module providing utility functions.
+
+Autoreload: reload_conditional
+Function and method edits reload. Recreate helpers after constructor changes; deployment outputs are not recomputed.
 """
 
 import ast
