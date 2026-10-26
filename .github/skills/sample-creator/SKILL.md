@@ -380,6 +380,8 @@ After adding or moving policy XML or KQL files, verify all notebook, Python help
 
 Adding a sample is not complete until the repository listings stay in sync.
 
+First add the sample to `samples/catalog.json`, the source of truth for folders, canonical display names, root README summaries, and compatibility. Keep entries alphabetical by display name and infrastructure IDs in matrix column order. Preserve visible notebook configuration; the catalog checker validates its `supported_infras` declaration rather than replacing it.
+
 Update these files when a new sample is added:
 
 1. `README.md` - Add the sample to the root sample table in alphabetical order.
@@ -389,6 +391,8 @@ Update these files when a new sample is added:
 5. `assets/diagrams/Infrastructure-Sample-Compatibility.svg` - Add a new row for the sample in alphabetical order. Every new sample needs a row here, regardless of whether the compatibility pattern is unique. Mark each infrastructure cell as compatible (green check) or not compatible (red cross).
 
 Keep the canonical display name identical across README tables, the website, the slide deck, and compatibility diagrams.
+
+Run `python setup/sample_catalog.py` after synchronization. The existing Python CI job also enforces these checks. Website and deck prose remain hand-authored; do not introduce a website build step or overwrite manual test results. See `CONTRIBUTING.md#sample-catalog` for the maintenance workflow.
 
 If the sample work exposes a reusable structural improvement, suggest updating `samples/_TEMPLATE/` as part of the same task or as a follow-up.
 

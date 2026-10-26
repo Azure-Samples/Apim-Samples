@@ -1,0 +1,140 @@
+[
+  {
+    "description": "Authentication and role-based authorization in a mock HR API.",
+    "display_name": "AuthX",
+    "folder": "authX",
+    "supported_infrastructures": [
+      "simple-apim",
+      "apim-aca",
+      "afd-apim-pe",
+      "appgw-apim",
+      "appgw-apim-pe"
+    ]
+  },
+  {
+    "description": "Authentication and role-based authorization in a mock product with multiple APIs and policy fragments.",
+    "display_name": "AuthX Pro",
+    "folder": "authX-pro",
+    "supported_infrastructures": [
+      "simple-apim",
+      "apim-aca",
+      "afd-apim-pe",
+      "appgw-apim",
+      "appgw-apim-pe"
+    ]
+  },
+  {
+    "description": "Proxying calls to Azure Maps with APIM policies.",
+    "display_name": "Azure Maps",
+    "folder": "azure-maps",
+    "supported_infrastructures": [
+      "simple-apim",
+      "apim-aca",
+      "afd-apim-pe",
+      "appgw-apim",
+      "appgw-apim-pe"
+    ]
+  },
+  {
+    "description": "Create PAYG Azure OpenAI resources, test a dated legacy API, add and test v1 alongside it, and verify the original legacy contract again.",
+    "display_name": "Azure OpenAI v1 Migration",
+    "folder": "aoai-v1-migration",
+    "supported_infrastructures": [
+      "simple-apim",
+      "apim-aca",
+      "afd-apim-pe",
+      "appgw-apim",
+      "appgw-apim-pe"
+    ]
+  },
+  {
+    "description": "Track and allocate API costs per business unit using APIM subscriptions, Entra ID application tracking, and AI Gateway token/PTU tracking across both Azure OpenAI Chat Completions and Responses APIs, including streaming (SSE) token usage which is not simple to capture correctly in APIM.",
+    "display_name": "Costing",
+    "folder": "costing",
+    "supported_infrastructures": [
+      "simple-apim",
+      "apim-aca",
+      "afd-apim-pe",
+      "appgw-apim",
+      "appgw-apim-pe"
+    ]
+  },
+  {
+    "description": "Dynamic per-API CORS origin validation using custom policy fragments and a maintainable origin mapping.",
+    "display_name": "Dynamic CORS",
+    "folder": "dynamic-cors",
+    "supported_infrastructures": [
+      "simple-apim",
+      "apim-aca",
+      "afd-apim-pe",
+      "appgw-apim",
+      "appgw-apim-pe"
+    ]
+  },
+  {
+    "description": "Control APIM outbound internet traffic by routing it through a Network Virtual Appliance (NVA) in a hub/spoke topology.",
+    "display_name": "Egress Control",
+    "folder": "egress-control",
+    "supported_infrastructures": [
+      "appgw-apim",
+      "appgw-apim-pe"
+    ]
+  },
+  {
+    "description": "Basic demo of APIM sample setup and policy usage.",
+    "display_name": "General",
+    "folder": "general",
+    "supported_infrastructures": [
+      "simple-apim",
+      "apim-aca",
+      "afd-apim-pe",
+      "appgw-apim",
+      "appgw-apim-pe"
+    ]
+  },
+  {
+    "description": "Route compatible Azure OpenAI models through priority and weighted APIM backend pools with focused LLM failover and token telemetry.",
+    "display_name": "Inference Failover",
+    "folder": "inference-failover",
+    "supported_infrastructures": [
+      "simple-apim",
+      "apim-aca",
+      "afd-apim-pe",
+      "appgw-apim",
+      "appgw-apim-pe"
+    ]
+  },
+  {
+    "description": "Priority and weighted load balancing, circuit breaking, and recovery using throttled endpoints on infrastructure-owned MockAPI backends. No additional container is deployed.",
+    "display_name": "Load Balancing",
+    "folder": "load-balancing",
+    "supported_infrastructures": [
+      "apim-aca",
+      "afd-apim-pe"
+    ]
+  },
+  {
+    "description": "Authenticate with APIM which then uses its Credential Manager with Spotify's REST API.",
+    "display_name": "OAuth 3rd-Party",
+    "folder": "oauth-3rd-party",
+    "supported_infrastructures": [
+      "simple-apim",
+      "apim-aca",
+      "afd-apim-pe",
+      "appgw-apim",
+      "appgw-apim-pe"
+    ]
+  },
+  {
+    "description": "Secure blob access via the valet key pattern.",
+    "display_name": "Secure Blob Access",
+    "folder": "secure-blob-access",
+    "supported_infrastructures": [
+      "simple-apim",
+      "apim-aca",
+      "afd-apim-pe",
+      "appgw-apim",
+      "appgw-apim-pe"
+    ]
+  }
+]
