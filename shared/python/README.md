@@ -294,7 +294,7 @@ On Windows, Azure CLI MSI batch launchers are resolved to their bundled Python e
 - The default `retry_policy='transient'` retries only recognized throttling and service-unavailability failures, within the existing `retries` limit. Permanent failures, unknown errors, local execution failures, and ambiguous timeouts are not automatically repeated.
 - Use `retry_policy='never'` or `retries=0` when an operation owns polling/recovery or must execute once. Template deployments disable command-level retries; infrastructure diagnostic recovery remains the only retry authority.
 - `retry_policy='always'` explicitly restores retry-on-any-failure behavior for callers that know repeating their operation is safe, including after a timeout.
-- Sensitive operations withhold command arguments and output from logs and suppress automatic CLI debug. Other diagnostic output retains existing secret redaction.
+- Sensitive operations withhold command arguments and output from logs and suppress automatic CLI debug by default. `APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS=true` bypasses Python-side secret masking and sensitive-output suppression, including JSON stdout and deployment outputs, so complete APIM subscription keys and other request/response data can be logged. [unmasked_logging.py](unmasked_logging.py) overrides Azure Core and legacy msrest logging redactors only in the current Python process. **Azure CLI still masks its own sensitive parameters and headers; its built-in masking is not overridden.** Python cannot recover values already masked by the CLI or a remote service. Use `DEBUG` for complete Python diagnostics and clear all resulting logs and notebook outputs before sharing.
 
 ## Naming and API Surface
 

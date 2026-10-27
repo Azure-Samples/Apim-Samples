@@ -214,6 +214,10 @@ def print_val(name: str, value: str, val_below: bool = False) -> None:
 
 def print_secret(name: str, value: str) -> None:
     """Print a key-value pair with the value masked, showing only its length."""
+    if _logging_config.should_unmask_sensitive_headers():
+        print_val(name, value)
+        return
+
     masked = f'***REDACTED*** ({len(value)} chars)' if value else '(empty)'
     _print_log(f'{name:<{_PAD_MAX}}: {masked}', '🔒 ', BOLD_B, wrap_lines=True, level=logging.INFO)
 

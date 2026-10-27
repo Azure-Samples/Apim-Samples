@@ -34,6 +34,39 @@ def test_normalize_level_name_defaults_to_info() -> None:
     assert logging_config._normalize_level_name('') == 'INFO'
 
 
+@pytest.mark.parametrize('value', [None, 'false', 'FALSE', ' false ', 'true', 'TRUE', ' true '])
+def test_should_unmask_sensitive_headers(value, monkeypatch):
+    """Header unmasking defaults to false and accepts only boolean strings."""
+    monkeypatch.setattr(logging_config, '_find_env_file', lambda: None)
+    if value is not None:
+        monkeypatch.setenv('APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS', value)
+
+    assert logging_config.should_unmask_sensitive_headers() is (value in {'true', 'TRUE', ' true '})
+
+
+@pytest.mark.parametrize('value', ['', 'on', 'off', '1', '0', 'yes', 'no', 'tru'])
+def test_should_unmask_sensitive_headers_rejects_invalid_value(value, monkeypatch):
+    """Report configuration typos instead of silently changing masking behavior."""
+    monkeypatch.setenv('APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS', value)
+
+    with pytest.raises(ValueError, match='APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS must be true or false'):
+        logging_config.should_unmask_sensitive_headers()
+
+
+def test_should_unmask_sensitive_headers_loads_dotenv(tmp_path, monkeypatch):
+    """Read the opt-in from .env while honoring an existing process override."""
+    env_file = tmp_path / '.env'
+    env_file.write_text('APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS=true\n', encoding = 'utf-8')
+    monkeypatch.setattr(logging_config, '_find_env_file', lambda: env_file)
+    monkeypatch.setenv('APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS', 'false')
+    monkeypatch.delenv('APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS')
+
+    assert logging_config.should_unmask_sensitive_headers() is True
+    monkeypatch.setenv('APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS', 'false')
+    assert logging_config.should_unmask_sensitive_headers() is False
+    monkeypatch.delenv('APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS')
+
+
 def test_normalize_level_name_aliases_and_invalid_values() -> None:
     assert logging_config._normalize_level_name('warn') == 'WARNING'
     assert logging_config._normalize_level_name('fatal') == 'CRITICAL'

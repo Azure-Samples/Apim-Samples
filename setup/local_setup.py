@@ -297,6 +297,7 @@ def generate_env_file() -> None:
     managed_keys = {
         'APIM_SAMPLES_CONSOLE_WIDTH': existing_vars.get('APIM_SAMPLES_CONSOLE_WIDTH', '180'),
         'APIM_SAMPLES_LOG_LEVEL': existing_vars.get('APIM_SAMPLES_LOG_LEVEL', 'INFO'),
+        'APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS': existing_vars.get('APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS', 'false'),
         'APIM_SAMPLES_INFRA_CREATION_BEHAVIOR': existing_vars.get('APIM_SAMPLES_INFRA_CREATION_BEHAVIOR', 'ask-always'),
         'PROJECT_ROOT': str(project_root),
         'PYTHONPATH': str(shared_python_path),
@@ -315,6 +316,10 @@ def generate_env_file() -> None:
         '',
         f'APIM_SAMPLES_CONSOLE_WIDTH={managed_keys["APIM_SAMPLES_CONSOLE_WIDTH"]}',
         f'APIM_SAMPLES_LOG_LEVEL={managed_keys["APIM_SAMPLES_LOG_LEVEL"]}',
+        '# WARNING: true exposes all sensitive values in Python requests, responses, SDK logs, and helper output.',
+        '# Azure CLI still masks its own sensitive parameters and headers; this setting does not override CLI masking.',
+        '# Use only for trusted local debugging; clear outputs and logs before saving or sharing.',
+        f'APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS={managed_keys["APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS"]}',
         f'APIM_SAMPLES_INFRA_CREATION_BEHAVIOR={managed_keys["APIM_SAMPLES_INFRA_CREATION_BEHAVIOR"]}',
         f'PROJECT_ROOT={managed_keys["PROJECT_ROOT"]}',
         f'PYTHONPATH={managed_keys["PYTHONPATH"]}',

@@ -15,6 +15,7 @@ from typing import Any, List, Optional
 # APIM Samples imports
 from console import print_error, print_val
 from json_utils import extract_json, is_string_json
+from logging_config import should_unmask_sensitive_headers
 
 
 def get_project_root() -> Path:
@@ -432,6 +433,8 @@ class Output:
         Non-string scalars (bool, int, None) are returned unchanged.
         """
 
+        if should_unmask_sensitive_headers():
+            return value
         if isinstance(value, dict):
             return {key: cls._mask_secure_value(item, mask_strings=cls._is_secret_key_name(key)) for key, item in value.items()}
         if isinstance(value, list):
@@ -528,8 +531,8 @@ class Output:
             else:
                 raise KeyError(f"Output key '{key}' not found in deployment outputs")
 
-            if not suppress_logging and label:
-                if secure and isinstance(deployment_output, str) and len(deployment_output) >= self._SECURE_MASK_MIN_LENGTH:
+            if label and (not suppress_logging or should_unmask_sensitive_headers()):
+                if secure and not should_unmask_sensitive_headers() and isinstance(deployment_output, str) and len(deployment_output) >= self._SECURE_MASK_MIN_LENGTH:
                     print_val(label, f'****{deployment_output[-4:]}')
                 else:
                     print_val(label, deployment_output)
@@ -584,7 +587,7 @@ class Output:
             else:
                 raise KeyError(f"Output key '{key}' not found in deployment outputs")  # pragma: no cover
 
-            if not suppress_logging and label:
+            if label and (not suppress_logging or should_unmask_sensitive_headers()):
                 if secure:
                     print_val(label, self._mask_secure_value(deployment_output))
                 else:

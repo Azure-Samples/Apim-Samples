@@ -16,7 +16,7 @@ import urllib3
 from apimtypes import HTTP_VERB, SLEEP_TIME_BETWEEN_REQUESTS_MS, SUBSCRIPTION_KEY_PARAMETER_NAME, HttpStatusCode
 from console import BOLD_G, BOLD_R, RESET, print_debug, print_error, print_info, print_message, print_ok, print_val
 from json_utils import pretty_json
-from logging_config import is_debug_enabled
+from logging_config import is_debug_enabled, should_unmask_sensitive_headers
 
 _SENSITIVE_HEADER_NAMES = frozenset(k.lower() for k in (
     'api-key', 'Ocp-Apim-Subscription-Key', 'Authorization', 'x-api-key',
@@ -26,9 +26,12 @@ _SENSITIVE_HEADER_NAMES = frozenset(k.lower() for k in (
 
 
 def _redact_headers(headers: dict | None) -> dict | None:
-    """Return a shallow copy of *headers* with sensitive values masked."""
+    """Copy headers for output, masking secrets unless explicitly opted out."""
     if not headers:
         return headers
+    if should_unmask_sensitive_headers():
+        return dict(headers)
+
     return {
         k: ('***REDACTED***' if k.lower() in _SENSITIVE_HEADER_NAMES else v)
         for k, v in headers.items()
