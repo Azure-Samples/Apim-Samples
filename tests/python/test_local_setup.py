@@ -612,6 +612,8 @@ def test_generate_env_file_adds_logging_defaults(temp_project_root: Path) -> Non
 
     env = _read_env(temp_project_root)
     assert env['APIM_SAMPLES_LOG_LEVEL'] == 'INFO'
+    assert env['APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS'] == 'false'
+    assert '# WARNING: true exposes all sensitive values' in (temp_project_root / '.env').read_text(encoding = 'utf-8')
     assert env['APIM_SAMPLES_CONSOLE_WIDTH'] == '180'
     assert 'PROJECT_ROOT' in env
     assert 'PYTHONPATH' in env
@@ -623,6 +625,7 @@ def test_generate_env_file_preserves_existing_values(temp_project_root: Path) ->
             [
                 '# user config',
                 'APIM_SAMPLES_LOG_LEVEL=DEBUG',
+                'APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS=true',
                 'APIM_SAMPLES_CONSOLE_WIDTH=200',
                 'SPOTIFY_CLIENT_ID=abc',
                 'CUSTOM_X=1',
@@ -636,6 +639,7 @@ def test_generate_env_file_preserves_existing_values(temp_project_root: Path) ->
     env = _read_env(temp_project_root)
 
     assert env['APIM_SAMPLES_LOG_LEVEL'] == 'DEBUG'
+    assert env['APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS'] == 'true'
     assert env['APIM_SAMPLES_CONSOLE_WIDTH'] == '200'
     assert env['SPOTIFY_CLIENT_ID'] == 'abc'
     assert env['CUSTOM_X'] == '1'

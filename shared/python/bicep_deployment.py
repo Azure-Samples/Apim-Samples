@@ -154,7 +154,7 @@ def deploy_bicep_template(
     """Deploy an explicit template without changing cwd or creating a resource group.
 
     Omit parameters_path to use an owned temporary directory. Sensitive deployments
-    always use temporary parameters and suppress CLI debug. A recovery callback may
+    always use temporary parameters and suppress CLI debug unless unmasked logging is enabled. A recovery callback may
     authorize one retry; the same command and parameter file are used for both attempts.
     """
     template_path = os.path.abspath(template_path)
@@ -183,7 +183,7 @@ def deploy_bicep_template(
             '--template-file', template_path, '--parameters', params_path,
             '--query', 'properties.outputs',
         ]
-        if is_debug and not sensitive_output:
+        if is_debug and (not sensitive_output or az.should_unmask_sensitive_headers()):
             command.append('--debug')
 
         print_plain('\nDeploying bicep...\n')

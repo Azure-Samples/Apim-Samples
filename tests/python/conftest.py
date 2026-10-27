@@ -44,7 +44,8 @@ from test_helpers import (
 # ``load_dotenv`` and reintroduces values from the developer's local .env
 # file. The autouse fixture below ensures every test starts with these
 # variables removed regardless of any earlier dotenv loads.
-_LEAKED_ENV_VARS = ('APIM_SAMPLES_INFRA_CREATION_BEHAVIOR', 'APIM_TEST_QUERY_RG_LOCATION')
+# Also isolate the sensitive-output opt-in so local debugging never changes safe-default tests.
+_LEAKED_ENV_VARS = ('APIM_SAMPLES_INFRA_CREATION_BEHAVIOR', 'APIM_TEST_QUERY_RG_LOCATION', 'APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS')
 
 for _leaked_env_var in _LEAKED_ENV_VARS:
     os.environ.pop(_leaked_env_var, None)

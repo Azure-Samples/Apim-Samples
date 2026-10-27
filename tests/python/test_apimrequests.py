@@ -7,7 +7,7 @@ import pytest
 import requests
 
 # APIM Samples imports
-from apimrequests import ApimRequests
+from apimrequests import ApimRequests, _redact_headers
 from apimtypes import HTTP_VERB, SLEEP_TIME_BETWEEN_REQUESTS_MS, SUBSCRIPTION_KEY_PARAMETER_NAME, HttpStatusCode
 from test_helpers import create_mock_http_response, create_mock_session_with_response
 
@@ -23,9 +23,11 @@ DEFAULT_DATA = {'foo': 'bar'}
 @pytest.mark.parametrize('operation', ['single', 'multi', 'async', 'poll'])
 @pytest.mark.parametrize('status_code', [200, 500])
 @pytest.mark.parametrize('print_response', [True, False])
-def test_debug_http_details_respect_log_level(level, operation, status_code, print_response, monkeypatch, caplog):
-    """Every output mode masks sensitive headers without changing HTTP data."""
+@pytest.mark.parametrize('unmask', [False, True])
+def test_debug_http_details_respect_log_level(level, operation, status_code, print_response, unmask, monkeypatch, caplog):
+    """Every output mode respects header masking settings without changing HTTP data."""
     monkeypatch.setenv('APIM_SAMPLES_LOG_LEVEL', logging.getLevelName(level))
+    monkeypatch.setenv('APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS', str(unmask))
     caplog.set_level(level)
     sensitive_headers = {
         'aUtHoRiZaTiOn': 'bearer-secret',
@@ -73,7 +75,7 @@ def test_debug_http_details_respect_log_level(level, operation, status_code, pri
         assert 'Response headers:' in debug_output
         assert 'x-result' in debug_output
         assert 'Response body:\n{\n    "detail": "diagnostic response"\n}' in debug_output
-        assert '***REDACTED***' in debug_output
+        assert ('***REDACTED***' in debug_output) is not unmask
         if operation == 'poll':
             assert 'Request body:' not in debug_output
         else:
@@ -81,14 +83,30 @@ def test_debug_http_details_respect_log_level(level, operation, status_code, pri
     else:
         assert debug_output == ''
     for name, secret in sensitive_headers.items():
-        assert secret not in caplog.text
+        headers_logged = level == logging.DEBUG or (level == logging.INFO and (operation != 'multi' or print_response))
+        assert (secret in caplog.text) is (unmask and headers_logged)
         assert response.headers[name] == secret
         request = session.get.call_args if operation == 'poll' else session.request.call_args
         assert request.kwargs['headers'][name] == secret
     if level <= logging.INFO and print_response and operation != 'poll':
         assert 'Response headers' in caplog.text
-        assert '***REDACTED***' in caplog.text
+        assert ('***REDACTED***' in caplog.text) is not unmask
     session.close.assert_called_once()
+
+
+@pytest.mark.parametrize('unmask', [False, True])
+def test_header_output_does_not_mutate_original(unmask, monkeypatch):
+    """Formatting returns an independent copy without modifying credentials."""
+    monkeypatch.setenv('APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS', str(unmask))
+    headers = {'Authorization': 'test-secret', 'Accept': 'application/json'}
+
+    output = _redact_headers(headers)
+
+    assert output == {'Authorization': 'test-secret' if unmask else '***REDACTED***', 'Accept': 'application/json'}
+    assert output is not headers
+    assert headers['Authorization'] == 'test-secret'
+    assert _redact_headers(None) is None
+    assert _redact_headers({}) == {}
 
 
 @pytest.fixture

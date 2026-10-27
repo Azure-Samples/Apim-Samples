@@ -21,6 +21,9 @@ import threading
 from pathlib import Path
 from typing import Final
 
+# APIM Samples imports
+from unmasked_logging import enable_unmasked_logging
+
 try:
     from dotenv import load_dotenv  # type: ignore[import-not-found]
 except Exception:  # pragma: no cover
@@ -110,6 +113,18 @@ def get_configured_level_name() -> str:
     return _normalize_level_name(os.getenv(_LOG_LEVEL_ENV))
 
 
+def should_unmask_sensitive_headers() -> bool:
+    """Return whether Python-side data logging opts out of masking."""
+    _load_dotenv_once()
+    value = os.getenv('APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS', 'false').strip().lower()
+    if value == 'true':
+        return True
+    if value == 'false':
+        return False
+
+    raise ValueError('APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS must be true or false.')
+
+
 def ensure_logging_configured() -> None:
     """Initialize logging once without resetting user-selected levels on helper reload."""
     if not _state['configured']:
@@ -125,6 +140,8 @@ def configure_logging(*, level: str | None = None, force: bool = False) -> None:
     """
 
     level_name = _normalize_level_name(level) if level is not None else get_configured_level_name()
+    if should_unmask_sensitive_headers():
+        enable_unmasked_logging()
 
     with _config_lock:
         root_logger = logging.getLogger()

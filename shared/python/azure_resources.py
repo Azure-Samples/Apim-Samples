@@ -24,7 +24,7 @@ from typing import Any, Literal, Optional, Tuple
 from _runtime_locks import AZ_CLI_LOCK as _AZ_CLI_LOCK
 from apimtypes import INFRASTRUCTURE, Endpoints, Output
 from console import print_command, print_error, print_info, print_message, print_ok, print_plain, print_val, print_warning
-from logging_config import is_debug_enabled
+from logging_config import is_debug_enabled, should_unmask_sensitive_headers
 
 _SECRET_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     # JSON-style token fields
@@ -67,7 +67,7 @@ def _strip_ansi(text: str) -> str:
 
 
 def _redact_secrets(text: str) -> str:
-    if not text:
+    if not text or should_unmask_sensitive_headers():
         return text
 
     redacted = text
@@ -494,7 +494,7 @@ def run(
         retries: Number of retry attempts after the initial execution (default 1).
         retry_policy: Retry only recognized transient service errors by default.
             'always' explicitly permits retrying any failure; 'never' disables retries.
-        sensitive_output: Suppress output logging and automatic CLI debug for secret-bearing requests or responses.
+        sensitive_output: Suppress secret-bearing output and automatic CLI debug unless unmasked logging is enabled.
     """
     if retry_policy not in ('transient', 'always', 'never'):
         raise ValueError(f'Unknown retry policy: {retry_policy}')
@@ -502,6 +502,8 @@ def run(
         if not command or any(not isinstance(argument, str) for argument in command):
             raise ValueError('Command arguments must be a non-empty sequence of strings.')
         command = list(command)
+    unmask = should_unmask_sensitive_headers()
+    sensitive_output = sensitive_output and not unmask
     command_to_run = command if sensitive_output else _maybe_add_az_debug_flag(command)
     normalized_ok_message = ok_message or ''
     normalized_error_message = error_message or ''
@@ -594,7 +596,7 @@ def run(
 
         # Only log stdout when it doesn't look like JSON (otherwise it tends to be noisy
         # while also being the main programmatic output we're returning).
-        if stdout_text.strip() and not _looks_like_json(stdout_text):
+        if stdout_text.strip() and (unmask or not _looks_like_json(stdout_text)):
             print_plain(_redact_secrets(stdout_text.rstrip()), level=logging.DEBUG)
 
     if success:
