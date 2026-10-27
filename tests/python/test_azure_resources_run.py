@@ -900,6 +900,21 @@ def test_argument_execution_preserves_shell_metacharacters_without_side_effects(
     assert not marker.exists()
 
 
+@pytest.mark.parametrize('platform', ['linux', 'darwin'])
+def test_non_windows_native_arguments_are_preserved(monkeypatch: pytest.MonkeyPatch, platform: str) -> None:
+    """Non-Azure commands bypass Windows launcher resolution on Linux and macOS."""
+    monkeypatch.setattr(az.sys, 'platform', platform)
+    which = Mock()
+    monkeypatch.setattr(az.shutil, 'which', which)
+    arguments = ['program', 'two words', 'a&b|c>d<e']
+
+    resolved, environment = az._resolve_command_arguments(arguments)
+
+    assert resolved == arguments
+    assert environment is None
+    which.assert_not_called()
+
+
 @pytest.mark.parametrize('platform, extension', [('win32', '.exe'), ('linux', ''), ('darwin', '')])
 def test_azure_argument_execution_resolves_native_launcher_and_locks(monkeypatch, _quiet_console, tmp_path, platform, extension):
     launcher = str(tmp_path / f'az{extension}')
@@ -955,6 +970,28 @@ def test_other_windows_batch_launchers_cannot_silently_invoke_a_shell(monkeypatc
     assert not output.success
     assert 'native executable' in output.execution_error
     process.assert_not_called()
+
+
+@pytest.mark.parametrize('launcher_found', [True, False])
+def test_windows_native_argument_execution_preserves_arguments(monkeypatch: pytest.MonkeyPatch, _quiet_console: None, tmp_path, launcher_found: bool) -> None:
+    """Native commands remain shell-free whether PATH lookup succeeds or not."""
+    monkeypatch.setattr(az.sys, 'platform', 'win32')
+    launcher = str(tmp_path / 'Tools with spaces' / 'custom.EXE') if launcher_found else None
+    which = Mock(return_value = launcher)
+    monkeypatch.setattr(az.shutil, 'which', which)
+    process = Mock(return_value = SimpleNamespace(stdout = '{}', stderr = '', returncode = 0))
+    monkeypatch.setattr(az.subprocess, 'run', process)
+    arguments = ['custom', 'two words', 'a&b|c>d<e', '%PATH%', '']
+
+    output = az.run(arguments)
+
+    assert output.success
+    assert output.execution_error is None
+    which.assert_called_once_with('custom')
+    process.assert_called_once()
+    assert process.call_args.args[0] == arguments
+    assert process.call_args.kwargs['shell'] is False
+    assert process.call_args.kwargs['env'] is None
 
 
 @pytest.mark.parametrize('missing_launcher', [True, False])

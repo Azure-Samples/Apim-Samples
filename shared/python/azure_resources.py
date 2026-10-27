@@ -457,10 +457,9 @@ def _is_transient_command_failure(output: Output) -> bool:
             payload, _ = decoder.raw_decode(text[match.start():])
         except json.JSONDecodeError:
             continue
-        if isinstance(payload, dict):
-            error = payload.get('error', payload)
-            if isinstance(error, dict) and str(error.get('code', '')).lower() in codes | {'429', '502', '503', '504'}:
-                return True
+        error = payload.get('error', payload)
+        if isinstance(error, dict) and str(error.get('code', '')).lower() in codes | {'429', '502', '503', '504'}:
+            return True
 
     return bool(re.search(r'\b(?:TooManyRequests|ServiceUnavailable|ServerBusy|GatewayTimeout)\b|(?:HTTP(?:/\d(?:\.\d)?)?\s+|status(?: code)?[:=]?\s+)(?:429|502|503|504)\b', text, re.IGNORECASE))
 
