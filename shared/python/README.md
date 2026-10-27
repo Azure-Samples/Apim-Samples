@@ -211,13 +211,51 @@ A sample-local helper should:
 - Have tests in `tests/python/test_<sample>_helpers.py`.
 - Remain importable after the sample directory is added to `sys.path`.
 
-Register an actively edited pure-Python module once after its directory is on `sys.path`:
+Every notebook configures repository-scoped autoreload immediately after its first code cell's imports:
 
 ```python
-utils.enable_module_autoreload('dynamic_cors_helpers')
+from notebook_autoreload import configure_notebook_autoreload
+
+configure_notebook_autoreload()
 ```
 
-Selective autoreload checks only registered modules and reloads them only after their source changes. It preserves deployment outputs and other notebook variables. It does not replace rerunning a cell that already computed values, rebuilding existing class instances, restarting after native-extension changes, or redeploying changed Bicep.
+Sample-local modules still need their directory on `sys.path` before importing. Prefer `import dynamic_cors_helpers` and module-qualified calls. When runtime path setup is needed, put `import importlib` at the top of the cell and use `sample_helpers = importlib.import_module('<domain>_helpers')` after path setup, rather than adding a late `from ... import ...`.
+
+### Notebook Autoreload Policy
+
+[notebook_autoreload.py](notebook_autoreload.py) uses IPython's selective `%autoreload 1` mode. It registers already imported Python modules under this checkout's [shared helpers](.), [samples](../../samples/), and [infrastructures](../../infrastructure/), including transitive dependencies. Dependencies imported by later cells are registered after those cells finish. It does not eagerly import unrelated modules, reload third-party packages, or configure ordinary Python processes.
+
+Each runtime module must declare exactly one of these identifiers in its opening docstring, followed by the reason or limitation:
+
+- `reload_safe`: ordinary function and method edits support automatic reload.
+- `reload_conditional`: ordinary code edits support reload, but stored state, constructor changes, or result schemas require explicit recreation or recomputation.
+- `reload_unsafe`: excluded from automatic reload; restart the kernel after editing the module.
+
+```python
+"""Runtime helpers for a sample.
+
+Autoreload: reload_conditional
+Method edits reload. Recreate clients after constructor changes and close
+existing sessions normally.
+"""
+```
+
+The docstring declaration is the registration policy, not merely a comment for readers. Missing, invalid, or duplicate declarations produce a visible configuration error. Classifications describe **reload safety**, not whether importing the module normally is safe. Restart after changing a classification or the autoreload implementation itself.
+
+Before each subsequent cell, IPython checks registered modules' source modification timestamps and reloads changed files only. It does not compare file contents: touching or saving identical source can still trigger a reload. Repeated configuration does not duplicate callbacks, replace notebook bindings, or reset deployment outputs. It never automatically reruns cells or Azure operations.
+
+The default exclusions deliberately include [apimtypes.py](apimtypes.py), [users.py](users.py), and [infrastructure_cli.py](infrastructure_cli.py): even an ordinary edit can cause a full reload to recreate their enums and break identity checks against existing objects. [logging_config.py](logging_config.py) retains process-wide configuration, [_runtime_locks.py](_runtime_locks.py) retains command and output locks, and [show_soft_deleted_resources.py](show_soft_deleted_resources.py) can wrap stdout at import time. All are `reload_unsafe`. Infrastructure creation scripts executed as subprocesses already load fresh source on each run.
+
+Supported function and method edits do not require a restart. However:
+
+- Existing computed results, imported constants, generated tokens, figures, reports, and deployed resources are not recomputed. Rerun the relevant cell explicitly.
+- Existing objects can pick up supported method edits, but constructors are not rerun. Recreate objects after changing initialization or stored-state requirements.
+- Dataclass fields, inheritance, slots, and method/property conversions are structural changes. Recreate affected objects; restart when old and new types cannot safely coexist.
+- Native extensions and installed package changes generally require a kernel restart.
+- Changed Bicep, XML policies, and KQL are not Python reload events. Reread files and redeploy or rerun queries as appropriate.
+- IPython reports reload errors rather than hiding them, but may retain old code. Correct the file and save again before continuing; restart if recovery is uncertain.
+
+To enable this in an already running notebook, rerun its first code cell once. That cell still performs its normal initialization and may reset configuration or, in infrastructure notebooks, start deployment or cleanup. For activation without those effects, execute only the import and configuration call above in a separate cell. The existing `utils.enable_module_autoreload()` remains available for legacy explicit registration; notebooks use the classified default instead.
 
 ## Shared Module Design
 
@@ -231,6 +269,32 @@ Prefer focused shared modules over continued growth of `utils.py`.
 - Add a new module when a capability has a distinct vocabulary, dependencies, and test surface.
 
 A shared module should not know which notebook cell called it. Its behavior must be usable and testable from ordinary Python.
+
+### Deployment Lifecycle
+
+[bicep_deployment.py](bicep_deployment.py) owns template execution for samples, infrastructure creation and updates, and public-access lockdown. Its `deploy_bicep_template()` function accepts an explicit template path and parameters, serializes the ARM parameter document, and executes the Azure CLI with the existing 30-minute timeout. It never changes the process working directory or creates a resource group.
+
+- Omit `parameters_path` to use an owned temporary directory. Sensitive deployments always use temporary parameters and suppress CLI debug, even when a persistent path or debug mode was requested.
+- Temporary parameters are removed on success, failed deployment, and exceptions. Non-sensitive callers may explicitly retain a parameter file for inspection.
+- An optional recovery callback can authorize one retry with the same command and parameter file. Infrastructure orchestration owns legacy diagnostic migration before execution and only authorizes recovery when migration removes a legacy setting.
+- The existing `create_bicep_deployment_group()` and sample wrapper retain their public calling conventions. Legacy directory discovery remains available, while the sample wrapper passes an explicit template path without changing directories.
+
+[infrastructures.py](infrastructures.py) constructors capture configuration only. `deploy_infrastructure()` explicitly prepares the resource group, ARM naming suffix, and account context before building parameters. Application Gateway architectures prepare this context before creating their Key Vault certificate. Preparation is reused across stages of the same instance; a failed preparation can be retried. Azure-derived attributes such as `resource_suffix` and `subscription_id` become available after preparation, not construction.
+
+Architecture-specific private-link approval, connectivity checks, MockAPI initialization, and final verification remain in infrastructure orchestration rather than the template executor.
+
+### Command Execution and Results
+
+Prefer argument lists when calling `azure_resources.run()`. Arguments are passed with `shell=False`, preserving spaces, quotes, query expressions, and shell metacharacters as literal values. Existing string callers remain supported as legacy shell commands; strings are not automatically split or converted. Template deployments and deployment-operation diagnostics use argument lists.
+
+On Windows, Azure CLI MSI batch launchers are resolved to their bundled Python executable and `azure.cli` module rather than running arguments through a batch shell. Other Windows batch launchers are rejected for argument-list execution; use their native executable instead. Native Azure CLI launchers on Windows, Linux, and macOS are resolved from `PATH`. A missing launcher or unsupported batch layout produces an explicit failed result, not a shell fallback. Azure CLI execution remains serialized.
+
+`Output(success, text)` and its JSON/deployment accessors remain compatible. Command results additionally expose `stdout`, `stderr`, `returncode`, `timed_out`, `attempts`, `elapsed_seconds`, and `execution_error`. Successful `text` contains stdout only; failed `text` combines available streams and execution errors. Timeouts retain partial streams and have no exit code. Manually constructed outputs have no process metadata (`returncode=None`, `attempts=0`). Raw streams can contain secrets and must not be logged directly.
+
+- The default `retry_policy='transient'` retries only recognized throttling and service-unavailability failures, within the existing `retries` limit. Permanent failures, unknown errors, local execution failures, and ambiguous timeouts are not automatically repeated.
+- Use `retry_policy='never'` or `retries=0` when an operation owns polling/recovery or must execute once. Template deployments disable command-level retries; infrastructure diagnostic recovery remains the only retry authority.
+- `retry_policy='always'` explicitly restores retry-on-any-failure behavior for callers that know repeating their operation is safe, including after a timeout.
+- Sensitive operations withhold command arguments and output from logs and suppress automatic CLI debug. Other diagnostic output retains existing secret redaction.
 
 ## Naming and API Surface
 
@@ -319,5 +383,5 @@ Use this order when moving mechanics out of a notebook:
 4. Add unit tests for behavior and failure paths.
 5. Replace notebook mechanics with a readable call.
 6. Remove cross-cell functions, sessions, and mutable runtime dependencies.
-7. Add selective autoreload only for actively edited pure-Python modules.
+7. Declare the module's reload classification and initialize the notebook's repository-scoped selective autoreload.
 8. Promote to `shared/python/` later if a second real consumer establishes a stable shared contract.

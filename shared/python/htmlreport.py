@@ -1,4 +1,8 @@
-"""Build self-contained HTML reports for APIM sample runs."""
+"""Build self-contained HTML reports for APIM sample runs.
+
+Autoreload: reload_conditional
+Rendering methods reload. Recreate report elements after changing dataclass fields and regenerate existing reports.
+"""
 
 import base64
 import html

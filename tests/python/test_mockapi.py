@@ -260,6 +260,7 @@ def test_infrastructure_credential_preparation_uses_existing_azure_boundary(mock
     infra = infrastructures.Infrastructure(INFRASTRUCTURE.APIM_ACA, 1, 'eastus2', APIM_SKU.BASICV2)
     prepare = Mock(return_value = credentials)
     monkeypatch.setattr(mockapi, 'prepare_credentials', prepare)
+    infra._prepare_deployment()
     assert _PREPARE_CREDENTIALS(infra) is credentials
     prepare.assert_called_once_with(infra.rg_name, infra.resource_suffix, infra.subscription_id, runner = mock_az.run)
 
@@ -271,6 +272,7 @@ def test_infrastructure_parameters_reuse_prepared_credentials(mock_az, credentia
     infra.pfs = []
     infra._prepare_mockapi_credentials.reset_mock()
 
+    infra._prepare_deployment()
     parameters = infra._define_bicep_parameters()
 
     assert parameters['mockApiCredentials'] == {'value': credentials.to_parameters()}

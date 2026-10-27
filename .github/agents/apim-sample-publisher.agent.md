@@ -62,7 +62,7 @@ Treat search visibility as a publication criterion, not as optional polish. Revi
    - Inputs and typed outputs are explicit; the helper does not inspect notebook globals or IPython state.
    - Constructors avoid remote or file side effects, and owned resources close on success and exceptions.
    - Remote, session, sleep, clock, or command boundaries are injectable where deterministic tests require them.
-   - Actively edited sample-local modules use module-qualified imports and selective autoreload, not broad autoreload.
+   - Sample-local modules use module-qualified imports and declare their reload classification. Every notebook initializes `configure_notebook_autoreload()` after its first code cell's imports; no broad autoreload or unconditional reloads are used.
 6. Confirm every sample-local helper has focused tests under `tests/python/test_<sample>_helpers.py` covering meaningful success, failure, malformed-input, and cleanup paths without live Azure access. Target at least 95% coverage for changed helper modules.
 7. For multi-model inference samples, confirm that every model uses model-specific APIM backends as well as a model-specific backend pool. APIM tracks circuit-breaker state at the backend resource, so sharing a backend across models can allow a `429` or another configured failure from one model to suppress traffic to an otherwise healthy model.
 8. Validate sample-owned structured files. Parse JSON and notebooks, check XML well-formedness, review APIM policy expressions against the allowed policy-expression surface, and compile or lint Bicep when the toolchain is available.

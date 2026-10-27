@@ -1,5 +1,7 @@
-"""
-Types and constants for Azure API Management automation and deployment.
+"""Types and constants for Azure API Management automation and deployment.
+
+Autoreload: reload_unsafe
+Restart the kernel after edits. Reloading recreates enums and type identities used by existing objects and isinstance checks.
 """
 
 import ast
@@ -400,6 +402,7 @@ class Endpoints:
 class Output:
     """
     Represents the output of a command or deployment, including success status, raw text, and parsed JSON data.
+    Executed commands also retain raw streams, exit status, timing, attempts, and execution errors.
     """
 
     _SECURE_MASK_MIN_LENGTH = 4
@@ -445,13 +448,33 @@ class Output:
     #    CONSTRUCTOR
     # ------------------------------
 
-    def __init__(self, success: bool, text: str):
+    def __init__(
+        self,
+        success: bool,
+        text: str,
+        *,
+        stdout: str = '',
+        stderr: str = '',
+        returncode: int | None = None,
+        timed_out: bool = False,
+        attempts: int = 0,
+        elapsed_seconds: float = 0,
+        execution_error: str | None = None,
+    ):
         """
         Initialize the Output object with command success status and output text.
         Attempts to parse JSON from the output text.
+        Process metadata is optional for compatibility with manually constructed deployment outputs.
         """
         self.success = success
         self.text = text
+        self.stdout = stdout
+        self.stderr = stderr
+        self.returncode = returncode
+        self.timed_out = timed_out
+        self.attempts = attempts
+        self.elapsed_seconds = elapsed_seconds
+        self.execution_error = execution_error
         self.jsonParseException = None
 
         # Check if the exact string is JSON.

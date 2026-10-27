@@ -1,5 +1,7 @@
-"""
-Module for making requests to Azure API Management endpoints with consistent logging and output formatting.
+"""Module for making requests to Azure API Management endpoints with consistent logging and output formatting.
+
+Autoreload: reload_conditional
+Method edits reload. Recreate clients after constructor changes; close existing sessions normally.
 """
 
 import json

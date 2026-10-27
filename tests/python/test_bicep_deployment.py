@@ -3,6 +3,8 @@
 import json
 import logging
 import os
+from pathlib import Path
+from unittest.mock import Mock
 import azure_resources as az
 import pytest
 from apimtypes import INFRASTRUCTURE, Output
@@ -44,9 +46,9 @@ def test_create_bicep_deployment_group_with_enum(deployment_dependencies):
     # Verify deployment command was called with enum value
     mock_run.assert_called_once()
     actual_cmd = mock_run.call_args[0][0]
-    assert 'az deployment group create' in actual_cmd
-    assert '--name simple-apim' in actual_cmd
-    assert '--resource-group test-rg' in actual_cmd
+    assert actual_cmd[:4] == ['az', 'deployment', 'group', 'create']
+    assert actual_cmd[actual_cmd.index('--name') + 1] == 'simple-apim'
+    assert actual_cmd[actual_cmd.index('--resource-group') + 1] == 'test-rg'
 
 
 def test_create_bicep_deployment_group_with_string(deployment_dependencies):
@@ -63,7 +65,7 @@ def test_create_bicep_deployment_group_with_string(deployment_dependencies):
     # Verify deployment command uses string deployment name
     mock_run.assert_called_once()
     actual_cmd = mock_run.call_args[0][0]
-    assert '--name custom-deployment' in actual_cmd
+    assert actual_cmd[actual_cmd.index('--name') + 1] == 'custom-deployment'
 
 
 def test_create_bicep_deployment_group_params_file_written(monkeypatch):
@@ -92,8 +94,8 @@ def test_create_bicep_deployment_group_params_file_written(monkeypatch):
 
     # With our new logic, when current directory name matches infrastructure_dir,
     # it should use the current directory
-    expected_path = os.path.join('/test/dir/infrastructure/apim-aca', 'custom-params.json')
-    mock_open_func.assert_called_once_with(expected_path, 'w', encoding='utf-8')
+    expected_path = os.path.abspath(os.path.join('/test/dir/infrastructure/apim-aca', 'custom-params.json'))
+    mock_open_func.assert_called_once_with(expected_path, 'w', encoding='utf-8', newline = '\n')
 
     # Verify the correct JSON structure was written
     written_content = ''.join(call.args[0] for call in mock_open_func().write.call_args_list)
@@ -142,7 +144,7 @@ def test_create_bicep_deployment_group_for_sample_success(monkeypatch):
     """Test create_bicep_deployment_group_for_sample success case."""
     mock_output = Output(success=True, text='{"outputs": {"test": "value"}}')
 
-    def mock_create_bicep(rg_name, rg_location, deployment, bicep_parameters, bicep_parameters_file='params.json', rg_tags=None, is_debug=False):
+    def mock_create_bicep(rg_name, rg_location, deployment, bicep_parameters, bicep_parameters_file='params.json', rg_tags=None, is_debug=False, *, template_path=None):
         return mock_output
 
     # Mock file system checks
@@ -154,6 +156,7 @@ def test_create_bicep_deployment_group_for_sample_success(monkeypatch):
 
     monkeypatch.setattr(bicep_deployment, 'create_bicep_deployment_group', mock_create_bicep)
     monkeypatch.setattr(os.path, 'exists', mock_exists)
+    monkeypatch.setattr(os.path, 'isfile', mock_exists)
     monkeypatch.setattr(os, 'chdir', mock_chdir)
 
     result = bicep_deployment.create_bicep_deployment_group_for_sample('test-sample', 'test-rg', 'eastus', {})
@@ -309,3 +312,144 @@ def test_create_bicep_deployment_group_for_sample_in_sample_dir(monkeypatch, tmp
 
     result = bicep_deployment.create_bicep_deployment_group_for_sample('demo', 'rg', 'loc', {})
     assert result == 'ok'
+
+
+@pytest.mark.parametrize('sensitive, persistent', [(False, False), (False, True), (True, True)])
+@pytest.mark.parametrize('success', [False, True])
+def test_explicit_deployment_owns_parameters_and_preserves_cwd(monkeypatch, tmp_path, sensitive, persistent, success):
+    """Keep explicit paths, exact JSON, debug behavior, and cleanup independent of cwd."""
+    template_dir = tmp_path / 'template with spaces'
+    template_dir.mkdir()
+    template = template_dir / 'custom.bicep'
+    template.write_text('// Offline template\n', encoding = 'utf-8')
+    monkeypatch.chdir(tmp_path)
+    chdir = Mock(side_effect = AssertionError('Must not change working directory'))
+    monkeypatch.setattr(os, 'chdir', chdir)
+    parameters = {'location': {'value': 'eastus2'}}
+    persistent_path = template_dir / 'custom-params.json'
+    captured_paths = []
+    result = Output(success, '{}')
+
+    def run(command, *args, **kwargs):
+        path = Path(command[command.index('--parameters') + 1])
+        captured_paths.append(path)
+        assert path.is_absolute()
+        assert command[command.index('--template-file') + 1] == str(template)
+        assert ('--debug' in command) is (not sensitive)
+        assert kwargs == {'sensitive_output': sensitive, 'timeout': 1800, 'retries': 0}
+        assert json.loads(path.read_text(encoding = 'utf-8')) == {
+            '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
+            'contentVersion': '1.0.0.0',
+            'parameters': parameters,
+        }
+        assert Path.cwd() == tmp_path
+        return result
+
+    runner = Mock(side_effect = run)
+    actual = bicep_deployment.deploy_bicep_template(
+        'test-rg', 'demo', template, parameters,
+        parameters_path = persistent_path if persistent else None,
+        sensitive_output = sensitive, is_debug = True, runner = runner,
+    )
+
+    assert actual is result
+    runner.assert_called_once()
+    chdir.assert_not_called()
+    assert captured_paths[0].exists() is (persistent and not sensitive)
+    if sensitive:
+        assert not persistent_path.exists()
+    if not persistent or sensitive:
+        assert not captured_paths[0].parent.exists()
+
+
+@pytest.mark.parametrize('failure_stage', ['deploy', 'recovery', 'serialization', 'write'])
+def test_explicit_deployment_cleans_temporary_parameters_on_exception(monkeypatch, tmp_path, failure_stage):
+    """Clean up even if serialization, writing, execution, or recovery raises."""
+    template = tmp_path / 'main.bicep'
+    template.write_text('// Offline template\n', encoding = 'utf-8')
+    directories = []
+    real_directory = bicep_deployment.tempfile.TemporaryDirectory
+
+    def directory(**kwargs):
+        temporary = real_directory(dir = tmp_path, **kwargs)
+        directories.append(Path(temporary.name))
+        return temporary
+
+    monkeypatch.setattr(bicep_deployment.tempfile, 'TemporaryDirectory', directory)
+    error = RuntimeError('Execution failed')
+    runner = Mock(side_effect = error) if failure_stage == 'deploy' else Mock(return_value = Output(False, 'Rejected'))
+    recover = Mock(side_effect = error)
+    parameters = {'invalid': object()} if failure_stage == 'serialization' else {}
+    if failure_stage == 'write':
+        monkeypatch.setattr(bicep_deployment, 'open', Mock(side_effect = OSError('Disk full')), raising = False)
+    expected_error = TypeError if failure_stage == 'serialization' else OSError if failure_stage == 'write' else RuntimeError
+
+    with pytest.raises(expected_error):
+        bicep_deployment.deploy_bicep_template('rg', 'demo', template, parameters, runner = runner, recover = recover)
+
+    assert len(directories) == 1
+    assert not directories[0].exists()
+    if failure_stage in ('serialization', 'write'):
+        runner.assert_not_called()
+        recover.assert_not_called()
+
+
+@pytest.mark.parametrize('recovered', [False, True])
+@pytest.mark.parametrize('retry_success', [False, True])
+def test_explicit_deployment_limits_recovery_to_one_retry(tmp_path, recovered, retry_success):
+    """Recovery keeps one parameter file alive and never authorizes a third attempt."""
+    template = tmp_path / 'main.bicep'
+    template.write_text('// Offline template\n', encoding = 'utf-8')
+    failure = Output(False, 'Rejected')
+    final = Output(retry_success, '{}')
+    runner = Mock(side_effect = [failure, final])
+    recover = Mock(return_value = recovered)
+
+    result = bicep_deployment.deploy_bicep_template('rg', 'demo', template, {}, runner = runner, recover = recover)
+
+    assert result is (final if recovered else failure)
+    recover.assert_called_once_with()
+    assert runner.call_count == (2 if recovered else 1)
+    if recovered:
+        assert runner.call_args_list[0] == runner.call_args_list[1]
+
+
+def test_explicit_deployment_rejects_missing_template_before_side_effects(tmp_path, monkeypatch):
+    runner = Mock()
+    create_rg = Mock()
+    monkeypatch.setattr(az, 'create_resource_group', create_rg)
+    parameters_path = tmp_path / 'params.json'
+
+    with pytest.raises(FileNotFoundError, match = 'Bicep template not found'):
+        bicep_deployment.create_bicep_deployment_group('rg', 'eastus2', 'demo', {}, template_path = tmp_path / 'missing.bicep')
+    with pytest.raises(FileNotFoundError, match = 'Bicep template not found'):
+        bicep_deployment.deploy_bicep_template('rg', 'demo', tmp_path / 'missing.bicep', {}, parameters_path = parameters_path, runner = runner)
+
+    create_rg.assert_not_called()
+    runner.assert_not_called()
+    assert not parameters_path.exists()
+
+
+@pytest.mark.parametrize('from_sample', [False, True])
+def test_sample_deployment_resolves_explicit_paths_without_chdir(monkeypatch, tmp_path, from_sample):
+    sample_dir = tmp_path / 'samples' / 'demo'
+    sample_dir.mkdir(parents = True)
+    (sample_dir / 'main.bicep').write_text('// Offline template\n', encoding = 'utf-8')
+    caller_dir = sample_dir if from_sample else tmp_path
+    monkeypatch.chdir(caller_dir)
+    monkeypatch.setattr(bicep_deployment, 'find_project_root', lambda: str(tmp_path))
+    monkeypatch.setattr(os, 'chdir', Mock(side_effect = AssertionError('Must not change cwd')))
+    monkeypatch.setattr(az, 'create_resource_group', Mock())
+    output = Output(True, '{}')
+
+    def run(command, *args, **kwargs):
+        assert command[command.index('--template-file') + 1] == str(sample_dir / 'main.bicep')
+        assert command[command.index('--parameters') + 1] == str(sample_dir / 'params.json')
+        assert Path.cwd() == caller_dir
+        return output
+
+    monkeypatch.setattr(az, 'run', run)
+
+    assert bicep_deployment.create_bicep_deployment_group_for_sample('demo', 'rg', 'eastus2', {}) is output
+    assert json.loads((sample_dir / 'params.json').read_text(encoding = 'utf-8'))['parameters'] == {}
+    az.create_resource_group.assert_called_once_with('rg', 'eastus2', None)

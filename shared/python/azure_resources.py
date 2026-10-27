@@ -1,5 +1,7 @@
-"""
-Module providing Azure resource management functions, often wrapped with additional functionality.
+"""Module providing Azure resource management functions, often wrapped with additional functionality.
+
+Autoreload: reload_conditional
+Function edits reload between cells. The command lock lives in reload_unsafe _runtime_locks; do not edit during active operations.
 
 This module contains functions for interacting with Azure resources,
 including resource groups, deployments, and various Azure services.
@@ -9,13 +11,17 @@ import json
 import logging
 import os
 import re
+import shutil
 import subprocess
+import sys
 import tempfile
-import threading
 import time
+from collections.abc import Sequence
+from contextlib import nullcontext
 from typing import Any, Literal, Optional, Tuple
 
 # APIM Samples imports
+from _runtime_locks import AZ_CLI_LOCK as _AZ_CLI_LOCK
 from apimtypes import INFRASTRUCTURE, Endpoints, Output
 from console import print_command, print_error, print_info, print_message, print_ok, print_plain, print_val, print_warning
 from logging_config import is_debug_enabled
@@ -52,7 +58,6 @@ _AZ_COMMAND_RE = re.compile(r'^\s*az(\s|$)')
 # Running multiple `az ...` commands concurrently from threads can lead to intermittent
 # failures and corrupted/partial output. Serialize `az` invocations to keep multi-index
 # cleanups reliable.
-_AZ_CLI_LOCK = threading.Lock()
 _NESTED_DEPLOYMENT_RESOURCE_TYPE = 'microsoft.resources/deployments'
 _LEGACY_APIM_DIAGNOSTIC_SETTING_PATTERN = re.compile(r'^apim-(?:diag|costing-diagnostics-\d+|inference-failover-\d+)$')
 
@@ -72,11 +77,14 @@ def _redact_secrets(text: str) -> str:
     return redacted
 
 
-def _is_az_command(command: str) -> bool:
-    return bool(_AZ_COMMAND_RE.match(command))
+def _is_az_command(command: str | Sequence[str]) -> bool:
+    if isinstance(command, str):
+        return bool(_AZ_COMMAND_RE.match(command))
+
+    return bool(command) and command[0] == 'az'
 
 
-def _maybe_add_az_debug_flag(command: str) -> str:
+def _maybe_add_az_debug_flag(command: str | Sequence[str]) -> str | Sequence[str]:
     """If Python logging is in DEBUG, add `--debug` to simple `az ...` commands.
 
     We try to be conservative around complex shell expressions (pipes, redirects, AND/OR).
@@ -90,6 +98,9 @@ def _maybe_add_az_debug_flag(command: str) -> str:
 
     if '--debug' in command:
         return command
+
+    if not isinstance(command, str):
+        return [*command, '--debug']
 
     # Insert before common shell operators/redirections when present.
     operator_candidates = ['||', '&&', '|', '>', '<']
@@ -174,9 +185,11 @@ def _extract_az_cli_error_message(output_text: str) -> str:
     return ''
 
 
-def _tokenize_command(command: str) -> list[str]:
+def _tokenize_command(command: str | Sequence[str]) -> list[str]:
     """Split a shell command into simple tokens while preserving quoted segments."""
 
+    if not isinstance(command, str):
+        return list(command)
     if not command:
         return []
 
@@ -184,7 +197,7 @@ def _tokenize_command(command: str) -> list[str]:
     return [token[1:-1] if len(token) >= 2 and token[0] == token[-1] and token[0] in {'"', "'"} else token for token in raw_tokens]
 
 
-def _extract_group_deployment_context(command: str) -> tuple[str, str] | None:
+def _extract_group_deployment_context(command: str | Sequence[str]) -> tuple[str, str] | None:
     """Return deployment name and resource group for `az deployment group create` commands."""
 
     tokens = _tokenize_command(command)
@@ -272,27 +285,15 @@ def _extract_operation_status_details(status_message: Any) -> tuple[str, str]:
 def _fetch_group_deployment_operations(deployment_name: str, resource_group_name: str) -> list[dict[str, Any]] | None:
     """Return deployment operations for a group deployment when the Azure CLI call succeeds."""
 
-    operations_command = _maybe_add_az_debug_flag(f'az deployment operation group list --name "{deployment_name}" --resource-group "{resource_group_name}" -o json')
-
-    try:
-        with _AZ_CLI_LOCK:
-            completed = subprocess.run(
-                operations_command,
-                shell=True,
-                check=False,
-                capture_output=True,
-                text=True,
-                encoding='utf-8',
-                errors='replace',
-            )
-    except Exception:
-        return None
-
-    if completed.returncode:
+    output = run(
+        ['az', 'deployment', 'operation', 'group', 'list', '--name', deployment_name, '--resource-group', resource_group_name, '-o', 'json'],
+        retries = 0,
+    )
+    if not output.success:
         return None
 
     try:
-        operations = json.loads(completed.stdout or '[]')
+        operations = json.loads(output.stdout or '[]')
     except json.JSONDecodeError:
         return None
 
@@ -389,7 +390,7 @@ def _summarize_failed_group_deployment_operations(operations: list[dict[str, Any
     return '\n'.join(summary_lines)
 
 
-def _get_group_deployment_failure_summary(command: str) -> str:
+def _get_group_deployment_failure_summary(command: str | Sequence[str]) -> str:
     """Fetch and summarize failed operations for a failed group deployment when possible."""
 
     deployment_context = _extract_group_deployment_context(command)
@@ -420,8 +421,56 @@ def _looks_like_json(text: str) -> bool:
         return False
 
 
+def _resolve_command_arguments(arguments: Sequence[str]) -> tuple[list[str], dict[str, str] | None]:
+    """Resolve Azure CLI without passing arguments through a Windows batch shell."""
+    args = list(arguments)
+    if not _is_az_command(args):
+        if sys.platform == 'win32':
+            executable = shutil.which(args[0]) or args[0]
+            if executable.lower().endswith(('.cmd', '.bat')):
+                raise OSError('Argument-list execution requires a native executable, not a Windows batch launcher.')
+        return args, None
+
+    executable = shutil.which('az')
+    if executable is None:
+        raise FileNotFoundError('Azure CLI executable was not found on PATH.')
+    if sys.platform == 'win32' and executable.lower().endswith(('.cmd', '.bat')):
+        python_path = os.path.abspath(os.path.join(os.path.dirname(executable), '..', 'python.exe'))
+        if not os.path.isfile(python_path):
+            raise OSError(f'Azure CLI batch launcher has no bundled Python executable: {python_path}')
+
+        return [python_path, '-IBm', 'azure.cli', *args[1:]], {**os.environ, 'AZ_INSTALLER': 'MSI'}
+
+    return [executable, *args[1:]], None
+
+
+def _is_transient_command_failure(output: Output) -> bool:
+    """Retry service throttling/unavailability, never ambiguous timeouts or local errors."""
+    if output.timed_out or output.execution_error is not None or output.success:
+        return False
+
+    text = f'{output.stdout}\n{output.stderr}'
+    codes = {'toomanyrequests', 'throttled', 'throttling', 'serviceunavailable', 'serverbusy', 'gatewaytimeout'}
+    decoder = json.JSONDecoder()
+    for match in re.finditer(r'\{', text):
+        try:
+            payload, _ = decoder.raw_decode(text[match.start():])
+        except json.JSONDecodeError:
+            continue
+        error = payload.get('error', payload)
+        if isinstance(error, dict) and str(error.get('code', '')).lower() in codes | {'429', '502', '503', '504'}:
+            return True
+
+    return bool(re.search(r'\b(?:TooManyRequests|ServiceUnavailable|ServerBusy|GatewayTimeout)\b|(?:HTTP(?:/\d(?:\.\d)?)?\s+|status(?: code)?[:=]?\s+)(?:429|502|503|504)\b', text, re.IGNORECASE))
+
+
+def _decode_process_stream(value: str | bytes | None) -> str:
+    """TimeoutExpired may carry bytes even when subprocess text mode is enabled."""
+    return value.decode('utf-8', errors = 'replace') if isinstance(value, bytes) else value or ''
+
+
 def run(
-    command: str,
+    command: str | Sequence[str],
     ok_message: str | None = None,
     error_message: str | None = None,
     *,
@@ -429,8 +478,9 @@ def run(
     sensitive_output: bool = False,
     timeout: int = 240,
     retries: int = 1,
+    retry_policy: Literal['transient', 'always', 'never'] = 'transient',
 ) -> Output:
-    """Execute a shell command and return an `Output`.
+    """Execute an argument list without a shell, or a legacy shell string.
 
     Logging behavior is driven by the configured Python log level:
     - Commands are logged at INFO when `ok_message`/`error_message` are provided, otherwise DEBUG.
@@ -442,9 +492,16 @@ def run(
     Args:
         timeout: Maximum seconds to wait for the command to complete (default 240).
         retries: Number of retry attempts after the initial execution (default 1).
+        retry_policy: Retry only recognized transient service errors by default.
+            'always' explicitly permits retrying any failure; 'never' disables retries.
         sensitive_output: Suppress output logging and automatic CLI debug for secret-bearing requests or responses.
     """
-
+    if retry_policy not in ('transient', 'always', 'never'):
+        raise ValueError(f'Unknown retry policy: {retry_policy}')
+    if not isinstance(command, str):
+        if not command or any(not isinstance(argument, str) for argument in command):
+            raise ValueError('Command arguments must be a non-empty sequence of strings.')
+        command = list(command)
     command_to_run = command if sensitive_output else _maybe_add_az_debug_flag(command)
     normalized_ok_message = ok_message or ''
     normalized_error_message = error_message or ''
@@ -453,77 +510,75 @@ def run(
         log_command = bool(normalized_ok_message or normalized_error_message)
 
     if log_command or is_debug_enabled():
-        print_command(command_to_run)
+        display_command = command_to_run if isinstance(command_to_run, str) else subprocess.list2cmdline(command_to_run)
+        print_command('Command arguments withheld (sensitive operation).' if sensitive_output else _redact_secrets(display_command))
 
     max_attempts = 1 + max(0, retries)
     start_time = time.time()
+    elapsed_start = time.monotonic()
     stdout_text = ''
     stderr_text = ''
     success = False
+    output = Output(False, '')
 
     for attempt in range(1, max_attempts + 1):  # pragma: no branch  (max_attempts >= 1)
+        returncode = None
+        timed_out = False
+        execution_error = None
         try:
             lock = _AZ_CLI_LOCK if _is_az_command(command_to_run) else None
-
-            if lock is None:
+            with lock if lock is not None else nullcontext():
+                environment = None
+                process_command: str | list[str]
+                if isinstance(command_to_run, str):
+                    process_command = command_to_run
+                else:
+                    process_command, environment = _resolve_command_arguments(command_to_run)
                 completed = subprocess.run(
-                    command_to_run,
-                    shell=True,
+                    process_command,
+                    shell=isinstance(command_to_run, str),
                     check=False,
                     capture_output=True,
                     text=True,
                     encoding='utf-8',
                     errors='replace',
                     timeout=timeout,
+                    env = environment,
                 )
-            else:
-                with lock:
-                    completed = subprocess.run(
-                        command_to_run,
-                        shell=True,
-                        check=False,
-                        capture_output=True,
-                        text=True,
-                        encoding='utf-8',
-                        errors='replace',
-                        timeout=timeout,
-                    )
             stdout_text = completed.stdout or ''
             stderr_text = completed.stderr or ''
-            success = not completed.returncode
-        except subprocess.TimeoutExpired:
-            stdout_text = ''
-            stderr_text = f'Command timed out after {timeout} seconds'
+            returncode = completed.returncode
+            success = returncode == 0
+        except subprocess.TimeoutExpired as error:
+            stdout_text = _decode_process_stream(error.stdout)
+            stderr_text = _decode_process_stream(error.stderr)
+            timed_out = True
+            execution_error = f'Command timed out after {timeout} seconds'
             success = False
-        except Exception as e:
+        except OSError as error:
             stdout_text = ''
-            stderr_text = str(e)
+            stderr_text = ''
+            execution_error = str(error)
             success = False
 
-        if success or attempt == max_attempts:
+        combined_text = '\n'.join(part for part in (stdout_text, stderr_text, execution_error) if part)
+        output = Output(
+            success, stdout_text if success else combined_text,
+            stdout = stdout_text, stderr = stderr_text, returncode = returncode,
+            timed_out = timed_out, attempts = attempt,
+            elapsed_seconds = time.monotonic() - elapsed_start, execution_error = execution_error,
+        )
+        if success or attempt == max_attempts or retry_policy == 'never' or (retry_policy == 'transient' and not _is_transient_command_failure(output)):
             break
 
-        # Short back-off before retry. Helps when the failure was a transient DNS/network
-        # blip: Windows caches negative DNS answers briefly, so an immediate retry from a
-        # fresh subprocess often hits the cached failure and fails again instantly.
+        # Back off before a recognized transient failure or an explicitly authorized retry.
         backoff_seconds = 5
         print_warning(f'Command failed (attempt {attempt}/{max_attempts}), retrying in {backoff_seconds}s...')
         time.sleep(backoff_seconds)
 
-    # Preserve programmatic output as stdout only when successful, so JSON parsing isn't
-    # contaminated by Azure CLI debug noise (which commonly writes to stderr).
-    #
-    # For failures, return the combined text so callers can still see the error details.
-    output_text = stdout_text if success else ''
-
     duration = _format_duration(start_time)
 
-    combined_text = stdout_text
-    if stderr_text:
-        combined_text = f'{combined_text}\n{stderr_text}' if combined_text else stderr_text
-
-    if not success:
-        output_text = combined_text
+    combined_text = output.text
 
     display_error = ''
     deployment_failure_summary = ''
@@ -549,13 +604,14 @@ def run(
         summary_output = 'Command failed; sensitive output was withheld.' if sensitive_output else (display_error or combined_text).strip()
         if deployment_failure_summary:
             summary_output = f'{summary_output}\n\n{deployment_failure_summary}' if summary_output else deployment_failure_summary
+        summary_output = _redact_secrets(summary_output)
 
         if normalized_error_message:
             print_error(normalized_error_message, summary_output, duration)
         elif summary_output and is_debug_enabled():
             print_plain(summary_output, level=logging.DEBUG)
 
-    return Output(success, output_text)
+    return output
 
 
 # ------------------------------

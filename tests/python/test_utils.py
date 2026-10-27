@@ -1762,6 +1762,7 @@ def test_infrastructure_notebook_helper_bypass_check(monkeypatch, suppress_built
     helper = utils.InfrastructureNotebookHelper('eastus', INFRASTRUCTURE.SIMPLE_APIM, 1, APIM_SKU.BASICV2)
 
     mock_popen(monkeypatch, stdout_lines=['Mock deployment output\n'])
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda *_: False)
     monkeypatch.setattr(utils, 'find_project_root', lambda: 'c:\\mock\\root')
     # Test with bypass_infrastructure_check=True
     result = helper.create_infrastructure(bypass_infrastructure_check=True)
@@ -2417,6 +2418,7 @@ def test_create_infrastructure_with_allow_update(monkeypatch, tmp_path, suppress
 
     monkeypatch.setattr(utils, 'find_project_root', lambda: str(tmp_path))
     monkeypatch.setattr(az, 'get_infra_rg_name', lambda *_, **__: 'rg')
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda *_: False)
 
     # Mock Popen to simulate successful execution
     class FakeProcess:
@@ -2458,6 +2460,7 @@ def test_create_infrastructure_with_strict_nsg_flag(monkeypatch, tmp_path, suppr
 
     monkeypatch.setattr(utils, 'find_project_root', lambda: str(tmp_path))
     monkeypatch.setattr(az, 'get_infra_rg_name', lambda *_, **__: 'rg')
+    monkeypatch.setattr(az, 'does_resource_group_exist', lambda *_: False)
 
     captured_cmd_args: list[str] = []
 

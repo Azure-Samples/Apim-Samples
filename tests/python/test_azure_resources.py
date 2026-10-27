@@ -1747,7 +1747,7 @@ def test_is_az_command_rejects_non_az_commands():
 def test_run_with_exception_in_subprocess():
     """Test run() handles subprocess exceptions gracefully."""
     with patch('azure_resources.subprocess.run') as mock_subprocess:
-        mock_subprocess.side_effect = Exception('Subprocess failed')
+        mock_subprocess.side_effect = OSError('Subprocess failed')
 
         result = az.run('az group list')
 

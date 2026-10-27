@@ -1,4 +1,8 @@
-"""Runtime helpers for the Dynamic CORS sample notebook."""
+"""Runtime helpers for the Dynamic CORS sample notebook.
+
+Autoreload: reload_conditional
+Method edits reload. Recreate test runners after constructor changes and rerun checks to update persisted results.
+"""
 
 import json
 import socket

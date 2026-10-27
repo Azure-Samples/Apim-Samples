@@ -66,6 +66,19 @@ def test_load_dotenv_once_calls_loader_once(tmp_path: Path, monkeypatch: pytest.
     assert mock_loader.call_args.kwargs.get('override') is False
 
 
+def test_ensure_logging_configured_initializes_once(monkeypatch: pytest.MonkeyPatch) -> None:
+    configure = Mock()
+    monkeypatch.setattr(logging_config, 'configure_logging', configure)
+    logging_config.ensure_logging_configured()
+    configure.assert_called_once_with()
+
+
+def test_ensure_logging_configured_preserves_existing_level() -> None:
+    logging_config.configure_logging(level='WARNING')
+    logging_config.ensure_logging_configured()
+    assert logging.getLogger().level == logging.WARNING
+
+
 def test_configure_logging_does_not_clobber_existing_handlers(monkeypatch: pytest.MonkeyPatch) -> None:
     root_logger = logging.getLogger()
     existing = logging.StreamHandler()

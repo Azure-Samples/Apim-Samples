@@ -42,10 +42,12 @@ Both preview scripts share HTTP logging and server lifecycle code in [setup/dev_
 
 The page intentionally duplicates a small amount of content from the root `README.md` (infrastructure list, sample list, quick-start steps). **When those change in the README, change them here too.**
 
+Sample identity and compatibility are defined in [samples/catalog.json](../samples/catalog.json). Follow the [catalog maintenance steps](../CONTRIBUTING.md#sample-catalog) and run `python setup/sample_catalog.py` after editing. The existing Python tests check card names, URLs, order, infrastructure tags, and JSON-LD names/URLs/positions against that catalog. Card prose stays hand-authored and the website remains static.
+
 Agents and contributors should treat the following as the sync checklist:
 
 - **New infrastructure added** → add an `.infra-card` in the _Infrastructures_ section of `index.html`, add a `ListItem` to the JSON-LD `ItemList` in the `<head>`, add its SVG to the copy step in `github-pages.yml`, and update the count in the value-prop card if it still says "Five".
-- **New sample added** → add a `.sample-card` in the _Samples_ section of `index.html` **and** a `ListItem` to the JSON-LD `ItemList`.
+- **New sample added** - update the catalog, add a `.sample-card` in the _Samples_ section of `index.html` **and** a `ListItem` to the JSON-LD `ItemList`. Use the canonical display name without a "sample" suffix in both.
 - **Sample or infrastructure removed or renamed** → remove or rename the matching card and any asset mapping in the workflow.
 - **Quick-start flow changes** → update the four `.step` items.
 - **Backend implementation or behavior changes** - synchronize the root and infrastructure READMEs, infrastructure and sample card descriptions, relevant SEO descriptions and JSON-LD, and the slide deck. Container Apps backends use MockAPI; do not imply that Simple API Management or external-service samples deploy it. Link operational details to the [MockAPI operations guide](../infrastructure/apim-aca/README.md#mockapi-backends).

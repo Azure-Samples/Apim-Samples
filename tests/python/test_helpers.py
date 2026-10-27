@@ -184,6 +184,7 @@ def patch_create_bicep_deployment_group_dependencies(
     monkeypatch.setattr(builtins, 'print', MagicMock())
 
     patch_os_paths(monkeypatch, cwd=cwd, exists=exists, basename=basename)
+    monkeypatch.setattr('os.path.isfile', MagicMock(side_effect = exists) if callable(exists) else MagicMock(return_value = exists))
 
     return mock_create_rg, mock_run, open_mock
 

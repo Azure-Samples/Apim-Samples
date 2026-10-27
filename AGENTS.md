@@ -206,7 +206,7 @@ Apply this sequence whenever creating or refactoring a notebook:
 4. Compose existing `NotebookHelper`, `ApimRequests`, `ApimTesting`, and `azure_resources` boundaries without adding forwarding wrappers.
 5. Make the helper own deterministic cleanup for sessions, files, and temporary resources, and inject remote or timing boundaries for tests.
 6. Add focused tests under `tests/python/test_<sample>_helpers.py`, then replace notebook mechanics with a scenario-readable call.
-7. Register actively edited sample-local pure-Python modules with selective autoreload.
+7. Call `configure_notebook_autoreload()` after the first code cell's imports and declare each runtime module's `reload_safe`, `reload_conditional`, or `reload_unsafe` classification in its opening docstring. Follow the helper strategy for limitations; do not use broad autoreload or unconditional reloads.
 
 Key modules in `shared/python/`:
 

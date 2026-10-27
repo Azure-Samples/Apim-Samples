@@ -58,7 +58,7 @@ You are the specialist for adding new samples to the APIM Samples repository.
     - Start one-sample mechanics in `samples/<sample>/<domain>_helpers.py` with explicit inputs and typed outputs.
     - Make every helper own deterministic cleanup for sessions, files, and temporary resources. Inject remote and timing boundaries for tests.
 4. Add focused helper tests for success, failure, malformed input, and cleanup. Do not require live Azure resources or real delays.
-5. Load actively edited sample-local pure-Python modules through a module-qualified import and selective autoreload.
+5. Use module-qualified sample-local helper imports, initialize `configure_notebook_autoreload()` after the first code cell's imports, and declare module reload classifications following `shared/python/README.md`.
 6. Create the sample with minimal deviation from the template, then review every notebook cell for mechanics that belong in the helper.
 7. Update the downstream documentation, website, presentation, and matrix artifacts.
 8. Generate Markdown against `.markdownlint.json` and `.github/markdown.instructions.md`, preserving semantic hierarchy. Run `npx --no-install markdownlint-cli2 "**/*.md" "#**/.venv/**" "#**/node_modules/**"` from the repository root and require zero violations. Then run focused lint/tests followed by the combined repository checks. Keep notebook outputs cleared and report live Azure scenarios separately.

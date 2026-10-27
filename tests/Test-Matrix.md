@@ -20,16 +20,16 @@ Simple API Management and optional deployments with Container Apps disabled do n
 | Sample / Infrastructure       | SIMPLE APIM                | APIM ACA                   | AFD APIM PE                | App Gateway APIM ACA       | App Gateway APIM PE        |
 | :---------------------------- | -------------------------- | -------------------------- | -------------------------- | -------------------------- | -------------------------- |
 | **INFRASTRUCTURE**            | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
-| **authX**                     | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
-| **authX-pro**                 | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
-| **azure-maps**                | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
+| **AuthX**                     | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
+| **AuthX Pro**                 | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
+| **Azure Maps**                | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
 | **Azure OpenAI v1 Migration** | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
-| **costing**                   | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
-| **dynamic-cors**              | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
-| **egress-control**            | **N/A**                    | **N/A**                    | **N/A**                    | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
-| **general**                   | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
-| **inference-failover**        | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
-| **load-balancing**            | **N/A**                    | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | **N/A**                    | **N/A**                    |
-| **oauth-3rd-party**           | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
-| **secure-blob-access**        | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
+| **Costing**                   | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
+| **Dynamic CORS**              | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
+| **Egress Control**            | **N/A**                    | **N/A**                    | **N/A**                    | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
+| **General**                   | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
+| **Inference Failover**        | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
+| **Load Balancing**            | **N/A**                    | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | **N/A**                    | **N/A**                    |
+| **OAuth 3rd-Party**           | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
+| **Secure Blob Access**        | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
 | **INFRASTRUCTURE clean-up**   | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |

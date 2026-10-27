@@ -1,10 +1,10 @@
-"""
-Infrastructure Types and Cleanup Utilities
+"""Infrastructure Types and Cleanup Utilities
+
+Autoreload: reload_conditional
+Method edits reload. Recreate infrastructure objects after constructor changes; CLI subprocesses load fresh source on each execution.
 """
 
 import json
-import os
-import tempfile
 import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import List
 
 import azure_resources as az
+import bicep_deployment
 import mockapi
 import requests
 import utils
@@ -71,16 +72,15 @@ class Infrastructure:
         self.infra_pfs = infra_pfs
         self.use_strict_nsg = use_strict_nsg
 
-        # Define and create the resource group
         self.rg_name = az.get_infra_rg_name(infra, index)
         self.rg_tags = utils.build_infrastructure_tags(infra)
-        az.create_resource_group(self.rg_name, self.rg_location, self.rg_tags, rg_exists=rg_exists)
-
-        # Some infrastructure deployments require knowing the resource suffix that bicep will use prior to the main deployment.
-        # Uses subscription ID and resource group name hashing to generate the suffix.
-        self.resource_suffix = az.get_unique_suffix_for_resource_group(self.rg_name)
-
-        self.current_user, self.current_user_id, self.tenant_id, self.subscription_id = az.get_account_info()
+        self._rg_exists = rg_exists
+        self._deployment_prepared = False
+        self.resource_suffix: str
+        self.current_user: str
+        self.current_user_id: str
+        self.tenant_id: str
+        self.subscription_id: str
 
         self.bicep_parameters: dict = {}
         self.base_pfs: List[PolicyFragment] = []
@@ -92,6 +92,27 @@ class Infrastructure:
     # ------------------------------
     #    PRIVATE METHODS
     # ------------------------------
+
+    def _prepare_deployment(self) -> None:
+        """Prepare Azure prerequisites once, before parameters or certificates are built."""
+        if not isinstance(self.infra, INFRASTRUCTURE):
+            raise ValueError(f'Unknown infrastructure type: {self.infra}')
+        if self._deployment_prepared:
+            return
+
+        az.create_resource_group(self.rg_name, self.rg_location, self.rg_tags, rg_exists = self._rg_exists)
+        self.resource_suffix = az.get_unique_suffix_for_resource_group(self.rg_name)
+        self.current_user, self.current_user_id, self.tenant_id, self.subscription_id = az.get_account_info()
+        self._deployment_prepared = True
+
+    def _recover_legacy_diagnostics(self) -> bool:
+        """Authorize one deployment retry only when recovery removes a legacy setting."""
+        if not az.migrate_legacy_apim_diagnostic_settings(self.rg_name):
+            return False
+
+        print_warning('Legacy APIM diagnostic settings reappeared during deployment and were removed. Retrying infrastructure deployment once.')
+
+        return True
 
     def _approve_private_link_connections(self, apim_service_id: str) -> bool:
         """
@@ -298,51 +319,24 @@ class Infrastructure:
         """
         print_plain('🔒 Disabling API Management public network access...')
 
-        parameters_directory = None
         try:
-            # Update parameters to disable public access
             self.bicep_parameters['apimPublicAccess']['value'] = False
+            infra_dir = Path(__file__).resolve().parents[2] / 'infrastructure' / self.infra.value
+            output = bicep_deployment.deploy_bicep_template(
+                self.rg_name,
+                f'{self.infra.value}-lockdown',
+                infra_dir / 'main.bicep',
+                self.bicep_parameters,
+                parameters_path = infra_dir / 'params.json',
+                sensitive_output = self._mockapi_credentials is not None,
+                ok_message = 'Public access disabled successfully',
+                error_message = 'Failed to disable public access',
+                runner = az.run,
+            )
 
-            # Write updated parameters file
-            original_cwd = os.getcwd()
-            shared_dir = Path(__file__).parent
-            infra_dir = shared_dir.parent.parent / 'infrastructure' / self.infra.value
+            return output.success
 
-            try:
-                os.chdir(infra_dir)
-
-                bicep_parameters_format = {
-                    '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
-                    'contentVersion': '1.0.0.0',
-                    'parameters': self.bicep_parameters,
-                }
-
-                if self._mockapi_credentials is not None:
-                    parameters_directory = tempfile.TemporaryDirectory(prefix = 'apim-infra-')
-                params_file_path = Path(parameters_directory.name) / 'params.json' if parameters_directory else infra_dir / 'params.json'
-                with open(params_file_path, 'w', encoding='utf-8') as file:
-                    file.write(json.dumps(bicep_parameters_format))
-
-                print_plain('📝 Updated parameters to disable public access')
-
-                # Run the second deployment
-                main_bicep_path = infra_dir / 'main.bicep'
-                output = az.run(
-                    f'az deployment group create --name {self.infra.value}-lockdown --resource-group {self.rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"',
-                    'Public access disabled successfully',
-                    'Failed to disable public access',
-                    sensitive_output = self._mockapi_credentials is not None,
-                    timeout=1800,
-                )
-
-                return output.success
-
-            finally:
-                if parameters_directory is not None:
-                    parameters_directory.cleanup()
-                os.chdir(original_cwd)
-
-        except Exception as e:
+        except (OSError, RuntimeError, ValueError, KeyError) as e:
             print_error(f'Error during public access disable: {str(e)}')
             return False
 
@@ -474,132 +468,60 @@ class Infrastructure:
         print_val('APIM SKU', self.apim_sku.value)
         print_val('Use strict NSGs', self.use_strict_nsg)
 
+        self._prepare_deployment()
         self._define_policy_fragments()
         self._define_apis()
         self._define_bicep_parameters()
 
-        # Determine the correct infrastructure directory based on the infrastructure type
-        original_cwd = os.getcwd()
+        infra_dir = Path(__file__).resolve().parents[2] / 'infrastructure' / self.infra.value
+        az.migrate_legacy_apim_diagnostic_settings(self.rg_name)
+        output = bicep_deployment.deploy_bicep_template(
+            self.rg_name,
+            self.infra.value,
+            infra_dir / 'main.bicep',
+            self.bicep_parameters,
+            parameters_path = infra_dir / 'params.json',
+            sensitive_output = self._mockapi_credentials is not None,
+            error_message = utils.get_deployment_failure_message(self.infra.value),
+            recover = self._recover_legacy_diagnostics,
+            runner = az.run,
+        )
 
-        # Map infrastructure types to their directory names
-        infra_dir_map = {
-            INFRASTRUCTURE.SIMPLE_APIM: 'simple-apim',
-            INFRASTRUCTURE.APIM_ACA: 'apim-aca',
-            INFRASTRUCTURE.AFD_APIM_PE: 'afd-apim-pe',
-            INFRASTRUCTURE.APPGW_APIM_PE: 'appgw-apim-pe',
-            INFRASTRUCTURE.APPGW_APIM: 'appgw-apim',
-        }
+        if output.success:
+            try:
+                self._initialize_mockapi(output)
+            except (OSError, RuntimeError, ValueError) as error:
+                print_error(f'MockAPI initialization failed: {error}')
+                return utils.Output(False, 'MockAPI initialization failed')
+            print_ok('Infrastructure creation completed successfully!')
+            if output.json_data:
+                apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM API Gateway URL', suppress_logging=True)
+                apim_apis = output.getJson('apiOutputs', 'APIs', suppress_logging=True)
 
-        # Get the infrastructure directory
-        infra_dir_name = infra_dir_map.get(self.infra)
-        if not infra_dir_name:
-            raise ValueError(f'Unknown infrastructure type: {self.infra}')
+                print_plain('\n📋 Infrastructure Details:')
+                print_val('Resource Group', self.rg_name)
+                print_val('Location', self.rg_location)
+                print_val('APIM SKU', self.apim_sku.value)
+                print_val('Gateway URL', apim_gateway_url)
+                print_val('APIs Created', len(apim_apis))
 
-        # Navigate to the correct infrastructure directory
-        # From shared/python -> ../../infrastructure/{infra_type}/
-        shared_dir = Path(__file__).parent
-        infra_dir = shared_dir.parent.parent / 'infrastructure' / infra_dir_name
+                if 'mockApiDashboardUrls' in output.json_data:
+                    dashboard_urls = output.getJson('mockApiDashboardUrls', 'MockAPI Dashboard URLs', suppress_logging = True)
+                    if not isinstance(dashboard_urls, list) or any(not isinstance(url, str) for url in dashboard_urls):
+                        raise ValueError('MockAPI dashboard URL outputs are malformed.')
+                    for index, dashboard_url in enumerate(dashboard_urls, 1):
+                        print_val(f'MockAPI Dashboard {index}', f'{dashboard_url}?tutorial=skip')
+                    if dashboard_urls and self._mockapi_credentials is not None:
+                        print_warning('Dashboard credentials below are sensitive. Clear notebook output before saving or sharing.')
+                        print_val('MockAPI Username', 'admin')
+                        print_val('MockAPI Password', self._mockapi_credentials.dashboard_password)
 
-        parameters_directory = None
-        try:
-            os.chdir(infra_dir)
-            print_plain(f'📁 Changed working directory to: {infra_dir}', blank_above=True)
+                if not self._verify_infrastructure(self.rg_name):
+                    return utils.Output(False, 'Infrastructure verification failed')
+        else:
+            print_error('Infrastructure creation failed!')
 
-            # Prepare deployment parameters and run directly to avoid path detection issues
-            bicep_parameters_format = {
-                '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
-                'contentVersion': '1.0.0.0',
-                'parameters': self.bicep_parameters,
-            }
-
-            # Write the parameters file
-            if self._mockapi_credentials is not None:
-                parameters_directory = tempfile.TemporaryDirectory(prefix = 'apim-infra-')
-            params_file_path = Path(parameters_directory.name) / 'params.json' if parameters_directory else infra_dir / 'params.json'
-
-            with open(params_file_path, 'w', encoding='utf-8') as file:
-                file.write(json.dumps(bicep_parameters_format))
-
-            print_plain('📝 Prepared infrastructure deployment parameters')
-
-            # ------------------------------
-            #    EXECUTE DEPLOYMENT
-            # ------------------------------
-
-            # A create or retry can target existing resources, regardless of the caller's update hint.
-            az.migrate_legacy_apim_diagnostic_settings(self.rg_name)
-
-            # Run the deployment directly
-            main_bicep_path = infra_dir / 'main.bicep'
-            deployment_command = (
-                f'az deployment group create --name {self.infra.value} --resource-group {self.rg_name} '
-                f'--template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"'
-            )
-            recovery_attempted = False
-            while True:
-                output = az.run(
-                    deployment_command,
-                    f"Deployment '{self.infra.value}' succeeded",
-                    utils.get_deployment_failure_message(self.infra.value),
-                    sensitive_output = self._mockapi_credentials is not None,
-                    timeout = 1800,
-                )
-                if output.success or recovery_attempted:
-                    break
-
-                # Azure can restore orphaned settings after APIM is recreated, beyond the preflight check.
-                if not az.migrate_legacy_apim_diagnostic_settings(self.rg_name):
-                    break
-
-                print_warning('Legacy APIM diagnostic settings reappeared during deployment and were removed. Retrying infrastructure deployment once.')
-                recovery_attempted = True
-
-            # ------------------------------
-            #    VERIFY DEPLOYMENT RESULTS
-            # ------------------------------
-
-            if output.success:
-                try:
-                    self._initialize_mockapi(output)
-                except (OSError, RuntimeError, ValueError) as error:
-                    print_error(f'MockAPI initialization failed: {error}')
-                    return utils.Output(False, 'MockAPI initialization failed')
-                print_ok('Infrastructure creation completed successfully!')
-                if output.json_data:
-                    apim_gateway_url = output.get('apimResourceGatewayURL', 'APIM API Gateway URL', suppress_logging=True)
-                    apim_apis = output.getJson('apiOutputs', 'APIs', suppress_logging=True)
-
-                    print_plain('\n📋 Infrastructure Details:')
-                    print_val('Resource Group', self.rg_name)
-                    print_val('Location', self.rg_location)
-                    print_val('APIM SKU', self.apim_sku.value)
-                    print_val('Gateway URL', apim_gateway_url)
-                    print_val('APIs Created', len(apim_apis))
-
-                    if 'mockApiDashboardUrls' in output.json_data:
-                        dashboard_urls = output.getJson('mockApiDashboardUrls', 'MockAPI Dashboard URLs', suppress_logging = True)
-                        if not isinstance(dashboard_urls, list) or any(not isinstance(url, str) for url in dashboard_urls):
-                            raise ValueError('MockAPI dashboard URL outputs are malformed.')
-                        for index, dashboard_url in enumerate(dashboard_urls, 1):
-                            print_val(f'MockAPI Dashboard {index}', f'{dashboard_url}?tutorial=skip')
-                        if dashboard_urls and self._mockapi_credentials is not None:
-                            print_warning('Dashboard credentials below are sensitive. Clear notebook output before saving or sharing.')
-                            print_val('MockAPI Username', 'admin')
-                            print_val('MockAPI Password', self._mockapi_credentials.dashboard_password)
-
-                    if not self._verify_infrastructure(self.rg_name):
-                        return utils.Output(False, 'Infrastructure verification failed')
-            else:
-                print_error('Infrastructure creation failed!')
-
-            return output
-
-        finally:
-            if parameters_directory is not None:
-                parameters_directory.cleanup()
-            # Always restore the original working directory
-            os.chdir(original_cwd)
-            print_plain(f'📁 Restored working directory to: {original_cwd}')
+        return output
 
 
 class SimpleApimInfrastructure(Infrastructure):
@@ -1032,6 +954,7 @@ class AppGwApimPeInfrastructure(AppGatewayInfrastructure):
         print_plain('   5. Disable public access to APIM')
 
         # Step 1: Create Key Vault and certificate before main deployment
+        self._prepare_deployment()
         print_plain('\n📋 Step 1: Creating Key Vault and certificate...')
         key_vault_name = f'kv-{self.resource_suffix}'
 
@@ -1206,6 +1129,7 @@ class AppGwApimInfrastructure(AppGatewayInfrastructure):
         print_plain('   2. Deploy infrastructure (APIM in VNet Internal mode)')
 
         # Step 1: Create Key Vault and certificate
+        self._prepare_deployment()
         print_plain('\n📋 Step 1: Creating Key Vault and certificate...\n')
         key_vault_name = f'kv-{self.resource_suffix}'
 

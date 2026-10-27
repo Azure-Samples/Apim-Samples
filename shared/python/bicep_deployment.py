@@ -1,7 +1,15 @@
-"""Run existing Bicep resource-group deployment workflows."""
+"""Run existing Bicep resource-group deployment workflows.
+
+Autoreload: reload_safe
+Functions reload between cells. Changed templates still require an explicit deployment.
+"""
 
 import json
 import os
+import tempfile
+from collections.abc import Callable
+from contextlib import nullcontext
+from pathlib import Path
 
 # APIM Samples imports
 import azure_resources as az
@@ -90,6 +98,8 @@ def create_bicep_deployment_group(
     bicep_parameters_file: str = 'params.json',
     rg_tags: dict | None = None,
     is_debug: bool = False,
+    *,
+    template_path: str | Path | None = None,
 ) -> Output:
     """
     Create a Bicep deployment in a resource group, writing parameters to a file and running the deployment.
@@ -103,54 +113,94 @@ def create_bicep_deployment_group(
         bicep_parameters_file (str, optional): File to write parameters to.
         rg_tags (dict, optional): Additional tags to apply to the resource group.
         is_debug (bool, optional): Whether to enable debug mode. Defaults to False.
+        template_path: Explicit template path; omitted for legacy directory discovery.
 
     Returns:
         Output: The result of the deployment command.
     """
 
-    # Create the resource group if doesn't exist
+    deployment_name = deployment.value if isinstance(deployment, INFRASTRUCTURE) else deployment
+    if template_path is None:
+        template_path = os.path.join(_determine_bicep_directory(deployment_name), 'main.bicep')
+    if not os.path.isfile(template_path):
+        raise FileNotFoundError(f'Bicep template not found: {template_path}')
+
     az.create_resource_group(rg_name, rg_location, rg_tags)
 
-    bicep_parameters_format = {
-        '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
-        'contentVersion': '1.0.0.0',
-        'parameters': bicep_parameters,
-    }
+    return deploy_bicep_template(
+        rg_name,
+        deployment_name,
+        template_path,
+        bicep_parameters,
+        parameters_path = os.path.join(os.path.dirname(template_path), bicep_parameters_file),
+        is_debug = is_debug,
+    )
 
-    # Determine the correct deployment name and find the Bicep directory
-    if hasattr(deployment, 'value'):
-        deployment_name = deployment.value
-        infrastructure_dir = deployment.value
-    else:
-        deployment_name = deployment
-        infrastructure_dir = deployment
 
-    # Use helper function to determine the correct Bicep directory
-    bicep_dir = _determine_bicep_directory(infrastructure_dir)
+def deploy_bicep_template(
+    rg_name: str,
+    deployment_name: str,
+    template_path: str | Path,
+    bicep_parameters: dict,
+    *,
+    parameters_path: str | Path | None = None,
+    sensitive_output: bool = False,
+    is_debug: bool = False,
+    ok_message: str | None = None,
+    error_message: str | None = None,
+    recover: Callable[[], bool] | None = None,
+    runner: Callable[..., Output] | None = None,
+) -> Output:
+    """Deploy an explicit template without changing cwd or creating a resource group.
 
-    main_bicep_path = os.path.join(bicep_dir, 'main.bicep')
-    params_file_path = os.path.join(bicep_dir, bicep_parameters_file)
+    Omit parameters_path to use an owned temporary directory. Sensitive deployments
+    always use temporary parameters and suppress CLI debug. A recovery callback may
+    authorize one retry; the same command and parameter file are used for both attempts.
+    """
+    template_path = os.path.abspath(template_path)
+    if not os.path.isfile(template_path):
+        raise FileNotFoundError(f'Bicep template not found: {template_path}')
 
-    # Write the updated bicep parameters to the specified parameters file
-    with open(params_file_path, 'w', encoding='utf-8') as file:
-        file.write(json.dumps(bicep_parameters_format))
+    temporary_parameters = sensitive_output or parameters_path is None
+    directory = tempfile.TemporaryDirectory(prefix = 'apim-deployment-') if temporary_parameters else nullcontext()
+    with directory as temporary_directory:
+        if temporary_directory is not None:
+            params_path = os.path.join(temporary_directory, 'params.json')
+        else:
+            assert parameters_path is not None
+            params_path = os.path.abspath(parameters_path)
+        document = {
+            '$schema': 'https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#',
+            'contentVersion': '1.0.0.0',
+            'parameters': bicep_parameters,
+        }
+        with open(params_path, 'w', encoding = 'utf-8', newline = '\n') as file:
+            file.write(json.dumps(document))
 
-    print_plain(f'📝 Updated the policy XML in the bicep parameters file {bicep_parameters_file}')
+        command = [
+            'az', 'deployment', 'group', 'create',
+            '--name', deployment_name, '--resource-group', rg_name,
+            '--template-file', template_path, '--parameters', params_path,
+            '--query', 'properties.outputs',
+        ]
+        if is_debug and not sensitive_output:
+            command.append('--debug')
 
-    # Verify that main.bicep exists in the infrastructure directory
-    if not os.path.exists(main_bicep_path):  # pragma: no cover
-        raise FileNotFoundError(f'main.bicep file not found in expected infrastructure directory: {bicep_dir}')
-
-    cmd = f'az deployment group create --name {deployment_name} --resource-group {rg_name} --template-file "{main_bicep_path}" --parameters "{params_file_path}" --query "properties.outputs"'
-
-    if is_debug:
-        cmd += ' --debug'
-
-    print_plain('\nDeploying bicep...\n')
-    # Bicep deployments routinely run longer than the default 240s subprocess timeout
-    # (APIM provisioning alone can take 30+ minutes). Use a 30-minute cap so a long-running
-    # but successful deployment is not reported as a transient "Command failed" / retry.
-    return az.run(cmd, f"Deployment '{deployment_name}' succeeded", get_deployment_failure_message(deployment_name), timeout=1800)
+        print_plain('\nDeploying bicep...\n')
+        run = runner if runner is not None else az.run
+        recovery_attempted = False
+        while True:
+            output = run(
+                command,
+                ok_message if ok_message is not None else f"Deployment '{deployment_name}' succeeded",
+                error_message if error_message is not None else get_deployment_failure_message(deployment_name),
+                sensitive_output = sensitive_output,
+                timeout = 1800,
+                retries = 0,
+            )
+            if output.success or recovery_attempted or recover is None or not recover():
+                return output
+            recovery_attempted = True
 
 
 def create_bicep_deployment_group_for_sample(
@@ -163,7 +213,7 @@ def create_bicep_deployment_group_for_sample(
     is_debug: bool = False,
 ) -> Output:
     """
-    Create a Bicep deployment for a sample, handling the working directory change automatically.
+    Create a Bicep deployment for a sample without changing the working directory.
     This function ensures that the params.json file is written to the correct sample directory
     regardless of the current working directory (e.g., when running from VS Code).
 
@@ -180,36 +230,13 @@ def create_bicep_deployment_group_for_sample(
         Output: The result of the deployment command.
     """
 
-    # Get the current working directory
-    original_cwd = os.getcwd()
+    current_dir = os.getcwd()
+    sample_dir = current_dir if os.path.basename(current_dir) == sample_name else os.path.join(find_project_root(), 'samples', sample_name)
+    main_bicep_path = os.path.join(sample_dir, 'main.bicep')
+    if not os.path.isfile(main_bicep_path):
+        raise FileNotFoundError(f'main.bicep not found in sample directory: {sample_dir}')
 
-    try:
-        # Determine the sample directory path
-        # This handles both cases: running from project root or from sample directory
-        if os.path.basename(original_cwd) == sample_name:
-            # Already in the sample directory
-            sample_dir = original_cwd
-        else:
-            # Assume we're in project root or elsewhere, navigate to sample directory
-            project_root = find_project_root()
-            sample_dir = os.path.join(project_root, 'samples', sample_name)
-
-        # Verify the sample directory exists and has main.bicep
-        if not os.path.exists(sample_dir):
-            raise FileNotFoundError(f'Sample directory not found: {sample_dir}')
-
-        main_bicep_path = os.path.join(sample_dir, 'main.bicep')
-        if not os.path.exists(main_bicep_path):
-            raise FileNotFoundError(f'main.bicep not found in sample directory: {sample_dir}')
-
-        # Change to the sample directory to ensure params.json is written there
-        os.chdir(sample_dir)
-        print_plain(f'📁 Changed working directory to: {sample_dir}', blank_above=True)
-
-        # Call the original deployment function
-        return create_bicep_deployment_group(rg_name, rg_location, sample_name, bicep_parameters, bicep_parameters_file, rg_tags, is_debug)
-
-    finally:
-        # Always restore the original working directory
-        os.chdir(original_cwd)
-        print_plain(f'📁 Restored working directory to: {original_cwd}')
+    return create_bicep_deployment_group(
+        rg_name, rg_location, sample_name, bicep_parameters, bicep_parameters_file, rg_tags, is_debug,
+        template_path = main_bicep_path,
+    )

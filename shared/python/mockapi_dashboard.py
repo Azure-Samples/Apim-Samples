@@ -1,4 +1,8 @@
-"""Authenticated endpoint configuration through the MockAPI dashboard API."""
+"""Authenticated endpoint configuration through the MockAPI dashboard API.
+
+Autoreload: reload_conditional
+Method edits reload. Recreate clients after constructor changes; close existing sessions normally.
+"""
 
 import re
 from collections.abc import Callable, Mapping

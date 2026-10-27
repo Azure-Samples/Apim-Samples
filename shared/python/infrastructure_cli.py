@@ -1,4 +1,8 @@
-"""Shared parsing and deployment dispatch for infrastructure creation scripts."""
+"""Shared parsing and deployment dispatch for infrastructure creation scripts.
+
+Autoreload: reload_unsafe
+Restart the kernel after edits. Reloading recreates enum and specification identities. CLI subprocesses load fresh source on each execution.
+"""
 
 import argparse
 from collections.abc import Callable

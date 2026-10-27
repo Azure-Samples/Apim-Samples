@@ -1,5 +1,7 @@
-"""
-JSON helpers and utilities
+"""JSON helpers and utilities
+
+Autoreload: reload_safe
+Stateless parsing and formatting functions support automatic reload.
 """
 
 import json

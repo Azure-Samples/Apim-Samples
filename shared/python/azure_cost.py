@@ -1,5 +1,8 @@
 """Azure API Management and Azure OpenAI pricing helpers.
 
+Autoreload: reload_conditional
+Function edits reload. Rerun pricing calculations; recreate results after changing dataclass fields.
+
 Provides hard-coded retail pricing for APIM SKUs and Azure OpenAI models so
 that cost-allocation notebooks can derive base monthly cost, overage rate,
 included request allowances, and token rates from the deployed SKU and model

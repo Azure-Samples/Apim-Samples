@@ -830,7 +830,7 @@ def test_inference_notebook_is_clean_and_defaults_to_simple_apim() -> None:
     assert "required_api_names = ['inference-gpt-5-1', 'inference-gpt-5-mini']" in non_deployment_source
     assert "let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-5-mini'])" in non_deployment_source
     assert "importlib.import_module('inference_failover_helpers')" in code_source
-    assert "utils.enable_module_autoreload('inference_failover_helpers')" in code_source
+    assert 'configure_notebook_autoreload()' in code_source
     assert 'inference_failover_helpers.InferenceTrafficRunner(' in code_source
     assert 'probe_runner.run_contract_probes(' in code_source
     assert 'traffic_runner.run_scenario(scenario)' in code_source
@@ -918,7 +918,7 @@ def test_inference_notebook_generates_local_html_report() -> None:
     code_source = '\n'.join(''.join(cell['source']) for cell in notebook['cells'] if cell['cell_type'] == 'code')
 
     assert 'inference_failover_helpers.InferenceReportContext(' in code_source
-    assert 'inference_failover_helpers = importlib.reload(inference_failover_helpers)' in code_source
+    assert 'importlib.reload(' not in code_source
     assert 'inference_failover_helpers.generate_local_html_report(' in code_source
     assert 'scenario_results=scenario_results' in code_source
     assert "'gpt-5.1': gpt_5_1_backend_url_index" in code_source

@@ -72,6 +72,8 @@ See the [MockAPI operations guide](infrastructure/apim-aca/README.md#mockapi-bac
 
 ## 📁 List of Samples
 
+Sample names, summaries, and compatibility are maintained in the validated [sample catalog](samples/catalog.json). See the [contributor workflow](CONTRIBUTING.md#sample-catalog) when updating these listings.
+
 <!-- markdownlint-disable-next-line MD033 -->
 <details open>
 

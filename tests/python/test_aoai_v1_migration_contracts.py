@@ -62,7 +62,7 @@ def test_notebook_clean_and_configuration_defaults():
     }
     assert AzureOpenAIModel.GPT_5_MINI.version == '2025-08-07'
     assert 'INFRASTRUCTURE.SIMPLE_APIM' in config
-    assert "utils.enable_module_autoreload('migration_helpers')" in config
+    assert 'configure_notebook_autoreload()' in config
     assert 'require_existing_infrastructure' not in ''.join(sources)
 
 
@@ -259,7 +259,6 @@ def test_notebook_staged_workflow_with_mocked_remote_boundaries(monkeypatch, dep
 
     monkeypatch.syspath_prepend(str(SAMPLE))
     monkeypatch.setattr(utils, 'NotebookHelper', FakeNotebookHelper)
-    monkeypatch.setattr(utils, 'enable_module_autoreload', lambda *args: None)
     namespace = {}
     code = [''.join(cell['source']) for cell in notebook()['cells'] if cell['cell_type'] == 'code']
     configuration = ast.parse(code[0])

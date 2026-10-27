@@ -305,6 +305,7 @@ def test_define_bicep_parameters(mock_utils):
     infra._define_policy_fragments()
     infra._define_apis()
 
+    infra._prepare_deployment()
     bicep_params = infra._define_bicep_parameters()
 
     assert 'apimSku' in bicep_params
@@ -672,6 +673,7 @@ def test_afd_apim_infrastructure_bicep_parameters(mock_utils):
     infra._define_policy_fragments()
     infra._define_apis()
 
+    infra._prepare_deployment()
     bicep_params = infra._define_bicep_parameters()
 
     # Check AFD-specific parameters
@@ -687,6 +689,7 @@ def test_afd_apim_infrastructure_bicep_parameters(mock_utils):
     infra_no_apis._define_policy_fragments()
     infra_no_apis._define_apis()
 
+    infra_no_apis._prepare_deployment()
     bicep_params_no_apis = infra_no_apis._define_bicep_parameters()
 
     # Should disable ACA when no custom APIs
@@ -764,10 +767,7 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
     assert [step[0] for step in deployment_steps.mock_calls[:2]] == ['migrate', 'deploy']
     mock_az.run.assert_called_once()
 
-    # Verify directory changes - just check that chdir was called twice (to infra dir and back)
-    assert mock_chdir.call_count == 2
-    # Second call should restore original path
-    mock_chdir.assert_any_call('/original/path')
+    mock_chdir.assert_not_called()
 
     # Verify file writing (open will be called multiple times - for reading policies and writing params)
     assert mock_open.call_count >= 1  # At least called once for writing params.json
@@ -781,7 +781,7 @@ def test_deploy_infrastructure_success(mock_path_class, mock_chdir, mock_getcwd,
 @patch('os.getcwd', return_value='/original/path')
 @patch('os.chdir')
 def test_deploy_infrastructure_stops_when_diagnostic_migration_fails(mock_chdir, mock_getcwd, mock_utils, mock_az, is_update):
-    """Do not deploy into a known conflict, and restore the working directory on migration failure."""
+    """Do not deploy into a known conflict or change cwd on migration failure."""
     infra = infrastructures.SimpleApimInfrastructure(TEST_LOCATION, TEST_INDEX)
     mock_az.migrate_legacy_apim_diagnostic_settings.side_effect = RuntimeError('Diagnostic migration failed')
 
@@ -794,8 +794,7 @@ def test_deploy_infrastructure_stops_when_diagnostic_migration_fails(mock_chdir,
 
     mock_az.migrate_legacy_apim_diagnostic_settings.assert_called_once_with(infra.rg_name)
     mock_az.run.assert_not_called()
-    assert mock_chdir.call_count == 2
-    assert mock_chdir.call_args.args == ('/original/path',)
+    mock_chdir.assert_not_called()
 
 
 @pytest.mark.unit
@@ -852,7 +851,7 @@ def test_deploy_infrastructure_recovers_reappearing_legacy_diagnostics(
     assert mock_az.run.call_args_list[0] == mock_az.run.call_args_list[1]
     migration_run.assert_called_with(f'az monitor diagnostic-settings delete --name apim-costing-diagnostics-2 --resource "{apim_id}"')
     assert infra._verify_infrastructure.call_count == int(retry_success)
-    assert mock_chdir.call_args.args == ('/original/path',)
+    mock_chdir.assert_not_called()
 
 
 @pytest.mark.unit
@@ -873,7 +872,7 @@ def test_deploy_infrastructure_stops_when_recovery_migration_fails(mock_chdir, m
 
     mock_az.run.assert_called_once()
     assert mock_az.migrate_legacy_apim_diagnostic_settings.call_count == 2
-    assert mock_chdir.call_args.args == ('/original/path',)
+    mock_chdir.assert_not_called()
 
 
 @pytest.mark.unit
@@ -941,10 +940,7 @@ def test_deploy_infrastructure_failure(mock_path_class, mock_chdir, mock_getcwd,
     # Note: utils.verify_infrastructure is currently commented out in the actual code
     # mock_utils.verify_infrastructure.assert_not_called()  # Should not be called on failure
 
-    # Verify directory changes (should restore even on failure)
-    assert mock_chdir.call_count == 2
-    # Second call should restore original path
-    mock_chdir.assert_any_call('/original/path')
+    mock_chdir.assert_not_called()
 
     assert result.success is False
 
@@ -1020,6 +1016,7 @@ def test_infrastructure_end_to_end_simple(mock_utils):
     assert len(infra.apis) == 1
 
     # Verify bicep parameters
+    infra._prepare_deployment()
     bicep_params = infra._define_bicep_parameters()
     assert bicep_params['apimSku']['value'] == 'Developer'
     assert len(bicep_params['apis']['value']) == 1
@@ -1050,6 +1047,7 @@ def test_infrastructure_with_all_custom_components(mock_utils, mock_policy_fragm
     assert len(infra.apis) == 3  # 1 base + 2 custom
 
     # Verify bicep parameters include all components
+    infra._prepare_deployment()
     bicep_params = infra._define_bicep_parameters()
     assert bicep_params['apimSku']['value'] == 'Premium'
     assert len(bicep_params['apis']['value']) == 3
@@ -1127,6 +1125,7 @@ def test_infrastructure_attribute_access(mock_utils):
     assert hasattr(infra, 'base_apis')
     assert hasattr(infra, 'apis')
     # bicep_parameters is only created during deployment via _define_bicep_parameters()
+    infra._prepare_deployment()
     infra._define_bicep_parameters()
     assert hasattr(infra, 'bicep_parameters')
 
@@ -1872,6 +1871,7 @@ def test_appgw_apim_infrastructure_bicep_parameters(mock_utils):
     infra._define_policy_fragments()
     infra._define_apis()
 
+    infra._prepare_deployment()
     bicep_params = infra._define_bicep_parameters()
 
     # Check APPGW-specific parameters
@@ -1897,6 +1897,7 @@ def test_infrastructure_resource_suffix_generation(mock_utils, mock_az):
     mock_az.get_unique_suffix_for_resource_group.return_value = 'test123abc'
 
     infra = infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='eastus')
+    infra._prepare_deployment()
 
     assert infra.resource_suffix == 'test123abc'
     mock_az.get_unique_suffix_for_resource_group.assert_called_once()
@@ -1907,6 +1908,7 @@ def test_infrastructure_account_info_retrieval(mock_utils, mock_az):
     mock_az.get_account_info.return_value = ('test-user', 'user-id-123', 'tenant-id-456', 'subscription-id-789')
 
     infra = infrastructures.Infrastructure(infra=INFRASTRUCTURE.APIM_ACA, index=1, rg_location='westus2')
+    infra._prepare_deployment()
 
     assert infra.current_user == 'test-user'
     assert infra.current_user_id == 'user-id-123'
@@ -1979,6 +1981,7 @@ def test_appgw_apim_pe_infrastructure_keyvault_creation(mock_utils, mock_az):
     # Mock Key Vault doesn't exist
     mock_az.run.return_value = Mock(success=False)
 
+    infra._prepare_deployment()
     result = infra._create_keyvault('test-kv')
 
     # Should attempt to create Key Vault when it doesn't exist
@@ -2067,12 +2070,14 @@ def test_cleanup_resources_with_all_resource_types(monkeypatch):
 
 
 def test_infrastructure_initialization_error_handling(mock_utils, mock_az):
-    """Test infrastructure initialization with mock errors."""
+    """Construction stays offline; explicit preparation propagates Azure failures."""
     # Test with resource group creation failure
     mock_az.create_resource_group.side_effect = Exception('RG creation failed')
 
-    with pytest.raises(Exception):
-        infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='eastus')
+    infra = infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='eastus')
+    mock_az.create_resource_group.assert_not_called()
+    with pytest.raises(Exception, match = 'RG creation failed'):
+        infra._prepare_deployment()
 
 
 def test_policy_fragment_list_serialization(mock_utils):
@@ -2083,6 +2088,7 @@ def test_policy_fragment_list_serialization(mock_utils):
 
     infra._define_policy_fragments()
     infra._define_apis()
+    infra._prepare_deployment()
     infra._define_bicep_parameters()
 
     # Verify policy fragments are in Bicep parameters
@@ -2101,6 +2107,7 @@ def test_api_serialization_for_bicep(mock_utils):
 
     infra._define_policy_fragments()
     infra._define_apis()
+    infra._prepare_deployment()
     infra._define_bicep_parameters()
 
     # Verify APIs are in Bicep parameters
@@ -2117,8 +2124,10 @@ def test_api_serialization_for_bicep(mock_utils):
 
 
 def test_infrastructure_resource_group_creation_called(mock_utils, mock_az):
-    """Test that resource group is created on infrastructure init."""
-    _ = infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='westus')
+    """Test that resource group creation is deferred to explicit preparation."""
+    infra = infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='westus')
+    mock_az.create_resource_group.assert_not_called()
+    infra._prepare_deployment()
 
     # Verify create_resource_group was called with correct params
     mock_az.create_resource_group.assert_called()
@@ -2154,6 +2163,7 @@ def test_infrastructure_bicep_parameters_contain_all_keys(mock_utils):
 
     infra._define_policy_fragments()
     infra._define_apis()
+    infra._prepare_deployment()
     infra._define_bicep_parameters()
 
     required_keys = ['resourceSuffix', 'apimSku', 'apis', 'policyFragments']
@@ -2213,6 +2223,7 @@ def test_infrastructure_unique_suffix_generation(mock_utils, mock_az):
     mock_az.get_unique_suffix_for_resource_group.return_value = 'abc123'
 
     infra = infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='eastus')
+    infra._prepare_deployment()
 
     assert infra.resource_suffix == 'abc123'
 
@@ -2222,6 +2233,7 @@ def test_infrastructure_account_info_stored(mock_utils, mock_az):
     mock_az.get_account_info.return_value = ('testuser', 'user-id-123', 'tenant-id-456', 'sub-id-789')
 
     infra = infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='eastus')
+    infra._prepare_deployment()
 
     assert infra.current_user == 'testuser'
     assert infra.current_user_id == 'user-id-123'
@@ -2236,6 +2248,7 @@ def test_infrastructure_define_all_methods_sequence(mock_utils):
     # Execute in order
     pfs = infra._define_policy_fragments()
     apis = infra._define_apis()
+    infra._prepare_deployment()
     params = infra._define_bicep_parameters()
 
     assert len(pfs) > 0
@@ -2255,6 +2268,7 @@ def test_afd_apim_with_both_custom_components(mock_utils):
 
     infra._define_policy_fragments()
     infra._define_apis()
+    infra._prepare_deployment()
     infra._define_bicep_parameters()
 
     assert any(p.name == 'afd-custom' for p in infra.pfs)
@@ -2349,6 +2363,7 @@ def test_appgw_apim_pe_create_keyvault(mock_utils, mock_az):
     mock_az.resource_exists.return_value = False
     mock_az.run.return_value = Mock(success=True)
 
+    infra._prepare_deployment()
     result = infra._create_keyvault('test-kv')
 
     assert isinstance(result, bool)
@@ -2361,6 +2376,7 @@ def test_appgw_apim_create_keyvault(mock_utils, mock_az):
     mock_az.resource_exists.return_value = False
     mock_az.run.return_value = Mock(success=True)
 
+    infra._prepare_deployment()
     result = infra._create_keyvault('test-kv')
 
     assert isinstance(result, bool)
@@ -2469,6 +2485,7 @@ def test_disable_apim_public_access_success_writes_params_and_calls_az(mock_util
 
     infra._define_policy_fragments()
     infra._define_apis()
+    infra._prepare_deployment()
     infra._define_bicep_parameters()
     assert infra.bicep_parameters['apimPublicAccess']['value'] is True
 
@@ -2476,6 +2493,7 @@ def test_disable_apim_public_access_success_writes_params_and_calls_az(mock_util
     monkeypatch.setattr(infrastructures, '__file__', str(tmp_path / 'shared' / 'python' / 'infrastructures.py'), raising=False)
     infra_dir = tmp_path / 'infrastructure' / infra.infra.value
     infra_dir.mkdir(parents=True, exist_ok=True)
+    (infra_dir / 'main.bicep').write_text('// Offline template\n', encoding = 'utf-8')
 
     mock_az.run.return_value = Mock(success=True)
 
@@ -2494,9 +2512,9 @@ def test_disable_apim_public_access_success_writes_params_and_calls_az(mock_util
 
     mock_az.run.assert_called_once()
     cmd = mock_az.run.call_args.args[0]
-    assert 'az deployment group create' in cmd
-    assert f'--name {infra.infra.value}-lockdown' in cmd
-    assert f'--resource-group {infra.rg_name}' in cmd
+    assert cmd[:4] == ['az', 'deployment', 'group', 'create']
+    assert cmd[cmd.index('--name') + 1] == f'{infra.infra.value}-lockdown'
+    assert cmd[cmd.index('--resource-group') + 1] == infra.rg_name
     assert '--template-file' in cmd
     assert '--parameters' in cmd
 
@@ -2508,6 +2526,7 @@ def test_disable_apim_public_access_returns_false_when_param_missing(mock_utils,
 
     infra._define_policy_fragments()
     infra._define_apis()
+    infra._prepare_deployment()
     infra._define_bicep_parameters()
     assert 'apimPublicAccess' not in infra.bicep_parameters
 
@@ -2592,12 +2611,14 @@ def test_disable_apim_public_access_returns_false_when_deploy_fails(mock_utils, 
 
     infra._define_policy_fragments()
     infra._define_apis()
+    infra._prepare_deployment()
     infra._define_bicep_parameters()
     assert infra.bicep_parameters['apimPublicAccess']['value'] is True
 
     monkeypatch.setattr(infrastructures, '__file__', str(tmp_path / 'shared' / 'python' / 'infrastructures.py'), raising=False)
     infra_dir = tmp_path / 'infrastructure' / infra.infra.value
     infra_dir.mkdir(parents=True, exist_ok=True)
+    (infra_dir / 'main.bicep').write_text('// Offline template\n', encoding = 'utf-8')
 
     mock_az.run.return_value = Mock(success=False)
 
@@ -2638,6 +2659,7 @@ def test_afd_apim_aca_define_bicep_parameters(mock_utils):
 
     infra._define_policy_fragments()
     infra._define_apis()
+    infra._prepare_deployment()
     params = infra._define_bicep_parameters()
 
     assert 'resourceSuffix' in params
@@ -2652,6 +2674,7 @@ def test_appgw_apim_pe_define_bicep_parameters(mock_utils):
 
     infra._define_policy_fragments()
     infra._define_apis()
+    infra._prepare_deployment()
     params = infra._define_bicep_parameters()
 
     assert 'resourceSuffix' in params
@@ -2666,6 +2689,7 @@ def test_appgw_apim_define_bicep_parameters(mock_utils):
 
     infra._define_policy_fragments()
     infra._define_apis()
+    infra._prepare_deployment()
     params = infra._define_bicep_parameters()
 
     assert 'resourceSuffix' in params
@@ -2701,6 +2725,7 @@ def test_infrastructure_multiple_custom_components(mock_utils):
 
     infra._define_policy_fragments()
     infra._define_apis()
+    infra._prepare_deployment()
     infra._define_bicep_parameters()
 
     assert len(infra.pfs) > 6  # 6 base + 1 custom
@@ -2731,6 +2756,7 @@ def test_appgw_apim_pe_create_keyvault_success(mock_utils, mock_az):
     mock_az.resource_exists.return_value = False
     mock_az.run.return_value = Mock(success=True)
 
+    infra._prepare_deployment()
     result = infra._create_keyvault('test-kv')
     assert isinstance(result, bool)
 
@@ -2742,6 +2768,7 @@ def test_appgw_apim_create_keyvault_success(mock_utils, mock_az):
     mock_az.resource_exists.return_value = False
     mock_az.run.return_value = Mock(success=True)
 
+    infra._prepare_deployment()
     result = infra._create_keyvault('test-kv')
     assert isinstance(result, bool)
 
@@ -3080,6 +3107,7 @@ def test_afd_apim_aca_define_bicep_parameters_complete(mock_utils):
 
     infra._define_policy_fragments()
     infra._define_apis()
+    infra._prepare_deployment()
     params = infra._define_bicep_parameters()
 
     assert 'resourceSuffix' in params
@@ -3096,6 +3124,7 @@ def test_appgw_apim_pe_define_bicep_parameters_complete(mock_utils):
 
     infra._define_policy_fragments()
     infra._define_apis()
+    infra._prepare_deployment()
     params = infra._define_bicep_parameters()
 
     assert 'resourceSuffix' in params
@@ -3110,6 +3139,7 @@ def test_appgw_apim_define_bicep_parameters_complete(mock_utils):
 
     infra._define_policy_fragments()
     infra._define_apis()
+    infra._prepare_deployment()
     params = infra._define_bicep_parameters()
 
     assert 'resourceSuffix' in params
@@ -3137,6 +3167,7 @@ def test_infrastructure_deployment_with_all_skus(mock_utils):
         infra = infrastructures.Infrastructure(infra=INFRASTRUCTURE.SIMPLE_APIM, index=1, rg_location='eastus', apim_sku=sku)
         infra._define_policy_fragments()
         infra._define_apis()
+        infra._prepare_deployment()
         infra._define_bicep_parameters()
         assert infra.bicep_parameters['apimSku']['value'] == sku.value
 
@@ -3147,6 +3178,7 @@ def test_infrastructure_bicep_parameters_structure(mock_utils):
 
     infra._define_policy_fragments()
     infra._define_apis()
+    infra._prepare_deployment()
     params = infra._define_bicep_parameters()
 
     # Verify structure
@@ -4152,6 +4184,7 @@ def test_create_keyvault_success_path(mock_utils, mock_az):
     ]
 
     with patch('time.sleep'):  # Skip the 15 second wait
+        infra._prepare_deployment()
         assert infra._create_keyvault('test-kv') is True
 
 
@@ -4166,6 +4199,7 @@ def test_create_keyvault_role_assignment_failure(mock_utils, mock_az):
         Mock(success=False),  # role assignment fails
     ]
 
+    infra._prepare_deployment()
     assert infra._create_keyvault('test-kv') is False
 
 

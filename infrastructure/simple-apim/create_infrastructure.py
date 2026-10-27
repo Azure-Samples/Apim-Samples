@@ -1,4 +1,8 @@
-"""This module provides a reusable way to create Simple APIM infrastructure that can be called from notebooks or other scripts."""
+"""This module provides a reusable way to create Simple APIM infrastructure that can be called from notebooks or other scripts.
+
+Autoreload: reload_conditional
+Function edits reload when imported. Recreate deployment specifications after state changes; CLI subprocesses always load fresh source.
+"""
 
 # APIM Samples imports
 import infrastructure_cli as cli

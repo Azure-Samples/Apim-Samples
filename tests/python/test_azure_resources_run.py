@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import logging
 import subprocess
+import sys
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 # APIM Samples imports
 import azure_resources as az
@@ -540,7 +541,7 @@ def test_get_group_deployment_failure_summary_handles_subprocess_edge_cases(monk
 
 def test_fetch_group_deployment_operations_handles_subprocess_edge_cases(monkeypatch: pytest.MonkeyPatch) -> None:
     def raise_error(*args, **kwargs):
-        raise RuntimeError('boom')
+        raise OSError('boom')
 
     monkeypatch.setattr(az.subprocess, 'run', raise_error)
     assert az._fetch_group_deployment_operations('appgw-apim', 'my-rg') is None
@@ -711,8 +712,8 @@ def test_run_timeout_expired_with_az_lock(_quiet_console: None, monkeypatch: pyt
 # ------------------------------
 
 
-def test_run_default_retries_retries_once_on_failure(_quiet_console: None) -> None:
-    """With default retries=1, subprocess.run is called twice on failure."""
+def test_run_default_retries_do_not_repeat_permanent_failure(_quiet_console: None) -> None:
+    """A permanent failure is never retried by the default transient policy."""
     failed = SimpleNamespace(stdout='', stderr='error', returncode=1)
 
     with (
@@ -723,7 +724,7 @@ def test_run_default_retries_retries_once_on_failure(_quiet_console: None) -> No
         output = az.run('echo fail')
 
     assert output.success is False
-    assert sp_run.call_count == 2
+    assert sp_run.call_count == 1
 
 
 def test_run_retries_zero_no_retry_on_failure(_quiet_console: None) -> None:
@@ -749,7 +750,7 @@ def test_run_retries_custom_value(_quiet_console: None) -> None:
         patch.object(az.subprocess, 'run', return_value=failed) as sp_run,
         patch.object(az, 'print_warning'),
     ):
-        output = az.run('echo fail', retries=3)
+        output = az.run('echo fail', retries=3, retry_policy = 'always')
 
     assert output.success is False
     assert sp_run.call_count == 4
@@ -757,7 +758,7 @@ def test_run_retries_custom_value(_quiet_console: None) -> None:
 
 def test_run_retry_succeeds_on_second_attempt(_quiet_console: None) -> None:
     """When the first attempt fails and the retry succeeds, run() returns success."""
-    failed = SimpleNamespace(stdout='', stderr='error', returncode=1)
+    failed = SimpleNamespace(stdout='', stderr='ERROR: (ServiceUnavailable) Try again later', returncode=1)
     succeeded = SimpleNamespace(stdout='ok', stderr='', returncode=0)
 
     with (
@@ -795,7 +796,7 @@ def test_run_retry_after_timeout_succeeds(_quiet_console: None) -> None:
         patch.object(az.subprocess, 'run', side_effect=[subprocess.TimeoutExpired('cmd', 10), succeeded]) as sp_run,
         patch.object(az, 'print_warning'),
     ):
-        output = az.run('echo hello', timeout=10)
+        output = az.run('echo hello', timeout=10, retry_policy = 'always')
 
     assert output.success is True
     assert output.text == 'ok'
@@ -811,7 +812,7 @@ def test_run_retry_prints_warning_on_failure(_quiet_console: None) -> None:
         patch.object(az.subprocess, 'run', return_value=failed),
         patch.object(az, 'print_warning') as mock_warn,
     ):
-        az.run('echo fail', retries=2)
+        az.run('echo fail', retries=2, retry_policy = 'always')
 
     assert mock_warn.call_count == 2
     assert 'attempt 1/3' in mock_warn.call_args_list[0].args[0]
@@ -830,3 +831,298 @@ def test_run_negative_retries_treated_as_zero(_quiet_console: None) -> None:
 
     assert output.success is False
     assert sp_run.call_count == 1
+
+
+@pytest.mark.parametrize('returncode', [0, 7])
+def test_command_result_retains_streams_exit_code_and_attempts(monkeypatch, _quiet_console, returncode):
+    completed = SimpleNamespace(stdout='{"value": 42}', stderr='diagnostic', returncode=returncode)
+    monkeypatch.setattr(az.subprocess, 'run', Mock(return_value = completed))
+    monkeypatch.setattr(az, 'is_debug_enabled', lambda: False)
+    output = az.run(['program', 'argument'])
+
+    assert output.success is (returncode == 0)
+    assert output.returncode == returncode
+    assert output.stdout == '{"value": 42}'
+    assert output.stderr == 'diagnostic'
+    assert output.attempts == 1
+    assert output.elapsed_seconds >= 0
+    assert not output.timed_out
+    assert output.execution_error is None
+    assert output.text == ('{"value": 42}' if returncode == 0 else '{"value": 42}\ndiagnostic')
+    assert output.json_data == {'value': 42}
+    assert az.subprocess.run.call_args.kwargs['shell'] is False
+
+
+def test_manually_constructed_output_retains_legacy_contract():
+    output = az.Output(True, '{"name": {"value": "demo"}}')
+
+    assert output.get('name', suppress_logging = True) == 'demo'
+    assert output.stdout == output.stderr == ''
+    assert output.returncode is None
+    assert not output.timed_out
+    assert output.attempts == 0
+    assert output.elapsed_seconds == 0
+    assert output.execution_error is None
+
+
+def test_successful_retry_reports_final_streams_and_total_elapsed_time(monkeypatch, _quiet_console):
+    monkeypatch.setattr(az.time, 'monotonic', Mock(side_effect = [10.0, 10.1, 15.2]))
+    process = Mock(side_effect = [
+        SimpleNamespace(stdout='partial', stderr='HTTP 503 Unavailable', returncode=1),
+        SimpleNamespace(stdout='{}', stderr='', returncode=0),
+    ])
+    monkeypatch.setattr(az.subprocess, 'run', process)
+
+    output = az.run(['program'])
+
+    assert output.success
+    assert output.attempts == 2
+    assert output.elapsed_seconds == pytest.approx(5.2)
+    assert output.returncode == 0
+    assert output.stdout == '{}'
+    assert output.stderr == ''
+    assert output.execution_error is None
+    assert not output.timed_out
+
+
+def test_argument_execution_preserves_shell_metacharacters_without_side_effects(tmp_path):
+    """Exercise the real subprocess boundary, not a mock proxy for quoting."""
+    marker = tmp_path / 'should-not-exist'
+    arguments = [
+        'two words', '"quotes"', "'apostrophes'", 'a&b|c>d<e', '%PATH%', '$HOME',
+        f'& echo injected > "{marker}"', 'trailing\\', '', 'caf\u00e9',
+    ]
+    output = az.run([sys.executable, '-c', 'import json,sys; print(json.dumps(sys.argv[1:]))', *arguments])
+
+    assert output.success
+    assert output.returncode == 0
+    assert output.json_data == arguments
+    assert not marker.exists()
+
+
+@pytest.mark.parametrize('platform', ['linux', 'darwin'])
+def test_non_windows_native_arguments_are_preserved(monkeypatch: pytest.MonkeyPatch, platform: str) -> None:
+    """Non-Azure commands bypass Windows launcher resolution on Linux and macOS."""
+    monkeypatch.setattr(az.sys, 'platform', platform)
+    which = Mock()
+    monkeypatch.setattr(az.shutil, 'which', which)
+    arguments = ['program', 'two words', 'a&b|c>d<e']
+
+    resolved, environment = az._resolve_command_arguments(arguments)
+
+    assert resolved == arguments
+    assert environment is None
+    which.assert_not_called()
+
+
+@pytest.mark.parametrize('platform, extension', [('win32', '.exe'), ('linux', ''), ('darwin', '')])
+def test_azure_argument_execution_resolves_native_launcher_and_locks(monkeypatch, _quiet_console, tmp_path, platform, extension):
+    launcher = str(tmp_path / f'az{extension}')
+    monkeypatch.setattr(az.sys, 'platform', platform)
+    monkeypatch.setattr(az.shutil, 'which', lambda name: launcher)
+    monkeypatch.setattr(az, 'is_debug_enabled', lambda: True)
+    lock = _FakeLock()
+    monkeypatch.setattr(az, '_AZ_CLI_LOCK', lock)
+    process = Mock(return_value = SimpleNamespace(stdout='[]', stderr='debug', returncode=0))
+    monkeypatch.setattr(az.subprocess, 'run', process)
+    arguments = ['az', 'group', 'list', '--query', "[?name == 'a|b'].name"]
+
+    output = az.run(arguments)
+
+    assert output.success
+    assert arguments[-1] == "[?name == 'a|b'].name"
+    assert process.call_args.args[0] == [launcher, *arguments[1:], '--debug']
+    assert process.call_args.kwargs['shell'] is False
+    assert lock.entered == lock.exited == 1
+    assert process.call_args.kwargs['env'] is None
+
+
+@pytest.mark.parametrize('extension', ['.cmd', '.bat'])
+def test_windows_azure_batch_launcher_uses_bundled_python_without_shell(monkeypatch, _quiet_console, tmp_path, extension):
+    install = tmp_path / 'CLI with spaces'
+    (install / 'wbin').mkdir(parents = True)
+    python = install / 'python.exe'
+    python.touch()
+    launcher = str(install / 'wbin' / f'az{extension}')
+    monkeypatch.setattr(az.sys, 'platform', 'win32')
+    monkeypatch.setattr(az.shutil, 'which', lambda name: launcher)
+    monkeypatch.setattr(az, 'is_debug_enabled', lambda: False)
+    process = Mock(return_value = SimpleNamespace(stdout='{}', stderr='', returncode=0))
+    monkeypatch.setattr(az.subprocess, 'run', process)
+    arguments = ['az', 'group', 'show', '--name', 'value & echo not-a-command']
+
+    assert az.run(arguments).success
+
+    assert process.call_args.args[0] == [str(python), '-IBm', 'azure.cli', *arguments[1:]]
+    assert process.call_args.kwargs['shell'] is False
+    assert process.call_args.kwargs['env']['AZ_INSTALLER'] == 'MSI'
+
+
+@pytest.mark.parametrize('extension', ['.cmd', '.bat'])
+def test_other_windows_batch_launchers_cannot_silently_invoke_a_shell(monkeypatch, _quiet_console, tmp_path, extension):
+    monkeypatch.setattr(az.sys, 'platform', 'win32')
+    monkeypatch.setattr(az.shutil, 'which', lambda name: str(tmp_path / f'custom{extension}'))
+    process = Mock()
+    monkeypatch.setattr(az.subprocess, 'run', process)
+
+    output = az.run(['custom', 'a&b'])
+
+    assert not output.success
+    assert 'native executable' in output.execution_error
+    process.assert_not_called()
+
+
+@pytest.mark.parametrize('launcher_found', [True, False])
+def test_windows_native_argument_execution_preserves_arguments(monkeypatch: pytest.MonkeyPatch, _quiet_console: None, tmp_path, launcher_found: bool) -> None:
+    """Native commands remain shell-free whether PATH lookup succeeds or not."""
+    monkeypatch.setattr(az.sys, 'platform', 'win32')
+    launcher = str(tmp_path / 'Tools with spaces' / 'custom.EXE') if launcher_found else None
+    which = Mock(return_value = launcher)
+    monkeypatch.setattr(az.shutil, 'which', which)
+    process = Mock(return_value = SimpleNamespace(stdout = '{}', stderr = '', returncode = 0))
+    monkeypatch.setattr(az.subprocess, 'run', process)
+    arguments = ['custom', 'two words', 'a&b|c>d<e', '%PATH%', '']
+
+    output = az.run(arguments)
+
+    assert output.success
+    assert output.execution_error is None
+    which.assert_called_once_with('custom')
+    process.assert_called_once()
+    assert process.call_args.args[0] == arguments
+    assert process.call_args.kwargs['shell'] is False
+    assert process.call_args.kwargs['env'] is None
+
+
+@pytest.mark.parametrize('missing_launcher', [True, False])
+def test_azure_launcher_failures_are_explicit_and_not_retried(monkeypatch, _quiet_console, tmp_path, missing_launcher):
+    monkeypatch.setattr(az.sys, 'platform', 'win32')
+    monkeypatch.setattr(az.shutil, 'which', lambda name: None if missing_launcher else str(tmp_path / 'wbin' / 'az.cmd'))
+    process = Mock()
+    monkeypatch.setattr(az.subprocess, 'run', process)
+    output = az.run(['az', 'group', 'list'], retries = 3)
+
+    assert not output.success
+    assert output.returncode is None
+    assert output.execution_error
+    assert output.attempts == 1
+    assert not output.timed_out
+    assert ('not found on PATH' if missing_launcher else 'no bundled Python') in output.text
+    process.assert_not_called()
+
+
+@pytest.mark.parametrize('as_bytes', [False, True])
+def test_timeout_preserves_partial_streams_and_never_retries_by_default(monkeypatch, _quiet_console, as_bytes):
+    stdout = b'partial' if as_bytes else 'partial'
+    stderr = b'diagnostic' if as_bytes else 'diagnostic'
+    process = Mock(side_effect = subprocess.TimeoutExpired('program', 10, output = stdout, stderr = stderr))
+    monkeypatch.setattr(az.subprocess, 'run', process)
+
+    output = az.run(['program'], timeout = 10, retries = 3)
+
+    assert not output.success
+    assert output.timed_out
+    assert output.stdout == 'partial'
+    assert output.stderr == 'diagnostic'
+    assert output.returncode is None
+    assert output.execution_error == 'Command timed out after 10 seconds'
+    assert output.text == 'partial\ndiagnostic\nCommand timed out after 10 seconds'
+    assert output.attempts == 1
+    process.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    'message, transient',
+    [
+        ('{"error": {"code": "TooManyRequests", "message": "Wait"}}', True),
+        ('{"code": "ServiceUnavailable"}', True),
+        ('{"code": 503}', True),
+        ('ERROR: (ServerBusy) Try later', True),
+        ('HTTP/1.1 429 Too many requests', True),
+        ('status code: 502 Bad Gateway', True),
+        ('ERROR: HTTP 504 Gateway timeout', True),
+        ('{"error": {"code": "AuthorizationFailed"}}', False),
+        ('{"error": {"code": "InvalidTemplate"}}', False),
+        ('{"error": "Service is unavailable"}', False),
+        ('ERROR: resource does not exist', False),
+        ('resource-503 not found', False),
+        ('{bad json', False),
+        ('unknown error', False),
+    ],
+)
+def test_default_retries_only_recognized_transient_failures(monkeypatch, _quiet_console, message, transient):
+    failed = SimpleNamespace(stdout='', stderr=message, returncode=1)
+    succeeded = SimpleNamespace(stdout='{}', stderr='', returncode=0)
+    process = Mock(side_effect = [failed, succeeded])
+    monkeypatch.setattr(az.subprocess, 'run', process)
+
+    output = az.run(['program'])
+
+    assert output.success is transient
+    assert output.attempts == (2 if transient else 1)
+    assert process.call_count == output.attempts
+
+
+def test_never_policy_disables_transient_retries(monkeypatch, _quiet_console):
+    process = Mock(return_value = SimpleNamespace(stdout='', stderr='HTTP 503 Unavailable', returncode=1))
+    monkeypatch.setattr(az.subprocess, 'run', process)
+
+    output = az.run(['program'], retries = 3, retry_policy = 'never')
+
+    assert not output.success
+    assert output.attempts == 1
+    process.assert_called_once()
+
+
+@pytest.mark.parametrize('invalid_command', [[], ['program', 3]])
+def test_argument_validation_happens_before_execution(monkeypatch, invalid_command):
+    process = Mock()
+    monkeypatch.setattr(az.subprocess, 'run', process)
+    with pytest.raises(ValueError, match = 'non-empty sequence of strings'):
+        az.run(invalid_command)
+    process.assert_not_called()
+
+
+def test_invalid_retry_policy_rejected_before_execution(monkeypatch):
+    process = Mock()
+    monkeypatch.setattr(az.subprocess, 'run', process)
+    with pytest.raises(ValueError, match = 'Unknown retry policy'):
+        az.run(['program'], retry_policy = 'invalid')
+    process.assert_not_called()
+
+
+def test_programming_errors_are_not_hidden_or_retried(monkeypatch, _quiet_console):
+    process = Mock(side_effect = TypeError('Programming error'))
+    monkeypatch.setattr(az.subprocess, 'run', process)
+    with pytest.raises(TypeError, match = 'Programming error'):
+        az.run(['program'])
+    process.assert_called_once()
+
+
+def test_sensitive_arguments_and_streams_never_reach_logging(monkeypatch, _quiet_console):
+    secret = 'test-sensitive-value'
+    monkeypatch.setattr(az, 'is_debug_enabled', lambda: True)
+    process = Mock(return_value = SimpleNamespace(stdout=secret, stderr=secret, returncode=1))
+    monkeypatch.setattr(az.subprocess, 'run', process)
+    output = az.run(['program', '--secret', secret], sensitive_output = True, error_message = 'Failed')
+
+    assert output.stdout == output.stderr == secret
+    assert process.call_args.args[0] == ['program', '--secret', secret]
+    assert '--debug' not in process.call_args.args[0]
+    assert az.print_command.call_args.args == ('Command arguments withheld (sensitive operation).',)
+    assert az.print_error.call_args.args[1] == 'Command failed; sensitive output was withheld.'
+    az.print_plain.assert_not_called()
+
+
+def test_argument_deployment_failure_keeps_context_and_diagnostics(monkeypatch, _quiet_console):
+    monkeypatch.setattr(az.shutil, 'which', lambda name: sys.executable)
+    process = Mock(return_value = SimpleNamespace(stdout='', stderr='ERROR: InvalidTemplate', returncode=1))
+    monkeypatch.setattr(az.subprocess, 'run', process)
+    fetch = Mock(return_value = [{'properties': {'provisioningState': 'Failed', 'statusMessage': 'Bad template'}}])
+    monkeypatch.setattr(az, '_fetch_group_deployment_operations', fetch)
+
+    output = az.run(['az', 'deployment', 'group', 'create', '--name', 'demo & name', '-g', 'rg with spaces'], error_message = 'Failed')
+
+    assert not output.success
+    fetch.assert_called_once_with('demo & name', 'rg with spaces')
+    assert 'Bad template' in az.print_error.call_args.args[1]

@@ -137,7 +137,7 @@ def test_notebook_reuses_model_plans_and_preserves_persisted_counts(monkeypatch,
         'print_val': MagicMock(),
     }
     notebook = json.loads((COSTING_DIR / 'create.ipynb').read_text(encoding='utf-8'))
-    source = next(''.join(cell['source']) for cell in notebook['cells'] if cell['cell_type'] == 'code' and 'send_aoai_traffic = costing_helpers.send_aoai_traffic' in ''.join(cell['source']))
+    source = next(''.join(cell['source']) for cell in notebook['cells'] if cell['cell_type'] == 'code' and 'costing_helpers.AoaiTrafficPlan(' in ''.join(cell['source']))
 
     exec(source, namespace)
 
