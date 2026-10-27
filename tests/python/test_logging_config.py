@@ -270,6 +270,23 @@ def test_configure_logging_uses_env_when_no_override(monkeypatch: pytest.MonkeyP
     assert logging.getLogger().level == logging.ERROR
 
 
+@pytest.mark.parametrize('enabled', [False, True])
+def test_configure_logging_enables_unmasking_only_when_requested(enabled: bool, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Apply the SDK override only when the process explicitly opts in."""
+    monkeypatch.setenv('APIM_SAMPLES_UNMASK_SENSITIVE_HEADERS', str(enabled))
+    enable_unmasked_logging = Mock()
+    monkeypatch.setattr(logging_config, 'enable_unmasked_logging', enable_unmasked_logging)
+
+    logging_config.configure_logging(level = 'INFO')
+
+    if enabled:
+        enable_unmasked_logging.assert_called_once_with()
+    else:
+        enable_unmasked_logging.assert_not_called()
+    assert logging_config._state['configured'] is True
+    assert logging.getLogger().level == logging.INFO
+
+
 def test_find_env_file_checks_cwd(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     (tmp_path / '.env').write_text('APIM_SAMPLES_LOG_LEVEL=DEBUG\n', encoding='utf-8')
     monkeypatch.chdir(tmp_path)

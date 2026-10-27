@@ -120,6 +120,19 @@ def test_optional_sdk_import_does_not_hide_broken_dependencies(monkeypatch):
         unmasked_logging._optional_module('azure.core.pipeline.policies')
 
 
+def test_unmasking_skips_uninstalled_sdks(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unmasking remains usable when neither optional SDK is installed."""
+    import_module = Mock(side_effect = [ModuleNotFoundError(name = 'azure'), ModuleNotFoundError(name = 'msrest')])
+    wrap = Mock()
+    monkeypatch.setattr(unmasked_logging.importlib, 'import_module', import_module)
+    monkeypatch.setattr(unmasked_logging, '_wrap', wrap)
+
+    unmasked_logging.enable_unmasked_logging()
+
+    assert [entry.args for entry in import_module.call_args_list] == [('azure.core.pipeline.policies',), ('msrest.http_logger',)]
+    wrap.assert_not_called()
+
+
 @pytest.mark.parametrize('shell_command', [False, True])
 def test_installed_cli_retains_internal_masking(shell_command, monkeypatch, caplog):
     """Run az rest through the normal launcher against localhost, never Azure."""
