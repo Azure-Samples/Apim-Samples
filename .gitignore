@@ -57,3 +57,5 @@ $JsonReport
 $TextReport
 $JsonReportRelative
 $TextReportRelative
+
+.playwright-mcp/*
