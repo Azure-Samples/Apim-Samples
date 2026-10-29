@@ -30,7 +30,7 @@ param credentials object
 // ------------------------------
 
 @description('Immutable MockAPI image, exempt from the dependency release waiting period.')
-var containerImage = 'simonkurtzmsft/mockapi:1.10.0@sha256:540bec5c04730b1fa7337679685e34e4704b5d4ac0fb7adc3681e0dd1e190a85'
+var containerImage = 'simonkurtzmsft/mockapi:1.11.0@sha256:57d640ea8cea58c3029897cfb30bf7b2b4a3a2865e32cea710f38f0c13613e35'
 
 @description('Shared role definitions.')
 var azureRoles = loadJsonContent('../../../../azure-roles.json')
