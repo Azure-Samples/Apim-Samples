@@ -166,6 +166,45 @@ function PyRunInteractive {
     }
 }
 
+function Read-MenuSelection {
+    param(
+        [string[]] $Choices,
+        [string] $Prompt = 'Select an option'
+    )
+
+    if ([Console]::IsInputRedirected) {
+        return Read-Host $Prompt
+    }
+
+    Write-Host "${Prompt}: " -NoNewline
+    $selection = ''
+    while ($true) {
+        $key = [Console]::ReadKey($true)
+        if ($key.Key -eq [ConsoleKey]::Enter) {
+            Write-Host ''
+            return $selection
+        }
+        if ($key.Key -eq [ConsoleKey]::Backspace) {
+            if ($selection.Length -gt 0) {
+                $selection = $selection.Substring(0, $selection.Length - 1)
+                Write-Host "`b `b" -NoNewline
+            }
+            continue
+        }
+        if ([char]::IsControl($key.KeyChar)) {
+            continue
+        }
+
+        $selection += $key.KeyChar
+        Write-Host ([string] $key.KeyChar) -NoNewline
+        $matches = @($Choices | Where-Object { $_.StartsWith($selection, [StringComparison]::OrdinalIgnoreCase) })
+        if ($matches.Count -eq 1 -and $matches[0] -eq $selection) {
+            Write-Host ''
+            return $selection
+        }
+    }
+}
+
 while ($true) {
     Write-Host ""
     Write-Host "APIM Samples Developer CLI" -ForegroundColor Cyan
@@ -201,7 +240,8 @@ while ($true) {
     Write-Host "Misc" -ForegroundColor Yellow
     Write-Host "  0) Exit"
     Write-Host ""
-    $choice = Read-Host "Select an option"
+    Write-Host "Unique choices run immediately; press Enter for 1 (10 is also available)."
+    $choice = Read-MenuSelection -Choices @('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'u', 'l', 'p', 'e', 'w', 'd', 'c')
 
     switch ($choice) {
         '1' {
@@ -215,7 +255,7 @@ while ($true) {
         }
         '2' {
             Write-Host ""
-            $useTenantId = Read-Host "Do you want to specify a tenant ID? (y/n)"
+            $useTenantId = Read-MenuSelection -Choices @('y', 'n') -Prompt "Do you want to specify a tenant ID? (y/n)"
             if ($useTenantId -eq 'y' -or $useTenantId -eq 'Y') {
                 $tenantId = Read-Host "Enter tenant ID"
                 if ($tenantId) {

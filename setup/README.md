@@ -47,6 +47,8 @@ python setup/local_setup.py --complete-setup
 
 Alternatively, launch the Developer CLI with [start.ps1](../start.ps1) or [start.sh](../start.sh) and choose **1) Complete environment setup**.
 
+In an interactive terminal, complete, unambiguous menu choices run without Enter, including letter shortcuts (case-insensitive) and the tenant ID yes/no prompt. Type `10` to run full checks immediately; use `1` followed by Enter for complete setup because `1` also starts `10`. Backspace corrects a pending selection. Free-text prompts and redirected input remain line-based.
+
 Setup detects installed Python interpreters using uv, filters them against `requires-python` in [pyproject.toml](../pyproject.toml), and displays their versions and paths. Select a numbered option for the virtual environment, or enter `q` to cancel. No Python interpreter is downloaded automatically.
 
 Launchers pointing to a missing Python executable are silently skipped. Other discovery diagnostics remain visible, and setup stops if discovery fails or no compatible interpreter or existing environment is available.
@@ -201,12 +203,12 @@ bash setup/clean-local-artifacts.sh
 
 The following are removed:
 
-| Type                    | Items                                                                          |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| Cache directories       | `.pytest_cache`, `.ruff_cache`, `__pycache__`                                  |
-| Test/coverage artifacts | `htmlcov`, `.coverage`, `.coverage.*`, `coverage.json`, `coverage.xml`         |
-| Build/package artifacts | `build`, `dist`, `.eggs`, `*.egg-info`                                         |
-| Temporary directory     | Repository-root `tmp` and all its contents                                     |
-| Temporary files         | `*.pyc`, `*.pyo`, `*.tmp`, `*.temp`                                            |
+| Type                    | Items                                                                     |
+| ----------------------- | ------------------------------------------------------------------------- |
+| Cache directories       | `.pytest_cache`, `.ruff_cache`, `__pycache__`                             |
+| Test/coverage artifacts | `htmlcov`, `.coverage`, `.coverage.*`, `coverage.json`, `coverage.xml`    |
+| Build/package artifacts | `build`, `dist`, `.eggs`, `*.egg-info`                                    |
+| Temporary directories   | Repository-root `tmp` and `.playwright-mcp`, including all their contents |
+| Temporary files         | `*.pyc`, `*.pyo`, `*.tmp`, `*.temp`                                       |
 
-> **Note:** `.env` is intentionally left in place. The repository-root `tmp` directory is disposable; do not store files there that you want to keep.
+> **Note:** `.env` is intentionally left in place. The repository-root `tmp` and `.playwright-mcp` directories are disposable; do not store files there that you want to keep.

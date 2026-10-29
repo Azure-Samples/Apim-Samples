@@ -37,6 +37,37 @@ The existing Python test workflow enforces these checks through `tests/python/te
 
 Website and slide-deck descriptions remain tailored, hand-authored prose. The catalog's plain-text summary matches the root README description, where emphasis and reference links may still be used. There is no website build step or generated HTML requirement.
 
+## Release Notes
+
+When asked to version a release, review the changes since the latest release tag and recommend a semantic version based on the actual scope. Use a bare version tag such as `3.7.0` and a release title such as `v3.7.0`. Do not create or publish a tag or release unless explicitly requested.
+
+Format the release body as follows:
+
+- When returning release notes in chat, put the entire release body inside a single fenced code block with the `markdown` language tag so copying preserves the Markdown source. Do not return only rendered Markdown.
+- Use level-two headings in this order: `Added`, `Changed`, `Fixed`. Omit sections with no applicable changes.
+- Write unordered bullets as `- **Descriptive Title** - Explanation.` Bold only the title, not the explanation.
+- Prefix engineering-only titles with `[Engineering]:` inside the bold text.
+- Describe user-facing outcomes in concise, complete sentences. Group related implementation details instead of listing every commit.
+- Include upgrade requirements and compatibility caveats in the relevant bullet, not in a separate `Upgrade Notes` section.
+- End with an unbolded `Full Changelog:` label and a Markdown comparison link whose text is `previous...next`.
+- Keep version recommendations, validation status, and publication caveats outside the copy-ready release body.
+
+```markdown
+## Added
+
+- **New Capability** - Explains what users can now do.
+
+## Changed
+
+- **[Engineering]: Shared Helper Improvements** - Summarizes related internal improvements.
+
+## Fixed
+
+- **Resolved Deployment Issue** - Explains the corrected behavior.
+
+Full Changelog: [3.6.0...3.7.0](https://github.com/Azure-Samples/Apim-Samples/compare/3.6.0...3.7.0)
+```
+
 ## Project Scope
 
 This repository is maintained as a **learning and experimentation playground** for Azure API Management policies. It is sample code, not a product. That framing is deliberate and keeps the following out of scope:
