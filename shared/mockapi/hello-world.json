@@ -1,5 +1,5 @@
 {
-  "$schema": "https://raw.githubusercontent.com/simonkurtz-MSFT/MockAPI/refs/tags/1.10.0/schemas/mockapi.schema.json",
+  "$schema": "https://raw.githubusercontent.com/simonkurtz-MSFT/MockAPI/refs/tags/1.11.0/schemas/mockapi.schema.json",
   "endpoints": [
     {
       "enabled": true,

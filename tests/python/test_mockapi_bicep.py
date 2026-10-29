@@ -55,7 +55,7 @@ def test_mockapi_runtime_is_pinned_persistent_and_single_replica(template):
     container_module = next(item for item in resources if item['type'] == 'Microsoft.Resources/deployments' and 'minReplicas' in item['properties']['parameters'])
     parameters = container_module['properties']['parameters']
     assert parameters['minReplicas']['value'] == parameters['maxReplicas']['value'] == 1
-    assert module['variables']['containerImage'] == 'simonkurtzmsft/mockapi:1.10.0@sha256:540bec5c04730b1fa7337679685e34e4704b5d4ac0fb7adc3681e0dd1e190a85'
+    assert module['variables']['containerImage'] == 'simonkurtzmsft/mockapi:1.11.0@sha256:57d640ea8cea58c3029897cfb30bf7b2b4a3a2865e32cea710f38f0c13613e35'
     environment = {entry['name']: entry for entry in parameters['environmentVariables']['value']}
     assert environment['MockApi__DashboardUsername']['value'] == 'admin'
     assert environment['MockApi__ApiKey']['secretRef'] == 'mock-api-key'
