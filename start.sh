@@ -102,6 +102,52 @@ pyrun() {
   fi
 }
 
+read_menu_selection() {
+  local prompt="$1"
+  shift
+  local choices=("$@")
+  MENU_INPUT=''
+  if [[ ! -t 0 ]]; then
+    IFS= read -r -p "$prompt: " MENU_INPUT
+    return $?
+  fi
+
+  printf '%s: ' "$prompt"
+  local key normalized choice matches exact
+  while true; do
+    IFS= read -r -s -n 1 key || return 1
+    case "$key" in
+      ''|$'\r') printf '\n'; return 0 ;;
+      $'\177'|$'\b')
+        if [[ -n "$MENU_INPUT" ]]; then
+          MENU_INPUT="${MENU_INPUT%?}"
+          printf '\b \b'
+        fi
+        continue
+        ;;
+      [[:cntrl:]]) continue ;;
+    esac
+
+    MENU_INPUT+="$key"
+    printf '%s' "$key"
+    normalized="$(printf '%s' "$MENU_INPUT" | tr '[:upper:]' '[:lower:]')"
+    matches=0
+    exact=false
+    for choice in "${choices[@]}"; do
+      if [[ "$choice" == "$normalized"* ]]; then
+        matches=$((matches + 1))
+      fi
+      if [[ "$choice" == "$normalized" ]]; then
+        exact=true
+      fi
+    done
+    if [[ "$matches" -eq 1 && "$exact" == true ]]; then
+      printf '\n'
+      return 0
+    fi
+  done
+}
+
 while true; do
   echo ""
   echo "APIM Samples Developer CLI"
@@ -137,7 +183,9 @@ while true; do
   echo "Misc"
   echo "  0) Exit"
   echo ""
-  read -rp "Select an option: " choice || break
+  echo "Unique choices run immediately; press Enter for 1 (10 is also available)."
+  read_menu_selection "Select an option" 0 1 2 3 4 5 6 7 8 9 10 u l p e w d c || break
+  choice="$(printf '%s' "$MENU_INPUT" | tr '[:upper:]' '[:lower:]')"
   case "$choice" in
     1)
       if base_python=$("$(find_python)" -c 'import sys; print(sys._base_executable)'); then
@@ -148,7 +196,8 @@ while true; do
       ;;
     2)
       echo ""
-      read -rp "Do you want to specify a tenant ID? (y/n): " use_tenant_id
+      read_menu_selection "Do you want to specify a tenant ID? (y/n)" y n || break
+      use_tenant_id="$MENU_INPUT"
       if [ "$use_tenant_id" = "y" ] || [ "$use_tenant_id" = "Y" ]; then
         read -rp "Enter tenant ID: " tenant_id
         if [ -n "$tenant_id" ]; then

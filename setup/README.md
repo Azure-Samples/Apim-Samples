@@ -47,6 +47,8 @@ python setup/local_setup.py --complete-setup
 
 Alternatively, launch the Developer CLI with [start.ps1](../start.ps1) or [start.sh](../start.sh) and choose **1) Complete environment setup**.
 
+In an interactive terminal, complete, unambiguous menu choices run without Enter, including letter shortcuts (case-insensitive) and the tenant ID yes/no prompt. Type `10` to run full checks immediately; use `1` followed by Enter for complete setup because `1` also starts `10`. Backspace corrects a pending selection. Free-text prompts and redirected input remain line-based.
+
 Setup detects installed Python interpreters using uv, filters them against `requires-python` in [pyproject.toml](../pyproject.toml), and displays their versions and paths. Select a numbered option for the virtual environment, or enter `q` to cancel. No Python interpreter is downloaded automatically.
 
 Launchers pointing to a missing Python executable are silently skipped. Other discovery diagnostics remain visible, and setup stops if discovery fails or no compatible interpreter or existing environment is available.
