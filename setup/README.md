@@ -201,12 +201,12 @@ bash setup/clean-local-artifacts.sh
 
 The following are removed:
 
-| Type                    | Items                                                                          |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| Cache directories       | `.pytest_cache`, `.ruff_cache`, `__pycache__`                                  |
-| Test/coverage artifacts | `htmlcov`, `.coverage`, `.coverage.*`, `coverage.json`, `coverage.xml`         |
-| Build/package artifacts | `build`, `dist`, `.eggs`, `*.egg-info`                                         |
-| Temporary directory     | Repository-root `tmp` and all its contents                                     |
-| Temporary files         | `*.pyc`, `*.pyo`, `*.tmp`, `*.temp`                                            |
+| Type                    | Items                                                                     |
+| ----------------------- | ------------------------------------------------------------------------- |
+| Cache directories       | `.pytest_cache`, `.ruff_cache`, `__pycache__`                             |
+| Test/coverage artifacts | `htmlcov`, `.coverage`, `.coverage.*`, `coverage.json`, `coverage.xml`    |
+| Build/package artifacts | `build`, `dist`, `.eggs`, `*.egg-info`                                    |
+| Temporary directories   | Repository-root `tmp` and `.playwright-mcp`, including all their contents |
+| Temporary files         | `*.pyc`, `*.pyo`, `*.tmp`, `*.temp`                                       |
 
-> **Note:** `.env` is intentionally left in place. The repository-root `tmp` directory is disposable; do not store files there that you want to keep.
+> **Note:** `.env` is intentionally left in place. The repository-root `tmp` and `.playwright-mcp` directories are disposable; do not store files there that you want to keep.

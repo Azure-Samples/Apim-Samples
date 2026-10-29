@@ -58,4 +58,4 @@ $TextReport
 $JsonReportRelative
 $TextReportRelative
 
-.playwright-mcp/*
+/.playwright-mcp/

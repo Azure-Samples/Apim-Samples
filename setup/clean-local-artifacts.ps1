@@ -12,10 +12,12 @@ Write-Host ""
 
 # ── Directories ───────────────────────────────────────────────────────────────
 
-$tmpDir = Join-Path -Path $RepoRoot -ChildPath 'tmp'
-if (Test-Path -LiteralPath $tmpDir -PathType Container) {
-    Write-Host "  Removing $tmpDir"
-    Remove-Item -LiteralPath $tmpDir -Recurse -Force
+foreach ($directory in @('tmp', '.playwright-mcp')) {
+    $artifactDir = Join-Path -Path $RepoRoot -ChildPath $directory
+    if (Test-Path -LiteralPath $artifactDir -PathType Container) {
+        Write-Host "  Removing $artifactDir"
+        Remove-Item -LiteralPath $artifactDir -Recurse -Force
+    }
 }
 
 $dirPatterns = @('.pytest_cache', '.ruff_cache', '__pycache__', 'htmlcov', 'build', 'dist', '.eggs')

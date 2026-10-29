@@ -11,10 +11,12 @@ echo ""
 
 # ── Directories ───────────────────────────────────────────────────────────────
 
-if [ -d "${REPO_ROOT}/tmp" ]; then
-    echo "  Removing ${REPO_ROOT}/tmp"
-    rm -rf -- "${REPO_ROOT}/tmp" || exit 1
-fi
+for directory in 'tmp' '.playwright-mcp'; do
+    if [ -d "${REPO_ROOT}/${directory}" ]; then
+        echo "  Removing ${REPO_ROOT}/${directory}"
+        rm -rf -- "${REPO_ROOT}/${directory}" || exit 1
+    fi
+done
 
 for pattern in '.pytest_cache' '.ruff_cache' '__pycache__' 'htmlcov' 'build' 'dist' '.eggs'; do
     while IFS= read -r -d $'\0' dir; do
