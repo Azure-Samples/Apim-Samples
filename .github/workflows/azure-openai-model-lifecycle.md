@@ -27,6 +27,14 @@ tools:
   bash: ['cat', 'date', 'find', 'grep', 'head', 'python', 'tail']
   web-fetch:
 
+mcp-servers:
+  microsoft-learn:
+    type: http
+    url: https://learn.microsoft.com/api/mcp
+    allowed:
+      - microsoft_docs_search
+      - microsoft_docs_fetch
+
 safe-outputs:
   mentions: false
   allowed-github-references: []
@@ -52,6 +60,10 @@ current UTC date.
 
 ## Evidence requirements
 
+1. Use the `microsoft-learn` MCP server's `microsoft_docs_search` and
+   `microsoft_docs_fetch` tools as the primary documentation retrieval path.
+   Fetch the authoritative pages below; use search to locate updated pages
+   when a URL has moved. Direct web fetch is a fallback, not a prerequisite.
 1. Treat Microsoft Learn and Azure-published lifecycle or retirement notices as
    authoritative. Start with the
    [model retirement schedule](https://learn.microsoft.com/azure/foundry/openai/concepts/model-retirement-schedule),
@@ -68,6 +80,13 @@ current UTC date.
 1. Do not infer a date from a lifecycle label alone. If an authoritative cutoff
    date cannot be established, make no code changes and do not open a pull
    request.
+1. Distinguish an incomplete check from a successful check with no migration.
+   If required evidence cannot be retrieved or does not establish lifecycle
+   coverage for a supported model, report `Check blocked` through the
+   `report_missing_data` safe-output tool. Include the affected models, attempted
+   source URLs, retrieval errors or evidence gaps, and UTC check time.
+   Do not report a successful no-op or claim no models are within the window
+   when evidence is missing.
 
 ## Migration requirements
 
@@ -104,5 +123,6 @@ Explain why the replacement is appropriate rather than merely newer. Include
 the last safe migration date and identify any region, quota, or deployment-SKU
 checks that maintainers must perform before merging.
 
-If no supported model is within the 30-day window, make no changes and emit no
-pull request.
+Only report a successful no-op when authoritative evidence has been checked
+for every supported model and none is within the 30-day window. Make no changes
+and emit no pull request in that case.
