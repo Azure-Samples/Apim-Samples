@@ -37,6 +37,30 @@ The existing Python test workflow enforces these checks through `tests/python/te
 
 Website and slide-deck descriptions remain tailored, hand-authored prose. The catalog's plain-text summary matches the root README description, where emphasis and reference links may still be used. There is no website build step or generated HTML requirement.
 
+## Model Lifecycle Workflow
+
+The [Azure OpenAI model lifecycle workflow](.github/workflows/azure-openai-model-lifecycle.md)
+uses the public Microsoft Learn MCP server for documentation search and full-page
+retrieval. It requires no additional credentials, and its host is already in the
+workflow's network allowlist. Direct web fetch remains a fallback.
+
+Missing lifecycle evidence must produce a `Check blocked` missing-data report,
+not a successful no-op. A successful no-op requires authoritative evidence for
+every supported model.
+
+After editing the workflow source, regenerate its `.lock.yml` companion with
+gh-aw v0.93.4 or a newer compatible release that is at least eight days old:
+
+```bash
+gh aw version
+gh aw compile azure-openai-model-lifecycle --validate
+python setup/verify_dependency_age.py --scope github-actions
+```
+
+Commit the regenerated files with the source. After merging, dispatch a fresh
+run and verify that Microsoft Learn retrieval succeeds; compilation alone does
+not verify agent execution.
+
 ## Release Notes
 
 When asked to version a release, review the changes since the latest release tag and recommend a semantic version based on the actual scope. Use a bare version tag such as `3.7.0` and a release title such as `v3.7.0`. Do not create or publish a tag or release unless explicitly requested.
