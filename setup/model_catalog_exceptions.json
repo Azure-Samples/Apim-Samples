@@ -1,0 +1,82 @@
+{
+  "tests/python/test_ai_models.py": [
+    "test_other_providers_and_multiple_opaque_versions.OtherProvider"
+  ],
+  "tests/python/test_aoai_models.py": [
+    "test_azure_specific_projection_rejects_neutral_specs",
+    "test_not_approved"
+  ],
+  "tests/python/test_aoai_v1_migration_advanced.py": [
+    "test_combined_report_contains_advanced_stages_and_retry_measurements",
+    "test_report_rejects_invalid_advanced_retry_counts",
+    "test_report_rejects_partial_advanced_evidence"
+  ],
+  "tests/python/test_aoai_v1_migration_contracts.py": [
+    "evidence_namespace",
+    "test_deployment_rejects_stale_kernel_configuration_before_remote_calls",
+    "test_evidence_does_not_write_report_when_success_checks_fail",
+    "test_evidence_rejects_incomplete_model_results",
+    "test_notebook_clean_and_configuration_defaults",
+    "test_notebook_staged_workflow_with_mocked_remote_boundaries"
+  ],
+  "tests/python/test_aoai_v1_migration_helpers.py": [
+    "report_probes",
+    "test_future_catalog_entries_reject_unsafe_or_colliding_names",
+    "test_malformed_routing_evidence_closes_client",
+    "test_missing_measurements_are_empty_and_warn_before_skipping_chart",
+    "test_model_name_normalization",
+    "test_model_selection_requires_two_distinct_enum_models",
+    "test_pool_or_model_mismatch_fails_even_on_http_200",
+    "test_report_rejects_empty_or_failed_evidence_before_writing",
+    "test_report_shared_charts_tables_and_expected_rejection",
+    "test_smoke_requires_exact_pool_and_actual_response_model",
+    "test_two_models_have_distinct_singleton_pool_names",
+    "test_warmup_discards_first_success_and_charts_second_request"
+  ],
+  "tests/python/test_apimtypes.py": [
+    "TestEnums.test_azure_openai_model"
+  ],
+  "tests/python/test_azure_cost.py": [
+    "TestGetModelPricing.test_case_insensitive_model",
+    "TestGetModelPricing.test_case_insensitive_sku",
+    "TestGetModelPricing.test_decommissioned_model_has_no_pricing",
+    "TestGetModelPricing.test_default_sku_is_global_standard",
+    "TestGetModelPricing.test_gpt51_global_standard",
+    "TestGetModelPricing.test_gpt5_mini_global_standard",
+    "TestGetModelPricing.test_gpt5_nano_global_standard",
+    "TestGetModelPricing.test_invalid_sku_raises_value_error",
+    "TestGetModelPricing.test_returns_model_pricing",
+    "TestModelPricingDataclass.test_equality",
+    "TestModelPricingDataclass.test_frozen_dataclass"
+  ],
+  "tests/python/test_costing_helpers.py": [
+    "test_notebook_reuses_model_plans_and_preserves_persisted_counts"
+  ],
+  "tests/python/test_htmlreport.py": [
+    "test_html_report_writes_self_contained_content"
+  ],
+  "tests/python/test_inference_failover.py": [
+    "EXPECTED_BACKENDS",
+    "EXPECTED_POOL_MEMBERS",
+    "test_inference_bicep_contains_only_compatible_model_backend_pools",
+    "test_inference_failover_kql_queries_scope_to_ai_gateway_signals",
+    "test_inference_notebook_is_clean_and_defaults_to_simple_apim",
+    "test_inference_notebook_uses_tuned_gpt_5_mini_pressure_window",
+    "test_inference_readme_documents_exact_response_handling_matrix"
+  ],
+  "tests/python/test_inference_failover_helpers.py": [
+    "test_generate_local_html_report_adds_available_telemetry",
+    "test_generate_local_html_report_owns_rendering_links_and_output",
+    "test_generate_local_html_report_rejects_incomplete_inputs"
+  ],
+  "tests/python/test_model_catalog.py": [
+    "test_fixture_exceptions_are_exact_and_stale_entries_fail",
+    "test_independent_asset_identity_is_rejected",
+    "test_independent_python_identity_is_rejected",
+    "test_json_changes_generate_explicit_members_without_importing_old_python",
+    "test_manifest_rejects_invalid_members_and_records",
+    "test_notebook_code_is_scanned_without_execution",
+    "test_previous_python_only_migrates_assets_and_never_approves_removed_models",
+    "test_resource_bindings_keep_slug_semantics_when_sample_roles_change"
+  ]
+}

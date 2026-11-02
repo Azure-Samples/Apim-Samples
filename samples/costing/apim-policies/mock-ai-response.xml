@@ -30,7 +30,7 @@
             return new Newtonsoft.Json.Linq.JObject(
                 new Newtonsoft.Json.Linq.JProperty("id", "chatcmpl-" + context.RequestId.ToString("N").Substring(0, 12)),
                 new Newtonsoft.Json.Linq.JProperty("object", "chat.completion"),
-                new Newtonsoft.Json.Linq.JProperty("model", "gpt-4o"),
+                new Newtonsoft.Json.Linq.JProperty("model", "gpt-5-mini"),
                 new Newtonsoft.Json.Linq.JProperty("usage", new Newtonsoft.Json.Linq.JObject(
                     new Newtonsoft.Json.Linq.JProperty("prompt_tokens", promptTokens),
                     new Newtonsoft.Json.Linq.JProperty("completion_tokens", completionTokens),

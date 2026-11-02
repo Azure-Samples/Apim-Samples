@@ -18,6 +18,7 @@ import charts
 import matplotlib.pyplot as plt
 import pandas as pd
 import requests as http_requests
+from ai_models import ApprovedModel
 from apimtesting import ApimTesting
 from apimtypes import SUBSCRIPTION_KEY_PARAMETER_NAME
 from console import print_info, print_message, print_warning
@@ -72,6 +73,8 @@ class InferenceReportContext:
     apim_name: str
     workbook_id: str
     log_analytics_id: str
+    primary_model: ApprovedModel
+    secondary_model: ApprovedModel
 
 
 class InferenceTrafficRunner:
@@ -426,7 +429,10 @@ def generate_local_html_report(
     output_path: Path | None = None,
 ) -> Path:
     """Generate the self-contained inference failover run report."""
-    scenario_groups = _build_report_scenario_groups(scenario_results, backend_url_indexes, backend_labels)
+    scenario_groups = _build_report_scenario_groups(
+        scenario_results, backend_url_indexes, backend_labels,
+        primary = context.primary_model.model_name, secondary = context.secondary_model.model_name,
+    )
     report = HtmlReport(
         'Inference Failover Run Report',
         f'APIM source region: {context.apim_source_region} | Deployment: {context.deployment_name} | Resource group: {context.resource_group_name}',
@@ -496,71 +502,74 @@ def _build_report_scenario_groups(
     scenario_results: Sequence[list[dict[str, Any]]],
     backend_url_indexes: Mapping[str, Mapping[str, int]],
     backend_labels: Mapping[str, Mapping[int, str]],
+    *,
+    primary: str,
+    secondary: str,
 ) -> list[tuple[str, list[tuple[str, str, str, list[dict[str, Any]], Mapping[str, int], Mapping[int, str]]]]]:
     if len(scenario_results) != 6:
         raise ValueError('The inference report requires exactly six scenario result sets.')
 
-    required_models = ('gpt-5.1', 'gpt-5-mini')
+    required_models = (primary, secondary)
     missing_models = [model for model in required_models if model not in backend_url_indexes or model not in backend_labels]
     if missing_models:
         raise ValueError(f'Missing report backend metadata for: {", ".join(missing_models)}')
 
     return [
         (
-            'gpt-5.1',
+            primary,
             [
                 (
                     'A-1',
                     'Baseline Warm Path',
-                    'Small control requests against the gpt-5.1 pool before deliberate pressure begins.',
+                    f'Small control requests against the {primary} pool before deliberate pressure begins.',
                     scenario_results[0],
-                    backend_url_indexes['gpt-5.1'],
-                    backend_labels['gpt-5.1'],
+                    backend_url_indexes[primary],
+                    backend_labels[primary],
                 ),
                 (
                     'A-2',
                     'Sustained Pressure',
-                    'Larger requests without spacing exercise gpt-5.1 failover tiers.',
+                    f'Larger requests without spacing exercise {primary} failover tiers.',
                     scenario_results[2],
-                    backend_url_indexes['gpt-5.1'],
-                    backend_labels['gpt-5.1'],
+                    backend_url_indexes[primary],
+                    backend_labels[primary],
                 ),
                 (
                     'A-3',
                     'Paced Recovery',
                     'Spaced requests show recovery behavior after sustained pressure.',
                     scenario_results[4],
-                    backend_url_indexes['gpt-5.1'],
-                    backend_labels['gpt-5.1'],
+                    backend_url_indexes[primary],
+                    backend_labels[primary],
                 ),
                 (
                     'A-4',
                     'Terminal Exhaustion',
                     'A hard burst probes deep fallback and terminal responses.',
                     scenario_results[5],
-                    backend_url_indexes['gpt-5.1'],
-                    backend_labels['gpt-5.1'],
+                    backend_url_indexes[primary],
+                    backend_labels[primary],
                 ),
             ],
         ),
         (
-            'gpt-5-mini',
+            secondary,
             [
                 (
                     'B-1',
                     'Baseline Warm Path',
-                    'Small control requests against the independent gpt-5-mini pool.',
+                    f'Small control requests against the independent {secondary} pool.',
                     scenario_results[1],
-                    backend_url_indexes['gpt-5-mini'],
-                    backend_labels['gpt-5-mini'],
+                    backend_url_indexes[secondary],
+                    backend_labels[secondary],
                 ),
                 (
                     'B-2',
                     'Sustained Pressure',
-                    'Unpaced load confirms that gpt-5-mini fallback remains model-safe.',
+                    f'Unpaced load confirms that {secondary} fallback remains model-safe.',
                     scenario_results[3],
-                    backend_url_indexes['gpt-5-mini'],
-                    backend_labels['gpt-5-mini'],
+                    backend_url_indexes[secondary],
+                    backend_labels[secondary],
                 ),
             ],
         ),

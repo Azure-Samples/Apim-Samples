@@ -67,6 +67,14 @@ Infrastructure-owned MockAPI provisioning follows the same rule: [mockapi.py](mo
 
 [mockapi_dashboard.py](mockapi_dashboard.py) owns authenticated management sessions, conditional endpoint updates, concurrency retries, and autosave recovery. Both private-storage infrastructure initialization and the Load Balancing sample consume this client; endpoint definitions and scenario-specific traffic remain with their respective owners. The client never requires direct Blob access from the notebook machine.
 
+## Model Identity Ownership
+
+[ai-models.json](../ai-models.json) owns approved provider/name/optional-version identities only. [ai_models.py](ai_models.py) is its generated, explicit Python enum; do not edit it directly. Bicep reads the source JSON directly. Each notebook owns its `sample_models` tuple of `ApprovedModel` members. Keep sample choices, Azure settings, and lifecycle observations out of the shared catalog; remove decommissioned models and their pricing.
+
+Use `.model_name` and `.version`. [aoai_models.py](aoai_models.py) provides `to_deployment_config()` and `deployment_slug()` for Azure consumers. `apimtypes.AzureOpenAIModel` aliases the same enum; `.value` is a `ModelSpec`, not a string. Restart kernels after enum edits.
+
+[model_catalog.py](../../setup/model_catalog.py) generates Python and synchronizes bound assets during developer maintenance, never at import or notebook execution time. CI rejects stale generated code without writing. See the [contribution workflow](../../CONTRIBUTING.md#model-catalog) for regeneration and offline checks.
+
 ## Notebook Boundary
 
 A notebook is the user-facing workflow, not a general-purpose Python module. Each code cell should communicate one operation and remain understandable when read from top to bottom.

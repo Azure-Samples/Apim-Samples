@@ -47,6 +47,9 @@ jobs:
           # Verify coverage HTML templates are present
           uv run python -c "import coverage.html; print(coverage.html.__file__)"
 
+      - name: Verify model catalog ownership and generated assets (offline)
+        run: uv run python setup/model_catalog.py --check
+
       # Lint the Python files & upload the result statistics
       - name: Run ruff analysis
         id: ruff

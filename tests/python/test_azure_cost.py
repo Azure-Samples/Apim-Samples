@@ -212,12 +212,11 @@ class TestGetModelPricing:
         assert p.prompt_rate_per_k == pytest.approx(0.00125)
         assert p.completion_rate_per_k == pytest.approx(0.01)
 
-    def test_legacy_model_still_resolvable(self):
-        """Legacy/Deprecating models remain resolvable for historical cost modeling."""
-        p = get_model_pricing('gpt-4o-mini')
-        assert p.model == 'gpt-4o-mini'
-        p = get_model_pricing('gpt-4.1-nano')
-        assert p.model == 'gpt-4.1-nano'
+    @pytest.mark.parametrize('model', ['gpt-4o-mini', 'gpt-4.1-nano'])
+    def test_decommissioned_model_has_no_pricing(self, model):
+        """Removing approval also removes the retired pricing records."""
+        with pytest.raises(ValueError, match = 'No pricing data'):
+            get_model_pricing(model)
 
     def test_case_insensitive_model(self):
         """Model name lookup is case-insensitive."""

@@ -12,6 +12,8 @@ import pytest
 import requests as http_requests
 
 # APIM Samples imports
+from ai_models import ModelSpec
+
 COSTING_DIR = Path(__file__).resolve().parents[2] / 'samples' / 'costing'
 sys.path.insert(0, str(COSTING_DIR))
 
@@ -125,7 +127,10 @@ def test_notebook_reuses_model_plans_and_preserves_persisted_counts(monkeypatch,
         'aoai_endpoint': 'https://aoai.example.com',
         'aoai_api_path': 'aoai',
         'api_prefix': 'cost-',
-        'model_test_matrix': {'model-a': {'requests_per_caller': 6}, 'model-b': {'requests_per_caller': 7}},
+        'model_test_matrix': {
+            ModelSpec('test', 'model-a'): {'requests_per_caller': 6},
+            ModelSpec('test', 'model-b'): {'requests_per_caller': 7},
+        },
         'subscriptions': {
             'bu-one': {'primary_key': 'one', 'request_weight': 1.0},
             'bu-two': {'primary_key': 'two', 'request_weight': 2.0},

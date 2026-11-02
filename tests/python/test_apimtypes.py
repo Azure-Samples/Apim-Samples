@@ -11,6 +11,7 @@ import apimtypes
 import pytest
 
 # APIM Samples imports
+from aoai_models import deployment_slug, to_deployment_config
 from apimtypes import (
     API,
     APIM_SKU,
@@ -255,16 +256,16 @@ class TestEnums:
     )
     def test_azure_openai_model(self, model, expected_name, expected_version, expected_slug):
         """Test supported Azure OpenAI model metadata."""
-        assert model == expected_name
+        from_name = model.model_name
+        assert from_name == expected_name
         assert model.version == expected_version
-        assert model.deployment_slug == expected_slug
-        assert model.intended_use
-        assert model.to_deployment_config(10) == {'name': expected_name, 'version': expected_version, 'capacity': 10}
+        assert deployment_slug(model) == expected_slug
+        assert to_deployment_config(model, 10) == {'name': expected_name, 'version': expected_version, 'capacity': 10}
 
     def test_azure_openai_model_rejects_invalid_capacity(self):
         """Test that deployment configuration requires positive capacity."""
         with pytest.raises(ValueError, match='greater than zero'):
-            AzureOpenAIModel.GPT_5_MINI.to_deployment_config(0)
+            to_deployment_config(AzureOpenAIModel.GPT_5_MINI, 0)
 
     @pytest.mark.parametrize('sku', [APIM_SKU.DEVELOPER, APIM_SKU.BASIC, APIM_SKU.STANDARD, APIM_SKU.PREMIUM])
     def test_apim_sku_is_v1(self, sku):

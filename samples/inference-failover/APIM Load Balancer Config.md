@@ -12,15 +12,15 @@ This load balancing design provides inference-backend failover. A single-region 
 
 | Index | Subscription | AI Resource region | APIM backend                    | Deployment type      | Billing/capacity | Priority | Weight |
 | :---: | :----------: | ------------------ | ------------------------------- | -------------------- | :--------------: | :------: | -----: |
-|   1   |      1       | East US 2          | `gpt-5-mini-ptu-eastus2`        | `ProvisionedManaged` |     300 PTUs     |    1     |    100 |
-|   2   |      1       | East US 2          | `gpt-5-mini-datazone-eastus2`   | `DataZoneStandard`   |       PAYG       |    2     |     25 |
-|   3   |      2       | East US            | `gpt-5-mini-datazone-eastus`    | `DataZoneStandard`   |       PAYG       |    2     |     25 |
-|   4   |      3       | Central US         | `gpt-5-mini-datazone-centralus` | `DataZoneStandard`   |       PAYG       |    2     |     25 |
-|   5   |      4       | West US 3          | `gpt-5-mini-datazone-westus3`   | `DataZoneStandard`   |       PAYG       |    2     |     25 |
-|   6   |      1       | East US 2          | `gpt-5-mini-global-eastus2`     | `GlobalStandard`     |       PAYG       |    3     |     25 |
-|   7   |      2       | East US            | `gpt-5-mini-global-eastus`      | `GlobalStandard`     |       PAYG       |    3     |     25 |
-|   8   |      3       | Central US         | `gpt-5-mini-global-centralus`   | `GlobalStandard`     |       PAYG       |    3     |     25 |
-|   9   |      4       | West US 3          | `gpt-5-mini-global-westus3`     | `GlobalStandard`     |       PAYG       |    3     |     25 |
+| 1     | 1            | East US 2          | `gpt-5-mini-ptu-eastus2`        | `ProvisionedManaged` | 300 PTUs         | 1        | 100    |
+| 2     | 1            | East US 2          | `gpt-5-mini-datazone-eastus2`   | `DataZoneStandard`   | PAYG             | 2        | 25     |
+| 3     | 2            | East US            | `gpt-5-mini-datazone-eastus`    | `DataZoneStandard`   | PAYG             | 2        | 25     |
+| 4     | 3            | Central US         | `gpt-5-mini-datazone-centralus` | `DataZoneStandard`   | PAYG             | 2        | 25     |
+| 5     | 4            | West US 3          | `gpt-5-mini-datazone-westus3`   | `DataZoneStandard`   | PAYG             | 2        | 25     |
+| 6     | 1            | East US 2          | `gpt-5-mini-global-eastus2`     | `GlobalStandard`     | PAYG             | 3        | 25     |
+| 7     | 2            | East US            | `gpt-5-mini-global-eastus`      | `GlobalStandard`     | PAYG             | 3        | 25     |
+| 8     | 3            | Central US         | `gpt-5-mini-global-centralus`   | `GlobalStandard`     | PAYG             | 3        | 25     |
+| 9     | 4            | West US 3          | `gpt-5-mini-global-westus3`     | `GlobalStandard`     | PAYG             | 3        | 25     |
 
 _Equal weights divide traffic approximately evenly among healthy backends in the same priority tier._
 
@@ -71,7 +71,7 @@ The official Microsoft Learn availability matrices list `gpt-5-mini` version `20
 - [GlobalStandard in East US 2, East US, Central US, and West US 3](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability?pivots=standard#global-standard).
 - [Regional ProvisionedManaged in East US 2](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability?pivots=provisioned#regional-provisioned-managed).
 
-The [`gpt-5-mini` model specification](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure#gpt-5) identifies version `2025-08-07`. The [deployment type comparison](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/deployment-types#deployment-type-comparison) defines the exact Azure SKU codes used in this table.
+The [`gpt-5-mini` model specification](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure) identifies version `2025-08-07`. The [deployment type comparison](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/deployment-types#deployment-type-comparison) defines the exact Azure SKU codes used in this table.
 
 The [Azure OpenAI quota reference](https://learn.microsoft.com/azure/foundry/openai/quotas-limits#scope-of-quota) documents subscription-level quota scope and regional allocation. The [APIM backend reference](https://learn.microsoft.com/azure/api-management/backends#load-balanced-pool) defines pool priorities, relative weights, circuit breakers, and the distributed-gateway caveats. The [APIM retry policy reference](https://learn.microsoft.com/azure/api-management/retry-policy) defines retry-count and immediate-retry behavior.
 

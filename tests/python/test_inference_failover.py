@@ -6,6 +6,10 @@ import re
 from pathlib import Path
 from xml.etree import ElementTree
 
+# APIM Samples imports
+from ai_models import ApprovedModel
+from aoai_models import deployment_slug
+
 SAMPLE_PATH = Path(__file__).resolve().parents[2] / 'samples' / 'inference-failover'
 SIMPLE_APIM_BICEP_PATH = Path(__file__).resolve().parents[2] / 'infrastructure' / 'simple-apim' / 'main.bicep'
 BICEP_PATH = SAMPLE_PATH / 'main.bicep'
@@ -51,6 +55,31 @@ EXPECTED_POOL_MEMBERS = [
     ('gpt-5-mini', 'D', 'gpt-5-mini-PAYG-eastus2', 'In-region PAYG', 2, 100),
     ('gpt-5-mini', 'H', 'gpt-5-mini-PAYG-southcentralus', 'Out-of-region PAYG', 3, 100),
 ]
+
+
+def _resolved_bicep() -> str:
+    """Resolve only the asserted catalog-derived Bicep slug variables for golden contracts."""
+    source = BICEP_PATH.read_text(encoding = 'utf-8')
+    for role, model in (('primary', ApprovedModel.GPT_5_1), ('secondary', ApprovedModel.GPT_5_MINI)):
+        assert f"var {role}ModelSlug = replace({role}ModelName, '.', '-')" in source
+        source = source.replace('${' + role + 'ModelSlug}', deployment_slug(model))
+    return source
+
+
+def _model_expression(node: ast.expr):
+    """Evaluate the small model-derived expression grammar without executing a notebook."""
+    if isinstance(node, ast.Constant):
+        return node.value
+    if isinstance(node, ast.List):
+        return [_model_expression(value) for value in node.elts]
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.attr == 'model_name':
+        return {'primary_model': ApprovedModel.GPT_5_1, 'secondary_model': ApprovedModel.GPT_5_MINI}[node.value.id].model_name
+    if isinstance(node, ast.Call) and ast.unparse(node.func) == 'aoai_models.deployment_slug' and len(node.args) == 1 and not node.keywords:
+        assert isinstance(node.args[0], ast.Name)
+        return deployment_slug({'primary_model': ApprovedModel.GPT_5_1, 'secondary_model': ApprovedModel.GPT_5_MINI}[node.args[0].id])
+    if isinstance(node, ast.JoinedStr):
+        return ''.join(_model_expression(value.value) if isinstance(value, ast.FormattedValue) else value.value for value in node.values)
+    raise AssertionError(f'Unexpected model expression: {ast.dump(node)}')
 
 
 def _load_workbook() -> dict:
@@ -605,7 +634,7 @@ def test_inference_retry_tracked_policy_requires_all_attempts_and_finalizes_in_o
 
 def test_inference_kql_backend_id_lookup_matches_bicep_deployments() -> None:
     """Keep the workbook-side backend member lookup aligned with the Bicep inventory."""
-    bicep = BICEP_PATH.read_text(encoding='utf-8')
+    bicep = _resolved_bicep()
     deployment_pairs = set(re.findall(r"backendName: '([^']+)'\s+deploymentName: '([^']+)'", bicep))
 
     assert {backend_name for backend_name, _ in deployment_pairs} == EXPECTED_BACKENDS
@@ -721,7 +750,7 @@ def test_inference_readme_defines_load_balancer_source_of_truth() -> None:
 
 def test_inference_bicep_contains_only_compatible_model_backend_pools() -> None:
     """Check the model deployment constellation, pool scope, and circuit breaker contract."""
-    bicep = BICEP_PATH.read_text(encoding='utf-8')
+    bicep = _resolved_bicep()
     single_quote = chr(39)
 
     assert all(backend in bicep for backend in EXPECTED_BACKENDS)
@@ -818,17 +847,19 @@ def test_inference_notebook_is_clean_and_defaults_to_simple_apim() -> None:
     assert initialization_source.index('enable_event_hub_export = False') < initialization_source.index('#    SYSTEM CONFIGURATION')
     assert "'enableEventHubExport': {'value': enable_event_hub_export}" in code_source
     assert "output.get('eventHubNamespaceId', 'Event Hubs namespace ID')" in code_source
-    retry_tracked_cells = [''.join(cell['source']) for cell in code_cells if 'inference-gpt-5-1-retry-tracked' in ''.join(cell['source'])]
+    retry_tracked_cells = [''.join(cell['source']) for cell in code_cells if "}-retry-tracked'" in ''.join(cell['source'])]
     assert len(retry_tracked_cells) == 1
     assert "utils.read_policy_xml(\n    'inference-api-policy-with-retry-tracked.xml'" in retry_tracked_cells[0]
     assert 'backend_retry_count = 2' in retry_tracked_cells[0]
-    assert "'inference-gpt-5-1-pool',\n        backend_retry_count," in retry_tracked_cells[0]
+    assert "f'inference-{aoai_models.deployment_slug(primary_model)}-pool',\n        backend_retry_count," in retry_tracked_cells[0]
     assert 'backend_count' not in retry_tracked_cells[0]
     assert 'gpt_5_1_retry_tracked_api' in retry_tracked_cells[0]
     non_deployment_source = code_source.replace(retry_tracked_cells[0], '')
-    assert 'inference-gpt-5-1-retry-tracked' not in non_deployment_source
-    assert "required_api_names = ['inference-gpt-5-1', 'inference-gpt-5-mini']" in non_deployment_source
-    assert "let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-5-mini'])" in non_deployment_source
+    assert '}-retry-tracked' not in non_deployment_source
+    required_apis = next(node.value for node in ast.walk(ast.parse(non_deployment_source)) if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == 'required_api_names')
+    assert _model_expression(required_apis) == ['inference-gpt-5-1', 'inference-gpt-5-mini']
+    api_ids = next(node.value for node in ast.walk(ast.parse(non_deployment_source)) if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == 'api_ids_binding')
+    assert _model_expression(api_ids) == "let apiIds = dynamic(['inference-gpt-5-1', 'inference-gpt-5-mini']);\n"
     assert "importlib.import_module('inference_failover_helpers')" in code_source
     assert 'configure_notebook_autoreload()' in code_source
     assert 'inference_failover_helpers.InferenceTrafficRunner(' in code_source
@@ -921,8 +952,8 @@ def test_inference_notebook_generates_local_html_report() -> None:
     assert 'importlib.reload(' not in code_source
     assert 'inference_failover_helpers.generate_local_html_report(' in code_source
     assert 'scenario_results=scenario_results' in code_source
-    assert "'gpt-5.1': gpt_5_1_backend_url_index" in code_source
-    assert "'gpt-5-mini': gpt_5_mini_backend_labels" in code_source
+    assert 'primary_model.model_name: gpt_5_1_backend_url_index' in code_source
+    assert 'secondary_model.model_name: gpt_5_mini_backend_labels' in code_source
     assert "distribution_frame=distribution_frame if 'distribution_frame' in locals() else None" in code_source
     assert "token_frame=token_frame if 'token_frame' in locals() else None" in code_source
     assert 'htmlreport.HtmlReport' not in code_source
@@ -937,9 +968,15 @@ def test_inference_notebook_uses_tuned_gpt_5_mini_pressure_window() -> None:
     notebook = json.loads(NOTEBOOK_PATH.read_text(encoding='utf-8'))
     notebook_source = '\n'.join(''.join(cell['source']) for cell in notebook['cells'])
 
-    assert '| 3 | Sustained pressure | gpt-5-mini | 15 | none |' in notebook_source
-    assert "'3/5: Sustained pressure - gpt-5-mini (no spacing)'" in notebook_source
-    assert "('gpt-5-mini sustained pressure', scenario3_gpt_5_mini, 15)" in notebook_source
+    expected_cells = ['3', 'Sustained pressure', 'gpt-5-mini', '15', 'none', 'Independent pool exhausts and fails over on its own']
+    assert any([cell.strip() for cell in row.strip('|').split('|')] == expected_cells for row in notebook_source.splitlines() if row.startswith('|'))
+    scenario_calls = [
+        node for node in ast.walk(ast.parse('\n'.join(''.join(cell['source']) for cell in notebook['cells'] if cell['cell_type'] == 'code')))
+        if isinstance(node, ast.Call) and ast.unparse(node.func) == 'inference_failover_helpers.InferenceScenario'
+    ]
+    assert _model_expression(scenario_calls[3].args[0]) == '3/5: Sustained pressure - gpt-5-mini (no spacing)'
+    assert ast.literal_eval(scenario_calls[3].args[4]) == 15
+    assert "(f'{secondary_model.model_name} sustained pressure', scenario3_gpt_5_mini, 15)" in notebook_source
     assert '(`134` requests)' in notebook_source
 
 

@@ -83,19 +83,19 @@ For the HTTP fault cases, a minimal local origin can return the requested status
 
 All deployments below use the regional `Standard` SKU with a capacity of `1` thousand tokens per minute (TPM). This deliberately small capacity makes concentrated `429`-driven failover practical to observe; it is not production sizing advice.
 
-| Region           | Label | Deployment      | Model        | Version      | Simulates          |
-| ---------------- | ----- | --------------- | ------------ | ------------ | ------------------ |
-| East US 2        | A     | `a-gpt-5-1`     | `gpt-5.1`    | `2025-11-13` | In-region PTU      |
-| East US 2        | B     | `b-gpt-5-1`     | `gpt-5.1`    | `2025-11-13` | In-region PAYG     |
-| East US 2        | C     | `c-gpt-5-mini`  | `gpt-5-mini` | `2025-08-07` | In-region PTU      |
-| East US 2        | D     | `d-gpt-5-mini`  | `gpt-5-mini` | `2025-08-07` | In-region PAYG     |
-| West US 3        | D     | `d-gpt-5-1`     | `gpt-5.1`    | `2025-11-13` | Out-of-region PTU  |
-| West US 3        | E     | `e-gpt-5-1`     | `gpt-5.1`    | `2025-11-13` | Out-of-region PAYG |
-| West US 3        | F     | `f-gpt-5-mini`  | `gpt-5-mini` | `2025-08-07` | Out-of-region PTU  |
-| South Central US | G     | `g-gpt-5-1`     | `gpt-5.1`    | `2025-11-13` | Out-of-region PAYG |
-| South Central US | H     | `h-gpt-5-mini`  | `gpt-5-mini` | `2025-08-07` | Out-of-region PAYG |
+| Region           | Label | Deployment     | Model        | Version      | Simulates          |
+| ---------------- | ----- | -------------- | ------------ | ------------ | ------------------ |
+| East US 2        | A     | `a-gpt-5-1`    | `gpt-5.1`    | `2025-11-13` | In-region PTU      |
+| East US 2        | B     | `b-gpt-5-1`    | `gpt-5.1`    | `2025-11-13` | In-region PAYG     |
+| East US 2        | C     | `c-gpt-5-mini` | `gpt-5-mini` | `2025-08-07` | In-region PTU      |
+| East US 2        | D     | `d-gpt-5-mini` | `gpt-5-mini` | `2025-08-07` | In-region PAYG     |
+| West US 3        | D     | `d-gpt-5-1`    | `gpt-5.1`    | `2025-11-13` | Out-of-region PTU  |
+| West US 3        | E     | `e-gpt-5-1`    | `gpt-5.1`    | `2025-11-13` | Out-of-region PAYG |
+| West US 3        | F     | `f-gpt-5-mini` | `gpt-5-mini` | `2025-08-07` | Out-of-region PTU  |
+| South Central US | G     | `g-gpt-5-1`    | `gpt-5.1`    | `2025-11-13` | Out-of-region PAYG |
+| South Central US | H     | `h-gpt-5-mini` | `gpt-5-mini` | `2025-08-07` | Out-of-region PAYG |
 
-> **Model lifecycle note:** Azure OpenAI models move through `GenerallyAvailable`, `Legacy`, and `Deprecating` lifecycle states, and Legacy or Deprecating models eventually stop accepting new deployments. This sample was updated away from the now-retiring `gpt-4.1-mini` to the current `gpt-5-mini`. Before deploying, confirm the lifecycle status and deprecation date for any model in your target regions with `az cognitiveservices model list --location <region> --query "value[?model.name=='<model-name>'].model.lifecycleStatus"`.
+> **Model lifecycle note:** Azure OpenAI models move through `GenerallyAvailable`, `Legacy`, and `Deprecating` lifecycle states, and Legacy or Deprecating models eventually stop accepting new deployments. This sample owns its selections from the approved catalog. Before deploying, confirm the lifecycle status and deprecation date for any model in your target regions with `az cognitiveservices model list --location <region> --query "value[?model.name=='<model-name>'].model.lifecycleStatus"`.
 
 ### Load Balancer Configuration
 
@@ -202,6 +202,8 @@ Gateway ingress exposure follows the selected infrastructure: choose a Private L
 Routine probes intentionally do not perform inference: recurring multi-location model calls would consume request and token budgets while still providing an incomplete capacity signal. The notebook harness sends explicit inference traffic when a live readiness or failover observation is needed.
 
 ## ⚙️ Configuration
+
+Choose `sample_models` in [create.ipynb](create.ipynb) from [ApprovedModel](../../shared/python/ai_models.py). Check availability and quota in every deployment region before changing models or SKUs.
 
 1. Deploy any [infrastructure architecture](../../README.md#list-of-infrastructures), with [Simple API Management](../../infrastructure/simple-apim/README.md) as the notebook default.
 1. Open [create.ipynb](create.ipynb) and adjust only values under _USER CONFIGURATION_ if necessary.

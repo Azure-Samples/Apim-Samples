@@ -79,28 +79,24 @@ param enableFoundry bool = false
 param aiModelSkuName string = 'GlobalStandard'
 
 @description('Array of AI models to deploy when enableFoundry is true. Each entry is an object with name, version, and capacity (thousands of tokens/minute).')
-param aiModels array = [
-  {
-    name: 'gpt-5-mini'
-    version: '2025-08-07'
-    capacity: 10
-  }
-  {
-    name: 'gpt-5-nano'
-    version: '2025-08-07'
-    capacity: 10
-  }
-  {
-    name: 'gpt-5.1'
-    version: '2025-11-13'
-    capacity: 10
-  }
-]
+param aiModels array = []
 
 
 // ------------------
 //    VARIABLES
 // ------------------
+
+var modelCatalog = loadJsonContent('../../shared/ai-models.json')
+var defaultModels = [for model in [
+  modelCatalog.approved.GPT_5_MINI
+  modelCatalog.approved.GPT_5_NANO
+  modelCatalog.approved.GPT_5_1
+]: {
+  name: model.model_name
+  version: model.version
+  capacity: 10
+}]
+var selectedModels = !empty(aiModels) ? aiModels : defaultModels
 
 var storageAccountName = 'stcost${take(string(index), 1)}${take(replace(resourceSuffix, '-', ''), 12)}'
 var workbookName = 'APIM Cost Tracking ${index}'
@@ -354,11 +350,11 @@ resource aiServices 'Microsoft.CognitiveServices/accounts@2024-10-01' = if (enab
   }
 }
 
-// Model deployments (e.g. gpt-5-mini, gpt-5-nano) on the AI Services account
+// Catalog-selected model deployments on the AI Services account
 // Serial deployment avoids quota contention on the account's "create deployment" API.
 // https://learn.microsoft.com/azure/templates/microsoft.cognitiveservices/accounts/deployments
 @batchSize(1)
-resource modelDeployments 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = [for model in aiModels: if (enableFoundry) {
+resource modelDeployments 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = [for model in selectedModels: if (enableFoundry) {
   name: model.name
   parent: aiServices
   sku: {
@@ -533,9 +529,9 @@ output aoaiEndpoint string = enableFoundry ? aiServices.properties.endpoint : ''
 output aoaiName string = enableFoundry ? aiServicesName : ''
 
 @description('Deployed model name (first model, empty when enableFoundry is false)')
-output modelDeploymentName string = enableFoundry ? aiModels[0].name : ''
+output modelDeploymentName string = enableFoundry ? selectedModels[0].name : ''
 
-var aiModelNames = [for model in aiModels: model.name]
+var aiModelNames = [for model in selectedModels: model.name]
 
 @description('All deployed model names (empty array when enableFoundry is false)')
 output modelDeploymentNames array = enableFoundry ? aiModelNames : []

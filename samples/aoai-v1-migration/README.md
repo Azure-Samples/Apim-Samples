@@ -43,7 +43,7 @@ The sample treats `/<sample>/openai` as the established API and adds `/<sample>/
 
 - One deterministic Azure OpenAI `S0` account with local key authentication disabled.
 - Two PAYG `GlobalStandard` deployments by default, or `Standard` when explicitly configured. No PTU resources or simulated PTU tiers.
-- Defaults are `AzureOpenAIModel.GPT_5_MINI` and `AzureOpenAIModel.GPT_5_NANO`, snapshot `2025-08-07`, each with capacity `10`. Capacity uses model-specific quota conversion; ensure both allocations are available.
+- This sample owns its `sample_models` selections in [create.ipynb](create.ipynb), referencing the approved enum from [ai_models.py](../../shared/python/ai_models.py), each with capacity `10`. Capacity uses model-specific quota conversion; ensure both allocations are available.
 - Deployment names are `<sample>-<model>` and pools are `<sample>-<model>-pool`, for example `aoai-v1-migration-1-gpt-5-mini-pool` and `aoai-v1-migration-1-gpt-5-nano-pool`. Dots in model names become hyphens in resource identifiers.
 - Each pool contains one dedicated `<sample>-<model>-backend` targeting the shared sample Azure OpenAI account. This demonstrates model routing, not load balancing.
 - Two additional advanced singleton pools and backends target the same model deployments. Their circuit-breaker state is separate from the original pools, so failures on an advanced API do not trip the simple API's breaker. They do not isolate the shared deployment's quota or capacity.
@@ -81,7 +81,7 @@ The notebook uses the shared `ApimRequests` client, whose per-request read timeo
 1. Open [create.ipynb](create.ipynb) using the repository notebook environment.
 1. Adjust the top **USER CONFIGURATION** if necessary. Defaults select `SIMPLE_APIM`, `BASICV2`, East US 2, `index = 1`, and namespace `aoai-v1-migration-1`.
 1. Use `NotebookHelper`'s standard selection/creation workflow if the desired APIM infrastructure is absent. No Azure OpenAI inventory must be prepared beforehand.
-1. Check regional availability/quota before changing `primary_model`, `secondary_model`, `model_sku` or the per-model `model_capacity`. Select two different enum models; use the enum's `.version`, not a guessed snapshot.
+1. Check regional availability/quota before changing `primary_model`, `secondary_model`, `model_sku` or the per-model `model_capacity`. Select two different approved enum members; use `.version`, not a guessed snapshot.
 1. Run cells in order: deploy legacy → legacy baseline → add simple v1 and advanced legacy/v1 → simple v1 success/rejection → unchanged legacy regression → advanced success/rejection → combined report.
 
 Subscription keys come from the shared API module's deployment outputs and are selected without logging. Never paste them into notebook configuration or commit executed notebook outputs.

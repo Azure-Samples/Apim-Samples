@@ -51,9 +51,9 @@ def test_two_models_have_distinct_singleton_pool_names():
     models = helpers.build_models('aoai-v1-migration-1', [AzureOpenAIModel.GPT_5_MINI, AzureOpenAIModel.GPT_5_NANO], 10)
     assert [item['name'] for item in models] == ['gpt-5-mini', 'gpt-5-nano']
     for item, model in zip(models, [AzureOpenAIModel.GPT_5_MINI, AzureOpenAIModel.GPT_5_NANO], strict = True):
-        deployment = f'aoai-v1-migration-1-{model.value}'
+        deployment = f'aoai-v1-migration-1-{model.model_name}'
         assert item == {
-            'name': model.value, 'version': model.version, 'capacity': 10,
+            'name': model.model_name, 'version': model.version, 'capacity': 10,
             'deploymentName': deployment, 'backendName': f'{deployment}-backend', 'poolName': f'{deployment}-pool',
         }
 
@@ -83,7 +83,7 @@ def test_model_name_normalization():
 def test_future_catalog_entries_reject_unsafe_or_colliding_names(monkeypatch, names, message):
     """A future enum catalog update must not produce invalid or duplicate pools."""
     model_names = dict(zip((AzureOpenAIModel.GPT_5_MINI, AzureOpenAIModel.GPT_5_NANO), names, strict = True))
-    monkeypatch.setattr(AzureOpenAIModel, 'value', property(lambda model: model_names[model]), raising = False)
+    monkeypatch.setattr(AzureOpenAIModel, 'model_name', property(lambda model: model_names[model]))
     with pytest.raises(ValueError, match = message):
         helpers.build_models('aoai-v1-migration-1', [AzureOpenAIModel.GPT_5_MINI, AzureOpenAIModel.GPT_5_NANO], 10)
 
