@@ -28,11 +28,6 @@ EXCEPTIONS_PATH = 'setup/model_catalog_exceptions.json'
 TOKEN = re.compile(r'\{\{model:([a-zA-Z0-9_.-]+):(model_name|version|slug)\}\}')
 MODEL_LITERAL = re.compile(r'(?<![a-zA-Z0-9_])(?:gpt-[a-zA-Z0-9][a-zA-Z0-9._-]*|claude-[a-zA-Z0-9._-]+|gemini-[a-zA-Z0-9._-]+|llama-[a-zA-Z0-9._-]+)', re.IGNORECASE)
 SUFFIXES = {'.py', '.ipynb', '.json', '.bicep', '.xml', '.kql', '.md', '.html', '.svg', '.drawio', '.yml', '.yaml'}
-# These compiler-owned files are intentionally unchanged until the Stage 2 cutover.
-LEGACY_WORKFLOW = {
-    '.github/workflows/azure-openai-model-lifecycle.md',
-    '.github/workflows/azure-openai-model-lifecycle.lock.yml',
-}
 SELECTION_FIELDS = {'primary_model', 'secondary_model', 'ai_model_name', 'model_name', 'model_version', 'primary_model_version', 'secondary_model_version'}
 ASSET_SELECTION_FIELDS = {'model_name', 'modelVersion', 'primaryModelName', 'primaryModelVersion', 'secondaryModelName', 'secondaryModelVersion'}
 BICEP_SELECTION = re.compile(r"(?:\b(?:modelName|modelVersion)\s*:\s*'[^']+'|\bparam\s+(?:primary|secondary)Model(?:Name|Version)\s+string\s*=\s*'[^']+')")
@@ -341,7 +336,7 @@ def source_paths(root: Path) -> list[str]:
         ['git', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'],
         cwd = root, check = True, capture_output = True, text = True,
     )
-    return sorted(set(path for path in result.stdout.split('\0') if path))
+    return sorted(set(path for path in result.stdout.split('\0') if path and (root / path).is_file()))
 
 
 def check_catalog(root: Path, *, write: bool = False, paths: list[str] | None = None) -> list[str]:
@@ -423,7 +418,7 @@ def check_catalog(root: Path, *, write: bool = False, paths: list[str] | None = 
         rendered[relative] = updated if write else original
     for relative in paths if paths is not None else source_paths(root):
         path = _resolve_path(root, relative)
-        if path.suffix not in SUFFIXES or relative in LEGACY_WORKFLOW | {PYTHON_PATH, MANIFEST_PATH, BINDINGS_PATH, EXCEPTIONS_PATH}:
+        if path.suffix not in SUFFIXES or relative in {PYTHON_PATH, MANIFEST_PATH, BINDINGS_PATH, EXCEPTIONS_PATH}:
             continue
         text = rendered.get(relative)
         if text is None:
