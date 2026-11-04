@@ -1,0 +1,44 @@
+name: AI Models Lifecycle
+
+on:
+  schedule:
+    - cron: '0 9 * * 1' # Every Monday at 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.15'
+
+      - name: Check published model retirement dates
+        run: python -m setup.model_lifecycle --output-dir "${RUNNER_TEMP}/model-lifecycle"
+
+      - name: Publish job summary
+        if: always()
+        run: |
+          report="${RUNNER_TEMP}/model-lifecycle/report.md"
+          if [ -f "$report" ]; then
+            cat "$report" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '## Check blocked' >> "$GITHUB_STEP_SUMMARY"
+            echo 'The lifecycle checker did not produce a report. See the failed step logs.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload lifecycle report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: model-lifecycle-report
+          path: ${{ runner.temp }}/model-lifecycle/
+          if-no-files-found: error

@@ -51,6 +51,13 @@ def test_repository_catalog_is_current():
     assert re.findall(r'modelCatalog\.approved\.(\w+)', bicep) == list(model_catalog.sample_models(ROOT)['costing'])
 
 
+def test_source_paths_skip_deleted_tracked_files(tmp_path, monkeypatch):
+    _write(tmp_path, 'present.py', 'pass\n')
+    result = subprocess.CompletedProcess(args = [], returncode = 0, stdout = 'present.py\0deleted.py\0')
+    monkeypatch.setattr(model_catalog.subprocess, 'run', lambda *args, **kwargs: result)
+    assert model_catalog.source_paths(tmp_path) == ['present.py']
+
+
 def test_cli_runs_without_notebook_pythonpath():
     result = subprocess.run(
         [sys.executable, str(ROOT / 'setup' / 'model_catalog.py'), '--check'],

@@ -52,31 +52,55 @@ python setup/model_catalog.py --check
 
 Commit the source JSON, generated Python, and rendered assets together. [Bindings](setup/model_catalog_bindings.json) list asset locations and ordered model-bearing words, using `{{model:owner.member:field}}` references with any resource-name affixes. The tool reads notebooks without executing them. Python CI runs `--check`, which verifies generated Python freshness and asset ownership without writing. Only exact independent [test-fixture scopes](setup/model_catalog_exceptions.json) may retain literals; no blanket exclusions.
 
-Remove decommissioned models and their pricing. There is no historical registry or pricing fallback. `apimtypes.AzureOpenAIModel` aliases `ApprovedModel`; use `.model_name` and `.version`, not `.value` as a string. Restart kernels after enum edits. Lifecycle workflow changes remain Stage 2.
+Remove decommissioned models and their pricing. There is no historical registry or pricing fallback. `apimtypes.AzureOpenAIModel` aliases `ApprovedModel`; use `.model_name` and `.version`, not `.value` as a string. Restart kernels after enum edits.
 
 ## Model Lifecycle Workflow
 
-The [Azure OpenAI model lifecycle workflow](.github/workflows/azure-openai-model-lifecycle.md)
-uses the public Microsoft Learn MCP server for documentation search and full-page
-retrieval. It requires no additional credentials, and its host is already in the
-workflow's network allowlist. Direct web fetch remains a fallback.
+The [AI Models lifecycle workflow](.github/workflows/ai-models-lifecycle.yml)
+runs on Python 3.15 every Monday at 09:00 UTC and on manual dispatch. The standard-library
+[checker](setup/model_lifecycle.py) reads every approved manifest entry and fetches
+the public [Microsoft retirement schedule](https://learn.microsoft.com/azure/foundry/openai/concepts/model-retirement-schedule).
+It matches exact providers, model names, and versions without an agent, MCP,
+Azure credentials, or dependency installation. The published page covers multiple
+Foundry model providers despite its historical `/openai/` URL path.
 
-Missing lifecycle evidence must produce a `Check blocked` missing-data report,
-not a successful no-op. A successful no-op requires authoritative evidence for
-every supported model.
+Provider IDs map explicitly to documentation headings in the checker, including
+`openai`, `anthropic`, `meta`, `cohere`, `deepseek`, `microsoft`, `mistral`,
+`black-forest-labs`, `moonshot`, `openai-oss`, and `xai`. Versionless catalog entries
+match only explicitly unversioned rows; they never select an arbitrary snapshot.
+Identical rows repeated across Azure-sold and partner sections count as one piece
+of evidence; conflicting rows require manual review.
 
-After editing the workflow source, regenerate its `.lock.yml` companion with
-gh-aw v0.93.4 or a newer compatible release that is at least eight days old:
+Each run publishes a job summary and downloadable Markdown/JSON report with the
+UTC check time, source URL, exact identities, lifecycle states, retirement dates,
+days remaining, and Microsoft's suggested replacements when published.
+
+- `Check complete` (exit 0): every approved model has unambiguous dated evidence
+  and none is within 30 calendar days of retirement.
+- `Action required` (exit 2): at least one retirement is within 30 days, today,
+  or overdue. The workflow fails to surface the alert.
+- `Check blocked` (exit 1): retrieval, catalog validation, table format, or model
+  coverage is incomplete. Missing/qualified dates, conflicting rows, unsupported
+  providers, and version mismatches block rather than produce a successful no-op.
+  Any confirmed alerts remain visible alongside coverage gaps.
+
+This is a report-only check of published base-model retirement dates, not a
+regional/SKU availability check or a guarantee about earlier new-deployment cutoffs.
+Footnoted dates require manual review. Maintainers choose replacements and validate
+regions, deployment SKUs, API behavior, streaming, telemetry, quota, and pricing.
+The workflow never changes the catalog or opens migration pull requests.
+
+Run the same check locally (requires network access):
 
 ```bash
-gh aw version
-gh aw compile azure-openai-model-lifecycle --validate
+python -m setup.model_lifecycle --output-dir tmp/model-lifecycle
+python setup/model_catalog.py --check
 python setup/verify_dependency_age.py --scope github-actions
 ```
 
-Commit the regenerated files with the source. After merging, dispatch a fresh
-run and verify that Microsoft Learn retrieval succeeds; compilation alone does
-not verify agent execution.
+After a manual migration, regenerate and check catalog assets as described above.
+After merging workflow changes, dispatch a fresh run and verify the summary and
+report artifact. There is no agentic source or compiled workflow companion.
 
 ## Release Notes
 
