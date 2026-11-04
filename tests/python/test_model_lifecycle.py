@@ -1,6 +1,7 @@
 """Offline retirement evidence, coverage gaps, thresholds, and reporting tests."""
 
 import json
+import runpy
 import sys
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock
@@ -9,7 +10,7 @@ from urllib.error import URLError
 import pytest
 
 # APIM Samples imports
-from setup import model_lifecycle
+from setup import model_catalog, model_lifecycle
 from setup.model_catalog import ModelRecord
 
 
@@ -130,6 +131,14 @@ def test_report_escapes_remote_html_and_preserves_no_replacement():
     assert report['findings'][0]['replacement'] is None
 
 
+def test_report_preserves_word_boundaries_in_multiline_replacement():
+    document = schedule('2027-01-01').replace('successor', 'replacement<br>model')
+    report = model_lifecycle.check_models(MODELS, document, NOW)
+    assert report['status'] == 'clear'
+    assert report['findings'][0]['replacement'] == 'replacement model'
+    assert '- replacement: replacement model' in model_lifecycle.render_report(report)
+
+
 def test_fetch_uses_fixed_source_timeout_and_closes_response(monkeypatch):
     response = MagicMock()
     response.__enter__.return_value.read.return_value = b'<html>schedule</html>'
@@ -163,3 +172,21 @@ def test_cli_persists_structured_report_on_success_alert_and_failure(tmp_path, m
     if status == 'blocked':
         assert report['errors']
         assert 'Check blocked' in model_lifecycle.render_report(report)
+
+
+@pytest.mark.parametrize('cutoff,exit_code,status', [('2099-01-01', 0, 'clear'), ('2000-01-01', 2, 'attention')])
+def test_module_entrypoint_propagates_exit_code_and_writes_report(tmp_path, monkeypatch, cutoff, exit_code, status):
+    monkeypatch.setattr(sys, 'argv', ['model_lifecycle', '--output-dir', str(tmp_path)])
+    monkeypatch.setattr(model_catalog, 'load_models', lambda _root: MODELS)
+    response = MagicMock()
+    response.__enter__.return_value.read.return_value = schedule(cutoff).encode('utf-8')
+    monkeypatch.setattr(model_lifecycle.urllib.request, 'urlopen', MagicMock(return_value = response))
+
+    with pytest.raises(SystemExit) as result:
+        runpy.run_path(model_lifecycle.__file__, run_name = '__main__')
+
+    assert result.value.code == exit_code
+    report = json.loads((tmp_path / 'report.json').read_text(encoding = 'utf-8'))
+    assert report['status'] == status
+    assert (tmp_path / 'report.md').read_text(encoding = 'utf-8') == model_lifecycle.render_report(report)
+    response.__exit__.assert_called_once()
