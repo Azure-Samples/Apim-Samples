@@ -2,11 +2,15 @@
 
 import json
 import sys
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
+
+# APIM Samples imports
+from ai_models import ApprovedModel
 
 INFERENCE_FAILOVER_DIR = Path(__file__).resolve().parents[2] / 'samples' / 'inference-failover'
 sys.path.insert(0, str(INFERENCE_FAILOVER_DIR))
@@ -386,6 +390,8 @@ def _report_context() -> InferenceReportContext:
         apim_name='apim-test',
         workbook_id='/subscriptions/subscription-id/resourceGroups/rg-test/providers/microsoft.insights/workbooks/report',
         log_analytics_id='/subscriptions/subscription-id/resourceGroups/rg-test/providers/Microsoft.OperationalInsights/workspaces/logs',
+        primary_model = ApprovedModel.GPT_5_1,
+        secondary_model = ApprovedModel.GPT_5_MINI,
     )
 
 
@@ -403,7 +409,8 @@ def _report_results() -> list[list[dict]]:
 
 
 @pytest.mark.unit
-def test_generate_local_html_report_owns_rendering_links_and_output(monkeypatch, tmp_path):
+@pytest.mark.parametrize('reverse_models', [False, True])
+def test_generate_local_html_report_owns_rendering_links_and_output(monkeypatch, tmp_path, reverse_models):
     report = MagicMock()
     close_figure = MagicMock()
     output_path = tmp_path / 'report.html'
@@ -422,11 +429,17 @@ def test_generate_local_html_report_owns_rendering_links_and_output(monkeypatch,
         'gpt-5-mini': {'/deployments/a-model': 0},
     }
 
-    result = generate_local_html_report(_report_context(), tests, _report_results(), indexes, labels, output_path=output_path)
+    context = _report_context()
+    if reverse_models:
+        context = replace(context, primary_model = ApprovedModel.GPT_5_MINI, secondary_model = ApprovedModel.GPT_5_1)
+    result = generate_local_html_report(context, tests, _report_results(), indexes, labels, output_path=output_path)
 
     assert result == output_path
     assert report.add_table.call_count == 2
     assert report.add_figure.call_count == 6
+    assert report.add_table.call_args_list[0].args[0] == HtmlText(
+        f'Scenario Outcomes: {context.primary_model.model_name}', bold_tokens = (context.primary_model.model_name,),
+    )
     report.add_success_callout.assert_called_once()
     report.add_links.assert_called_once()
     azure_links = report.add_links.call_args.args[1]

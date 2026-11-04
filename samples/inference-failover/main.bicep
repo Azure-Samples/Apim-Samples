@@ -26,16 +26,16 @@ param apis array = []
 @description('Deploy a regional Event Hub and stream APIM logs and metrics for external consumers.')
 param enableEventHubExport bool = false
 
-@description('Primary Azure OpenAI model name supplied by the supported model catalog in apimtypes.py.')
+@description('Primary Azure OpenAI model name supplied by the generated Python enum from shared/ai-models.json.')
 param primaryModelName string
 
-@description('Primary Azure OpenAI model snapshot version supplied by the supported model catalog in apimtypes.py.')
+@description('Primary Azure OpenAI model snapshot version supplied by the generated Python enum from shared/ai-models.json.')
 param primaryModelVersion string
 
-@description('Secondary Azure OpenAI model name supplied by the supported model catalog in apimtypes.py.')
+@description('Secondary Azure OpenAI model name supplied by the generated Python enum from shared/ai-models.json.')
 param secondaryModelName string
 
-@description('Secondary Azure OpenAI model snapshot version supplied by the supported model catalog in apimtypes.py.')
+@description('Secondary Azure OpenAI model snapshot version supplied by the generated Python enum from shared/ai-models.json.')
 param secondaryModelVersion string
 
 
@@ -44,6 +44,9 @@ param secondaryModelVersion string
 // ------------------------------
 
 @description('Resource ID of the Cognitive Services OpenAI User built-in role assigned to the APIM managed identity.')
+var primaryModelSlug = replace(primaryModelName, '.', '-')
+var secondaryModelSlug = replace(secondaryModelName, '.', '-')
+
 var openAiUserRoleDefinitionId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
 
 @description('Suffix for the optional Event Hub-only APIM diagnostic setting associated with this sample.')
@@ -83,8 +86,8 @@ var aoaiAccounts = [
 var deployments = [
   {
     accountIndex: 0
-    backendName: 'gpt-5-1-PTU-eastus2'
-    deploymentName: 'a-gpt-5-1'
+    backendName: '${primaryModelSlug}-PTU-eastus2'
+    deploymentName: 'a-${primaryModelSlug}'
     modelName: primaryModelName
     modelVersion: primaryModelVersion
     region: 'eastus2'
@@ -92,8 +95,8 @@ var deployments = [
   }
   {
     accountIndex: 1
-    backendName: 'gpt-5-1-PTU-westus3'
-    deploymentName: 'd-gpt-5-1'
+    backendName: '${primaryModelSlug}-PTU-westus3'
+    deploymentName: 'd-${primaryModelSlug}'
     modelName: primaryModelName
     modelVersion: primaryModelVersion
     region: 'westus3'
@@ -101,8 +104,8 @@ var deployments = [
   }
   {
     accountIndex: 0
-    backendName: 'gpt-5-1-PAYG-eastus2'
-    deploymentName: 'b-gpt-5-1'
+    backendName: '${primaryModelSlug}-PAYG-eastus2'
+    deploymentName: 'b-${primaryModelSlug}'
     modelName: primaryModelName
     modelVersion: primaryModelVersion
     region: 'eastus2'
@@ -110,8 +113,8 @@ var deployments = [
   }
   {
     accountIndex: 1
-    backendName: 'gpt-5-1-PAYG-westus3'
-    deploymentName: 'e-gpt-5-1'
+    backendName: '${primaryModelSlug}-PAYG-westus3'
+    deploymentName: 'e-${primaryModelSlug}'
     modelName: primaryModelName
     modelVersion: primaryModelVersion
     region: 'westus3'
@@ -119,8 +122,8 @@ var deployments = [
   }
   {
     accountIndex: 2
-    backendName: 'gpt-5-1-PAYG-southcentralus'
-    deploymentName: 'g-gpt-5-1'
+    backendName: '${primaryModelSlug}-PAYG-southcentralus'
+    deploymentName: 'g-${primaryModelSlug}'
     modelName: primaryModelName
     modelVersion: primaryModelVersion
     region: 'southcentralus'
@@ -128,8 +131,8 @@ var deployments = [
   }
   {
     accountIndex: 0
-    backendName: 'gpt-5-mini-PTU-eastus2'
-    deploymentName: 'c-gpt-5-mini'
+    backendName: '${secondaryModelSlug}-PTU-eastus2'
+    deploymentName: 'c-${secondaryModelSlug}'
     modelName: secondaryModelName
     modelVersion: secondaryModelVersion
     region: 'eastus2'
@@ -137,8 +140,8 @@ var deployments = [
   }
   {
     accountIndex: 1
-    backendName: 'gpt-5-mini-PTU-westus3'
-    deploymentName: 'f-gpt-5-mini'
+    backendName: '${secondaryModelSlug}-PTU-westus3'
+    deploymentName: 'f-${secondaryModelSlug}'
     modelName: secondaryModelName
     modelVersion: secondaryModelVersion
     region: 'westus3'
@@ -146,8 +149,8 @@ var deployments = [
   }
   {
     accountIndex: 0
-    backendName: 'gpt-5-mini-PAYG-eastus2'
-    deploymentName: 'd-gpt-5-mini'
+    backendName: '${secondaryModelSlug}-PAYG-eastus2'
+    deploymentName: 'd-${secondaryModelSlug}'
     modelName: secondaryModelName
     modelVersion: secondaryModelVersion
     region: 'eastus2'
@@ -155,8 +158,8 @@ var deployments = [
   }
   {
     accountIndex: 2
-    backendName: 'gpt-5-mini-PAYG-southcentralus'
-    deploymentName: 'h-gpt-5-mini'
+    backendName: '${secondaryModelSlug}-PAYG-southcentralus'
+    deploymentName: 'h-${secondaryModelSlug}'
     modelName: secondaryModelName
     modelVersion: secondaryModelVersion
     region: 'southcentralus'
@@ -356,34 +359,34 @@ module inferenceBackends '../../shared/bicep/modules/apim/v1/backend.bicep' = [f
 }]
 
 module gpt51BackendPool '../../shared/bicep/modules/apim/v1/backend-pool.bicep' = {
-  name: 'pool-gpt-5-1'
+  name: 'pool-${primaryModelSlug}'
   params: {
     apimName: apimName
-    backendPoolName: 'inference-gpt-5-1-pool'
-    backendPoolDescription: 'gpt-5.1 routing preference: equal-weight PTUs, in-region PAYG, then equal-weight remaining PAYG.'
+    backendPoolName: 'inference-${primaryModelSlug}-pool'
+    backendPoolDescription: '${primaryModelName} routing preference: equal-weight PTUs, in-region PAYG, then equal-weight remaining PAYG.'
     backends: [
       {
-        name: 'gpt-5-1-PTU-eastus2'
+        name: '${primaryModelSlug}-PTU-eastus2'
         priority: 1
         weight: 50
       }
       {
-        name: 'gpt-5-1-PTU-westus3'
+        name: '${primaryModelSlug}-PTU-westus3'
         priority: 1
         weight: 50
       }
       {
-        name: 'gpt-5-1-PAYG-eastus2'
+        name: '${primaryModelSlug}-PAYG-eastus2'
         priority: 2
         weight: 100
       }
       {
-        name: 'gpt-5-1-PAYG-westus3'
+        name: '${primaryModelSlug}-PAYG-westus3'
         priority: 3
         weight: 50
       }
       {
-        name: 'gpt-5-1-PAYG-southcentralus'
+        name: '${primaryModelSlug}-PAYG-southcentralus'
         priority: 3
         weight: 50
       }
@@ -395,29 +398,29 @@ module gpt51BackendPool '../../shared/bicep/modules/apim/v1/backend-pool.bicep' 
 }
 
 module gpt5MiniBackendPool '../../shared/bicep/modules/apim/v1/backend-pool.bicep' = {
-  name: 'pool-gpt-5-mini'
+  name: 'pool-${secondaryModelSlug}'
   params: {
     apimName: apimName
-    backendPoolName: 'inference-gpt-5-mini-pool'
-    backendPoolDescription: 'gpt-5-mini routing preference: equal-weight PTUs, in-region PAYG, then remaining PAYG.'
+    backendPoolName: 'inference-${secondaryModelSlug}-pool'
+    backendPoolDescription: '${secondaryModelName} routing preference: equal-weight PTUs, in-region PAYG, then remaining PAYG.'
     backends: [
       {
-        name: 'gpt-5-mini-PTU-eastus2'
+        name: '${secondaryModelSlug}-PTU-eastus2'
         priority: 1
         weight: 50
       }
       {
-        name: 'gpt-5-mini-PTU-westus3'
+        name: '${secondaryModelSlug}-PTU-westus3'
         priority: 1
         weight: 50
       }
       {
-        name: 'gpt-5-mini-PAYG-eastus2'
+        name: '${secondaryModelSlug}-PAYG-eastus2'
         priority: 2
         weight: 100
       }
       {
-        name: 'gpt-5-mini-PAYG-southcentralus'
+        name: '${secondaryModelSlug}-PAYG-southcentralus'
         priority: 3
         weight: 100
       }

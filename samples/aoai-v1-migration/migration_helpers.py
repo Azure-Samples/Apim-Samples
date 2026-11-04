@@ -18,7 +18,8 @@ import matplotlib.pyplot as plt
 # APIM Samples imports
 import charts
 from apimrequests import ApimRequests
-from apimtypes import AzureOpenAIModel
+from ai_models import ApprovedModel
+from aoai_models import deployment_slug, to_deployment_config
 from console import Column, TableLogger, print_info, print_warning
 from htmlreport import HtmlReport
 
@@ -82,19 +83,17 @@ def subscription_key(apis: list[dict[str, Any]], api_name: str) -> str:
     return key
 
 
-def build_models(sample_name: str, models: Sequence[AzureOpenAIModel], capacity: int) -> list[ModelConfiguration]:
+def build_models(sample_name: str, models: Sequence[ApprovedModel], capacity: int) -> list[ModelConfiguration]:
     """Build two distinct model/pool records with deterministic resource names."""
     validate_configuration(sample_name, 'GlobalStandard', capacity)
-    if len(models) != 2 or any(not isinstance(model, AzureOpenAIModel) for model in models) or len(set(models)) != 2:
+    if len(models) != 2 or any(not isinstance(model, ApprovedModel) for model in models) or len(set(models)) != 2:
         raise ValueError('Select exactly two different AzureOpenAIModel entries.')
     result: list[ModelConfiguration] = []
     for model in models:
-        model_name = model.value.replace('.', '-')
-        if not re.fullmatch(r'[a-z0-9-]+', model_name):
-            raise ValueError('Model names must produce safe lowercase deployment identifiers.')
+        model_name = deployment_slug(model)
         deployment_name = f'{sample_name}-{model_name}'
         result.append({
-            'name': model.value, 'version': model.version, 'capacity': capacity,
+            **to_deployment_config(model, capacity),
             'deploymentName': deployment_name, 'backendName': f'{deployment_name}-backend', 'poolName': f'{deployment_name}-pool',
         })
     if len({item['deploymentName'] for item in result}) != 2:

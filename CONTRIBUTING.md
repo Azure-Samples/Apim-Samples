@@ -37,6 +37,23 @@ The existing Python test workflow enforces these checks through `tests/python/te
 
 Website and slide-deck descriptions remain tailored, hand-authored prose. The catalog's plain-text summary matches the root README description, where emphasis and reference links may still be used. There is no website build step or generated HTML requirement.
 
+## Model Catalog
+
+[ai-models.json](shared/ai-models.json) is the source of truth for approved providers, model names, and optional versions. It generates the explicit `ApprovedModel` enum in [ai_models.py](shared/python/ai_models.py), preserving autocomplete without import-time file reads or generation. Bicep reads the source JSON directly. Notebooks own their `sample_models` enum tuples; [aoai_models.py](shared/python/aoai_models.py) supplies Azure deployment dictionaries and slugs.
+
+[model_catalog.py](setup/model_catalog.py) is developer maintenance tooling, not environment setup or a runtime dependency. It generates Python and synchronizes model references in policies, queries, workbooks, and documentation. Do not edit the generated module directly.
+
+After changing the catalog or selections, run:
+
+```bash
+python setup/model_catalog.py --write
+python setup/model_catalog.py --check
+```
+
+Commit the source JSON, generated Python, and rendered assets together. [Bindings](setup/model_catalog_bindings.json) list asset locations and ordered model-bearing words, using `{{model:owner.member:field}}` references with any resource-name affixes. The tool reads notebooks without executing them. Python CI runs `--check`, which verifies generated Python freshness and asset ownership without writing. Only exact independent [test-fixture scopes](setup/model_catalog_exceptions.json) may retain literals; no blanket exclusions.
+
+Remove decommissioned models and their pricing. There is no historical registry or pricing fallback. `apimtypes.AzureOpenAIModel` aliases `ApprovedModel`; use `.model_name` and `.version`, not `.value` as a string. Restart kernels after enum edits. Lifecycle workflow changes remain Stage 2.
+
 ## Model Lifecycle Workflow
 
 The [Azure OpenAI model lifecycle workflow](.github/workflows/azure-openai-model-lifecycle.md)

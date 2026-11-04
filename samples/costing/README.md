@@ -20,7 +20,7 @@ This sample demonstrates how to track and allocate API costs using Azure API Man
 
 > **Note on non-OpenAI models**: This sample deploys an Azure OpenAI model only (default: `gpt-5-mini`). Other model families on Azure AI Services - such as Anthropic Claude via the Azure Marketplace - are gated by separate quota that is granted through a manual approval process, which puts them beyond the scope of a self-service sample. If you have approved quota for another provider, you can extend the sample by adding a second deployment in `main.bicep`; the token-tracking policy and workbook queries are model-agnostic.
 >
-> **Model lifecycle note**: Azure OpenAI models move through `GenerallyAvailable`, `Legacy`, and `Deprecating` lifecycle states, and Legacy or Deprecating models eventually stop accepting new deployments. This sample's default `aiModels` list was updated away from the now-retiring `gpt-4o-mini` and `gpt-4.1-nano` to the current `gpt-5-mini`, `gpt-5-nano`, and `gpt-5.1`. Before changing the model list, confirm the lifecycle status and deprecation date for any model in your target region with `az cognitiveservices model list --location <region> --query "value[?model.name=='<model-name>'].model.lifecycleStatus"`. See [`azure_cost.py`](../../shared/python/azure_cost.py) for a summary of known model lifecycle states as of this writing.
+> **Model lifecycle note**: This sample selects the approved `gpt-5-mini`, `gpt-5-nano`, and `gpt-5.1` models. Decommissioned models and their pricing records are removed rather than retained. Before changing the model list, confirm lifecycle status and retirement dates for the target region; catalog approval is not a live availability guarantee.
 
 ## ✅ Prerequisites
 
@@ -169,6 +169,8 @@ Azure Monitor Workbook query items execute independently — there is no native 
 > **Important**: The API must have `subscriptionRequired: true` for `ApimSubscriptionId` to be populated in logs. This sample configures it automatically.
 
 ## ⚙️ Configuration
+
+Choose `sample_models` in [create.ipynb](create.ipynb) from [ApprovedModel](../../shared/python/ai_models.py). Check regional availability and quota before changing models or SKUs. The mock response uses the first selected model.
 
 ### Quick Setup Checklist
 

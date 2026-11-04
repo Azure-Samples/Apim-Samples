@@ -50,8 +50,9 @@ def test_notebook_clean_and_configuration_defaults():
     }
     assert ast.literal_eval(assignments['index']) == 1
     assert ast.literal_eval(assignments['sample_name']) == 'aoai-v1-migration-1'
-    assert ast.unparse(assignments['primary_model']) == 'AzureOpenAIModel.GPT_5_MINI'
-    assert ast.unparse(assignments['secondary_model']) == 'AzureOpenAIModel.GPT_5_NANO'
+    assert ast.unparse(assignments['sample_models']) == '(ApprovedModel.GPT_5_MINI, ApprovedModel.GPT_5_NANO)'
+    assert ast.unparse(assignments['primary_model']) == 'sample_models[0]'
+    assert ast.unparse(assignments['secondary_model']) == 'sample_models[1]'
     assert ast.literal_eval(assignments['model_sku']) == 'GlobalStandard'
     assert {ast.unparse(target) for target in assignments['supported_infras'].elts} == {
         'INFRASTRUCTURE.SIMPLE_APIM',
