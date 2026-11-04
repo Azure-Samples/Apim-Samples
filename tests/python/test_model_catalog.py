@@ -318,6 +318,47 @@ def test_binding_paths_are_narrow_and_cannot_escape(catalog_root, relative):
         model_catalog.check_catalog(catalog_root, paths = [])
 
 
+@pytest.mark.parametrize('relative', [None, 42, Path('sample.md')])
+def test_repository_paths_require_strings(tmp_path, relative):
+    with pytest.raises(ValueError, match = 'repository-relative string path'):
+        model_catalog._resolve_path(tmp_path, relative)
+
+
+def test_repository_paths_reject_resolved_targets_outside_root(tmp_path, monkeypatch):
+    """Simulate a symlink target without requiring Windows symlink privileges."""
+    candidate = tmp_path / 'linked.md'
+    resolve = Path.resolve
+    monkeypatch.setattr(Path, 'resolve', lambda path: tmp_path.parent / 'outside.md' if path == candidate else resolve(path))
+    with pytest.raises(ValueError, match = 'Path escapes repository'):
+        model_catalog._resolve_path(tmp_path, 'linked.md')
+
+
+@pytest.mark.parametrize('filename', [model_catalog.BINDINGS_PATH, model_catalog.EXCEPTIONS_PATH])
+@pytest.mark.parametrize('value', [None, []])
+def test_catalog_metadata_requires_objects(catalog_root, filename, value):
+    _json(catalog_root, filename, value)
+    with pytest.raises(ValueError, match = 'Bindings and fixture exceptions must be objects'):
+        model_catalog.check_catalog(catalog_root, paths = [])
+
+
+@pytest.mark.parametrize('relative,scopes', [
+    ('samples/fixture/helper.py', ['test_fixture']),
+    ('tests/python/fixture.md', ['test_fixture']),
+    ('tests/python/test_fixture.py', 'test_fixture'),
+])
+def test_fixture_exceptions_require_test_python_scope_lists(catalog_root, relative, scopes):
+    _json(catalog_root, model_catalog.EXCEPTIONS_PATH, {relative: scopes})
+    with pytest.raises(ValueError, match = 'Only exact test fixture scopes are permitted'):
+        model_catalog.check_catalog(catalog_root, paths = [])
+
+
+@pytest.mark.parametrize('entries', [None, {}, []])
+def test_asset_bindings_require_nonempty_arrays(catalog_root, entries):
+    _json(catalog_root, model_catalog.BINDINGS_PATH, {'samples/fixture/README.md': entries})
+    with pytest.raises(ValueError, match = 'bindings must be a non-empty array'):
+        model_catalog.check_catalog(catalog_root, paths = [])
+
+
 @pytest.mark.parametrize('reference', ['{{model:approved.UNKNOWN:model_name}}', '{{model:missing.primary:model_name}}', '{{model:costing.-1:model_name}}',
                                        '{{model:costing.99:model_name}}', '{{model:costing.primary:invalid}}', 'not symbolic'])
 def test_unknown_or_literal_templates_fail(reference):
@@ -345,6 +386,24 @@ def test_model_markdown_tables_resize_deterministically(catalog_root):
     assert model_catalog.check_catalog(catalog_root, write = True, paths = [relative]) == []
     assert (path.read_bytes(), path.stat().st_mtime_ns) == before
     assert len({line.index('|', 1) for line in path.read_text(encoding = 'utf-8').splitlines()}) == 1
+
+
+def test_malformed_model_table_prevents_catalog_writes(catalog_root):
+    relative = 'samples/fixture/README.md'
+    source = f'| Model | Version |\n| ----- | ------- |\n| {ApprovedModel.GPT_5_NANO.model_name} |\n'
+    asset = _write(catalog_root, relative, source)
+    generated = catalog_root / model_catalog.PYTHON_PATH
+    before = generated.read_bytes()
+    _json(catalog_root, model_catalog.BINDINGS_PATH, {relative: [{'line': 3, 'models': [PRIMARY]}]})
+    with pytest.raises(ValueError, match = 'inconsistent column counts'):
+        model_catalog.check_catalog(catalog_root, write = True, paths = [relative])
+    assert asset.read_text(encoding = 'utf-8') == source
+    assert generated.read_bytes() == before
+
+
+def test_sample_model_discovery_skips_markdown_only_notebooks(catalog_root):
+    _json(catalog_root, 'samples/fixture/create.ipynb', {'cells': [{'cell_type': 'markdown', 'source': ['# Documentation only\n']}]})
+    assert model_catalog.sample_models(catalog_root) == {'costing': ('GPT_5_MINI', 'GPT_5_NANO')}
 
 
 @pytest.mark.parametrize('expression', ['()', '[ApprovedModel.GPT_5_MINI]', "('unapproved',)", '(ApprovedModel.GPT_5_MINI, ApprovedModel.GPT_5_MINI)', '(ApprovedModel.REMOVED,)'])
@@ -397,3 +456,11 @@ def test_cli_reports_failures_explicitly(catalog_root, monkeypatch, capsys, mode
     assert model_catalog.main() == (0 if mode == 'success' else 1)
     output = capsys.readouterr()
     assert bool(output.err) == (mode != 'success')
+
+
+def test_script_entrypoint_reports_missing_catalog(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(sys, 'argv', ['model_catalog.py', '--root', str(tmp_path), '--check'])
+    with pytest.raises(SystemExit) as error:
+        runpy.run_path(str(ROOT / 'setup' / 'model_catalog.py'), run_name = '__main__')
+    assert error.value.code == 1
+    assert 'Model catalog check failed:' in capsys.readouterr().err

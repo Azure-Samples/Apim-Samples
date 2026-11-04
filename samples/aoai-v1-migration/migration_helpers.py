@@ -91,8 +91,6 @@ def build_models(sample_name: str, models: Sequence[ApprovedModel], capacity: in
     result: list[ModelConfiguration] = []
     for model in models:
         model_name = deployment_slug(model)
-        if not re.fullmatch(r'[a-z0-9-]+', model_name):
-            raise ValueError('Model names must produce safe lowercase deployment identifiers.')
         deployment_name = f'{sample_name}-{model_name}'
         result.append({
             **to_deployment_config(model, capacity),
