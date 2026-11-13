@@ -1,0 +1,23 @@
+<!--
+    API-level policy for cache-backed Dynamic CORS (per-API entry).
+    cache-lookup-value is not supported inside policy fragments, so derive the
+    current API's key and load its origins before including the fragment.
+-->
+<policies>
+    <inbound>
+        <base />
+        <set-variable name="corsOriginCacheKey" value='@("corsOriginMapping-" + context.Api.Id)' />
+        <cache-lookup-value key='@((string)context.Variables["corsOriginCacheKey"])' variable-name="allowedOriginsJson" />
+        <include-fragment fragment-id="DynamicCorsCachedPerApi" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <include-fragment fragment-id="DynamicCorsOutbound" />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
