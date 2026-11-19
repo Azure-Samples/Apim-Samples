@@ -583,12 +583,12 @@ def build_costing_apis(
         apis.append(
             API(
                 f'{api_prefix}token-tracking-api',
-                'AI Gateway Token Tracking',
+                'AI Token Tracking',
                 paths['token_api_path'],
-                'API for demonstrating per-caller token/PTU tracking (AI Gateway pattern)',
+                'API for demonstrating per-caller AI token/PTU tracking through APIM',
                 policyXml=token_metric_policy_xml,
                 operations=[GET_APIOperation2('get-status', 'Get Status', '/get', 'Get Status', policyXml=mock_ai_policy_xml)],
-                tags=['costing', 'emit-metric', 'ai-gateway', 'token-tracking'],
+                tags=['costing', 'emit-metric', 'ai-scenarios', 'token-tracking'],
                 subscriptionRequired=True,
                 serviceUrl='https://httpbin.org',
             )
@@ -628,7 +628,7 @@ def build_costing_apis(
                 'Azure OpenAI gateway for demonstrating real token tracking with Foundry',
                 policyXml=token_metric_policy_xml,
                 operations=[aoai_chat_post, aoai_responses_post],
-                tags=['costing', 'emit-metric', 'ai-gateway', 'aoai', 'foundry'],
+                tags=['costing', 'emit-metric', 'ai-scenarios', 'aoai', 'foundry'],
                 subscriptionRequired=True,
                 serviceUrl='https://placeholder.openai.azure.com/openai',
                 enableLlmLogging=True,

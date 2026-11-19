@@ -22,6 +22,8 @@ Thank you for your interest in contributing!
 
 [samples/catalog.json](samples/catalog.json) is the source of truth for sample folders, canonical display names, root README summaries, and supported infrastructures. Entries are alphabetical by display name; infrastructure IDs follow the existing matrix column order. Every active sample is listed, except `_TEMPLATE`.
 
+AI samples also declare `"tags": ["ai-scenarios"]` in the catalog, the `ai-scenarios` tag in their notebook and generated API tags, and `**Category**: AI Scenarios` in their README. On the website, give these cards the `sample-ai` class and an `ai-tag` badge reading `AI Scenarios`. The accessible All/AI Scenarios radio filter uses CSS only; no JavaScript or build step is needed. The catalog checker validates these designations together. Scenario classification is not SKU compatibility: these samples do not require the AI Gateway SKU. Keep supported APIM tiers in configuration/compatibility documentation, and reserve "AI Gateway SKU" for references to that product tier.
+
 When adding, renaming, or changing compatibility for a sample:
 
 1. Update the catalog first.

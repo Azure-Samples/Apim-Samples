@@ -193,6 +193,8 @@ Creates the bicep deployment into the previously-specified resource group. A bic
 
 ### Cell 4: Python - Deployment
 
+Use the default `nb_helper.deploy_sample(bicep_parameters)` flow so missing infrastructure can be created or selected through the shared helper. Do not pass `require_existing_infrastructure=True` or make pre-existing infrastructure mandatory unless the user explicitly requests existing-only deployment.
+
 ```python
 # Build the bicep parameters
 if 'nb_helper' not in locals():
@@ -384,6 +386,8 @@ After adding or moving policy XML or KQL files, verify all notebook, Python help
 Adding a sample is not complete until the repository listings stay in sync.
 
 First add the sample to `samples/catalog.json`, the source of truth for folders, canonical display names, root README summaries, and compatibility. Keep entries alphabetical by display name and infrastructure IDs in matrix column order. Preserve visible notebook configuration; the catalog checker validates its `supported_infras` declaration rather than replacing it.
+
+For AI samples, also declare `"tags": ["ai-scenarios"]` in the catalog, include `ai-scenarios` in notebook and generated API tags, and add `**Category**: AI Scenarios` to the sample README. Give the website card the `sample-ai` class and an `ai-tag` badge reading `AI Scenarios`, so the CSS-only All/AI Scenarios filter includes it. This is a scenario category, not an APIM SKU requirement; clarify that these samples do not require the AI Gateway SKU. Keep SKU compatibility separate, and reserve "AI Gateway SKU" for that product tier. Follow the [catalog maintenance workflow](../../../CONTRIBUTING.md#sample-catalog); the checker validates these designations together.
 
 Update these files when a new sample is added:
 

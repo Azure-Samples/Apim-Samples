@@ -1,0 +1,301 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="aoai-v1-routing" name="Routing topology">
+    <mxGraphModel grid="1" gridSize="10" page="1" pageScale="1" pageWidth="1440" pageHeight="1340" background="#FFFFFF">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="title" value="Azure OpenAI v1 Routing" style="text;html=0;fontFamily=Arial;fontSize=30;fontStyle=1;fontColor=#172B4D;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1360" height="45" as="geometry"/>
+        </mxCell>
+        <mxCell id="summary" value="Default: 4 APIs | 2 models | 4 pools | 6 backends | 3 Microsoft Foundry resources | 6 deployments" style="text;html=0;fontFamily=Arial;fontSize=20;fontColor=#334155;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="65" width="1360" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="path" value="Each subscription-protected v1 API: POST /chat/completions and POST /responses" style="text;html=0;fontFamily=Arial;fontSize=20;fontColor=#172B4D;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="105" width="1360" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="route-body" value="body route&#xa;JSON body model&#xa;Family: standard" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=left;verticalAlign=middle;spacingLeft=20;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="150" width="310" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="route-header" value="header route&#xa;First nonempty x-ai-model&#xa;Else body model&#xa;Header present: body unread&#xa;Family: standard" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=left;verticalAlign=middle;spacingLeft=20;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="390" y="150" width="310" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="route-subscription" value="subscription route&#xa;JSON body model&#xa;Validated subscription ID&#xa;Family: standard / priority" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=left;verticalAlign=middle;spacingLeft=20;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="740" y="150" width="310" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="route-recommended" value="recommended route&#xa;First nonempty x-ai-model&#xa;Else body model&#xa;Header present: body unread&#xa;Validated ID selects family" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=left;verticalAlign=middle;spacingLeft=20;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="150" width="310" height="140" as="geometry"/>
+        </mxCell>
+        <mxCell id="route-body-pool" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="route-body" target="convention">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="195" y="290" as="sourcePoint"/>
+            <mxPoint x="450" y="330" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="route-header-pool" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="route-header" target="convention">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="545" y="290" as="sourcePoint"/>
+            <mxPoint x="600" y="330" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="route-subscription-pool" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="route-subscription" target="convention">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="895" y="290" as="sourcePoint"/>
+            <mxPoint x="840" y="330" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="route-recommended-pool" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="route-recommended" target="convention">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="1245" y="290" as="sourcePoint"/>
+            <mxPoint x="1000" y="330" as="targetPoint"/>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="convention" value="Resolve ONE pool: &lt;sample-name&gt;-&lt;model&gt;-&lt;family&gt;-pool&#xa;Convention-based routing; no model lookup table and no body rewriting" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=22;fontColor=#172B4D;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;align=center;verticalAlign=middle;arcSize=10;" vertex="1" parent="1">
+          <mxGeometry x="250" y="330" width="940" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="topology-heading" value="Selected model topology below. Names omit &lt;sample-name&gt;-. P = priority, W = weight." style="text;html=0;fontFamily=Arial;fontSize=20;fontColor=#334155;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="425" width="1360" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="mini-lane" value="" style="rounded=1;html=0;fillColor=#F8FAFC;strokeColor=#94A3B8;strokeWidth=1;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="40" y="470" width="1360" height="350" as="geometry"/>
+        </mxCell>
+        <mxCell id="mini-heading" value="MODEL: gpt-5-mini       APIM backend pools" style="text;html=0;fontFamily=Arial;fontSize=21;fontStyle=1;fontColor=#172B4D;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="60" y="480" width="570" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="mini-backend-heading" value="Shared concrete backends" style="text;html=0;fontFamily=Arial;fontSize=21;fontStyle=1;fontColor=#172B4D;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="650" y="480" width="300" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="mini-account-heading" value="Foundry model deployments" style="text;html=0;fontFamily=Arial;fontSize=21;fontStyle=1;fontColor=#172B4D;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="480" width="300" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="mini-standard" value="gpt-5-mini-standard-pool&#xa;global-standard: P1 / W3&#xa;ptu: P2 / W1&#xa;consumption: P1 / W1" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=20;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=left;verticalAlign=middle;spacingLeft=20;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="60" y="530" width="390" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="mini-priority" value="gpt-5-mini-priority-pool&#xa;global-standard: P2 / W1&#xa;ptu: P1 / W3&#xa;consumption: P1 / W1" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=20;fontColor=#172B4D;fillColor=#F5F3FF;strokeColor=#6D28D9;strokeWidth=2;dashed=1;align=left;verticalAlign=middle;spacingLeft=20;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="60" y="680" width="390" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="mini-standard-global" style="endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;" edge="1" parent="1" source="mini-standard" target="mini-global-backend">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="450" y="570" as="sourcePoint"/><mxPoint x="650" y="550" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="mini-standard-ptu" style="endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;" edge="1" parent="1" source="mini-standard" target="mini-ptu-backend">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="450" y="590" as="sourcePoint"/><mxPoint x="650" y="650" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="mini-standard-consumption" style="endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;" edge="1" parent="1" source="mini-standard" target="mini-consumption-backend">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="450" y="610" as="sourcePoint"/><mxPoint x="650" y="750" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="mini-priority-global" style="endArrow=block;endFill=1;strokeColor=#6D28D9;strokeWidth=2;dashed=1;" edge="1" parent="1" source="mini-priority" target="mini-global-backend">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="450" y="720" as="sourcePoint"/><mxPoint x="650" y="570" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="mini-priority-ptu" style="endArrow=block;endFill=1;strokeColor=#6D28D9;strokeWidth=2;dashed=1;" edge="1" parent="1" source="mini-priority" target="mini-ptu-backend">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="450" y="740" as="sourcePoint"/><mxPoint x="650" y="670" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="mini-priority-consumption" style="endArrow=block;endFill=1;strokeColor=#6D28D9;strokeWidth=2;dashed=1;" edge="1" parent="1" source="mini-priority" target="mini-consumption-backend">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="450" y="760" as="sourcePoint"/><mxPoint x="650" y="770" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="mini-global-backend" value="gpt-5-mini-global-standard&#xa;Circuit breaker shared by both pools" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=17;fontColor=#172B4D;fillColor=#FFFFFF;strokeColor=#475569;strokeWidth=2;align=center;verticalAlign=middle;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="650" y="525" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="mini-ptu-backend" value="gpt-5-mini-ptu&#xa;Circuit breaker shared by both pools" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=17;fontColor=#172B4D;fillColor=#FFFFFF;strokeColor=#475569;strokeWidth=2;align=center;verticalAlign=middle;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="650" y="625" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="mini-consumption-backend" value="gpt-5-mini-consumption&#xa;Circuit breaker shared by both pools" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=17;fontColor=#172B4D;fillColor=#FFFFFF;strokeColor=#475569;strokeWidth=2;align=center;verticalAlign=middle;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="650" y="725" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="mini-global-account" value="Account: global-standard&#xa;Deployment: gpt-5-mini" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=20;fontColor=#172B4D;fillColor=#ECFDF5;strokeColor=#047857;strokeWidth=2;align=center;verticalAlign=middle;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="525" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="mini-ptu-account" value="Account: ptu&#xa;Deployment: gpt-5-mini" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=20;fontColor=#172B4D;fillColor=#ECFDF5;strokeColor=#047857;strokeWidth=2;align=center;verticalAlign=middle;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="625" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="mini-consumption-account" value="Account: consumption&#xa;Deployment: gpt-5-mini" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=20;fontColor=#172B4D;fillColor=#ECFDF5;strokeColor=#047857;strokeWidth=2;align=center;verticalAlign=middle;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="725" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="mini-global-forward" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="mini-global-backend" target="mini-global-account">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="950" y="560" as="sourcePoint"/><mxPoint x="1080" y="560" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="mini-ptu-forward" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="mini-ptu-backend" target="mini-ptu-account">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="950" y="660" as="sourcePoint"/><mxPoint x="1080" y="660" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="mini-consumption-forward" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="mini-consumption-backend" target="mini-consumption-account">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="950" y="760" as="sourcePoint"/><mxPoint x="1080" y="760" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="nano-lane" value="" style="rounded=1;html=0;fillColor=#F8FAFC;strokeColor=#94A3B8;strokeWidth=1;arcSize=3;" vertex="1" parent="1">
+          <mxGeometry x="40" y="840" width="1360" height="350" as="geometry"/>
+        </mxCell>
+        <mxCell id="nano-heading" value="MODEL: gpt-5-nano       APIM backend pools" style="text;html=0;fontFamily=Arial;fontSize=21;fontStyle=1;fontColor=#172B4D;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="60" y="850" width="570" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="nano-backend-heading" value="Shared concrete backends" style="text;html=0;fontFamily=Arial;fontSize=21;fontStyle=1;fontColor=#172B4D;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="650" y="850" width="300" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="nano-account-heading" value="Same three accounts as above" style="text;html=0;fontFamily=Arial;fontSize=20;fontStyle=1;fontColor=#172B4D;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="850" width="300" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="nano-standard" value="gpt-5-nano-standard-pool&#xa;global-standard: P1 / W3&#xa;ptu: P2 / W1&#xa;consumption: P1 / W1" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=20;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=left;verticalAlign=middle;spacingLeft=20;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="60" y="900" width="390" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="nano-priority" value="gpt-5-nano-priority-pool&#xa;global-standard: P2 / W1&#xa;ptu: P1 / W3&#xa;consumption: P1 / W1" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=20;fontColor=#172B4D;fillColor=#F5F3FF;strokeColor=#6D28D9;strokeWidth=2;dashed=1;align=left;verticalAlign=middle;spacingLeft=20;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1050" width="390" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="nano-standard-global" style="endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;" edge="1" parent="1" source="nano-standard" target="nano-global-backend">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="450" y="940" as="sourcePoint"/><mxPoint x="650" y="920" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="nano-standard-ptu" style="endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;" edge="1" parent="1" source="nano-standard" target="nano-ptu-backend">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="450" y="960" as="sourcePoint"/><mxPoint x="650" y="1020" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="nano-standard-consumption" style="endArrow=block;endFill=1;strokeColor=#1D4ED8;strokeWidth=2;" edge="1" parent="1" source="nano-standard" target="nano-consumption-backend">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="450" y="980" as="sourcePoint"/><mxPoint x="650" y="1120" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="nano-priority-global" style="endArrow=block;endFill=1;strokeColor=#6D28D9;strokeWidth=2;dashed=1;" edge="1" parent="1" source="nano-priority" target="nano-global-backend">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="450" y="1090" as="sourcePoint"/><mxPoint x="650" y="940" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="nano-priority-ptu" style="endArrow=block;endFill=1;strokeColor=#6D28D9;strokeWidth=2;dashed=1;" edge="1" parent="1" source="nano-priority" target="nano-ptu-backend">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="450" y="1110" as="sourcePoint"/><mxPoint x="650" y="1040" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="nano-priority-consumption" style="endArrow=block;endFill=1;strokeColor=#6D28D9;strokeWidth=2;dashed=1;" edge="1" parent="1" source="nano-priority" target="nano-consumption-backend">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="450" y="1130" as="sourcePoint"/><mxPoint x="650" y="1140" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="nano-global-backend" value="gpt-5-nano-global-standard&#xa;Circuit breaker shared by both pools" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=17;fontColor=#172B4D;fillColor=#FFFFFF;strokeColor=#475569;strokeWidth=2;align=center;verticalAlign=middle;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="650" y="895" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="nano-ptu-backend" value="gpt-5-nano-ptu&#xa;Circuit breaker shared by both pools" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=17;fontColor=#172B4D;fillColor=#FFFFFF;strokeColor=#475569;strokeWidth=2;align=center;verticalAlign=middle;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="650" y="995" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="nano-consumption-backend" value="gpt-5-nano-consumption&#xa;Circuit breaker shared by both pools" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=17;fontColor=#172B4D;fillColor=#FFFFFF;strokeColor=#475569;strokeWidth=2;align=center;verticalAlign=middle;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="650" y="1095" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="nano-global-account" value="Account: global-standard&#xa;Deployment: gpt-5-nano" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=20;fontColor=#172B4D;fillColor=#ECFDF5;strokeColor=#047857;strokeWidth=2;align=center;verticalAlign=middle;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="895" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="nano-ptu-account" value="Account: ptu&#xa;Deployment: gpt-5-nano" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=20;fontColor=#172B4D;fillColor=#ECFDF5;strokeColor=#047857;strokeWidth=2;align=center;verticalAlign=middle;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="995" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="nano-consumption-account" value="Account: consumption&#xa;Deployment: gpt-5-nano" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=20;fontColor=#172B4D;fillColor=#ECFDF5;strokeColor=#047857;strokeWidth=2;align=center;verticalAlign=middle;arcSize=8;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="1095" width="300" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="nano-global-forward" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="nano-global-backend" target="nano-global-account">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="950" y="930" as="sourcePoint"/><mxPoint x="1080" y="930" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="nano-ptu-forward" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="nano-ptu-backend" target="nano-ptu-account">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="950" y="1030" as="sourcePoint"/><mxPoint x="1080" y="1030" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="nano-consumption-forward" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="nano-consumption-backend" target="nano-consumption-account">
+          <mxGeometry relative="1" as="geometry"><mxPoint x="950" y="1130" as="sourcePoint"/><mxPoint x="1080" y="1130" as="targetPoint"/></mxGeometry>
+        </mxCell>
+        <mxCell id="legend" value="Solid blue = standard pool membership. Dashed purple = priority pool membership. Choose one backend per request." style="text;html=0;fontFamily=Arial;fontSize=20;fontColor=#172B4D;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1205" width="1360" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="forwarding-note" value="Managed identity -&gt; matched v1 operation. One attempt; no retries. Breakers affect subsequent selections." style="text;html=0;fontFamily=Arial;fontSize=20;fontColor=#172B4D;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1245" width="1360" height="35" as="geometry"/>
+        </mxCell>
+        <mxCell id="payg-note" value="Foundry hosts all PAYG deployments. global-standard / ptu / consumption are simulated labels, not service tiers." style="text;html=0;fontFamily=Arial;fontSize=20;fontColor=#172B4D;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1285" width="1360" height="35" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="notebook-configure" name="1 Configure">
+    <mxGraphModel grid="1" gridSize="10" page="1" pageScale="1" pageWidth="1280" pageHeight="360" background="#FFFFFF">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="title" value="1. Configure locally - no Azure calls" style="text;html=0;fontFamily=Arial;fontSize=28;fontStyle=1;fontColor=#172B4D;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="16" width="1232" height="40" as="geometry"/></mxCell>
+        <mxCell id="summary" value="Turn your choices into the API and model declarations used by the deployment cell." style="text;html=0;fontFamily=Arial;fontSize=18;fontColor=#334155;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="62" width="1232" height="30" as="geometry"/></mxCell>
+        <mxCell id="inputs" value="Choose deployment inputs&#xa;Region / infrastructure / index&#xa;Models / namespace / PAYG SKU" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="24" y="115" width="360" height="125" as="geometry"/></mxCell>
+        <mxCell id="scenarios" value="Declare four API scenarios&#xa;body / header / subscription&#xa;recommended" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="460" y="115" width="360" height="125" as="geometry"/></mxCell>
+        <mxCell id="parameters" value="Prepare deployment data&#xa;Two POST operations per API&#xa;No Azure resources created yet" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="896" y="115" width="360" height="125" as="geometry"/></mxCell>
+        <mxCell id="inputs-scenarios" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="inputs" target="scenarios"><mxGeometry relative="1" as="geometry"><mxPoint x="384" y="177" as="sourcePoint"/><mxPoint x="460" y="177" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="scenarios-parameters" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="scenarios" target="parameters"><mxGeometry relative="1" as="geometry"><mxPoint x="820" y="177" as="sourcePoint"/><mxPoint x="896" y="177" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="note" value="Both operations: /chat/completions and /responses.&#xa;The next section deploys these declarations; this section only validates and prepares them." style="text;html=0;fontFamily=Arial;fontSize=18;fontColor=#334155;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="270" width="1232" height="65" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="notebook-deploy" name="2 Deploy">
+    <mxGraphModel grid="1" gridSize="10" page="1" pageScale="1" pageWidth="1280" pageHeight="360" background="#FFFFFF">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="title" value="2. Deploy the shared routing topology" style="text;html=0;fontFamily=Arial;fontSize=28;fontStyle=1;fontColor=#172B4D;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="16" width="1232" height="40" as="geometry"/></mxCell>
+        <mxCell id="summary" value="Default two-model configuration. Arrows show the request path, not separate deployment steps." style="text;html=0;fontFamily=Arial;fontSize=18;fontColor=#334155;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="62" width="1232" height="30" as="geometry"/></mxCell>
+        <mxCell id="apim" value="Existing APIM&#xa;Four APIs, two POSTs each&#xa;Reuse identity and logger" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="24" y="115" width="270" height="125" as="geometry"/></mxCell>
+        <mxCell id="pools" value="Four native pools&#xa;2 models x 2 families&#xa;standard / priority" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#F5F3FF;strokeColor=#6D28D9;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="344" y="115" width="270" height="125" as="geometry"/></mxCell>
+        <mxCell id="backends" value="Six concrete backends&#xa;2 models x 3 accounts&#xa;One shared breaker each" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="664" y="115" width="270" height="125" as="geometry"/></mxCell>
+        <mxCell id="foundry" value="Three Foundry accounts&#xa;Both model deployments&#xa;on every PAYG account" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#ECFDF5;strokeColor=#047857;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="984" y="115" width="270" height="125" as="geometry"/></mxCell>
+        <mxCell id="apim-pools" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="apim" target="pools"><mxGeometry relative="1" as="geometry"><mxPoint x="294" y="177" as="sourcePoint"/><mxPoint x="344" y="177" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="pools-backends" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="pools" target="backends"><mxGeometry relative="1" as="geometry"><mxPoint x="614" y="177" as="sourcePoint"/><mxPoint x="664" y="177" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="backends-foundry" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="backends" target="foundry"><mxGeometry relative="1" as="geometry"><mxPoint x="934" y="177" as="sourcePoint"/><mxPoint x="984" y="177" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="note" value="Both families reference the same concrete backends; their breaker state is shared.&#xa;APIM authenticates upstream with managed identity. All capacity is PAYG; tier names are simulated." style="text;html=0;fontFamily=Arial;fontSize=18;fontColor=#334155;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="270" width="1232" height="65" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="notebook-success" name="3 Success">
+    <mxGraphModel grid="1" gridSize="10" page="1" pageScale="1" pageWidth="1280" pageHeight="360" background="#FFFFFF">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="title" value="3. Prove a known route returns real generated text" style="text;html=0;fontFamily=Arial;fontSize=28;fontStyle=1;fontColor=#172B4D;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="16" width="1232" height="40" as="geometry"/></mxCell>
+        <mxCell id="summary" value="Concrete example: recommended API with a validated priority subscription. Pool names omit the namespace." style="text;html=0;fontFamily=Arial;fontSize=18;fontColor=#334155;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="62" width="1232" height="30" as="geometry"/></mxCell>
+        <mxCell id="caller" value="recommended request&#xa;x-ai-model: gpt-5-mini&#xa;Priority subscription" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="24" y="115" width="270" height="125" as="geometry"/></mxCell>
+        <mxCell id="selection" value="Select model + family&#xa;gpt-5-mini / priority&#xa;Body stays unchanged" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="344" y="115" width="270" height="125" as="geometry"/></mxCell>
+        <mxCell id="pool" value="Resolve native pool&#xa;gpt-5-mini-priority-pool&#xa;Pick one eligible backend" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#F5F3FF;strokeColor=#6D28D9;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="664" y="115" width="270" height="125" as="geometry"/></mxCell>
+        <mxCell id="result" value="Foundry inference&#xa;Return generated text&#xa;HTTP 200 + pool evidence" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#ECFDF5;strokeColor=#047857;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="984" y="115" width="270" height="125" as="geometry"/></mxCell>
+        <mxCell id="caller-selection" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="caller" target="selection"><mxGeometry relative="1" as="geometry"><mxPoint x="294" y="177" as="sourcePoint"/><mxPoint x="344" y="177" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="selection-pool" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="selection" target="pool"><mxGeometry relative="1" as="geometry"><mxPoint x="614" y="177" as="sourcePoint"/><mxPoint x="664" y="177" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="pool-result" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="pool" target="result"><mxGeometry relative="1" as="geometry"><mxPoint x="934" y="177" as="sourcePoint"/><mxPoint x="984" y="177" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="note" value="The body names the same known deployment. Repeat for both models and both POST operations.&#xa;Changing only the validated subscription changes the expected family, not the request body or API path." style="text;html=0;fontFamily=Arial;fontSize=18;fontColor=#334155;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="270" width="1232" height="65" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="notebook-rejections" name="4 Local rejections">
+    <mxGraphModel grid="1" gridSize="10" page="1" pageScale="1" pageWidth="1280" pageHeight="360" background="#FFFFFF">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="title" value="4. Distinguish invalid input from an unavailable route" style="text;html=0;fontFamily=Arial;fontSize=28;fontStyle=1;fontColor=#172B4D;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="16" width="1232" height="40" as="geometry"/></mxCell>
+        <mxCell id="summary" value="These failures have no successfully selected backend and no x-routing-pool evidence." style="text;html=0;fontFamily=Arial;fontSize=18;fontColor=#334155;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="62" width="1232" height="30" as="geometry"/></mxCell>
+        <mxCell id="invalid" value="Missing / invalid model&#xa;Malformed JSON / stream type" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="24" y="112" width="360" height="78" as="geometry"/></mxCell>
+        <mxCell id="validation" value="APIM validation&#xa;Reject before backend selection" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="460" y="112" width="360" height="78" as="geometry"/></mxCell>
+        <mxCell id="invalid-result" value="400 InvalidRequest&#xa;or 404 ModelNotAvailable" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#FFF7ED;strokeColor=#9A3412;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="896" y="112" width="360" height="78" as="geometry"/></mxCell>
+        <mxCell id="unknown" value="Syntax-valid unknown-model&#xa;No matching native pool" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="24" y="210" width="360" height="78" as="geometry"/></mxCell>
+        <mxCell id="resolver" value="Scoped native pool resolver&#xa;No model membership lookup" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="460" y="210" width="360" height="78" as="geometry"/></mxCell>
+        <mxCell id="unknown-result" value="Expected: 404 model_not_available&#xa;Only for an attributed resolver failure" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#FFF7ED;strokeColor=#9A3412;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="896" y="210" width="360" height="78" as="geometry"/></mxCell>
+        <mxCell id="invalid-validation" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="invalid" target="validation"><mxGeometry relative="1" as="geometry"><mxPoint x="384" y="151" as="sourcePoint"/><mxPoint x="460" y="151" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="validation-result" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="validation" target="invalid-result"><mxGeometry relative="1" as="geometry"><mxPoint x="820" y="151" as="sourcePoint"/><mxPoint x="896" y="151" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="unknown-resolver" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="unknown" target="resolver"><mxGeometry relative="1" as="geometry"><mxPoint x="384" y="249" as="sourcePoint"/><mxPoint x="460" y="249" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="resolver-result" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="resolver" target="unknown-result"><mxGeometry relative="1" as="geometry"><mxPoint x="820" y="249" as="sourcePoint"/><mxPoint x="896" y="249" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="note" value="Live gate: a deferred or unattributed resolver failure must not be relabeled as this graceful 404.&#xa;Local returns emit a trace before stopping. Empty headers fall back to the body; invalid nonempty headers do not." style="text;html=0;fontFamily=Arial;fontSize=18;fontColor=#334155;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="300" width="1232" height="50" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="notebook-upstream" name="5 Upstream rejections">
+    <mxGraphModel grid="1" gridSize="10" page="1" pageScale="1" pageWidth="1280" pageHeight="360" background="#FFFFFF">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="title" value="5. Prove a known route can still fail upstream" style="text;html=0;fontFamily=Arial;fontSize=28;fontStyle=1;fontColor=#172B4D;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="16" width="1232" height="40" as="geometry"/></mxCell>
+        <mxCell id="summary" value="Use both header-first APIs: header and recommended. Unlike local rejection, a pool is selected." style="text;html=0;fontFamily=Arial;fontSize=18;fontColor=#334155;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="62" width="1232" height="30" as="geometry"/></mxCell>
+        <mxCell id="caller" value="Known header selector&#xa;x-ai-model: gpt-5-mini&#xa;Body model: not deployed" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="24" y="115" width="270" height="125" as="geometry"/></mxCell>
+        <mxCell id="route" value="APIM header-first route&#xa;Select known pool&#xa;Do not read / rewrite body" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#F5F3FF;strokeColor=#6D28D9;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="344" y="115" width="270" height="125" as="geometry"/></mxCell>
+        <mxCell id="foundry" value="Foundry rejects request&#xa;404 deployment-not-found&#xa;or 400 for non-object body" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#FFF7ED;strokeColor=#9A3412;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="664" y="115" width="270" height="125" as="geometry"/></mxCell>
+        <mxCell id="result" value="APIM outbound policy&#xa;Keep upstream HTTP status&#xa;Safe message + pool evidence" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="984" y="115" width="270" height="125" as="geometry"/></mxCell>
+        <mxCell id="caller-route" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="caller" target="route"><mxGeometry relative="1" as="geometry"><mxPoint x="294" y="177" as="sourcePoint"/><mxPoint x="344" y="177" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="route-foundry" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="route" target="foundry"><mxGeometry relative="1" as="geometry"><mxPoint x="614" y="177" as="sourcePoint"/><mxPoint x="664" y="177" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="foundry-result" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="foundry" target="result"><mxGeometry relative="1" as="geometry"><mxPoint x="934" y="177" as="sourcePoint"/><mxPoint x="984" y="177" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="note" value="Check the real upstream error identity AND selected-pool evidence, not just HTTP 404.&#xa;A separate non-object-body probe proves body validation was bypassed; Azure error shapes remain live gates." style="text;html=0;fontFamily=Arial;fontSize=18;fontColor=#334155;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="270" width="1232" height="65" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram id="notebook-telemetry" name="6 Telemetry">
+    <mxGraphModel grid="1" gridSize="10" page="1" pageScale="1" pageWidth="1280" pageHeight="360" background="#FFFFFF">
+      <root>
+        <mxCell id="0"/><mxCell id="1" parent="0"/>
+        <mxCell id="title" value="6. Correlate safe error evidence with existing telemetry" style="text;html=0;fontFamily=Arial;fontSize=28;fontStyle=1;fontColor=#172B4D;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="16" width="1232" height="40" as="geometry"/></mxCell>
+        <mxCell id="summary" value="The report prints sanitized ProbeResult fields. Trace verification is a separate manual Logs query." style="text;html=0;fontFamily=Arial;fontSize=18;fontColor=#334155;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="62" width="1232" height="30" as="geometry"/></mxCell>
+        <mxCell id="local" value="Local rejection trace" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="24" y="108" width="320" height="48" as="geometry"/></mxCell>
+        <mxCell id="upstream" value="Upstream HTTP error trace" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="24" y="174" width="320" height="48" as="geometry"/></mxCell>
+        <mxCell id="gateway" value="Gateway on-error trace" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#EFF6FF;strokeColor=#1D4ED8;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="24" y="240" width="320" height="48" as="geometry"/></mxCell>
+        <mxCell id="insights" value="Existing Application Insights&#xa;Reuse the infrastructure logger&#xa;No prompt / body capture" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#F1F5F9;strokeColor=#475569;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="466" y="153" width="340" height="90" as="geometry"/></mxCell>
+        <mxCell id="query" value="routing-errors.kql&#xa;Filter by the error request_id&#xa;Confirm matching trace rows" style="rounded=1;whiteSpace=wrap;html=0;fontFamily=Arial;fontSize=18;fontColor=#172B4D;fillColor=#ECFDF5;strokeColor=#047857;strokeWidth=2;align=center;" vertex="1" parent="1"><mxGeometry x="928" y="153" width="328" height="90" as="geometry"/></mxCell>
+        <mxCell id="local-insights" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="local" target="insights"><mxGeometry relative="1" as="geometry"><mxPoint x="344" y="132" as="sourcePoint"/><mxPoint x="466" y="198" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="upstream-insights" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="upstream" target="insights"><mxGeometry relative="1" as="geometry"><mxPoint x="344" y="198" as="sourcePoint"/><mxPoint x="466" y="198" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="gateway-insights" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="gateway" target="insights"><mxGeometry relative="1" as="geometry"><mxPoint x="344" y="264" as="sourcePoint"/><mxPoint x="466" y="198" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="insights-query" style="endArrow=block;endFill=1;strokeColor=#475569;strokeWidth=2;" edge="1" parent="1" source="insights" target="query"><mxGeometry relative="1" as="geometry"><mxPoint x="806" y="198" as="sourcePoint"/><mxPoint x="928" y="198" as="targetPoint"/></mxGeometry></mxCell>
+        <mxCell id="note" value="Subscription-key and unmatched-operation failures happen before these policy traces.&#xa;Use gateway/request diagnostics for those failures; allow time for Application Insights ingestion." style="text;html=0;fontFamily=Arial;fontSize=18;fontColor=#334155;align=left;" vertex="1" parent="1"><mxGeometry x="24" y="300" width="1232" height="50" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

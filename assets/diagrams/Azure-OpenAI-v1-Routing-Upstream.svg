@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="title description">
+  <title id="title">5. Prove a known route can still fail upstream</title>
+  <desc id="description">Use both header-first APIs: header and recommended. Unlike local rejection, a pool is selected. Check the real upstream error identity AND selected-pool evidence, not just HTTP 404. A separate non-object-body probe proves body validation was bypassed; Azure error shapes remain live gates.</desc>
+  <metadata>Source: Azure-OpenAI-v1-Routing.drawio; page: 5 Upstream rejections</metadata>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
+    </marker>
+  </defs>
+  <rect width="1280" height="360" fill="#FFFFFF" />
+  <g id="cell-caller-route">
+    <path d="M 294 177 L 344 177" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-route-foundry">
+    <path d="M 614 177 L 664 177" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-foundry-result">
+    <path d="M 934 177 L 984 177" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-title">
+    <text x="24.0" y="45.8" font-family="Arial, Helvetica, sans-serif" font-size="28.0" font-weight="700" fill="#172B4D" text-anchor="start">5. Prove a known route can still fail upstream</text>
+  </g>
+  <g id="cell-summary">
+    <text x="24.0" y="83.3" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#334155" text-anchor="start">Use both header-first APIs: header and recommended. Unlike local rejection, a pool is selected.</text>
+  </g>
+  <g id="cell-caller">
+    <rect x="24.0" y="115.0" width="270.0" height="125.0" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+    <text x="159.0" y="160.4" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Known header selector</text>
+    <text x="159.0" y="183.8" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">x-ai-model: gpt-5-mini</text>
+    <text x="159.0" y="207.2" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Body model: not deployed</text>
+  </g>
+  <g id="cell-route">
+    <rect x="344.0" y="115.0" width="270.0" height="125.0" rx="10" fill="#F5F3FF" stroke="#6D28D9" stroke-width="2" />
+    <text x="479.0" y="160.4" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">APIM header-first route</text>
+    <text x="479.0" y="183.8" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Select known pool</text>
+    <text x="479.0" y="207.2" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Do not read / rewrite body</text>
+  </g>
+  <g id="cell-foundry">
+    <rect x="664.0" y="115.0" width="270.0" height="125.0" rx="10" fill="#FFF7ED" stroke="#9A3412" stroke-width="2" />
+    <text x="799.0" y="160.4" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Foundry rejects request</text>
+    <text x="799.0" y="183.8" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">404 deployment-not-found</text>
+    <text x="799.0" y="207.2" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">or 400 for non-object body</text>
+  </g>
+  <g id="cell-result">
+    <rect x="984.0" y="115.0" width="270.0" height="125.0" rx="10" fill="#F1F5F9" stroke="#475569" stroke-width="2" />
+    <text x="1119.0" y="160.4" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">APIM outbound policy</text>
+    <text x="1119.0" y="183.8" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Keep upstream HTTP status</text>
+    <text x="1119.0" y="207.2" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Safe message + pool evidence</text>
+  </g>
+  <g id="cell-note">
+    <text x="24.0" y="297.1" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#334155" text-anchor="start">Check the real upstream error identity AND selected-pool evidence, not just HTTP 404.</text>
+    <text x="24.0" y="320.5" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#334155" text-anchor="start">A separate non-object-body probe proves body validation was bypassed; Azure error shapes remain live gates.</text>
+  </g>
+</svg>

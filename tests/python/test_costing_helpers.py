@@ -544,6 +544,10 @@ def test_build_costing_apis_honors_feature_toggles(monkeypatch, tmp_path, entrai
     assert bool(paths['entraid_api_path']) is entraid
     assert bool(paths['token_api_path']) is tokens
     assert bool(paths['aoai_api_path']) is (tokens and foundry)
+    if tokens:
+        ai_apis = [api for api in apis if api.name.endswith(('token-tracking-api', 'aoai-gateway'))]
+        assert len(ai_apis) == 1 + foundry
+        assert all('ai-scenarios' in api.tags and 'ai-gateway' not in api.tags for api in ai_apis)
     if tokens and not force_stream:
         assert 'Ensure-Stream-Include-Usage' not in apis[-1].policyXml
 

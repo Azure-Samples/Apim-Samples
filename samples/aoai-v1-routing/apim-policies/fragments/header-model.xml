@@ -1,0 +1,23 @@
+<fragment>
+    <!--
+        Purpose: Select an optional model hint from the request header in inbound.
+        Inputs:
+          - Request header x-ai-model; missing or blank values default to "".
+        Outputs:
+          - headerModel (string): first nonblank header value, trimmed, or "".
+          - No model validation or error response; the endpoint policy selects the model.
+          - Request body and headers are unchanged; processing continues.
+    -->
+    <!-- Select the first nonempty value without reading the body, even for streaming. -->
+    <set-variable name="headerModel" value='@{
+        string[] values;
+        if (context.Request.Headers.TryGetValue("x-ai-model", out values))
+        {
+            foreach (var value in values)
+            {
+                if (!String.IsNullOrWhiteSpace(value)) { return value.Trim(); }
+            }
+        }
+        return "";
+    }' />
+</fragment>

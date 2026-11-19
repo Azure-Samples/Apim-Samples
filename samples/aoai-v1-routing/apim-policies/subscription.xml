@@ -1,0 +1,85 @@
+<policies>
+    <!--
+        Purpose:
+          Read the model name from the body, then use the caller's validated APIM
+          subscription to choose that model's standard or priority backend pool.
+          This works for Chat Completions and Responses; caller headers cannot grant priority.
+
+        Inputs:
+          - Caller: a POST request to /chat/completions or /responses using this API's
+            standard or priority subscription key. Another valid APIM subscription
+            is not enough: its ID must match one of the two allowed IDs.
+          - Body: a JSON object whose model field names the deployment to use,
+            for example gpt-5-mini. If stream is supplied, it must be true or false.
+            The model service checks the remaining fields, such as messages or input.
+          - Resources: fragments, pools and subscriptions use the fixed aoai-v1-routing-1
+            prefix. The two allowed subscription IDs below are public identifiers,
+            not their secret keys. The referenced fragments,
+            pools and APIM managed-identity permissions must already be in place.
+
+        Variables:
+          - standardSubscriptionId and prioritySubscriptionId (string): the allowed IDs,
+            compared with context.Subscription.Id, which APIM derives from the caller's key.
+          - family (string): starts as standard; changes to priority only when the
+            validated subscription matches prioritySubscriptionId.
+          - model (string): the deployment name read from the body.
+          - backendPool (string): the pool name, built as aoai-v1-routing-1-model-family-pool.
+          - scenario (string): always subscription; labels logs, not routing decisions.
+            It is set again in on-error so failures keep the same label.
+          - errorCode (string): starts empty; becomes SubscriptionNotAllowed if the
+            caller's subscription is not one of the two allowed IDs.
+          - errorStatus (int): starts at 404 for local rejection; becomes 403 for a
+            disallowed subscription or 400 for invalid body fields.
+          - bodySelection (JObject): compact model/errorCode/errorStatus result from
+            body-model's single parsing and validation block; not the full request body.
+          - bodyValidation (string): empty if the body check passes, otherwise
+            InvalidRequest or ModelNotAvailable. It does not replace a subscription error.
+          - routePhase (string): resolve while selecting the pool, then resolved.
+            This helps avoid reporting later failures as a missing route.
+          - upstreamCode (string): an approved error code from a failed model-service response.
+          - gatewayCode (string), gatewayStatus (int) and safeReason (string):
+            the error category, HTTP status and short diagnostic reason set if APIM fails.
+
+        Outputs:
+          - Allowed callers reach the selected model's standard or priority pool.
+            Pool preferences change; the request body and selected v1 operation do not.
+          - Drop query parameters and caller credential/routing headers; authenticate
+            to the model service with APIM's managed identity instead.
+          - Make one attempt with a 60-second timeout and no retries; do not buffer
+            the response. Successful response bodies and HTTP statuses are unchanged.
+          - Add x-routing-request-id for troubleshooting and x-routing-pool after a
+            backend response. Failed responses use fixed messages and emit error traces.
+          - Disallowed subscriptions return 403 SubscriptionNotAllowed. Invalid input
+            returns 400 InvalidRequest or 404 ModelNotAvailable. An invalid pool name
+            or a failure attributed to pool selection returns 404 model_not_available.
+          - Connection failures return 503 UpstreamUnavailable; backend timeouts return
+            504 UpstreamTimeout; other APIM failures return 500 GatewayError.
+            Model-service HTTP errors keep their original status.
+          - Local rejection stops processing before outbound runs; its response still
+            includes the request ID, and its error trace is written before returning.
+    -->
+    <inbound>
+        <base />
+        <set-variable name="scenario" value="subscription" />
+        <set-variable name="errorCode" value="" />
+        <set-variable name="errorStatus" value="@(404)" />
+        <set-variable name="family" value="standard" />
+        <set-variable name="standardSubscriptionId" value="api-aoai-v1-routing-1-subscription" />
+        <set-variable name="prioritySubscriptionId" value="aoai-v1-routing-1-priority" />
+
+        <include-fragment fragment-id="aoai-v1-routing-1-subscription-family" />
+        <include-fragment fragment-id="aoai-v1-routing-1-body-model" />
+        <include-fragment fragment-id="aoai-v1-routing-1-route-request" />
+    </inbound>
+    <backend>
+        <forward-request timeout="60" buffer-response="false" fail-on-error-status-code="false" />
+    </backend>
+    <outbound>
+        <base />
+        <include-fragment fragment-id="aoai-v1-routing-1-safe-response" />
+    </outbound>
+    <on-error>
+        <set-variable name="scenario" value="subscription" />
+        <include-fragment fragment-id="aoai-v1-routing-1-safe-error" />
+    </on-error>
+</policies>

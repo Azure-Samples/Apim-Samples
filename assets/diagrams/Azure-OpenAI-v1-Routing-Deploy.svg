@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="title description">
+  <title id="title">2. Deploy the shared routing topology</title>
+  <desc id="description">Default two-model configuration. Arrows show the request path, not separate deployment steps. Both families reference the same concrete backends; their breaker state is shared. APIM authenticates upstream with managed identity. All capacity is PAYG; tier names are simulated.</desc>
+  <metadata>Source: Azure-OpenAI-v1-Routing.drawio; page: 2 Deploy</metadata>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
+    </marker>
+  </defs>
+  <rect width="1280" height="360" fill="#FFFFFF" />
+  <g id="cell-apim-pools">
+    <path d="M 294 177 L 344 177" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-pools-backends">
+    <path d="M 614 177 L 664 177" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-backends-foundry">
+    <path d="M 934 177 L 984 177" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-title">
+    <text x="24.0" y="45.8" font-family="Arial, Helvetica, sans-serif" font-size="28.0" font-weight="700" fill="#172B4D" text-anchor="start">2. Deploy the shared routing topology</text>
+  </g>
+  <g id="cell-summary">
+    <text x="24.0" y="83.3" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#334155" text-anchor="start">Default two-model configuration. Arrows show the request path, not separate deployment steps.</text>
+  </g>
+  <g id="cell-apim">
+    <rect x="24.0" y="115.0" width="270.0" height="125.0" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+    <text x="159.0" y="160.4" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Existing APIM</text>
+    <text x="159.0" y="183.8" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Four APIs, two POSTs each</text>
+    <text x="159.0" y="207.2" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Reuse identity and logger</text>
+  </g>
+  <g id="cell-pools">
+    <rect x="344.0" y="115.0" width="270.0" height="125.0" rx="10" fill="#F5F3FF" stroke="#6D28D9" stroke-width="2" />
+    <text x="479.0" y="160.4" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Four native pools</text>
+    <text x="479.0" y="183.8" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">2 models x 2 families</text>
+    <text x="479.0" y="207.2" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">standard / priority</text>
+  </g>
+  <g id="cell-backends">
+    <rect x="664.0" y="115.0" width="270.0" height="125.0" rx="10" fill="#F1F5F9" stroke="#475569" stroke-width="2" />
+    <text x="799.0" y="160.4" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Six concrete backends</text>
+    <text x="799.0" y="183.8" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">2 models x 3 accounts</text>
+    <text x="799.0" y="207.2" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">One shared breaker each</text>
+  </g>
+  <g id="cell-foundry">
+    <rect x="984.0" y="115.0" width="270.0" height="125.0" rx="10" fill="#ECFDF5" stroke="#047857" stroke-width="2" />
+    <text x="1119.0" y="160.4" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Three Foundry accounts</text>
+    <text x="1119.0" y="183.8" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Both model deployments</text>
+    <text x="1119.0" y="207.2" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">on every PAYG account</text>
+  </g>
+  <g id="cell-note">
+    <text x="24.0" y="297.1" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#334155" text-anchor="start">Both families reference the same concrete backends; their breaker state is shared.</text>
+    <text x="24.0" y="320.5" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#334155" text-anchor="start">APIM authenticates upstream with managed identity. All capacity is PAYG; tier names are simulated.</text>
+  </g>
+</svg>

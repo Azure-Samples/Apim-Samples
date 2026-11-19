@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="title description">
+  <title id="title">6. Correlate safe error evidence with existing telemetry</title>
+  <desc id="description">The report prints sanitized ProbeResult fields. Trace verification is a separate manual Logs query. Subscription-key and unmatched-operation failures happen before these policy traces. Use gateway/request diagnostics for those failures; allow time for Application Insights ingestion.</desc>
+  <metadata>Source: Azure-OpenAI-v1-Routing.drawio; page: 6 Telemetry</metadata>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
+    </marker>
+  </defs>
+  <rect width="1280" height="360" fill="#FFFFFF" />
+  <g id="cell-local-insights">
+    <path d="M 344 132 L 466 198" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-upstream-insights">
+    <path d="M 344 198 L 466 198" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-gateway-insights">
+    <path d="M 344 264 L 466 198" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-insights-query">
+    <path d="M 806 198 L 928 198" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-title">
+    <text x="24.0" y="45.8" font-family="Arial, Helvetica, sans-serif" font-size="28.0" font-weight="700" fill="#172B4D" text-anchor="start">6. Correlate safe error evidence with existing telemetry</text>
+  </g>
+  <g id="cell-summary">
+    <text x="24.0" y="83.3" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#334155" text-anchor="start">The report prints sanitized ProbeResult fields. Trace verification is a separate manual Logs query.</text>
+  </g>
+  <g id="cell-local">
+    <rect x="24.0" y="108.0" width="320.0" height="48.0" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+    <text x="184.0" y="138.3" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Local rejection trace</text>
+  </g>
+  <g id="cell-upstream">
+    <rect x="24.0" y="174.0" width="320.0" height="48.0" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+    <text x="184.0" y="204.3" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Upstream HTTP error trace</text>
+  </g>
+  <g id="cell-gateway">
+    <rect x="24.0" y="240.0" width="320.0" height="48.0" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+    <text x="184.0" y="270.3" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Gateway on-error trace</text>
+  </g>
+  <g id="cell-insights">
+    <rect x="466.0" y="153.0" width="340.0" height="90.0" rx="10" fill="#F1F5F9" stroke="#475569" stroke-width="2" />
+    <text x="636.0" y="180.9" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Existing Application Insights</text>
+    <text x="636.0" y="204.3" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Reuse the infrastructure logger</text>
+    <text x="636.0" y="227.7" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">No prompt / body capture</text>
+  </g>
+  <g id="cell-query">
+    <rect x="928.0" y="153.0" width="328.0" height="90.0" rx="10" fill="#ECFDF5" stroke="#047857" stroke-width="2" />
+    <text x="1092.0" y="180.9" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">routing-errors.kql</text>
+    <text x="1092.0" y="204.3" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Filter by the error request_id</text>
+    <text x="1092.0" y="227.7" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Confirm matching trace rows</text>
+  </g>
+  <g id="cell-note">
+    <text x="24.0" y="319.6" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#334155" text-anchor="start">Subscription-key and unmatched-operation failures happen before these policy traces.</text>
+    <text x="24.0" y="343.0" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#334155" text-anchor="start">Use gateway/request diagnostics for those failures; allow time for Application Insights ingestion.</text>
+  </g>
+</svg>

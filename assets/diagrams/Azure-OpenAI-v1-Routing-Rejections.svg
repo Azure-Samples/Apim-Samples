@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="title description">
+  <title id="title">4. Distinguish invalid input from an unavailable route</title>
+  <desc id="description">These failures have no successfully selected backend and no x-routing-pool evidence. Live gate: a deferred or unattributed resolver failure must not be relabeled as this graceful 404. Local returns emit a trace before stopping. Empty headers fall back to the body; invalid nonempty headers do not.</desc>
+  <metadata>Source: Azure-OpenAI-v1-Routing.drawio; page: 4 Local rejections</metadata>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
+    </marker>
+  </defs>
+  <rect width="1280" height="360" fill="#FFFFFF" />
+  <g id="cell-invalid-validation">
+    <path d="M 384 151 L 460 151" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-validation-result">
+    <path d="M 820 151 L 896 151" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-unknown-resolver">
+    <path d="M 384 249 L 460 249" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-resolver-result">
+    <path d="M 820 249 L 896 249" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-title">
+    <text x="24.0" y="45.8" font-family="Arial, Helvetica, sans-serif" font-size="28.0" font-weight="700" fill="#172B4D" text-anchor="start">4. Distinguish invalid input from an unavailable route</text>
+  </g>
+  <g id="cell-summary">
+    <text x="24.0" y="83.3" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#334155" text-anchor="start">These failures have no successfully selected backend and no x-routing-pool evidence.</text>
+  </g>
+  <g id="cell-invalid">
+    <rect x="24.0" y="112.0" width="360.0" height="78.0" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+    <text x="204.0" y="145.6" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Missing / invalid model</text>
+    <text x="204.0" y="169.0" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Malformed JSON / stream type</text>
+  </g>
+  <g id="cell-validation">
+    <rect x="460.0" y="112.0" width="360.0" height="78.0" rx="10" fill="#F1F5F9" stroke="#475569" stroke-width="2" />
+    <text x="640.0" y="145.6" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">APIM validation</text>
+    <text x="640.0" y="169.0" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Reject before backend selection</text>
+  </g>
+  <g id="cell-invalid-result">
+    <rect x="896.0" y="112.0" width="360.0" height="78.0" rx="10" fill="#FFF7ED" stroke="#9A3412" stroke-width="2" />
+    <text x="1076.0" y="145.6" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">400 InvalidRequest</text>
+    <text x="1076.0" y="169.0" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">or 404 ModelNotAvailable</text>
+  </g>
+  <g id="cell-unknown">
+    <rect x="24.0" y="210.0" width="360.0" height="78.0" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+    <text x="204.0" y="243.6" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Syntax-valid unknown-model</text>
+    <text x="204.0" y="267.0" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">No matching native pool</text>
+  </g>
+  <g id="cell-resolver">
+    <rect x="460.0" y="210.0" width="360.0" height="78.0" rx="10" fill="#F1F5F9" stroke="#475569" stroke-width="2" />
+    <text x="640.0" y="243.6" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Scoped native pool resolver</text>
+    <text x="640.0" y="267.0" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">No model membership lookup</text>
+  </g>
+  <g id="cell-unknown-result">
+    <rect x="896.0" y="210.0" width="360.0" height="78.0" rx="10" fill="#FFF7ED" stroke="#9A3412" stroke-width="2" />
+    <text x="1076.0" y="243.6" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Expected: 404 model_not_available</text>
+    <text x="1076.0" y="267.0" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Only for an attributed resolver failure</text>
+  </g>
+  <g id="cell-note">
+    <text x="24.0" y="319.6" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#334155" text-anchor="start">Live gate: a deferred or unattributed resolver failure must not be relabeled as this graceful 404.</text>
+    <text x="24.0" y="343.0" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#334155" text-anchor="start">Local returns emit a trace before stopping. Empty headers fall back to the body; invalid nonempty headers do not.</text>
+  </g>
+</svg>

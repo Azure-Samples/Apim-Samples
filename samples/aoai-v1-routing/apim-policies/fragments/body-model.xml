@@ -1,0 +1,62 @@
+<fragment>
+    <!--
+        Purpose: Validate common v1 routing fields and select the body model in inbound.
+        Inputs:
+          - Request JSON object: required string model and optional boolean stream.
+            Chat Completions messages and Responses input are validated upstream.
+          - errorCode (string) and errorStatus (int), initialized by the endpoint policy.
+        Outputs:
+          - bodySelection (JObject): compact result containing model (string),
+            errorCode (string), and errorStatus (int); the full body stays local.
+          - bodyValidation (string): "", InvalidRequest, or ModelNotAvailable.
+          - model (string): body model on success, or "" on validation failure.
+          - If no earlier error exists, failure sets errorCode and errorStatus
+            to InvalidRequest/400 or ModelNotAvailable/404; earlier errors are preserved.
+          - Request body is preserved; processing continues for route-request to handle errors.
+    -->
+    <!-- Keep parsing, validation and model selection together; retain only their result. -->
+    <set-variable name="bodySelection" value='@{
+        var result = new JObject(
+            new JProperty("model", ""),
+            new JProperty("errorCode", ""));
+        try
+        {
+            var body = context.Request.Body.As<JObject>(preserveContent: true);
+            var model = body?["model"];
+            var stream = body?["stream"];
+
+            if (body == null || (stream != null && stream.Type != JTokenType.Boolean))
+            {
+                result["errorCode"] = "InvalidRequest";
+            }
+            else if (model == null || model.Type == JTokenType.Null)
+            {
+                result["errorCode"] = "ModelNotAvailable";
+            }
+            else if (model.Type != JTokenType.String)
+            {
+                result["errorCode"] = "InvalidRequest";
+            }
+            else
+            {
+                result["model"] = (string)model;
+            }
+        }
+        catch
+        {
+            result["errorCode"] = "InvalidRequest";
+        }
+        result["errorStatus"] = (string)result["errorCode"] == "InvalidRequest" ? 400 : 404;
+
+        return result;
+    }' />
+    <set-variable name="bodyValidation" value='@(context.Variables.GetValueOrDefault<JObject>("bodySelection", null)["errorCode"].ToString())' />
+    <set-variable name="model" value='@(context.Variables.GetValueOrDefault<JObject>("bodySelection", null)["model"].ToString())' />
+    <choose>
+        <when condition='@(!String.IsNullOrEmpty((string)context.Variables["bodyValidation"]) &&
+            String.IsNullOrEmpty((string)context.Variables["errorCode"]))'>
+            <set-variable name="errorCode" value='@((string)context.Variables["bodyValidation"])' />
+            <set-variable name="errorStatus" value='@((int)context.Variables.GetValueOrDefault<JObject>("bodySelection", null)["errorStatus"])' />
+        </when>
+    </choose>
+</fragment>

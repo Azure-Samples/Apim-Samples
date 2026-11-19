@@ -1,11 +1,14 @@
 {
   "samples/aoai-v1-migration/README.md": [
-    {"line": 47, "models": ["aoai-v1-migration-1-{{model:aoai-v1-migration.primary:slug}}-pool", "aoai-v1-migration-1-{{model:aoai-v1-migration.secondary:slug}}-pool"]}
+    {"line": 49, "models": ["aoai-v1-migration-1-{{model:aoai-v1-migration.primary:slug}}-pool", "aoai-v1-migration-1-{{model:aoai-v1-migration.secondary:slug}}-pool"]}
+  ],
+  "samples/aoai-v1-routing/README.md": [
+    {"line": 25, "models": ["{{model:aoai-v1-routing.primary:model_name}}", "{{model:aoai-v1-routing.secondary:model_name}}"]}
   ],
   "samples/costing/README.md": [
-    {"line": 21, "models": ["{{model:costing.primary:model_name}}"]},
-    {"line": 23, "models": ["{{model:costing.primary:model_name}}", "{{model:costing.secondary:model_name}}", "{{model:costing.2:model_name}}"]},
-    {"line": 132, "models": ["{{model:costing.primary:model_name}}"]}
+    {"line": 23, "models": ["{{model:costing.primary:model_name}}"]},
+    {"line": 25, "models": ["{{model:costing.primary:model_name}}", "{{model:costing.secondary:model_name}}", "{{model:costing.2:model_name}}"]},
+    {"line": 134, "models": ["{{model:costing.primary:model_name}}"]}
   ],
   "samples/costing/apim-policies/mock-ai-response.xml": [
     {"line": 33, "models": ["{{model:costing.primary:model_name}}"]}
@@ -34,27 +37,27 @@
     {"line": 74, "models": ["{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:version}}"]}
   ],
   "samples/inference-failover/README.md": [
-    {"line": 25, "models": ["{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.secondary:model_name}}"]},
-    {"line": 52, "models": ["{{model:inference-failover.primary:slug}}-retry-tracked"]},
-    {"line": 88, "models": ["a-{{model:inference-failover.primary:slug}}", "{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:version}}"]},
-    {"line": 89, "models": ["b-{{model:inference-failover.primary:slug}}", "{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:version}}"]},
-    {"line": 90, "models": ["c-{{model:inference-failover.secondary:slug}}", "{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:version}}"]},
-    {"line": 91, "models": ["d-{{model:inference-failover.secondary:slug}}", "{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:version}}"]},
-    {"line": 92, "models": ["d-{{model:inference-failover.primary:slug}}", "{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:version}}"]},
-    {"line": 93, "models": ["e-{{model:inference-failover.primary:slug}}", "{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:version}}"]},
-    {"line": 94, "models": ["f-{{model:inference-failover.secondary:slug}}", "{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:version}}"]},
-    {"line": 95, "models": ["g-{{model:inference-failover.primary:slug}}", "{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:version}}"]},
-    {"line": 96, "models": ["h-{{model:inference-failover.secondary:slug}}", "{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:version}}"]},
-    {"line": 112, "models": ["{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:slug}}-PTU-eastus2"]},
-    {"line": 113, "models": ["{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:slug}}-PTU-westus3"]},
-    {"line": 114, "models": ["{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:slug}}-PAYG-eastus2"]},
-    {"line": 115, "models": ["{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:slug}}-PAYG-westus3"]},
-    {"line": 116, "models": ["{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:slug}}-PAYG-southcentralus"]},
-    {"line": 117, "models": ["{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:slug}}-PTU-eastus2"]},
-    {"line": 118, "models": ["{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:slug}}-PTU-westus3"]},
-    {"line": 119, "models": ["{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:slug}}-PAYG-eastus2"]},
-    {"line": 120, "models": ["{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:slug}}-PAYG-southcentralus"]},
-    {"line": 130, "models": ["{{model:inference-failover.primary:slug}}-retry-tracked", "{{model:inference-failover.primary:model_name}}"]}
+    {"line": 27, "models": ["{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.secondary:model_name}}"]},
+    {"line": 54, "models": ["{{model:inference-failover.primary:slug}}-retry-tracked"]},
+    {"line": 90, "models": ["a-{{model:inference-failover.primary:slug}}", "{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:version}}"]},
+    {"line": 91, "models": ["b-{{model:inference-failover.primary:slug}}", "{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:version}}"]},
+    {"line": 92, "models": ["c-{{model:inference-failover.secondary:slug}}", "{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:version}}"]},
+    {"line": 93, "models": ["d-{{model:inference-failover.secondary:slug}}", "{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:version}}"]},
+    {"line": 94, "models": ["d-{{model:inference-failover.primary:slug}}", "{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:version}}"]},
+    {"line": 95, "models": ["e-{{model:inference-failover.primary:slug}}", "{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:version}}"]},
+    {"line": 96, "models": ["f-{{model:inference-failover.secondary:slug}}", "{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:version}}"]},
+    {"line": 97, "models": ["g-{{model:inference-failover.primary:slug}}", "{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:version}}"]},
+    {"line": 98, "models": ["h-{{model:inference-failover.secondary:slug}}", "{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:version}}"]},
+    {"line": 114, "models": ["{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:slug}}-PTU-eastus2"]},
+    {"line": 115, "models": ["{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:slug}}-PTU-westus3"]},
+    {"line": 116, "models": ["{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:slug}}-PAYG-eastus2"]},
+    {"line": 117, "models": ["{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:slug}}-PAYG-westus3"]},
+    {"line": 118, "models": ["{{model:inference-failover.primary:model_name}}", "{{model:inference-failover.primary:slug}}-PAYG-southcentralus"]},
+    {"line": 119, "models": ["{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:slug}}-PTU-eastus2"]},
+    {"line": 120, "models": ["{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:slug}}-PTU-westus3"]},
+    {"line": 121, "models": ["{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:slug}}-PAYG-eastus2"]},
+    {"line": 122, "models": ["{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.secondary:slug}}-PAYG-southcentralus"]},
+    {"line": 132, "models": ["{{model:inference-failover.primary:slug}}-retry-tracked", "{{model:inference-failover.primary:model_name}}"]}
   ],
   "samples/inference-failover/create.ipynb": [
     {"pointer": ["cells", 1, "source", 3], "models": ["{{model:inference-failover.primary:slug}}", "{{model:inference-failover.secondary:model_name}}", "{{model:inference-failover.primary:slug}}-retry-tracked"]},

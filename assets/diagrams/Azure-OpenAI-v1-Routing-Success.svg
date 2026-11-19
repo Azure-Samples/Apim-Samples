@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360" role="img" aria-labelledby="title description">
+  <title id="title">3. Prove a known route returns real generated text</title>
+  <desc id="description">Concrete example: recommended API with a validated priority subscription. Pool names omit the namespace. The body names the same known deployment. Repeat for both models and both POST operations. Changing only the validated subscription changes the expected family, not the request body or API path.</desc>
+  <metadata>Source: Azure-OpenAI-v1-Routing.drawio; page: 3 Success</metadata>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
+    </marker>
+  </defs>
+  <rect width="1280" height="360" fill="#FFFFFF" />
+  <g id="cell-caller-selection">
+    <path d="M 294 177 L 344 177" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-selection-pool">
+    <path d="M 614 177 L 664 177" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-pool-result">
+    <path d="M 934 177 L 984 177" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)" />
+  </g>
+  <g id="cell-title">
+    <text x="24.0" y="45.8" font-family="Arial, Helvetica, sans-serif" font-size="28.0" font-weight="700" fill="#172B4D" text-anchor="start">3. Prove a known route returns real generated text</text>
+  </g>
+  <g id="cell-summary">
+    <text x="24.0" y="83.3" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#334155" text-anchor="start">Concrete example: recommended API with a validated priority subscription. Pool names omit the namespace.</text>
+  </g>
+  <g id="cell-caller">
+    <rect x="24.0" y="115.0" width="270.0" height="125.0" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+    <text x="159.0" y="160.4" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">recommended request</text>
+    <text x="159.0" y="183.8" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">x-ai-model: gpt-5-mini</text>
+    <text x="159.0" y="207.2" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Priority subscription</text>
+  </g>
+  <g id="cell-selection">
+    <rect x="344.0" y="115.0" width="270.0" height="125.0" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+    <text x="479.0" y="160.4" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Select model + family</text>
+    <text x="479.0" y="183.8" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">gpt-5-mini / priority</text>
+    <text x="479.0" y="207.2" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Body stays unchanged</text>
+  </g>
+  <g id="cell-pool">
+    <rect x="664.0" y="115.0" width="270.0" height="125.0" rx="10" fill="#F5F3FF" stroke="#6D28D9" stroke-width="2" />
+    <text x="799.0" y="160.4" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Resolve native pool</text>
+    <text x="799.0" y="183.8" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">gpt-5-mini-priority-pool</text>
+    <text x="799.0" y="207.2" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Pick one eligible backend</text>
+  </g>
+  <g id="cell-result">
+    <rect x="984.0" y="115.0" width="270.0" height="125.0" rx="10" fill="#ECFDF5" stroke="#047857" stroke-width="2" />
+    <text x="1119.0" y="160.4" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Foundry inference</text>
+    <text x="1119.0" y="183.8" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">Return generated text</text>
+    <text x="1119.0" y="207.2" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="middle">HTTP 200 + pool evidence</text>
+  </g>
+  <g id="cell-note">
+    <text x="24.0" y="297.1" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#334155" text-anchor="start">The body names the same known deployment. Repeat for both models and both POST operations.</text>
+    <text x="24.0" y="320.5" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#334155" text-anchor="start">Changing only the validated subscription changes the expected family, not the request body or API path.</text>
+  </g>
+</svg>

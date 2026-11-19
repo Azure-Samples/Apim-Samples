@@ -1,0 +1,50 @@
+<fragment>
+    <!--
+        Purpose: Classify gateway failures and return a safe correlated response in on-error.
+        Inputs:
+          - context.LastError: Reason, Section and PolicyId; context.RequestId for correlation.
+          - routePhase (optional string, default "") identifies an active backend resolver.
+          - scenario (optional string, default unknown) labels the error trace.
+        Outputs:
+          - gatewayCode (string) and gatewayStatus (int): model_not_available/404,
+            UpstreamUnavailable/503, UpstreamTimeout/504, or GatewayError/500.
+          - safeReason (string): bounded machine-readable reason, or Other.
+          - Emits an error trace and terminates processing with safe JSON, Content-Type
+            application/json and x-routing-request-id; arbitrary error messages are not exposed.
+    -->
+    <!-- Connectivity and backend timeouts are distinct from unavailable model routes. -->
+    <set-variable name="gatewayCode" value='@(context.LastError.Reason == "BackendConnectionFailure" ? "UpstreamUnavailable" :
+        context.LastError.Reason == "Timeout" && context.LastError.Section == "backend" ? "UpstreamTimeout" :
+        context.LastError.PolicyId == "resolve-model-pool" && context.LastError.Section == "inbound" &&
+        context.Variables.GetValueOrDefault<string>("routePhase", "") == "resolve" ? "model_not_available" : "GatewayError")' />
+    <set-variable name="gatewayStatus" value='@((string)context.Variables["gatewayCode"] == "model_not_available" ? 404 :
+        (string)context.Variables["gatewayCode"] == "UpstreamUnavailable" ? 503 :
+        (string)context.Variables["gatewayCode"] == "UpstreamTimeout" ? 504 : 500)' />
+    <!-- Retain bounded machine-readable Reason, never arbitrary LastError.Message. -->
+    <set-variable name="safeReason" value='@{
+        var reason = context.LastError.Reason ?? "";
+        return System.Text.RegularExpressions.Regex.IsMatch(reason, "^[A-Za-z][A-Za-z0-9]{0,63}$") ? reason : "Other";
+    }' />
+    <trace source="aoai-v1-routing" severity="error">
+        <message>routing-error</message>
+        <metadata name="requestId" value="@(context.RequestId.ToString())" />
+        <metadata name="scenario" value='@(context.Variables.GetValueOrDefault<string>("scenario", "unknown"))' />
+        <metadata name="errorKind" value='@((string)context.Variables["gatewayCode"])' />
+        <metadata name="status" value='@(((int)context.Variables["gatewayStatus"]).ToString())' />
+        <metadata name="reason" value='@((string)context.Variables["safeReason"])' />
+    </trace>
+    <return-response>
+        <set-status code='@((int)context.Variables["gatewayStatus"])' reason='@((int)context.Variables["gatewayStatus"] == 404 ? "Not Found" :
+            (int)context.Variables["gatewayStatus"] == 503 ? "Service Unavailable" :
+            (int)context.Variables["gatewayStatus"] == 504 ? "Gateway Timeout" : "Internal Server Error")' />
+        <set-header name="Content-Type" exists-action="override"><value>application/json</value></set-header>
+        <set-header name="x-routing-request-id" exists-action="override"><value>@(context.RequestId.ToString())</value></set-header>
+        <set-body>@{
+            var code = (string)context.Variables["gatewayCode"];
+            var message = code == "model_not_available" ? "The specified model is not available for use" :
+                code == "UpstreamTimeout" ? "The upstream request timed out." :
+                code == "UpstreamUnavailable" ? "The upstream service is unavailable." : "The gateway could not complete the request.";
+            return new JObject(new JProperty("error", new JObject(new JProperty("code", code), new JProperty("message", message)))).ToString();
+        }</set-body>
+    </return-response>
+</fragment>
