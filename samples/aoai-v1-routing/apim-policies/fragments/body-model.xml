@@ -19,6 +19,7 @@
         var result = new JObject(
             new JProperty("model", ""),
             new JProperty("errorCode", ""));
+
         try
         {
             var body = context.Request.Body.As<JObject>(preserveContent: true);
@@ -46,6 +47,7 @@
         {
             result["errorCode"] = "InvalidRequest";
         }
+
         result["errorStatus"] = (string)result["errorCode"] == "InvalidRequest" ? 400 : 404;
 
         return result;

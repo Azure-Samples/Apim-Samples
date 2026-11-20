@@ -22,9 +22,13 @@
                 try
                 {
                     var code = (string)context.Response.Body.As<JObject>(preserveContent: true)["error"]?["code"];
+
                     return new [] { "DeploymentNotFound", "model_not_found", "InvalidRequestError", "BadRequest", "RateLimitReached" }.Contains(code) ? code : "UpstreamError";
                 }
-                catch { return "UpstreamError"; }
+                catch
+                {
+                    return "UpstreamError";
+                }
             }' />
             <trace source="aoai-v1-routing" severity="error">
                 <message>routing-error</message>

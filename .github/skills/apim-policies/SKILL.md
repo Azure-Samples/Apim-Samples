@@ -60,6 +60,9 @@ Keep policy XML readable as its control flow grows:
 - Break long policy elements across lines and place one attribute per line when that makes conditions or configuration easier to scan. Preserve the established indentation and policy execution order.
 - Keep related policies together under a clear comment instead of allowing one uninterrupted block of XML. Use comments and whitespace for structure; do not add wrapper policies that change APIM behavior solely for visual grouping.
 - Format multi-statement `@{}` expressions like ordinary C# blocks, with blank lines between distinct calculations or validation phases. Keep short `@()` expressions inline when they remain easy to read.
+- Use one blank line after initialization before a `try`, conditional or loop, and after a completed control-flow block before result assignments or a final `return`. For example, separate a result object's initialization from `try`, then separate the completed `try`/`catch` from an `errorStatus` assignment. Keep related declarations and assignments together; do not add a blank line after every statement or between connected `if`/`else` or `try`/`catch` clauses.
+- Put braces and statements on separate lines inside multi-statement expressions instead of compressing `if` or `catch` bodies onto one line.
+- Prefer C# ternary expressions (`condition ? valueIfTrue : valueIfFalse`) for conditional assignments and returns only when the condition and both outcomes are relatively simple and easy to read. Expand complicated conditions, nesting or chains into `if`/`else` blocks when that makes the logic clearer; do not compress multi-stage validation just to use ternaries. Preserve short-circuit evaluation, null handling, types and earlier-error precedence; retain explicit control flow for multi-step branches, loops and exception handling.
 
 ### Backend Section Cardinality (CRITICAL)
 
@@ -325,6 +328,7 @@ The [Azure OpenAI v1 Routing body-model fragment](../../../samples/aoai-v1-routi
 ```xml
 <set-variable name="result" value='@{
     string[] value;
+
     if (context.Request.Headers.TryGetValue("Authorization", out value))
     {
         if(value != null && value.Length > 0)
@@ -332,6 +336,7 @@ The [Azure OpenAI v1 Routing body-model fragment](../../../samples/aoai-v1-routi
             return Encoding.UTF8.GetString(Convert.FromBase64String(value[0]));
         }
     }
+
     return null;
 }' />
 ```

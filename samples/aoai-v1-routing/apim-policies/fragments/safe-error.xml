@@ -23,6 +23,7 @@
     <!-- Retain bounded machine-readable Reason, never arbitrary LastError.Message. -->
     <set-variable name="safeReason" value='@{
         var reason = context.LastError.Reason ?? "";
+
         return System.Text.RegularExpressions.Regex.IsMatch(reason, "^[A-Za-z][A-Za-z0-9]{0,63}$") ? reason : "Other";
     }' />
     <trace source="aoai-v1-routing" severity="error">
@@ -44,6 +45,7 @@
             var message = code == "model_not_available" ? "The specified model is not available for use" :
                 code == "UpstreamTimeout" ? "The upstream request timed out." :
                 code == "UpstreamUnavailable" ? "The upstream service is unavailable." : "The gateway could not complete the request.";
+
             return new JObject(new JProperty("error", new JObject(new JProperty("code", code), new JProperty("message", message)))).ToString();
         }</set-body>
     </return-response>

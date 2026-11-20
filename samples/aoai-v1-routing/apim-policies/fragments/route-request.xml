@@ -44,6 +44,7 @@
                     var message = code == "ModelNotAvailable" ? "The specified model is not available for use" :
                         code == "SubscriptionNotAllowed" ? "The subscription is not permitted for this scenario." :
                         "The request payload is invalid.";
+
                     return new JObject(new JProperty("error", new JObject(new JProperty("code", code), new JProperty("message", message)))).ToString();
                 }</set-body>
             </return-response>

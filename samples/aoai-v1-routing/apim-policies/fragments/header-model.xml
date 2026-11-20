@@ -11,13 +11,18 @@
     <!-- Select the first nonempty value without reading the body, even for streaming. -->
     <set-variable name="headerModel" value='@{
         string[] values;
+
         if (context.Request.Headers.TryGetValue("x-ai-model", out values))
         {
             foreach (var value in values)
             {
-                if (!String.IsNullOrWhiteSpace(value)) { return value.Trim(); }
+                if (!String.IsNullOrWhiteSpace(value))
+                {
+                    return value.Trim();
+                }
             }
         }
+
         return "";
     }' />
 </fragment>
