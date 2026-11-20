@@ -53,6 +53,21 @@ This sample exposes the two **POST creation operations**, not the full Responses
 
 The standard family uses priorities `[1, 2, 1]` and weights `[3, 1, 1]` for global-standard/ptu/consumption labels. The priority family uses priorities `[2, 1, 1]` and weights `[1, 3, 1]`. Lower numeric priority is preferred; weights matter **within the eligible priority group**. Thus standard favors global-standard over consumption, with ptu as fallback; priority favors ptu over consumption, with global-standard as fallback. No tiny probe set proves the statistical distribution.
 
+### Choosing an Implementation
+
+For a gateway needing both flexible model selection and caller-based service tiers, the default preference order is **recommended > subscription > header > body**:
+
+1. **`recommended` - preferred combined implementation.** Use header-first model selection with body fallback and validated subscription-based standard/priority routing. A nonempty header avoids reading the body; callers without the header can still use the native v1 `model` field.
+1. **`subscription` - preferred when service tiers matter but header selection does not.** Keep model selection in the native body and grant priority only through the configured, validated subscription ID. This is simpler than the combined policy when clients do not need a routing header.
+1. **`header` - preferred when header selection matters but service tiers do not.** Route without reading the body when `x-ai-model` is nonempty, with body fallback otherwise. All callers use the standard family.
+1. **`body` - simplest baseline.** Use only the native v1 `model` field and standard family. Choose this over the more capable policies when neither header selection nor subscription-based priority is needed.
+
+This is a feature-fit guide, not a security or measured-performance ranking. **`subscription` and `header` solve different requirements**: prefer `header` over `subscription` when body-read avoidance matters more than service tiers. Header-first routing never rewrites or checks the body's model when a header is present; the caller must keep it compatible with the selected upstream.
+
+All four implementations share the same backends, circuit breakers, managed-identity authentication, sanitized errors and unbuffered, single-attempt forwarding. The combined implementation does not add retries, Responses account affinity or per-model authorization. Layer production identity-based access controls onto whichever implementation you choose.
+
+**Learning order is different from preference order:** the notebook introduces **body -> header -> subscription -> recommended** to explain each technique before combining them. Keep running its sections in their existing order; these are alternative API policies, not sequential routing stages.
+
 ### Policy Composition
 
 Endpoint policies show only applicable choices. There are no runtime scenario switches: `scenario` is a fixed telemetry label, set after inherited inbound policies and reset in each endpoint's error section so inherited failures retain the correct label. Deployment selects the policy file; a request never selects a scenario branch inside a shared policy.
