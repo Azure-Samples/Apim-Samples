@@ -23,24 +23,24 @@
         try
         {
             var body = context.Request.Body.As<JObject>(preserveContent: true);
-            var model = body?["model"];
+            var modelToken = body?["model"];
             var stream = body?["stream"];
 
             if (body == null || (stream != null && stream.Type != JTokenType.Boolean))
             {
                 result["errorCode"] = "InvalidRequest";
             }
-            else if (model == null || model.Type == JTokenType.Null)
+            else if (modelToken == null || modelToken.Type == JTokenType.Null)
             {
                 result["errorCode"] = "ModelNotAvailable";
             }
-            else if (model.Type != JTokenType.String)
+            else if (modelToken.Type != JTokenType.String)
             {
                 result["errorCode"] = "InvalidRequest";
             }
             else
             {
-                result["model"] = (string)model;
+                result["model"] = (string)modelToken;
             }
         }
         catch
