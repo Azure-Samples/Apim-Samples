@@ -714,6 +714,8 @@ def test_backend_labels_parse_exact_distinct_deployed_https_origins():
         helpers.capacity_backend_labels(accounts[:2])
     with pytest.raises(ValueError, match = 'distinct HTTPS'):
         helpers.capacity_backend_labels([*accounts[:2], accounts[0]])
+    with pytest.raises(ValueError, match = 'three distinct'):
+        helpers.capacity_backend_labels([*accounts[:2], {**accounts[2], 'label': None}])
 
 
 def test_probe_retains_backend_host_and_normalizes_retry_after(monkeypatch):
@@ -1079,9 +1081,10 @@ def test_capacity_chart_does_not_invent_a_load_gap_without_load_responses():
         plt.close(figure)
 
 
-def test_capacity_chart_without_load_keeps_retry_duration_without_inventing_an_origin():
-    """A recovery throttle can be shown even when there was no first load response."""
-    baseline = chart_probe(200, 'global-standard', 0.1)
+@pytest.mark.parametrize('baseline_throttled', [False, True])
+def test_capacity_chart_without_load_keeps_retry_duration_without_inventing_an_origin(baseline_throttled):
+    """Baseline and recovery throttles retain their reported durations without a load origin."""
+    baseline = chart_probe(429 if baseline_throttled else 200, 'global-standard', 0.1, retry_after = 90 if baseline_throttled else 0)
     recovery = chart_probe(429, 'global-standard', 0.1, retry_after = 5)
     evidence = helpers.TimedCapacityEvidence(
         baseline, (), recovery, False, False, 65, observation_times_seconds = (0, 65),
@@ -1092,7 +1095,8 @@ def test_capacity_chart_without_load_keeps_retry_duration_without_inventing_an_o
     try:
         routing = figure.axes[1]
         assert any(collection.get_hatch() == '///' for collection in routing.collections)
-        assert [text.get_text() for text in routing.texts] == ['5s duration (continues)']
+        expected = '5-90s durations (merged) (continues)' if baseline_throttled else '5s duration (continues)'
+        assert [text.get_text() for text in routing.texts] == [expected]
         assert routing.get_xlabel() == 'Request\nTime (no load)'
     finally:
         plt.close(figure)
@@ -1221,6 +1225,37 @@ def test_capacity_chart_warns_when_retry_window_labels_cannot_fit():
         assert len(figure.axes[1].texts) == 40
     finally:
         plt.close(figure)
+
+
+def test_capacity_chart_warns_when_recovery_tick_font_cannot_fit():
+    """An oversized user font reports the layout limitation instead of silently hiding it."""
+    baseline = chart_probe(200, 'global-standard', 0.1)
+    evidence = helpers.TimedCapacityEvidence(
+        baseline, (baseline,), baseline, False, False, 65, observation_times_seconds = (0, 1, 65),
+    )
+    with plt.rc_context({'xtick.labelsize': 600}), pytest.warns(UserWarning, match = 'recovery label is too wide'):
+        figure = helpers.capacity_figure(
+            'case', evidence, CAPACITY_LABELS, preferred_labels = ('global-standard', 'consumption'), fallback_label = 'ptu',
+        )
+    try:
+        assert len(figure.axes) == 2
+    finally:
+        plt.close(figure)
+
+
+@pytest.mark.parametrize('retry_after', [True, -1, 1.5])
+def test_capacity_chart_rejects_invalid_retry_after(retry_after):
+    """Malformed retained retry durations must not become misleading chart windows."""
+    baseline = chart_probe(200, 'global-standard', 0.1)
+    evidence = helpers.CapacityEvidence(
+        baseline, (chart_probe(429, 'consumption', retry_after = retry_after),), baseline, False, False, 65,
+    )
+    before = plt.get_fignums()
+    with pytest.raises(ValueError, match = 'invalid Retry-After duration'):
+        helpers.capacity_figure(
+            'case', evidence, CAPACITY_LABELS, preferred_labels = ('global-standard', 'consumption'), fallback_label = 'ptu',
+        )
+    assert plt.get_fignums() == before
 
 
 def test_capacity_chart_legacy_retry_after_does_not_invent_elapsed_time():
@@ -1380,17 +1415,47 @@ def test_capacity_uses_latest_deadline_per_preferred_backend(steps, expected_wai
     assert result.recovery.completion
 
 
-def test_capacity_next_case_waits_for_other_backends_after_early_recovery():
+@pytest.mark.parametrize('recovery_time,remaining', [(32, 67), (99, 0)])
+def test_capacity_next_case_waits_for_other_backends_after_early_recovery(recovery_time, remaining):
     """The early recovery request does not imply all shared backends have cooled down."""
     baseline = chart_probe(200, 'global-standard', 0.1)
     evidence = helpers.TimedCapacityEvidence(
         baseline,
         (chart_probe(429, 'global-standard', 0.1, retry_after = 30), chart_probe(429, 'consumption', 0.1, retry_after = 90)),
-        baseline, True, True, 28, observation_times_seconds = (0, 1, 4, 32),
+        baseline, True, True, 28, observation_times_seconds = (0, 1, 4, recovery_time),
     )
     sleep = MagicMock()
-    assert helpers.wait_for_capacity_isolation(evidence, sleep = sleep) == 67
-    sleep.assert_called_once_with(67)
+    assert helpers.wait_for_capacity_isolation(evidence, sleep = sleep) == remaining
+    if remaining:
+        sleep.assert_called_once_with(remaining)
+    else:
+        sleep.assert_not_called()
+
+
+@pytest.mark.parametrize('pressure_count,times', [(0, (0, 65)), (1, (0, 65))])
+def test_capacity_isolation_rejects_incomplete_evidence_without_sleep(pressure_count, times):
+    """Do not start another case when the previous cooldown cannot be established."""
+    baseline = chart_probe(200, 'global-standard', 0.1)
+    evidence = helpers.TimedCapacityEvidence(
+        baseline, (baseline,) * pressure_count, baseline, False, False, 65, observation_times_seconds = times,
+    )
+    sleep = MagicMock()
+    with pytest.raises(ValueError, match = 'complete pressure and recovery timestamps'):
+        helpers.wait_for_capacity_isolation(evidence, sleep = sleep)
+    sleep.assert_not_called()
+
+
+def test_capacity_isolation_stops_when_remaining_cooldown_exceeds_bound():
+    """A long reported retry window stops further traffic instead of an unbounded wait."""
+    baseline = chart_probe(200, 'global-standard', 0.1)
+    evidence = helpers.TimedCapacityEvidence(
+        baseline, (chart_probe(429, 'consumption', retry_after = 200),), baseline, False, False, 1,
+        observation_times_seconds = (0, 1, 2),
+    )
+    sleep = MagicMock()
+    with pytest.raises(RuntimeError, match = 'more than 180 seconds'):
+        helpers.wait_for_capacity_isolation(evidence, sleep = sleep)
+    sleep.assert_not_called()
 
 
 @pytest.mark.parametrize('status,tier', [(429, 'global-standard'), (503, None)])
@@ -1568,13 +1633,14 @@ def test_capacity_chart_member_labels_match_bicep_pool_configuration(family, pre
     [
         ('unrecognized-pool', ('global-standard', 'consumption'), 'ptu'),
         (CAPACITY_POOL, ('ptu', 'consumption'), 'global-standard'),
+        (CAPACITY_POOL, ('global-standard', 'global-standard'), 'ptu'),
     ],
 )
 def test_capacity_chart_rejects_unknown_or_mismatched_pool_configuration(pool, preferred, fallback):
     """Do not label unknown or mismatched pools with invented priority and weight values."""
     baseline = chart_probe(200, preferred[0], 0.1, pool)
     evidence = helpers.CapacityEvidence(baseline, (), baseline, False, False, 0)
-    with pytest.raises(ValueError, match = 'pool configuration'):
+    with pytest.raises(ValueError, match = 'pool configuration|distinct deployed tier labels'):
         helpers.capacity_figure('case', evidence, CAPACITY_LABELS, preferred_labels = preferred, fallback_label = fallback)
 
 
@@ -2004,7 +2070,10 @@ def test_notebook_proves_header_bypass_on_header_and_recommended_routes(monkeypa
             selected = [call for call in calls if call[0] == f'/{namespace["paths"][scenario]}/{pathway}']
             selector = namespace['model_configuration'][0]['deploymentName']
             assert [(payload, headers) for _, payload, headers in selected] == [
-                ({**namespace['request_payloads'][pathway], 'model': 'not-deployed-on-any-account'}, {'x-ai-model': selector}),
+                *[
+                    ({**namespace['request_payloads'][pathway], 'model': 'not-deployed-on-any-account'}, {'x-ai-model': model['deploymentName']})
+                    for model in namespace['model_configuration']
+                ],
                 ('not-an-object', {'x-ai-model': selector}),
             ]
 
@@ -2018,12 +2087,10 @@ def test_notebook_missing_route_acceptance_gate_is_not_status_only(monkeypatch, 
     invalid = helpers.ProbeResult(400, 'InvalidRequest', 'The request payload is invalid.', False, '', REQUEST_ID)
     pool = f'{namespace["sample_name"]}-{namespace["model_configuration"][0]["deploymentName"]}-standard-pool'
     success = helpers.ProbeResult(200, None, None, True, pool, REQUEST_ID)
-    rows = [
-        missing_route, missing_selector, invalid, invalid, invalid, invalid,  # Body.
-        missing_route, missing_route, missing_route,  # Other APIs' body-based resolution.
-        success, missing_route, missing_selector,  # Header.
-        missing_route, missing_selector,  # Recommended's empty header is checked in the success cell.
-    ] * 2
+    rows = (
+        [missing_route, missing_selector, invalid, invalid, invalid, invalid] * len(namespace['scenario_names'])
+        + [success, missing_route, missing_selector] * 2
+    ) * len(namespace['request_payloads'])
     if deferred_failure:
         rows[0] = helpers.ProbeResult(500, 'GatewayError', 'The gateway could not complete the request.', False, '', REQUEST_ID)
     remaining = iter(rows)
@@ -2040,22 +2107,22 @@ def test_notebook_missing_route_acceptance_gate_is_not_status_only(monkeypatch, 
         assert remote.call_count == 1
     else:
         exec(compile(code['routing-rejections'], '<routing-rejections>', 'exec'), namespace)
-        assert remote.call_count == 28
+        assert remote.call_count == 60
         assert namespace['results'][0].error_code == 'model_not_available'
         for pathway in ('chat/completions', 'responses'):
             by_scenario = {
                 scenario: [call for call in remote.call_args_list if call.args[1] == f'/{namespace["paths"][scenario]}/{pathway}']
                 for scenario in namespace['scenario_names']
             }
-            assert [len(by_scenario[scenario]) for scenario in namespace['scenario_names']] == [6, 4, 1, 3]
+            assert [len(by_scenario[scenario]) for scenario in namespace['scenario_names']] == [6, 9, 6, 9]
             for calls in by_scenario.values():
                 assert calls[0].args[2]['model'] == 'unknown-model'
                 assert not calls[0].kwargs.get('headers')
             for scenario, expected_headers in (
                 ('header', ['', 'unknown-model', '../invalid']),
-                ('recommended', ['unknown-model', '../invalid']),
+                ('recommended', ['', 'unknown-model', '../invalid']),
             ):
-                assert [call.kwargs['headers']['x-ai-model'] for call in by_scenario[scenario][1:]] == expected_headers
+                assert [call.kwargs['headers']['x-ai-model'] for call in by_scenario[scenario][6:]] == expected_headers
 
 
 def parse_policy(path: Path) -> ET.Element:

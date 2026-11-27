@@ -262,7 +262,8 @@ def test_routing_chart_reload_preserves_old_evidence_and_creates_timed_probes(
     module = reload_shell.user_ns['reload_routing_evidence']
     request_id = '12345678-1234-1234-1234-123456789abc'
     host = 'global-standard.example.invalid'
-    baseline = module.ProbeResult(200, None, None, True, 'test', request_id, host)
+    pool = 'fixture-standard-pool'
+    baseline = module.ProbeResult(200, None, None, True, pool, request_id, host)
     evidence = SimpleNamespace(
         baseline = baseline, pressure = (), recovery = baseline, fallback_served = False,
         exhausted = False, recovery_wait_seconds = 65, stop_reason = 'request-limit', elapsed_seconds = 0,
@@ -279,7 +280,7 @@ def test_routing_chart_reload_preserves_old_evidence_and_creates_timed_probes(
 
     figure = module.capacity_figure('previous run', evidence, labels, preferred_labels = ('global-standard', 'consumption'), fallback_label = 'ptu')
     try:
-        assert not figure.axes[0].patches
+        assert not figure.axes[0].containers
         assert 'not recorded' in ' '.join(text.get_text() for text in figure.axes[0].texts).lower()
         assert len(figure.axes[1].collections) == 1
     finally:
@@ -289,7 +290,7 @@ def test_routing_chart_reload_preserves_old_evidence_and_creates_timed_probes(
     client.multiPost.return_value = [{
         'status_code': 200,
         'response': '{"choices":[{"message":{"content":"ok"}}]}',
-        'headers': {'x-routing-request-id': request_id, 'x-routing-pool': 'test', 'x-routing-backend-host': host},
+        'headers': {'x-routing-request-id': request_id, 'x-routing-pool': pool, 'x-routing-backend-host': host},
         'response_time': 0.25,
     }]
     measured = module._probe(client, '/chat/completions', {}, None)

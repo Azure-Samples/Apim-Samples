@@ -701,9 +701,7 @@ def exercise_capacity(
                 # Gateway-local selection may reach a recovered member before a prior
                 # observation expires. A real success overrides that stale assumption.
                 healthy = {label for result, label, _ in batch if result.status == 200}
-                for label in healthy:
-                    if label is not None:
-                        throttled_until.pop(label, None)
+                throttled_until = {tier: until for tier, until in throttled_until.items() if tier not in healthy}
                 # This batch's selections predate its new 429s; retain those new
                 # observations only for decisions made by the next batch.
                 for result, label, observed_at in batch:
