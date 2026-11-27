@@ -1111,7 +1111,7 @@ def test_capacity_chart_keeps_long_window_labels_and_gap_summary_readable():
         baseline, pressure, baseline, False, False, 20, observation_times_seconds = (*range(21), 41),
     )
     figure = helpers.capacity_figure(
-        'responses/standard/gpt-5-mini', evidence, CAPACITY_LABELS,
+        f'responses/standard/{ApprovedModel.GPT_5_MINI.model_name}', evidence, CAPACITY_LABELS,
         preferred_labels = ('global-standard', 'consumption'), fallback_label = 'ptu',
     )
     try:
@@ -1421,7 +1421,7 @@ def test_capacity_chart_shows_latency_routing_and_unattributed_exhaustion(error_
     recovery = chart_probe(200, 'consumption', 0.7)
     evidence = helpers.CapacityEvidence(baseline, pressure, recovery, True, True, 65, 'exhausted', 15)
     figure = helpers.capacity_figure(
-        'chat/completions/standard/gpt-5-mini', evidence, CAPACITY_LABELS,
+        f'chat/completions/standard/{ApprovedModel.GPT_5_MINI.model_name}', evidence, CAPACITY_LABELS,
         preferred_labels = ('global-standard', 'consumption'), fallback_label = 'ptu',
     )
     try:
@@ -1461,7 +1461,7 @@ def test_capacity_chart_handles_previous_runs_and_missing_transitions():
         exhausted = False, recovery_wait_seconds = 65, stop_reason = 'request-limit', elapsed_seconds = 2,
     )
     figure = helpers.capacity_figure(
-        'responses/standard/gpt-5-mini', evidence, CAPACITY_LABELS,
+        f'responses/standard/{ApprovedModel.GPT_5_MINI.model_name}', evidence, CAPACITY_LABELS,
         preferred_labels = ('global-standard', 'consumption'), fallback_label = 'ptu',
     )
     try:
@@ -1486,7 +1486,7 @@ def test_capacity_chart_never_invents_missing_response_times():
     baseline = chart_probe(200, 'global-standard', 0.2)
     evidence = helpers.CapacityEvidence(baseline, (chart_probe(429, 'consumption'),), baseline, False, False, 65)
     figure = helpers.capacity_figure(
-        'responses/standard/gpt-5-mini', evidence, CAPACITY_LABELS,
+        f'responses/standard/{ApprovedModel.GPT_5_MINI.model_name}', evidence, CAPACITY_LABELS,
         preferred_labels = ('global-standard', 'consumption'), fallback_label = 'ptu',
     )
     try:
@@ -1505,7 +1505,7 @@ def test_capacity_chart_uses_priority_family_and_does_not_overclaim_recovery():
     recovery = chart_probe(200, 'global-standard', 0.2, pool)
     evidence = helpers.CapacityEvidence(baseline, (), recovery, True, True, 65, 'exhausted', 1)
     figure = helpers.capacity_figure(
-        'responses/priority/gpt-5-mini', evidence, CAPACITY_LABELS,
+        f'responses/priority/{ApprovedModel.GPT_5_MINI.model_name}', evidence, CAPACITY_LABELS,
         preferred_labels = ('ptu', 'consumption'), fallback_label = 'global-standard',
     )
     try:
@@ -1549,7 +1549,7 @@ def test_capacity_chart_member_labels_match_bicep_pool_configuration(family, pre
     baseline = chart_probe(200, preferred[0], 0.1, pool)
     evidence = helpers.CapacityEvidence(baseline, (), baseline, False, False, 0)
     figure = helpers.capacity_figure(
-        f'chat/completions/{family}/gpt-5-mini', evidence, CAPACITY_LABELS,
+        f'chat/completions/{family}/{ApprovedModel.GPT_5_MINI.model_name}', evidence, CAPACITY_LABELS,
         preferred_labels = preferred, fallback_label = fallback,
     )
     try:
@@ -1592,7 +1592,7 @@ def test_capacity_chart_explains_each_experiment_with_accessible_labels(operatio
         helpers.TimedCapacityEvidence(baseline, (), baseline, False, False, 65, observation_times_seconds = (0.0, 65.0))
         if timed else helpers.CapacityEvidence(baseline, (), baseline, False, False, 65)
     )
-    label = f'{operation}/{family}/gpt-5-mini'
+    label = f'{operation}/{family}/{ApprovedModel.GPT_5_MINI.model_name}'
     figure = helpers.capacity_figure(label, evidence, CAPACITY_LABELS, preferred_labels = preferred, fallback_label = fallback)
     try:
         title, timing, summary, caption = figure.texts
@@ -1783,7 +1783,7 @@ def test_notebook_charts_reuse_existing_capacity_evidence_without_requests(monke
     namespace, code = initialized_notebook(monkeypatch)
     result = helpers.ProbeResult(200, None, None, True, CAPACITY_POOL, REQUEST_ID, 'global-standard.example.invalid')
     evidence = helpers.CapacityEvidence(result, (result,), result, True, True, 65)
-    namespace['capacity_results'] = [('chat/completions/standard/gpt-5-mini', evidence)]
+    namespace['capacity_results'] = [(f'chat/completions/standard/{ApprovedModel.GPT_5_MINI.model_name}', evidence)]
     namespace['backend_labels'] = CAPACITY_LABELS
     namespace['capacity_families'] = [('standard', 'secret', ('global-standard', 'consumption'), 'ptu')]
     figure = plt.figure()
@@ -1793,7 +1793,7 @@ def test_notebook_charts_reuse_existing_capacity_evidence_without_requests(monke
     monkeypatch.setattr('IPython.display.display', show)
     exec(compile(code['routing-charts'], '<routing-charts>', 'exec'), namespace)
     plot.assert_called_once_with(
-        'chat/completions/standard/gpt-5-mini', evidence, CAPACITY_LABELS,
+        f'chat/completions/standard/{ApprovedModel.GPT_5_MINI.model_name}', evidence, CAPACITY_LABELS,
         preferred_labels = ('global-standard', 'consumption'), fallback_label = 'ptu',
     )
     show.assert_called_once_with(figure)
@@ -1819,7 +1819,7 @@ def test_notebook_chart_closes_figure_when_display_fails(monkeypatch):
     """Displaying a graph must not leave a figure open on failure."""
     namespace, code = initialized_notebook(monkeypatch)
     result = helpers.ProbeResult(200, None, None, True, CAPACITY_POOL, REQUEST_ID, 'global-standard.example.invalid')
-    namespace['capacity_results'] = [('responses/standard/gpt-5-mini', helpers.CapacityEvidence(result, (), result, True, True, 65))]
+    namespace['capacity_results'] = [(f'responses/standard/{ApprovedModel.GPT_5_MINI.model_name}', helpers.CapacityEvidence(result, (), result, True, True, 65))]
     namespace['backend_labels'] = CAPACITY_LABELS
     namespace['capacity_families'] = [('standard', 'secret', ('global-standard', 'consumption'), 'ptu')]
     figure = plt.figure()

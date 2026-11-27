@@ -1,9 +1,82 @@
 {
+  "assets/diagrams/Azure-OpenAI-v1-Routing-Success.svg": [
+    {"line": 29, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]},
+    {"line": 35, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]},
+    {"line": 41, "models": ["{{model:aoai-v1-routing.primary:model_name}}-priority-pool"]}
+  ],
+  "assets/diagrams/Azure-OpenAI-v1-Routing-Upstream.svg": [
+    {"line": 29, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]}
+  ],
+  "assets/diagrams/Azure-OpenAI-v1-Routing.drawio": [
+    {"line": 61, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]},
+    {"line": 70, "models": ["{{model:aoai-v1-routing.primary:model_name}}-standard-pool"]},
+    {"line": 73, "models": ["{{model:aoai-v1-routing.primary:model_name}}-priority-pool"]},
+    {"line": 94, "models": ["{{model:aoai-v1-routing.primary:model_name}}-global-standard"]},
+    {"line": 97, "models": ["{{model:aoai-v1-routing.primary:model_name}}-ptu"]},
+    {"line": 100, "models": ["{{model:aoai-v1-routing.primary:model_name}}-consumption"]},
+    {"line": 103, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]},
+    {"line": 106, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]},
+    {"line": 109, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]},
+    {"line": 124, "models": ["{{model:aoai-v1-routing.secondary:model_name}}"]},
+    {"line": 133, "models": ["{{model:aoai-v1-routing.secondary:model_name}}-standard-pool"]},
+    {"line": 136, "models": ["{{model:aoai-v1-routing.secondary:model_name}}-priority-pool"]},
+    {"line": 157, "models": ["{{model:aoai-v1-routing.secondary:model_name}}-global-standard"]},
+    {"line": 160, "models": ["{{model:aoai-v1-routing.secondary:model_name}}-ptu"]},
+    {"line": 163, "models": ["{{model:aoai-v1-routing.secondary:model_name}}-consumption"]},
+    {"line": 166, "models": ["{{model:aoai-v1-routing.secondary:model_name}}"]},
+    {"line": 169, "models": ["{{model:aoai-v1-routing.secondary:model_name}}"]},
+    {"line": 172, "models": ["{{model:aoai-v1-routing.secondary:model_name}}"]},
+    {"line": 234, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]},
+    {"line": 235, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]},
+    {"line": 236, "models": ["{{model:aoai-v1-routing.primary:model_name}}-priority-pool"]},
+    {"line": 271, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]}
+  ],
+  "assets/diagrams/Azure-OpenAI-v1-Routing.svg": [
+    {"line": 3, "models": ["{{model:aoai-v1-routing.primary:model_name}}", "{{model:aoai-v1-routing.secondary:model_name}}"]},
+    {"line": 78, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]},
+    {"line": 88, "models": ["{{model:aoai-v1-routing.primary:model_name}}-standard-pool"]},
+    {"line": 95, "models": ["{{model:aoai-v1-routing.primary:model_name}}-priority-pool"]},
+    {"line": 120, "models": ["{{model:aoai-v1-routing.primary:model_name}}-global-standard"]},
+    {"line": 125, "models": ["{{model:aoai-v1-routing.primary:model_name}}-ptu"]},
+    {"line": 130, "models": ["{{model:aoai-v1-routing.primary:model_name}}-consumption"]},
+    {"line": 136, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]},
+    {"line": 141, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]},
+    {"line": 146, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]},
+    {"line": 161, "models": ["{{model:aoai-v1-routing.secondary:model_name}}"]},
+    {"line": 171, "models": ["{{model:aoai-v1-routing.secondary:model_name}}-standard-pool"]},
+    {"line": 178, "models": ["{{model:aoai-v1-routing.secondary:model_name}}-priority-pool"]},
+    {"line": 203, "models": ["{{model:aoai-v1-routing.secondary:model_name}}-global-standard"]},
+    {"line": 208, "models": ["{{model:aoai-v1-routing.secondary:model_name}}-ptu"]},
+    {"line": 213, "models": ["{{model:aoai-v1-routing.secondary:model_name}}-consumption"]},
+    {"line": 219, "models": ["{{model:aoai-v1-routing.secondary:model_name}}"]},
+    {"line": 224, "models": ["{{model:aoai-v1-routing.secondary:model_name}}"]},
+    {"line": 229, "models": ["{{model:aoai-v1-routing.secondary:model_name}}"]}
+  ],
   "samples/aoai-v1-migration/README.md": [
     {"line": 49, "models": ["aoai-v1-migration-1-{{model:aoai-v1-migration.primary:slug}}-pool", "aoai-v1-migration-1-{{model:aoai-v1-migration.secondary:slug}}-pool"]}
   ],
   "samples/aoai-v1-routing/README.md": [
-    {"line": 25, "models": ["{{model:aoai-v1-routing.primary:model_name}}", "{{model:aoai-v1-routing.secondary:model_name}}"]}
+    {"line": 27, "models": ["{{model:aoai-v1-routing.primary:model_name}}", "{{model:aoai-v1-routing.secondary:model_name}}"]},
+    {"line": 93, "models": ["{{model:aoai-v1-routing.primary:model_name}}", "{{model:aoai-v1-routing.secondary:model_name}}"]}
+  ],
+  "samples/aoai-v1-routing/apim-policies/body.xml": [
+    {"line": 11, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]}
+  ],
+  "samples/aoai-v1-routing/apim-policies/fragments/route-request.xml": [
+    {"line": 57, "models": ["aoai-v1-routing-1-{{model:aoai-v1-routing.primary:model_name}}-standard-pool"]}
+  ],
+  "samples/aoai-v1-routing/apim-policies/header.xml": [
+    {"line": 11, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]}
+  ],
+  "samples/aoai-v1-routing/apim-policies/recommended.xml": [
+    {"line": 12, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]}
+  ],
+  "samples/aoai-v1-routing/apim-policies/subscription.xml": [
+    {"line": 13, "models": ["{{model:aoai-v1-routing.primary:model_name}}"]}
+  ],
+  "samples/aoai-v1-routing/create.ipynb": [
+    {"pointer": ["cells", 1, "source", 11], "models": ["{{model:aoai-v1-routing.primary:model_name}}", "{{model:aoai-v1-routing.secondary:model_name}}"]},
+    {"pointer": ["cells", 5, "source", 15], "models": ["{{model:aoai-v1-routing.primary:model_name}}", "aoai-v1-routing-1-{{model:aoai-v1-routing.primary:model_name}}-priority-pool", "{{model:aoai-v1-routing.primary:model_name}}"]}
   ],
   "samples/costing/README.md": [
     {"line": 23, "models": ["{{model:costing.primary:model_name}}"]},

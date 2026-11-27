@@ -223,7 +223,7 @@ def _render_field(actual: str, references: list[str], selections: dict[str, tupl
         for reference in references for spec in known
         if all(_model_field(spec, token[2]) is not None for token in TOKEN.finditer(reference))
     }
-    pattern = re.compile(r'(?<![\w.-])(?:' + '|'.join(re.escape(value) for value in sorted(candidates, key = lambda value: (-len(value), value))) + r')(?![\w.-])')
+    pattern = re.compile(r'(?<![\w.-])(?:' + '|'.join(re.escape(value) for value in sorted(candidates, key = lambda value: (-len(value), value))) + r')(?![\w-]|\.[\w.-])')
     if len(pattern.findall(actual)) != len(references) or _has_literal(pattern.sub('', actual), approved):
         raise ValueError(f'{location}: Model references changed; update the asset binding before rendering')
     return pattern.sub(lambda _match: next(values), actual)
@@ -367,8 +367,10 @@ def check_catalog(root: Path, *, write: bool = False, paths: list[str] | None = 
         errors.append(f'{PYTHON_PATH}: generated Python is stale; run setup/model_catalog.py --write')
     for relative, entries in bindings.items():
         path = _resolve_path(root, relative)
-        if path.suffix not in SUFFIXES - {'.py', '.bicep'} or not relative.startswith('samples/'):
-            raise ValueError(f'Bindings may only own sample asset fields: {relative}')
+        sample_asset = relative.startswith('samples/') and path.suffix in SUFFIXES - {'.py', '.bicep'}
+        diagram_asset = relative.startswith('assets/diagrams/') and path.suffix in {'.svg', '.drawio'}
+        if not (sample_asset or diagram_asset):
+            raise ValueError(f'Bindings may only own sample asset fields or SVG/Draw.io diagram fields: {relative}')
         if not isinstance(entries, list) or not entries:
             raise ValueError(f'{relative}: bindings must be a non-empty array')
         original = path.read_text(encoding = 'utf-8')

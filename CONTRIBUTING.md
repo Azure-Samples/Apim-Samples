@@ -52,7 +52,9 @@ python setup/model_catalog.py --write
 python setup/model_catalog.py --check
 ```
 
-Commit the source JSON, generated Python, and rendered assets together. [Bindings](setup/model_catalog_bindings.json) list asset locations and ordered model-bearing words, using `{{model:owner.member:field}}` references with any resource-name affixes. The tool reads notebooks without executing them. Python CI runs `--check`, which verifies generated Python freshness and asset ownership without writing. Only exact independent [test-fixture scopes](setup/model_catalog_exceptions.json) may retain literals; no blanket exclusions.
+Commit the source JSON, generated Python, and rendered assets together. [Bindings](setup/model_catalog_bindings.json) list asset locations and ordered model-bearing words, using `{{model:owner.member:field}}` references with any resource-name affixes. Bindings may own sample assets and SVG/Draw.io files under [assets/diagrams](assets/diagrams/); bind both editable diagram sources and their exports. The tool reads notebooks without executing them. Python CI runs `--check`, which verifies generated Python freshness and asset ownership without writing. Only exact independent [test-fixture scopes](setup/model_catalog_exceptions.json) may retain literals; no blanket exclusions.
+
+When editing a bound asset, update its binding if model-bearing lines or JSON fields move, or if the number or order of model references changes. A `Model references changed` failure requires correcting the binding before running `--write`; regeneration does not repair stale locations. Keep CI read-only and commit the corrected bindings with the assets.
 
 Remove decommissioned models and their pricing. There is no historical registry or pricing fallback. `apimtypes.AzureOpenAIModel` aliases `ApprovedModel`; use `.model_name` and `.version`, not `.value` as a string. Restart kernels after enum edits.
 
