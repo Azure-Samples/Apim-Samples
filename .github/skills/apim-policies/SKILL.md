@@ -137,6 +137,10 @@ Route requests to a specific backend:
 <set-backend-service backend-id="my-backend" />
 ```
 
+### Native Backend Pool Exhaustion
+
+A native pool with no eligible members can raise `context.LastError.Reason == "PoolIsInactive"` in `on-error`, as observed in the Azure OpenAI v1 Routing sample's live traces. Classify that exact reason as 503 unavailable capacity before a scoped missing-route guard; do not treat it as a missing model or translate arbitrary gateway 500s into exhaustion. Retain a sanitized reason and correlation ID for diagnosis. Capacity tests must independently establish prior member throttling; a 503 alone does not prove quota exhaustion.
+
 ### Forward Request Timeout
 
 Set `timeout="60"` explicitly on every `forward-request` policy. This bounds each backend attempt to 60 seconds, including each attempt nested inside a `retry` policy.

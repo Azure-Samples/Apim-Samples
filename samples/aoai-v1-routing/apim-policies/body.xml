@@ -39,12 +39,13 @@
             to the model service with APIM's managed identity instead.
           - Make one attempt with a 60-second timeout and no retries; do not buffer
             the response. Successful response bodies and HTTP statuses are unchanged.
-          - Add x-routing-request-id for troubleshooting and x-routing-pool after a
+          - Add x-routing-request-id for troubleshooting and x-routing-pool plus
+            x-routing-backend-host (resolved hostname, without path or credentials) after a
             backend response. Failed responses use fixed messages and emit error traces.
           - Invalid input returns 400 InvalidRequest or 404 ModelNotAvailable.
             An invalid pool name or a failure attributed to pool selection returns
             404 model_not_available; other failures must not be called a missing route.
-          - Connection failures return 503 UpstreamUnavailable; backend timeouts return
+          - Inactive pools and connection failures return 503 UpstreamUnavailable; backend timeouts return
             504 UpstreamTimeout; other APIM failures return 500 GatewayError.
             Model-service HTTP errors keep their original status.
           - Local rejection stops processing before outbound runs; its response still

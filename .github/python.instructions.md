@@ -45,6 +45,7 @@ This ensures all code changes comply with the project's linting standards from t
 - Use `## What This Sample Does` below a notebook title, then the standard `### 🛠️ Initialize Notebook Variables` heading and `**Only modify entries under _USER CONFIGURATION_.**` reminder. Functional sections use descriptive `###` headings with the established deployment, verification, reporting, or cleanup emoji, followed by their code cells.
 - Leave a blank line after configuration banners and between logical code sections. Align adjacent configuration assignments consistently and expand dense API declarations or parameter dictionaries when that improves scanability.
 - For layout-only changes, preserve cell IDs, executable behavior, defaults, and resource/API contracts. Match peer cell metadata conventions; keep execution counts null and outputs empty. Update visible cell-number references if cells move.
+- Introduce non-obvious notebook code blocks with short purpose comments so readers can follow setup, scenario matrices, evidence checks and reporting without tracing helper internals. Explain intent and important constraints, not each assignment or Python syntax.
 - Keep user configuration, scenario intent, APIM concepts, expected outcomes, and assertions in notebooks.
 - Extract incidental mechanics such as parsers, retries, polling, persistence, Azure command composition, response normalization, repeated request setup, and multi-step cleanup into Python modules.
 - Start one-sample behavior in a descriptive `samples/<sample>/<domain>_helpers.py` module. Promote directly to a focused `shared/python/` module only after a second active consumer establishes the same stable contract.
@@ -56,6 +57,17 @@ This ensures all code changes comply with the project's linting standards from t
 - Initialize every notebook with `from notebook_autoreload import configure_notebook_autoreload` and `configure_notebook_autoreload()` immediately after the first cell's imports, before other executable statements. Use module-qualified sample-local helper calls. Do not use broad autoreload or unconditional `importlib.reload()`.
 - Every runtime module under `shared/python/`, sample folders, or infrastructure folders must declare `Autoreload: reload_safe`, `Autoreload: reload_conditional`, or `Autoreload: reload_unsafe` in its opening docstring, followed by the reason or limitation. Follow `shared/python/README.md` for classification and restart rules; preserve enum identity, synchronization locks, and process-wide logging state.
 - Line count alone does not justify extraction. Extract when responsibility, lifecycle, repetition, or testability belongs outside the educational workflow.
+
+### Experiment Reporting Visuals
+
+Use the [Azure OpenAI v1 Routing reporting charts](../samples/aoai-v1-routing/routing_helpers.py) as the standard visual format when adding or revising sample experiment reports. Do not retrofit other samples unless requested.
+
+- Render one self-contained figure per experiment with a clear scenario title, aligned measurement and behavior panels, a shared observation axis, and labeled phase boundaries. For routing/capacity experiments, show response time above account routing, with warm-up, pressure and recovery phases. Lightly shade warm-up in both panels, label the first and last load-test requests, and measure elapsed time from the first recorded load-test response rather than warm-up.
+- Put a short experiment description at the bottom of every figure: identify the operation, model and pool family (when applicable), explain what traffic or conditions were applied, and state the intended demonstration. Separate this intent from the observed results.
+- Put request counts and timing before observed outcomes in a compact evidence summary. Explain relevant limitations and any displayed stop conditions in plain language. Say `not demonstrated` for unobserved transitions; never invent timing, account attribution or causal ordering from concurrent responses.
+- Plot time-based cooldown windows only with recorded observation timestamps and explicit durations. An equally spaced observation axis must say it is not a linear time scale; label actual elapsed window-expiry times, and mark and quantify any compressed recovery gap. Label reported retry windows separately from confirmed breaker state, use hatching/text as well as color, and omit intervals when older evidence lacks timestamps rather than deriving elapsed time from concurrent response latencies.
+- Color-code role labels consistently: preferred green (`#107c10`), fallback amber (`#9a4a00`), standard-family headings blue (`#005a9e`), and priority-family headings purple (`#6b3f8d`). Keep the role/family words visible and distinguish response statuses with labeled markers or hatches, not color alone.
+- Require WCAG 2.0 AA contrast, readable captions, and sufficient footer space to prevent clipping or overlap. Render from retained, sanitized evidence without sending new requests; keep rendering mechanics in the owning helper and scenario intent/assertions in the notebook.
 
 ## Style and Conventions
 

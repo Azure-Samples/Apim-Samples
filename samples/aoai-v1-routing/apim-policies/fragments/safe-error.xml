@@ -3,6 +3,7 @@
         Purpose: Classify gateway failures and return a safe correlated response in on-error.
         Inputs:
           - context.LastError: Reason, Section and PolicyId; context.RequestId for correlation.
+            PoolIsInactive identifies a native pool with no eligible backend members.
           - routePhase (optional string, default "") identifies an active backend resolver.
           - scenario (optional string, default unknown) labels the error trace.
         Outputs:
@@ -12,8 +13,9 @@
           - Emits an error trace and terminates processing with safe JSON, Content-Type
             application/json and x-routing-request-id; arbitrary error messages are not exposed.
     -->
-    <!-- Connectivity and backend timeouts are distinct from unavailable model routes. -->
-    <set-variable name="gatewayCode" value='@(context.LastError.Reason == "BackendConnectionFailure" ? "UpstreamUnavailable" :
+    <!-- An inactive pool is unavailable capacity, not a missing model route or generic fault. -->
+    <set-variable name="gatewayCode" value='@(context.LastError.Reason == "BackendConnectionFailure" ||
+        context.LastError.Reason == "PoolIsInactive" ? "UpstreamUnavailable" :
         context.LastError.Reason == "Timeout" && context.LastError.Section == "backend" ? "UpstreamTimeout" :
         context.LastError.PolicyId == "resolve-model-pool" && context.LastError.Section == "inbound" &&
         context.Variables.GetValueOrDefault<string>("routePhase", "") == "resolve" ? "model_not_available" : "GatewayError")' />

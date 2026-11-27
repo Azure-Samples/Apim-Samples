@@ -3,10 +3,14 @@
         Purpose: Add routing evidence and sanitize upstream error responses in outbound.
         Inputs:
           - context.Response: HTTP status and, for errors, optional JSON error.code.
+          - context.Request.Url.Host: resolved request hostname after forwarding.
           - backendPool (string) from route-request; scenario (string) for error traces.
           - context.RequestId for correlation.
         Outputs:
-          - Sets response headers x-routing-request-id and x-routing-pool.
+          - Sets response headers x-routing-request-id, x-routing-pool and
+            x-routing-backend-host (the resolved request hostname, without path or credentials).
+            A pool-generated failure may not have a resolved account hostname; callers must
+            compare this field with exact deployed origins before treating it as backend evidence.
           - HTTP status 400 or higher sets upstreamCode (string) to an allowed upstream
             code or UpstreamError, emits an error trace, and replaces the body with safe
             JSON and Content-Type application/json without exposing arbitrary upstream content.
@@ -15,6 +19,7 @@
     -->
     <set-header name="x-routing-request-id" exists-action="override"><value>@(context.RequestId.ToString())</value></set-header>
     <set-header name="x-routing-pool" exists-action="override"><value>@((string)context.Variables["backendPool"])</value></set-header>
+    <set-header name="x-routing-backend-host" exists-action="override"><value>@(context.Request.Url.Host)</value></set-header>
     <choose>
         <when condition="@(context.Response.StatusCode >= 400)">
             <!-- Preserve HTTP status, but never return/log arbitrary upstream messages or content. -->

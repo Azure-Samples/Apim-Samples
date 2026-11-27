@@ -238,6 +238,7 @@ output accountOutputs array = [for i in range(0, length(accounts)): {
   label: accounts[i].label
   name: foundryAccounts[i].outputs.accountName
   resourceId: foundryAccounts[i].outputs.accountId
+  endpoint: foundryAccounts[i].outputs.endpoint
 }]
 output poolNames array = map(poolConfigurations, pool => pool.name)
 output standardSubscriptionName string = standardSubscriptionId
