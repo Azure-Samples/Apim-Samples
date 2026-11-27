@@ -26,6 +26,7 @@ class Sample:
     display_name: str
     folder: str
     supported_infrastructures: tuple[str, ...]
+    tags: tuple[str, ...] = ()
 
     def compatibility_label(self, separator: str = ', ') -> str:
         """Format a summary without duplicating infrastructure membership rules."""
@@ -52,8 +53,8 @@ def load_catalog(path: Path) -> tuple[Sample, ...]:
     fields = {'description', 'display_name', 'folder', 'supported_infrastructures'}
     for index, entry in enumerate(entries, 1):
         context = f'Catalog entry {index}'
-        if not isinstance(entry, dict) or set(entry) != fields:
-            raise ValueError(f'{context}: expected exactly {sorted(fields)}')
+        if not isinstance(entry, dict) or set(entry) - {'tags'} != fields:
+            raise ValueError(f'{context}: expected exactly {sorted(fields)} with optional tags')
         for key in ('description', 'display_name', 'folder'):
             value = entry[key]
             if not isinstance(value, str) or not value.strip() or value != value.strip() or '\n' in value or '\r' in value:
@@ -65,7 +66,16 @@ def load_catalog(path: Path) -> tuple[Sample, ...]:
             raise ValueError(f'{context}: supported_infrastructures must contain known infrastructure IDs')
         if supported != [item for item in INFRASTRUCTURES if item in supported]:
             raise ValueError(f'{context}: infrastructure IDs must be unique and in matrix column order')
-        samples.append(Sample(entry['description'], entry['display_name'], entry['folder'], tuple(supported)))
+        tags = entry.get('tags', [])
+        if (
+            not isinstance(tags, list)
+            or any(not isinstance(tag, str) or re.fullmatch(r'[a-z][a-z0-9]*(?:-[a-z0-9]+)*', tag) is None for tag in tags)
+            or tags != sorted(set(tags))
+        ):
+            raise ValueError(f'{context}: tags must be unique, sorted kebab-case strings')
+        if 'ai-gateway' in tags:
+            raise ValueError(f'{context}: use ai-scenarios for the scenario category, not ai-gateway; SKU compatibility is separate')
+        samples.append(Sample(entry['description'], entry['display_name'], entry['folder'], tuple(supported), tuple(tags)))
     for key in ('display_name', 'folder'):
         values = [getattr(sample, key).casefold() for sample in samples]
         if len(values) != len(set(values)):
@@ -171,11 +181,18 @@ def check_website(text: str, samples: tuple[Sample, ...]) -> list[str]:
     names = [[node.text for node in card.select('h3')] for card in cards]
     if names != [[sample.display_name] for sample in samples]:
         errors.append('sample card names/order differ from catalog')
+    if [node.text for node in root.select('label') if node.attrs.get('for') == 'samples-ai'] != ['AI Scenarios']:
+        errors.append('AI scenario filter label must be AI Scenarios')
     for card, sample in zip(cards, samples):
         if not _sample_url_matches(card.attrs.get('href') or '', sample.folder):
             errors.append(f'{sample.display_name}: incorrect card URL')
         if [node.text for node in card.select(class_name = 'infra-tag')] != [sample.compatibility_label(' \u00b7 ')]:
             errors.append(f'{sample.display_name}: incorrect card compatibility')
+        is_ai = 'ai-scenarios' in sample.tags
+        if ('sample-ai' in (card.attrs.get('class') or '').split()) != is_ai:
+            errors.append(f'{sample.display_name}: AI filter classification differs from catalog')
+        if [node.text for node in card.select(class_name = 'ai-tag')] != (['AI Scenarios'] if is_ai else []):
+            errors.append(f'{sample.display_name}: AI designation differs from catalog')
     scripts = [node for node in root.select('script') if node.attrs.get('type') == 'application/ld+json']
     if len(scripts) != 1:
         return [*errors, 'expected one JSON-LD block']
@@ -216,6 +233,9 @@ def check_deck(text: str, samples: tuple[Sample, ...]) -> list[str]:
     slide = slides[0]
     if [node.text for node in slide.select('h4')] != [sample.display_name for sample in samples]:
         errors.append('overview names/order differ from catalog')
+    for card, sample in zip(slide.select(class_name = 'arch-card'), samples):
+        if 'ai-scenarios' in sample.tags and 'AI Scenarios.' not in [node.text for node in card.select('strong')]:
+            errors.append(f'{sample.display_name}: AI scenario designation differs from catalog')
     if [node.text for node in slide.select('h2')] != [f'{len(samples)} Real-World Policy Samples']:
         errors.append('overview sample count differs from catalog')
     summaries = [node.text for node in root.select('p') if re.match(r'\d+ real-world samples\b', node.text)]
@@ -305,6 +325,18 @@ def check_notebook(text: str, sample: Sample) -> list[str]:
     actual = [item.attr for item in values if isinstance(item, ast.Attribute) and isinstance(item.value, ast.Name) and item.value.id == 'INFRASTRUCTURE']
     if len(actual) != len(values) or len(actual) != len(set(actual)) or set(actual) != expected:
         return ['supported_infras differs from catalog']
+    if 'ai-scenarios' in sample.tags:
+        tag_declarations = [
+            node.value
+            for cell in notebook['cells'] if cell['cell_type'] == 'code'
+            for node in ast.walk(ast.parse(''.join(cell['source'])))
+            if isinstance(node, ast.Assign) and any(isinstance(target, ast.Name) and target.id == 'tags' for target in node.targets)
+        ]
+        if (
+            len(tag_declarations) != 1 or not isinstance(tag_declarations[0], ast.List)
+            or 'ai-scenarios' not in [item.value for item in tag_declarations[0].elts if isinstance(item, ast.Constant)]
+        ):
+            return ['AI sample must declare the ai-scenarios API tag']
     return []
 
 
@@ -313,6 +345,8 @@ def check_sample_readme(text: str, sample: Sample) -> list[str]:
     labels = re.findall(r'\*\*Supported infrastructures\*\*:\s*([^\n]+)', text)
     if len(labels) != 1 or labels[0].split(' (', 1)[0].rstrip('.') != sample.compatibility_label():
         return ['supported infrastructures badge differs from catalog']
+    if 'ai-scenarios' in sample.tags and not re.search(r'^\*\*Category\*\*: AI Scenarios\s*$', text, re.MULTILINE):
+        return ['AI sample must declare the AI Scenarios category']
     return []
 
 

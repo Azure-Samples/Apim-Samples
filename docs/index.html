@@ -35,7 +35,7 @@
          /index.html and /.
   -->
   <title>Azure API Management Samples - APIM Policies &amp; Architectures</title>
-  <meta name="description" content="Deploy Azure API Management labs with MockAPI container backends. Explore APIM policies for AI Gateway failover, authentication, load balancing, and networking.">
+  <meta name="description" content="Deploy Azure API Management labs with MockAPI container backends. Explore APIM policies for AI model failover, authentication, load balancing, and networking.">
   <meta name="author" content="Microsoft Azure-Samples">
   <meta name="robots" content="index, follow, max-image-preview:large">
   <meta name="theme-color" content="#0078D4">
@@ -45,7 +45,7 @@
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="Azure-Samples">
   <meta property="og:title" content="Azure API Management Samples - APIM Policies &amp; Architectures">
-  <meta property="og:description" content="Deploy Azure API Management labs with MockAPI container backends. Explore APIM policies for AI Gateway failover, authentication, load balancing, and networking.">
+  <meta property="og:description" content="Deploy Azure API Management labs with MockAPI container backends. Explore APIM policies for AI model failover, authentication, load balancing, and networking.">
   <meta property="og:url" content="https://azure-samples.github.io/Apim-Samples/">
   <meta property="og:image" content="https://azure-samples.github.io/Apim-Samples/assets/apim-samples-logo.png">
   <meta property="og:image:alt" content="APIM Samples logo: the Azure API Management icon inside a laboratory flask">
@@ -61,7 +61,7 @@
   <!-- Twitter / X card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Azure API Management Samples">
-  <meta name="twitter:description" content="Deploy APIM labs with MockAPI container backends. Explore AI Gateway failover, authentication, load balancing, and networking policies.">
+  <meta name="twitter:description" content="Deploy APIM labs with MockAPI container backends. Explore AI model failover, authentication, load balancing, and networking policies.">
   <meta name="twitter:image" content="https://azure-samples.github.io/Apim-Samples/assets/apim-samples-logo.png">
   <meta name="twitter:image:alt" content="APIM Samples logo: the Azure API Management icon inside a laboratory flask">
 
@@ -108,13 +108,13 @@
         "@type": "SoftwareSourceCode",
         "@id": "https://github.com/Azure-Samples/Apim-Samples#repo",
         "name": "Azure API Management Samples",
-        "description": "High-fidelity Azure API Management infrastructures and real-world policy samples. Container Apps backends use MockAPI with authenticated dashboards and persistent Blob configuration. Jupyter-driven labs cover AI Gateway failover, Azure OpenAI telemetry, Front Door, Application Gateway, Private Link, authentication, load balancing, cost allocation, and OAuth credential management.",
+        "description": "High-fidelity Azure API Management infrastructures and real-world policy samples. Container Apps backends use MockAPI with authenticated dashboards and persistent Blob configuration. Jupyter-driven labs cover AI model failover, Azure OpenAI telemetry, Front Door, Application Gateway, Private Link, authentication, load balancing, cost allocation, and OAuth credential management.",
         "url": "https://azure-samples.github.io/Apim-Samples/",
         "codeRepository": "https://github.com/Azure-Samples/Apim-Samples",
         "programmingLanguage": ["Python", "Bicep", "XML"],
         "runtimePlatform": "Azure",
         "license": "https://github.com/Azure-Samples/Apim-Samples/blob/main/LICENSE",
-        "keywords": "Azure API Management, APIM, APIM policies, MockAPI, Azure Container Apps, AI Gateway, Azure OpenAI, Azure OpenAI v1 migration, inference failover, API gateway, Azure Front Door, Application Gateway, Private Link, VNet injection, Bicep, Jupyter, load balancing, JWT validation, OAuth, Credential Manager",
+        "keywords": "Azure API Management, APIM, APIM policies, MockAPI, Azure Container Apps, AI scenarios, Azure OpenAI, Azure OpenAI v1 migration, inference failover, API gateway, Azure Front Door, Application Gateway, Private Link, VNet injection, Bicep, Jupyter, load balancing, JWT validation, OAuth, Credential Manager",
         "author": {
           "@type": "Organization",
           "name": "Microsoft",
@@ -136,14 +136,15 @@
           { "@type": "ListItem", "position": 7,  "name": "AuthX Pro",                 "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/authX-pro" },
           { "@type": "ListItem", "position": 8,  "name": "Azure Maps",                "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/azure-maps" },
           { "@type": "ListItem", "position": 9,  "name": "Azure OpenAI v1 Migration", "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/aoai-v1-migration" },
-          { "@type": "ListItem", "position": 10, "name": "Costing",                   "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/costing" },
-          { "@type": "ListItem", "position": 11, "name": "Dynamic CORS",              "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/dynamic-cors" },
-          { "@type": "ListItem", "position": 12, "name": "Egress Control",            "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/egress-control" },
-          { "@type": "ListItem", "position": 13, "name": "General",                   "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/general" },
-          { "@type": "ListItem", "position": 14, "name": "Inference Failover",        "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/inference-failover" },
-          { "@type": "ListItem", "position": 15, "name": "Load Balancing",            "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/load-balancing" },
-          { "@type": "ListItem", "position": 16, "name": "OAuth 3rd-Party",           "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/oauth-3rd-party" },
-          { "@type": "ListItem", "position": 17, "name": "Secure Blob Access",        "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/secure-blob-access" }
+          { "@type": "ListItem", "position": 10, "name": "Azure OpenAI v1 Routing",   "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/aoai-v1-routing" },
+          { "@type": "ListItem", "position": 11, "name": "Costing",                   "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/costing" },
+          { "@type": "ListItem", "position": 12, "name": "Dynamic CORS",              "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/dynamic-cors" },
+          { "@type": "ListItem", "position": 13, "name": "Egress Control",            "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/egress-control" },
+          { "@type": "ListItem", "position": 14, "name": "General",                   "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/general" },
+          { "@type": "ListItem", "position": 15, "name": "Inference Failover",        "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/inference-failover" },
+          { "@type": "ListItem", "position": 16, "name": "Load Balancing",            "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/load-balancing" },
+          { "@type": "ListItem", "position": 17, "name": "OAuth 3rd-Party",           "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/oauth-3rd-party" },
+          { "@type": "ListItem", "position": 18, "name": "Secure Blob Access",        "url": "https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/secure-blob-access" }
         ]
       }
     ]
@@ -428,8 +429,15 @@
         <p class="section-lede">
           Each sample is a focused, runnable lab. Open the notebook, press <em>Run All</em>, then poke at
           the policies. If an infrastructure is not already deployed, the notebook will guide you through
-          creating one.
+          creating one. AI Scenarios groups AI integration and routing patterns on APIM; these samples do not require the AI Gateway SKU.
         </p>
+
+        <fieldset class="sample-filter">
+          <legend>Filter samples</legend>
+          <input type="radio" name="sample-category" id="samples-all" checked>
+          <label for="samples-all">All samples</label>
+          <input type="radio" name="sample-category" id="samples-ai">
+          <label for="samples-ai">AI Scenarios</label>
 
         <div class="sample-grid">
 
@@ -451,15 +459,24 @@
             <span class="infra-tag">All infrastructures</span>
           </a>
 
-          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/aoai-v1-migration" target="_blank" rel="noopener">
+          <a class="sample-card sample-ai" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/aoai-v1-migration" target="_blank" rel="noopener">
             <h3>Azure OpenAI v1 Migration</h3>
             <p>Create PAYG Azure OpenAI resources, test a dated legacy API, add and test v1 alongside it, and verify the original legacy contract again.</p>
+            <span class="ai-tag">AI Scenarios</span>
             <span class="infra-tag">All infrastructures</span>
           </a>
 
-          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/costing" target="_blank" rel="noopener">
+          <a class="sample-card sample-ai" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/aoai-v1-routing" target="_blank" rel="noopener">
+            <h3>Azure OpenAI v1 Routing</h3>
+            <p>Route v1 Chat Completions and Responses through focused body, header, and subscription policies, plus a recommended header-first, subscription-aware route through Microsoft Foundry-backed pools. Shared fragments handle routing safety and error telemetry. Capacity tiers are simulated on PAYG deployments.</p>
+            <span class="ai-tag">AI Scenarios</span>
+            <span class="infra-tag">All infrastructures</span>
+          </a>
+
+          <a class="sample-card sample-ai" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/costing" target="_blank" rel="noopener">
             <h3>Costing</h3>
-            <p>Track and allocate API costs per business unit using subscriptions, Entra ID application tracking, and AI Gateway token/PTU tracking across <em>both Azure OpenAI Chat Completions and Responses APIs</em>, including streaming (SSE) token usage which is not simple to capture correctly in APIM.</p>
+            <p>Track and allocate API costs per business unit using subscriptions, Entra ID application tracking, and AI model token/PTU tracking across <em>both Azure OpenAI Chat Completions and Responses APIs</em>, including streaming (SSE) token usage which is not simple to capture correctly in APIM.</p>
+            <span class="ai-tag">AI Scenarios</span>
             <span class="infra-tag">All infrastructures</span>
           </a>
 
@@ -481,9 +498,10 @@
             <span class="infra-tag">All infrastructures</span>
           </a>
 
-          <a class="sample-card" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/inference-failover" target="_blank" rel="noopener">
+          <a class="sample-card sample-ai" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples/inference-failover" target="_blank" rel="noopener">
             <h3>Inference Failover</h3>
             <p>Route compatible Azure OpenAI models through priority and weighted APIM backend pools with focused LLM failover and token telemetry.</p>
+            <span class="ai-tag">AI Scenarios</span>
             <span class="infra-tag">All infrastructures</span>
           </a>
 
@@ -506,6 +524,7 @@
           </a>
 
         </div>
+        </fieldset>
 
         <div class="section-cta">
           <a class="btn-pill" href="https://github.com/Azure-Samples/Apim-Samples/tree/main/samples" target="_blank" rel="noopener">

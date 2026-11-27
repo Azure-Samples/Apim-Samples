@@ -1,0 +1,21 @@
+// Application Insights Logs (classic table names). Never project request URL or bodies.
+// Paste x-routing-request-id from a sanitized notebook result; empty means all sample errors.
+let requestId = "";
+traces
+| where timestamp > ago(1h)
+| where message == "routing-error"
+| extend RequestId = tostring(customDimensions["requestId"]),
+         Scenario = tostring(customDimensions["scenario"]),
+         ErrorKind = tostring(customDimensions["errorKind"]),
+         Reason = tostring(customDimensions["reason"]),
+         Status = toint(customDimensions["status"])
+| where Scenario in ("body", "header", "subscription", "recommended")
+| where isempty(requestId) or RequestId == requestId
+| project timestamp, RequestId, operation_Id, Scenario, ErrorKind, Status, Reason
+| join kind=leftouter (
+    requests
+    | where timestamp > ago(1h)
+    | project operation_Id, GatewayStatus = resultCode, success
+) on operation_Id
+| project timestamp, RequestId, operation_Id, Scenario, ErrorKind, Status, Reason, GatewayStatus, success
+| order by timestamp desc

@@ -3,9 +3,11 @@
 <!-- markdownlint-disable MD013 -->
 <!-- Long technical prose and wide telemetry tables are intentionally not hard-wrapped. -->
 
-This sample uses Azure API Management as an AI Gateway for two Azure OpenAI models, combining priority and weighted backend failover with focused LLM telemetry in Log Analytics and an Azure Monitor Workbook.
+This sample uses Azure API Management to route requests to two Azure OpenAI models, combining priority and weighted backend failover with focused LLM telemetry in Log Analytics and an Azure Monitor Workbook. The AI Scenarios category describes sample content, not an APIM SKU; this sample does not require the AI Gateway SKU.
 
 ⚙️ **Supported infrastructures**: All infrastructures
+
+**Category**: AI Scenarios
 
 👟 **Expected _Run All_ runtime (excl. infrastructure prerequisite): ~15 minutes**
 

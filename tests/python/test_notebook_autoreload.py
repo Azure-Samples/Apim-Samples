@@ -7,11 +7,12 @@ import os
 import sys
 from collections.abc import Iterator
 from pathlib import Path
-from types import ModuleType
+from types import ModuleType, SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
 from IPython.core.interactiveshell import InteractiveShell
+from matplotlib import pyplot as plt
 from traitlets.config import Config
 
 # APIM Samples imports
@@ -233,6 +234,68 @@ def test_real_module_reloads_preserve_locks_logging_and_enum_identity(
     assert logging.getLogger().level == logging.WARNING
     assert tuple(logging.getLogger().handlers) == handlers
     assert sku is apimtypes.APIM_SKU.BASICV2
+
+
+@pytest.mark.parametrize('reload_mode', ['1', '1 --full'])
+def test_routing_chart_reload_preserves_old_evidence_and_creates_timed_probes(
+    reload_shell: InteractiveShell, tmp_path: Path, reload_mode: str,
+) -> None:
+    legacy = _source(
+        'from dataclasses import dataclass\n'
+        '@dataclass(frozen = True)\n'
+        'class ProbeResult:\n'
+        '    status: int\n'
+        '    error_code: str | None\n'
+        '    error_message: str | None\n'
+        '    completion: bool\n'
+        '    pool: str\n'
+        '    request_id: str\n'
+        "    backend_host: str = ''\n"
+        '    retry_after_seconds: int = 0\n'
+        'def _probe(client, path, payload, headers):\n'
+        '    raise AssertionError("This legacy probe is not used.")',
+        'reload_conditional',
+    )
+    path = tmp_path / 'reload_routing_evidence.py'
+    _write(path, legacy)
+    _run(reload_shell, 'import reload_routing_evidence')
+    module = reload_shell.user_ns['reload_routing_evidence']
+    request_id = '12345678-1234-1234-1234-123456789abc'
+    host = 'global-standard.example.invalid'
+    pool = 'fixture-standard-pool'
+    baseline = module.ProbeResult(200, None, None, True, pool, request_id, host)
+    evidence = SimpleNamespace(
+        baseline = baseline, pressure = (), recovery = baseline, fallback_served = False,
+        exhausted = False, recovery_wait_seconds = 65, stop_reason = 'request-limit', elapsed_seconds = 0,
+    )
+    labels = {host: 'global-standard', 'consumption.example.invalid': 'consumption', 'ptu.example.invalid': 'ptu'}
+    assert not hasattr(module, 'capacity_figure')
+    assert not hasattr(baseline, 'response_time_seconds')
+    notebook_autoreload.configure_notebook_autoreload()
+    reload_shell.run_line_magic('autoreload', reload_mode)
+    _run(reload_shell, 'pass')
+    source = (PROJECT_ROOT / 'samples' / 'aoai-v1-routing' / 'routing_helpers.py').read_text(encoding = 'utf-8')
+    _write(path, source)
+    _run(reload_shell, 'pass')
+
+    figure = module.capacity_figure('previous run', evidence, labels, preferred_labels = ('global-standard', 'consumption'), fallback_label = 'ptu')
+    try:
+        assert not figure.axes[0].containers
+        assert 'not recorded' in ' '.join(text.get_text() for text in figure.axes[0].texts).lower()
+        assert len(figure.axes[1].collections) == 1
+    finally:
+        plt.close(figure)
+
+    client = MagicMock()
+    client.multiPost.return_value = [{
+        'status_code': 200,
+        'response': '{"choices":[{"message":{"content":"ok"}}]}',
+        'headers': {'x-routing-request-id': request_id, 'x-routing-pool': pool, 'x-routing-backend-host': host},
+        'response_time': 0.25,
+    }]
+    measured = module._probe(client, '/chat/completions', {}, None)
+    assert isinstance(measured, module.ProbeResult)
+    assert measured.response_time_seconds == 0.25
 
 
 def test_repository_default_classifies_loaded_shared_dependencies(reload_shell: InteractiveShell, monkeypatch: pytest.MonkeyPatch) -> None:

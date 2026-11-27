@@ -284,7 +284,7 @@ def test_notebook_staged_workflow_with_mocked_remote_boundaries(monkeypatch, dep
     assert namespace['legacy_api'].path == f'{namespace["sample_name"]}/openai'
     assert namespace['legacy_api'].displayName == 'Azure OpenAI Chat Completions'
     assert namespace['v1_api'].path == f'{namespace["sample_name"]}/openai/v1'
-    assert namespace['legacy_api'].tags == namespace['v1_api'].tags == ['aoai-v1-migration', 'ai-gateway']
+    assert namespace['legacy_api'].tags == namespace['v1_api'].tags == ['aoai-v1-migration', 'ai-scenarios']
     monkeypatch.setattr(namespace['migration_helpers'], 'test', fake_smoke)
     report = Mock(return_value = SAMPLE / 'offline-report.html')
     monkeypatch.setattr(namespace['migration_helpers'], 'generate_report', report)

@@ -1006,7 +1006,7 @@
                   "type": 1,
                   "isRequired": true,
                   "value": "costing-aoai-gateway,costing-token-tracking-api",
-                  "description": "Comma-separated APIM API resource names that should be treated as AI Gateway APIs. The default matches the costing sample. To list APIs by tag for your own environment (Azure Resource Graph does **not** index APIM API tags, so the workbook cannot auto-populate this list), run:\n\n```bash\naz rest --method get --url \"https://management.azure.com/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.ApiManagement/service/{svc}/apisByTags?api-version=2022-08-01&\\$filter=tag/name eq 'ai-gateway'\" --query \"value[].api.name\" -o tsv\n```"
+                  "description": "Comma-separated APIM API resource names for AI inference. The default matches the costing sample. The ai-scenarios tag classifies sample content; it does not require the AI Gateway SKU. To list APIs by tag for your own environment (Azure Resource Graph does **not** index APIM API tags, so the workbook cannot auto-populate this list), run:\n\n```bash\naz rest --method get --url \"https://management.azure.com/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.ApiManagement/service/{svc}/apisByTags?api-version=2022-08-01&\\$filter=tag/name eq 'ai-scenarios'\" --query \"value[].api.name\" -o tsv\n```"
                 }
               ],
               "queryType": 0,

@@ -1,8 +1,10 @@
 # Samples: APIM Costing & Showback
 
-This sample demonstrates how to track and allocate API costs using Azure API Management with Azure Monitor, Application Insights, Log Analytics, and Cost Management. It supports three complementary approaches: **subscription-based** tracking (using APIM subscription keys), **Entra ID application** tracking (using the `emit-metric` policy with JWT `appid` claims), and **AI Gateway token/PTU** tracking (using the `ApiManagementGatewayLlmLog` diagnostic to capture per-request token consumption when APIM acts as an AI Gateway, joined with `ApiManagementGatewayLogs` on `CorrelationId` for business unit attribution). All approaches share a single Azure Monitor Workbook with tabbed views.
+This sample demonstrates how to track and allocate API costs using Azure API Management with Azure Monitor, Application Insights, Log Analytics, and Cost Management. It supports three complementary approaches: **subscription-based** tracking (using APIM subscription keys), **Entra ID application** tracking (using the `emit-metric` policy with JWT `appid` claims), and **AI model token/PTU** tracking (using the `ApiManagementGatewayLlmLog` diagnostic to capture per-request token consumption when APIM proxies AI model requests, joined with `ApiManagementGatewayLogs` on `CorrelationId` for business unit attribution). All approaches share a single Azure Monitor Workbook with tabbed views. The AI Scenarios category describes sample content, not an APIM SKU; this sample does not require the AI Gateway SKU.
 
 ⚙️ **Supported infrastructures**: All infrastructures (or bring your own existing APIM deployment)
+
+**Category**: AI Scenarios
 
 👟 **Expected *Run All* runtime (excl. infrastructure prerequisite): ~15 minutes**
 

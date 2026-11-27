@@ -24,6 +24,7 @@ Simple API Management and optional deployments with Container Apps disabled do n
 | **AuthX Pro**                 | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
 | **Azure Maps**                | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
 | **Azure OpenAI v1 Migration** | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
+| **Azure OpenAI v1 Routing**   | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
 | **Costing**                   | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
 | **Dynamic CORS**              | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |
 | **Egress Control**            | **N/A**                    | **N/A**                    | **N/A**                    | ▢ Local<br>▢ Dev Container | ▢ Local<br>▢ Dev Container |

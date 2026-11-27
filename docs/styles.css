@@ -620,6 +620,59 @@ a.value-card-link:focus-visible {
 /* =========================================================================
    Sample cards
    ========================================================================= */
+.sample-filter {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.sample-filter legend {
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.sample-filter > input {
+  accent-color: var(--brand-blue-deep);
+}
+
+.sample-filter > input:focus-visible {
+  outline: 3px solid var(--brand-blue-deep);
+  outline-offset: 3px;
+}
+
+.sample-filter > label {
+  display: inline-block;
+  padding: 10px 12px 10px 4px;
+  margin-right: 12px;
+  cursor: pointer;
+}
+
+.sample-filter > input:checked + label {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.sample-filter .sample-grid {
+  margin-top: 20px;
+}
+
+#samples-ai:checked ~ .sample-grid .sample-card:not(.sample-ai) {
+  display: none;
+}
+
+.ai-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  margin: 0 6px 6px 0;
+  border-radius: var(--radius-pill);
+  color: var(--text-on-brand);
+  background: var(--brand-blue-deep);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .sample-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));

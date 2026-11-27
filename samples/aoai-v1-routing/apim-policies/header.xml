@@ -1,0 +1,88 @@
+<policies>
+    <!--
+        Purpose:
+          Choose the model from x-ai-model when that header has a value; otherwise
+          read the model from the body. Always use the model's standard backend pool.
+          This works for Chat Completions and Responses.
+
+        Inputs:
+          - Caller: an APIM subscription key accepted for this API, and a POST request
+            to /chat/completions or /responses.
+          - Optional header: x-ai-model, for example gpt-5-mini. Use the first value
+            containing more than whitespace and remove surrounding whitespace.
+          - Body: read only when the header is missing or blank. It must then be a JSON
+            object with a string model and, if supplied, a true/false stream field.
+          - Resources: fragments and pools use the fixed aoai-v1-routing-1 prefix.
+            The referenced fragments and pools must exist, and APIM's managed identity
+            must have permission to call the model service.
+
+        Variables:
+          - headerModel (string): the cleaned-up header value, or empty if none was supplied.
+          - model (string): headerModel when nonempty; otherwise the deployment name
+            read from the body. An invalid nonempty header does not fall back to the body.
+          - family (string): always standard; caller headers cannot grant priority.
+          - backendPool (string): the pool name, built as aoai-v1-routing-1-model-family-pool.
+          - scenario (string): always header; labels logs, not routing decisions.
+            It is set again in on-error so failures keep the same label.
+          - errorCode (string): starts empty, meaning no local error has been found.
+          - errorStatus (int): starts at 404; used only when rejecting a request locally.
+          - bodySelection (JObject): compact model/errorCode/errorStatus result from
+            body-model; unset when the header supplies the model. The full body stays local.
+          - bodyValidation (string): empty if the body check passes, otherwise
+            InvalidRequest or ModelNotAvailable; not created when the header supplies the model.
+          - routePhase (string): resolve while selecting the pool, then resolved.
+            This helps avoid reporting later failures as a missing route.
+          - upstreamCode (string): an approved error code from a failed model-service response.
+          - gatewayCode (string), gatewayStatus (int) and safeReason (string):
+            the error category, HTTP status and short diagnostic reason set if APIM fails.
+
+        Outputs:
+          - Forward the unchanged body to the same v1 operation on the selected backend.
+            When the header supplies the model, APIM neither reads nor repairs the body;
+            the caller must still name a deployment that exists on that backend.
+          - Drop query parameters and caller credential/routing headers; authenticate
+            to the model service with APIM's managed identity instead.
+          - Make one attempt with a 60-second timeout and no retries; do not buffer
+            the response. Successful response bodies and HTTP statuses are unchanged.
+          - Add x-routing-request-id for troubleshooting and x-routing-pool plus
+            x-routing-backend-host (resolved hostname, without path or credentials) after a
+            backend response. Failed responses use fixed messages and emit error traces.
+          - Invalid input returns 400 InvalidRequest or 404 ModelNotAvailable.
+            An invalid pool name or a failure attributed to pool selection returns
+            404 model_not_available; other failures must not be called a missing route.
+          - Inactive pools and connection failures return 503 UpstreamUnavailable; backend timeouts return
+            504 UpstreamTimeout; other APIM failures return 500 GatewayError.
+            Model-service HTTP errors keep their original status.
+          - Local rejection stops processing before outbound runs; its response still
+            includes the request ID, and its error trace is written before returning.
+    -->
+    <inbound>
+        <base />
+        <set-variable name="scenario" value="header" />
+        <set-variable name="errorCode" value="" />
+        <set-variable name="errorStatus" value="@(404)" />
+        <set-variable name="family" value="standard" />
+
+        <include-fragment fragment-id="aoai-v1-routing-1-header-model" />
+        <choose>
+            <when condition='@(!String.IsNullOrEmpty((string)context.Variables["headerModel"]))'>
+                <set-variable name="model" value='@((string)context.Variables["headerModel"])' />
+            </when>
+            <otherwise>
+                <include-fragment fragment-id="aoai-v1-routing-1-body-model" />
+            </otherwise>
+        </choose>
+        <include-fragment fragment-id="aoai-v1-routing-1-route-request" />
+    </inbound>
+    <backend>
+        <forward-request timeout="60" buffer-response="false" fail-on-error-status-code="false" />
+    </backend>
+    <outbound>
+        <base />
+        <include-fragment fragment-id="aoai-v1-routing-1-safe-response" />
+    </outbound>
+    <on-error>
+        <set-variable name="scenario" value="header" />
+        <include-fragment fragment-id="aoai-v1-routing-1-safe-error" />
+    </on-error>
+</policies>

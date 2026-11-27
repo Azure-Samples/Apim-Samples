@@ -216,8 +216,9 @@ def test_ownership_failure_prevents_python_and_asset_writes(catalog_root):
     assert asset.read_text(encoding = 'utf-8') == ApprovedModel.GPT_5_NANO.model_name + '\n'
 
 
-def test_line_and_json_bindings_render_and_detect_drift(catalog_root):
-    original = f'Model {ApprovedModel.GPT_5_NANO.model_name}'
+@pytest.mark.parametrize('suffix', ['', '. Next sentence.'])
+def test_line_and_json_bindings_render_and_detect_drift(catalog_root, suffix):
+    original = f'Model {ApprovedModel.GPT_5_NANO.model_name}{suffix}'
     text = _write(catalog_root, 'samples/fixture/README.md', original + '\n')
     asset = _json(catalog_root, 'samples/fixture/fixture.workbook.json', {'content': original})
     paths = ['samples/fixture/README.md', 'samples/fixture/fixture.workbook.json']
@@ -228,9 +229,40 @@ def test_line_and_json_bindings_render_and_detect_drift(catalog_root):
     assert len(model_catalog.check_catalog(catalog_root, paths = paths)) == 2
     assert text.read_text(encoding = 'utf-8') == original + '\n'
     assert model_catalog.check_catalog(catalog_root, write = True, paths = paths) == []
-    expected = f'Model {ApprovedModel.GPT_5_MINI.model_name}'
+    expected = f'Model {ApprovedModel.GPT_5_MINI.model_name}{suffix}'
     assert text.read_text(encoding = 'utf-8') == expected + '\n'
     assert json.loads(asset.read_text(encoding = 'utf-8')) == {'content': expected}
+    assert model_catalog.check_catalog(catalog_root, paths = paths) == []
+
+
+@pytest.mark.parametrize('suffix', ['.unexpected', '-unexpected', 'unexpected'])
+def test_bound_model_identity_rejects_extended_names(catalog_root, suffix):
+    relative = 'samples/fixture/README.md'
+    source = f'Model {ApprovedModel.GPT_5_MINI.model_name}{suffix}\n'
+    asset = _write(catalog_root, relative, source)
+    _json(catalog_root, model_catalog.BINDINGS_PATH, {relative: [{'line': 1, 'models': [PRIMARY]}]})
+    with pytest.raises(ValueError, match = 'Model references changed'):
+        model_catalog.check_catalog(catalog_root, write = True, paths = [relative])
+    assert asset.read_text(encoding = 'utf-8') == source
+
+
+def test_diagram_source_and_exports_render_only_bound_model_fields(catalog_root):
+    paths = ['assets/diagrams/fixture.drawio', 'assets/diagrams/fixture.svg']
+    sources = [
+        '<mxfile><mxCell id="pool" value="{model}-priority-pool" /></mxfile>\n',
+        '<svg><text>{model}-priority-pool</text></svg>\n',
+    ]
+    bindings = {}
+    for relative, source in zip(paths, sources, strict = True):
+        _write(catalog_root, relative, source.format(model = ApprovedModel.GPT_5_NANO.model_name))
+        bindings[relative] = [{'line': 1, 'models': [PRIMARY + '-priority-pool']}]
+    _json(catalog_root, model_catalog.BINDINGS_PATH, bindings)
+    assert len(model_catalog.check_catalog(catalog_root, paths = paths)) == 2
+    assert model_catalog.check_catalog(catalog_root, write = True, paths = paths) == []
+    for relative, source in zip(paths, sources, strict = True):
+        rendered = (catalog_root / relative).read_text(encoding = 'utf-8')
+        assert rendered == source.format(model = ApprovedModel.GPT_5_MINI.model_name)
+        ElementTree.fromstring(rendered)
     assert model_catalog.check_catalog(catalog_root, paths = paths) == []
 
 
@@ -283,6 +315,8 @@ def test_independent_python_identity_is_rejected(catalog_root, source):
     ('samples/fixture/main.bicep', "param primaryModelName string = 'outside-known-families'\n"),
     ('samples/fixture/main.bicep', "  modelVersion: 'opaque-build'\n"),
     ('samples/fixture/queries/test.kql', '// gpt-unregistered\nprint 1\n'),
+    ('assets/diagrams/fixture.svg', '<svg><text>gpt-unregistered</text></svg>\n'),
+    ('assets/diagrams/fixture.drawio', '<mxfile><mxCell value="gpt-unregistered" /></mxfile>\n'),
 ])
 def test_independent_asset_identity_is_rejected(catalog_root, relative, source):
     _write(catalog_root, relative, source)
@@ -318,7 +352,10 @@ def test_fixture_exceptions_are_exact_and_stale_entries_fail(catalog_root):
         model_catalog.check_catalog(catalog_root, paths = [])
 
 
-@pytest.mark.parametrize('relative', ['../outside.md', '/outside.md', 'samples/../outside.md', 'samples\\fixture\\README.md', 'C:/outside.md', 'shared/python/ai_models.py'])
+@pytest.mark.parametrize('relative', [
+    '../outside.md', '/outside.md', 'samples/../outside.md', 'samples\\fixture\\README.md', 'C:/outside.md', 'shared/python/ai_models.py',
+    'assets/diagrams/fixture.py', 'assets/diagrams/fixture.bicep', 'assets/diagrams/fixture.md', 'assets/fixture.svg', 'assets/diagrams-other/fixture.svg',
+])
 def test_binding_paths_are_narrow_and_cannot_escape(catalog_root, relative):
     _json(catalog_root, model_catalog.BINDINGS_PATH, {relative: [{'line': 1, 'models': [PRIMARY]}]})
     with pytest.raises(ValueError):

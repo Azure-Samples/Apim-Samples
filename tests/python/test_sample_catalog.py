@@ -66,6 +66,12 @@ def test_catalog_rejects_invalid_root_and_entry_shapes(tmp_path: Path, value: ob
         ('supported_infrastructures', [None], 'known infrastructure'),
         ('supported_infrastructures', ['simple-apim', 'simple-apim'], 'unique'),
         ('supported_infrastructures', ['afd-apim-pe', 'apim-aca'], 'column order'),
+        ('tags', 'ai-scenarios', 'tags must be'),
+        ('tags', ['ai gateway'], 'tags must be'),
+        ('tags', [None], 'tags must be'),
+        ('tags', ['ai-scenarios', 'ai-scenarios'], 'tags must be'),
+        ('tags', ['zebra', 'ai-scenarios'], 'tags must be'),
+        ('tags', ['ai-gateway'], 'use ai-scenarios'),
     ],
 )
 def test_catalog_rejects_invalid_fields(tmp_path: Path, field: str, value: object, message: str) -> None:
@@ -106,6 +112,10 @@ def test_catalog_rejects_unsorted_and_duplicate_json_properties(tmp_path: Path) 
         ('README.md', catalog.check_readme, 'Authentication and role-based authorization in a mock HR API.', 'Changed.', 'description'),
         ('README.md', catalog.check_readme, 'appgw-apim, appgw-apim-pe', 'All infrastructures', 'infrastructure label'),
         (WEBSITE, catalog.check_website, '<h3>AuthX</h3>', '<h3>Wrong</h3>', 'card names/order'),
+        (WEBSITE, catalog.check_website, 'class="sample-card sample-ai"', 'class="sample-card"', 'filter classification'),
+        (WEBSITE, catalog.check_website, '<span class="ai-tag">AI Scenarios</span>', '', 'AI designation'),
+        (WEBSITE, catalog.check_website, '<span class="ai-tag">AI Scenarios</span>', '<span class="ai-tag">AI Gateway</span>', 'AI designation'),
+        (WEBSITE, catalog.check_website, '<label for="samples-ai">AI Scenarios</label>', '<label for="samples-ai">AI Gateway</label>', 'filter label'),
         (WEBSITE, catalog.check_website, '<span class="infra-tag">All infrastructures</span>', '<span class="infra-tag">simple-apim</span>', 'card compatibility'),
         (WEBSITE, catalog.check_website, '"name": "AuthX"', '"name": "Wrong"', 'JSON-LD sample names/order'),
         (WEBSITE, catalog.check_website, '"position": 6,', '"position": 99,', 'count/positions'),
@@ -113,9 +123,10 @@ def test_catalog_rejects_unsorted_and_duplicate_json_properties(tmp_path: Path) 
         (WEBSITE, catalog.check_website, '"@type": "ItemList"', '"@type": "Wrong"', 'one JSON-LD ItemList'),
         (WEBSITE, catalog.check_website, 'type="application/ld+json"', 'type="text/plain"', 'one JSON-LD block'),
         (DECK, catalog.check_deck, '<h4>AuthX</h4>', '<h4>Wrong</h4>', 'overview names/order'),
-        (DECK, catalog.check_deck, '12 Real-World Policy Samples', '11 Real-World Policy Samples', 'overview sample count'),
-        (DECK, catalog.check_deck, '12 Real-World Policy Samples', 'Overview', 'one Real-World'),
-        (DECK, catalog.check_deck, '12 real-world samples', '11 real-world samples', 'summary sample count'),
+        (DECK, catalog.check_deck, '<strong>AI Scenarios.</strong>', '<strong>AI Gateway.</strong>', 'AI scenario designation'),
+        (DECK, catalog.check_deck, '13 Real-World Policy Samples', '12 Real-World Policy Samples', 'overview sample count'),
+        (DECK, catalog.check_deck, '13 Real-World Policy Samples', 'Overview', 'one Real-World'),
+        (DECK, catalog.check_deck, '13 real-world samples', '12 real-world samples', 'summary sample count'),
         (MATRIX, catalog.check_matrix, '**AuthX**', '**Wrong**', 'row names/order'),
         (MATRIX, catalog.check_matrix, 'SIMPLE APIM', 'Wrong', 'column order'),
         (MATRIX, catalog.check_matrix, '**N/A**', 'Supported', 'incorrect simple-apim'),
@@ -204,6 +215,18 @@ def test_notebook_supports_annotations_and_different_literal_order() -> None:
     assert catalog.check_notebook(json.dumps(notebook), sample) == []
 
 
+@pytest.mark.parametrize('category,tag', [('', ''), ('AI Gateway', 'ai-gateway')])
+def test_ai_designation_requires_readme_category_and_notebook_api_tag(category: str, tag: str) -> None:
+    sample = next(sample for sample in SAMPLES if sample.folder == 'costing')
+    readme = read_surface('samples/costing/README.md').replace('**Category**: AI Scenarios', f'**Category**: {category}')
+    assert catalog.check_sample_readme(readme, sample) == ['AI sample must declare the AI Scenarios category']
+    notebook = json.loads(read_surface('samples/costing/create.ipynb'))
+    for cell in notebook['cells']:
+        if cell['cell_type'] == 'code':
+            cell['source'] = ''.join(cell['source']).replace(", 'ai-scenarios'", f", '{tag}'" if tag else '')
+    assert catalog.check_notebook(json.dumps(notebook), sample) == ['AI sample must declare the ai-scenarios API tag']
+
+
 @pytest.mark.parametrize('value', [[], {}, {'cells': [None]}, {'cells': [{'cell_type': 'code', 'source': [42]}]}])
 def test_malformed_notebooks_fail_explicitly(value: object) -> None:
     with pytest.raises(ValueError, match = 'Notebook|Code cell'):
@@ -242,9 +265,9 @@ def test_matrix_rejects_missing_cells() -> None:
 
 def test_diagram_checks_translated_rows_and_rejects_unsupported_transforms() -> None:
     text = read_surface(DIAGRAM)
-    modified = text.replace('transform="translate(0,46)"', 'transform="translate(0,92)"', 1)
+    modified = text.replace('transform="translate(0,92)"', 'transform="translate(0,138)"', 1)
     assert catalog.check_diagram(modified, SAMPLES)
-    modified = text.replace('transform="translate(0,46)"', 'transform="scale(2)"', 1)
+    modified = text.replace('transform="translate(0,92)"', 'transform="scale(2)"', 1)
     with pytest.raises(ValueError, match = 'simple translate'):
         catalog.check_diagram(modified, SAMPLES)
 

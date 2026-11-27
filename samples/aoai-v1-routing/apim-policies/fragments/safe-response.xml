@@ -1,0 +1,53 @@
+<fragment>
+    <!--
+        Purpose: Add routing evidence and sanitize upstream error responses in outbound.
+        Inputs:
+          - context.Response: HTTP status and, for errors, optional JSON error.code.
+          - context.Request.Url.Host: resolved request hostname after forwarding.
+          - backendPool (string) from route-request; scenario (string) for error traces.
+          - context.RequestId for correlation.
+        Outputs:
+          - Sets response headers x-routing-request-id, x-routing-pool and
+            x-routing-backend-host (the resolved request hostname, without path or credentials).
+            A pool-generated failure may not have a resolved account hostname; callers must
+            compare this field with exact deployed origins before treating it as backend evidence.
+          - HTTP status 400 or higher sets upstreamCode (string) to an allowed upstream
+            code or UpstreamError, emits an error trace, and replaces the body with safe
+            JSON and Content-Type application/json without exposing arbitrary upstream content.
+          - HTTP status is preserved; successful bodies, including streams, are untouched.
+          - Processing continues; this fragment does not return an early response.
+    -->
+    <set-header name="x-routing-request-id" exists-action="override"><value>@(context.RequestId.ToString())</value></set-header>
+    <set-header name="x-routing-pool" exists-action="override"><value>@((string)context.Variables["backendPool"])</value></set-header>
+    <set-header name="x-routing-backend-host" exists-action="override"><value>@(context.Request.Url.Host)</value></set-header>
+    <choose>
+        <when condition="@(context.Response.StatusCode >= 400)">
+            <!-- Preserve HTTP status, but never return/log arbitrary upstream messages or content. -->
+            <set-variable name="upstreamCode" value='@{
+                try
+                {
+                    var code = (string)context.Response.Body.As<JObject>(preserveContent: true)["error"]?["code"];
+
+                    return new [] { "DeploymentNotFound", "model_not_found", "InvalidRequestError", "BadRequest", "RateLimitReached" }.Contains(code) ? code : "UpstreamError";
+                }
+                catch
+                {
+                    return "UpstreamError";
+                }
+            }' />
+            <trace source="aoai-v1-routing" severity="error">
+                <message>routing-error</message>
+                <metadata name="requestId" value="@(context.RequestId.ToString())" />
+                <metadata name="scenario" value='@((string)context.Variables["scenario"])' />
+                <metadata name="errorKind" value='@((string)context.Variables["upstreamCode"])' />
+                <metadata name="status" value="@(context.Response.StatusCode.ToString())" />
+            </trace>
+            <set-header name="Content-Type" exists-action="override"><value>application/json</value></set-header>
+            <set-body>@{
+                return new JObject(new JProperty("error", new JObject(
+                    new JProperty("code", (string)context.Variables["upstreamCode"]),
+                    new JProperty("message", "The upstream service rejected the request.")))).ToString();
+            }</set-body>
+        </when>
+    </choose>
+</fragment>

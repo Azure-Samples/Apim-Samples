@@ -22,6 +22,8 @@ Thank you for your interest in contributing!
 
 [samples/catalog.json](samples/catalog.json) is the source of truth for sample folders, canonical display names, root README summaries, and supported infrastructures. Entries are alphabetical by display name; infrastructure IDs follow the existing matrix column order. Every active sample is listed, except `_TEMPLATE`.
 
+AI samples also declare `"tags": ["ai-scenarios"]` in the catalog, the `ai-scenarios` tag in their notebook and generated API tags, and `**Category**: AI Scenarios` in their README. On the website, give these cards the `sample-ai` class and an `ai-tag` badge reading `AI Scenarios`. The accessible All/AI Scenarios radio filter uses CSS only; no JavaScript or build step is needed. The catalog checker validates these designations together. Scenario classification is not SKU compatibility: these samples do not require the AI Gateway SKU. Keep supported APIM tiers in configuration/compatibility documentation, and reserve "AI Gateway SKU" for references to that product tier.
+
 When adding, renaming, or changing compatibility for a sample:
 
 1. Update the catalog first.
@@ -50,7 +52,9 @@ python setup/model_catalog.py --write
 python setup/model_catalog.py --check
 ```
 
-Commit the source JSON, generated Python, and rendered assets together. [Bindings](setup/model_catalog_bindings.json) list asset locations and ordered model-bearing words, using `{{model:owner.member:field}}` references with any resource-name affixes. The tool reads notebooks without executing them. Python CI runs `--check`, which verifies generated Python freshness and asset ownership without writing. Only exact independent [test-fixture scopes](setup/model_catalog_exceptions.json) may retain literals; no blanket exclusions.
+Commit the source JSON, generated Python, and rendered assets together. [Bindings](setup/model_catalog_bindings.json) list asset locations and ordered model-bearing words, using `{{model:owner.member:field}}` references with any resource-name affixes. Bindings may own sample assets and SVG/Draw.io files under [assets/diagrams](assets/diagrams/); bind both editable diagram sources and their exports. The tool reads notebooks without executing them. Python CI runs `--check`, which verifies generated Python freshness and asset ownership without writing. Only exact independent [test-fixture scopes](setup/model_catalog_exceptions.json) may retain literals; no blanket exclusions.
+
+When editing a bound asset, update its binding if model-bearing lines or JSON fields move, or if the number or order of model references changes. A `Model references changed` failure requires correcting the binding before running `--write`; regeneration does not repair stale locations. Keep CI read-only and commit the corrected bindings with the assets.
 
 Remove decommissioned models and their pricing. There is no historical registry or pricing fallback. `apimtypes.AzureOpenAIModel` aliases `ApprovedModel`; use `.model_name` and `.version`, not `.value` as a string. Restart kernels after enum edits.
 

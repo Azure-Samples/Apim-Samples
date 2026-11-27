@@ -1,0 +1,249 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1340" viewBox="0 0 1440 1340" role="img" aria-labelledby="title description">
+  <title id="title">Azure OpenAI v1 Routing - default topology</title>
+  <desc id="description">Four subscription-protected APIs each expose POST /chat/completions and POST /responses with distinct policies: body, header, subscription, and recommended. Recommended combines header-first model selection with validated subscription priority. Each of gpt-5-mini and gpt-5-nano has two pools sharing three concrete backends and their circuit breakers. The same three Microsoft Foundry accounts each contain both PAYG OpenAI model deployments. Pool memberships show priorities and weights. Tier labels are simulated. Requests use managed identity, with one backend attempt and no retries.</desc>
+  <defs>
+    <marker id="arrow-standard" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1D4ED8" />
+    </marker>
+    <marker id="arrow-priority" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6D28D9" />
+    </marker>
+    <marker id="arrow-neutral" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
+    </marker>
+  </defs>
+  <rect width="1440" height="1340" fill="#FFFFFF" />
+  <g id="cell-title">
+    <text x="40.0" y="53.0" font-family="Arial, Helvetica, sans-serif" font-size="30.0" font-weight="700" fill="#172B4D" text-anchor="start">Azure OpenAI v1 Routing</text>
+  </g>
+  <g id="cell-summary">
+    <text x="40.0" y="89.5" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#334155" text-anchor="start">Default: 4 APIs | 2 models | 4 pools | 6 backends | 3 Microsoft Foundry resources | 6 deployments</text>
+  </g>
+  <g id="cell-path">
+    <text x="40.0" y="127.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">Each subscription-protected v1 API: POST /chat/completions and POST /responses</text>
+  </g>
+  <g id="cell-route-body">
+    <rect x="40.0" y="150.0" width="310.0" height="140.0" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+    <text x="60.0" y="202.9" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">body route</text>
+    <text x="60.0" y="226.3" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">JSON body model</text>
+    <text x="60.0" y="249.7" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">Family: standard</text>
+  </g>
+  <g id="cell-route-header">
+    <rect x="390.0" y="150.0" width="310.0" height="140.0" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+    <text x="410.0" y="179.5" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">header route</text>
+    <text x="410.0" y="202.9" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">First nonempty x-ai-model</text>
+    <text x="410.0" y="226.3" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">Else body model</text>
+    <text x="410.0" y="249.7" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">Header present: body unread</text>
+    <text x="410.0" y="273.1" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">Family: standard</text>
+  </g>
+  <g id="cell-route-subscription">
+    <rect x="740.0" y="150.0" width="310.0" height="140.0" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+    <text x="760.0" y="191.2" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">subscription route</text>
+    <text x="760.0" y="214.6" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">JSON body model</text>
+    <text x="760.0" y="238.0" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">Validated subscription ID</text>
+    <text x="760.0" y="261.4" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">Family: standard / priority</text>
+  </g>
+  <g id="cell-route-recommended">
+    <rect x="1090.0" y="150.0" width="310.0" height="140.0" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+    <text x="1110.0" y="179.5" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">recommended route</text>
+    <text x="1110.0" y="202.9" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">First nonempty x-ai-model</text>
+    <text x="1110.0" y="226.3" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">Else body model</text>
+    <text x="1110.0" y="249.7" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">Header present: body unread</text>
+    <text x="1110.0" y="273.1" font-family="Arial, Helvetica, sans-serif" font-size="18.0" font-weight="400" fill="#172B4D" text-anchor="start">Validated ID selects family</text>
+  </g>
+  <g id="cell-route-body-pool">
+    <path d="M 195 290 L 450 330" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow-neutral)" />
+  </g>
+  <g id="cell-route-header-pool">
+    <path d="M 545 290 L 600 330" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow-neutral)" />
+  </g>
+  <g id="cell-route-subscription-pool">
+    <path d="M 895 290 L 840 330" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow-neutral)" />
+  </g>
+  <g id="cell-route-recommended-pool">
+    <path d="M 1245 290 L 1000 330" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow-neutral)" />
+  </g>
+  <g id="cell-convention">
+    <rect x="250.0" y="330.0" width="940.0" height="80.0" rx="10" fill="#F1F5F9" stroke="#475569" stroke-width="2" />
+    <text x="720.0" y="363.4" font-family="Arial, Helvetica, sans-serif" font-size="22.0" font-weight="400" fill="#172B4D" text-anchor="middle">Resolve ONE pool: &lt;sample-name&gt;-&lt;model&gt;-&lt;family&gt;-pool</text>
+    <text x="720.0" y="392.0" font-family="Arial, Helvetica, sans-serif" font-size="22.0" font-weight="400" fill="#172B4D" text-anchor="middle">Convention-based routing; no model lookup table and no body rewriting</text>
+  </g>
+  <g id="cell-topology-heading">
+    <text x="40.0" y="447.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#334155" text-anchor="start">Selected model topology below. Names omit &lt;sample-name&gt;-. P = priority, W = weight.</text>
+  </g>
+  <g id="cell-mini-lane">
+    <rect x="40.0" y="470.0" width="1360.0" height="350.0" rx="10" fill="#F8FAFC" stroke="#94A3B8" stroke-width="1" />
+  </g>
+  <g id="cell-mini-heading">
+    <text x="60.0" y="504.85" font-family="Arial, Helvetica, sans-serif" font-size="21.0" font-weight="700" fill="#172B4D" text-anchor="start">MODEL: gpt-5-mini       APIM backend pools</text>
+  </g>
+  <g id="cell-mini-backend-heading">
+    <text x="800.0" y="504.85" font-family="Arial, Helvetica, sans-serif" font-size="21.0" font-weight="700" fill="#172B4D" text-anchor="middle">Shared concrete backends</text>
+  </g>
+  <g id="cell-mini-account-heading">
+    <text x="1230.0" y="504.85" font-family="Arial, Helvetica, sans-serif" font-size="21.0" font-weight="700" fill="#172B4D" text-anchor="middle">Foundry model deployments</text>
+  </g>
+  <g id="cell-mini-standard">
+    <rect x="60.0" y="530.0" width="390.0" height="120.0" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+    <text x="80.0" y="558.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">gpt-5-mini-standard-pool</text>
+    <text x="80.0" y="584.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">global-standard: P1 / W3</text>
+    <text x="80.0" y="610.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">ptu: P2 / W1</text>
+    <text x="80.0" y="636.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">consumption: P1 / W1</text>
+  </g>
+  <g id="cell-mini-priority">
+    <rect x="60.0" y="680.0" width="390.0" height="120.0" rx="10" fill="#F5F3FF" stroke="#6D28D9" stroke-width="2" stroke-dasharray="8 6" />
+    <text x="80.0" y="708.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">gpt-5-mini-priority-pool</text>
+    <text x="80.0" y="734.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">global-standard: P2 / W1</text>
+    <text x="80.0" y="760.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">ptu: P1 / W3</text>
+    <text x="80.0" y="786.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">consumption: P1 / W1</text>
+  </g>
+  <g id="cell-mini-standard-global">
+    <path d="M 450 570 L 650 550" fill="none" stroke="#1D4ED8" stroke-width="2" marker-end="url(#arrow-standard)" />
+  </g>
+  <g id="cell-mini-standard-ptu">
+    <path d="M 450 590 L 650 650" fill="none" stroke="#1D4ED8" stroke-width="2" marker-end="url(#arrow-standard)" />
+  </g>
+  <g id="cell-mini-standard-consumption">
+    <path d="M 450 610 L 650 750" fill="none" stroke="#1D4ED8" stroke-width="2" marker-end="url(#arrow-standard)" />
+  </g>
+  <g id="cell-mini-priority-global">
+    <path d="M 450 720 L 650 570" fill="none" stroke="#6D28D9" stroke-width="2" marker-end="url(#arrow-priority)" stroke-dasharray="8 6" />
+  </g>
+  <g id="cell-mini-priority-ptu">
+    <path d="M 450 740 L 650 670" fill="none" stroke="#6D28D9" stroke-width="2" marker-end="url(#arrow-priority)" stroke-dasharray="8 6" />
+  </g>
+  <g id="cell-mini-priority-consumption">
+    <path d="M 450 760 L 650 770" fill="none" stroke="#6D28D9" stroke-width="2" marker-end="url(#arrow-priority)" stroke-dasharray="8 6" />
+  </g>
+  <g id="cell-mini-global-backend">
+    <rect x="650.0" y="525.0" width="300.0" height="70.0" rx="10" fill="#FFFFFF" stroke="#475569" stroke-width="2" />
+    <text x="800.0" y="554.9" font-family="Arial, Helvetica, sans-serif" font-size="17.0" font-weight="400" fill="#172B4D" text-anchor="middle">gpt-5-mini-global-standard</text>
+    <text x="800.0" y="577.0" font-family="Arial, Helvetica, sans-serif" font-size="17.0" font-weight="400" fill="#172B4D" text-anchor="middle">Circuit breaker shared by both pools</text>
+  </g>
+  <g id="cell-mini-ptu-backend">
+    <rect x="650.0" y="625.0" width="300.0" height="70.0" rx="10" fill="#FFFFFF" stroke="#475569" stroke-width="2" />
+    <text x="800.0" y="654.9" font-family="Arial, Helvetica, sans-serif" font-size="17.0" font-weight="400" fill="#172B4D" text-anchor="middle">gpt-5-mini-ptu</text>
+    <text x="800.0" y="677.0" font-family="Arial, Helvetica, sans-serif" font-size="17.0" font-weight="400" fill="#172B4D" text-anchor="middle">Circuit breaker shared by both pools</text>
+  </g>
+  <g id="cell-mini-consumption-backend">
+    <rect x="650.0" y="725.0" width="300.0" height="70.0" rx="10" fill="#FFFFFF" stroke="#475569" stroke-width="2" />
+    <text x="800.0" y="754.9" font-family="Arial, Helvetica, sans-serif" font-size="17.0" font-weight="400" fill="#172B4D" text-anchor="middle">gpt-5-mini-consumption</text>
+    <text x="800.0" y="777.0" font-family="Arial, Helvetica, sans-serif" font-size="17.0" font-weight="400" fill="#172B4D" text-anchor="middle">Circuit breaker shared by both pools</text>
+  </g>
+  <g id="cell-mini-global-account">
+    <rect x="1080.0" y="525.0" width="300.0" height="70.0" rx="10" fill="#ECFDF5" stroke="#047857" stroke-width="2" />
+    <text x="1230.0" y="554.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="middle">Account: global-standard</text>
+    <text x="1230.0" y="580.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="middle">Deployment: gpt-5-mini</text>
+  </g>
+  <g id="cell-mini-ptu-account">
+    <rect x="1080.0" y="625.0" width="300.0" height="70.0" rx="10" fill="#ECFDF5" stroke="#047857" stroke-width="2" />
+    <text x="1230.0" y="654.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="middle">Account: ptu</text>
+    <text x="1230.0" y="680.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="middle">Deployment: gpt-5-mini</text>
+  </g>
+  <g id="cell-mini-consumption-account">
+    <rect x="1080.0" y="725.0" width="300.0" height="70.0" rx="10" fill="#ECFDF5" stroke="#047857" stroke-width="2" />
+    <text x="1230.0" y="754.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="middle">Account: consumption</text>
+    <text x="1230.0" y="780.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="middle">Deployment: gpt-5-mini</text>
+  </g>
+  <g id="cell-mini-global-forward">
+    <path d="M 950 560 L 1080 560" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow-neutral)" />
+  </g>
+  <g id="cell-mini-ptu-forward">
+    <path d="M 950 660 L 1080 660" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow-neutral)" />
+  </g>
+  <g id="cell-mini-consumption-forward">
+    <path d="M 950 760 L 1080 760" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow-neutral)" />
+  </g>
+  <g id="cell-nano-lane">
+    <rect x="40.0" y="840.0" width="1360.0" height="350.0" rx="10" fill="#F8FAFC" stroke="#94A3B8" stroke-width="1" />
+  </g>
+  <g id="cell-nano-heading">
+    <text x="60.0" y="874.85" font-family="Arial, Helvetica, sans-serif" font-size="21.0" font-weight="700" fill="#172B4D" text-anchor="start">MODEL: gpt-5-nano       APIM backend pools</text>
+  </g>
+  <g id="cell-nano-backend-heading">
+    <text x="800.0" y="874.85" font-family="Arial, Helvetica, sans-serif" font-size="21.0" font-weight="700" fill="#172B4D" text-anchor="middle">Shared concrete backends</text>
+  </g>
+  <g id="cell-nano-account-heading">
+    <text x="1230.0" y="874.5" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="700" fill="#172B4D" text-anchor="middle">Same three accounts as above</text>
+  </g>
+  <g id="cell-nano-standard">
+    <rect x="60.0" y="900.0" width="390.0" height="120.0" rx="10" fill="#EFF6FF" stroke="#1D4ED8" stroke-width="2" />
+    <text x="80.0" y="928.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">gpt-5-nano-standard-pool</text>
+    <text x="80.0" y="954.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">global-standard: P1 / W3</text>
+    <text x="80.0" y="980.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">ptu: P2 / W1</text>
+    <text x="80.0" y="1006.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">consumption: P1 / W1</text>
+  </g>
+  <g id="cell-nano-priority">
+    <rect x="60.0" y="1050.0" width="390.0" height="120.0" rx="10" fill="#F5F3FF" stroke="#6D28D9" stroke-width="2" stroke-dasharray="8 6" />
+    <text x="80.0" y="1078.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">gpt-5-nano-priority-pool</text>
+    <text x="80.0" y="1104.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">global-standard: P2 / W1</text>
+    <text x="80.0" y="1130.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">ptu: P1 / W3</text>
+    <text x="80.0" y="1156.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">consumption: P1 / W1</text>
+  </g>
+  <g id="cell-nano-standard-global">
+    <path d="M 450 940 L 650 920" fill="none" stroke="#1D4ED8" stroke-width="2" marker-end="url(#arrow-standard)" />
+  </g>
+  <g id="cell-nano-standard-ptu">
+    <path d="M 450 960 L 650 1020" fill="none" stroke="#1D4ED8" stroke-width="2" marker-end="url(#arrow-standard)" />
+  </g>
+  <g id="cell-nano-standard-consumption">
+    <path d="M 450 980 L 650 1120" fill="none" stroke="#1D4ED8" stroke-width="2" marker-end="url(#arrow-standard)" />
+  </g>
+  <g id="cell-nano-priority-global">
+    <path d="M 450 1090 L 650 940" fill="none" stroke="#6D28D9" stroke-width="2" marker-end="url(#arrow-priority)" stroke-dasharray="8 6" />
+  </g>
+  <g id="cell-nano-priority-ptu">
+    <path d="M 450 1110 L 650 1040" fill="none" stroke="#6D28D9" stroke-width="2" marker-end="url(#arrow-priority)" stroke-dasharray="8 6" />
+  </g>
+  <g id="cell-nano-priority-consumption">
+    <path d="M 450 1130 L 650 1140" fill="none" stroke="#6D28D9" stroke-width="2" marker-end="url(#arrow-priority)" stroke-dasharray="8 6" />
+  </g>
+  <g id="cell-nano-global-backend">
+    <rect x="650.0" y="895.0" width="300.0" height="70.0" rx="10" fill="#FFFFFF" stroke="#475569" stroke-width="2" />
+    <text x="800.0" y="924.9" font-family="Arial, Helvetica, sans-serif" font-size="17.0" font-weight="400" fill="#172B4D" text-anchor="middle">gpt-5-nano-global-standard</text>
+    <text x="800.0" y="947.0" font-family="Arial, Helvetica, sans-serif" font-size="17.0" font-weight="400" fill="#172B4D" text-anchor="middle">Circuit breaker shared by both pools</text>
+  </g>
+  <g id="cell-nano-ptu-backend">
+    <rect x="650.0" y="995.0" width="300.0" height="70.0" rx="10" fill="#FFFFFF" stroke="#475569" stroke-width="2" />
+    <text x="800.0" y="1024.9" font-family="Arial, Helvetica, sans-serif" font-size="17.0" font-weight="400" fill="#172B4D" text-anchor="middle">gpt-5-nano-ptu</text>
+    <text x="800.0" y="1047.0" font-family="Arial, Helvetica, sans-serif" font-size="17.0" font-weight="400" fill="#172B4D" text-anchor="middle">Circuit breaker shared by both pools</text>
+  </g>
+  <g id="cell-nano-consumption-backend">
+    <rect x="650.0" y="1095.0" width="300.0" height="70.0" rx="10" fill="#FFFFFF" stroke="#475569" stroke-width="2" />
+    <text x="800.0" y="1124.9" font-family="Arial, Helvetica, sans-serif" font-size="17.0" font-weight="400" fill="#172B4D" text-anchor="middle">gpt-5-nano-consumption</text>
+    <text x="800.0" y="1147.0" font-family="Arial, Helvetica, sans-serif" font-size="17.0" font-weight="400" fill="#172B4D" text-anchor="middle">Circuit breaker shared by both pools</text>
+  </g>
+  <g id="cell-nano-global-account">
+    <rect x="1080.0" y="895.0" width="300.0" height="70.0" rx="10" fill="#ECFDF5" stroke="#047857" stroke-width="2" />
+    <text x="1230.0" y="924.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="middle">Account: global-standard</text>
+    <text x="1230.0" y="950.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="middle">Deployment: gpt-5-nano</text>
+  </g>
+  <g id="cell-nano-ptu-account">
+    <rect x="1080.0" y="995.0" width="300.0" height="70.0" rx="10" fill="#ECFDF5" stroke="#047857" stroke-width="2" />
+    <text x="1230.0" y="1024.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="middle">Account: ptu</text>
+    <text x="1230.0" y="1050.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="middle">Deployment: gpt-5-nano</text>
+  </g>
+  <g id="cell-nano-consumption-account">
+    <rect x="1080.0" y="1095.0" width="300.0" height="70.0" rx="10" fill="#ECFDF5" stroke="#047857" stroke-width="2" />
+    <text x="1230.0" y="1124.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="middle">Account: consumption</text>
+    <text x="1230.0" y="1150.0" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="middle">Deployment: gpt-5-nano</text>
+  </g>
+  <g id="cell-nano-global-forward">
+    <path d="M 950 930 L 1080 930" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow-neutral)" />
+  </g>
+  <g id="cell-nano-ptu-forward">
+    <path d="M 950 1030 L 1080 1030" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow-neutral)" />
+  </g>
+  <g id="cell-nano-consumption-forward">
+    <path d="M 950 1130 L 1080 1130" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow-neutral)" />
+  </g>
+  <g id="cell-legend">
+    <text x="40.0" y="1229.5" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">Solid blue = standard pool membership. Dashed purple = priority pool membership. Choose one backend per request.</text>
+  </g>
+  <g id="cell-forwarding-note">
+    <text x="40.0" y="1269.5" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">Managed identity -&gt; matched v1 operation. One attempt; no retries. Breakers affect subsequent selections.</text>
+  </g>
+  <g id="cell-payg-note">
+    <text x="40.0" y="1309.5" font-family="Arial, Helvetica, sans-serif" font-size="20.0" font-weight="400" fill="#172B4D" text-anchor="start">Foundry hosts all PAYG deployments. global-standard / ptu / consumption are simulated labels, not service tiers.</text>
+  </g>
+</svg>

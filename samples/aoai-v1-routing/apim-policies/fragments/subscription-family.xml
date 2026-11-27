@@ -1,0 +1,27 @@
+<fragment>
+    <!--
+        Purpose: Authorize the validated APIM subscription and select its pool family in inbound.
+        Inputs:
+          - context.Subscription: APIM-validated subscription, or null.
+          - standardSubscriptionId and prioritySubscriptionId (string): allowed
+            subscription IDs supplied by the endpoint policy.
+          - family (string), initialized to standard; errorCode (string) and errorStatus (int).
+        Outputs:
+          - Priority subscription sets family to priority; standard leaves family unchanged.
+          - Missing or unrecognized subscription sets errorCode to SubscriptionNotAllowed
+            and errorStatus to 403; allowed subscriptions leave existing errors unchanged.
+          - No immediate response; processing continues for route-request to handle errors.
+    -->
+    <!-- IDs are supplied by the endpoint policy, never by caller headers or display names. -->
+    <choose>
+        <when condition='@(context.Subscription != null &&
+            context.Subscription.Id == (string)context.Variables["prioritySubscriptionId"])'>
+            <set-variable name="family" value="priority" />
+        </when>
+        <when condition='@(context.Subscription == null ||
+            context.Subscription.Id != (string)context.Variables["standardSubscriptionId"])'>
+            <set-variable name="errorCode" value="SubscriptionNotAllowed" />
+            <set-variable name="errorStatus" value="@(403)" />
+        </when>
+    </choose>
+</fragment>

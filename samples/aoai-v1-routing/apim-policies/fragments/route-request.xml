@@ -1,0 +1,86 @@
+<fragment>
+    <!--
+        Purpose: Validate the selected route, resolve its backend pool, and authenticate in inbound.
+        Inputs:
+          - model and family (string): selected by the endpoint policy and selector fragments.
+          - errorCode (string), errorStatus (int, initially 404), and scenario (string).
+          - Backend pools use the fixed aoai-v1-routing-1 prefix; matching backend pool and
+            APIM managed identity access to Cognitive Services must already exist.
+          - context.Operation.UrlTemplate: matched /chat/completions or /responses operation.
+          - context.RequestId for correlation; request URL and headers to rewrite.
+        Outputs:
+          - Invalid model syntax sets errorCode to ModelNotAvailable if no earlier error exists.
+          - Local failures emit a trace and return safe JSON with errorStatus, or 404 for
+            an invalid pool identifier; responses include x-routing-request-id.
+          - Valid syntax sets backendPool (string) and routePhase (string): resolve during
+            backend selection, then resolved on success. Resolver failures flow to on-error.
+          - Successful resolution selects the backend, rewrites the URI to the matched
+            operation without query parameters, deletes api-key, Ocp-Apim-Subscription-Key and
+            x-ai-model headers, and sets managed-identity authentication before continuing.
+    -->
+    <!-- Syntax validation only: unknown aliases use the same convention-only resolver. -->
+    <choose>
+        <when condition='@(String.IsNullOrEmpty((string)context.Variables["errorCode"]) &&
+            !System.Text.RegularExpressions.Regex.IsMatch((string)context.Variables["model"], "^[a-z0-9][a-z0-9.-]{0,47}$"))'>
+            <set-variable name="errorCode" value="ModelNotAvailable" />
+        </when>
+    </choose>
+    <choose>
+        <when condition='@(!String.IsNullOrEmpty((string)context.Variables["errorCode"]))'>
+            <!-- return-response skips outbound/on-error: trace before every local return. -->
+            <trace source="aoai-v1-routing" severity="error">
+                <message>routing-error</message>
+                <metadata name="requestId" value="@(context.RequestId.ToString())" />
+                <metadata name="scenario" value='@((string)context.Variables["scenario"])' />
+                <metadata name="errorKind" value='@((string)context.Variables["errorCode"])' />
+                <metadata name="status" value='@(((int)context.Variables["errorStatus"]).ToString())' />
+            </trace>
+            <return-response>
+                <set-status code='@((int)context.Variables["errorStatus"])' reason="Request rejected" />
+                <set-header name="Content-Type" exists-action="override"><value>application/json</value></set-header>
+                <set-header name="x-routing-request-id" exists-action="override"><value>@(context.RequestId.ToString())</value></set-header>
+                <set-body>@{
+                    var code = (string)context.Variables["errorCode"];
+                    var message = code == "ModelNotAvailable" ? "The specified model is not available for use" :
+                        code == "SubscriptionNotAllowed" ? "The subscription is not permitted for this scenario." :
+                        "The request payload is invalid.";
+
+                    return new JObject(new JProperty("error", new JObject(new JProperty("code", code), new JProperty("message", message)))).ToString();
+                }</set-body>
+            </return-response>
+        </when>
+    </choose>
+
+    <!--
+        Pool name: aoai-v1-routing-1-{model}-{family}-pool.
+        model is the deployment selector; family is standard or priority.
+        Example: aoai-v1-routing-1-gpt-5-mini-standard-pool.
+        Validate the complete identifier before entering the narrowly attributed resolver phase.
+    -->
+    <set-variable name="backendPool" value='@($"aoai-v1-routing-1-{(string)context.Variables["model"]}-{(string)context.Variables["family"]}-pool")' />
+    <choose>
+        <when condition='@(!System.Text.RegularExpressions.Regex.IsMatch((string)context.Variables["backendPool"], "^[a-z0-9][a-z0-9.-]{0,79}$"))'>
+            <trace source="aoai-v1-routing" severity="error">
+                <message>routing-error</message>
+                <metadata name="requestId" value="@(context.RequestId.ToString())" />
+                <metadata name="scenario" value='@((string)context.Variables["scenario"])' />
+                <metadata name="errorKind" value="model_not_available" />
+                <metadata name="status" value="404" />
+            </trace>
+            <return-response>
+                <set-status code="404" reason="Route unavailable" />
+                <set-header name="Content-Type" exists-action="override"><value>application/json</value></set-header>
+                <set-header name="x-routing-request-id" exists-action="override"><value>@(context.RequestId.ToString())</value></set-header>
+                <set-body>{"error":{"code":"model_not_available","message":"The specified model is not available for use"}}</set-body>
+            </return-response>
+        </when>
+    </choose>
+    <set-variable name="routePhase" value="resolve" />
+    <set-backend-service id="resolve-model-pool" backend-id='@((string)context.Variables["backendPool"])' />
+    <set-variable name="routePhase" value="resolved" />
+    <rewrite-uri template="@(context.Operation.UrlTemplate)" copy-unmatched-params="false" />
+    <set-header name="api-key" exists-action="delete" />
+    <set-header name="Ocp-Apim-Subscription-Key" exists-action="delete" />
+    <set-header name="x-ai-model" exists-action="delete" />
+    <authentication-managed-identity resource="https://cognitiveservices.azure.com" />
+</fragment>

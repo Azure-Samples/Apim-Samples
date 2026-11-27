@@ -1,8 +1,10 @@
 # Samples: Azure OpenAI v1 Migration
 
-Create PAYG Azure OpenAI resources, establish a dated legacy API and smoke-test it, then add a simple v1 API and parallel advanced legacy/v1 APIs using the Inference Failover retry/error logic. Verify the original legacy request unchanged and exercise both advanced contracts. No pre-existing Azure OpenAI resource, provisioned throughput (PTU), approved inventory or manually supplied keys is required.
+Create PAYG Azure OpenAI resources, establish a dated legacy API and smoke-test it, then add a simple v1 API and parallel advanced legacy/v1 APIs using the Inference Failover retry/error logic. Verify the original legacy request unchanged and exercise both advanced contracts. No pre-existing Azure OpenAI resource, provisioned throughput (PTU), approved inventory or manually supplied keys is required. The AI Scenarios category describes sample content, not an APIM SKU; this sample does not require the AI Gateway SKU.
 
 ⚙️ **Supported infrastructures**: All infrastructures.
+
+**Category**: AI Scenarios
 
 👟 **Expected *Run All* runtime (excl. infrastructure prerequisite): ~10-20 minutes**, depending on Azure provisioning and RBAC propagation.
 

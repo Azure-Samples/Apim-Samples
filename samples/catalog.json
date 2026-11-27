@@ -45,10 +45,24 @@
       "afd-apim-pe",
       "appgw-apim",
       "appgw-apim-pe"
-    ]
+    ],
+    "tags": ["ai-scenarios"]
   },
   {
-    "description": "Track and allocate API costs per business unit using APIM subscriptions, Entra ID application tracking, and AI Gateway token/PTU tracking across both Azure OpenAI Chat Completions and Responses APIs, including streaming (SSE) token usage which is not simple to capture correctly in APIM.",
+    "description": "Compare v1 Chat Completions and Responses across focused body, header, and subscription policies, plus a recommended header-first, subscription-aware route through Microsoft Foundry-backed pools. All capacity labels are simulated on PAYG deployments.",
+    "display_name": "Azure OpenAI v1 Routing",
+    "folder": "aoai-v1-routing",
+    "supported_infrastructures": [
+      "simple-apim",
+      "apim-aca",
+      "afd-apim-pe",
+      "appgw-apim",
+      "appgw-apim-pe"
+    ],
+    "tags": ["ai-scenarios"]
+  },
+  {
+    "description": "Track and allocate API costs per business unit using APIM subscriptions, Entra ID application tracking, and AI model token/PTU tracking across both Azure OpenAI Chat Completions and Responses APIs, including streaming (SSE) token usage which is not simple to capture correctly in APIM.",
     "display_name": "Costing",
     "folder": "costing",
     "supported_infrastructures": [
@@ -57,7 +71,8 @@
       "afd-apim-pe",
       "appgw-apim",
       "appgw-apim-pe"
-    ]
+    ],
+    "tags": ["ai-scenarios"]
   },
   {
     "description": "Dynamic per-API CORS origin validation using custom policy fragments and a maintainable origin mapping.",
@@ -102,7 +117,8 @@
       "afd-apim-pe",
       "appgw-apim",
       "appgw-apim-pe"
-    ]
+    ],
+    "tags": ["ai-scenarios"]
   },
   {
     "description": "Priority and weighted load balancing, circuit breaking, and recovery using throttled endpoints on infrastructure-owned MockAPI backends. No additional container is deployed.",

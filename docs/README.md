@@ -44,6 +44,8 @@ The page intentionally duplicates a small amount of content from the root `READM
 
 Sample identity and compatibility are defined in [samples/catalog.json](../samples/catalog.json). Follow the [catalog maintenance steps](../CONTRIBUTING.md#sample-catalog) and run `python setup/sample_catalog.py` after editing. The existing Python tests check card names, URLs, order, infrastructure tags, and JSON-LD names/URLs/positions against that catalog. Card prose stays hand-authored and the website remains static.
 
+The Samples section has a keyboard-accessible radio filter for **All samples** and **AI Scenarios**. CSS hides non-AI cards when AI Scenarios is selected, including their links from keyboard navigation. The catalog's `ai-scenarios` tag corresponds to the `sample-ai` card class and visible `AI Scenarios` badge. Keep all three synchronized; do not add executable JavaScript for filtering. This classifies scenario content, not SKU compatibility; these samples do not require the AI Gateway SKU.
+
 Agents and contributors should treat the following as the sync checklist:
 
 - **New infrastructure added** → add an `.infra-card` in the _Infrastructures_ section of `index.html`, add a `ListItem` to the JSON-LD `ItemList` in the `<head>`, add its SVG to the copy step in `github-pages.yml`, and update the count in the value-prop card if it still says "Five".
