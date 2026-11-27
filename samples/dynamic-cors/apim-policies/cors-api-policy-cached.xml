@@ -1,0 +1,22 @@
+<!--
+    API-level policy for cache-backed Dynamic CORS (single mapping).
+    cache-lookup-value is not supported inside policy fragments, so load the
+    mapping here before the fragment validates it and handles CORS.
+-->
+<policies>
+    <inbound>
+        <base />
+        <cache-lookup-value key="corsOriginMapping" variable-name="corsMappingJson" />
+        <include-fragment fragment-id="DynamicCorsCached" />
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+        <include-fragment fragment-id="DynamicCorsOutbound" />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
